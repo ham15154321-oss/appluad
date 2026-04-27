@@ -825,7 +825,7 @@ function collectHistory(){
 async function sendMsg(){
   var inp=document.getElementById('chatInput'),text=inp.value.trim();
   if(!text||!curFeature)return;
-  if(!getApiKey()){openApiModal();return;}
+  // proxy 模式下不再需要前端 key 檢查（key 在 Cloudflare Worker 後端）
   inp.value='';inp.style.height='auto';
   addMsg('user',text);
   document.getElementById('suggestBar').innerHTML='';
@@ -1261,7 +1261,7 @@ function extractTextFromBinary(uint8){
 
 // ── AI 自動分析（上傳後立即做 10 點重點） ──
 async function autoAnalyzeFile(fileName,text){
-  if(!getApiKey()){addMsg('ai','⚠️ 尚未設定 API Key，請先設定後再操作');return;}
+  // proxy 模式下不再需要前端 key 檢查（key 在 Cloudflare Worker 後端）
   var feature=curFeature||'cases';
   var f=FEATURES[feature];
   var prompt='以下是從檔案「'+fileName+'」提取的內容。請做以下分析：\n\n'
