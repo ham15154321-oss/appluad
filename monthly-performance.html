@@ -1,0 +1,1807 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>月度績效系統 - 遊戲化實踐版</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1040 50%, #0d1b3e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .back-btn {
+            background: rgba(15, 20, 60, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(100, 180, 255, 0.15);
+            color: #ffd700;
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .back-btn:hover {
+            background: rgba(30, 40, 100, 0.9);
+            border-color: rgba(100, 180, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ffd700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+            flex: 1;
+        }
+
+        .import-btn {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #0a0e27;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .import-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3);
+        }
+
+        .import-btn:active {
+            transform: translateY(0);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* Month Navigation */
+        .month-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            background: rgba(15, 20, 60, 0.5);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(100, 180, 255, 0.1);
+        }
+
+        .month-btn {
+            padding: 10px 16px;
+            border: 1px solid rgba(100, 180, 255, 0.15);
+            background: rgba(15, 20, 60, 0.85);
+            color: #b0b0b0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .month-btn:hover {
+            border-color: rgba(100, 180, 255, 0.3);
+            background: rgba(30, 40, 100, 0.9);
+            color: #ffd700;
+        }
+
+        .month-btn.active {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #0a0e27;
+            border-color: #ffd700;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+        }
+
+        /* Data Tabs */
+        .data-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .data-tab {
+            padding: 10px 16px;
+            border: 1px solid rgba(100, 180, 255, 0.15);
+            background: rgba(15, 20, 60, 0.85);
+            color: #b0b0b0;
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .data-tab:hover {
+            border-color: rgba(100, 180, 255, 0.3);
+            background: rgba(30, 40, 100, 0.9);
+        }
+
+        .data-tab.active {
+            background: rgba(100, 150, 255, 0.2);
+            color: #ffd700;
+            border-color: rgba(100, 180, 255, 0.5);
+        }
+
+        /* Analysis View Tabs */
+        .analysis-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .analysis-tab {
+            padding: 8px 14px;
+            border: 1px solid rgba(100, 180, 255, 0.15);
+            background: rgba(15, 20, 60, 0.85);
+            color: #b0b0b0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .analysis-tab:hover {
+            border-color: rgba(100, 180, 255, 0.3);
+            background: rgba(30, 40, 100, 0.9);
+        }
+
+        .analysis-tab.active {
+            background: rgba(100, 150, 255, 0.2);
+            color: #ffd700;
+            border-color: rgba(100, 180, 255, 0.5);
+        }
+
+        /* Content Card */
+        .content-card {
+            background: rgba(15, 20, 60, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(100, 180, 255, 0.15);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        /* Table Styles */
+        .table-wrapper {
+            overflow-x: auto;
+            background: rgba(10, 15, 50, 0.5);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(100, 180, 255, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background: rgba(50, 80, 150, 0.4);
+            color: #ffd700;
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(100, 180, 255, 0.2);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            min-width: 80px;
+            position: relative;
+        }
+
+        th:hover {
+            background: rgba(70, 100, 180, 0.5);
+        }
+
+        th .sort-indicator {
+            margin-left: 6px;
+            font-size: 11px;
+            display: inline-block;
+            width: 16px;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(100, 180, 255, 0.1);
+            text-align: left;
+        }
+
+        tr:nth-child(even) {
+            background: rgba(25, 35, 90, 0.3);
+        }
+
+        tr:hover {
+            background: rgba(50, 80, 150, 0.3);
+        }
+
+        td.total-row {
+            font-weight: 600;
+            background: rgba(100, 150, 255, 0.1);
+            color: #ffd700;
+        }
+
+        td.rank-1 { background: rgba(255, 215, 0, 0.1); }
+        td.rank-2 { background: rgba(200, 200, 200, 0.08); }
+        td.rank-3 { background: rgba(205, 127, 50, 0.08); }
+
+        .highlight-high {
+            color: #00ff88;
+            font-weight: 600;
+        }
+
+        .highlight-low {
+            color: #ff4466;
+            font-weight: 600;
+        }
+
+        /* Analysis Content */
+        .analysis-view {
+            display: none;
+        }
+
+        .analysis-view.active {
+            display: block;
+        }
+
+        .analysis-text {
+            line-height: 1.8;
+            color: #d0d0d0;
+            margin-bottom: 15px;
+        }
+
+        .analysis-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(50, 80, 150, 0.2);
+            border-left: 3px solid #ffd700;
+            border-radius: 6px;
+        }
+
+        .analysis-label {
+            color: #ffd700;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .analysis-value {
+            color: #d0d0d0;
+            font-size: 13px;
+        }
+
+        /* Distribution Chart */
+        .distribution-chart {
+            display: flex;
+            gap: 2px;
+            align-items: flex-end;
+            height: 100px;
+            margin-bottom: 20px;
+        }
+
+        .distribution-bar {
+            flex: 1;
+            background: linear-gradient(180deg, #ffd700 0%, #ffed4e 100%);
+            border-radius: 4px 4px 0 0;
+            min-height: 5px;
+            position: relative;
+            cursor: help;
+        }
+
+        .distribution-bar:hover {
+            opacity: 0.8;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #808080;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            color: #a0a0a0;
+        }
+
+        /* Loading State */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(100, 180, 255, 0.2);
+            border-top-color: #ffd700;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .title {
+                font-size: 20px;
+            }
+
+            .content-card {
+                padding: 20px;
+            }
+
+            .data-tabs {
+                flex-wrap: wrap;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 8px 6px;
+                min-width: 60px;
+            }
+
+            .header {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+        }
+
+        /* Scrollbar Styling */
+        .table-wrapper::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track {
+            background: rgba(25, 35, 90, 0.3);
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background: rgba(100, 180, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 180, 255, 0.5);
+        }
+
+        /* Status Messages */
+        .status-message {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-success {
+            background: rgba(0, 255, 136, 0.15);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .status-error {
+            background: rgba(255, 68, 102, 0.15);
+            color: #ff4466;
+            border: 1px solid rgba(255, 68, 102, 0.3);
+        }
+
+        .status-info {
+            background: rgba(100, 150, 255, 0.15);
+            color: #64b0ff;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+        }
+    </style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <button class="back-btn" onclick="window.parent.postMessage({type:'closeIframe'},'*')">←</button>
+            <h1 class="title">📅 每月績效</h1>
+            <button class="import-btn" onclick="document.getElementById('fileInput').click()">
+                📥 匯入 Excel
+            </button>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileImport(event)">
+        </div>
+
+        <!-- Status Message -->
+        <div id="statusMessage"></div>
+
+        <!-- Month Navigation -->
+        <div class="month-nav" id="monthNav"></div>
+
+        <!-- Data Tabs -->
+        <div class="data-tabs" id="dataTabs"></div>
+
+        <!-- Analysis Tabs -->
+        <div class="analysis-tabs" id="analysisTabs"></div>
+
+        <!-- Content Card -->
+        <div class="content-card" id="contentCard"></div>
+    </div>
+
+    <script>
+        // ==========================================
+        // Constants & Utilities
+        // ==========================================
+        const SHEET_NAMES = [
+            { id: 1, name: '通路名單來源分析', emoji: '❶', matchKeys: ['❶','通路名單來源分析'] },
+            { id: 2, name: '通路業績', emoji: '❷', matchKeys: ['❷','通路業績'] },
+            { id: 3, name: '業務個人績效', emoji: '❸', matchKeys: ['❸','業務個人績效'] },
+            { id: 4, name: '正式小組業績總表', emoji: '❹', matchKeys: ['❹','正式小組業績總表','小組業績'] },
+            { id: 5, name: '學院績效總表', emoji: '❺', matchKeys: ['❺','學院績效總表','學院績效'] },
+            { id: 6, name: '繳費項目分析', emoji: '❻', matchKeys: ['❻','繳費項目分析','繳費項目'] },
+            { id: 7, name: '收支分析', emoji: '❼', matchKeys: ['❼','收支分析'] },
+            { id: 8, name: '課程銷售分析', emoji: '❽', matchKeys: ['❽','課程銷售分析','課程銷售'] }
+        ];
+
+        // All academy names for filtering
+        const ALL_ACADEMIES = ['站前學院','站二學院','館前學院','板橋學院','站前二部','東區二部',
+            '中壢學院','中壢二部','中壢三部','台中學院','台中二部','台中三部','高雄建國',
+            'OBO個別指導','DATE線上(日琪)','東區學院'];
+
+        const CURRENCY_COLUMNS = [
+            '業績Ⓐ', '業績Ⓑ', '個人目標', '合計業績', '退費金額',
+            '總業績', '總計', '註冊', '報名', '教材',
+            '現金', '匯款', '業績', '業績2', '業績4', '業績6', '業績8',
+            '其它通路', '展場活動', '基本通路', '電話接聽', '網際網路',
+            '其他(支出)', '其他(繳回)', '活動加回業績', '解約', '解約回繳', '解約扣回活動業績',
+            '刷卡(一卡通Line Pay)', '刷卡(綠界)',
+            '信用分期(仲信資融)', '信用分期(裕富數位)', '信用分期(綠界(分期))',
+            '信用分期(遠東銀行)', '信用分期(遠信資融)'
+        ];
+
+        const PERCENTAGE_COLUMNS = [
+            '面談率', '註冊率', '成功率', '達成率'
+        ];
+
+        // Check if a header looks like it should be currency (for dynamic columns)
+        function isCurrencyCol(header) {
+            if (CURRENCY_COLUMNS.some(c => header.includes(c))) return true;
+            // Academy name columns in sheets 1(通路名單來源分析), 6(繳費項目), 7(收支), 8(課程銷售) are also currency
+            if (ALL_ACADEMIES.includes(header)) return true;
+            return false;
+        }
+
+        // Utility: Format with thousand separators
+        function fmtComma(n) {
+            return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        // Utility: Format percentage
+        function fmtPct(n) {
+            const num = Number(n) || 0;
+            const pct = num > 1 ? num : num * 100;
+            return pct.toFixed(1) + '%';
+        }
+
+        // Utility: Check if value is numeric
+        function isNumeric(val) {
+            if (val === '' || val === null || val === undefined) return false;
+            return !isNaN(Number(val));
+        }
+
+        // Utility: Show status message
+        function showStatus(message, type = 'info') {
+            const el = document.getElementById('statusMessage');
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+            el.innerHTML = `<div class="status-message status-${type}">${icon} ${message}</div>`;
+            setTimeout(() => { el.innerHTML = ''; }, 4000);
+        }
+
+        // ==========================================
+        // Data Management
+        // ==========================================
+        let currentMonth = new Date().getMonth() + 1;
+        let currentSheet = 1;
+        let currentAnalysisView = 0;
+        let selectedAcademy = '';
+        let data = {};
+
+        function loadData() {
+            const stored = localStorage.getItem('mp_data_v1');
+            data = stored ? JSON.parse(stored) : {};
+        }
+
+        function saveData() {
+            localStorage.setItem('mp_data_v1', JSON.stringify(data));
+        }
+
+        function getMonthData(month) {
+            return data[month] || {};
+        }
+
+        function setMonthData(month, sheetId, rows) {
+            if (!data[month]) data[month] = {};
+            data[month][`sheet${sheetId}`] = rows;
+            saveData();
+        }
+
+        // ==========================================
+        // UI Initialization
+        // ==========================================
+        function initMonthNav() {
+            const nav = document.getElementById('monthNav');
+            nav.innerHTML = '';
+            for (let m = 1; m <= 12; m++) {
+                const btn = document.createElement('button');
+                btn.className = `month-btn ${m === currentMonth ? 'active' : ''}`;
+                const hasData = data[m] && Object.keys(data[m]).length > 0;
+                btn.innerHTML = `${m}月${hasData ? ' <span style="color:#00ff88;font-size:8px;vertical-align:super;">●</span>' : ''}`;
+                btn.onclick = () => selectMonth(m);
+                nav.appendChild(btn);
+            }
+        }
+
+        function initDataTabs() {
+            const tabs = document.getElementById('dataTabs');
+            tabs.innerHTML = '';
+            SHEET_NAMES.forEach(sheet => {
+                const btn = document.createElement('button');
+                btn.className = `data-tab ${sheet.id === currentSheet ? 'active' : ''}`;
+                const label = sheet.emoji ? `${sheet.emoji} ${sheet.name}` : `📋 ${sheet.name}`;
+                // Show dot if data exists for this sheet in current month
+                const hasData = getMonthData(currentMonth)[`sheet${sheet.id}`]?.length > 0;
+                btn.innerHTML = label + (hasData ? ' <span style="color:#00ff88;font-size:8px;">●</span>' : '');
+                btn.onclick = () => selectSheet(sheet.id);
+                tabs.appendChild(btn);
+            });
+        }
+
+        function initAnalysisTabs() {
+            const tabs = document.getElementById('analysisTabs');
+            // Build academy selector
+            const acadOpts = ALL_ACADEMIES.map(a => `<option value="${a}" ${selectedAcademy===a?'selected':''}>${a}</option>`).join('');
+            tabs.innerHTML = `
+                <button class="analysis-tab active" onclick="selectAnalysisView(0)">📊 數據總覽</button>
+                <button class="analysis-tab" onclick="selectAnalysisView(1)">🏆 排行分析</button>
+                <button class="analysis-tab" onclick="selectAnalysisView(2)">📈 趨勢洞察</button>
+                <button class="analysis-tab" onclick="selectAnalysisView(3)">💡 AI 解說</button>
+                <button class="analysis-tab" onclick="selectAnalysisView(4)">🎯 戰略顧問</button>
+                <select id="academyFilter" onchange="setAcademyFilter(this.value)" style="margin-left:auto;padding:8px 12px;border:1px solid rgba(100,180,255,0.25);background:rgba(15,20,60,0.85);color:#ffd700;border-radius:6px;font-size:12px;cursor:pointer;">
+                    <option value="">🏫 全部學院</option>
+                    ${acadOpts}
+                </select>
+            `;
+            currentAnalysisView = 0;
+        }
+
+        function setAcademyFilter(val) {
+            selectedAcademy = val;
+            renderContent();
+        }
+
+        function selectMonth(month) {
+            currentMonth = month;
+            currentAnalysisView = 0;
+            initMonthNav();
+            initDataTabs();
+            initAnalysisTabs();
+            renderContent();
+        }
+
+        function selectSheet(sheetId) {
+            currentSheet = sheetId;
+            currentAnalysisView = 0;
+            sortCol = '';
+            sortAsc = true;
+            initDataTabs();
+            initAnalysisTabs();
+            renderContent();
+        }
+
+        function selectAnalysisView(view) {
+            currentAnalysisView = view;
+            const tabs = document.querySelectorAll('.analysis-tab');
+            tabs.forEach((tab, idx) => {
+                tab.classList.toggle('active', idx === view);
+            });
+            renderContent();
+        }
+
+        // ==========================================
+        // Content Rendering
+        // ==========================================
+        function renderContent() {
+            const monthData = getMonthData(currentMonth);
+            const sheetKey = `sheet${currentSheet}`;
+            const rows = monthData[sheetKey] || [];
+
+            const card = document.getElementById('contentCard');
+
+            if (rows.length === 0) {
+                card.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-text">該月份尚無數據，請先匯入 Excel 文件</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+
+            switch (currentAnalysisView) {
+                case 0:
+                    html = renderDataOverview(rows);
+                    break;
+                case 1:
+                    html = renderRankingAnalysis(rows);
+                    break;
+                case 2:
+                    html = renderTrendInsight(rows);
+                    break;
+                case 3:
+                    html = renderAICommentary(rows);
+                    break;
+                case 4:
+                    html = renderStrategicAdvisor(rows);
+                    break;
+            }
+
+            card.innerHTML = html;
+        }
+
+        function renderDataOverview(rows) {
+            if (rows.length === 0) return '<div class="empty-state"><div>無數據</div></div>';
+
+            const headers = Object.keys(rows[0] || {});
+            let html = '<div class="table-wrapper"><table><thead><tr>';
+
+            headers.forEach(header => {
+                const arrow = sortCol === header ? (sortAsc ? '▲' : '▼') : '';
+                html += `<th onclick="sortTable('${header}')">
+                    ${header}
+                    <span class="sort-indicator">${arrow}</span>
+                </th>`;
+            });
+
+            html += '</tr></thead><tbody>';
+
+            rows.forEach((row, idx) => {
+                const firstVal = String(row[headers[0]] || '');
+                const isTotalRow = firstVal === '合計' || firstVal === '總計';
+                html += `<tr${isTotalRow ? ' style="background:rgba(255,215,0,0.08);font-weight:700;"' : ''}>`;
+                headers.forEach(header => {
+                    const val = row[header];
+                    let formatted = val === '' || val === undefined || val === null ? '' : val;
+
+                    if (isNumeric(val) && val !== '') {
+                        if (PERCENTAGE_COLUMNS.some(col => header.includes(col))) {
+                            formatted = fmtPct(val);
+                        } else if (isCurrencyCol(header)) {
+                            formatted = fmtComma(val);
+                        } else if (Math.abs(Number(val)) >= 1000) {
+                            formatted = fmtComma(val);
+                        }
+                    }
+
+                    html += `<td>${formatted}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            return html;
+        }
+
+        function renderRankingAnalysis(rows) {
+            if (rows.length === 0) return '<div class="empty-state"><div>無數據</div></div>';
+
+            const headers = Object.keys(rows[0] || {});
+            // Pick best ranking column based on sheet type
+            const rankPriority = ['總業績', '合計業績', '總計', '業績Ⓐ', '業績'];
+            let rankKey = null;
+            for (const p of rankPriority) {
+                rankKey = headers.find(h => h === p);
+                if (rankKey) break;
+            }
+            if (!rankKey) rankKey = headers.find(h => h.includes('業績') || h.includes('總計')) || headers[headers.length - 1];
+
+            const sorted = [...rows].sort((a, b) => {
+                const aVal = Number(a[rankKey]) || 0;
+                const bVal = Number(b[rankKey]) || 0;
+                return bVal - aVal;
+            });
+
+            let html = '<div class="table-wrapper"><table><thead><tr>';
+            html += '<th style="width: 50px;">排名</th>';
+
+            headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+
+            html += '</tr></thead><tbody>';
+
+            sorted.forEach((row, idx) => {
+                const rank = idx + 1;
+                const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+                let rowStyle = '';
+                if (rank === 1) rowStyle = 'background:rgba(255,215,0,0.1);';
+                else if (rank === 2) rowStyle = 'background:rgba(200,200,200,0.06);';
+                else if (rank === 3) rowStyle = 'background:rgba(205,127,50,0.06);';
+
+                html += `<tr style="${rowStyle}"><td style="font-weight:700;text-align:center;font-size:1.1em;">${medal}</td>`;
+
+                headers.forEach(header => {
+                    const val = row[header];
+                    let formatted = val === '' || val === undefined || val === null ? '' : val;
+
+                    if (isNumeric(val) && val !== '') {
+                        if (PERCENTAGE_COLUMNS.some(col => header.includes(col))) {
+                            formatted = fmtPct(val);
+                        } else if (isCurrencyCol(header)) {
+                            formatted = fmtComma(val);
+                        } else if (Math.abs(Number(val)) >= 1000) {
+                            formatted = fmtComma(val);
+                        }
+                    }
+
+                    html += `<td>${formatted}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            return html;
+        }
+
+        function renderTrendInsight(rows) {
+            if (rows.length === 0) return '<div class="empty-state"><div>無數據</div></div>';
+
+            const headers = Object.keys(rows[0] || {});
+            // Pick best column for bar chart
+            const valuePriority = ['總業績','合計業績','總計','業績Ⓐ','業績'];
+            let valueCol = null;
+            for (const p of valuePriority) { valueCol = headers.find(h => h === p); if (valueCol) break; }
+            if (!valueCol) valueCol = headers.find(h => h.includes('總計') || h.includes('業績'));
+
+            const nameCol = headers.find(h => h.includes('姓名') || h.includes('學院') || h.includes('組別') || h === '通路來源' || h === '繳費課程' || h === '收支方式') || headers[0];
+
+            let html = '';
+
+            if (valueCol) {
+                // Filter out total rows and get valid entries
+                const entries = rows.filter(r => {
+                    const first = String(r[headers[0]] || '');
+                    return first !== '合計' && first !== '總計';
+                }).map(r => ({
+                    name: String(r[nameCol] || '').substring(0, 12),
+                    val: Number(r[valueCol]) || 0
+                })).filter(e => e.val > 0).sort((a,b) => b.val - a.val).slice(0, 20);
+
+                if (entries.length > 0) {
+                    const maxVal = Math.max(...entries.map(e => e.val));
+
+                    html += `<div class="analysis-item"><div class="analysis-label">📊 ${valueCol} 視覺化排行（前 ${entries.length} 名）</div><div style="margin-top:12px;">`;
+                    entries.forEach((e, i) => {
+                        const pct = (e.val / maxVal * 100).toFixed(1);
+                        const barColor = i < 3 ? 'linear-gradient(90deg, #ffd700, #ffed4e)' : 'linear-gradient(90deg, rgba(100,180,255,0.6), rgba(100,180,255,0.3))';
+                        html += `<div style="display:flex;align-items:center;margin-bottom:6px;gap:8px;">
+                            <div style="width:100px;text-align:right;font-size:12px;color:${i<3?'#ffd700':'#8ab4ff'};flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e.name}">${e.name}</div>
+                            <div style="flex:1;height:22px;background:rgba(30,40,80,0.5);border-radius:4px;overflow:hidden;">
+                                <div style="height:100%;width:${pct}%;background:${barColor};border-radius:4px;transition:width 0.5s;"></div>
+                            </div>
+                            <div style="width:80px;font-size:12px;color:#d0d0d0;text-align:right;flex-shrink:0;">${fmtComma(e.val)}</div>
+                        </div>`;
+                    });
+                    html += '</div></div>';
+
+                    // Stats
+                    const values = entries.map(e => e.val);
+                    const sum = values.reduce((a,b) => a+b, 0);
+                    const avg = sum / values.length;
+                    const median = values[Math.floor(values.length / 2)];
+                    html += `<div class="analysis-item"><div class="analysis-label">📈 統計指標</div><div class="analysis-value">
+                        最高：${fmtComma(values[0])} | 最低：${fmtComma(values[values.length-1])} | 平均：${fmtComma(Math.round(avg))} | 中位數：${fmtComma(median)}
+                    </div></div>`;
+                }
+            } else {
+                html += `<div class="analysis-item"><div class="analysis-label">📊 數據概況</div><div class="analysis-value">
+                    總行數: ${rows.length}，欄位數: ${headers.length}
+                </div></div>`;
+            }
+
+            // Cross-month comparison if data exists
+            const otherMonths = Object.keys(data).filter(m => Number(m) !== currentMonth && data[m][`sheet${currentSheet}`]?.length > 0);
+            if (otherMonths.length > 0 && valueCol) {
+                html += `<div class="analysis-item"><div class="analysis-label">🔄 跨月比較</div><div class="analysis-value">`;
+                const curTotal = rows.reduce((s,r) => s + (Number(r[valueCol])||0), 0);
+                otherMonths.forEach(m => {
+                    const oRows = data[m][`sheet${currentSheet}`] || [];
+                    const oTotal = oRows.reduce((s,r) => s + (Number(r[valueCol])||0), 0);
+                    const diff = curTotal - oTotal;
+                    const diffPct = oTotal > 0 ? ((diff / oTotal) * 100).toFixed(1) : '—';
+                    const sign = diff >= 0 ? '+' : '';
+                    html += `${m}月 ${valueCol} 合計：${fmtComma(oTotal)} → 本月：${fmtComma(curTotal)}（${sign}${fmtComma(diff)}，${sign}${diffPct}%）<br>`;
+                });
+                html += '</div></div>';
+            }
+
+            return html;
+        }
+
+        function renderAICommentary(rows) {
+            if (rows.length === 0) return '<div class="empty-state"><div>無數據</div></div>';
+
+            const headers = Object.keys(rows[0] || {});
+            const insights = generateAIInsights(rows, headers);
+
+            let html = '<div class="analysis-text">';
+            insights.forEach(insight => {
+                const borderColor = insight.level === 'danger' ? '#ff4466' : insight.level === 'warn' ? '#ffa726' : insight.level === 'good' ? '#00ff88' : '#ffd700';
+                html += `<div class="analysis-item" style="border-left-color:${borderColor};">
+                    <div class="analysis-label">${insight.title}</div>
+                    <div class="analysis-value" style="white-space:pre-line;line-height:1.9;">${insight.text}</div>
+                </div>`;
+            });
+            html += '</div>';
+
+            return html;
+        }
+
+        function generateAIInsights(rows, headers) {
+            const insights = [];
+            const sheetInfo = SHEET_NAMES.find(s => s.id === currentSheet);
+            if (!sheetInfo) return insights;
+
+            // ===== 分析工具函數 =====
+            function getVals(col, excludeTotal) {
+                return rows.filter(r => {
+                    if (excludeTotal) { const f = String(r[headers[0]] || ''); if (f === '合計' || f === '總計') return false; }
+                    return isNumeric(r[col]) && Number(r[col]) !== 0;
+                }).map(r => ({ name: r[headers.find(h => h.includes('姓名') || h.includes('學院') || h.includes('組別') || h === '通路來源' || h === '繳費課程' || h === '繳費項目' || h === '收支方式')] || r[headers[0]] || '?', val: Number(r[col]) }));
+            }
+            function topN(arr, n) { return [...arr].sort((a,b) => b.val - a.val).slice(0, n); }
+            function botN(arr, n) { return [...arr].sort((a,b) => a.val - b.val).slice(0, n); }
+            function sumVals(arr) { return arr.reduce((s,x) => s + x.val, 0); }
+            function avgVals(arr) { return arr.length ? sumVals(arr) / arr.length : 0; }
+            function stdDev(arr) { const a = avgVals(arr); return Math.sqrt(arr.reduce((s,x) => s + (x.val-a)*(x.val-a), 0) / (arr.length||1)); }
+            // Gini coefficient (inequality measure 0=equal, 1=extreme)
+            function gini(arr) {
+                if (arr.length < 2) return 0;
+                const sorted = [...arr].map(x=>x.val).sort((a,b)=>a-b);
+                const n = sorted.length;
+                const mean = sorted.reduce((a,b)=>a+b,0)/n;
+                if (mean === 0) return 0;
+                let sum = 0;
+                sorted.forEach((v,i) => { sum += (2*(i+1) - n - 1) * v; });
+                return sum / (n * n * mean);
+            }
+            function pct80_20(arr) {
+                const sorted = [...arr].sort((a,b) => b.val - a.val);
+                const total = sumVals(sorted);
+                if (total === 0) return { top20pct: 0, count: 0 };
+                const n20 = Math.max(1, Math.ceil(sorted.length * 0.2));
+                const top20sum = sumVals(sorted.slice(0, n20));
+                return { top20pct: (top20sum/total*100).toFixed(1), count: n20, sum: top20sum };
+            }
+
+            const acadFilter = typeof selectedAcademy !== 'undefined' ? selectedAcademy : '';
+            function filterByAcad(rowList) {
+                if (!acadFilter) return rowList;
+                return rowList.filter(r => Object.values(r).some(v => String(v).includes(acadFilter)));
+            }
+            const af = acadFilter; // shorthand
+
+            switch (sheetInfo.id) {
+
+            case 1: { // ❶ 通路名單來源分析
+                const tc = headers.find(h => h === '總計');
+                const acadCols = headers.filter(h => ALL_ACADEMIES.includes(h));
+                const totRow = rows.find(r => String(r[headers[0]]) === '總計');
+                const dataRows = rows.filter(r => { const f=String(r[headers[0]]||''); return f!=='合計'&&f!=='總計'; });
+
+                if (af && headers.includes(af)) {
+                    const vals = dataRows.filter(r => Number(r[af])>0).map(r => ({name:r[headers[0]], val:Number(r[af])}));
+                    const top5 = topN(vals, 5);
+                    const total = sumVals(vals);
+                    const p = pct80_20(vals);
+                    insights.push({ title: `🔍 ${af} 名單來源診斷`, level: 'info',
+                        text: `總名單：${fmtComma(total)} 筆，來自 ${vals.length} 種通路。\n前 ${p.count} 個通路（20%）貢獻了 ${p.top20pct}% 的名單。\n\n【頂級來源】\n${top5.map((x,i) => `${i+1}. ${x.name}：${fmtComma(x.val)} 筆（${(x.val/total*100).toFixed(1)}%）`).join('\n')}` });
+                    const singleSource = vals.filter(x => x.val/total > 0.3);
+                    if (singleSource.length) {
+                        insights.push({ title: '⚠️ 風險：通路過度集中', level: 'danger',
+                            text: `${singleSource.map(x=>`「${x.name}」佔 ${(x.val/total*100).toFixed(1)}%`).join('、')}。\n\n→ 芒格原則：永遠不要讓單一來源超過 30%。一旦該通路政策調整、成本上漲或效果衰退，你的名單就會斷崖式下跌。\n→ 立即行動：這個月就測試 2-3 個新的次要通路，即使只分配 10% 預算，也能建立備援。` });
+                    }
+                    const zeroAcads = acadCols.filter(a => a !== af && totRow && (Number(totRow[a])||0) === 0);
+                    if (zeroAcads.length) {
+                        insights.push({ title: '📌 盲區：零名單通路', level: 'warn',
+                            text: `以下通路在其他學院有名單，但 ${af} 完全沒有：\n不代表不適用，代表還沒嘗試。洛克斐勒的做法：先用最小成本試錯，找到正 ROI 再加碼。` });
+                    }
+                } else if (tc) {
+                    const vals = dataRows.filter(r => Number(r[tc])>0).map(r=>({name:r[headers[0]], val:Number(r[tc])}));
+                    const total = sumVals(vals);
+                    const p = pct80_20(vals);
+                    const g = gini(vals);
+                    insights.push({ title: '🧠 通路結構總診斷', level: 'info',
+                        text: `全公司 ${fmtComma(total)} 筆名單，來自 ${vals.length} 種通路。\n\n【80/20 法則】前 ${p.count} 個通路（${(p.count/vals.length*100).toFixed(0)}%）貢獻了 ${p.top20pct}% 的名單。\n【集中度】吉尼係數 ${g.toFixed(2)}${g>0.6?'（高度不均 — 少數通路撐起大局，風險高）':g>0.4?'（中度集中 — 可接受但需監控）':'（分散健康）'}。\n\n→ 巴菲特思維：護城河不是靠單一通路建立的。你需要讓至少 5 個通路各貢獻 10% 以上，才算安全。` });
+                    const top5 = topN(vals, 5);
+                    insights.push({ title: '🏆 TOP 5 通路（你的核心資產）', level: 'good',
+                        text: top5.map((x,i) => `${i+1}. ${x.name}：${fmtComma(x.val)}（${(x.val/total*100).toFixed(1)}%）`).join('\n') + `\n\n→ 這些通路是你的「搖錢樹」。問自己：這些通路的成本趨勢是上升還是下降？轉化率是否在衰退？如果明天任何一個消失，你有替代方案嗎？` });
+                    if (acadCols.length && totRow) {
+                        const acadTotals = acadCols.map(a=>({name:a, val:Number(totRow[a])||0})).sort((a,b)=>b.val-a.val);
+                        const acadAvg = avgVals(acadTotals);
+                        const below = acadTotals.filter(x => x.val < acadAvg * 0.5);
+                        insights.push({ title: '🏫 學院名單分配不均警告', level: below.length > 2 ? 'warn' : 'info',
+                            text: `各學院平均 ${fmtComma(Math.round(acadAvg))} 筆。\n名單最多：${acadTotals[0].name}（${fmtComma(acadTotals[0].val)}）\n名單最少：${acadTotals[acadTotals.length-1].name}（${fmtComma(acadTotals[acadTotals.length-1].val)}）\n差距：${(acadTotals[0].val/Math.max(acadTotals[acadTotals.length-1].val,1)).toFixed(1)} 倍\n${below.length?`\n⚠️ ${below.length} 個學院低於平均 50%：${below.map(x=>x.name).join('、')}\n→ 馬斯克第一原理：名單不足的學院，先檢查是投放不足還是轉化不行。不要平均分配預算，要分配給 ROI 最高的地方。`:'\n✅ 分配尚可，持續監控。'}` });
+                    }
+                }
+                break;
+            }
+
+            case 2: { // ❷ 通路業績
+                const tc = headers.find(h => h === '總計');
+                const channels = headers.filter(h => h !== headers[0] && h !== '總計');
+                const dataRows = rows.filter(r => {const f=String(r[headers[0]]); return f!=='合計'&&f!=='總計';});
+
+                if (af) {
+                    const row = rows.find(r => String(r[headers[0]]).includes(af));
+                    if (row) {
+                        const total = Number(row['總計'])||0;
+                        const chVals = channels.map(ch=>({name:ch, val:Number(row[ch])||0})).filter(x=>x.val>0).sort((a,b)=>b.val-a.val);
+                        const topCh = chVals[0];
+                        const dep = topCh ? (topCh.val/total*100).toFixed(1) : 0;
+                        // Find academy rank
+                        const allAcadVals = dataRows.map(r=>({name:r[headers[0]], val:Number(r['總計'])||0})).sort((a,b)=>b.val-a.val);
+                        const rank = allAcadVals.findIndex(x=>String(x.name).includes(af)) + 1;
+
+                        insights.push({ title: `🔍 ${af} 通路業績診斷`, level: 'info',
+                            text: `總業績：${fmtComma(total)}（全公司排名第 ${rank}/${allAcadVals.length}）\n\n【通路結構】\n${chVals.map(x=>`${x.name}：${fmtComma(x.val)}（${(x.val/total*100).toFixed(1)}%）`).join('\n')}` });
+                        if (Number(dep) > 50) {
+                            insights.push({ title: '🚨 嚴重依賴單一通路', level: 'danger',
+                                text: `「${topCh.name}」佔比 ${dep}%，超過一半業績來自單一通路。\n\n→ 這是結構性風險。洛克斐勒說過：「不要把所有雞蛋放在一個籃子裡，但要確保每個籃子都有人看管。」\n→ 本月目標：讓第二大通路從 ${chVals[1]?fmtComma(chVals[1].val):'0'} 成長至少 15%。方法：從現有客戶名單中挖掘交叉銷售機會。` });
+                        }
+                        const weakCh = channels.filter(ch => (Number(row[ch])||0) === 0);
+                        if (weakCh.length) {
+                            insights.push({ title: '📌 未開發通路', level: 'warn',
+                                text: `${af} 在以下通路業績為零：${weakCh.join('、')}\n\n→ 零不代表不行，代表還沒做。找到同區域做得好的學院，直接複製他們的方法。別重新發明輪子。` });
+                        }
+                    }
+                } else if (tc) {
+                    const vals = dataRows.map(r=>({name:r[headers[0]], val:Number(r['總計'])||0}));
+                    const total = sumVals(vals);
+                    const g = gini(vals);
+                    const chTotals = channels.map(ch => {
+                        const sum = dataRows.reduce((s,r)=>s+(Number(r[ch])||0), 0);
+                        return {name:ch, val:sum};
+                    }).sort((a,b)=>b.val-a.val);
+                    const baseCh = chTotals.find(x => x.name === '基本通路');
+                    const baseRatio = baseCh ? (baseCh.val/total*100).toFixed(1) : 0;
+
+                    insights.push({ title: '🧠 通路業績戰略分析', level: 'info',
+                        text: `全公司通路業績：${fmtComma(total)}\n學院間吉尼係數：${g.toFixed(2)}${g>0.5?' — 學院差距大，資源可能分配不均':' — 差距合理'}\n\n【通路佔比】\n${chTotals.map(x=>`${x.name}：${fmtComma(x.val)}（${(x.val/total*100).toFixed(1)}%）`).join('\n')}` });
+                    if (Number(baseRatio) > 50) {
+                        insights.push({ title: '⚠️ 基本通路依賴過高', level: 'warn',
+                            text: `基本通路佔比 ${baseRatio}%。這代表超過一半業績來自既有客戶（加購、續約）。\n\n→ 短期好看，長期危險。既有客戶池是有限的，遲早會被榨乾。\n→ 柯維「第七個習慣」：不斷更新。每月至少 30% 業績要來自新客戶通路（網路、展場），否則明年會很痛苦。\n→ 立即行動：統計每個學院新客占比，低於 25% 的需要專項改善。` });
+                    }
+                    const top3 = topN(vals, 3);
+                    const bot3 = botN(vals, 3);
+                    insights.push({ title: '🏆 標竿 vs 落後', level: 'good',
+                        text: `【TOP 3 標竿】\n${top3.map((x,i)=>`${i+1}. ${x.name}：${fmtComma(x.val)}`).join('\n')}\n\n【BOTTOM 3 需要救援】\n${bot3.map((x,i)=>`${i+1}. ${x.name}：${fmtComma(x.val)}`).join('\n')}\n\n→ 差距 ${(top3[0].val/Math.max(bot3[0].val,1)).toFixed(1)} 倍。落後學院不是能力問題，通常是方法問題。讓 TOP 學院的組長去做一次分享，比任何培訓都有用。` });
+                }
+                break;
+            }
+
+            case 3: { // ❸ 業務個人績效
+                const revCol = headers.find(h => h === '合計業績');
+                const nameCol2 = headers.find(h => h === '姓名');
+                const dataRows = af ? filterByAcad(rows) : rows;
+                if (!revCol || !nameCol2) break;
+
+                const allPeople = dataRows.filter(r=>isNumeric(r[revCol])).map(r=>({
+                    name:r[nameCol2]||'?', val:Number(r[revCol]), acad:r['學院']||'',
+                    rate:Number(r['達成率'])||0, interview:Number(r['面談'])||0,
+                    iRate:Number(r['面談率'])||0, regA:Number(r['註冊Ⓐ'])||0,
+                    revA:Number(r['業績Ⓐ'])||0, refund:Number(r['退費金額'])||0
+                }));
+                const active = allPeople.filter(x=>x.val>0);
+                const total = sumVals(active);
+                const avg = avgVals(active);
+                const sd = stdDev(active);
+                const p = pct80_20(active);
+                const over = active.filter(x=>x.rate>=1);
+                const under50 = active.filter(x=>x.rate>0&&x.rate<0.5);
+                const zeroInterview = allPeople.filter(x=>x.interview===0);
+
+                insights.push({ title: `🧠 業務戰力總診斷${af?' — '+af:''}`, level: 'info',
+                    text: `有效業務：${active.length} 人（總人數 ${allPeople.length}）\n總業績：${fmtComma(total)}\n人均業績：${fmtComma(Math.round(avg))}\n標準差：${fmtComma(Math.round(sd))}（${sd/avg>0.8?'⚠️ 極度不均 — 少數人扛大樑':sd/avg>0.5?'偏高 — 有改善空間':'健康'}）\n\n【80/20 法則】前 ${p.count} 人（${(p.count/active.length*100).toFixed(0)}%）創造了 ${p.top20pct}% 的業績。\n達標人數：${over.length}/${active.length}（${(over.length/active.length*100).toFixed(0)}%）` });
+
+                const top5 = topN(active, 5);
+                insights.push({ title: '🏆 TOP 5 戰將（研究他們的方法）', level: 'good',
+                    text: top5.map((x,i)=>`${i+1}. ${x.name}（${x.acad}）\n   業績 ${fmtComma(x.val)} ｜ 達成率 ${(x.rate*100).toFixed(0)}% ｜ 面談 ${x.interview} ｜ 面談率 ${(x.iRate*100).toFixed(0)}%`).join('\n') +
+                    `\n\n→ 芒格的「反轉思維」：不問「怎麼變好」，問「TOP 5 做了什麼是別人沒做的？」找到那個差異化行為，然後標準化複製。` });
+
+                if (under50.length > 0) {
+                    insights.push({ title: `🚨 ${under50.length} 人達成率低於 50%`, level: 'danger',
+                        text: under50.slice(0,8).map(x=>`${x.name}（${x.acad}）：${(x.rate*100).toFixed(0)}% ，面談 ${x.interview} 次`).join('\n') +
+                        `\n\n→ 人性弱點：這些人可能已經自我放棄或在「假忙」。不要等月底才處理。\n→ 立即行動：本週跟每位 1on1，不是問「為什麼不好」，而是問「你覺得最大的卡點是什麼？需要什麼幫助？」\n→ 如果面談數也低，問題在活動量；如果面談高但業績低，問題在技術。分開處理。` });
+                }
+
+                if (zeroInterview.length > 3) {
+                    insights.push({ title: '⚠️ 零面談業務過多', level: 'warn',
+                        text: `${zeroInterview.length} 人本月面談數為 0。\n\n→ 這是最危險的訊號。零面談 = 零機會 = 下個月業績一定差。\n→ 管理層要檢視：是名單不夠、邀約能力不足、還是人在但心不在？\n→ 富蘭克林的做法：每天追蹤，而不是每月檢討。設定每日最低面談數，低於標準要有預警機制。` });
+                }
+
+                // Refund analysis
+                const highRefund = active.filter(x=>x.refund>0).sort((a,b)=>b.refund-a.refund);
+                if (highRefund.length > 0) {
+                    const totalRefund = highRefund.reduce((s,x)=>s+x.refund,0);
+                    insights.push({ title: '💸 退費風險分析', level: totalRefund/total>0.1?'danger':'warn',
+                        text: `退費總額：${fmtComma(totalRefund)}（佔業績 ${(totalRefund/total*100).toFixed(1)}%）\n退費最高：${highRefund.slice(0,3).map(x=>`${x.name} ${fmtComma(x.refund)}`).join('、')}\n\n→ 退費是「業績品質」的照妖鏡。高退費率代表要嘛賣錯人、要嘛過度承諾。\n→ 柯維原則：「以終為始」—— 一開始就篩選對的客戶，比成交後處理退費省 10 倍成本。` });
+                }
+                break;
+            }
+
+            case 4: { // ❹ 正式小組業績總表
+                const revCol = headers.find(h => h === '總業績');
+                const dataRows = af ? filterByAcad(rows) : rows;
+                if (!revCol) break;
+
+                const groups = dataRows.filter(r=>isNumeric(r[revCol])&&Number(r[revCol])>0).map(r=>{
+                    const members = [];
+                    const leader = {name:r['組長']||'', val:Number(r['業績'])||0};
+                    members.push(leader);
+                    for(let i=1;i<=4;i++){
+                        const mKey = i===1?'組員':'組員'+(i*2-1);
+                        const vKey = '業績'+(i*2);
+                        const name = r[mKey]||r['組員'+i]||'';
+                        const val = Number(r[vKey])||0;
+                        if(name) members.push({name, val});
+                    }
+                    return {name:r['正式組別']||'?', val:Number(r[revCol]), acad:r['學院']||'', leader, members};
+                });
+                const total = sumVals(groups);
+                const avg = avgVals(groups);
+                const g = gini(groups);
+                const top5 = topN(groups, 5);
+                const bot5 = botN(groups, 5);
+
+                insights.push({ title: `🧠 小組戰力結構分析${af?' — '+af:''}`, level: 'info',
+                    text: `${groups.length} 個小組，總業績：${fmtComma(total)}\n平均：${fmtComma(Math.round(avg))}\n吉尼係數：${g.toFixed(2)}${g>0.5?' — 組間差距大':' — 差距合理'}\n\n【TOP 5】\n${top5.map((x,i)=>`${i+1}. ${x.name}（${x.acad}）：${fmtComma(x.val)}`).join('\n')}\n\n【BOTTOM 5】\n${bot5.map((x,i)=>`${i+1}. ${x.name}（${x.acad}）：${fmtComma(x.val)}`).join('\n')}` });
+
+                // Leader dependency analysis
+                const leaderHeavy = groups.filter(g => g.leader.val > 0 && g.leader.val / g.val > 0.6);
+                if (leaderHeavy.length > 0) {
+                    insights.push({ title: '🚨 組長扛業績風險', level: 'danger',
+                        text: `${leaderHeavy.length} 個組的組長業績佔比超過 60%：\n${leaderHeavy.map(g=>`${g.name}：組長 ${fmtComma(g.leader.val)}/${fmtComma(g.val)}（${(g.leader.val/g.val*100).toFixed(0)}%）`).join('\n')}\n\n→ 這是最常見的管理陷阱。組長自己做比教人快，所以一直自己做。\n→ 結果：組長累死，組員長不大，組長一離職整組崩盤。\n→ 馬斯克管理法：組長 KPI 不應只看個人業績，要加上「組員成長率」。目標是讓組長業績佔比降到 40% 以下。` });
+                }
+
+                // Zero-contribution members
+                const zeroMembers = [];
+                groups.forEach(g => {
+                    g.members.forEach(m => {
+                        if (m.val <= 0 && m.name && m.name !== g.leader.name) zeroMembers.push({member:m.name, group:g.name});
+                    });
+                });
+                if (zeroMembers.length > 3) {
+                    insights.push({ title: '⚠️ 零貢獻組員過多', level: 'warn',
+                        text: `${zeroMembers.length} 位組員本月業績為零或負數。\n\n→ 人性弱點：在團體中，人會自然「搭便車」。這叫社會惰化效應。\n→ 解法：每個組員要有個人週目標，每週公開進度。透明度是消滅惰性最好的武器。\n→ 富蘭克林法則：衡量什麼，什麼就會改善。` });
+                }
+
+                if (groups.length >= 4) {
+                    const sorted = [...groups].sort((a,b)=>b.val-a.val);
+                    const gap = sorted[0].val - sorted[sorted.length-1].val;
+                    insights.push({ title: '📐 執行力差距', level: gap/avg > 1.5 ? 'warn' : 'info',
+                        text: `第1名（${sorted[0].name}）${fmtComma(sorted[0].val)} vs 最後（${sorted[sorted.length-1].name}）${fmtComma(sorted[sorted.length-1].val)}\n差距：${fmtComma(gap)}（${(gap/Math.max(sorted[sorted.length-1].val,1)*100).toFixed(0)}%）\n\n→ 如果差距超過 2 倍，不是能力問題，是系統問題。要檢查：名單分配是否公平？目標設定是否合理？是否有資源被壟斷？\n→ 最後一名不一定最差，可能是最缺資源的。` });
+                }
+                break;
+            }
+
+            case 5: { // ❺ 學院績效總表
+                const dataRows = rows.filter(r=>{const f=String(r[headers[0]]||'');return f!=='合計';});
+                const totRow = rows.find(r=>String(r[headers[0]]||'')==='合計');
+
+                if (af) {
+                    const row = dataRows.find(r => String(r['學院']||'').includes(af));
+                    if (!row) break;
+                    const rev = Number(row['業績'])||0;
+                    const goal = Number(row['個人目標'])||0;
+                    const rate = Number(row['達成率'])||0;
+                    const iRate = Number(row['面談率'])||0;
+                    const sRate = Number(row['成功率'])||0;
+                    const refund = Number(row['退費金額'])||0;
+                    const interview = Number(row['面談'])||0;
+                    const signup = Number(row['報名'])||0;
+                    const regA = Number(row['註冊Ⓐ'])||0;
+
+                    // Rank
+                    const allVals = dataRows.map(r=>({name:r['學院'], val:Number(r['業績'])||0})).sort((a,b)=>b.val-a.val);
+                    const rank = allVals.findIndex(x=>String(x.name).includes(af)) + 1;
+
+                    insights.push({ title: `🔍 ${af} 績效總診斷`, level: rate>=1?'good':rate>=0.7?'info':'danger',
+                        text: `業績：${fmtComma(rev)} / 目標：${fmtComma(goal)} → 達成率 ${(rate*100).toFixed(1)}%\n全公司排名：第 ${rank}/${allVals.length}\n\n面談 ${interview} → 報名 ${signup} → 註冊 ${regA}\n面談率 ${(iRate*100).toFixed(1)}% ｜ 成功率 ${(sRate*100).toFixed(1)}%\n退費：${fmtComma(refund)}（佔業績 ${rev>0?(refund/rev*100).toFixed(1):'0'}%）` });
+
+                    // Conversion funnel analysis
+                    const convRate = interview>0 ? (regA/interview*100).toFixed(1) : 0;
+                    insights.push({ title: '🔬 轉化漏斗分析', level: Number(convRate)<10?'warn':'info',
+                        text: `面談 ${interview} → 報名 ${signup}（${interview>0?(signup/interview*100).toFixed(1):'0'}%）→ 註冊 ${regA}（${interview>0?convRate:'0'}%）\n\n${Number(convRate)<10?'→ 最終轉化率低於 10%，漏斗有破洞。需要分析：是面談品質問題（報名率低），還是成交問題（報名到註冊流失高）？\n→ 柯維第三習慣「要事第一」：先修轉化率最低的那一段，ROI 最高。':'→ 轉化率尚可，持續優化面談品質和跟進流程。'}` });
+
+                    if (refund/rev > 0.15) {
+                        insights.push({ title: '💸 退費警報', level: 'danger',
+                            text: `退費率 ${(refund/rev*100).toFixed(1)}%，超過 15% 安全線。\n\n→ 退費是「淨業績」的隱形殺手。表面上業績達標，但淨收入可能差很遠。\n→ 找出退費原因：課程不符預期？分期壓力？衝動消費後悔？\n→ 預防勝於治療：面談時確認客戶的真實需求和付款能力，比事後處理退費有效 10 倍。` });
+                    }
+                } else {
+                    const vals = dataRows.filter(r=>Number(r['業績'])>0).map(r=>({
+                        name:r['學院']||'?', val:Number(r['業績']), rate:Number(r['達成率'])||0,
+                        goal:Number(r['個人目標'])||0, refund:Number(r['退費金額'])||0
+                    }));
+                    const total = sumVals(vals);
+                    const totalGoal = vals.reduce((s,x)=>s+x.goal,0);
+                    const totalRate = totalGoal>0 ? total/totalGoal : 0;
+                    const over = vals.filter(x=>x.rate>=1);
+                    const under60 = vals.filter(x=>x.rate>0&&x.rate<0.6);
+                    const totalRefund = vals.reduce((s,x)=>s+x.refund,0);
+
+                    insights.push({ title: '🧠 全公司績效戰略總覽', level: totalRate>=0.8?'good':'warn',
+                        text: `總業績：${fmtComma(total)} / 總目標：${fmtComma(totalGoal)} → 整體達成率 ${(totalRate*100).toFixed(1)}%\n達標學院：${over.length}/${vals.length}（${(over.length/vals.length*100).toFixed(0)}%）\n低於 60%：${under60.length} 個\n總退費：${fmtComma(totalRefund)}（佔 ${(totalRefund/total*100).toFixed(1)}%）\n\n${over.length?'🌟 達標：'+over.map(x=>x.name).join('、'):''}\n${under60.length?'🚨 危險：'+under60.map(x=>`${x.name}（${(x.rate*100).toFixed(0)}%）`).join('、'):''}` });
+
+                    insights.push({ title: '📊 目標設定合理性檢驗', level: 'info',
+                        text: `→ 巴菲特說：「目標太低是侮辱，目標太高是欺騙。」\n→ 達標率低於 50% 的學院，要檢討的不只是執行力，也要反思目標是否過高。\n→ 如果所有學院都低於 80%，可能是全公司目標定太高，需要重新校準，否則所有人都會放棄。\n→ 健康目標：60-70% 的人應該能達標。如果只有 ${(over.length/vals.length*100).toFixed(0)}% 達標，考慮調整。` });
+                }
+                break;
+            }
+
+            case 6: { // ❻ 繳費項目分析
+                const tc = headers.find(h => h === '總計');
+                const dataRows = rows.filter(r=>{const f=String(r[headers[0]]||'');return f!=='合計'&&f!=='總計';});
+
+                if (af) {
+                    const row = dataRows.find(r=>String(r[headers[0]]).includes(af));
+                    if (!row) break;
+                    const total = Number(row['總計'])||0;
+                    const reg = Number(row['註冊'])||0;
+                    const cancel = Number(row['解約回繳'])||0;
+                    const cancelOut = Number(row['解約'])||0;
+                    const items = headers.filter(h=>h!==headers[0]&&h!=='總計');
+                    const itemVals = items.map(h=>({name:h, val:Number(row[h])||0})).filter(x=>x.val!==0).sort((a,b)=>Math.abs(b.val)-Math.abs(a.val));
+
+                    insights.push({ title: `🔍 ${af} 繳費結構分析`, level: 'info',
+                        text: `總計：${fmtComma(total)}\n\n${itemVals.map(x=>`${x.name}：${fmtComma(x.val)}${x.val<0?' ⚠️':''}`).join('\n')}` });
+                    if (cancel > 0) {
+                        insights.push({ title: '💰 解約回繳是隱藏的金礦', level: cancel/total>0.2?'warn':'good',
+                            text: `解約回繳：${fmtComma(cancel)}（佔總計 ${(cancel/total*100).toFixed(1)}%）\n\n→ 解約回繳高代表：之前解約的人回來了。這是好事，但占比太高（>${'20%'}）代表原始成交品質不穩。\n→ 治本之道：提升第一次成交的客戶匹配度，減少退費→回繳的循環。` });
+                    }
+                } else if (tc) {
+                    const vals = dataRows.map(r=>({name:r[headers[0]], val:Number(r['總計'])||0}));
+                    const totRow = rows.find(r=>String(r[headers[0]])==='合計');
+                    const totalCancel = totRow ? Number(totRow['解約回繳'])||0 : 0;
+                    const totalReg = totRow ? Number(totRow['註冊'])||0 : 0;
+                    const total = totRow ? Number(totRow['總計'])||0 : sumVals(vals);
+
+                    insights.push({ title: '🧠 繳費結構健康度', level: 'info',
+                        text: `全公司營收：${fmtComma(total)}\n其中註冊收入：${fmtComma(totalReg)}（${(totalReg/total*100).toFixed(1)}%）\n解約回繳：${fmtComma(totalCancel)}（${(totalCancel/total*100).toFixed(1)}%）\n\n→ 健康的收入結構：註冊佔 70%+，解約回繳佔 < 20%。\n→ 如果解約回繳佔比高，說明公司在「回收舊業績」而非「創造新業績」，長期會衰退。` });
+                }
+                break;
+            }
+
+            case 7: { // ❼ 收支分析
+                const tc = headers.find(h => h === '總計');
+                const methods = headers.filter(h => h !== headers[0] && h !== '總計');
+                const dataRows = rows.filter(r=>{const f=String(r[headers[0]]||'');return f!=='合計'&&f!=='總計';});
+                const totRow = rows.find(r => String(r[headers[0]]) === '合計');
+
+                if (af) {
+                    const row = dataRows.find(r => String(r[headers[0]]).includes(af));
+                    if (!row) break;
+                    const total = Number(row['總計'])||0;
+                    const cash = Number(row['現金'])||0;
+                    const transfer = Number(row['匯款'])||0;
+                    const mVals = methods.map(h=>({name:h, val:Number(row[h])||0})).filter(x=>x.val>0).sort((a,b)=>b.val-a.val);
+                    const creditTotal = mVals.filter(x=>x.name.includes('信用分期')).reduce((s,x)=>s+x.val,0);
+
+                    insights.push({ title: `🔍 ${af} 收支方式診斷`, level: 'info',
+                        text: `總收入：${fmtComma(total)}\n\n${mVals.map(x=>`${x.name}：${fmtComma(x.val)}（${(x.val/total*100).toFixed(1)}%）`).join('\n')}\n\n現金+匯款（低風險）：${fmtComma(cash+transfer)}（${((cash+transfer)/total*100).toFixed(1)}%）\n信用分期（有違約風險）：${fmtComma(creditTotal)}（${(creditTotal/total*100).toFixed(1)}%）` });
+                    if (creditTotal/total > 0.7) {
+                        insights.push({ title: '🚨 分期依賴過高', level: 'danger',
+                            text: `信用分期佔 ${(creditTotal/total*100).toFixed(1)}%。\n\n→ 分期的隱藏成本：手續費、呆帳風險、退費時的糾紛處理。\n→ 更重要的問題：客戶為什麼不能一次付清？是單價太高、還是客戶支付能力不匹配？\n→ 洛克斐勒的現金流原則：「永遠追求現金。」嘗試增加現金/匯款比例的方案，例如一次付清優惠 5%。` });
+                    }
+                } else if (totRow) {
+                    const total = Number(totRow['總計'])||0;
+                    const mTotals = methods.map(m=>({name:m, val:Number(totRow[m])||0})).filter(x=>x.val>0).sort((a,b)=>b.val-a.val);
+                    const creditTotal = mTotals.filter(x=>x.name.includes('信用分期')).reduce((s,x)=>s+x.val,0);
+                    const cashTotal = (Number(totRow['現金'])||0) + (Number(totRow['匯款'])||0);
+
+                    insights.push({ title: '🧠 全公司收支結構分析', level: 'info',
+                        text: `全公司收入：${fmtComma(total)}\n\n${mTotals.map(x=>`${x.name}：${fmtComma(x.val)}（${(x.val/total*100).toFixed(1)}%）`).join('\n')}\n\n【結構摘要】\n現金+匯款：${fmtComma(cashTotal)}（${(cashTotal/total*100).toFixed(1)}%）\n信用分期合計：${fmtComma(creditTotal)}（${(creditTotal/total*100).toFixed(1)}%）` });
+                    insights.push({ title: '💡 現金流戰略建議', level: 'warn',
+                        text: `→ 巴菲特鐵律：「現金是氧氣，分期是呼吸器。」\n→ 分期佔 ${(creditTotal/total*100).toFixed(0)}%${creditTotal/total>0.5?'，超過一半收入要等分期回收，現金流壓力大。':' 尚在可控範圍。'}\n→ 各分期公司佔比要分散，避免被單一金融機構綁架條件。\n→ 立即行動：統計各分期公司的實際到帳率和呆帳率，選擇 ROI 最高的合作夥伴。` });
+                }
+                break;
+            }
+
+            case 8: { // ❽ 課程銷售分析
+                const tc = headers.find(h => h === '總計');
+                const acadCols = headers.filter(h => ALL_ACADEMIES.includes(h));
+                const dataRows = rows.filter(r=>{const f=String(r[headers[0]]||'');return f!=='合計'&&f!=='總計';});
+
+                if (af && headers.includes(af)) {
+                    const vals = dataRows.filter(r=>Number(r[af])>0).map(r=>({name:r[headers[0]], val:Number(r[af])})).sort((a,b)=>b.val-a.val);
+                    const total = sumVals(vals);
+                    const p = pct80_20(vals);
+                    const top10 = vals.slice(0, 10);
+
+                    insights.push({ title: `🔍 ${af} 課程銷售診斷`, level: 'info',
+                        text: `銷售課程數：${vals.length}\n總金額：${fmtComma(total)}\n\n【80/20 法則】前 ${p.count} 門課（${(p.count/vals.length*100).toFixed(0)}%）貢獻 ${p.top20pct}% 的營收。\n\n【TOP 10 課程】\n${top10.map((x,i)=>`${i+1}. ${x.name}：${fmtComma(x.val)}（${(x.val/total*100).toFixed(1)}%）`).join('\n')}` });
+                    const oneCourse = vals.filter(x => x.val/total > 0.25);
+                    if (oneCourse.length) {
+                        insights.push({ title: '⚠️ 課程集中度風險', level: 'warn',
+                            text: `${oneCourse.map(x=>`「${x.name}」佔 ${(x.val/total*100).toFixed(1)}%`).join('、')}\n\n→ 如果一門課佔超過 25%，那門課的講師請假、市場退燒、競品推出，你的營收就會震盪。\n→ 解法：培養 3-5 門核心課程，各佔 15-20%，形成產品矩陣。` });
+                    }
+                } else if (tc) {
+                    const vals = dataRows.filter(r=>Number(r[tc])>0).map(r=>({name:r[headers[0]], val:Number(r[tc])}));
+                    const total = sumVals(vals);
+                    const p = pct80_20(vals);
+                    const top10 = topN(vals, 10);
+                    const bot10 = botN(vals, 10);
+
+                    insights.push({ title: '🧠 課程產品組合診斷', level: 'info',
+                        text: `${vals.length} 門課程，總銷售：${fmtComma(total)}\n\n【80/20 法則】前 ${p.count} 門課（${(p.count/vals.length*100).toFixed(0)}%）創造了 ${p.top20pct}% 的營收。\n\n【TOP 10 搖錢樹】\n${top10.map((x,i)=>`${i+1}. ${x.name}：${fmtComma(x.val)}`).join('\n')}` });
+
+                    insights.push({ title: '📉 長尾課程（考慮淘汰或重組）', level: 'warn',
+                        text: `銷售最低的 10 門課：\n${bot10.map((x,i)=>`${i+1}. ${x.name}：${fmtComma(x.val)}`).join('\n')}\n\n→ 芒格原則：「如果你有 40 門課但只有 10 門賺錢，你不是在經營 40 門課，你是在用 10 門課養 30 門課。」\n→ 每門課都有固定成本（講師、教材、排課）。如果一門課持續 3 個月銷售低於平均的 20%，要考慮：合併、改版、或直接下架。\n→ 把省下的資源投入 TOP 課程的行銷和升級。` });
+
+                    // Cross-academy comparison for top course
+                    if (top10.length > 0 && acadCols.length > 0) {
+                        const topCourse = top10[0];
+                        const courseRow = dataRows.find(r => r[headers[0]] === topCourse.name);
+                        if (courseRow) {
+                            const acadSales = acadCols.map(a=>({name:a, val:Number(courseRow[a])||0})).sort((a,b)=>b.val-a.val);
+                            const zeros = acadSales.filter(x=>x.val===0);
+                            insights.push({ title: `🔬 熱門課程「${topCourse.name.substring(0,15)}」跨學院分析`, level: 'info',
+                                text: `${acadSales.filter(x=>x.val>0).map(x=>`${x.name}：${fmtComma(x.val)}`).join('\n')}\n${zeros.length?`\n⚠️ ${zeros.length} 個學院銷售為零：${zeros.map(x=>x.name).join('、')}\n→ 最暢銷的課程在某些學院居然賣不動？去問那些學院的業務為什麼不推這門課。可能是不了解、不喜歡、或沒有推薦素材。`:'\n✅ 所有學院都有銷售。'}` });
+                        }
+                    }
+                }
+                break;
+            }
+
+            } // end switch
+
+            return insights;
+        }
+
+        // ==========================================
+        // 🎯 戰略顧問 — Strategic Advisor
+        // ==========================================
+        function renderStrategicAdvisor(rows) {
+            if (rows.length === 0) return '<div class="empty-state"><div>無數據</div></div>';
+            const headers = Object.keys(rows[0] || {});
+            const sheetInfo = SHEET_NAMES.find(s => s.id === currentSheet);
+            if (!sheetInfo) return '';
+            const af = selectedAcademy || '';
+            const plans = generateStrategicPlan(rows, headers, sheetInfo, af);
+
+            let html = '<div style="margin-bottom:15px;padding:18px 22px;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,100,50,0.06));border:1px solid rgba(255,215,0,0.25);border-radius:12px;">';
+            html += '<div style="font-size:18px;font-weight:700;color:#ffd700;margin-bottom:6px;">🎯 戰略顧問執行計劃</div>';
+            html += '<div style="font-size:12px;color:#a0a0a0;">基於真實數據分析 · 不講大道理 · 只給可執行方案 · 考慮人性弱點</div></div>';
+
+            plans.forEach(plan => {
+                const tagColor = plan.urgency === 'critical' ? '#ff2244' : plan.urgency === 'high' ? '#ff8800' : plan.urgency === 'medium' ? '#ffd700' : '#00ff88';
+                const tagText = plan.urgency === 'critical' ? '🔴 立即執行' : plan.urgency === 'high' ? '🟠 本週內' : plan.urgency === 'medium' ? '🟡 本月內' : '🟢 持續優化';
+                html += `<div style="margin-bottom:20px;padding:20px;background:rgba(15,20,60,0.7);border-left:4px solid ${tagColor};border-radius:8px;">`;
+                html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">`;
+                html += `<div style="font-size:15px;font-weight:700;color:#ffd700;">${plan.title}</div>`;
+                html += `<div style="font-size:11px;padding:3px 10px;border-radius:20px;background:${tagColor}22;color:${tagColor};border:1px solid ${tagColor}44;">${tagText}</div></div>`;
+                html += `<div style="font-size:13px;color:#d0d0d0;line-height:1.9;white-space:pre-line;">${plan.diagnosis}</div>`;
+                if (plan.actions && plan.actions.length) {
+                    html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(100,180,255,0.1);">';
+                    html += '<div style="font-size:12px;color:#ffd700;font-weight:600;margin-bottom:8px;">📋 具體執行步驟：</div>';
+                    plan.actions.forEach((a, i) => {
+                        html += `<div style="display:flex;gap:8px;margin-bottom:6px;font-size:12px;color:#c0c0c0;">`;
+                        html += `<div style="width:22px;height:22px;border-radius:50%;background:${tagColor}22;color:${tagColor};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;">${i+1}</div>`;
+                        html += `<div style="line-height:1.7;">${a}</div></div>`;
+                    });
+                    html += '</div>';
+                }
+                if (plan.kpi) {
+                    html += `<div style="margin-top:10px;padding:10px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.15);border-radius:6px;font-size:12px;color:#00ff88;">📊 追蹤指標：${plan.kpi}</div>`;
+                }
+                if (plan.warning) {
+                    html += `<div style="margin-top:8px;padding:10px;background:rgba(255,68,100,0.06);border:1px solid rgba(255,68,100,0.15);border-radius:6px;font-size:12px;color:#ff6b7a;">⚠️ 人性陷阱：${plan.warning}</div>`;
+                }
+                html += '</div>';
+            });
+            return html;
+        }
+
+        function generateStrategicPlan(rows, headers, sheetInfo, af) {
+            const plans = [];
+            // Reuse analysis helpers
+            function getVals(col, excludeTotal) {
+                return rows.filter(r => { if(excludeTotal){const f=String(r[headers[0]]||'');if(f==='合計'||f==='總計')return false;} return isNumeric(r[col])&&Number(r[col])!==0; }).map(r=>({name:r[headers.find(h=>h.includes('姓名')||h.includes('學院')||h.includes('組別')||h==='通路來源'||h==='繳費課程'||h==='繳費項目'||h==='收支方式')]||r[headers[0]]||'?', val:Number(r[col])}));
+            }
+            function topN(a,n){return[...a].sort((x,y)=>y.val-x.val).slice(0,n);}
+            function botN(a,n){return[...a].sort((x,y)=>x.val-y.val).slice(0,n);}
+            function sumV(a){return a.reduce((s,x)=>s+x.val,0);}
+            function avgV(a){return a.length?sumV(a)/a.length:0;}
+            function gini(a){if(a.length<2)return 0;const s=[...a].map(x=>x.val).sort((x,y)=>x-y),n=s.length,m=s.reduce((x,y)=>x+y,0)/n;if(!m)return 0;let sm=0;s.forEach((v,i)=>{sm+=(2*(i+1)-n-1)*v;});return sm/(n*n*m);}
+            const dataRows = rows.filter(r=>{const f=String(r[headers[0]]||'');return f!=='合計'&&f!=='總計';});
+
+            switch(sheetInfo.id) {
+
+            case 1: { // ❶ 通路名單
+                const tc = headers.find(h=>h==='總計');
+                const acadCols = headers.filter(h=>ALL_ACADEMIES.includes(h));
+                if(af && headers.includes(af)) {
+                    const vals = dataRows.filter(r=>Number(r[af])>0).map(r=>({name:r[headers[0]],val:Number(r[af])}));
+                    const total = sumV(vals);
+                    const top3 = topN(vals,3);
+                    const topPct = top3.length ? (sumV(top3)/total*100).toFixed(0) : 0;
+                    plans.push({title:`${af}：名單通路重組計劃`, urgency: Number(topPct)>70?'critical':'high',
+                        diagnosis:`現況：${total} 筆名單，前 3 通路佔 ${topPct}%。\n${top3.map((x,i)=>`${i+1}. ${x.name}：${x.val} 筆（${(x.val/total*100).toFixed(1)}%）`).join('\n')}\n\n問題本質：通路過度集中 = 一個政策改變就能讓名單腰斬。`,
+                        actions:[`本週：列出 ${af} 目前完全沒使用的通路清單，選 2 個成本最低的開始測試`,`兩週內：找全公司同類型通路做得最好的學院，直接約 30 分鐘取經（不要自己摸索）`,`本月：設定新通路最低名單目標 = 目前總量的 10%（${Math.ceil(total*0.1)} 筆），指定專人負責`,`下月：檢視新通路的名單→面談→成交轉化率，淘汰 ROI 最差的，加碼最好的`],
+                        kpi:`新通路名單佔比 ≥ 15% | 前3通路集中度 < 65% | 每月至少測試 1 個新通路`,
+                        warning:`你會覺得「現在通路夠用幹嘛換」—— 這就像在晴天不修屋頂。等風暴來了再找替代方案，成本是現在的 5 倍。`});
+                } else if(tc) {
+                    const vals = dataRows.filter(r=>Number(r[tc])>0).map(r=>({name:r[headers[0]],val:Number(r[tc])}));
+                    const total = sumV(vals);
+                    const g = gini(vals);
+                    const top5 = topN(vals,5);
+                    const top5pct = (sumV(top5)/total*100).toFixed(0);
+                    plans.push({title:'全公司名單來源戰略重構', urgency:g>0.6?'critical':'high',
+                        diagnosis:`${vals.length} 種通路，共 ${fmtComma(total)} 筆名單。\n吉尼係數 ${g.toFixed(2)}${g>0.6?' — 通路分配極度不均':g>0.4?' — 中度集中':''}。\n前 5 通路佔 ${top5pct}% 名單。\n\n核心問題：${g>0.5?'太少通路扛太多名單，這不是效率，是風險。':'通路結構尚可但仍需優化。'}`,
+                        actions:['本週：各學院主管列出自己前 3 大通路和佔比，找出集中度 > 60% 的學院','兩週內：建立「通路健康度看板」，每週更新，讓所有人看到自己的通路集中風險','本月：每個高集中度學院必須啟動至少 1 個新通路實驗，預算 = 目前第3大通路的 50%','季度：淘汰連續 3 個月 ROI 最差的 2 個通路，資源重新分配'],
+                        kpi:`全公司吉尼係數 < 0.5 | 各學院前3通路佔比 < 65% | 每季新增有效通路 ≥ 2`,
+                        warning:`人會習慣走老路，因為新通路初期一定比舊通路差。你需要給 3 個月的耐心期，但同時設定明確的退出條件。`});
+                    if(acadCols.length) {
+                        const totRow = rows.find(r=>String(r[headers[0]])==='總計');
+                        if(totRow) {
+                            const acadVals = acadCols.map(a=>({name:a,val:Number(totRow[a])||0})).sort((a,b)=>b.val-a.val);
+                            const avg = avgV(acadVals);
+                            const weak = acadVals.filter(x=>x.val<avg*0.5);
+                            if(weak.length) {
+                                plans.push({title:'名單貧血學院急救方案', urgency:'high',
+                                    diagnosis:`${weak.length} 個學院名單低於平均（${fmtComma(Math.round(avg))}）的 50%：\n${weak.map(x=>`${x.name}：${fmtComma(x.val)}（平均的 ${(x.val/avg*100).toFixed(0)}%）`).join('\n')}\n\n名單不夠 = 業務沒子彈。再強的業務，沒名單也出不了業績。`,
+                                    actions:['48小時內：從名單充裕的學院「借調」名單（跨區名單共享機制）','本週：檢查這些學院的行銷投放預算是否合理，名單少往往是投放不足','兩週內：讓名單最多的學院分享他們的名單獲取 SOP','本月：為每個弱勢學院設定名單成長目標 = 至少達到平均的 70%'],
+                                    kpi:`弱勢學院名單月成長率 ≥ 30% | 3個月內全部達到平均的 70%`,
+                                    warning:`不要平均分配行銷預算。把錢投到名單→業績轉化率最高的地方。先救 ROI 高但名單不夠的學院，不要救 ROI 低的。`});
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+
+            case 2: { // ❷ 通路業績
+                const tc = headers.find(h=>h==='總計');
+                const channels = headers.filter(h=>h!==headers[0]&&h!=='總計');
+                if(af) {
+                    const row = rows.find(r=>String(r[headers[0]]).includes(af));
+                    if(!row) break;
+                    const total = Number(row['總計'])||0;
+                    const chVals = channels.map(ch=>({name:ch,val:Number(row[ch])||0})).sort((a,b)=>b.val-a.val);
+                    const topCh = chVals[0];
+                    const dep = topCh?(topCh.val/total*100).toFixed(0):0;
+                    const zeroCh = chVals.filter(x=>x.val===0);
+                    plans.push({title:`${af}：通路業績結構優化`, urgency:Number(dep)>55?'critical':'medium',
+                        diagnosis:`總業績 ${fmtComma(total)}，${chVals.length} 個通路。\n第一大通路「${topCh?topCh.name:''}」佔 ${dep}%。${Number(dep)>55?'\n超過一半業績來自單一通路，結構性風險極高。':''}`,
+                        actions:[`本週：分析「${topCh?topCh.name:''}」通路的客單價和退費率，確認這些業績是健康的`,zeroCh.length?`兩週內：從零業績通路中選 1 個（${zeroCh.slice(0,2).map(x=>x.name).join('或')}），設定最低目標 ${fmtComma(Math.round(total*0.05))}`:'兩週內：檢視所有通路的客單價和轉化率，找出 ROI 最高的',`本月：第二大通路業績提升 15% 的具體作戰計劃（誰負責、怎麼做、做多少）`,`持續：建立通路月報，追蹤每個通路的 ROI 變化趨勢`],
+                        kpi:`第一大通路佔比 < 50% | 至少 3 個通路各 > 15% | 零業績通路數量 ≤ 1`,
+                        warning:`「基本通路做得好好的幹嘛碰別的」—— 這是倖存者偏差。你看到的是成功，沒看到的是當這個通路失效時的災難。`});
+                } else if(tc) {
+                    const chTotals = channels.map(ch=>{const sum=dataRows.reduce((s,r)=>s+(Number(r[ch])||0),0);return{name:ch,val:sum};}).sort((a,b)=>b.val-a.val);
+                    const total = chTotals.reduce((s,x)=>s+x.val,0);
+                    const baseCh = chTotals.find(x=>x.name==='基本通路');
+                    const baseRatio = baseCh?(baseCh.val/total*100).toFixed(0):0;
+                    const netCh = chTotals.find(x=>x.name==='網際網路');
+                    const netRatio = netCh?(netCh.val/total*100).toFixed(0):0;
+                    plans.push({title:'通路業績戰略：從依賴到分散', urgency:Number(baseRatio)>50?'critical':'medium',
+                        diagnosis:`全公司 ${fmtComma(total)} 業績來自 ${chTotals.length} 個通路。\n${chTotals.map(x=>`${x.name}：${fmtComma(x.val)}（${(x.val/total*100).toFixed(1)}%）`).join('\n')}\n\n${Number(baseRatio)>50?'⚠️ 基本通路佔 '+baseRatio+'%，代表過半業績靠既有客戶。客戶池是有限的，不增加新客源，18個月內一定衰退。':''}`,
+                        actions:['本週：統計各學院「新客 vs 舊客」業績比，找出新客佔比最低的學院','兩週內：網際網路通路投放效率審計 — 每花 1 元帶來多少業績？對比各學院差異','本月：設定目標 — 新客通路（網路+展場）業績佔比每月提升 2 個百分點','季度：每個學院至少有 1 個「第二生命線」通路，業績佔比 > 20%'],
+                        kpi:`基本通路佔比 < 45% | 網際網路佔比 > 20% | 新客業績月成長率 > 5%`,
+                        warning:`舊客戶業績做起來輕鬆，業務會自然偏向做熟客。你需要強制規定新客佔比目標，否則所有人都會走輕鬆的路。`});
+                }
+                break;
+            }
+
+            case 3: { // ❸ 業務個人績效
+                const revCol = headers.find(h=>h==='合計業績');
+                const nameCol = headers.find(h=>h==='姓名');
+                const fRows = af ? dataRows.filter(r=>Object.values(r).some(v=>String(v).includes(af))) : dataRows;
+                if(!revCol||!nameCol) break;
+                const people = fRows.filter(r=>isNumeric(r[revCol])).map(r=>({
+                    name:r[nameCol]||'?',acad:r['學院']||'',val:Number(r[revCol]),
+                    rate:Number(r['達成率'])||0,iv:Number(r['面談'])||0,
+                    iRate:Number(r['面談率'])||0,refund:Number(r['退費金額'])||0
+                }));
+                const active = people.filter(x=>x.val>0);
+                const total = sumV(active);
+                const avg = avgV(active);
+                const over = active.filter(x=>x.rate>=1);
+                const under50 = active.filter(x=>x.rate>0&&x.rate<0.5);
+                const zeroIv = people.filter(x=>x.iv===0);
+                const overPct = active.length?(over.length/active.length*100).toFixed(0):0;
+
+                plans.push({title:`業務戰力提升：${af||'全公司'} 90天作戰計劃`, urgency:Number(overPct)<30?'critical':'high',
+                    diagnosis:`有效業務 ${active.length} 人，達標 ${over.length} 人（${overPct}%）。\n人均業績 ${fmtComma(Math.round(avg))}。\n低於50%達成率：${under50.length} 人。\n零面談：${zeroIv.length} 人。\n\n${Number(overPct)<30?'不到三成達標，這不是個人問題，是系統問題。需要同時處理：活動量、技術、心態。':''}`,
+                    actions:[`本週：把業務分成 3 層 —— A級（達標）${over.length}人 / B級（50-99%）${active.filter(x=>x.rate>=0.5&&x.rate<1).length}人 / C級（<50%）${under50.length}人。每層不同策略`,`A級：不要管太多，給自主空間+額外獎勵目標。讓他們帶 B級做 mentor`,`B級：每週 1on1，找出差 10-20% 就能達標的卡點。通常是 1-2 個具體行為（多約 3 個面談 or 提高報價信心）`,`C級：48小時內每人面談，不問「為什麼不好」，問「最大的卡點是什麼」。如果是名單不夠，馬上調資源；如果是技術不夠，安排跟 A級 ride-along`,zeroIv.length>3?`零面談的 ${zeroIv.length} 人：本週每天追蹤邀約數。不是月底才算帳，是每天都要有最低活動量`:'持續追蹤每日活動量'],
+                    kpi:`達標率 ≥ 40% | 零面談人數 < ${Math.max(3,Math.round(people.length*0.1))} | B級→A級轉化率 ≥ 30%/月`,
+                    warning:`你會想「先處理最差的」—— 這是錯的。先穩住 A級，再推 B級上來。C級投入最多精力但回報最低。80% 的管理時間應該花在 B級身上。`});
+
+                if(active.length>=5) {
+                    const top5 = topN(active,5);
+                    const t5total = sumV(top5);
+                    plans.push({title:'複製 TOP 業務的成功模式', urgency:'high',
+                        diagnosis:`TOP 5 業務貢獻了 ${fmtComma(t5total)}（${(t5total/total*100).toFixed(0)}% 的業績）。\n${top5.map((x,i)=>`${i+1}. ${x.name}（${x.acad}）：${fmtComma(x.val)} | 面談率 ${(x.iRate*100).toFixed(0)}% | 達成率 ${(x.rate*100).toFixed(0)}%`).join('\n')}\n\n他們做了什麼不同的事？這就是你的「成功密碼」。`,
+                        actions:['本週：約 TOP 3 業務各 30 分鐘深度訪談，記錄他們的：每日行程、邀約話術、面談流程、成交技巧','兩週內：把共通行為整理成「TOP 業務 SOP」，不超過 1 頁 A4','本月：讓所有 B級業務試行這套 SOP 兩週，追蹤效果','每月：更新 SOP，加入新的成功經驗'],
+                        kpi:'SOP 試行後 B級業務平均業績提升 ≥ 15%',
+                        warning:'TOP 業務會說「我也沒什麼特別的」—— 這是因為他們的成功行為已經內化了。你需要觀察他們做什麼，而不是聽他們說什麼。'});
+                }
+
+                const highRefund = active.filter(x=>x.refund>0).sort((a,b)=>b.refund-a.refund);
+                if(highRefund.length>0) {
+                    const totalRefund = highRefund.reduce((s,x)=>s+x.refund,0);
+                    const refundRate = (totalRefund/total*100).toFixed(1);
+                    if(Number(refundRate)>8) {
+                        plans.push({title:'退費止血計劃', urgency:Number(refundRate)>15?'critical':'high',
+                            diagnosis:`退費總額 ${fmtComma(totalRefund)}（佔業績 ${refundRate}%）。\n退費最高：${highRefund.slice(0,5).map(x=>`${x.name} ${fmtComma(x.refund)}`).join('、')}\n\n每一筆退費都是「負業績」+ 行政成本 + 客戶信任損失。退費率超過 10% 就是在做白工。`,
+                            actions:['本週：拉出所有退費案件的原因分類（課程不符/經濟壓力/衝動消費/其他）','找出退費率最高的 3 個業務，分析他們的成交方式是否有「過度承諾」問題','兩週內：建立「成交品質檢查表」—— 成交前確認客戶的真實需求、付款能力、學習動機','本月：退費率 > 20% 的業務，暫停新客戶分配，先做成交品質培訓'],
+                            kpi:`退費率 < 8% | 退費率 > 15% 的業務數量 = 0`,
+                            warning:`業務會說「客戶自己要退的」—— 但 70% 的退費是成交時就埋下的。不要等退費發生才處理，要在成交時就把關。`});
+                    }
+                }
+                break;
+            }
+
+            case 4: { // ❹ 正式小組業績
+                const revCol = headers.find(h=>h==='總業績');
+                const fRows = af ? dataRows.filter(r=>Object.values(r).some(v=>String(v).includes(af))) : dataRows;
+                if(!revCol) break;
+                const groups = fRows.filter(r=>isNumeric(r[revCol])&&Number(r[revCol])>0).map(r=>{
+                    const leader = {name:r['組長']||'',val:Number(r['業績'])||0};
+                    const members = [leader];
+                    for(let i=1;i<=4;i++){const mk=i===1?'組員':'組員'+(i*2-1);const vk='業績'+(i*2);const n=r[mk]||'';const v=Number(r[vk])||0;if(n)members.push({name:n,val:v});}
+                    return{name:r['正式組別']||'?',val:Number(r[revCol]),acad:r['學院']||'',leader,members};
+                });
+                const leaderHeavy = groups.filter(g=>g.leader.val>0&&g.leader.val/g.val>0.5);
+                const zeroM = [];
+                groups.forEach(g=>{g.members.forEach(m=>{if(m.val<=0&&m.name&&m.name!==g.leader.name)zeroM.push({m:m.name,g:g.name});});});
+                const total = sumV(groups);
+                const avg = avgV(groups);
+
+                plans.push({title:`小組戰力重組：${af||'全公司'} 執行計劃`, urgency:leaderHeavy.length>groups.length*0.3?'critical':'high',
+                    diagnosis:`${groups.length} 個小組，總業績 ${fmtComma(total)}，平均 ${fmtComma(Math.round(avg))}。\n組長扛業績（>50%）的小組：${leaderHeavy.length} 個。\n零貢獻組員：${zeroM.length} 人。\n\n${leaderHeavy.length?'組長扛太多 = 組員長不大 = 組長一走整組崩。這是管理最常見的死亡螺旋。':''}`,
+                    actions:[leaderHeavy.length?`本週：跟 ${leaderHeavy.length} 位「扛業績組長」面談，明確新規則：組長個人業績上限 = 小組目標的 40%，多出來的客戶要分給組員`:'本週：肯定組長帶人成果',`兩週內：每個小組制定「組員培養計劃」—— 每個組員有明確的月目標和每週里程碑`,`本月：建立「組長帶人 KPI」—— 考核不只看小組業績，要加上組員成長率（佔 30% 權重）`,zeroM.length>2?`零貢獻組員處理：不是開除，是重新分配。把零貢獻組員調到最強組長底下見習 2 週`:'持續監控組員貢獻均衡度'],
+                    kpi:`組長業績佔比 < 40% | 零貢獻組員 < ${Math.max(1,Math.round(groups.length*0.3))} | 組員月均業績成長 ≥ 10%`,
+                    warning:`組長寧願自己做也不願教人，因為教人短期一定比自己做慢。你需要用制度（KPI 權重）逼他們改變，光靠說是沒用的。`});
+
+                if(groups.length>=4) {
+                    const sorted = [...groups].sort((a,b)=>b.val-a.val);
+                    const gap = sorted[0].val/Math.max(sorted[sorted.length-1].val,1);
+                    if(gap>2) {
+                        plans.push({title:'小組差距彌合方案', urgency:'medium',
+                            diagnosis:`第1名 ${sorted[0].name}（${fmtComma(sorted[0].val)}）vs 最後 ${sorted[sorted.length-1].name}（${fmtComma(sorted[sorted.length-1].val)}），差距 ${gap.toFixed(1)} 倍。`,
+                            actions:['本週：檢查最後 3 組的名單分配量、目標設定、組員結構是否合理','兩週內：讓 TOP 組長做一次「方法分享會」（30分鐘，只講具體做法，不講道理）','本月：為落後組制定「追趕計劃」—— 目標不是第一，是達到平均的 80%'],
+                            kpi:`最後一名 ≥ 平均的 60% | 倍差比 < 2.5`,
+                            warning:`不要把資源從強組抽走補弱組。正確做法是把弱組的方法換成強組的方法，資源分配維持不變。`});
+                    }
+                }
+                break;
+            }
+
+            case 5: { // ❺ 學院績效
+                const vals = dataRows.filter(r=>Number(r['業績'])>0).map(r=>({
+                    name:r['學院']||'?',val:Number(r['業績']),rate:Number(r['達成率'])||0,
+                    goal:Number(r['個人目標'])||0,refund:Number(r['退費金額'])||0,
+                    iv:Number(r['面談'])||0,iRate:Number(r['面談率'])||0
+                }));
+                if(af) {
+                    const x = vals.find(v=>v.name.includes(af));
+                    if(!x) break;
+                    const rank = [...vals].sort((a,b)=>b.val-a.val).findIndex(v=>v.name===x.name)+1;
+                    const refPct = x.val>0?(x.refund/x.val*100).toFixed(1):0;
+                    plans.push({title:`${af}：學院績效突破計劃`, urgency:x.rate<0.7?'critical':x.rate<0.9?'high':'medium',
+                        diagnosis:`業績 ${fmtComma(x.val)} / 目標 ${fmtComma(x.goal)} → 達成率 ${(x.rate*100).toFixed(1)}%（排名 ${rank}/${vals.length}）\n面談 ${x.iv} 次，面談率 ${(x.iRate*100).toFixed(1)}%\n退費 ${fmtComma(x.refund)}（${refPct}%）\n\n${x.rate<0.7?'達成率不到 70%，需要立即干預。不是激勵，是找到具體卡點。':''}`,
+                        actions:[x.iRate<0.3?`最關鍵問題是面談率只有 ${(x.iRate*100).toFixed(0)}%。本週：每個業務的邀約數量 x 2，先把漏斗頂端撐大`:`面談率 ${(x.iRate*100).toFixed(0)}% 可接受，重點放在提升成交率`,
+                            `本週：拉出 ${af} 每位業務的「面談→報名→註冊」轉化率，找出最卡的環節`,
+                            `兩週內：針對卡點安排專項訓練 — 邀約差就練邀約、面談差就練面談、成交差就練報價`,
+                            Number(refPct)>12?`退費率 ${refPct}% 偏高，同步啟動成交品質檢查`:'維持成交品質',
+                            `本月：設定每週里程碑，不要等月底才看結果。例如第1週完成月目標的 25%`],
+                        kpi:`達成率 ≥ ${Math.min(100,Math.round(x.rate*100+15))}% | 面談率 ≥ ${Math.min(50,Math.round(x.iRate*100+8))}% | 退費率 < 10%`,
+                        warning:`學院主管最常犯的錯：開會罵人。罵完大家低頭，下個月還是一樣。要改的是「行為」不是「態度」。告訴他們具體要多做什麼，而不是說「要更努力」。`});
+                } else {
+                    const total = sumV(vals);
+                    const totalGoal = vals.reduce((s,x)=>s+x.goal,0);
+                    const overRate = vals.filter(x=>x.rate>=1);
+                    const under70 = vals.filter(x=>x.rate<0.7);
+                    const totalRefund = vals.reduce((s,x)=>s+x.refund,0);
+                    plans.push({title:'全公司學院績效 90 天突破計劃', urgency:overRate.length/vals.length<0.3?'critical':'high',
+                        diagnosis:`總業績 ${fmtComma(total)} / 總目標 ${fmtComma(totalGoal)} → 達成率 ${(total/totalGoal*100).toFixed(1)}%\n達標：${overRate.length}/${vals.length}（${overRate.map(x=>x.name).join('、')||'無'}）\n低於70%：${under70.length} 個（${under70.map(x=>`${x.name} ${(x.rate*100).toFixed(0)}%`).join('、')}）\n退費總額：${fmtComma(totalRefund)}（${(totalRefund/total*100).toFixed(1)}%）`,
+                        actions:[`第1週：${under70.length} 個低於 70% 的學院，每個出一份「根因分析報告」—— 是名單問題、人的問題、還是目標問題？`,`第2週：根據根因分類採取行動 —— 名單問題→調資源 / 人的問題→調人或加訓 / 目標問題→調目標`,`第3-4週：每週追蹤進度，每個學院必須回報本週里程碑完成情況`,`第2個月：初步見效的學院加碼資源，沒改善的學院主管 1on1 談話`,`第3個月：全面檢討目標設定合理性，基於前 3 個月數據重新校準下季目標`],
+                        kpi:`達標學院數 ≥ ${Math.min(vals.length,overRate.length+3)} | 全公司達成率 ≥ ${Math.min(100,Math.round(total/totalGoal*100+10))}% | 退費率 < 10%`,
+                        warning:`目標定太高，所有人都放棄；定太低，沒有挑戰。健康標準：60-70% 的學院能達標。如果現在只有 ${(overRate.length/vals.length*100).toFixed(0)}%，先檢查目標再檢查執行。`});
+                }
+                break;
+            }
+
+            case 6: { // ❻ 繳費項目
+                const tc = headers.find(h=>h==='總計');
+                const totRow = rows.find(r=>String(r[headers[0]])==='合計');
+                if(af) {
+                    const row = dataRows.find(r=>String(r[headers[0]]).includes(af));
+                    if(!row) break;
+                    const total = Number(row['總計'])||0;
+                    const reg = Number(row['註冊'])||0;
+                    const cancel = Number(row['解約回繳'])||0;
+                    plans.push({title:`${af}：收入結構優化`, urgency:cancel/total>0.25?'high':'medium',
+                        diagnosis:`總計 ${fmtComma(total)}，其中註冊 ${fmtComma(reg)}（${(reg/total*100).toFixed(0)}%），解約回繳 ${fmtComma(cancel)}（${(cancel/total*100).toFixed(0)}%）`,
+                        actions:['本週：分析解約回繳的客戶 profile —— 為什麼退了又回來？找出模式','兩週內：建立「高品質成交」標準 —— 減少衝動成交導致的退費循環','本月：設定註冊收入佔比目標 ≥ 75%'],
+                        kpi:`註冊佔比 ≥ 75% | 解約回繳佔比 < 20%`,
+                        warning:`解約回繳看起來是「失而復得」的好消息，實際上是浪費了兩次行政成本。防止退費比追回退費重要 10 倍。`});
+                } else if(totRow) {
+                    const total = Number(totRow['總計'])||0;
+                    const reg = Number(totRow['註冊'])||0;
+                    const cancel = Number(totRow['解約回繳'])||0;
+                    plans.push({title:'全公司收入品質提升計劃', urgency:cancel/total>0.2?'high':'medium',
+                        diagnosis:`全公司收入 ${fmtComma(total)}。\n註冊收入 ${fmtComma(reg)}（${(reg/total*100).toFixed(1)}%）\n解約回繳 ${fmtComma(cancel)}（${(cancel/total*100).toFixed(1)}%）\n\n健康的業績 = 高比例的「第一次就成功的交易」。解約回繳比例過高代表業績在「內部空轉」。`,
+                        actions:['本週：各學院統計「解約→回繳」的平均天數和原因分類','兩週內：找出解約率最高的 3 位業務，分析成交 SOP 是否有問題','本月：建立成交品質評分卡 — 客戶匹配度、付款能力、學習動機三項評估','季度：追蹤退費率趨勢，目標每月下降 1 個百分點'],
+                        kpi:`註冊佔比 ≥ 75% | 退費循環率月減 1% | 首次成交留存率 ≥ 85%`,
+                        warning:`業務為了衝數字會「先簽再說」，退費是未來的事。你需要把退費率納入業務 KPI，而且權重要夠重（至少 20%），否則改不了。`});
+                }
+                break;
+            }
+
+            case 7: { // ❼ 收支方式
+                const totRow = rows.find(r=>String(r[headers[0]])==='合計');
+                const methods = headers.filter(h=>h!==headers[0]&&h!=='總計');
+                if(totRow) {
+                    const total = Number(totRow['總計'])||0;
+                    const cash = (Number(totRow['現金'])||0)+(Number(totRow['匯款'])||0);
+                    const credit = methods.filter(m=>m.includes('信用分期')).reduce((s,m)=>s+(Number(totRow[m])||0),0);
+                    const cashPct = (cash/total*100).toFixed(0);
+                    const creditPct = (credit/total*100).toFixed(0);
+                    plans.push({title:'現金流結構戰略', urgency:Number(creditPct)>70?'critical':'medium',
+                        diagnosis:`全公司收入 ${fmtComma(total)}\n現金+匯款：${fmtComma(cash)}（${cashPct}%）—— 即時入帳\n信用分期：${fmtComma(credit)}（${creditPct}%）—— 分批入帳，有違約風險\n\n${Number(creditPct)>60?'超過六成靠分期，現金流壓力大。每個月初帳上的錢遠少於業績數字。':''}`,
+                        actions:['本週：統計各分期公司的實際到帳率、平均到帳天數、呆帳率','兩週內：設計「現金支付優惠方案」—— 一次付清折 3-5%，吸引有能力的客戶現金付','本月：跟各分期公司重新議價，用數據（業績量）談更好的手續費率','季度：現金+匯款佔比目標提升至 30%'],
+                        kpi:`現金+匯款佔比 ≥ 25% | 分期呆帳率 < 3% | 分期公司集中度 < 40%`,
+                        warning:`分期讓客戶「覺得付得起」，但也增加了衝動消費和後續退費的風險。分期越容易，退費率通常越高。要在「促進成交」和「成交品質」之間找平衡。`});
+                }
+                break;
+            }
+
+            case 8: { // ❽ 課程銷售
+                const tc = headers.find(h=>h==='總計');
+                const acadCols = headers.filter(h=>ALL_ACADEMIES.includes(h));
+                if(tc) {
+                    const vals = dataRows.filter(r=>Number(r[tc])>0).map(r=>({name:r[headers[0]],val:Number(r[tc])}));
+                    const total = sumV(vals);
+                    const top5 = topN(vals,5);
+                    const top5pct = (sumV(top5)/total*100).toFixed(0);
+                    const bot = vals.filter(x=>x.val<total/vals.length*0.2);
+                    plans.push({title:'課程產品組合戰略', urgency:Number(top5pct)>80?'high':'medium',
+                        diagnosis:`${vals.length} 門課程，總銷售 ${fmtComma(total)}。\n\nTOP 5 課程佔 ${top5pct}%：\n${top5.map((x,i)=>`${i+1}. ${x.name}：${fmtComma(x.val)}`).join('\n')}\n\n長尾課程（< 平均20%）：${bot.length} 門。\n\n${Number(top5pct)>80?'產品組合過度集中。如果 TOP 課程退燒，營收會斷崖。':''}`,
+                        actions:['本週：分析 TOP 5 課程的生命週期 —— 是在成長期還是成熟期？成熟期的課程需要升級或替代品','兩週內：檢視長尾課程 — 連續 3 個月低於平均 20% 的直接下架或合併，釋放排課和師資資源',`本月：選 2 門有潛力的中段課程重點行銷（不要只推 TOP 課程），目標各成長 30%`,'季度：建立「課程健康度儀表板」—— 每門課追蹤銷售趨勢、退費率、學員滿意度'],
+                        kpi:`TOP 5 佔比 < 70% | 長尾課程數量減少 30% | 中段課程至少 2 門進入 TOP 10`,
+                        warning:`教學團隊會抗拒下架「自己的課」。你需要用數據說話，不是用感情。ROI 最低的課程不是「不好」，是「不適合現在的市場」。`});
+
+                    if(acadCols.length && top5.length) {
+                        const topCourseRow = dataRows.find(r=>r[headers[0]]===top5[0].name);
+                        if(topCourseRow) {
+                            const zeros = acadCols.filter(a=>(Number(topCourseRow[a])||0)===0);
+                            if(zeros.length>2) {
+                                plans.push({title:`熱門課程「${top5[0].name.substring(0,12)}」推廣空白區`, urgency:'high',
+                                    diagnosis:`最暢銷課程在 ${zeros.length} 個學院銷售為零：${zeros.join('、')}`,
+                                    actions:[`本週：問這些學院的業務為什麼不推這門課 — 是不了解？不喜歡？沒推薦素材？`,'兩週內：製作簡單的「課程推薦話術卡」發給所有業務','本月：在空白學院設定最低推薦目標（每人至少推 3 次）'],
+                                    kpi:`空白學院數量 < ${Math.ceil(zeros.length/2)}`,
+                                    warning:`業務推自己熟悉的課程是人性。新課程需要「強制曝光」才會被採用。`});
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+
+            } // end switch
+            return plans;
+        }
+
+        let sortCol = '';
+        let sortAsc = true;
+
+        function sortTable(columnName) {
+            if (sortCol === columnName) {
+                sortAsc = !sortAsc;
+            } else {
+                sortCol = columnName;
+                sortAsc = true;
+            }
+
+            const monthData = getMonthData(currentMonth);
+            const sheetKey = `sheet${currentSheet}`;
+            let rows = monthData[sheetKey] || [];
+            const headers = Object.keys(rows[0] || {});
+
+            // Separate total rows (pin at bottom)
+            const totalRows = rows.filter(r => { const f = String(r[headers[0]]||''); return f === '合計' || f === '總計'; });
+            let dataRows = rows.filter(r => { const f = String(r[headers[0]]||''); return f !== '合計' && f !== '總計'; });
+
+            const isNum = dataRows.some(r => isNumeric(r[columnName]));
+
+            dataRows.sort((a, b) => {
+                const aVal = a[columnName];
+                const bVal = b[columnName];
+                let cmp;
+                if (isNum) {
+                    cmp = (Number(aVal) || 0) - (Number(bVal) || 0);
+                } else {
+                    cmp = String(aVal||'').localeCompare(String(bVal||''), 'zh-TW');
+                }
+                return sortAsc ? cmp : -cmp;
+            });
+
+            setMonthData(currentMonth, currentSheet, [...dataRows, ...totalRows]);
+            renderContent();
+        }
+
+        // ==========================================
+        // Excel Import
+        // ==========================================
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const rawData = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(rawData, { type: 'array' });
+
+                    let importedCount = 0;
+                    const skipped = [];
+
+                    SHEET_NAMES.forEach(sheet => {
+                        // Find matching sheet by matchKeys (partial match)
+                        const matchedName = workbook.SheetNames.find(wsName => {
+                            return sheet.matchKeys.some(key => wsName.includes(key));
+                        });
+                        if (!matchedName) { skipped.push(sheet.emoji); return; }
+                        const sheetObj = workbook.Sheets[matchedName];
+                        if (!sheetObj) { skipped.push(sheet.emoji); return; }
+
+                        let rows = XLSX.utils.sheet_to_json(sheetObj, { defval: '' });
+                        if (rows.length === 0) return;
+
+                        // Remove columns with empty/meaningless headers (e.g., '__EMPTY', '')
+                        const validHeaders = Object.keys(rows[0]).filter(k => k && !k.startsWith('__EMPTY') && k.trim() !== '');
+
+                        rows = rows.map(row => {
+                            const clean = {};
+                            validHeaders.forEach(k => {
+                                let v = row[k];
+                                // Clean NaN, undefined, 'None' etc.
+                                if (v === undefined || v === null) { clean[k] = ''; return; }
+                                const sv = String(v).trim();
+                                if (sv === 'nan' || sv === 'NaN' || sv === 'None' || sv === 'none') { clean[k] = ''; return; }
+                                clean[k] = v;
+                            });
+                            return clean;
+                        });
+
+                        // ❺ 學院績效總表: forward-fill 區域 column (merged cells cause empty values)
+                        if (sheet.id === 5) {
+                            const regionKey = validHeaders.find(h => h.includes('區域'));
+                            if (regionKey) {
+                                let lastRegion = '';
+                                rows.forEach(row => {
+                                    const val = String(row[regionKey] || '').trim();
+                                    if (val && val !== '合計' && val !== '總計') {
+                                        lastRegion = val;
+                                    } else if (!val && lastRegion) {
+                                        row[regionKey] = lastRegion;
+                                    }
+                                });
+                            }
+                        }
+
+                        // Remove fully empty rows
+                        rows = rows.filter(row => Object.values(row).some(v => v !== '' && v !== 0));
+
+                        if (rows.length > 0) {
+                            setMonthData(currentMonth, sheet.id, rows);
+                            importedCount++;
+                        }
+                    });
+
+                    let msg = `成功匯入 ${importedCount} 個表格至 ${currentMonth} 月`;
+                    if (skipped.length) msg += `（未找到：${skipped.join(' ')}）`;
+                    showStatus(msg, importedCount > 0 ? 'success' : 'error');
+                    initMonthNav();
+                    initDataTabs();
+                    renderContent();
+                } catch (err) {
+                    showStatus(`匯入失敗：${err.message}`, 'error');
+                    console.error(err);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        // ==========================================
+        // Initialization
+        // ==========================================
+        function init() {
+            loadData();
+            initMonthNav();
+            initDataTabs();
+            initAnalysisTabs();
+            renderContent();
+        }
+
+        // Adjust layout if in iframe
+        if (window !== window.parent) {
+            const backBtn = document.querySelector('.back-btn');
+            if (backBtn) backBtn.style.display = 'none';
+            document.body.style.padding = '10px';
+            document.querySelector('.header').style.marginBottom = '15px';
+        }
+
+        // Start
+        init();
+    </script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

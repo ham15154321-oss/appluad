@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🤖 AI 顧問中心</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,'Microsoft JhengHei',sans-serif;background:linear-gradient(180deg,#03060f,#0a1628,#0d1b3e);color:#c0dcff;min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── 頂部 ── */
+.top-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:linear-gradient(180deg,rgba(10,18,45,.97),rgba(8,14,35,.93));border-bottom:1px solid rgba(50,160,255,.15);position:sticky;top:0;z-index:100;flex-wrap:wrap;}
+.back-btn{background:none;border:1px solid rgba(74,234,255,.25);color:#4aeaff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:.82rem;font-family:inherit;white-space:nowrap;}
+.back-btn:hover{background:rgba(74,234,255,.1);}
+.top-bar h1{font-size:.95rem;color:#4aeaff;margin-right:auto;}
+/* 頂部分頁 */
+.top-tabs{display:flex;gap:4px;flex-wrap:wrap;}
+.top-tab{padding:5px 10px;border-radius:8px;font-size:.75rem;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:#6a8fcc;font-family:inherit;white-space:nowrap;transition:all .2s;}
+.top-tab:hover{border-color:rgba(74,234,255,.3);color:#4aeaff;}
+.top-tab.active{background:rgba(74,234,255,.12);border-color:#4aeaff;color:#4aeaff;font-weight:700;}
+.top-tab .badge{font-size:.65rem;background:rgba(255,215,0,.2);color:#ffd700;padding:1px 5px;border-radius:8px;margin-left:3px;}
+.api-dot{width:8px;height:8px;border-radius:50%;cursor:pointer;flex-shrink:0;}
+.api-dot.off{background:#ff6b6b;box-shadow:0 0 6px rgba(255,80,80,.5);}
+.api-dot.on{background:#00e868;box-shadow:0 0 6px rgba(0,200,100,.5);}
+
+/* ── 所有頁面容器 ── */
+.view{display:none;flex:1;overflow:hidden;}
+.view.active{display:flex;flex-direction:column;}
+
+/* ── 功能卡片 ── */
+.cards-view.active{display:block;overflow-y:auto;}
+.cards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:14px;max-width:800px;margin:0 auto;}
+@media(max-width:500px){.cards-grid{grid-template-columns:1fr;}}
+.feature-card{background:linear-gradient(135deg,rgba(13,27,62,.8),rgba(20,35,75,.6));border:1px solid rgba(74,234,255,.12);border-radius:12px;padding:14px;cursor:pointer;transition:all .3s;display:flex;flex-direction:column;gap:4px;}
+.feature-card:hover{border-color:rgba(74,234,255,.4);transform:translateY(-2px);}
+.fc-icon{font-size:1.8rem;}.fc-title{font-size:.95rem;font-weight:700;color:#fff;}.fc-desc{font-size:.75rem;color:#8aa0c8;line-height:1.4;}
+.feature-card.coach{border-left:3px solid #ffd700;}.feature-card.data{border-left:3px solid #4aeaff;}.feature-card.task{border-left:3px solid #00e868;}.feature-card.team{border-left:3px solid #c084fc;}.feature-card.mentor{border-left:3px solid #ff6b6b;}.feature-card.cases{border-left:3px solid #ffa726;}
+
+/* ── 對話頁 ── */
+.chat-view.active{display:flex;flex-direction:row;}
+.chat-left{flex:1;display:flex;flex-direction:column;min-width:0;}
+.chat-header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(50,160,255,.1);}
+.chat-header .ch-title{flex:1;font-size:.9rem;font-weight:700;color:#fff;}
+.pin-btn{background:none;border:1px solid rgba(255,215,0,.3);color:#ffd700;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.75rem;font-family:inherit;}
+.pin-btn.pinned{background:rgba(255,215,0,.15);border-color:#ffd700;}
+.chat-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
+.msg{max-width:88%;padding:10px 12px;border-radius:10px;font-size:.85rem;line-height:1.55;white-space:pre-wrap;word-wrap:break-word;}
+.msg.user{align-self:flex-end;background:linear-gradient(135deg,#1a5276,#1e6f9f);color:#e8f4ff;border-bottom-right-radius:3px;}
+.msg.ai{align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(74,234,255,.08);color:#d0e8ff;border-bottom-left-radius:3px;flex-direction:column;}
+.msg-text{white-space:pre-wrap;word-break:break-word;}
+.msg-actions{display:flex;gap:6px;margin-top:6px;justify-content:flex-end;}
+.msg-save-btn{background:none;border:1px solid rgba(74,234,255,.2);color:#6a8fcc;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:.72rem;font-family:inherit;transition:all .2s;white-space:nowrap;}
+.msg-save-btn:hover{border-color:#4aeaff;color:#4aeaff;background:rgba(74,234,255,.08);}
+.msg-save-btn.saved{border-color:rgba(0,200,100,.3);color:#4caf50;cursor:default;}
+body.day-mode .msg-save-btn{border-color:rgba(180,160,220,.3);color:#8070a0;}
+body.day-mode .msg-save-btn:hover{border-color:rgba(140,100,180,.5);color:#6a4c9c;}
+body.day-mode .msg-save-btn.saved{border-color:rgba(40,160,80,.3);color:#2e7d32;}
+.msg.error{align-self:center;text-align:center;color:#ff8a8a;font-size:.78rem;background:rgba(255,80,80,.06);border:1px solid rgba(255,80,80,.12);}
+.typing{align-self:flex-start;color:#4aeaff;font-size:.8rem;padding:6px 12px;}
+.typing span{animation:blink 1.2s infinite;}@keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+.suggest-bar{padding:6px 12px;border-top:1px solid rgba(50,160,255,.08);display:flex;gap:4px;flex-wrap:wrap;}
+.suggest-chip{padding:4px 10px;border-radius:14px;font-size:.72rem;cursor:pointer;background:rgba(74,234,255,.05);border:1px solid rgba(74,234,255,.1);color:#7aa8d0;font-family:inherit;}
+.suggest-chip:hover{background:rgba(74,234,255,.12);color:#4aeaff;}
+.chat-input-bar{display:flex;gap:6px;padding:8px 12px;background:rgba(10,18,45,.95);border-top:1px solid rgba(50,160,255,.12);}
+.chat-input{flex:1;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(74,234,255,.12);color:#e0f0ff;font-size:.9rem;font-family:inherit;resize:none;min-height:52px;max-height:150px;line-height:1.5;}
+.chat-input:focus{outline:none;border-color:rgba(74,234,255,.35);}
+.chat-input::placeholder{color:#4a6a9a;}
+.chat-send{padding:7px 14px;border-radius:8px;border:none;background:linear-gradient(135deg,#4aeaff,#a78bfa);color:#03060f;font-weight:700;font-size:.82rem;cursor:pointer;font-family:inherit;}
+.chat-send:disabled{opacity:.4;cursor:not-allowed;}
+
+/* 全螢幕 + 字體控制 */
+.chat-tools{display:flex;gap:4px;align-items:center;}
+.chat-tool-btn{background:none;border:1px solid rgba(74,234,255,.25);color:#6a8fcc;border-radius:8px;padding:5px 12px;cursor:pointer;font-size:.78rem;font-family:inherit;transition:all .2s;white-space:nowrap;font-weight:600;}
+.chat-tool-btn:hover{border-color:#4aeaff;color:#4aeaff;background:rgba(74,234,255,.08);}
+.chat-tool-btn.active{background:rgba(74,234,255,.15);border-color:#4aeaff;color:#4aeaff;}
+
+.chat-view.fullscreen{position:fixed!important;top:0;left:0;right:0;bottom:0;z-index:99999;background:#03060f;border-radius:0;}
+body.day-mode .chat-view.fullscreen{background:#f0ebe8;}
+.chat-view.fullscreen .pin-side{width:320px;}
+
+/* 字體大小等級 */
+.chat-view.font-md .msg{font-size:1.05rem;line-height:1.6;}
+.chat-view.font-md .chat-input{font-size:1.05rem;}
+.chat-view.font-md .pin-item{font-size:.85rem;padding:8px 10px;} .chat-view.font-md .pin-side-hd{font-size:.85rem;}
+.chat-view.font-lg .msg{font-size:1.25rem;line-height:1.65;}
+.chat-view.font-lg .chat-input{font-size:1.2rem;}
+.chat-view.font-lg .pin-item{font-size:.95rem;padding:9px 10px;} .chat-view.font-lg .pin-side-hd{font-size:.9rem;}
+.chat-view.font-xl .msg{font-size:1.5rem;line-height:1.7;}
+.chat-view.font-xl .chat-input{font-size:1.4rem;}
+.chat-view.font-xl .suggest-chip{font-size:1rem;padding:8px 16px;}
+.chat-view.font-xl .pin-item{font-size:1.05rem;padding:10px 12px;} .chat-view.font-xl .pin-side-hd{font-size:1rem;}
+.chat-view.font-xxl .msg{font-size:1.85rem;line-height:1.75;}
+.chat-view.font-xxl .chat-input{font-size:1.7rem;min-height:70px;}
+.chat-view.font-xxl .suggest-chip{font-size:1.15rem;padding:10px 18px;}
+.chat-view.font-xxl .chat-header{padding:12px 16px;}
+.chat-view.font-xxl .ch-title{font-size:1.2rem;}
+.chat-view.font-xxl .pin-item{font-size:1.15rem;padding:12px 14px;} .chat-view.font-xxl .pin-side-hd{font-size:1.1rem;}
+
+/* 釘選側欄 */
+.pin-side{width:280px;border-left:1px solid rgba(50,160,255,.1);background:rgba(5,10,25,.4);display:flex;flex-direction:column;flex-shrink:0;}
+.pin-side-hd{padding:8px 10px;border-bottom:1px solid rgba(50,160,255,.08);font-size:.78rem;font-weight:700;color:#ffd700;}
+.pin-list{flex:1;overflow-y:auto;padding:4px;}
+.pin-item{padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:4px;font-size:.82rem;color:#8aa0c8;display:flex;align-items:center;gap:6px;border:1px solid transparent;}
+.pin-item:hover{background:rgba(74,234,255,.05);border-color:rgba(74,234,255,.1);}
+.pin-item.active{background:rgba(74,234,255,.1);border-color:rgba(74,234,255,.2);color:#4aeaff;}
+.pin-item .pt{flex:1;line-height:1.4;word-break:break-word;}
+.pin-item .pd{font-size:.7rem;color:#ff8a8a;opacity:0;cursor:pointer;padding:3px 6px;border-radius:4px;flex-shrink:0;}
+.pin-item .pe{font-size:.7rem;color:#6a8fcc;opacity:0;cursor:pointer;padding:3px 6px;border-radius:4px;flex-shrink:0;}
+.pin-item:hover .pd,.pin-item:hover .pe{opacity:1;}
+.pin-item .pd:hover{background:rgba(255,80,80,.15);} .pin-item .pe:hover{background:rgba(74,234,255,.1);color:#4aeaff;}
+.pin-page{padding:4px 8px;border-top:1px solid rgba(50,160,255,.08);display:flex;justify-content:center;gap:4px;}
+.pp-btn{background:none;border:1px solid rgba(74,234,255,.12);color:#6a8fcc;border-radius:4px;padding:2px 8px;font-size:.68rem;cursor:pointer;font-family:inherit;}
+.pp-btn.active{color:#4aeaff;border-color:#4aeaff;}
+.pin-empty{padding:16px 8px;text-align:center;font-size:.72rem;color:#4a6a9a;line-height:1.5;}
+@media(max-width:500px){.pin-side{display:none;}}
+
+/* ── 通用面板頁（時間軸/鐵律/資料庫/結案） ── */
+.panel-view.active{display:flex;flex-direction:column;}
+.panel-header{padding:12px 16px;border-bottom:1px solid rgba(50,160,255,.12);display:flex;align-items:center;gap:10px;position:relative;z-index:10;}
+.panel-header h2{font-size:1rem;color:#fff;flex:1;}
+.panel-add-btn{padding:6px 14px;border-radius:8px;border:none;background:linear-gradient(135deg,#4aeaff,#a78bfa);color:#03060f;font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit;}
+.panel-body{flex:1;overflow-y:auto;padding:14px;}
+.panel-empty{text-align:center;padding:40px 20px;color:#4a6a9a;font-size:.85rem;line-height:1.8;}
+
+/* 時間軸項目 */
+.tl-item{display:flex;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(50,160,255,.1);margin-bottom:8px;background:rgba(255,255,255,.02);}
+.tl-status{width:10px;border-radius:4px;flex-shrink:0;}
+.tl-status.pending{background:#ffa726;}.tl-status.doing{background:#4aeaff;}.tl-status.done{background:#00e868;}
+.tl-content{flex:1;min-width:0;}
+.tl-task{font-size:.85rem;color:#e0f0ff;font-weight:600;margin-bottom:4px;}
+.tl-meta{font-size:.72rem;color:#6a8fcc;}
+.tl-actions{display:flex;gap:4px;margin-top:6px;}
+.tl-act{padding:3px 8px;border-radius:4px;font-size:.68rem;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:#8aa0c8;font-family:inherit;}
+.tl-act:hover{border-color:rgba(74,234,255,.3);color:#4aeaff;}
+.tl-act.del{color:#ff8a8a;border-color:rgba(255,80,80,.2);}
+
+/* 鐵律項目 */
+.rule-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(200,130,250,.12);margin-bottom:8px;background:rgba(200,130,250,.03);}
+.rule-num{font-size:1.1rem;font-weight:800;color:#c084fc;min-width:28px;text-align:center;}
+.rule-text{flex:1;font-size:.85rem;color:#d0e8ff;line-height:1.5;}
+.rule-del{font-size:.7rem;color:#ff8a8a;cursor:pointer;padding:4px;opacity:.5;}
+.rule-del:hover{opacity:1;}
+
+/* 資料庫項目 */
+.case-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:8px;}
+.case-item.good{border:1px solid rgba(0,200,100,.15);background:rgba(0,200,100,.03);}
+.case-item.bad{border:1px solid rgba(255,80,80,.15);background:rgba(255,80,80,.03);}
+.case-check{margin-top:2px;accent-color:#ffd700;cursor:pointer;}
+.case-tag{font-size:.72rem;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;}
+.case-tag.good{background:rgba(0,200,100,.15);color:#00e868;}
+.case-tag.bad{background:rgba(255,80,80,.15);color:#ff8a8a;}
+.case-text{flex:1;font-size:.82rem;color:#d0e8ff;line-height:1.5;}
+.case-del{font-size:.75rem;color:#ff8a8a;cursor:pointer;padding:4px 8px;opacity:.7;border:1px solid rgba(255,100,100,.25);border-radius:6px;white-space:nowrap;flex-shrink:0;transition:all .2s;}
+.case-del:hover{opacity:1;background:rgba(255,80,80,.12);border-color:rgba(255,80,80,.5);}
+.case-filters{display:flex;gap:6px;margin-bottom:12px;}
+.case-filter{padding:4px 10px;border-radius:6px;font-size:.72rem;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:#8aa0c8;font-family:inherit;}
+.case-filter.active{background:rgba(74,234,255,.1);border-color:#4aeaff;color:#4aeaff;}
+
+/* 結案項目 */
+.closed-item{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.06);margin-bottom:8px;background:rgba(255,255,255,.02);cursor:pointer;}
+.closed-item:hover{border-color:rgba(74,234,255,.15);}
+.closed-header{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.closed-feature{font-size:.7rem;padding:2px 6px;border-radius:4px;background:rgba(74,234,255,.1);color:#4aeaff;}
+.closed-title{font-size:.82rem;color:#d0e8ff;font-weight:600;flex:1;}
+.closed-date{font-size:.68rem;color:#4a6a9a;}
+.closed-preview{font-size:.72rem;color:#6a8fcc;line-height:1.4;max-height:40px;overflow:hidden;}
+
+/* 新增 Modal */
+.add-modal-bg{display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
+.add-modal-bg.open{display:flex;}
+.add-modal{background:linear-gradient(135deg,#0d1b3e,#070d1f);border:1px solid rgba(74,234,255,.2);border-radius:12px;padding:18px;width:90%;max-width:420px;}
+.add-modal h3{color:#4aeaff;margin-bottom:12px;font-size:.9rem;}
+.add-modal textarea,.add-modal input,.add-modal select{width:100%;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid rgba(74,234,255,.15);color:#e0f0ff;font-size:.82rem;font-family:inherit;margin-bottom:10px;}
+.add-modal textarea{min-height:80px;resize:vertical;}
+.add-modal textarea:focus,.add-modal input:focus{outline:none;border-color:#4aeaff;}
+.add-modal .btn-row{display:flex;gap:6px;}
+.add-modal .btn-row button{flex:1;padding:8px;border-radius:8px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;}
+.add-modal .btn-save{background:linear-gradient(135deg,#4aeaff,#a78bfa);color:#03060f;}
+.add-modal .btn-cancel{background:rgba(255,255,255,.06);color:#8aa0c8;border:1px solid rgba(74,234,255,.12);}
+
+/* API Modal */
+.api-modal-bg{display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.7);align-items:center;justify-content:center;}
+.api-modal-bg.open{display:flex;}
+.api-modal{background:linear-gradient(135deg,#0d1b3e,#070d1f);border:1px solid rgba(74,234,255,.2);border-radius:12px;padding:18px;width:90%;max-width:400px;}
+.api-modal h3{color:#4aeaff;margin-bottom:10px;font-size:.9rem;}
+.api-modal input{width:100%;padding:8px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid rgba(74,234,255,.15);color:#e0f0ff;font-size:.8rem;font-family:monospace;margin-bottom:12px;}
+.api-modal input:focus{outline:none;border-color:#4aeaff;}
+.api-modal .hint{font-size:.7rem;color:#4a6a9a;margin-bottom:8px;line-height:1.4;}
+.api-modal .btn-row{display:flex;gap:6px;}
+.api-modal .btn-row button{flex:1;padding:8px;border-radius:6px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;}
+
+/* ══════ ☀️ 白天模式 ══════ */
+body.day-mode{background:linear-gradient(180deg,#c9e8ff,#e8d8f4,#fde8f0,#fff5f0);color:#4a3a5c;}
+body.day-mode *{text-shadow:none !important;}
+
+/* 頂部 */
+body.day-mode .top-bar{background:linear-gradient(180deg,rgba(210,195,240,.96),rgba(230,218,248,.96));border-bottom-color:rgba(180,160,220,.3);}
+body.day-mode .top-bar h1{color:#5a3a7a;}
+body.day-mode .back-btn{border-color:rgba(140,100,180,.35);color:#7a5a9a;}
+body.day-mode .back-btn:hover{background:rgba(180,160,220,.15);}
+body.day-mode .top-tab{border-color:rgba(180,160,220,.25);color:#8a7aaa;background:rgba(255,255,255,.4);}
+body.day-mode .top-tab:hover{border-color:rgba(140,100,180,.4);color:#5a3a7a;}
+body.day-mode .top-tab.active{background:rgba(160,120,200,.2);border-color:#7a5a9a;color:#5a3a7a;}
+body.day-mode .top-tab .badge{background:rgba(200,150,10,.15);color:#b8860b;}
+
+/* 功能卡片 */
+body.day-mode .feature-card{background:rgba(255,255,255,.75);border-color:rgba(180,160,220,.25);}
+body.day-mode .feature-card:hover{border-color:rgba(140,100,180,.45);box-shadow:0 4px 16px rgba(160,120,200,.12);}
+body.day-mode .fc-title{color:#3a2a4c;}
+body.day-mode .fc-desc{color:#6a5a8a;}
+
+/* 對話區 */
+body.day-mode .chat-header{border-bottom-color:rgba(180,160,220,.2);}
+body.day-mode .chat-header .ch-title{color:#3a2a4c;}
+body.day-mode .pin-btn{border-color:rgba(180,130,40,.35);color:#b8860b;}
+body.day-mode .pin-btn.pinned{background:rgba(200,150,10,.1);border-color:#b8860b;}
+body.day-mode .chat-msgs{background:rgba(255,255,255,.2);}
+body.day-mode .msg.user{background:linear-gradient(135deg,rgba(140,160,220,.25),rgba(160,140,200,.2));color:#3a2a4c;}
+body.day-mode .msg.ai{background:rgba(255,255,255,.7);border-color:rgba(180,160,220,.2);color:#4a3a5c;}
+body.day-mode .msg.error{background:rgba(220,80,80,.08);border-color:rgba(220,80,80,.15);color:#c04040;}
+body.day-mode .typing{color:#7a5a9a;}
+body.day-mode .suggest-bar{border-top-color:rgba(180,160,220,.15);}
+body.day-mode .suggest-chip{background:rgba(240,230,248,.6);border-color:rgba(180,160,220,.25);color:#6a5a8a;}
+body.day-mode .suggest-chip:hover{background:rgba(230,218,248,.8);color:#5a3a7a;border-color:rgba(140,100,180,.4);}
+body.day-mode .chat-input-bar{background:rgba(240,235,248,.95);border-top-color:rgba(180,160,220,.2);}
+body.day-mode .chat-input{background:rgba(255,255,255,.8);border-color:rgba(180,160,220,.3);color:#3a2a4c;}
+body.day-mode .chat-input::placeholder{color:#a090b8;}
+body.day-mode .chat-input:focus{border-color:rgba(140,100,180,.5);}
+body.day-mode .chat-tool-btn{border-color:rgba(180,160,220,.25);color:#8070a0;}
+body.day-mode .chat-tool-btn:hover,body.day-mode .chat-tool-btn.active{border-color:rgba(140,100,180,.5);color:#6a4c9c;background:rgba(140,100,180,.08);}
+body.day-mode .chat-send{background:linear-gradient(135deg,#b090d0,#9070b0);color:#fff;}
+
+/* 釘選側欄 */
+body.day-mode .pin-side{border-left-color:rgba(180,160,220,.2);background:rgba(245,240,252,.6);}
+body.day-mode .pin-side-hd{border-bottom-color:rgba(180,160,220,.15);color:#b8860b;}
+body.day-mode .pin-item{color:#6a5a8a;}
+body.day-mode .pin-item:hover{background:rgba(230,218,248,.5);border-color:rgba(180,160,220,.2);}
+body.day-mode .pin-item.active{background:rgba(220,200,240,.4);border-color:rgba(140,100,180,.3);color:#5a3a7a;}
+body.day-mode .pin-item .pd{color:#c04040;}
+body.day-mode .pin-item .pe{color:#8070a0;}
+body.day-mode .pin-item .pe:hover{background:rgba(140,100,180,.1);color:#6a4c9c;}
+body.day-mode .pin-empty{color:#a090b8;}
+body.day-mode .pp-btn{border-color:rgba(180,160,220,.2);color:#8a7aaa;}
+body.day-mode .pp-btn.active{color:#5a3a7a;border-color:#7a5a9a;}
+
+/* 面板頁（時間軸/鐵律/資料庫/結案） */
+body.day-mode .panel-header{border-bottom-color:rgba(180,160,220,.2);}
+body.day-mode .panel-header h2{color:#3a2a4c;}
+body.day-mode .panel-add-btn{background:linear-gradient(135deg,#b090d0,#9070b0);color:#fff;}
+body.day-mode .panel-empty{color:#a090b8;}
+
+body.day-mode .tl-item{border-color:rgba(180,160,220,.2);background:rgba(255,255,255,.6);}
+body.day-mode .tl-task{color:#3a2a4c;}
+body.day-mode .tl-meta{color:#6a5a8a;}
+body.day-mode .tl-act{border-color:rgba(180,160,220,.25);color:#6a5a8a;background:rgba(255,255,255,.5);}
+body.day-mode .tl-act:hover{border-color:rgba(140,100,180,.4);color:#5a3a7a;}
+body.day-mode .tl-act.del{color:#c04040;border-color:rgba(220,80,80,.25);}
+
+body.day-mode .rule-item{border-color:rgba(180,140,220,.2);background:rgba(240,230,248,.4);}
+body.day-mode .rule-num{color:#7a5a9a;}
+body.day-mode .rule-text{color:#4a3a5c;}
+body.day-mode .rule-del{color:#c04040;}
+
+body.day-mode .case-item.good{border-color:rgba(40,160,80,.2);background:rgba(220,245,230,.5);}
+body.day-mode .case-item.bad{border-color:rgba(200,60,60,.2);background:rgba(255,230,230,.4);}
+body.day-mode .case-tag.good{background:rgba(40,160,80,.12);color:#2a8a4a;}
+body.day-mode .case-tag.bad{background:rgba(200,60,60,.12);color:#c04040;}
+body.day-mode .case-text{color:#4a3a5c;}
+body.day-mode .case-del{color:#c04040;border-color:rgba(200,60,60,.25);}
+body.day-mode .case-del:hover{background:rgba(200,60,60,.1);border-color:rgba(200,60,60,.5);}
+body.day-mode .case-filter{border-color:rgba(180,160,220,.25);color:#6a5a8a;background:rgba(255,255,255,.5);}
+body.day-mode .case-filter.active{background:rgba(220,200,240,.4);border-color:#7a5a9a;color:#5a3a7a;}
+
+body.day-mode .closed-item{border-color:rgba(180,160,220,.15);background:rgba(255,255,255,.5);}
+body.day-mode .closed-item:hover{border-color:rgba(140,100,180,.3);}
+body.day-mode .closed-feature{background:rgba(220,200,240,.3);color:#7a5a9a;}
+body.day-mode .closed-title{color:#3a2a4c;}
+body.day-mode .closed-date{color:#a090b8;}
+body.day-mode .closed-preview{color:#6a5a8a;}
+
+/* Modal */
+body.day-mode .add-modal-bg,body.day-mode .api-modal-bg{background:rgba(200,190,220,.5);}
+body.day-mode .add-modal,body.day-mode .api-modal{background:linear-gradient(135deg,rgba(255,255,255,.97),rgba(248,244,255,.97));border-color:rgba(180,160,220,.3);}
+body.day-mode .add-modal h3,body.day-mode .api-modal h3{color:#5a3a7a;}
+body.day-mode .add-modal textarea,body.day-mode .add-modal input,body.day-mode .add-modal select,body.day-mode .api-modal input{background:rgba(255,255,255,.8);border-color:rgba(180,160,220,.3);color:#3a2a4c;}
+body.day-mode .btn-save{background:linear-gradient(135deg,#b090d0,#9070b0) !important;color:#fff !important;}
+body.day-mode .btn-cancel{background:rgba(240,230,248,.6) !important;color:#6a5a8a !important;border-color:rgba(180,160,220,.3) !important;}
+/* ── 檔案上傳按鈕 ── */
+.file-upload-btn{background:none;border:1px solid rgba(74,234,255,.15);color:#6a8fcc;border-radius:10px;padding:8px 10px;cursor:pointer;font-size:1.1rem;transition:all .2s;flex-shrink:0;line-height:1;}
+.file-upload-btn:hover{border-color:#4aeaff;color:#4aeaff;background:rgba(74,234,255,.08);}
+body.day-mode .file-upload-btn{border-color:rgba(180,160,220,.3);color:#8070a0;}
+body.day-mode .file-upload-btn:hover{border-color:rgba(140,100,180,.5);color:#6a4c9c;background:rgba(140,100,180,.08);}
+.file-status{font-size:.75rem;color:#6a8fcc;padding:2px 12px;display:none;}
+.file-status.show{display:block;}
+body.day-mode .file-status{color:#8070a0;}
+</style>
+<!-- CDN: pdf.js + SheetJS + JSZip -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+</head>
+<body>
+
+<!-- ===== 頂部 ===== -->
+<div class="top-bar">
+  <button class="back-btn" id="backBtn" onclick="goBack()">← 上一頁</button>
+  <h1>🤖 AI 顧問中心</h1>
+  <div class="top-tabs" id="topTabs">
+    <button class="top-tab active" onclick="showView('cards')">首頁</button>
+    <button class="top-tab" onclick="showView('timeline')">📅 時間軸</button>
+    <button class="top-tab" onclick="showView('rules')">📜 鐵律</button>
+    <button class="top-tab" onclick="showView('casedb')">📂 資料庫</button>
+    <button class="top-tab" onclick="showView('closed')">📋 結案<span class="badge" id="closedBadge">0</span></button>
+  </div>
+  <div class="api-dot off" id="apiDot" onclick="openApiModal()" title="API Key 設定"></div>
+</div>
+
+<!-- ===== 1. 功能卡片 ===== -->
+<div class="view cards-view active" id="v_cards">
+  <div class="cards-grid">
+    <div class="feature-card coach" onclick="openChat('coach')"><div class="fc-icon">🎯</div><div class="fc-title">AI 教練</div><div class="fc-desc">六大維度精準分析與教練指導</div></div>
+    <div class="feature-card data" onclick="openChat('data')"><div class="fc-icon">📊</div><div class="fc-title">AI 數據通</div><div class="fc-desc">業績通路排名深度分析</div></div>
+    <div class="feature-card task" onclick="openChat('task')"><div class="fc-icon">✅</div><div class="fc-title">AI 小任務</div><div class="fc-desc">自動指派可執行的小任務</div></div>
+    <div class="feature-card team" onclick="openChat('team')"><div class="fc-icon">📣</div><div class="fc-title">AI 團隊宣言</div><div class="fc-desc">公司知識庫，越餵越聰明</div></div>
+    <div class="feature-card mentor" onclick="openChat('mentor')"><div class="fc-icon">🧠</div><div class="fc-title">AI 陪跑師</div><div class="fc-desc">芒格巴菲特思維，不灌雞湯</div></div>
+    <div class="feature-card cases" onclick="openChat('cases')"><div class="fc-icon">📚</div><div class="fc-title">AI 案例庫</div><div class="fc-desc">好壞案例批判性分析</div></div>
+  </div>
+</div>
+
+<!-- ===== 2. 對話頁 ===== -->
+<div class="view chat-view" id="v_chat">
+  <div class="chat-left">
+    <div class="chat-header">
+      <span id="chatIcon">🎯</span>
+      <span class="ch-title" id="chatTitle">AI 教練</span>
+      <div class="chat-tools">
+        <button class="chat-tool-btn" id="fontBtn" onclick="toggleChatFontSize()" title="切換字體大小">字 A</button>
+        <button class="chat-tool-btn" id="fullscreenBtn" onclick="toggleChatFullscreen()" title="全螢幕">⛶</button>
+      </div>
+      <button class="pin-btn" id="pinBtn" onclick="pinTopic()">📌 釘選</button>
+    </div>
+    <div class="chat-msgs" id="chatMsgs"></div>
+    <div class="suggest-bar" id="suggestBar"></div>
+    <div class="file-status" id="fileStatus"></div>
+    <div class="chat-input-bar">
+      <button class="file-upload-btn" onclick="document.getElementById('fileUpload').click()" title="上傳檔案 (PDF/Excel/Numbers/PPT/Keynote)">📎</button>
+      <input type="file" id="fileUpload" style="display:none" accept=".pdf,.xlsx,.xls,.numbers,.pptx,.ppt,.key" onchange="handleFileUpload(this)">
+      <textarea class="chat-input" id="chatInput" placeholder="輸入你的問題..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();sendMsg();}"></textarea>
+      <button class="chat-send" id="sendBtn" onclick="sendMsg()">發送</button>
+    </div>
+  </div>
+  <div class="pin-side">
+    <div class="pin-side-hd">📌 釘選話題 <span id="pinCount" style="float:right;color:#6a8fcc;font-weight:400;font-size:.7rem;"></span></div>
+    <div class="pin-list" id="pinList"></div>
+    <div class="pin-page" id="pinPageNav"></div>
+    <div class="pin-empty" id="pinEmpty">點「📌 釘選」保存話題<br>可延伸深入討論</div>
+  </div>
+</div>
+
+<!-- ===== 3. 時間軸 ===== -->
+<div class="view panel-view" id="v_timeline">
+  <div class="panel-header"><h2>📅 時間軸 — AI 任務追蹤</h2><button class="panel-add-btn" onclick="openAddTask()">＋ 新增任務</button></div>
+  <div class="panel-body" id="timelineBody"></div>
+</div>
+
+<!-- ===== 4. 鐵律 ===== -->
+<div class="view panel-view" id="v_rules">
+  <div class="panel-header"><h2>📜 團隊鐵律</h2><button class="panel-add-btn" onclick="openAddRule()">＋ 新增鐵律</button></div>
+  <div class="panel-body" id="rulesBody"></div>
+</div>
+
+<!-- ===== 5. 資料庫 ===== -->
+<div class="view panel-view" id="v_casedb">
+  <div class="panel-header"><h2>📂 案例資料庫</h2><button class="panel-add-btn" onclick="openAddCase()">＋ 新增案例</button></div>
+  <div class="panel-body" id="casedbBody"></div>
+</div>
+
+<!-- ===== 6. 結案 ===== -->
+<div class="view panel-view" id="v_closed">
+  <div class="panel-header"><h2>📋 結案紀錄</h2></div>
+  <div class="panel-body" id="closedBody"></div>
+</div>
+
+<!-- ===== Modals ===== -->
+<div class="add-modal-bg" id="taskModal"><div class="add-modal">
+  <h3>＋ 新增任務</h3>
+  <input id="taskName" placeholder="任務名稱">
+  <input id="taskDeadline" type="date">
+  <div class="btn-row"><button class="btn-cancel" onclick="closeModal('taskModal')">取消</button><button class="btn-save" onclick="addTask()">新增</button></div>
+</div></div>
+
+<div class="add-modal-bg" id="ruleModal"><div class="add-modal">
+  <h3>＋ 新增鐵律</h3>
+  <textarea id="ruleText" placeholder="輸入團隊規則..."></textarea>
+  <div class="btn-row"><button class="btn-cancel" onclick="closeModal('ruleModal')">取消</button><button class="btn-save" onclick="addRule()">新增</button></div>
+</div></div>
+
+<div class="add-modal-bg" id="caseModal"><div class="add-modal">
+  <h3>＋ 新增案例</h3>
+  <select id="caseType"><option value="good">📗 好案例</option><option value="bad">📕 壞案例</option></select>
+  <textarea id="caseText" placeholder="描述案例內容..."></textarea>
+  <div class="btn-row"><button class="btn-cancel" onclick="closeModal('caseModal')">取消</button><button class="btn-save" onclick="addCase()">新增</button></div>
+</div></div>
+
+<div class="api-modal-bg" id="apiModal"><div class="api-modal">
+  <h3>🔑 Anthropic API Key</h3>
+  <div class="hint">到 <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#4aeaff;">console.anthropic.com</a> 建立</div>
+  <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-...">
+  <div class="btn-row"><button class="btn-cancel" onclick="closeModal('apiModal')">取消</button><button class="btn-save" onclick="saveApiKey()">儲存</button></div>
+</div></div>
+
+<!-- 結案詳情 Modal -->
+<div class="add-modal-bg" id="closedDetailModal"><div class="add-modal" style="max-width:600px;max-height:80vh;display:flex;flex-direction:column;">
+  <h3 id="closedDetailTitle">結案詳情</h3>
+  <div id="closedDetailBody" style="flex:1;overflow-y:auto;font-size:.82rem;color:#d0e8ff;line-height:1.6;white-space:pre-wrap;"></div>
+  <div class="btn-row" style="margin-top:12px;"><button class="btn-cancel" onclick="closeModal('closedDetailModal')">關閉</button></div>
+</div></div>
+
+<script>
+// ═══════════════════════════════════════
+// AI 顧問中心 v3
+// ═══════════════════════════════════════
+
+// ── 功能定義 ──
+// ── 黃金圈共用指令 ──
+var GOLDEN_CIRCLE = '\n\n【重要：跨模組協作與黃金圈理論】\n'
+  + '你可以調動系統中所有資料來源（360評估分數與備註、業績數據、通路績效、火種九宮格、成就紀錄、時間軸任務、團隊鐵律、案例資料庫、知識庫、其他主角的數據）。\n'
+  + '當你引用資料時，必須：\n'
+  + '1. 標明來源，例如「📊 來自業績數據」「📜 來自鐵律第3條」「🔥 來自火種九宮格」「👤 來自其他主角比較」\n'
+  + '2. 用賽門．西奈克的黃金圈理論（Golden Circle）解釋：\n'
+  + '   🔵 WHY（為什麼）— 調動這筆資料的核心目的和信念是什麼？\n'
+  + '   🟡 HOW（怎麼做）— 這筆資料如何幫助解決當前問題？\n'
+  + '   🔴 WHAT（做什麼）— 具體建議的行動是什麼？\n'
+  + '3. 每次回答都從 WHY 出發，再到 HOW，最後是 WHAT\n'
+  + '4. 主動調動所有相關資料來豐富分析，不要只用單一來源\n'
+  + '5. 【重要】當系統資料中包含「其他主角比較」時，你必須：\n'
+  + '   - 分析當前主角在哪些維度落後於其他主角\n'
+  + '   - 指出可以學習哪位主角的哪個優勢\n'
+  + '   - 建議追上哪位主角的具體數據目標\n'
+  + '   - 例如：「你的績效管理(3分)低於王小明(8分)，建議學習他的做法」\n'
+  + '6. 【重要】參考360評估中各角色的「備註」文字來理解具體情境\n'
+  + '7. 【重要】參考火種九宮格來了解主角的目標設定和完成進度\n'
+  + '8. 最後收斂為針對「當前主角」的個人化建議\n';
+
+var FEATURES={
+  coach:{title:'AI 教練',icon:'🎯',color:'#ffd700',
+    system:'你是赫綵設計學院（Appedu）專業教練。根據組長六大維度（會議、績效管理、人員管理、日常輔導、小組發展、宣誓）提供分析。\n\n你的專長是能力分析，但你可以也應該調動業績數據、案例資料庫、團隊鐵律等其他模組的資料來豐富你的教練建議。\n\n分析後請加「📋 建議行動」區塊，列出2-3個具體行動。回答用繁體中文。' + GOLDEN_CIRCLE,
+    greeting:'你好！我是 AI 教練 🎯\n\n我能調動所有模組的資料來分析。說「幫我分析」讀取當前分數，或描述你的問題。',
+    suggestions:['幫我分析目前的分數','最弱維度怎麼改善？','結合業績數據給建議']},
+  data:{title:'AI 數據通',icon:'📊',color:'#4aeaff',
+    system:'你是赫綵設計學院數據分析專家。分析業績、通路、排名等數據。\n\n你的專長是數據，但你應該同時參考評分資料、案例、鐵律等來給出更完整的洞察。例如看到業績下滑時，可以調動案例庫找類似案例，或參考鐵律提出改善方向。\n\n分析後請加「📋 建議行動」區塊。回答用繁體中文。' + GOLDEN_CIRCLE,
+    greeting:'你好！我是 AI 數據通 📊\n\n我會結合所有資料來源進行分析。問我任何數據問題！',
+    suggestions:['分析學院排名','結合評分找問題','業績與能力的關聯']},
+  task:{title:'AI 小任務',icon:'✅',color:'#00e868',
+    system:'你是赫綵設計學院任務教練。分析弱點後指派1-3天可完成的任務。\n\n你應該綜合評分、業績、案例、鐵律等所有資料來設計最精準的任務。例如看到績效管理分數低且業績也下滑，就設計一個針對性的任務。\n\n格式：🎯任務→📋做法→✅完成標準→⏰期限。回答用繁體中文。' + GOLDEN_CIRCLE,
+    greeting:'你好！我是 AI 小任務 ✅\n\n我會綜合所有資料來設計最適合的任務。說「自動分析」開始。',
+    suggestions:['自動分析並指派任務','改善面談技巧','根據業績數據指派']},
+  team:{title:'AI 團隊宣言',icon:'📣',color:'#c084fc',
+    system:'你是赫綵設計學院企業知識庫AI。了解公司文化和運作。\n\n回答時必須參考「團隊鐵律」，同時也可以調動評分、業績、案例等資料來讓回答更有說服力。當使用者提供新資訊時記住它。回答用繁體中文。' + GOLDEN_CIRCLE,
+    greeting:'你好！我是 AI 團隊宣言 📣\n\n我會參考鐵律和所有資料來回答。問我公司問題或提供新資訊！',
+    suggestions:['核心價值是什麼？','結合數據寫團隊宣言','新人須知']},
+  mentor:{title:'AI 陪跑師',icon:'🧠',color:'#ff6b6b',
+    system:'你融合芒格、巴菲特、洛克斐勒、富蘭克林、柯維、馬斯克的思維。不說大道理不灌雞湯，只給現實可執行方案。\n\n你應該調動所有可用的數據（評分、業績、案例、鐵律）來讓建議更接地氣、更有針對性，而不是只給通用建議。回答用繁體中文。' + GOLDEN_CIRCLE,
+    greeting:'你好，我是 AI 陪跑師 🧠\n\n我會結合你的實際數據來給建議，不灌雞湯。告訴我你的問題。',
+    suggestions:['年度成長計畫','結合數據分析突破口','團隊管理瓶頸']},
+  cases:{title:'AI 案例庫',icon:'📚',color:'#ffa726',
+    system:'你是赫綵設計學院案例分析專家。批判性分析案例。📗好案例→做對什麼→可複製。📕壞案例→根因→如何避免。🔍反思。\n\n你應該參考「案例資料庫」中的既有案例，同時調動評分、業績、鐵律等來讓分析更深入。分析案例時要連結到真實數據。回答用繁體中文。' + GOLDEN_CIRCLE,
+    greeting:'你好！我是 AI 案例庫 📚\n\n我會結合所有資料來分析案例。描述情境或問特定主題！',
+    suggestions:['結合業績分析案例','面談好壞案例','鐵律違反的案例']}
+};
+
+var curView='cards', curFeature=null, curTopicId=null, pinPage=0;
+var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',apikey:'appedu_anthropic_api_key',teamkb:'appedu_team_knowledge_base'};
+
+// ★ 預設 API Key — 由使用者透過 localStorage 設定（保留向下相容；proxy 模式下不會用到）
+var DEFAULT_API_KEY = '';
+
+// ★ Anthropic API Proxy（部署在 Cloudflare Workers，後端帶 key）
+// 部署完之後改成你自己的 Worker 網址，例如：
+//   var PROXY_BASE = 'https://anthropic-proxy.ivan-xxxx.workers.dev';
+var PROXY_BASE = 'https://anthropic-proxy.ivanapplaud.workers.dev';
+
+// ── Storage helpers ──
+function LS(k){
+  try{var d=localStorage.getItem(k);if(d)return JSON.parse(d)||[];}catch(e){}
+  // fallback: 從父頁面讀取
+  try{var d2=window.parent.localStorage.getItem(k);if(d2)return JSON.parse(d2)||[];}catch(e){}
+  return [];
+}
+function SS(k,v){
+  var json=JSON.stringify(v);
+  try{localStorage.setItem(k,json);}catch(e){}
+  // 同步到父頁面
+  try{window.parent.localStorage.setItem(k,json);}catch(e){}
+}
+function getApiKey(){
+  // ★ 優先從父頁面讀取（key 設在 top context）
+  var k;
+  try{k=window.parent.localStorage.getItem(SK.apikey);if(k){localStorage.setItem(SK.apikey,k);return k;}}catch(e){}
+  k=localStorage.getItem(SK.apikey);
+  if(k)return k;
+  if(DEFAULT_API_KEY)return DEFAULT_API_KEY;
+  return '';
+}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── 導航 ──
+function goBack(){
+  if(curView==='chat'){closeChat();return;}
+  if(curView!=='cards'){showView('cards');return;}
+  try{window.parent.closeAiAdvisor();}catch(e){}
+}
+
+function showView(id){
+  curView=id;
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+  var el=document.getElementById('v_'+id);
+  if(el)el.classList.add('active');
+  // 更新 tab
+  document.querySelectorAll('.top-tab').forEach(function(t,i){
+    t.classList.toggle('active',['cards','timeline','rules','casedb','closed'][i]===id);
+  });
+  if(id==='timeline')renderTimeline();
+  if(id==='rules')renderRules();
+  if(id==='casedb')renderCaseDb();
+  if(id==='closed')renderClosed();
+}
+
+// ── API ──
+function updateApiDot(){var d=document.getElementById('apiDot');d.className='api-dot '+(getApiKey()?'on':'off');}
+function openApiModal(){document.getElementById('apiKeyInput').value=getApiKey();document.getElementById('apiModal').classList.add('open');}
+function saveApiKey(){
+  var k=document.getElementById('apiKeyInput').value.trim();
+  if(k){
+    localStorage.setItem(SK.apikey,k);
+    // ★ 同時存到父頁面，確保不遺失
+    try{window.parent.localStorage.setItem(SK.apikey,k);}catch(e){}
+  }else{
+    localStorage.removeItem(SK.apikey);
+    try{window.parent.localStorage.removeItem(SK.apikey);}catch(e){}
+  }
+  updateApiDot();closeModal('apiModal');
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ── 上下文 ──
+function getScoreCtx(){
+  try{var c=localStorage.getItem('activeCharacterId'),n=localStorage.getItem('activeCharacterName')||c||'?';
+  var b=c?'char_'+c+'_appedu_leader_map_v1':'appedu_leader_map_v1';
+  var r=localStorage.getItem(b+'_manager')||localStorage.getItem(b+'_self');if(!r)return '（無評分）';
+  var s=JSON.parse(r).scores||{},ds=[{ids:['1','meeting'],label:'會議'},{ids:['2','performance'],label:'績效管理'},{ids:['3','people'],label:'人員管理'},{ids:['4','coaching'],label:'日常輔導'},{ids:['5','development'],label:'小組發展'},{ids:['6','oath'],label:'宣誓'}];
+  var l=['主角：'+n],t=0;ds.forEach(function(d){var v=0;for(var i=0;i<d.ids.length;i++){var tv=parseInt(s[d.ids[i]]);if(tv){v=tv;break;}}t+=v;l.push(d.label+'：'+v);});l.push('總分：'+t);return l.join('\n');}catch(e){return '（讀取失敗）';}
+}
+function getPerfCtx(){
+  try{var c=localStorage.getItem('activeCharacterId'),p=c?'char_'+c+'_':'';
+  var a=localStorage.getItem(p+'motiv_academy_v1'),s=localStorage.getItem(p+'motiv_sales_v1'),l=[];
+  if(a){var arr=JSON.parse(a);l.push('【學院排名】');arr.slice(0,10).forEach(function(x,i){l.push((i+1)+'. '+x.name+'：'+x.value.toLocaleString());});}
+  if(s){var arr2=JSON.parse(s);l.push('【業務排名】');arr2.slice(0,10).forEach(function(x,i){l.push((i+1)+'. '+x.name+'：'+x.value.toLocaleString());});}
+  return l.length?l.join('\n'):'（無數據）';}catch(e){return '';}
+}
+function getRulesCtx(){var r=LS(SK.rules);if(!r.length)return '';return '團隊鐵律 — 來自 AI 團隊宣言】\n'+r.map(function(x,i){return(i+1)+'. '+x.text;}).join('\n');}
+function getCaseDbCtx(){var c=LS(SK.casedb);if(!c.length)return '';var l=['案例資料庫 — 來自 AI 案例庫】'];c.forEach(function(x){l.push((x.type==='good'?'📗好案例':'📕壞案例')+' '+x.text);});return l.join('\n');}
+function getTimelineCtx(){var t=LS(SK.timeline);if(!t.length)return '';var labels={pending:'待執行',doing:'進行中',done:'已完成'};var l=['時間軸任務 — 來自 AI 小任務】'];t.forEach(function(x){l.push('• ['+labels[x.status]+'] '+x.task+(x.deadline?' (期限:'+x.deadline+')':''));});return l.join('\n');}
+
+// ══════ 全站數據讀取（360評估備註、火種、成就、其他主角比較） ══════
+function getCid(){return localStorage.getItem('activeCharacterId');}
+function getCidPrefix(){var c=getCid();return c?'char_'+c+'_':'';}
+
+// 360 評估完整資料（含備註）
+// ★ 評估頁面用數字 ID (1~6) 存分數，這裡需對應
+function get360FullCtx(){
+  try{
+    var cid=getCid(),name=localStorage.getItem('activeCharacterName')||cid||'?';
+    var base=cid?'char_'+cid+'_appedu_leader_map_v1':'appedu_leader_map_v1';
+    var roles=[['manager','主管評'],['self','自評'],['area_mgr','區主管評'],['gm','總經理評'],['peer','同儕評'],['subordinate','部屬評']];
+    var lines=['🎯 360度能力檢核 — 主角：'+name];
+    // 同時支援數字ID(1~6)和文字key(meeting等)兩種格式
+    var dims=[
+      {ids:['1','meeting'],label:'會議'},
+      {ids:['2','performance'],label:'績效管理'},
+      {ids:['3','people'],label:'人員管理'},
+      {ids:['4','coaching'],label:'日常輔導'},
+      {ids:['5','development'],label:'小組發展'},
+      {ids:['6','oath'],label:'宣誓'}
+    ];
+    roles.forEach(function(r){
+      var raw=localStorage.getItem(base+'_'+r[0]);
+      if(!raw)return;
+      var state=JSON.parse(raw),sc=state.scores||{},notes=state.dimNotes||state.notes||{};
+      var total=0;
+      lines.push('\n【'+r[1]+'】');
+      dims.forEach(function(d){
+        // 嘗試所有可能的 key 格式
+        var v=0;
+        for(var i=0;i<d.ids.length;i++){var tv=parseInt(sc[d.ids[i]]);if(tv){v=tv;break;}}
+        total+=v;
+        var line=d.label+'：'+v+'分';
+        // 備註也嘗試所有 key
+        var note='';
+        for(var i=0;i<d.ids.length;i++){var tn=notes[d.ids[i]];if(tn&&tn.trim()){note=tn.trim();break;}}
+        if(note)line+=' — 備註：'+note.substring(0,100);
+        lines.push(line);
+      });
+      lines.push('總分：'+total);
+      if(state.evalNotes)lines.push('綜合評語：'+state.evalNotes.substring(0,150));
+      if(state.meetingNotes)lines.push('會議紀錄：'+state.meetingNotes.substring(0,150));
+    });
+    return lines.length>2?lines.join('\n'):'';
+  }catch(e){return '';}
+}
+
+// 火種九宮格
+function getFireCtx(){
+  try{
+    var raw=localStorage.getItem(getCidPrefix()+'fire_mandala_data');
+    if(!raw)return '';
+    var data=JSON.parse(raw),texts=data.texts,done=data.done||{};
+    if(!texts)return '';
+    var lines=['🔥 火種九宮格'];
+    var blockNames=['','目標1','目標2','目標3','核心目標','目標4','目標5','目標6','目標7'];
+    for(var b=0;b<9;b++){
+      var blockTexts=[];
+      for(var c=0;c<9;c++){
+        var t=texts[b]&&texts[b][c]?texts[b][c].trim():'';
+        if(t){
+          var isDone=done[b+','+c];
+          blockTexts.push((isDone?'✅':'⬜')+' '+t);
+        }
+      }
+      if(blockTexts.length){
+        lines.push((blockNames[b]||'區塊'+b)+'：'+blockTexts.join('、'));
+      }
+    }
+    return lines.length>1?lines.join('\n'):'';
+  }catch(e){return '';}
+}
+
+// 成就解鎖
+function getAchieveCtx(){
+  try{
+    var raw=localStorage.getItem(getCidPrefix()+'achievement_unlock_data');
+    if(!raw)return '';
+    var data=JSON.parse(raw);
+    if(!data.achievements||!data.achievements.length)return '';
+    var lines=['🏆 已解鎖成就'];
+    data.achievements.slice(0,20).forEach(function(a){
+      lines.push('• '+a.title+(a.date?' ('+a.date+')':''));
+    });
+    return lines.join('\n');
+  }catch(e){return '';}
+}
+
+// 其他主角數據比較
+function getOtherCharsCtx(){
+  try{
+    var curCid=getCid();
+    var cards=localStorage.getItem('castle_cards_v1');
+    if(!cards)return '';
+    var allCards=JSON.parse(cards);
+    if(!allCards.length)return '';
+    var lines=['👥 所有主角比較'];
+    var dims=[
+      {ids:['1','meeting'],label:'會議'},
+      {ids:['2','performance'],label:'績效管理'},
+      {ids:['3','people'],label:'人員管理'},
+      {ids:['4','coaching'],label:'日常輔導'},
+      {ids:['5','development'],label:'小組發展'},
+      {ids:['6','oath'],label:'宣誓'}
+    ];
+    allCards.forEach(function(card){
+      if(!card.name)return;
+      var isCur=(card.name===curCid);
+      var prefix='char_'+card.name+'_appedu_leader_map_v1';
+      var raw=localStorage.getItem(prefix+'_manager')||localStorage.getItem(prefix+'_self');
+      if(!raw)return;
+      var sc=JSON.parse(raw).scores||{};
+      var total=0,detail=[];
+      dims.forEach(function(d){
+        var v=0;
+        for(var i=0;i<d.ids.length;i++){var tv=parseInt(sc[d.ids[i]]);if(tv){v=tv;break;}}
+        total+=v;detail.push(d.label+':'+v);
+      });
+      lines.push((isCur?'⭐ ':'• ')+card.name+(isCur?' (當前主角)':'')+' — 總分:'+total+' ('+detail.join('、')+')');
+    });
+    // 排名
+    if(lines.length>2){
+      lines.push('\n💡 AI可建議當前主角學習哪位主角的優勢維度');
+    }
+    return lines.length>2?lines.join('\n'):'';
+  }catch(e){return '';}
+}
+
+// 通路績效
+function getChannelCtx(){
+  try{
+    var raw=localStorage.getItem(getCidPrefix()+'perf_compare_v1_channel_v1');
+    if(!raw)return '';
+    var data=JSON.parse(raw);
+    var lines=['📋 各通路績效（最近有資料的月份）'];
+    var chNames={net:'網際網路',purchase:'學員加購',event:'展場活動',referral:'學員介紹',admin:'班務追回',cash:'現＋刷'};
+    // 找最近有資料的月份
+    for(var m=12;m>=1;m--){
+      if(!data[m])continue;
+      var hasData=false;
+      Object.keys(data[m]).forEach(function(ch){
+        var acads=data[m][ch]&&data[m][ch].academies;
+        if(acads&&acads.some(function(a){return a.value>0;}))hasData=true;
+      });
+      if(hasData){
+        lines.push(m+'月：');
+        Object.keys(chNames).forEach(function(ch){
+          var d=data[m][ch];if(!d)return;
+          var total=(d.academies||[]).reduce(function(s,a){return s+(a.value||0);},0);
+          if(total>0)lines.push('  '+chNames[ch]+'：'+total.toLocaleString());
+        });
+        break; // 只取最近一個月
+      }
+    }
+    return lines.length>1?lines.join('\n'):'';
+  }catch(e){return '';}
+}
+
+// 組裝完整上下文
+function getFullContext(){
+  var parts=[];
+  var s360=get360FullCtx();if(s360)parts.push(s360);
+  var perf=getPerfCtx();if(perf&&perf.indexOf('無數據')<0)parts.push('📊 業績排名\n'+perf);
+  var ch=getChannelCtx();if(ch)parts.push(ch);
+  var fire=getFireCtx();if(fire)parts.push(fire);
+  var achieve=getAchieveCtx();if(achieve)parts.push(achieve);
+  var rules=getRulesCtx();if(rules)parts.push(rules);
+  var cases=getCaseDbCtx();if(cases)parts.push(cases);
+  var tl=getTimelineCtx();if(tl)parts.push(tl);
+  var others=getOtherCharsCtx();if(others)parts.push(others);
+  var kb=localStorage.getItem(SK.teamkb);if(kb)parts.push('📣 團隊知識庫\n'+kb);
+  if(!parts.length)return '';
+  return '\n\n═══ 系統資料（全站數據·所有模組共享）═══\n'+parts.join('\n\n')+'\n═══════════════════════════════';
+}
+
+// ══════ 對話介面工具 ══════
+function toggleChatFullscreen(){
+  var cv=document.getElementById('v_chat');
+  cv.classList.toggle('fullscreen');
+  var btn=document.getElementById('fullscreenBtn');
+  btn.classList.toggle('active',cv.classList.contains('fullscreen'));
+  btn.textContent=cv.classList.contains('fullscreen')?'⛶ 縮小':'⛶';
+  btn.title=cv.classList.contains('fullscreen')?'退出全螢幕':'全螢幕';
+}
+var _fontSizes=['','font-md','font-lg','font-xl','font-xxl'];
+var _fontLabels=['字 A','字 A+','字 A++','字 A+++','字 MAX'];
+var _fontIdx=0;
+function toggleChatFontSize(){
+  var cv=document.getElementById('v_chat');
+  if(_fontSizes[_fontIdx])cv.classList.remove(_fontSizes[_fontIdx]);
+  _fontIdx=(_fontIdx+1)%_fontSizes.length;
+  if(_fontSizes[_fontIdx])cv.classList.add(_fontSizes[_fontIdx]);
+  var btn=document.getElementById('fontBtn');
+  btn.textContent=_fontLabels[_fontIdx];
+  btn.classList.toggle('active',_fontIdx>0);
+  // 按鈕本身也隨段位放大
+  var btnSizes=['0.7rem','0.75rem','0.8rem','0.88rem','0.95rem'];
+  btn.style.fontSize=btnSizes[_fontIdx];
+}
+// ══════ 對話系統 ══════
+function openChat(fid){
+  curFeature=fid;curTopicId='t_'+Date.now();
+  var f=FEATURES[fid];
+  showView('chat');
+  document.getElementById('chatIcon').textContent=f.icon;
+  document.getElementById('chatTitle').textContent=f.title;
+  updatePinBtn(false);
+  document.getElementById('chatMsgs').innerHTML='';
+  addMsg('ai',f.greeting);
+  renderSuggestions();renderPinList();
+  document.getElementById('chatInput').focus();
+}
+function closeChat(){autoSavePin();showView('cards');curFeature=null;curTopicId=null;}
+
+function addMsg(type,text){
+  var el=document.getElementById('chatMsgs'),d=document.createElement('div');
+  d.className='msg '+type;
+  // AI 回覆加勾選存入案例庫按鈕
+  if(type==='ai'){
+    var txt=document.createElement('span');txt.className='msg-text';txt.textContent=text;
+    var acts=document.createElement('span');acts.className='msg-actions';
+    var btn=document.createElement('button');btn.className='msg-save-btn';btn.textContent='📂 存入案例庫';
+    btn.onclick=function(){saveMsgToCase(text,btn);};
+    acts.appendChild(btn);
+    d.appendChild(txt);d.appendChild(acts);
+  } else {
+    d.textContent=text;
+  }
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+}
+function saveMsgToCase(text,btn){
+  var preview=text.substring(0,40).replace(/\n/g,' ')+'...';
+  var items=LS(SK.casedb);
+  var f=curFeature?FEATURES[curFeature]:null;
+  var tag=f?f.icon+' '+f.title:'🤖 AI';
+  items.push({id:'c_'+Date.now(),type:'good',text:'【'+tag+'】\n'+text,marquee:false,createdAt:Date.now(),source:'chat'});
+  SS(SK.casedb,items);
+  btn.textContent='✅ 已存入';btn.disabled=true;btn.classList.add('saved');
+}
+function renderSuggestions(){
+  var bar=document.getElementById('suggestBar');
+  if(!curFeature){bar.innerHTML='';return;}
+  bar.innerHTML=(FEATURES[curFeature].suggestions||[]).map(function(s){
+    return '<button class="suggest-chip" onclick="useSuggest(this)">'+esc(s)+'</button>';
+  }).join('');
+}
+function useSuggest(btn){document.getElementById('chatInput').value=btn.textContent;sendMsg();}
+
+function collectHistory(){
+  var msgs=document.querySelectorAll('#chatMsgs .msg'),h=[];
+  msgs.forEach(function(m){
+    if(m.classList.contains('user'))h.push({role:'user',content:m.textContent});
+    else if(m.classList.contains('ai')){
+      var mt=m.querySelector('.msg-text');
+      h.push({role:'assistant',content:mt?mt.textContent:m.textContent});
+    }
+  });return h;
+}
+
+async function sendMsg(){
+  var inp=document.getElementById('chatInput'),text=inp.value.trim();
+  if(!text||!curFeature)return;
+  if(!getApiKey()){openApiModal();return;}
+  inp.value='';inp.style.height='auto';
+  addMsg('user',text);
+  document.getElementById('suggestBar').innerHTML='';
+  var f=FEATURES[curFeature];
+  // ★ 全站數據上下文 — 360評估+備註+火種+業績+通路+成就+其他主角+鐵律+案例庫
+  var ctx=getFullContext();
+
+  var history=collectHistory();
+  var apiMsgs=history.map(function(m,i){
+    return{role:m.role,content:i===history.length-1&&m.role==='user'?m.content+ctx:m.content};
+  });
+  var typing=document.createElement('div');typing.className='typing';
+  typing.innerHTML='<span>●</span><span>●</span><span>●</span> 思考中...';
+  document.getElementById('chatMsgs').appendChild(typing);
+  document.getElementById('chatMsgs').scrollTop=9999;
+  document.getElementById('sendBtn').disabled=true;
+  try{
+    var resp=await fetch(PROXY_BASE+'/v1/messages',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-opus-4-7',max_tokens:2048,system:f.system,messages:apiMsgs})});
+    typing.remove();
+    if(!resp.ok){var errBody='';try{errBody=await resp.text();}catch(e){}throw new Error('API錯誤('+resp.status+'): '+errBody.substring(0,150));}
+    var data=await resp.json();addMsg('ai',data.content[0].text);autoSavePin();
+    if(curFeature==='team'&&text.length>20){var k2=localStorage.getItem(SK.teamkb)||'';try{localStorage.setItem(SK.teamkb,k2+'\n'+text);}catch(e){}}
+  }catch(e){typing.remove();addMsg('error','❌ '+e.message);}
+  document.getElementById('sendBtn').disabled=false;
+  document.getElementById('chatInput').focus();
+}
+
+// ══════ 釘選系統 ══════
+function pinTopic(){
+  if(!curFeature||!curTopicId)return;
+  var pins=LS(SK.pins),exists=pins.find(function(p){return p.id===curTopicId;});
+  if(exists){pins=pins.filter(function(p){return p.id!==curTopicId;});SS(SK.pins,pins);updatePinBtn(false);renderPinList();return;}
+  var msgs=document.querySelectorAll('#chatMsgs .msg.user');
+  var autoTitle=msgs.length?msgs[0].textContent.substring(0,30):'新話題';
+  var title=prompt('📌 為這個釘選命名：',autoTitle);
+  if(title===null)return; // 取消
+  if(!title.trim())title=autoTitle;
+  pins.push({id:curTopicId,feature:curFeature,title:title.trim(),history:collectHistory(),createdAt:Date.now()});
+  SS(SK.pins,pins);updatePinBtn(true);renderPinList();
+}
+function renamePin(id){
+  var pins=LS(SK.pins),p=pins.find(function(x){return x.id===id;});if(!p)return;
+  var name=prompt('📌 重新命名：',p.title);
+  if(name===null||!name.trim())return;
+  p.title=name.trim();SS(SK.pins,pins);renderPinList();
+}
+function updatePinBtn(on){var b=document.getElementById('pinBtn');b.textContent=on?'📌 已釘選':'📌 釘選';b.classList.toggle('pinned',on);}
+function autoSavePin(){if(!curTopicId)return;var pins=LS(SK.pins),p=pins.find(function(x){return x.id===curTopicId;});if(!p)return;p.history=collectHistory();SS(SK.pins,pins);}
+
+function openPin(id){
+  var pins=LS(SK.pins),p=pins.find(function(x){return x.id===id;});if(!p)return;
+  autoSavePin();
+  curFeature=p.feature;curTopicId=p.id;
+  var f=FEATURES[curFeature];
+  if(curView!=='chat')showView('chat');
+  document.getElementById('chatIcon').textContent=f.icon;
+  document.getElementById('chatTitle').textContent=f.title;
+  updatePinBtn(true);
+  var el=document.getElementById('chatMsgs');el.innerHTML='';
+  p.history.forEach(function(m){addMsg(m.role==='user'?'user':'ai',m.content);});
+  el.scrollTop=el.scrollHeight;
+  renderSuggestions();renderPinList();
+}
+
+function deletePin(id){
+  var pins=LS(SK.pins),p=pins.find(function(x){return x.id===id;});
+  if(!p)return;
+  // 移到結案
+  var closed=LS(SK.closed);
+  closed.unshift({id:p.id,feature:p.feature,title:p.title,history:p.history,createdAt:p.createdAt,closedAt:Date.now()});
+  SS(SK.closed,closed);
+  // 從釘選移除
+  pins=pins.filter(function(x){return x.id!==id;});
+  SS(SK.pins,pins);
+  if(curTopicId===id){curTopicId=null;updatePinBtn(false);}
+  renderPinList();updateClosedBadge();
+}
+
+function renderPinList(){
+  var pins=LS(SK.pins);
+  var fp=curFeature?pins.filter(function(p){return p.feature===curFeature;}):pins;
+  var pages=Math.max(1,Math.ceil(fp.length/5));if(pinPage>=pages)pinPage=pages-1;
+  var slice=fp.slice(pinPage*5,pinPage*5+5);
+  var el=document.getElementById('pinList'),emp=document.getElementById('pinEmpty');
+  document.getElementById('pinCount').textContent=fp.length+'個';
+  if(!fp.length){el.innerHTML='';emp.style.display='block';}
+  else{emp.style.display='none';
+    el.innerHTML=slice.map(function(p){
+      var f=FEATURES[p.feature]||{icon:'📌'};
+      return '<div class="pin-item'+(p.id===curTopicId?' active':'')+'" onclick="openPin(\''+p.id+'\')">'
+        +'<span style="font-size:.75rem;">'+f.icon+'</span>'
+        +'<span class="pt">'+esc(p.title)+'</span>'
+        +'<span class="pe" onclick="event.stopPropagation();renamePin(\''+p.id+'\')" title="重新命名">✏️</span>'
+        +'<span class="pd" onclick="event.stopPropagation();deletePin(\''+p.id+'\')" title="刪除">✕</span></div>';
+    }).join('');
+  }
+  var nav=document.getElementById('pinPageNav');
+  if(pages<=1)nav.innerHTML='';
+  else nav.innerHTML=Array.from({length:pages},function(_,i){return '<button class="pp-btn'+(i===pinPage?' active':'')+'" onclick="pinPage='+i+';renderPinList();">'+(i+1)+'</button>';}).join('');
+}
+
+// ══════ 時間軸 ══════
+function openAddTask(){
+  var name=prompt('請輸入任務名稱：');
+  if(!name||!name.trim())return;
+  var dl=prompt('期限（選填，格式 2026-05-01）：')||'';
+  var items=LS(SK.timeline);
+  items.push({id:'tl_'+Date.now(),task:name.trim(),status:'pending',deadline:dl.trim(),createdAt:Date.now()});
+  SS(SK.timeline,items);renderTimeline();
+}
+function addTask(){
+  var name=document.getElementById('taskName').value.trim();if(!name)return;
+  var dl=document.getElementById('taskDeadline').value;
+  var items=LS(SK.timeline);
+  items.push({id:'tl_'+Date.now(),task:name,status:'pending',deadline:dl,createdAt:Date.now()});
+  SS(SK.timeline,items);closeModal('taskModal');renderTimeline();
+}
+function setTaskStatus(id,status){var items=LS(SK.timeline);var t=items.find(function(x){return x.id===id;});if(t)t.status=status;SS(SK.timeline,items);renderTimeline();}
+function delTask(id){SS(SK.timeline,LS(SK.timeline).filter(function(x){return x.id!==id;}));renderTimeline();}
+function renderTimeline(){
+  var items=LS(SK.timeline),el=document.getElementById('timelineBody');
+  if(!items.length){el.innerHTML='<div class="panel-empty">📅 尚無任務<br>可從「AI 小任務」取得建議，或手動新增</div>';return;}
+  var statusOrder={pending:0,doing:1,done:2};
+  items.sort(function(a,b){return statusOrder[a.status]-statusOrder[b.status];});
+  el.innerHTML=items.map(function(t){
+    var labels={pending:'⏳ 待執行',doing:'🔄 進行中',done:'✅ 完成'};
+    var dl=t.deadline?'期限：'+t.deadline:'';
+    return '<div class="tl-item"><div class="tl-status '+t.status+'"></div><div class="tl-content">'
+      +'<div class="tl-task">'+esc(t.task)+'</div>'
+      +'<div class="tl-meta">'+labels[t.status]+(dl?' · '+dl:'')+'</div>'
+      +'<div class="tl-actions">'
+      +(t.status!=='pending'?'<button class="tl-act" onclick="setTaskStatus(\''+t.id+'\',\'pending\')">⏳待執行</button>':'')
+      +(t.status!=='doing'?'<button class="tl-act" onclick="setTaskStatus(\''+t.id+'\',\'doing\')">🔄進行中</button>':'')
+      +(t.status!=='done'?'<button class="tl-act" onclick="setTaskStatus(\''+t.id+'\',\'done\')">✅完成</button>':'')
+      +'<button class="tl-act del" onclick="delTask(\''+t.id+'\')">刪除</button>'
+      +'</div></div></div>';
+  }).join('');
+}
+
+// ══════ 鐵律 ══════
+function openAddRule(){
+  var text=prompt('請輸入團隊鐵律：');
+  if(!text||!text.trim())return;
+  var items=LS(SK.rules);
+  items.push({id:'r_'+Date.now(),text:text.trim(),createdAt:Date.now()});
+  SS(SK.rules,items);
+  renderRules();
+}
+function addRule(){
+  var text=document.getElementById('ruleText').value.trim();
+  if(!text)return;
+  var items=LS(SK.rules);
+  items.push({id:'r_'+Date.now(),text:text,createdAt:Date.now()});
+  SS(SK.rules,items);closeModal('ruleModal');renderRules();
+}
+function delRule(id){SS(SK.rules,LS(SK.rules).filter(function(x){return x.id!==id;}));renderRules();}
+function renderRules(){
+  var items=LS(SK.rules),el=document.getElementById('rulesBody');
+  if(!items.length){el.innerHTML='<div class="panel-empty">📜 尚無鐵律<br>新增團隊規則後，AI 團隊宣言的每次問答都會參考這些規則</div>';return;}
+  el.innerHTML=items.map(function(r,i){
+    return '<div class="rule-item"><div class="rule-num">'+(i+1)+'</div><div class="rule-text">'+esc(r.text)+'</div>'
+      +'<span class="rule-del" onclick="delRule(\''+r.id+'\')">✕</span></div>';
+  }).join('');
+}
+
+// ══════ 案例資料庫 ══════
+var caseFilter='all';
+function openAddCase(){
+  var type=prompt('案例類型（輸入 1=好案例 或 2=壞案例）：');
+  if(!type)return;
+  var caseType=(type.trim()==='2'||type.indexOf('壞')>=0)?'bad':'good';
+  var text=prompt((caseType==='good'?'📗 好案例':'📕 壞案例')+'，請描述內容：');
+  if(!text||!text.trim())return;
+  var items=LS(SK.casedb);
+  items.push({id:'c_'+Date.now(),type:caseType,text:text.trim(),marquee:false,createdAt:Date.now()});
+  SS(SK.casedb,items);renderCaseDb();
+}
+function addCase(){
+  var type=document.getElementById('caseType').value,text=document.getElementById('caseText').value.trim();if(!text)return;
+  var items=LS(SK.casedb);items.push({id:'c_'+Date.now(),type:type,text:text,marquee:false,createdAt:Date.now()});
+  SS(SK.casedb,items);closeModal('caseModal');renderCaseDb();
+}
+function toggleMarquee(id){var items=LS(SK.casedb);var c=items.find(function(x){return x.id===id;});if(c)c.marquee=!c.marquee;SS(SK.casedb,items);renderCaseDb();syncMarquee();}
+function delCase(id){if(!confirm('確定要刪除這筆案例嗎？'))return;SS(SK.casedb,LS(SK.casedb).filter(function(x){return x.id!==id;}));renderCaseDb();syncMarquee();}
+function setCaseFilter(f){caseFilter=f;renderCaseDb();}
+function renderCaseDb(){
+  var items=LS(SK.casedb),el=document.getElementById('casedbBody');
+  var filtered=caseFilter==='all'?items:items.filter(function(x){return x.type===caseFilter;});
+  var filterHtml='<div class="case-filters">'
+    +'<button class="case-filter'+(caseFilter==='all'?' active':'')+'" onclick="setCaseFilter(\'all\')">全部 ('+items.length+')</button>'
+    +'<button class="case-filter'+(caseFilter==='good'?' active':'')+'" onclick="setCaseFilter(\'good\')">📗 好案例 ('+items.filter(function(x){return x.type==='good';}).length+')</button>'
+    +'<button class="case-filter'+(caseFilter==='bad'?' active':'')+'" onclick="setCaseFilter(\'bad\')">📕 壞案例 ('+items.filter(function(x){return x.type==='bad';}).length+')</button>'
+    +'<button class="case-filter" onclick="setCaseFilter(\'marquee\')" style="'+(caseFilter==='marquee'?'background:rgba(255,215,0,.12);border-color:#ffd700;color:#ffd700;':'')+'">📢 跑馬燈 ('+items.filter(function(x){return x.marquee;}).length+')</button>'
+    +'</div>';
+  if(caseFilter==='marquee')filtered=items.filter(function(x){return x.marquee;});
+  if(!items.length){el.innerHTML='<div class="panel-empty">📂 尚無案例<br>新增好壞案例後，AI 案例庫的問答都會參考這些資料</div>';return;}
+  el.innerHTML=filterHtml+filtered.map(function(c){
+    return '<div class="case-item '+c.type+'">'
+      +'<input type="checkbox" class="case-check" '+(c.marquee?'checked':'')+' onchange="toggleMarquee(\''+c.id+'\')" title="勾選後顯示在首頁跑馬燈">'
+      +'<span class="case-tag '+c.type+'">'+(c.type==='good'?'📗 好':'📕 壞')+'</span>'
+      +'<span class="case-text">'+esc(c.text)+'</span>'
+      +'<span class="case-del" onclick="delCase(\''+c.id+'\')">🗑 刪除</span></div>';
+  }).join('');
+}
+// 同步跑馬燈到首頁
+function syncMarquee(){
+  var items=LS(SK.casedb).filter(function(x){return x.marquee;});
+  var texts=items.map(function(x){return(x.type==='good'?'📗':'📕')+' '+x.text;});
+  try{localStorage.setItem('ai_marquee_items',JSON.stringify(texts));}catch(e){}
+}
+
+// ══════ 結案 ══════
+function updateClosedBadge(){var n=LS(SK.closed).length;document.getElementById('closedBadge').textContent=n;}
+function openClosedDetail(id){
+  var items=LS(SK.closed),c=items.find(function(x){return x.id===id;});if(!c)return;
+  var f=FEATURES[c.feature]||{title:'?',icon:'?'};
+  document.getElementById('closedDetailTitle').textContent=f.icon+' '+f.title+' — '+c.title;
+  var body=c.history.map(function(m){return(m.role==='user'?'👤 ':'🤖 ')+m.content;}).join('\n\n─────────────\n\n');
+  document.getElementById('closedDetailBody').textContent=body||'（無對話紀錄）';
+  document.getElementById('closedDetailModal').classList.add('open');
+}
+function renderClosed(){
+  var items=LS(SK.closed),el=document.getElementById('closedBody');
+  updateClosedBadge();
+  if(!items.length){el.innerHTML='<div class="panel-empty">📋 尚無結案紀錄<br>刪除的釘選話題會自動歸檔到這裡</div>';return;}
+  el.innerHTML=items.map(function(c){
+    var f=FEATURES[c.feature]||{title:'?',icon:'?'};
+    var date=new Date(c.closedAt).toLocaleDateString('zh-TW');
+    var preview=c.history.length?c.history[c.history.length-1].content.substring(0,60)+'...':'';
+    return '<div class="closed-item" onclick="openClosedDetail(\''+c.id+'\')">'
+      +'<div class="closed-header"><span class="closed-feature">'+f.icon+' '+f.title+'</span>'
+      +'<span class="closed-title">'+esc(c.title)+'</span><span class="closed-date">'+date+'</span></div>'
+      +'<div class="closed-preview">'+esc(preview)+'</div></div>';
+  }).join('');
+}
+
+// ══════ 檔案上傳與解析 ══════
+function showFileStatus(msg,show){
+  var el=document.getElementById('fileStatus');
+  el.textContent=msg;el.classList.toggle('show',!!show);
+}
+
+async function handleFileUpload(input){
+  var file=input.files&&input.files[0];
+  if(!file){return;}
+  input.value=''; // 清空以便重複上傳同檔名
+  var name=file.name,ext=name.split('.').pop().toLowerCase();
+  var supported=['pdf','xlsx','xls','numbers','pptx','ppt','key'];
+  if(supported.indexOf(ext)<0){showFileStatus('❌ 不支援此格式，請上傳 PDF/Excel/Numbers/PPT/Keynote',true);return;}
+  showFileStatus('📂 正在讀取 '+name+' ...',true);
+  try{
+    var text='';
+    if(ext==='pdf') text=await parsePDF(file);
+    else if(ext==='xlsx'||ext==='xls'||ext==='numbers') text=await parseSpreadsheet(file,ext);
+    else if(ext==='pptx'||ext==='ppt') text=await parsePPTX(file,ext);
+    else if(ext==='key') text=await parseKeynote(file);
+
+    if(!text||!text.trim()){showFileStatus('⚠️ 無法從 '+name+' 提取文字內容',true);return;}
+
+    // 截斷過長文字（localStorage 限制）
+    var maxLen=8000;
+    var truncated=text.length>maxLen?text.substring(0,maxLen)+'...(已截斷，原文共 '+text.length+' 字)':text;
+
+    // 存入案例資料庫
+    var items=LS(SK.casedb);
+    var caseItem={id:'c_'+Date.now(),type:'good',text:'📎 檔案：'+name+'\n\n'+truncated,marquee:false,createdAt:Date.now(),source:'file',fileName:name};
+    items.push(caseItem);
+    SS(SK.casedb,items);
+
+    showFileStatus('✅ '+name+' 已存入案例資料庫！正在請 AI 分析...',true);
+
+    // 在對話中顯示
+    if(!curFeature){openChat('cases');}
+    addMsg('user','📎 我上傳了檔案「'+name+'」，以下是提取的內容（已自動存入案例資料庫）：\n\n'+truncated.substring(0,500)+(truncated.length>500?'\n...(內容較長，已存入資料庫)':''));
+
+    // 自動請 AI 做 10 點分析
+    await autoAnalyzeFile(name,truncated);
+    showFileStatus('',false);
+  }catch(err){
+    console.error('檔案解析失敗:',err);
+    showFileStatus('❌ 解析失敗：'+err.message,true);
+  }
+}
+
+// ── PDF 解析 ──
+async function parsePDF(file){
+  if(!window.pdfjsLib){throw new Error('PDF.js 未載入，請檢查網路連線');}
+  var buf=await file.arrayBuffer();
+  var pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  var pages=[];
+  for(var i=1;i<=pdf.numPages;i++){
+    var page=await pdf.getPage(i);
+    var content=await page.getTextContent();
+    var txt=content.items.map(function(it){return it.str;}).join(' ');
+    if(txt.trim())pages.push('【第'+i+'頁】\n'+txt.trim());
+  }
+  return pages.join('\n\n');
+}
+
+// ── Excel / Numbers 解析 ──
+async function parseSpreadsheet(file,ext){
+  if(!window.XLSX){throw new Error('SheetJS 未載入，請檢查網路連線');}
+  var buf=await file.arrayBuffer();
+  var wb;
+  try{
+    wb=XLSX.read(buf,{type:'array'});
+  }catch(e){
+    if(ext==='numbers')throw new Error('Numbers 格式解析失敗，建議先轉存為 .xlsx 再上傳');
+    throw e;
+  }
+  var parts=[];
+  wb.SheetNames.forEach(function(sn){
+    var ws=wb.Sheets[sn];
+    var csv=XLSX.utils.sheet_to_csv(ws);
+    if(csv.trim())parts.push('【工作表：'+sn+'】\n'+csv.trim());
+  });
+  return parts.join('\n\n');
+}
+
+// ── PPTX 解析 ──
+async function parsePPTX(file,ext){
+  if(!window.JSZip){throw new Error('JSZip 未載入，請檢查網路連線');}
+  if(ext==='ppt'){throw new Error('.ppt 為舊版格式，請先用 PowerPoint 或 Keynote 轉存為 .pptx 再上傳');}
+  var buf=await file.arrayBuffer();
+  var zip=await JSZip.loadAsync(buf);
+  var slides=[];
+  // pptx 的 slide 存在 ppt/slides/slide1.xml, slide2.xml...
+  var slideFiles=[];
+  zip.forEach(function(path,entry){
+    if(/^ppt\/slides\/slide\d+\.xml$/.test(path))slideFiles.push({path:path,num:parseInt(path.match(/slide(\d+)/)[1])});
+  });
+  slideFiles.sort(function(a,b){return a.num-b.num;});
+  for(var i=0;i<slideFiles.length;i++){
+    var xml=await zip.file(slideFiles[i].path).async('string');
+    var texts=extractXmlText(xml);
+    if(texts.trim())slides.push('【第'+slideFiles[i].num+'頁】\n'+texts.trim());
+  }
+  // 也嘗試讀取 speaker notes
+  var noteFiles=[];
+  zip.forEach(function(path,entry){
+    if(/^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(path))noteFiles.push({path:path,num:parseInt(path.match(/notesSlide(\d+)/)[1])});
+  });
+  if(noteFiles.length){
+    noteFiles.sort(function(a,b){return a.num-b.num;});
+    var notes=[];
+    for(var i=0;i<noteFiles.length;i++){
+      var xml=await zip.file(noteFiles[i].path).async('string');
+      var t=extractXmlText(xml);
+      if(t.trim())notes.push('【備忘錄 第'+noteFiles[i].num+'頁】'+t.trim());
+    }
+    if(notes.length)slides.push('\n═══ 講者備忘錄 ═══\n'+notes.join('\n'));
+  }
+  return slides.join('\n\n');
+}
+
+// ── Keynote 解析 ──
+async function parseKeynote(file){
+  if(!window.JSZip){throw new Error('JSZip 未載入，請檢查網路連線');}
+  var buf=await file.arrayBuffer();
+  var zip;
+  try{zip=await JSZip.loadAsync(buf);}catch(e){throw new Error('Keynote 檔案解壓失敗，檔案可能損壞');}
+  // Keynote 有兩種結構:
+  // 較新版: Index/Slide-XXXX.iwa (protobuf, 很難解析)
+  // 較舊版或含預覽: 可能有 index.apxl 或其他 XML
+  var texts=[];
+  var foundText=false;
+  // 嘗試讀取所有可讀文字檔案
+  var promises=[];
+  zip.forEach(function(path,entry){
+    if(entry.dir)return;
+    // 嘗試讀取可能含文字的檔案
+    if(/\.(xml|txt|html|apxl)$/i.test(path)){
+      promises.push(entry.async('string').then(function(content){
+        var t=extractXmlText(content);
+        if(t.trim()){texts.push(t.trim());foundText=true;}
+      }).catch(function(){}));
+    }
+  });
+  await Promise.all(promises);
+
+  if(!foundText){
+    // 嘗試從 IWA protobuf 中提取純文字（粗略方法）
+    var iwaFiles=[];
+    zip.forEach(function(path,entry){
+      if(!entry.dir&&/\.iwa$/i.test(path))iwaFiles.push(entry);
+    });
+    for(var i=0;i<iwaFiles.length;i++){
+      try{
+        var raw=await iwaFiles[i].async('uint8array');
+        var extracted=extractTextFromBinary(raw);
+        if(extracted.trim())texts.push(extracted.trim());
+        foundText=true;
+      }catch(e){}
+    }
+  }
+
+  if(!foundText)throw new Error('Keynote 內部格式為 protobuf，無法完整解析。建議先在 Keynote 中「檔案→輸出為→PDF」再上傳 PDF');
+  return texts.join('\n\n');
+}
+
+// ── XML 文字提取工具 ──
+function extractXmlText(xml){
+  // 移除 XML 標籤，保留文字
+  return xml.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+}
+
+// ── 從二進位中粗略提取可讀文字 ──
+function extractTextFromBinary(uint8){
+  var chunks=[],cur='',minLen=4;
+  for(var i=0;i<uint8.length;i++){
+    var b=uint8[i];
+    // 可印字元範圍（含中日韓 UTF-8）
+    if(b>=0x20&&b<=0x7e){cur+=String.fromCharCode(b);}
+    else if(b>=0xc0&&i+1<uint8.length){
+      // 嘗試 UTF-8 多位元組
+      try{
+        var slice=uint8.slice(i,Math.min(i+4,uint8.length));
+        var decoded=new TextDecoder('utf-8',{fatal:true}).decode(slice.slice(0,b<0xe0?2:b<0xf0?3:4));
+        cur+=decoded;i+=(b<0xe0?1:b<0xf0?2:3);
+      }catch(e){
+        if(cur.length>=minLen)chunks.push(cur);cur='';
+      }
+    }else{
+      if(cur.length>=minLen)chunks.push(cur);cur='';
+    }
+  }
+  if(cur.length>=minLen)chunks.push(cur);
+  // 過濾太短或看起來不像文字的片段
+  return chunks.filter(function(c){return c.length>=6&&/[\u4e00-\u9fff\u3400-\u4dbfa-zA-Z]/.test(c);}).join('\n');
+}
+
+// ── AI 自動分析（上傳後立即做 10 點重點） ──
+async function autoAnalyzeFile(fileName,text){
+  if(!getApiKey()){addMsg('ai','⚠️ 尚未設定 API Key，請先設定後再操作');return;}
+  var feature=curFeature||'cases';
+  var f=FEATURES[feature];
+  var prompt='以下是從檔案「'+fileName+'」提取的內容。請做以下分析：\n\n'
+    +'1. 先做 **十個重點分析**（用編號列出）\n'
+    +'2. 再加上你認為重要但文件沒有明確說的 **隱含洞察或建議**\n'
+    +'3. 最後加上 **📋 建議行動** 區塊\n\n'
+    +'═══ 檔案內容 ═══\n'+text.substring(0,5000)+'\n═══════════════';
+
+  var ctx=getFullContext();
+  var apiMsgs=[{role:'user',content:prompt+ctx}];
+  var typing=document.createElement('div');typing.className='typing';
+  typing.innerHTML='<span>●</span><span>●</span><span>●</span> AI 正在分析檔案...';
+  document.getElementById('chatMsgs').appendChild(typing);
+  document.getElementById('chatMsgs').scrollTop=9999;
+  document.getElementById('sendBtn').disabled=true;
+  try{
+    var resp=await fetch(PROXY_BASE+'/v1/messages',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-opus-4-7',max_tokens:3000,system:f.system+'\n\n你正在分析用戶上傳的檔案，請仔細閱讀並提供深入分析。',messages:apiMsgs})});
+    typing.remove();
+    if(!resp.ok){var errBody='';try{errBody=await resp.text();}catch(e){}throw new Error('API錯誤('+resp.status+')');}
+    var data=await resp.json();
+    var aiText=data.content[0].text;
+    addMsg('ai',aiText);
+    autoSavePin();
+    // 也把分析結果存入案例資料庫
+    var items=LS(SK.casedb);
+    items.push({id:'c_'+Date.now(),type:'good',text:'🤖 AI 分析「'+fileName+'」\n\n'+aiText.substring(0,4000),marquee:false,createdAt:Date.now(),source:'ai_analysis',fileName:fileName});
+    SS(SK.casedb,items);
+  }catch(e){typing.remove();addMsg('error','❌ AI 分析失敗：'+e.message);}
+  document.getElementById('sendBtn').disabled=false;
+}
+
+// ══════ 初始化 ══════
+updateApiDot();updateClosedBadge();
+document.getElementById('chatInput').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,150)+'px';});
+</script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

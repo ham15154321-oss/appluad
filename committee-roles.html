@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>歷練各主委 — 功能主委發展地圖</title>
+<style>
+:root{
+  --bg:#03060f;--card:rgba(12,22,50,.85);--border:rgba(100,180,255,.12);--border-hi:rgba(74,234,255,.3);
+  --text:#c0dcff;--dim:#4a6a9a;--bright:#e8f0ff;--accent:#4aeaff;--gold:#ffd700;
+  --c1:#ff6b6b;--c2:#fbbf24;--c3:#4ade80;--c4:#60a5fa;--c5:#c084fc;--c6:#f472b6;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,'Noto Sans TC','PingFang TC',sans-serif;background:radial-gradient(ellipse at 20% 30%,#0d1b3e 0%,#070d1f 50%,var(--bg) 100%);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* ── 大螢幕容器約束 ── */
+.page-container{max-width:1200px;margin:0 auto;}
+
+/* ── Header ── */
+.hdr{background:rgba(10,18,40,.9);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);}
+.hdr-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;max-width:1200px;margin:0 auto;}
+.hdr-title{display:flex;align-items:center;gap:10px;}
+.hdr-title .icon{font-size:22px;}
+.hdr-title h1{font-size:17px;font-weight:800;background:linear-gradient(135deg,var(--gold),#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hdr-title .badge{font-size:10px;color:var(--dim);border:1px solid var(--border);border-radius:20px;padding:2px 10px;}
+.hdr-actions{display:flex;gap:8px;}
+.hdr-btn{padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.05);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;}
+.hdr-btn:hover{background:rgba(74,234,255,.1);border-color:var(--border-hi);color:var(--accent);}
+
+/* ── Progress Overview ── */
+.overview{display:flex;gap:12px;padding:16px 20px;flex-wrap:wrap;justify-content:center;}
+.ov-card{flex:1;min-width:150px;max-width:280px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;position:relative;overflow:hidden;transition:all .3s;}
+.ov-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.ov-card:nth-child(1)::before{background:var(--c1);}
+.ov-card:nth-child(2)::before{background:var(--c2);}
+.ov-card:nth-child(3)::before{background:var(--c3);}
+.ov-card:nth-child(4)::before{background:var(--c4);}
+.ov-card:nth-child(5)::before{background:var(--c5);}
+.ov-card .ov-icon{font-size:28px;margin-bottom:6px;}
+.ov-card .ov-name{font-size:13px;font-weight:700;color:var(--bright);}
+.ov-card .ov-status{font-size:11px;margin-top:4px;}
+.ov-card .ov-check{font-size:20px;margin-top:6px;}
+.ov-card.done{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.06);}
+
+/* ── Total Progress ── */
+.total-progress{padding:0 20px 16px;text-align:center;}
+.tp-bar-wrap{background:rgba(255,255,255,.06);border-radius:10px;height:10px;overflow:hidden;margin-top:8px;}
+.tp-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--c1),var(--c2),var(--c3),var(--c4),var(--c5));transition:width .5s ease;}
+.tp-label{font-size:12px;color:var(--dim);margin-top:4px;}
+.tp-big{font-size:24px;font-weight:800;color:var(--gold);}
+
+/* ── Role Sections ── */
+.role-section{margin:0 16px 20px;background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all .3s;max-width:100%;}
+.role-section.collapsed .rs-body{display:none;}
+.rs-header{display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;transition:all .2s;user-select:none;}
+.rs-header:hover{background:rgba(255,255,255,.03);}
+.rs-color{width:6px;height:40px;border-radius:3px;flex-shrink:0;}
+.rs-icon{font-size:28px;}
+.rs-info{flex:1;}
+.rs-name{font-size:16px;font-weight:800;color:var(--bright);}
+.rs-sub{font-size:11px;color:var(--dim);margin-top:2px;}
+.rs-toggle{font-size:16px;color:var(--dim);transition:transform .3s;}
+.role-section:not(.collapsed) .rs-toggle{transform:rotate(180deg);}
+.rs-done-badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;}
+.rs-done-badge.yes{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3);}
+.rs-done-badge.no{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2);}
+
+.rs-body{padding:0 20px 20px;}
+
+/* Completion bar */
+.comp-bar{display:flex;align-items:center;gap:12px;padding:14px 16px;background:rgba(255,255,255,.03);border-radius:10px;margin-bottom:16px;flex-wrap:wrap;}
+.comp-check{display:flex;align-items:center;gap:8px;}
+.comp-check label{font-size:13px;font-weight:700;color:var(--bright);cursor:pointer;}
+.comp-check input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);cursor:pointer;}
+.comp-dur{display:flex;align-items:center;gap:6px;}
+.comp-dur label{font-size:12px;color:var(--dim);}
+.comp-dur input{width:60px;padding:5px 8px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;text-align:center;outline:none;font-family:inherit;}
+.comp-dur select{padding:5px 8px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;outline:none;font-family:inherit;}
+
+/* ── Mind Map Branches ── */
+.branch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;max-width:100%;}
+.branch{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.branch-header{padding:12px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+.branch-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.branch-title{font-size:13px;font-weight:700;color:var(--bright);flex:1;}
+.branch-add{background:transparent;border:none;color:var(--accent);cursor:pointer;font-size:14px;padding:2px 6px;}
+.branch-del{background:transparent;border:none;color:rgba(255,80,80,.35);cursor:pointer;font-size:12px;padding:2px 6px;transition:color .2s;}
+.branch:hover .branch-del{color:rgba(255,80,80,.7);}
+.branch-del:hover{color:#ff4444!important;}
+.branch-items{padding:10px 14px;}
+.b-item{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+.b-item:last-child{border-bottom:none;}
+.b-bullet{color:var(--dim);font-size:11px;margin-top:3px;flex-shrink:0;}
+.b-text{flex:1;font-size:12px;color:#94a3b8;line-height:1.6;cursor:text;padding:2px 4px;border-radius:4px;transition:background .2s;min-height:20px;white-space:pre-wrap;word-break:break-word;}
+.b-text:hover{background:rgba(255,255,255,.04);}
+.b-text:focus{background:rgba(74,234,255,.06);outline:none;color:var(--bright);}
+.b-del{background:transparent;border:none;color:rgba(255,80,80,.4);cursor:pointer;font-size:11px;padding:2px;opacity:0;transition:opacity .2s;}
+.b-item:hover .b-del{opacity:1;}
+
+/* ── Toast ── */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-60px);padding:10px 24px;border-radius:10px;font-size:13px;font-weight:600;background:#166534;color:#4ade80;z-index:9999;opacity:0;transition:all .3s;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:600px){
+  .overview{flex-direction:column;}
+  .ov-card{max-width:none;}
+  .branch-grid{grid-template-columns:1fr;}
+  .hdr-inner{flex-direction:column;gap:8px;}
+}
+
+@media(max-width:480px){
+  .overview{flex-direction:column;}
+  .ov-card{min-width:100%;max-width:none;padding:10px;}
+  .branch-grid{grid-template-columns:minmax(240px,1fr);}
+  .hdr-title h1{font-size:14px;}
+  .rs-name{font-size:14px;}
+  .rs-sub{font-size:10px;}
+  .rs-header{padding:12px 16px;}
+  .branch-title{font-size:12px;}
+  .b-text{font-size:11px;}
+  .hdr-btn{padding:5px 10px;font-size:11px;}
+  .ov-card .ov-icon{font-size:24px;}
+  .ov-card .ov-name{font-size:12px;}
+  body{padding:8px;}
+  .container{padding:8px;}
+  .role-section{margin:0 8px 16px;}
+}
+</style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-inner">
+    <div class="hdr-title">
+      <span class="icon">👑</span>
+      <h1>歷練各主委</h1>
+      <span class="badge">功能主委發展地圖</span>
+    </div>
+    <div class="hdr-actions">
+      <button class="hdr-btn" onclick="saveAll()">💾 儲存</button>
+      <button class="hdr-btn" style="background:rgba(74,234,255,.12);border-color:rgba(74,234,255,.3);color:#4aeaff;margin-left:8px;" onclick="goBack()">◀ 上一頁</button>
+    </div>
+  </div>
+</div>
+
+<div class="page-container">
+  <!-- 五大主委總覽 -->
+  <div class="overview" id="overview"></div>
+
+  <!-- 總進度 -->
+  <div class="total-progress">
+    <div class="tp-big" id="tpBig">0 / 5</div>
+    <div class="tp-bar-wrap"><div class="tp-fill" id="tpFill" style="width:0%"></div></div>
+    <div class="tp-label">五大主委歷練完成度 — 全部完成即可晉升主管</div>
+  </div>
+
+  <!-- 各角色詳細 -->
+  <div id="roleSections"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════
+const BASE_KEY='committee_roles_v1';
+const _cachedCharId=localStorage.getItem('activeCharacterId');
+function getSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+BASE_KEY:BASE_KEY;}
+
+const COLORS=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)'];
+const ROLE_ICONS=['⚔️','🛤️','📚','🎤','🎪'];
+
+function getDefault(){
+  return {
+    roles:[
+      {
+        id:'commander', name:'軍長', icon:'⚔️', color:'#ff6b6b',
+        done:false, duration:'', durationUnit:'月',
+        branches:[
+          {title:'競賽總幹事', items:[
+            '*協助組內競賽\n每日排程/監督主管\n報名處理/業績結算',
+            '績效彙整：\n每月組員個人成績統計\n季度/年度排名分析',
+            '報名追蹤競賽/統計核准及及友拉團隊報名\n*確認後錄入系統/確認支付',
+            '*管理組織內新進人員\n新人D1-D7引導\n小窩（學院內部）'
+          ]},
+          {title:'績效報表委員', items:[
+            '*每月月會\n報名處理',
+            '*每半年通報人事稿及友\n*確認未處理',
+            '*帶領活動安排\n*帶領展場活動及友\n確認支付/活動支援'
+          ]}
+        ]
+      },
+      {
+        id:'channel', name:'通路主委', icon:'🛤️', color:'#fbbf24',
+        done:false, duration:'', durationUnit:'月',
+        branches:[
+          {title:'副主委', items:[
+            '前期溝通站長：管理上課下課\n2.了解講師教學方式好不好\n3.接觸新老師，擔任評估篩選\n4.教材製作/教學補助\n5.約訪獎懲規則設定',
+            '*每日15:00、16:00、17:00、19:00撥放回報'
+          ]},
+          {title:'約訪主委', items:[
+            '*新的狀態1-2週進路的話/報到訊況分析\n什麼優選的話術或策略\n獎勵的方式是什麼',
+            '上週內有「異常」上週沒人員為何？有什麼\n近期趨勢打訪行效？',
+            '*4.00時行政會議見策略路\n*電打訪記錄\n*觸及率回報'
+          ]},
+          {title:'已通關為主', items:[
+            '*驗證規模\n*教銷體驗',
+            '課程本質行'
+          ]},
+          {title:'介紹開發', items:[
+            '*往來機會通知他的朋友來\n*商務機個通賣會的問題\n*個案/看看發展外連問\n且跑'
+          ]},
+          {title:'校園活動委員', items:['校園招募活動策劃與執行']},
+          {title:'校外發展者', items:['校外合作通路開發與維護']}
+        ]
+      },
+      {
+        id:'education', name:'教育主委', icon:'📚', color:'#4ade80',
+        done:false, duration:'', durationUnit:'月',
+        branches:[
+          {title:'副主委', items:[
+            '升正式體驗課（星光班）\n*驗證體系入職照加新擔任須職\n*上第三約好了通路競爭與改善\n*做的第一份心的方~就訓練教材'
+          ]},
+          {title:'4S專題課程', items:[
+            '*整理品項的分享\n*整理法律的規定及注意事項\n重編新客服講義\n維護與更新講義'
+          ]},
+          {title:'課程主管', items:[
+            '1月、循道\n10月 逆職'
+          ]},
+          {title:'課程委員', items:[
+            '*整理每日、每月的分享\n*整理和通訊員\n通過訊傳閲課型傳遞訊息~\n學員服務\n利用google各知識平台~推廣教育資訊\n\n*行銷通道/分行'
+          ]},
+          {title:'心 靈', items:[
+            '*每日一節靈目前需要新靈\n2.身心補益新靈\n3.有志同道合講座安排\n4.定期同仁團練活勵~心靈講義...'
+          ]},
+          {title:'安排授訓練', items:[
+            '每年一次生涯式網型比賽\n通訊生活閱讀收集課程入內解決問題~\n*電員和學員的閱練心\n接觸外界文化推廣教育課程'
+          ]}
+        ]
+      },
+      {
+        id:'lecture', name:'講座主委', icon:'🎤', color:'#60a5fa',
+        done:false, duration:'', durationUnit:'月',
+        branches:[
+          {title:'副主委', items:[
+            '講座整合講座的狀況\n通路分析：\n1.接觸人~\n2.講座心得~\n3.出勤率分析\n4.講座成效及活動分析\n5.TA進展及講座後績效計算',
+            '確認講座前後輔導主任主'
+          ]},
+          {title:'通聘', items:[
+            '*活動資變動聯繫\n每日OO次即時三天報一天監督每人的為人\n據該日排程變化/對外結果分/人員比較\n*透過全面化比較確認整體的改善\n*行業趨勢觀察與改善策略比對分析',
+            '每日總結報告日付結訂並自主分析總趨勢/記錄\n每次完善/提供改善方案',
+            '*整理學名單機/月出結果用記'
+          ]},
+          {title:'講座週期', items:[
+            '月度活動規劃與主管內部會議安排\n*每月固定議題月度及每次動態數據 通/招/講 \n不定時的結構週期小組觀察\n*重置重新調整\n流程行事曆及安排系統'
+          ]},
+          {title:'主任經營訓練', items:[
+            '1.市場趨勢觀察\n2.為場經營'
+          ]},
+          {title:'總幹事', items:[
+            '*每季2,5,8,11月圍爐\n*活動籌備專人負責整\n定期開場日、場料計上\n*認識及了解主要主管\n最近行行及各主管\n*進行行方案及安排系統'
+          ]},
+          {title:'查詢/尾牙議辦事', items:[
+            '*可能是相關\n行於是養體身新優\n*及電發電時期'
+          ]}
+        ]
+      },
+      {
+        id:'activity', name:'活動主委', icon:'🎪', color:'#c084fc',
+        done:false, duration:'', durationUnit:'月',
+        branches:[
+          {title:'副主委', items:[
+            '*組合交流及外知活動的內容\n1.生活講話主題\n2.交流話題探問\n3.自主規劃方針\n4.每月講座經營體經過整時候\n5.改變/要看日通方式/時位',
+            '更改/交流通路改善、QA交流通事、小次改善的、等\n帶領分享會'
+          ]},
+          {title:'總幹事', items:[
+            '公佈研究計利月入月12月兩月規劃機能\n*確認制度完實務人員每人的期限面\n定期開場月度及每次及時經紀 通/動\n*帶領重要通路小組觀察\n重置行行方案安排系統'
+          ]},
+          {title:'人力發展課', items:[
+            '人力建議會計\n增光計劃',
+            '辦公之間的\n人力20門/之間\n補強展、實務員人社照共之統2.0'
+          ]},
+          {title:'新人面試', items:[
+            '(1) 面定基本職能/信維議能力\n(2) 員共教力與用共確認解\n(3) 初步行專業知識特點'
+          ]},
+          {title:'考核組員', items:[
+            '*正比通路通展更好5-6\n每月績效通展75'
+          ]},
+          {title:'學院營運', items:[
+            '助理：\n*花組開展的改直步驗再力\n行通資訊或共用/各教師/通期觀事\n(1) 組合活動的講座職及/技通\n(2) 行共建利共/通用人計劃\n(3) 初步引通過觀察及改善行事到位小卡\n打好之間的多分享一下',
+            '客服：\n(1) 記識面的的教責及重學務力\n行通資訊或共用面/教師績通觀\n(2) 行共時間發技及改善行事\n通共時/通改教/見經期大小共\n(3) 行通的改共建利共/通用行技師通期'
+          ]}
+        ]
+      }
+    ]
+  };
+}
+
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+let D = loadData();
+
+function loadData(){
+  try{const r=localStorage.getItem(getSK());if(r){const d=JSON.parse(r);if(d.roles)return d;}}catch(e){}
+  return getDefault();
+}
+function saveAll(){
+  try{localStorage.setItem(getSK(),JSON.stringify(D));showToast('💾 已儲存');}catch(e){showToast('⚠ 儲存失敗');}
+}
+
+let _autoTimer=null;
+function autoSave(){clearTimeout(_autoTimer);_autoTimer=setTimeout(saveAll,800);}
+
+// ════════════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════════════
+function render(){
+  renderOverview();
+  renderProgress();
+  renderRoleSections();
+}
+
+function renderOverview(){
+  const el=document.getElementById('overview');
+  el.innerHTML=D.roles.map((r,i)=>`
+    <div class="ov-card${r.done?' done':''}" onclick="scrollToRole(${i})">
+      <div class="ov-icon">${r.icon}</div>
+      <div class="ov-name">${r.name}</div>
+      <div class="ov-status" style="color:${r.done?'#4ade80':'#f87171'};">${r.done?'✅ 已完成'+(r.duration?' · '+r.duration+r.durationUnit:''):'⏳ 尚未完成'}</div>
+    </div>
+  `).join('');
+}
+
+function renderProgress(){
+  const count=D.roles.filter(r=>r.done).length;
+  document.getElementById('tpBig').textContent=count+' / 5';
+  document.getElementById('tpFill').style.width=(count/5*100)+'%';
+}
+
+function renderRoleSections(){
+  const el=document.getElementById('roleSections');
+  el.innerHTML=D.roles.map((r,i)=>{
+    const colorVal=['#ff6b6b','#fbbf24','#4ade80','#60a5fa','#c084fc'][i];
+    return `
+    <div class="role-section" id="role_${i}">
+      <div class="rs-header" onclick="toggleRole(${i})">
+        <div class="rs-color" style="background:${colorVal};"></div>
+        <div class="rs-icon">${r.icon}</div>
+        <div class="rs-info">
+          <div class="rs-name">${r.name}</div>
+          <div class="rs-sub">${r.branches.length} 個支線 · ${r.branches.reduce((s,b)=>s+b.items.length,0)} 項職責</div>
+        </div>
+        <span class="rs-done-badge ${r.done?'yes':'no'}">${r.done?'✅ 已完成':'⏳ 未完成'}</span>
+        <span class="rs-toggle">▼</span>
+      </div>
+      <div class="rs-body">
+        <!-- 完成狀態 -->
+        <div class="comp-bar">
+          <div class="comp-check">
+            <input type="checkbox" id="chk_${i}" ${r.done?'checked':''} onchange="toggleDone(${i},this.checked)">
+            <label for="chk_${i}">已完成此職務歷練</label>
+          </div>
+          <div class="comp-dur">
+            <label>擔任時長：</label>
+            <input type="text" value="${r.duration||''}" placeholder="例：6" oninput="D.roles[${i}].duration=this.value;autoSave();renderOverview();renderProgress();">
+            <select onchange="D.roles[${i}].durationUnit=this.value;autoSave();renderOverview();">
+              <option value="月"${r.durationUnit==='月'?' selected':''}>月</option>
+              <option value="年"${r.durationUnit==='年'?' selected':''}>年</option>
+              <option value="週"${r.durationUnit==='週'?' selected':''}>週</option>
+            </select>
+          </div>
+        </div>
+        <!-- 支線 -->
+        <div class="branch-grid">
+          ${r.branches.map((b,bi)=>`
+            <div class="branch">
+              <div class="branch-header">
+                <div class="branch-dot" style="background:${colorVal};"></div>
+                <div class="branch-title" contenteditable="true" onblur="updateBranchTitle(${i},${bi},this.textContent)">${esc(b.title)}</div>
+                <button class="branch-add" onclick="addItem(${i},${bi})" title="新增項目">＋</button>
+                <button class="branch-del" onclick="delBranch(${i},${bi})" title="刪除此支線">🗑</button>
+              </div>
+              <div class="branch-items">
+                ${b.items.map((item,ii)=>`
+                  <div class="b-item">
+                    <span class="b-bullet">◆</span>
+                    <div class="b-text" contenteditable="true" onblur="updateItem(${i},${bi},${ii},this)">${esc(item)}</div>
+                    <button class="b-del" onclick="delItem(${i},${bi},${ii})">✕</button>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `).join('')}
+          <div class="branch" style="border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:80px;cursor:pointer;opacity:.5;transition:opacity .2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5" onclick="addBranch(${i})">
+            <div style="text-align:center;color:var(--dim);font-size:13px;">＋ 新增支線</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════
+// ACTIONS
+// ════════════════════════════════════════════════
+function toggleRole(i){
+  document.getElementById('role_'+i).classList.toggle('collapsed');
+}
+
+function scrollToRole(i){
+  const el=document.getElementById('role_'+i);
+  if(el.classList.contains('collapsed')) el.classList.remove('collapsed');
+  el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function toggleDone(i,checked){
+  D.roles[i].done=checked;
+  autoSave();renderOverview();renderProgress();
+  // Update badge inline
+  const section=document.getElementById('role_'+i);
+  const badge=section.querySelector('.rs-done-badge');
+  badge.className='rs-done-badge '+(checked?'yes':'no');
+  badge.textContent=checked?'✅ 已完成':'⏳ 未完成';
+}
+
+function updateBranchTitle(ri,bi,text){
+  D.roles[ri].branches[bi].title=text.trim();
+  autoSave();
+}
+
+function updateItem(ri,bi,ii,el){
+  D.roles[ri].branches[bi].items[ii]=getEditText(el);
+  autoSave();
+}
+
+function addItem(ri,bi){
+  D.roles[ri].branches[bi].items.push('（新增項目）');
+  autoSave();renderRoleSections();
+}
+
+function delItem(ri,bi,ii){
+  D.roles[ri].branches[bi].items.splice(ii,1);
+  autoSave();renderRoleSections();
+}
+
+function addBranch(ri){
+  const name=prompt('支線名稱：');
+  if(!name) return;
+  D.roles[ri].branches.push({title:name,items:['（新增項目）']});
+  autoSave();renderRoleSections();
+}
+
+function delBranch(ri,bi){
+  const b=D.roles[ri].branches[bi];
+  const hasContent=b.items.some(item=>item.trim()&&item.trim()!=='（新增項目）');
+  if(hasContent){
+    if(!confirm('「'+b.title+'」支線有內容，確定要刪除嗎？')) return;
+  }
+  D.roles[ri].branches.splice(bi,1);
+  autoSave();renderRoleSections();
+  showToast('🗑 已刪除支線');
+}
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function getEditText(el){return (el.innerHTML||'').replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();}
+
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ════════════════════════════════════════════════
+// 上一頁（返回九宮格）
+// ════════════════════════════════════════════════
+function goBack(){
+  saveAll();
+  try{ if(parent && parent.closeCommittee){ parent.closeCommittee(); return; } }catch(e){}
+  try{ parent.postMessage({action:'closeCommittee'},'*'); }catch(e2){}
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+render();
+
+window.triggerSave=function(){saveAll();};
+// ★ 頁面離開緊急儲存
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')saveAll();});
+window.addEventListener('beforeunload',saveAll);
+window.addEventListener('pagehide',saveAll);
+</script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

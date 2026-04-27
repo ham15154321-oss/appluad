@@ -1,0 +1,4423 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>業績數據中心</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #03060f;
+      --bg2: #070d1f;
+      --bg3: #0d1b3e;
+      --border: rgba(100, 180, 255, 0.12);
+      --border-hi: rgba(74, 234, 255, 0.3);
+      --text: #c0dcff;
+      --dim: #4a6a9a;
+      --accent: #4aeaff;
+      --gold: #ffd700;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', 'Microsoft YaHei', sans-serif;
+      line-height: 1.5;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      background-color: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      z-index: 1000;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .back-btn {
+      padding: 0.5rem 1rem;
+      background-color: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .back-btn:hover {
+      border-color: var(--border-hi);
+      background-color: rgba(13, 27, 62, 0.8);
+      box-shadow: 0 0 12px rgba(74, 234, 255, 0.15);
+    }
+
+    /* Tabs */
+    .tabs-container {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background-color: var(--bg);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      padding: 0.5rem 1rem;
+      background-color: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--dim);
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .tab-btn:hover {
+      border-color: var(--border-hi);
+    }
+
+    .tab-btn.active {
+      background-color: var(--bg3);
+      color: var(--accent);
+      border-color: var(--border-hi);
+      box-shadow: 0 0 12px rgba(74, 234, 255, 0.2);
+    }
+
+    /* Main Content */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+
+    .content-max {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Tab 1: Comparison Layout */
+    .comparison-container {
+      display: grid;
+      grid-template-columns: 1fr 200px 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    .data-panel {
+      background-color: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .data-panel.left {
+      border-left: 3px solid #7b68ee;
+    }
+
+    .data-panel.right {
+      border-right: 3px solid var(--accent);
+    }
+
+    .panel-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+      color: var(--gold);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+
+    .panel-title input {
+      background-color: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--gold);
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      font-size: 1rem;
+      font-weight: bold;
+    }
+
+    .region {
+      margin-bottom: 1.5rem;
+    }
+
+    .region-name {
+      font-weight: bold;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .region-name input {
+      background-color: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+
+    .branch {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(100, 180, 255, 0.08);
+      font-size: 0.95rem;
+    }
+
+    .branch:last-child {
+      border-bottom: none;
+    }
+
+    .branch-name {
+      color: var(--text);
+      min-width: 60px;
+    }
+
+    .branch-name input {
+      background-color: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      width: 70px;
+    }
+
+    .branch-value {
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+      text-align: right;
+      min-width: 80px;
+    }
+
+    .branch-value input {
+      background-color: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      width: 80px;
+      text-align: right;
+      font-family: 'Courier New', monospace;
+    }
+
+    .subtotal {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      padding-top: 0.5rem;
+      margin-top: 0.5rem;
+      border-top: 1px solid var(--border-hi);
+      font-weight: bold;
+      color: var(--gold);
+    }
+
+    .total-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 1rem 0;
+      margin-top: 1rem;
+      border-top: 2px solid var(--border-hi);
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--gold);
+    }
+
+    .branch-delete-btn {
+      background-color: transparent;
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      margin-left: 0.5rem;
+      display: none;
+    }
+
+    .edit-mode .branch-delete-btn {
+      display: inline-block;
+    }
+
+    .branch-delete-btn:hover {
+      background-color: rgba(255, 107, 107, 0.1);
+    }
+
+    /* VS Column */
+    .vs-column {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      justify-content: flex-start;
+    }
+
+    .vs-header {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--accent);
+      padding: 1rem;
+      background-color: var(--bg3);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .diff-card {
+      background: linear-gradient(135deg, rgba(74, 234, 255, 0.1), rgba(123, 104, 238, 0.1));
+      border: 1px solid var(--border-hi);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .diff-region-name {
+      color: var(--text);
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      opacity: 0.8;
+    }
+
+    .diff-amount {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #ff6b6b;
+      margin-bottom: 0.25rem;
+    }
+
+    .diff-percent {
+      font-size: 0.95rem;
+      color: var(--text);
+      opacity: 0.9;
+    }
+
+    .total-diff-card {
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(74, 234, 255, 0.15));
+      border: 2px solid var(--border-hi);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .total-diff-card .diff-amount {
+      font-size: 1.8rem;
+      color: var(--gold);
+    }
+
+    /* Tab 2: Archives */
+    .archives-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .archive-btn {
+      padding: 0.75rem 1.5rem;
+      background-color: var(--bg3);
+      border: 1px solid var(--border-hi);
+      color: var(--accent);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+
+    .archive-btn:hover {
+      background-color: rgba(74, 234, 255, 0.1);
+      box-shadow: 0 0 12px rgba(74, 234, 255, 0.25);
+    }
+
+    .archives-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .archive-card {
+      background-color: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .archive-card:hover {
+      border-color: var(--border-hi);
+      background-color: rgba(13, 27, 62, 0.8);
+      box-shadow: 0 0 12px rgba(74, 234, 255, 0.15);
+    }
+
+    .archive-label {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--gold);
+      margin-bottom: 0.75rem;
+    }
+
+    .archive-comparison {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+
+    .archive-left, .archive-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .archive-left-label, .archive-right-label {
+      color: var(--dim);
+      font-size: 0.8rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .archive-left-value, .archive-right-value {
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: bold;
+    }
+
+    .archive-vs {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .archive-delete-btn {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background-color: transparent;
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all 0.2s;
+    }
+
+    .archive-delete-btn:hover {
+      background-color: rgba(255, 107, 107, 0.2);
+    }
+
+    /* ===== 激勵排行榜 ===== */
+    .motiv-sub-tabs {
+      display: flex; gap: 0; margin-bottom: 16px; border-radius: 10px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .motiv-sub-tab {
+      flex: 1; padding: 10px 0; text-align: center; font-size: .9rem; font-weight: 700;
+      cursor: pointer; background: var(--bg3); color: var(--dim); border: none;
+      transition: all .2s;
+    }
+    .motiv-sub-tab.active {
+      background: linear-gradient(135deg, var(--accent), #a78bfa); color: #fff;
+    }
+    .motiv-sub-tab:not(.active):hover { background: rgba(74,234,255,0.08); }
+    .motiv-board { display: none; }
+    .motiv-board.active { display: block; }
+    .motiv-import-bar {
+      display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+      margin-bottom: 12px;
+    }
+    .motiv-import-btn {
+      background: linear-gradient(135deg, rgba(74,234,255,.15), rgba(167,139,250,.1));
+      border: 1px solid var(--border-hi); color: var(--accent); font-size: .82rem;
+      padding: 6px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
+      transition: all .2s;
+    }
+    .motiv-import-btn:hover { background: rgba(74,234,255,.2); }
+    .motiv-update-info { font-size: .72rem; color: var(--dim); }
+    /* 頒獎台改為隱藏，前三名直接嵌入列表 */
+    .motiv-podium { display: none; }
+    .motiv-list { display: flex; flex-direction: column; gap: 0; }
+    .motiv-row {
+      display: flex; align-items: center; padding: 0; min-height: 56px;
+      background: var(--bg3); border: 1px solid var(--border); border-bottom: none;
+      transition: all .2s; position: relative; overflow: hidden;
+    }
+    .motiv-row:first-child { border-radius: 12px 12px 0 0; }
+    .motiv-row:last-child { border-bottom: 1px solid var(--border); border-radius: 0 0 12px 12px; }
+    .motiv-row:only-child { border-radius: 12px; border-bottom: 1px solid var(--border); }
+    .motiv-row:hover { background: rgba(74,234,255,.04); }
+    .motiv-rank {
+      width: 46px; display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 800; flex-shrink: 0; align-self: stretch;
+      background: rgba(74,234,255,.06); color: var(--accent);
+      border-right: 1px solid var(--border);
+    }
+    .motiv-row-info {
+      flex: 1; padding: 12px 14px; display: flex; align-items: baseline; gap: 0; flex-wrap: wrap;
+    }
+    .motiv-row-name {
+      font-size: 1.25rem; font-weight: 700; color: var(--text); letter-spacing: .02em;
+    }
+    .motiv-row-val {
+      font-size: 1.3rem; font-weight: 800; color: var(--gold); margin-left: .4em;
+      white-space: nowrap;
+    }
+    .motiv-row-bar {
+      position: absolute; left: 46px; top: 0; height: 100%; border-radius: 0;
+      pointer-events: none;
+    }
+    /* 前三名特殊樣式 */
+    .motiv-row.top1 { min-height: 64px; }
+    .motiv-row.top1 .motiv-rank { background: rgba(255,215,0,.15); font-size: 1.5rem; }
+    .motiv-row.top1 .motiv-row-name { font-size: 1.4rem; font-weight: 800; }
+    .motiv-row.top1 .motiv-row-val { font-size: 1.45rem; font-weight: 900; margin-left: .35em; }
+    .motiv-row.top2 { min-height: 60px; }
+    .motiv-row.top2 .motiv-rank { background: rgba(200,200,220,.12); font-size: 1.3rem; }
+    .motiv-row.top2 .motiv-row-name { font-size: 1.32rem; font-weight: 800; }
+    .motiv-row.top2 .motiv-row-val { font-size: 1.38rem; font-weight: 900; }
+    .motiv-row.top3 .motiv-rank { background: rgba(205,127,50,.12); font-size: 1.2rem; }
+    .motiv-row.top3 .motiv-row-name { font-size: 1.28rem; font-weight: 700; }
+    .motiv-row.top3 .motiv-row-val { font-size: 1.32rem; }
+
+    /* 激勵 day-mode extras */
+    body.day-mode .motiv-sub-tab { background: rgba(240,230,248,.7); color: #8a7aaa; }
+    body.day-mode .motiv-sub-tab.active { background: linear-gradient(135deg, #b090d0, #9a70c0); color: #fff; }
+    body.day-mode .motiv-row { background: rgba(255,255,255,.65); border-color: rgba(180,160,220,.25); border-bottom-color: rgba(180,160,220,.12); }
+    body.day-mode .motiv-row:last-child { border-bottom-color: rgba(180,160,220,.25); }
+    body.day-mode .motiv-row:hover { background: rgba(220,200,245,.2); }
+    body.day-mode .motiv-row-bar { background: linear-gradient(90deg,rgba(176,144,208,.15),rgba(200,180,230,.05)) !important; }
+    body.day-mode .motiv-rank { background: rgba(160,120,200,.1); color: #7a5a9a; border-right-color: rgba(180,160,220,.2); }
+    body.day-mode .motiv-row.top1 .motiv-rank { background: rgba(200,160,20,.12); }
+    body.day-mode .motiv-row.top2 .motiv-rank { background: rgba(160,160,180,.1); }
+    body.day-mode .motiv-row.top3 .motiv-rank { background: rgba(180,110,40,.1); }
+    body.day-mode .motiv-row-name { color: #4a3a5c !important; }
+    body.day-mode .motiv-row-val { color: #a07a0a !important; }
+    body.day-mode .motiv-row-info { color: #4a3a5c; }
+    body.day-mode .motiv-row.top1, body.day-mode .motiv-row.top2, body.day-mode .motiv-row.top3 {
+      background: rgba(255,255,255,.75);
+    }
+    body.day-mode .motiv-import-btn { background: rgba(160,120,200,.15); border-color: rgba(160,120,200,.35); color: #7a5a9a; }
+    body.day-mode .motiv-update-info { color: #a090b8; }
+    body.day-mode .motiv-sub-tabs { border-color: rgba(180,160,220,.3); }
+
+    /* ===== 成績單 Report Card ===== */
+    .rc-controls {
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+      padding: 16px; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 20px;
+    }
+    .rc-control-group { display: flex; flex-direction: column; gap: 4px; }
+    .rc-label { font-size: .78rem; color: var(--dim); font-weight: 600; }
+    .rc-select, .rc-input {
+      background: var(--bg2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 10px; font-size: .88rem; min-width: 100px;
+    }
+    .rc-select:focus, .rc-input:focus { border-color: var(--accent); outline: none; }
+
+    .rc-card {
+      background: linear-gradient(180deg, rgba(15,20,50,.95), rgba(10,15,35,.98));
+      border: 2px solid rgba(255,215,0,.15); border-radius: 20px;
+      padding: 0; overflow: hidden; max-width: 800px; margin: 0 auto;
+      box-shadow: 0 8px 40px rgba(0,0,0,.4), 0 0 60px rgba(255,215,0,.03);
+    }
+    .rc-header {
+      background: linear-gradient(135deg, rgba(255,215,0,.12), rgba(255,180,0,.05));
+      padding: 24px 28px 18px; text-align: center;
+      border-bottom: 1px solid rgba(255,215,0,.1);
+    }
+    .rc-header-title { font-size: 1.4rem; font-weight: 800; color: #ffd700; letter-spacing: 3px; margin-bottom: 4px; }
+    .rc-header-sub { font-size: .88rem; color: var(--dim); }
+    .rc-header-leader { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-top: 8px; }
+
+    .rc-section {
+      padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .rc-section:last-child { border-bottom: none; }
+    .rc-section-title {
+      font-size: .92rem; font-weight: 700; color: var(--accent); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .rc-section-title::after {
+      content: ''; flex: 1; height: 1px;
+      background: linear-gradient(90deg, rgba(74,234,255,.2), transparent);
+    }
+
+    .rc-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .rc-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .rc-stat-box {
+      background: rgba(74,234,255,.04); border: 1px solid rgba(74,234,255,.08);
+      border-radius: 10px; padding: 12px; text-align: center;
+    }
+    .rc-stat-label { font-size: .72rem; color: var(--dim); margin-bottom: 4px; }
+    .rc-stat-value { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+    .rc-stat-value.gold { color: #ffd700; }
+    .rc-stat-value.green { color: #66bb6a; }
+    .rc-stat-value.red { color: #ff6b6b; }
+    .rc-stat-sub { font-size: .68rem; color: var(--dim); margin-top: 2px; }
+
+    .rc-rank-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 10px; border-radius: 6px; margin-bottom: 4px;
+      background: rgba(255,255,255,.02);
+    }
+    .rc-rank-row.highlight {
+      background: rgba(255,215,0,.08); border: 1px solid rgba(255,215,0,.15);
+    }
+    .rc-rank-row .rc-rank { color: var(--accent); font-weight: 600; min-width: 24px; font-size: .82rem; }
+    .rc-rank-row .rc-rank-name { flex: 1; font-size: .82rem; color: var(--text); }
+    .rc-rank-row .rc-rank-val { font-family: 'Courier New', monospace; font-size: .82rem; color: var(--text); }
+    .rc-rank-row.highlight .rc-rank-name { color: #ffd700; font-weight: 700; }
+
+    .rc-ch-card {
+      background: rgba(74,234,255,.03); border: 1px solid rgba(74,234,255,.06);
+      border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+    }
+    .rc-ch-title { font-size: .82rem; font-weight: 700; color: #ffd700; margin-bottom: 6px; }
+    .rc-ch-meta { font-size: .72rem; color: var(--dim); margin-bottom: 4px; }
+
+    .rc-bar-wrap { height: 8px; background: rgba(255,255,255,.06); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+    .rc-bar-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
+    .rc-bar-fill.green { background: linear-gradient(90deg, #66bb6a, #4aeaff); }
+    .rc-bar-fill.yellow { background: linear-gradient(90deg, #ffa726, #ffca28); }
+    .rc-bar-fill.red { background: linear-gradient(90deg, #ff6b6b, #ff8a65); }
+
+    .rc-footer {
+      padding: 14px 24px; text-align: center;
+      background: rgba(255,215,0,.03); font-size: .75rem; color: var(--dim);
+    }
+
+    @media (max-width: 600px) {
+      .rc-controls { flex-direction: column; }
+      .rc-grid-2 { grid-template-columns: 1fr; }
+      .rc-grid-3 { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* Tab 3-5: Reserved */
+    .reserved-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 400px;
+      text-align: center;
+    }
+
+    .reserved-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .reserved-text {
+      font-size: 1.5rem;
+      color: var(--dim);
+      letter-spacing: 0.05em;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-20px); }
+    }
+
+    /* Edit Mode */
+    .edit-btn {
+      padding: 0.5rem 1rem;
+      background-color: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .edit-btn:hover {
+      border-color: var(--border-hi);
+      background-color: rgba(13, 27, 62, 0.8);
+    }
+
+    .edit-btn.active {
+      background-color: rgba(255, 107, 107, 0.2);
+      border-color: #ff6b6b;
+      color: #ff6b6b;
+    }
+
+    .edit-controls {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .add-btn {
+      padding: 0.5rem 1rem;
+      background-color: rgba(123, 104, 238, 0.2);
+      border: 1px solid #7b68ee;
+      color: #7b68ee;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .add-btn:hover {
+      background-color: rgba(123, 104, 238, 0.3);
+    }
+
+    .region-delete-btn {
+      background-color: transparent;
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+      padding: 0.25rem 0.75rem;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      display: none;
+      margin-left: 0.5rem;
+    }
+
+    .edit-mode .region-delete-btn {
+      display: inline-block;
+    }
+
+    .region-delete-btn:hover {
+      background-color: rgba(255, 107, 107, 0.1);
+    }
+
+    input[type="text"], input[type="number"] {
+      font-family: inherit;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .comparison-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .vs-column {
+        grid-column: 1;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
+
+      .vs-header {
+        width: 100%;
+      }
+
+      .diff-card, .total-diff-card {
+        flex: 1 1 calc(50% - 0.5rem);
+        min-width: 120px;
+      }
+
+      .content {
+        padding: 1rem 0.5rem;
+      }
+
+      .data-panel {
+        padding: 1rem;
+      }
+
+      .archives-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+
+      .header-left {
+        width: 100%;
+      }
+
+      .header-title {
+        font-size: 1.2rem;
+      }
+
+      .back-btn {
+        width: 100%;
+        text-align: center;
+      }
+
+      .tabs-container {
+        padding: 0.5rem;
+        gap: 0.25rem;
+      }
+
+      .tab-btn {
+        padding: 0.4rem 0.7rem;
+        font-size: 0.75rem;
+      }
+
+      .content {
+        padding: 1rem 0.5rem;
+      }
+
+      .panel-title {
+        font-size: 1rem;
+      }
+
+      .region-name {
+        font-size: 0.9rem;
+      }
+
+      .branch-value {
+        min-width: 60px;
+      }
+
+      .vs-header {
+        font-size: 1.2rem;
+      }
+
+      .diff-card, .total-diff-card {
+        padding: 0.75rem;
+      }
+
+      .diff-amount {
+        font-size: 1.1rem;
+      }
+    }
+
+    /* Archive Detail Modal */
+    .archive-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .archive-modal-overlay.open {
+      display: flex;
+    }
+    .archive-modal {
+      background: linear-gradient(135deg, #0d1b3e 0%, #070d1f 60%, #03060f 100%);
+      border: 1px solid var(--border-hi);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 1100px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(74,234,255,0.08);
+    }
+    .archive-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      min-height: 56px;
+    }
+    .archive-modal-header h3 {
+      color: var(--gold);
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .archive-modal-header h3 span.am-date {
+      color: var(--accent);
+      font-size: 0.85rem;
+      font-weight: 400;
+      border: 1px solid rgba(74,234,255,0.15);
+      border-radius: 20px;
+      padding: 2px 12px;
+      background: rgba(74,234,255,0.05);
+    }
+    .archive-modal-close {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(100,180,255,0.2);
+      color: #6a8fcc;
+      font-size: 1.1rem;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .25s;
+    }
+    .archive-modal-close:hover {
+      background: rgba(255,80,80,0.25);
+      color: #ff8a8a;
+    }
+    .archive-modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    /* Detail comparison (read-only) inside modal */
+    .am-comparison {
+      display: grid;
+      grid-template-columns: 1fr 180px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    .am-panel {
+      background: rgba(13,27,62,0.6);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.2rem;
+    }
+    .am-panel.left { border-left: 3px solid #7b68ee; }
+    .am-panel.right { border-right: 3px solid var(--accent); }
+    .am-panel-title {
+      font-size: 1.05rem;
+      font-weight: bold;
+      color: var(--gold);
+      margin-bottom: 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .am-region-name {
+      font-weight: bold;
+      color: var(--accent);
+      margin-bottom: 0.4rem;
+      font-size: 0.95rem;
+    }
+    .am-branch {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid rgba(100,180,255,0.06);
+      font-size: 0.9rem;
+    }
+    .am-branch:last-child { border-bottom: none; }
+    .am-branch-val {
+      font-family: 'Courier New', monospace;
+      text-align: right;
+      min-width: 70px;
+    }
+    .am-subtotal {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      margin-top: 0.3rem;
+      border-top: 1px solid var(--border-hi);
+      font-weight: bold;
+      color: var(--gold);
+      font-size: 0.9rem;
+    }
+    .am-total {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.8rem 0;
+      margin-top: 0.8rem;
+      border-top: 2px solid var(--border-hi);
+      font-size: 1.05rem;
+      font-weight: bold;
+      color: var(--gold);
+    }
+    .am-vs-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .am-vs-header {
+      text-align: center;
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: var(--accent);
+      padding: 0.8rem;
+      background: rgba(13,27,62,0.6);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .am-diff-card {
+      background: linear-gradient(135deg, rgba(74,234,255,0.08), rgba(123,104,238,0.08));
+      border: 1px solid var(--border-hi);
+      border-radius: 8px;
+      padding: 0.8rem;
+      text-align: center;
+    }
+    .am-diff-region { color: var(--text); font-size: 0.8rem; margin-bottom: 0.3rem; opacity: 0.8; }
+    .am-diff-amount { font-size: 1.1rem; font-weight: bold; margin-bottom: 0.15rem; }
+    .am-diff-percent { font-size: 0.85rem; color: var(--text); opacity: 0.9; }
+    .am-diff-total-card {
+      background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(74,234,255,0.12));
+      border: 2px solid var(--border-hi);
+      border-radius: 8px;
+      padding: 1.2rem;
+      text-align: center;
+    }
+    .am-diff-total-card .am-diff-amount { font-size: 1.4rem; color: var(--gold); }
+    .am-positive { color: #ff6b6b; }
+    .am-negative { color: #4caf50; }
+    @media (max-width: 768px) {
+      .am-comparison {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      .am-vs-col {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
+      .am-vs-header { width: 100%; }
+      .am-diff-card, .am-diff-total-card { flex: 1 1 calc(50% - 0.5rem); min-width: 120px; }
+    }
+
+    /* ===== 每月講座成績表現 ===== */
+    .lec-months-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+    .lec-month-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all .25s;
+      position: relative;
+    }
+    .lec-month-card:hover {
+      border-color: var(--border-hi);
+      box-shadow: 0 0 16px rgba(74,234,255,0.12);
+      transform: translateY(-2px);
+    }
+    .lec-month-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: .6rem;
+      text-align: center;
+    }
+    .lec-month-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+      font-size: .85rem;
+    }
+    .lec-month-region { color: var(--accent); font-weight: 600; }
+    .lec-month-val { color: var(--text); font-family: 'Courier New', monospace; }
+    .lec-month-total {
+      display: flex;
+      justify-content: space-between;
+      margin-top: .5rem;
+      padding-top: .5rem;
+      border-top: 1px solid var(--border-hi);
+      font-weight: 700;
+      color: var(--gold);
+      font-size: .9rem;
+    }
+    .lec-hint {
+      text-align: right;
+      font-size: .7rem;
+      color: var(--accent);
+      opacity: .5;
+      margin-top: .4rem;
+    }
+
+    /* Lecture Detail Modal */
+    .lec-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0,0,0,.75);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .lec-modal-overlay.open { display: flex; }
+    .lec-modal {
+      background: linear-gradient(135deg, #0d1b3e 0%, #070d1f 60%, #03060f 100%);
+      border: 1px solid var(--border-hi);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 900px;
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 40px rgba(74,234,255,.08);
+    }
+    .lec-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .lec-modal-header h3 {
+      color: var(--gold);
+      font-size: 1.15rem;
+    }
+    .lec-modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+
+    /* Region section inside modal */
+    .lec-region-section {
+      margin-bottom: 1.8rem;
+    }
+    .lec-region-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: .8rem;
+    }
+    .lec-region-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .lec-region-total {
+      font-size: .9rem;
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    /* Bar chart row */
+    .lec-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .lec-bar-label {
+      min-width: 160px;
+      font-size: .88rem;
+      color: var(--text);
+      text-align: right;
+      white-space: nowrap;
+    }
+    .lec-bar-track {
+      flex: 1;
+      height: 28px;
+      background: rgba(255,255,255,.04);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+    }
+    .lec-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width .4s ease;
+      min-width: 2px;
+    }
+    .lec-bar-fill.low { background: linear-gradient(90deg, #ff6b6b, #ff8a65); }
+    .lec-bar-fill.mid { background: linear-gradient(90deg, #ffa726, #ffca28); }
+    .lec-bar-fill.high { background: linear-gradient(90deg, #66bb6a, #4aeaff); }
+    .lec-bar-val {
+      min-width: 65px;
+      font-size: .85rem;
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+    }
+    .lec-bar-input {
+      width: 70px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: .85rem;
+      font-family: 'Courier New', monospace;
+      text-align: right;
+    }
+    .lec-bar-input:focus {
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    /* Edit toggle in modal */
+    .lec-edit-btn {
+      padding: 6px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: .85rem;
+      transition: all .2s;
+    }
+    .lec-edit-btn:hover { border-color: var(--border-hi); }
+    .lec-edit-btn.active {
+      background: rgba(255,107,107,.2);
+      border-color: #ff6b6b;
+      color: #ff6b6b;
+    }
+
+    /* Grand total bar */
+    .lec-grand-total {
+      display: flex;
+      justify-content: space-between;
+      padding: .8rem 0;
+      margin-top: .5rem;
+      border-top: 2px solid var(--border-hi);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    @media (max-width: 768px) {
+      .lec-months-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: .8rem;
+      }
+    }
+    @media (max-width: 540px) {
+      .lec-months-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: .6rem;
+      }
+      .lec-month-card { padding: .8rem; }
+      .lec-bar-label { min-width: 120px; font-size: .78rem; }
+    }
+
+    /* ===== 各通路績效 ===== */
+    .ch-modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,.75); backdrop-filter: blur(8px);
+      align-items: center; justify-content: center; padding: .5rem;
+    }
+    .ch-modal-overlay.open { display: flex; }
+    .ch-modal {
+      background: linear-gradient(135deg, #0d1b3e 0%, #070d1f 60%, #03060f 100%);
+      border: 1px solid var(--border-hi); border-radius: 16px;
+      width: 100%; max-width: 1300px; max-height: 95vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 40px rgba(74,234,255,.08);
+    }
+    .ch-modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; border-bottom: 1px solid var(--border); min-height: 52px;
+    }
+    .ch-modal-header h3 { color: var(--gold); font-size: 1.1rem; }
+    .ch-modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+    /* Channel tables grid */
+    .ch-tables-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;
+    }
+    .ch-table-card {
+      background: rgba(13,27,62,.5); border: 1px solid var(--border); border-radius: 8px;
+      overflow: hidden;
+    }
+    .ch-table-header {
+      padding: 8px 12px; font-weight: 700; font-size: .9rem; text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .ch-table-header.net { background: rgba(66,165,245,.15); color: #42a5f5; }
+    .ch-table-header.purchase { background: rgba(255,167,38,.15); color: #ffa726; }
+    .ch-table-header.event { background: rgba(102,187,106,.15); color: #66bb6a; }
+    .ch-table-header.referral { background: rgba(171,71,188,.15); color: #ab47bc; }
+    .ch-table-header.cash { background: rgba(239,83,80,.15); color: #ef5350; }
+    .ch-table-header.admin { background: rgba(120,144,156,.15); color: #78909c; }
+
+    .ch-row {
+      display: grid; grid-template-columns: 32px 1fr auto; align-items: center;
+      padding: 4px 10px; font-size: .82rem; border-bottom: 1px solid rgba(100,180,255,.05);
+    }
+    .ch-row:last-child { border-bottom: none; }
+    .ch-row.rank1 { background: rgba(255,215,0,.06); }
+    .ch-rank { color: var(--dim); text-align: center; font-size: .78rem; }
+    .ch-name { color: var(--text); }
+    .ch-val { color: var(--text); font-family: 'Courier New', monospace; text-align: right; font-size: .82rem; }
+    .ch-crown { font-size: .85rem; margin-right: 2px; }
+
+    /* Academy section */
+    .ch-academy-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    }
+    .ch-academy-card {
+      background: rgba(13,27,62,.5); border: 1px solid var(--border); border-radius: 8px;
+      overflow: hidden;
+    }
+    .ch-academy-header {
+      display: grid; grid-template-columns: 1fr 1fr; padding: 6px 12px;
+      border-bottom: 1px solid var(--border); font-size: .82rem;
+    }
+    .ch-academy-header .ch-ah-label { font-weight: 700; }
+    .ch-academy-header .ch-ah-target { text-align: right; font-weight: 700; }
+    .ch-academy-header.goal { color: #ffd700; }
+    .ch-academy-header.low { color: #ef5350; }
+    .ch-academy-row {
+      display: grid; grid-template-columns: 1fr auto; padding: 3px 12px; font-size: .82rem;
+      border-bottom: 1px solid rgba(100,180,255,.04);
+    }
+    .ch-academy-row:last-child { border-bottom: none; }
+    .ch-academy-row.rank1 { background: rgba(255,215,0,.08); }
+    .ch-academy-row.rank1 .ch-academy-name { color: #ffd700; font-weight: 700; }
+    .ch-academy-row.rank1 .ch-academy-val { color: #ffd700; font-weight: 700; }
+    .ch-academy-name { color: var(--accent); }
+    .ch-academy-val { color: var(--text); font-family: 'Courier New', monospace; text-align: right; }
+    .ch-academy-val.negative { color: #ff6b6b; }
+
+    /* Import modal */
+    .ch-import-overlay {
+      display: none; position: fixed; inset: 0; z-index: 99999;
+      background: rgba(0,0,0,.8); backdrop-filter: blur(10px);
+      align-items: center; justify-content: center; padding: 1rem;
+    }
+    .ch-import-overlay.open { display: flex; }
+    .ch-import-box {
+      background: linear-gradient(135deg, #0d1b3e, #070d1f);
+      border: 1px solid var(--border-hi); border-radius: 14px;
+      width: 100%; max-width: 550px; max-height: 90vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    }
+    .ch-import-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+    }
+    .ch-import-header h3 { color: var(--accent); font-size: 1rem; }
+    .ch-import-body { padding: 16px 20px; overflow-y: auto; }
+    .ch-import-ch-btn {
+      padding: 5px 12px; border-radius: 4px; border: 1px solid var(--border);
+      background: var(--bg2); color: var(--dim); cursor: pointer; font-size: .8rem;
+      transition: all .2s;
+    }
+    .ch-import-ch-btn.active {
+      border-color: var(--accent); color: var(--accent); background: rgba(74,234,255,.1);
+    }
+
+    /* Quarter nav tabs inside modal */
+    .ch-q-nav {
+      display: flex; gap: 8px; margin-bottom: 16px; padding: 10px 0;
+      border-bottom: 1px solid var(--border); flex-wrap: wrap;
+    }
+    .ch-q-nav-btn {
+      padding: 8px 16px; border-radius: 8px; font-size: .88rem; font-weight: 600;
+      cursor: pointer; transition: all .2s; border: 1px solid var(--border);
+      background: rgba(255,255,255,.05); color: var(--dim); font-family: inherit;
+    }
+    .ch-q-nav-btn:hover {
+      border-color: var(--border-hi); background: rgba(74,234,255,.06); color: var(--text);
+    }
+    .ch-q-nav-btn.active {
+      background: linear-gradient(135deg, rgba(74,234,255,.15), rgba(167,139,250,.15));
+      border-color: var(--accent); color: var(--accent); font-weight: 700;
+    }
+
+    /* Month card summary for channels */
+    .ch-month-card {
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1rem; cursor: pointer; transition: all .25s;
+    }
+    .ch-month-card:hover {
+      border-color: var(--border-hi); box-shadow: 0 0 16px rgba(74,234,255,.12);
+      transform: translateY(-2px);
+    }
+    /* === Honor Cards === */
+    .honor-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      display: flex; justify-content: center; align-items: flex-start; padding: 20px; overflow-y: auto;
+      background: linear-gradient(180deg, rgba(10,10,40,.97) 0%, rgba(5,15,45,.94) 40%, rgba(0,0,0,.88) 100%);
+      opacity: 0; pointer-events: none; transition: opacity 0.5s ease;
+    }
+    .honor-overlay.open { opacity: 1; pointer-events: auto; }
+    .honor-modal {
+      background: linear-gradient(180deg, rgba(20,20,60,.92), rgba(10,15,35,.96));
+      border: 1px solid rgba(255,215,0,.2); border-radius: 16px;
+      width: 100%; max-width: 1200px; max-height: 90vh; overflow-y: auto; padding: 20px;
+      box-shadow: 0 0 60px rgba(255,215,0,.08), 0 0 120px rgba(74,234,255,.04);
+      transform: translateY(30px); opacity: 0;
+      transition: transform 0.6s cubic-bezier(.4,0,.2,1), opacity 0.5s ease;
+    }
+    .honor-overlay.open .honor-modal { transform: translateY(0); opacity: 1; }
+    .honor-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+    .honor-header h3 { margin: 0; font-size: 1.2rem; color: #ffd700; }
+    .honor-section-title {
+      font-size: .95rem; font-weight: 700; color: var(--accent); margin-bottom: 12px;
+    }
+    .honor-cards-row {
+      display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;
+    }
+
+    /* Flip card */
+    @keyframes honorCardEnter {
+      from { opacity: 0; transform: translateY(20px) scale(.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .honor-card {
+      width: 200px; height: 290px; perspective: 800px; cursor: pointer;
+      animation: honorCardEnter 0.5s ease both;
+    }
+    .honor-card-inner {
+      width: 100%; height: 100%; position: relative; transform-style: preserve-3d;
+      transition: transform 0.7s cubic-bezier(.4,.0,.2,1);
+    }
+    .honor-card.flipped .honor-card-inner { transform: rotateY(180deg); }
+    .honor-card-front, .honor-card-back {
+      position: absolute; inset: 0; backface-visibility: hidden; border-radius: 14px; overflow: hidden;
+    }
+    .honor-card-back {
+      background: linear-gradient(135deg, #1a1a3e 0%, #0d1b3e 50%, #151540 100%);
+      border: 2px solid rgba(255,215,0,.3);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      box-shadow: inset 0 0 30px rgba(255,215,0,.05);
+    }
+    .honor-card-back .hcb-icon { font-size: 3rem; }
+    .honor-card-back .hcb-label {
+      font-size: .9rem; color: rgba(255,215,0,.7); font-weight: 700; letter-spacing: 2px;
+    }
+    .honor-card-front {
+      transform: rotateY(180deg);
+      border: 2px solid rgba(255,215,0,.5);
+      display: flex; flex-direction: column;
+    }
+    .hcf-header {
+      padding: 10px 12px 6px; text-align: center;
+      background: linear-gradient(135deg, rgba(255,215,0,.15), rgba(255,180,0,.05));
+    }
+    .hcf-channel { font-size: .75rem; color: var(--dim); margin-bottom: 2px; }
+    .hcf-title { font-size: .85rem; font-weight: 700; color: #ffd700; }
+    .hcf-photo-area {
+      height: 80px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+      background: rgba(0,0,0,.3);
+    }
+    .hcf-photo-area img {
+      width: 70px; height: 70px; border-radius: 50%; object-fit: cover;
+      border: 2px solid rgba(255,215,0,.4);
+    }
+    .hcf-no-photo {
+      width: 70px; height: 70px; border-radius: 50%; background: rgba(74,234,255,.08);
+      border: 2px solid rgba(74,234,255,.2);
+      display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+    }
+    .hcf-crown-name {
+      text-align: center; padding: 6px 8px 2px; font-weight: 700; font-size: .95rem; color: #ffd700;
+    }
+    .hcf-crown-val {
+      text-align: center; font-size: .8rem; color: var(--accent); margin-bottom: 4px;
+    }
+    .hcf-runners {
+      flex: 1; padding: 0 10px 8px; font-size: .75rem; overflow: hidden;
+    }
+    .hcf-runner-row {
+      display: flex; justify-content: space-between; padding: 1px 0;
+      color: var(--dim); border-bottom: 1px solid rgba(255,255,255,.03);
+    }
+    .hcf-runner-row .rank { color: var(--accent); min-width: 16px; }
+    .hcf-runner-row .val { font-family: 'Courier New', monospace; color: var(--text); }
+
+    /* Academy honor card extras */
+    .honor-acad-select {
+      display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+      background: rgba(74,234,255,.04); border-radius: 6px; margin-top: 4px; cursor: pointer;
+    }
+    .honor-acad-select input[type=checkbox] { accent-color: #ffd700; }
+    .honor-acad-select label { font-size: .78rem; color: var(--dim); cursor: pointer; }
+
+    /* Honor Admin Panel */
+    .honor-admin-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 10100;
+      display: none; justify-content: center; align-items: flex-start; padding: 20px; overflow-y: auto;
+    }
+    .honor-admin-overlay.open { display: flex; }
+    .honor-admin-box {
+      background: var(--bg2); border: 1px solid var(--border-hi); border-radius: 16px;
+      width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; padding: 20px;
+    }
+    .honor-admin-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+    .honor-admin-header h3 { margin: 0; font-size: 1.1rem; color: #ffd700; }
+    .ha-section { margin-bottom: 20px; }
+    .ha-section-title { font-size: .9rem; font-weight: 700; color: var(--accent); margin-bottom: 10px; }
+    .ha-row {
+      display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 6px;
+      background: rgba(74,234,255,.03); border: 1px solid var(--border); border-radius: 10px;
+    }
+    .ha-row-label { font-size: .82rem; font-weight: 600; color: var(--text); min-width: 70px; }
+    .ha-row-current { font-size: .78rem; color: var(--dim); flex: 1; }
+    .ha-row-current .ha-name { color: #ffd700; font-weight: 600; }
+    .ha-select {
+      background: var(--bg3); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 4px 6px; font-size: .78rem; max-width: 140px;
+    }
+    .ha-photo-preview {
+      width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+      border: 2px solid rgba(255,215,0,.3);
+    }
+    .ha-photo-placeholder {
+      width: 36px; height: 36px; border-radius: 50%; background: rgba(74,234,255,.08);
+      border: 2px solid rgba(74,234,255,.2); display: flex; align-items: center;
+      justify-content: center; font-size: 1rem; flex-shrink: 0;
+    }
+    .ha-add-form {
+      padding: 12px; background: rgba(255,215,0,.04); border: 1px dashed rgba(255,215,0,.25);
+      border-radius: 10px; margin-top: 12px;
+    }
+    .ha-add-form input[type=text] {
+      background: var(--bg3); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 10px; font-size: .85rem; width: 100%;
+    }
+    .ha-add-photo-btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+      background: rgba(74,234,255,.08); border: 1px solid rgba(74,234,255,.2);
+      border-radius: 8px; color: var(--accent); font-size: .82rem; cursor: pointer;
+      margin-top: 8px;
+    }
+    .ha-add-photo-btn:hover { background: rgba(74,234,255,.15); }
+
+    @media (max-width: 768px) {
+      .honor-card { width: 160px; height: 240px; }
+    }
+
+    .ch-quarter-card {
+      border-color: rgba(255,215,0,.25);
+      background: linear-gradient(135deg, rgba(255,215,0,.04), rgba(255,180,0,.02));
+    }
+    .ch-quarter-card:hover {
+      border-color: rgba(255,215,0,.5);
+      box-shadow: 0 0 20px rgba(255,215,0,.12);
+    }
+
+    @media (max-width: 1100px) {
+      .ch-tables-grid, .ch-academy-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 700px) {
+      .ch-tables-grid, .ch-academy-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--dim);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+  </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <div class="header-title">📊 業績數據中心</div>
+      <button class="back-btn" onclick="goBack()">◀ 返回</button>
+    </div>
+  </header>
+
+  <div class="tabs-container">
+    <button class="tab-btn active" onclick="switchTab(0)">📈 年度月/季比較</button>
+    <button class="tab-btn" onclick="switchTab(1)">📊 每月講座成績表現</button>
+    <button class="tab-btn" onclick="switchTab(2)">📋 各通路績效</button>
+    <button class="tab-btn" onclick="switchTab(3)">📅 每月績效</button>
+    <button class="tab-btn" onclick="switchTab(4)">🏆 激勵</button>
+    <button class="tab-btn" onclick="switchTab(5)">📝 成績單</button>
+  </div>
+
+  <div class="content">
+    <div class="content-max">
+      <!-- Tab 0: Comparison -->
+      <div class="tab-content active" id="tab-0">
+        <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
+          <button class="edit-btn" id="editBtn" onclick="toggleEditMode()">✏️ 編輯</button>
+        </div>
+        <div id="comparisonContainer"></div>
+      </div>
+
+      <!-- Tab 1: 每月講座成績表現 -->
+      <div class="tab-content" id="tab-1">
+        <div id="lectureMonthsGrid" class="lec-months-grid"></div>
+      </div>
+      <div class="tab-content" id="tab-2">
+        <div id="channelMonthsGrid" class="lec-months-grid"></div>
+      </div>
+      <div class="tab-content" id="tab-3">
+        <div id="mp-iframe-wrap" style="width:calc(100% + 40px);margin-left:-20px;margin-top:-20px;height:calc(100vh - 60px);overflow:hidden;">
+          <iframe id="mp-iframe" src="" style="width:100%;height:100%;border:none;background:transparent;" allow="clipboard-write"></iframe>
+        </div>
+      </div>
+
+      <!-- Tab 4: 激勵排行榜 -->
+      <div class="tab-content" id="tab-4">
+        <div class="motiv-import-bar">
+          <span class="motiv-update-info" id="motivUpdateInfo"></span>
+          <button class="motiv-import-btn" onclick="motivTriggerEipSync()" title="需安裝 Chrome 擴充功能">🔄 同步資料</button>
+          <label class="motiv-import-btn" style="font-size:.75rem;opacity:.7;">📥 匯入檔案
+            <input type="file" accept=".xlsx,.xls,.numbers,.csv" style="display:none" onchange="motivImportFile(event)">
+          </label>
+        </div>
+        <div class="motiv-sub-tabs">
+          <button class="motiv-sub-tab active" onclick="motivSwitchBoard(0)">🏫 學院排名</button>
+          <button class="motiv-sub-tab" onclick="motivSwitchBoard(1)">👤 業務排名</button>
+        </div>
+        <div class="motiv-board active" id="motivBoard0">
+          <div class="motiv-podium" id="motivPodium0"></div>
+          <div class="motiv-list" id="motivList0"></div>
+        </div>
+        <div class="motiv-board" id="motivBoard1">
+          <div class="motiv-podium" id="motivPodium1"></div>
+          <div class="motiv-list" id="motivList1"></div>
+        </div>
+      </div>
+
+      <!-- Tab 5: 成績單 -->
+      <div class="tab-content" id="tab-5">
+        <div class="rc-controls">
+          <div class="rc-control-group">
+            <label class="rc-label">📅 月份</label>
+            <select id="rcMonth" class="rc-select" onchange="renderReportCard()">
+              <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+              <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+              <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+              <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+            </select>
+          </div>
+          <div class="rc-control-group">
+            <label class="rc-label">🏫 學院</label>
+            <select id="rcAcademy" class="rc-select" onchange="renderReportCard()"></select>
+          </div>
+          <div class="rc-control-group">
+            <label class="rc-label">👤 組長</label>
+            <input type="text" id="rcLeader" class="rc-input" placeholder="輸入組長姓名" onchange="renderReportCard()">
+          </div>
+          <button class="archive-btn" onclick="renderReportCard()" style="align-self:flex-end;">🔄 產生成績單</button>
+        </div>
+        <div id="reportCardContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lecture Detail Modal -->
+  <div class="lec-modal-overlay" id="lecDetailModal" onclick="if(event.target===this)closeLecDetail()">
+    <div class="lec-modal">
+      <div class="lec-modal-header">
+        <h3 id="lecModalTitle">📊 1月 講座成績</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="lec-edit-btn" id="lecEditBtn" onclick="toggleLecEdit()">✏️ 編輯</button>
+          <button class="archive-modal-close" onclick="closeLecDetail()">✕</button>
+        </div>
+      </div>
+      <div class="lec-modal-body" id="lecModalBody"></div>
+    </div>
+  </div>
+
+  <!-- Channel Performance Detail Modal -->
+  <div class="ch-modal-overlay" id="chDetailModal" onclick="if(event.target===this)closeChDetail()">
+    <div class="ch-modal">
+      <div class="ch-modal-header">
+        <h3 id="chModalTitle">📋 1月 各通路績效</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="lec-edit-btn" onclick="downloadChTemplate()">📄 下載範本</button>
+          <button class="lec-edit-btn" id="chImportBtn" onclick="openChImport()">📥 匯入 Excel</button>
+          <button class="lec-edit-btn" style="background:rgba(255,215,0,.12);border-color:rgba(255,215,0,.3);color:#ffd700;" onclick="openHonorCards()">🏆 嘉許翻牌</button>
+          <button class="archive-modal-close" onclick="closeChDetail()">✕</button>
+        </div>
+      </div>
+      <div class="ch-modal-body" id="chModalBody"></div>
+    </div>
+  </div>
+
+  <!-- Channel Import Modal -->
+  <div class="ch-import-overlay" id="chImportModal" onclick="if(event.target===this)closeChImport()">
+    <div class="ch-import-box">
+      <div class="ch-import-header">
+        <h3>📥 匯入 Excel</h3>
+        <button class="archive-modal-close" onclick="closeChImport()">✕</button>
+      </div>
+      <div class="ch-import-body">
+        <p style="color:var(--dim);font-size:.85rem;margin-bottom:12px;">上傳 Excel 檔案，支援以下兩種格式：<br>
+          <span style="color:var(--accent);">① 多工作表</span>：每個工作表對應一個通路（網際網路 / 學員加購 / 展場活動 / 學員介紹 / 班務追回）<br>
+          <span style="color:var(--accent);">② 單工作表</span>：所有通路並排在同一張表（如 Numbers 匯出格式）<br>
+          <span style="color:rgba(255,200,100,.9);font-size:.8rem;">⚠️ Apple Numbers 檔案請先用 Numbers 開啟 → 檔案 → 輸出到 → Excel (.xlsx)</span></p>
+        <div style="text-align:center;padding:24px;border:2px dashed var(--border-hi);border-radius:12px;background:rgba(74,234,255,.03);cursor:pointer;position:relative;margin-bottom:12px;" onclick="document.getElementById('chExcelInput').click()">
+          <div style="font-size:2.5rem;margin-bottom:8px;">📂</div>
+          <div style="color:var(--accent);font-weight:600;font-size:.95rem;">點擊選擇 Excel 檔案</div>
+          <div style="color:var(--dim);font-size:.8rem;margin-top:4px;" id="chExcelFileName">支援 .xlsx / .xls（Numbers 請先輸出為 Excel）</div>
+          <input type="file" id="chExcelInput" accept=".xlsx,.xls" style="display:none;" onchange="chExcelSelected(this)">
+        </div>
+        <div id="chImportMonthPicker" style="display:none;margin-bottom:12px;"></div>
+        <div id="chImportPreview" style="max-height:180px;overflow-y:auto;font-size:.8rem;color:var(--dim);margin-bottom:12px;"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="archive-btn" onclick="doChExcelImport()" style="flex:1;" id="chDoImportBtn" disabled>✅ 確認匯入</button>
+          <button class="lec-edit-btn" onclick="closeChImport()" style="flex:1;">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Honor Cards Modal -->
+  <div class="honor-overlay" id="honorOverlay" onclick="if(event.target===this)closeHonor()">
+    <div class="honor-modal">
+      <div class="honor-header">
+        <h3 id="honorTitle">🏆 嘉許翻牌</h3>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="lec-edit-btn" style="background:rgba(255,215,0,.12);color:#ffd700;" onclick="replayHonorFlip()">✨ 重播翻牌</button>
+          <button class="lec-edit-btn" onclick="openHonorAdmin()">⚙️ 人物管理</button>
+          <button class="lec-edit-btn" onclick="saveHonorRecord()">💾 記錄嘉許</button>
+          <button class="archive-modal-close" onclick="closeHonor()">✕</button>
+        </div>
+      </div>
+      <div class="honor-body">
+        <!-- Individual channel top-5 cards -->
+        <div class="honor-section-title">👤 個人通路王</div>
+        <div class="honor-cards-row" id="honorIndividualCards"></div>
+        <!-- Academy channel #1 cards with checkbox -->
+        <div class="honor-section-title" style="margin-top:20px;">🏫 學院通路王</div>
+        <div class="honor-cards-row" id="honorAcademyCards"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Honor Admin Panel -->
+  <div class="honor-admin-overlay" id="honorAdminOverlay" onclick="if(event.target===this)closeHonorAdmin()">
+    <div class="honor-admin-box">
+      <div class="honor-admin-header">
+        <h3>⚙️ 嘉許人物管理</h3>
+        <button class="archive-modal-close" onclick="closeHonorAdmin()">✕</button>
+      </div>
+      <div id="honorAdminBody"></div>
+      <div class="ha-add-form" id="haAddForm">
+        <div style="font-size:.88rem;font-weight:700;color:#ffd700;margin-bottom:8px;">➕ 新增人物到城堡卡牌</div>
+        <input type="text" id="haNewName" placeholder="輸入姓名">
+        <label class="ha-add-photo-btn" style="margin-top:8px;">
+          📷 選擇照片
+          <input type="file" id="haNewPhoto" accept="image/*" style="display:none;" onchange="haPhotoPreview(this)">
+        </label>
+        <div id="haNewPhotoPreview" style="margin-top:8px;"></div>
+        <button class="archive-btn" style="margin-top:10px;width:100%;" onclick="haAddPerson()">✅ 新增人物</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Archive Detail Modal -->
+  <div class="archive-modal-overlay" id="archiveDetailModal" onclick="if(event.target===this)closeArchiveDetail()">
+    <div class="archive-modal">
+      <div class="archive-modal-header">
+        <h3>📅 <span id="amTitle">存檔詳情</span> <span class="am-date" id="amDate"></span></h3>
+        <button class="archive-modal-close" onclick="closeArchiveDetail()">✕</button>
+      </div>
+      <div class="archive-modal-body" id="amBody"></div>
+    </div>
+  </div>
+
+  <script>
+    // Constants
+    const BASE_KEY = 'perf_compare_v1';
+
+    // 業績數據中心為全域共用，不隨角色切換而改變
+    function getSK() {
+      return BASE_KEY;
+    }
+
+    // Default data structure
+    function getDefaultData() {
+      return {
+        leftTitle: '2025 2月',
+        rightTitle: '2026 2月',
+        regions: [
+          {
+            name: '桃區',
+            branches: [
+              { name: '中壢', left: 373, right: 528 },
+              { name: '壢二', left: 321, right: 520 },
+              { name: '壢三', left: 320, right: 383 }
+            ]
+          },
+          {
+            name: '中區',
+            branches: [
+              { name: '台一', left: 263, right: 461 },
+              { name: '台二', left: 312, right: 425 },
+              { name: '台三', left: 281, right: 410 }
+            ]
+          },
+          {
+            name: '南區',
+            branches: [
+              { name: '建國', left: 329, right: 501 }
+            ]
+          }
+        ]
+      };
+    }
+
+    // State
+    let data = {};
+    let editMode = false;
+    let saveTimeout = null;
+
+    // Initialize
+    function init() {
+      loadData();
+      renderComparison();
+      loadLecData();
+      renderLecMonths();
+      loadChData();
+      renderChMonths();
+      initReportCard();
+    }
+
+    // Load data from localStorage
+    function loadData() {
+      const stored = localStorage.getItem(getSK());
+      data = stored ? JSON.parse(stored) : getDefaultData();
+    }
+
+    // Save data with debounce
+    function saveData() {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        localStorage.setItem(getSK(), JSON.stringify(data));
+      }, 800);
+    }
+
+    // Expose triggerSave
+    window.triggerSave = function() {
+      clearTimeout(saveTimeout);
+      localStorage.setItem(getSK(), JSON.stringify(data));
+      saveLecData();
+      saveChData();
+    };
+    // ★ 頁面離開緊急儲存
+    function _emergencySave(){window.triggerSave();}
+    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')_emergencySave();});
+    window.addEventListener('beforeunload',_emergencySave);
+    window.addEventListener('pagehide',_emergencySave);
+
+    // Toggle edit mode
+    function toggleEditMode() {
+      editMode = !editMode;
+      const btn = document.getElementById('editBtn');
+      if (editMode) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+        saveData();
+      }
+      renderComparison();
+    }
+
+    // Calculate region subtotal
+    function getRegionSubtotal(region, side) {
+      return region.branches.reduce((sum, b) => sum + b[side], 0);
+    }
+
+    // Calculate total
+    function getTotal(side) {
+      return data.regions.reduce((sum, region) => sum + getRegionSubtotal(region, side), 0);
+    }
+
+    // Render comparison view
+    function renderComparison() {
+      const container = document.getElementById('comparisonContainer');
+      const leftTotal = getTotal('left');
+      const rightTotal = getTotal('right');
+      const totalDiff = rightTotal - leftTotal;
+      const totalPercent = leftTotal > 0 ? ((totalDiff / leftTotal) * 100).toFixed(1) : 0;
+
+      let html = '<div class="comparison-container">';
+
+      // Left Panel
+      html += '<div class="data-panel left">';
+      if (editMode) {
+        html += `<div class="panel-title"><input type="text" value="${data.leftTitle}" onchange="data.leftTitle=this.value; saveData();" onkeyup="data.leftTitle=this.value;"></div>`;
+      } else {
+        html += `<div class="panel-title">${data.leftTitle}</div>`;
+      }
+
+      html += renderRegionPanel('left');
+      html += `<div class="total-line">業績合計: <span>${leftTotal}萬</span></div>`;
+      html += '</div>';
+
+      // VS Column
+      html += '<div class="vs-column">';
+      html += '<div class="vs-header">VS</div>';
+
+      for (let i = 0; i < data.regions.length; i++) {
+        const region = data.regions[i];
+        const leftSub = getRegionSubtotal(region, 'left');
+        const rightSub = getRegionSubtotal(region, 'right');
+        const diff = rightSub - leftSub;
+        const percent = leftSub > 0 ? ((diff / leftSub) * 100).toFixed(1) : 0;
+
+        html += `
+          <div class="diff-card">
+            <div class="diff-region-name">${region.name}</div>
+            <div class="diff-amount">${diff >= 0 ? '+' : ''}${diff}萬</div>
+            <div class="diff-percent">${percent >= 0 ? '+' : ''}${percent}%</div>
+          </div>
+        `;
+      }
+
+      html += `
+        <div class="total-diff-card">
+          <div class="diff-region-name">總計</div>
+          <div class="diff-amount">${totalDiff >= 0 ? '+' : ''}${totalDiff}萬</div>
+          <div class="diff-percent">${totalPercent >= 0 ? '+' : ''}${totalPercent}%</div>
+        </div>
+      `;
+      html += '</div>';
+
+      // Right Panel
+      html += '<div class="data-panel right">';
+      if (editMode) {
+        html += `<div class="panel-title"><input type="text" value="${data.rightTitle}" onchange="data.rightTitle=this.value; saveData();" onkeyup="data.rightTitle=this.value;"></div>`;
+      } else {
+        html += `<div class="panel-title">${data.rightTitle}</div>`;
+      }
+
+      html += renderRegionPanel('right');
+      html += `<div class="total-line">業績合計: <span>${rightTotal}萬</span></div>`;
+      html += '</div>';
+
+      html += '</div>';
+      container.innerHTML = html;
+
+      // Add edit mode class
+      if (editMode) {
+        container.classList.add('edit-mode');
+      } else {
+        container.classList.remove('edit-mode');
+      }
+    }
+
+    // Render region panel
+    function renderRegionPanel(side) {
+      let html = '';
+      for (let i = 0; i < data.regions.length; i++) {
+        const region = data.regions[i];
+        html += `<div class="region">`;
+
+        if (editMode) {
+          html += `<div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+            <input type="text" class="region-name" value="${region.name}"
+              onchange="data.regions[${i}].name=this.value; saveData();"
+              onkeyup="data.regions[${i}].name=this.value;">
+            <button class="region-delete-btn" onclick="deleteRegion(${i}); renderComparison();">刪除</button>
+          </div>`;
+        } else {
+          html += `<div class="region-name">${region.name}</div>`;
+        }
+
+        for (let j = 0; j < region.branches.length; j++) {
+          const branch = region.branches[j];
+          html += `<div class="branch">`;
+
+          if (editMode) {
+            html += `
+              <input type="text" class="branch-name" value="${branch.name}"
+                onchange="data.regions[${i}].branches[${j}].name=this.value; saveData();"
+                onkeyup="data.regions[${i}].branches[${j}].name=this.value;">
+              <input type="number" class="branch-value" value="${branch[side]}"
+                onchange="data.regions[${i}].branches[${j}].${side}=parseInt(this.value)||0; renderComparison();"
+                oninput="data.regions[${i}].branches[${j}].${side}=parseInt(this.value)||0; saveData(); updateDiffs();">
+              <button class="branch-delete-btn" onclick="deleteBranch(${i}, ${j}); renderComparison();">刪除</button>
+            `;
+          } else {
+            html += `
+              <span class="branch-name">${branch.name}</span>
+              <span class="branch-value">${branch[side]}萬</span>
+            `;
+          }
+
+          html += '</div>';
+        }
+
+        const subtotal = getRegionSubtotal(region, side);
+        html += `<div class="subtotal">合計: <span>${subtotal}萬</span></div>`;
+
+        if (editMode) {
+          html += `<button class="add-btn" onclick="addBranch(${i}); renderComparison();">+ 新增分店</button>`;
+        }
+
+        html += '</div>';
+      }
+
+      if (editMode) {
+        html += `<button class="add-btn" onclick="addRegion(); renderComparison();" style="margin-top: 1rem;">+ 新增區域</button>`;
+      }
+
+      return html;
+    }
+
+    // Update diffs/totals in-place without DOM rebuild (preserves input focus)
+    function updateDiffs() {
+      const container = document.getElementById('comparisonContainer');
+      if (!container) return;
+      const leftTotal = getTotal('left');
+      const rightTotal = getTotal('right');
+      // Update subtotals
+      const subtotals = container.querySelectorAll('.subtotal span');
+      const leftPanel = container.querySelector('.data-panel.left');
+      const rightPanel = container.querySelector('.data-panel.right');
+      if (leftPanel) {
+        const lSubs = leftPanel.querySelectorAll('.subtotal span');
+        data.regions.forEach((r, i) => { if (lSubs[i]) lSubs[i].textContent = getRegionSubtotal(r, 'left') + '萬'; });
+        const lTotal = leftPanel.querySelector('.total-line span');
+        if (lTotal) lTotal.textContent = leftTotal + '萬';
+      }
+      if (rightPanel) {
+        const rSubs = rightPanel.querySelectorAll('.subtotal span');
+        data.regions.forEach((r, i) => { if (rSubs[i]) rSubs[i].textContent = getRegionSubtotal(r, 'right') + '萬'; });
+        const rTotal = rightPanel.querySelector('.total-line span');
+        if (rTotal) rTotal.textContent = rightTotal + '萬';
+      }
+      // Update VS column diffs
+      const diffCards = container.querySelectorAll('.diff-card');
+      data.regions.forEach((region, i) => {
+        if (!diffCards[i]) return;
+        const leftSub = getRegionSubtotal(region, 'left');
+        const rightSub = getRegionSubtotal(region, 'right');
+        const diff = rightSub - leftSub;
+        const percent = leftSub > 0 ? ((diff / leftSub) * 100).toFixed(1) : 0;
+        const amtEl = diffCards[i].querySelector('.diff-amount');
+        const pctEl = diffCards[i].querySelector('.diff-percent');
+        if (amtEl) amtEl.textContent = (diff >= 0 ? '+' : '') + diff + '萬';
+        if (pctEl) pctEl.textContent = (percent >= 0 ? '+' : '') + percent + '%';
+      });
+      const totalDiffCard = container.querySelector('.total-diff-card');
+      if (totalDiffCard) {
+        const totalDiff = rightTotal - leftTotal;
+        const totalPercent = leftTotal > 0 ? ((totalDiff / leftTotal) * 100).toFixed(1) : 0;
+        const amtEl = totalDiffCard.querySelector('.diff-amount');
+        const pctEl = totalDiffCard.querySelector('.diff-percent');
+        if (amtEl) amtEl.textContent = (totalDiff >= 0 ? '+' : '') + totalDiff + '萬';
+        if (pctEl) pctEl.textContent = (totalPercent >= 0 ? '+' : '') + totalPercent + '%';
+      }
+    }
+
+    // Add branch
+    function addBranch(regionIndex) {
+      data.regions[regionIndex].branches.push({
+        name: '新分店',
+        left: 0,
+        right: 0
+      });
+      saveData();
+    }
+
+    // Delete branch
+    function deleteBranch(regionIndex, branchIndex) {
+      data.regions[regionIndex].branches.splice(branchIndex, 1);
+      saveData();
+    }
+
+    // Add region
+    function addRegion() {
+      data.regions.push({
+        name: '新區域',
+        branches: [{ name: '分店', left: 0, right: 0 }]
+      });
+      saveData();
+    }
+
+    // Delete region
+    function deleteRegion(regionIndex) {
+      data.regions.splice(regionIndex, 1);
+      saveData();
+    }
+
+    // Archive current month
+    function archiveCurrentMonth() {
+      const now = new Date();
+      const label = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月`;
+
+      const archive = {
+        label: label,
+        timestamp: now.getTime(),
+        leftTotal: getTotal('left'),
+        rightTotal: getTotal('right'),
+        leftTitle: data.leftTitle,
+        rightTitle: data.rightTitle,
+        snapshot: JSON.parse(JSON.stringify(data))
+      };
+
+      let archives = JSON.parse(localStorage.getItem(getSK() + '_archives') || '[]');
+      archives.push(archive);
+      localStorage.setItem(getSK() + '_archives', JSON.stringify(archives));
+
+      renderArchives();
+    }
+
+    // Render archives
+    function renderArchives() {
+      const container = document.getElementById('archivesContainer');
+      const archives = JSON.parse(localStorage.getItem(getSK() + '_archives') || '[]');
+
+      if (archives.length === 0) {
+        container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--dim); padding: 2rem;">暫無存檔資料</div>';
+        return;
+      }
+
+      let html = '';
+      for (let i = archives.length - 1; i >= 0; i--) {
+        const archive = archives[i];
+        html += `
+          <div class="archive-card" onclick="viewArchive(${i})">
+            <button class="archive-delete-btn" onclick="deleteArchive(${i}); event.stopPropagation();">刪除</button>
+            <div class="archive-label">${archive.label}</div>
+            <div style="font-size:0.75rem;color:var(--dim);margin-bottom:0.5rem;">${archive.timestamp ? new Date(archive.timestamp).toLocaleString('zh-TW') : ''}</div>
+            <div class="archive-comparison">
+              <div class="archive-left">
+                <div class="archive-left-label">${archive.leftTitle}</div>
+                <div class="archive-left-value">${archive.leftTotal}萬</div>
+              </div>
+              <div class="archive-vs">VS</div>
+              <div class="archive-right">
+                <div class="archive-right-label">${archive.rightTitle}</div>
+                <div class="archive-right-value">${archive.rightTotal}萬</div>
+              </div>
+            </div>
+            <div style="text-align:right;font-size:0.75rem;color:var(--accent);opacity:0.6;margin-top:0.5rem;">點擊查看詳情 →</div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // View archive — open detail modal
+    function viewArchive(index) {
+      const archives = JSON.parse(localStorage.getItem(getSK() + '_archives') || '[]');
+      const archive = archives[index];
+      if (!archive) return;
+      const snap = archive.snapshot;
+
+      document.getElementById('amTitle').textContent = archive.label + ' 存檔詳情';
+      const d = new Date(archive.timestamp);
+      document.getElementById('amDate').textContent = d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+
+      // Build read-only comparison
+      const leftTotal = snap.regions.reduce((s,r) => s + r.branches.reduce((ss,b) => ss + b.left, 0), 0);
+      const rightTotal = snap.regions.reduce((s,r) => s + r.branches.reduce((ss,b) => ss + b.right, 0), 0);
+      const totalDiff = rightTotal - leftTotal;
+      const totalPct = leftTotal > 0 ? ((totalDiff / leftTotal) * 100).toFixed(1) : 0;
+
+      function renderPanel(side, title) {
+        let h = `<div class="am-panel ${side}"><div class="am-panel-title">${title}</div>`;
+        snap.regions.forEach(region => {
+          h += `<div style="margin-bottom:1rem;"><div class="am-region-name">${region.name}</div>`;
+          region.branches.forEach(b => {
+            h += `<div class="am-branch"><span>${b.name}</span><span class="am-branch-val">${b[side]}萬</span></div>`;
+          });
+          const sub = region.branches.reduce((s,b) => s + b[side], 0);
+          h += `<div class="am-subtotal"><span>合計</span><span>${sub}萬</span></div></div>`;
+        });
+        const total = snap.regions.reduce((s,r) => s + r.branches.reduce((ss,b) => ss + b[side], 0), 0);
+        h += `<div class="am-total"><span>業績合計</span><span>${total}萬</span></div></div>`;
+        return h;
+      }
+
+      function fmtDiff(v) { return (v >= 0 ? '+' : '') + v; }
+
+      let vsH = '<div class="am-vs-col"><div class="am-vs-header">VS</div>';
+      snap.regions.forEach(region => {
+        const lSub = region.branches.reduce((s,b) => s + b.left, 0);
+        const rSub = region.branches.reduce((s,b) => s + b.right, 0);
+        const diff = rSub - lSub;
+        const pct = lSub > 0 ? ((diff / lSub) * 100).toFixed(1) : 0;
+        const cls = diff >= 0 ? 'am-positive' : 'am-negative';
+        vsH += `<div class="am-diff-card">
+          <div class="am-diff-region">${region.name}</div>
+          <div class="am-diff-amount ${cls}">${fmtDiff(diff)}萬</div>
+          <div class="am-diff-percent">${fmtDiff(pct)}%</div>
+        </div>`;
+      });
+      const totalCls = totalDiff >= 0 ? 'am-positive' : 'am-negative';
+      vsH += `<div class="am-diff-total-card">
+        <div class="am-diff-region">總計</div>
+        <div class="am-diff-amount ${totalCls}">${fmtDiff(totalDiff)}萬</div>
+        <div class="am-diff-percent">${fmtDiff(totalPct)}%</div>
+      </div></div>`;
+
+      const body = document.getElementById('amBody');
+      body.innerHTML = `<div class="am-comparison">
+        ${renderPanel('left', snap.leftTitle)}
+        ${vsH}
+        ${renderPanel('right', snap.rightTitle)}
+      </div>`;
+
+      document.getElementById('archiveDetailModal').classList.add('open');
+    }
+
+    function closeArchiveDetail() {
+      document.getElementById('archiveDetailModal').classList.remove('open');
+    }
+
+    // Delete archive
+    function deleteArchive(index) {
+      if (!confirm('確定刪除此存檔嗎？')) return;
+
+      let archives = JSON.parse(localStorage.getItem(getSK() + '_archives') || '[]');
+      archives.splice(index, 1);
+      localStorage.setItem(getSK() + '_archives', JSON.stringify(archives));
+
+      renderArchives();
+    }
+
+    // ========== 成績單 Report Card ==========
+    function initReportCard() {
+      // Set current month
+      const now = new Date();
+      const curMonth = now.getMonth() + 1;
+      document.getElementById('rcMonth').value = curMonth;
+      // Populate academy dropdown from data
+      populateRcAcademies();
+    }
+
+    function populateRcAcademies() {
+      const sel = document.getElementById('rcAcademy');
+      // Collect all unique academy names from channel data + comparison branches
+      const names = new Set();
+      DEFAULT_ACADEMIES.forEach(n => names.add(n));
+      // Also add from comparison data branches
+      if (data && data.regions) {
+        data.regions.forEach(r => r.branches.forEach(b => names.add(b.name)));
+      }
+      sel.innerHTML = '<option value="">— 全部學院 —</option>' +
+        [...names].map(n => `<option value="${n}">${n}</option>`).join('');
+    }
+
+    // Map short branch names to full academy names
+    const BRANCH_ACADEMY_MAP = {
+      '中壢': '中壢學院', '壢二': '中壢二部', '壢三': '中壢三部',
+      '台一': '台中一部', '台二': '台中二部', '台三': '台中三部',
+      '建國': '高雄建國'
+    };
+    const ACADEMY_BRANCH_MAP = {};
+    Object.entries(BRANCH_ACADEMY_MAP).forEach(([k, v]) => { ACADEMY_BRANCH_MAP[v] = k; });
+
+    // Map academies to regions for lecture data
+    const ACADEMY_REGION_MAP = {
+      '高雄建國': '高雄', '中壢學院': '桃區', '中壢二部': '桃區', '中壢三部': '桃區',
+      '台中一部': '中區', '台中二部': '中區', '台中三部': '中區'
+    };
+
+    function renderReportCard() {
+      const m = parseInt(document.getElementById('rcMonth').value) || 1;
+      const academy = document.getElementById('rcAcademy').value;
+      const leader = document.getElementById('rcLeader').value.trim();
+      const container = document.getElementById('reportCardContainer');
+
+      const now = new Date();
+      const year = now.getFullYear();
+
+      let html = '<div class="rc-card">';
+
+      // === Header ===
+      html += `<div class="rc-header">
+        <div class="rc-header-title">📝 ${m}月 成績單</div>
+        <div class="rc-header-sub">${year}年${m}月${academy ? ' ・ ' + academy : ''}${leader ? ' ・ 組長：' + leader : ''}</div>
+        ${leader ? `<div class="rc-header-leader">👤 ${leader}</div>` : ''}
+      </div>`;
+
+      // === Section 1: 年度月/季比較 ===
+      html += '<div class="rc-section">';
+      html += '<div class="rc-section-title">📈 年度業績比較</div>';
+      if (data && data.regions) {
+        const leftTitle = data.leftTitle || '去年';
+        const rightTitle = data.rightTitle || '今年';
+
+        if (academy) {
+          // Show specific academy's branch data
+          const branchName = ACADEMY_BRANCH_MAP[academy] || academy;
+          let foundBranch = null, foundRegion = null;
+          data.regions.forEach(r => {
+            r.branches.forEach(b => {
+              if (b.name === branchName || b.name === academy) { foundBranch = b; foundRegion = r.name; }
+            });
+          });
+          if (foundBranch) {
+            const diff = foundBranch.right - foundBranch.left;
+            const pct = foundBranch.left > 0 ? ((diff / foundBranch.left) * 100).toFixed(1) : 0;
+            const cls = diff >= 0 ? 'green' : 'red';
+            html += `<div class="rc-grid-3">
+              <div class="rc-stat-box">
+                <div class="rc-stat-label">${leftTitle}</div>
+                <div class="rc-stat-value">${foundBranch.left}萬</div>
+              </div>
+              <div class="rc-stat-box">
+                <div class="rc-stat-label">${rightTitle}</div>
+                <div class="rc-stat-value gold">${foundBranch.right}萬</div>
+              </div>
+              <div class="rc-stat-box">
+                <div class="rc-stat-label">成長</div>
+                <div class="rc-stat-value ${cls}">${diff >= 0 ? '+' : ''}${diff}萬 (${diff >= 0 ? '+' : ''}${pct}%)</div>
+              </div>
+            </div>`;
+            html += `<div class="rc-stat-sub" style="text-align:center;margin-top:6px;font-size:.75rem;color:var(--dim);">所屬區域：${foundRegion}</div>`;
+          } else {
+            html += `<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:8px;">尚無此學院的比較資料</div>`;
+          }
+        } else {
+          // Show all regions summary
+          html += '<div class="rc-grid-2">';
+          data.regions.forEach(r => {
+            const lSub = r.branches.reduce((s, b) => s + b.left, 0);
+            const rSub = r.branches.reduce((s, b) => s + b.right, 0);
+            const diff = rSub - lSub;
+            const cls = diff >= 0 ? 'green' : 'red';
+            html += `<div class="rc-stat-box">
+              <div class="rc-stat-label">${r.name}</div>
+              <div class="rc-stat-value">${rSub}萬</div>
+              <div class="rc-stat-sub ${cls}" style="color:${diff >= 0 ? '#66bb6a' : '#ff6b6b'}">${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff)}萬</div>
+            </div>`;
+          });
+          const leftAll = data.regions.reduce((s, r) => s + r.branches.reduce((ss, b) => ss + b.left, 0), 0);
+          const rightAll = data.regions.reduce((s, r) => s + r.branches.reduce((ss, b) => ss + b.right, 0), 0);
+          const allDiff = rightAll - leftAll;
+          html += `<div class="rc-stat-box" style="grid-column:1/-1;border-color:rgba(255,215,0,.15);">
+            <div class="rc-stat-label">全區合計（${rightTitle}）</div>
+            <div class="rc-stat-value gold">${rightAll}萬</div>
+            <div class="rc-stat-sub" style="color:${allDiff >= 0 ? '#66bb6a' : '#ff6b6b'}">${allDiff >= 0 ? '▲' : '▼'} ${Math.abs(allDiff)}萬 vs ${leftTitle}</div>
+          </div>`;
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+
+      // === Section 2: 講座成績 ===
+      html += '<div class="rc-section">';
+      html += '<div class="rc-section-title">📊 講座成績表現</div>';
+      if (lecData && lecData[m]) {
+        const targetRegion = academy ? (ACADEMY_REGION_MAP[academy] || null) : null;
+        const regionsToShow = targetRegion ? [targetRegion] : LEC_REGIONS;
+
+        regionsToShow.forEach(region => {
+          const lectures = lecData[m][region] || [];
+          const regionTotal = lectures.reduce((s, l) => s + (l.value || 0), 0);
+          html += `<div class="rc-ch-card">
+            <div class="rc-ch-title">${region} <span style="font-weight:400;font-size:.75rem;color:var(--dim);">合計 ${regionTotal > 0 ? regionTotal + '萬' : '—'}</span></div>`;
+          lectures.forEach(lec => {
+            const v = lec.value || 0;
+            const pct = Math.min((v / LEC_BAR_MAX) * 100, 100);
+            const barCls = v >= 80 ? 'green' : v >= 40 ? 'yellow' : 'red';
+            html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="min-width:140px;font-size:.82rem;color:var(--text);text-align:right;">${lec.name}</span>
+              <div class="rc-bar-wrap" style="flex:1;">
+                <div class="rc-bar-fill ${barCls}" style="width:${pct}%"></div>
+              </div>
+              <span style="min-width:50px;font-size:.82rem;font-family:'Courier New',monospace;color:var(--text);text-align:right;">${v > 0 ? v + '萬' : '—'}</span>
+            </div>`;
+          });
+          html += '</div>';
+        });
+
+        const grandLec = (targetRegion ? [targetRegion] : LEC_REGIONS).reduce((s, r) => s + (lecData[m][r] || []).reduce((ss, l) => ss + (l.value || 0), 0), 0);
+        html += `<div style="text-align:right;font-size:.85rem;color:#ffd700;margin-top:4px;font-weight:600;">講座合計：${grandLec > 0 ? grandLec + '萬' : '—'}</div>`;
+      } else {
+        html += `<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:8px;">尚無 ${m}月 講座資料</div>`;
+      }
+      html += '</div>';
+
+      // === Section 3: 各通路績效 ===
+      html += '<div class="rc-section">';
+      html += '<div class="rc-section-title">📋 各通路績效</div>';
+      if (chData && chData[m]) {
+        CH_CHANNELS.forEach(ch => {
+          const d = chData[m][ch.key] || {};
+          const ranking = [...(d.ranking || [])].sort((a, b) => b.value - a.value);
+          const academies = [...(d.academies || [])].sort((a, b) => b.value - a.value);
+          const targetLabel = (d.targetType === 'goal') ? '目標' : '低標';
+          const target = d.target || 0;
+
+          // Find academy ranking
+          let acadRank = '—', acadVal = 0;
+          if (academy) {
+            const idx = academies.findIndex(a => a.name === academy);
+            if (idx >= 0) { acadRank = idx + 1; acadVal = academies[idx].value; }
+          }
+          const acadTotal = academies.reduce((s, a) => s + (a.value || 0), 0);
+
+          // Find leader ranking
+          let leaderRank = '—', leaderVal = 0;
+          if (leader) {
+            const idx = ranking.findIndex(r => r.name === leader);
+            if (idx >= 0) { leaderRank = idx + 1; leaderVal = ranking[idx].value; }
+          }
+
+          html += `<div class="rc-ch-card">
+            <div class="rc-ch-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>${ch.name}</span>
+              <span style="font-size:.72rem;color:var(--dim);font-weight:400;">${targetLabel} ${fmtComma(target)}</span>
+            </div>`;
+
+          // Leader personal ranking in this channel
+          if (leader && leaderRank !== '—') {
+            html += `<div class="rc-ch-meta">👤 ${leader}：第 <span style="color:#ffd700;font-weight:700;">${leaderRank}</span> 名 ・ ${fmtWan(leaderVal)}</div>`;
+          } else if (leader) {
+            html += `<div class="rc-ch-meta" style="color:rgba(255,255,255,.3);">👤 ${leader}：未上榜</div>`;
+          }
+
+          // Academy ranking
+          if (academy && acadRank !== '—') {
+            html += `<div class="rc-ch-meta">🏫 ${academy}：第 <span style="color:#ffd700;font-weight:700;">${acadRank}</span> 名 ・ ${fmtComma(acadVal)}</div>`;
+          } else if (academy) {
+            html += `<div class="rc-ch-meta" style="color:rgba(255,255,255,.3);">🏫 ${academy}：無資料</div>`;
+          }
+
+          // Achievement bar
+          if (target > 0) {
+            const achievePct = Math.min((acadTotal / target) * 100, 150);
+            const barCls = achievePct >= 100 ? 'green' : achievePct >= 60 ? 'yellow' : 'red';
+            html += `<div class="rc-bar-wrap"><div class="rc-bar-fill ${barCls}" style="width:${Math.min(achievePct, 100)}%"></div></div>`;
+            html += `<div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--dim);margin-top:2px;">
+              <span>學院合計 ${fmtComma(acadTotal)}</span>
+              <span>達成率 ${achievePct.toFixed(0)}%</span>
+            </div>`;
+          }
+
+          // Top 5 ranking
+          if (ranking.length > 0) {
+            const top = ranking.slice(0, 5);
+            html += '<div style="margin-top:6px;">';
+            top.forEach((r, i) => {
+              const isLeader = leader && r.name === leader;
+              html += `<div class="rc-rank-row ${isLeader ? 'highlight' : ''}">
+                <span class="rc-rank">${i === 0 ? '👑' : (i + 1)}</span>
+                <span class="rc-rank-name">${r.name}</span>
+                <span class="rc-rank-val">${fmtWan(r.value)}</span>
+              </div>`;
+            });
+            html += '</div>';
+          }
+
+          html += '</div>';
+        });
+      } else {
+        html += `<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:8px;">尚無 ${m}月 通路資料</div>`;
+      }
+      html += '</div>';
+
+      // === Footer ===
+      html += `<div class="rc-footer">
+        產生時間：${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}
+        ${academy ? ' ・ ' + academy : ''}${leader ? ' ・ ' + leader : ''}
+      </div>`;
+
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    // Switch tabs
+    function switchTab(tabIndex) {
+      loadData();
+      renderComparison();
+
+      for (let i = 0; i < 6; i++) {
+        var el = document.getElementById('tab-' + i);
+        if (el) el.classList.remove('active');
+      }
+      document.getElementById(`tab-${tabIndex}`).classList.add('active');
+
+      const btns = document.querySelectorAll('.tab-btn');
+      btns.forEach((btn, idx) => {
+        if (idx === tabIndex) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+
+      // Load monthly performance iframe when switching to tab 3
+      if (tabIndex === 3) {
+        const mpIframe = document.getElementById('mp-iframe');
+        if (!mpIframe.src || mpIframe.src === '' || mpIframe.src === window.location.href) {
+          mpIframe.src = 'monthly-performance.html';
+        }
+      }
+
+      // 激勵排行榜
+      if (tabIndex === 4) {
+        motivRenderAll();
+      }
+
+      // Auto-render report card when switching to tab 5
+      if (tabIndex === 5) {
+        populateRcAcademies();
+        renderReportCard();
+      }
+    }
+
+    // Go back function
+    function goBack() {
+      saveData();
+      try {
+        if (parent && parent.closePerformance) {
+          parent.closePerformance();
+          return;
+        }
+      } catch (e) {}
+      try {
+        parent.postMessage({ action: 'closePerformance' }, '*');
+      } catch (e2) {}
+    }
+
+    // ========== 每月講座成績表現 ==========
+    const LEC_KEY_SUFFIX = '_lecture_v1';
+    const LEC_REGIONS = ['桃區', '中區', '高雄'];
+    const LEC_MAX_LECTURES = 3;
+    const LEC_BAR_MAX = 120; // bar chart max scale (萬)
+    let lecData = {}; // { '1': { '桃區': [{name:'講座1',value:0},...], ... }, ... }
+    let lecEditMode = false;
+    let lecCurrentMonth = null;
+
+    function getLecSK() { return getSK() + LEC_KEY_SUFFIX; }
+
+    function getDefaultLecData() {
+      const d = {};
+      for (let m = 1; m <= 12; m++) {
+        d[m] = {};
+        LEC_REGIONS.forEach(r => {
+          d[m][r] = [
+            { name: '講座1', value: 0 },
+            { name: '講座2', value: 0 },
+            { name: '講座3', value: 0 }
+          ];
+        });
+      }
+      return d;
+    }
+
+    function loadLecData() {
+      const stored = localStorage.getItem(getLecSK());
+      lecData = stored ? JSON.parse(stored) : getDefaultLecData();
+      // Migration: ensure all months/regions exist
+      for (let m = 1; m <= 12; m++) {
+        if (!lecData[m]) lecData[m] = {};
+        LEC_REGIONS.forEach(r => {
+          if (!lecData[m][r]) lecData[m][r] = [
+            { name: '講座1', value: 0 },
+            { name: '講座2', value: 0 },
+            { name: '講座3', value: 0 }
+          ];
+        });
+      }
+    }
+
+    function saveLecData() {
+      localStorage.setItem(getLecSK(), JSON.stringify(lecData));
+    }
+
+    function getLecRegionTotal(month, region) {
+      return (lecData[month]?.[region] || []).reduce((s, l) => s + (l.value || 0), 0);
+    }
+
+    function getLecMonthTotal(month) {
+      return LEC_REGIONS.reduce((s, r) => s + getLecRegionTotal(month, r), 0);
+    }
+
+    function renderLecMonths() {
+      const container = document.getElementById('lectureMonthsGrid');
+      if (!container) return;
+      let html = '';
+      for (let m = 1; m <= 12; m++) {
+        const total = getLecMonthTotal(m);
+        html += `<div class="lec-month-card" onclick="openLecDetail(${m})">
+          <div class="lec-month-title">${m}月</div>`;
+        LEC_REGIONS.forEach(r => {
+          const rTotal = getLecRegionTotal(m, r);
+          html += `<div class="lec-month-row">
+            <span class="lec-month-region">${r}</span>
+            <span class="lec-month-val">${rTotal > 0 ? rTotal + '萬' : '—'}</span>
+          </div>`;
+        });
+        html += `<div class="lec-month-total">
+          <span>合計</span>
+          <span>${total > 0 ? total + '萬' : '—'}</span>
+        </div>
+        <div class="lec-hint">點擊查看詳情 →</div>
+        </div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function openLecDetail(month) {
+      lecCurrentMonth = month;
+      lecEditMode = false;
+      document.getElementById('lecEditBtn').classList.remove('active');
+      document.getElementById('lecModalTitle').textContent = '📊 ' + month + '月 講座成績';
+      renderLecDetail();
+      document.getElementById('lecDetailModal').classList.add('open');
+    }
+
+    function closeLecDetail() {
+      document.getElementById('lecDetailModal').classList.remove('open');
+      saveLecData();
+      renderLecMonths();
+    }
+
+    function toggleLecEdit() {
+      lecEditMode = !lecEditMode;
+      const btn = document.getElementById('lecEditBtn');
+      if (lecEditMode) btn.classList.add('active');
+      else { btn.classList.remove('active'); saveLecData(); }
+      renderLecDetail();
+    }
+
+    function getBarClass(val) {
+      if (val >= 80) return 'high';
+      if (val >= 45) return 'mid';
+      return 'low';
+    }
+
+    function renderLecDetail() {
+      const m = lecCurrentMonth;
+      if (!m) return;
+      const body = document.getElementById('lecModalBody');
+      let grandTotal = 0;
+      let html = '';
+
+      LEC_REGIONS.forEach(region => {
+        const lectures = lecData[m][region] || [];
+        const regionTotal = lectures.reduce((s, l) => s + (l.value || 0), 0);
+        grandTotal += regionTotal;
+
+        html += `<div class="lec-region-section">
+          <div class="lec-region-header">
+            <span class="lec-region-name">${region}</span>
+            <span class="lec-region-total">合計：${regionTotal > 0 ? regionTotal + '萬' : '—'}</span>
+          </div>`;
+
+        lectures.forEach((lec, li) => {
+          const val = lec.value || 0;
+          const pct = Math.min((val / LEC_BAR_MAX) * 100, 100);
+          const cls = getBarClass(val);
+
+          html += `<div class="lec-bar-row">
+            <span class="lec-bar-label">`;
+
+          if (lecEditMode) {
+            html += `<input type="text" class="lec-bar-input" style="width:150px;text-align:left;" value="${lec.name}"
+              onchange="lecData[${m}]['${region}'][${li}].name=this.value; saveLecData();">`;
+          } else {
+            html += lec.name;
+          }
+
+          html += `</span>
+            <div class="lec-bar-track">
+              <div class="lec-bar-fill ${cls}" style="width:${pct}%"></div>
+            </div>`;
+
+          if (lecEditMode) {
+            html += `<input type="number" class="lec-bar-input" value="${val}"
+              onchange="updateLecValue(${m},'${region}',${li},this.value)"
+              oninput="updateLecValue(${m},'${region}',${li},this.value)">`;
+            html += `<span style="font-size:.75rem;color:var(--dim);min-width:16px;">萬</span>`;
+          } else {
+            html += `<span class="lec-bar-val">${val > 0 ? val + '萬' : '—'}</span>`;
+          }
+
+          html += `</div>`;
+        });
+
+        html += `</div>`;
+      });
+
+      html += `<div class="lec-grand-total">
+        <span>📊 本月講座總業績</span>
+        <span>${grandTotal > 0 ? grandTotal + '萬' : '—'}</span>
+      </div>`;
+
+      body.innerHTML = html;
+    }
+
+    function updateLecValue(month, region, idx, val) {
+      const v = parseInt(val) || 0;
+      lecData[month][region][idx].value = v;
+      // Update bar without full re-render (keep focus)
+      const rows = document.querySelectorAll('#lecModalBody .lec-region-section');
+      const ri = LEC_REGIONS.indexOf(region);
+      if (rows[ri]) {
+        const bars = rows[ri].querySelectorAll('.lec-bar-fill');
+        if (bars[idx]) {
+          const pct = Math.min((v / LEC_BAR_MAX) * 100, 100);
+          bars[idx].style.width = pct + '%';
+          bars[idx].className = 'lec-bar-fill ' + getBarClass(v);
+        }
+        // Update region total
+        const total = (lecData[month][region] || []).reduce((s, l) => s + (l.value || 0), 0);
+        const totalEl = rows[ri].querySelector('.lec-region-total');
+        if (totalEl) totalEl.textContent = '合計：' + (total > 0 ? total + '萬' : '—');
+      }
+      // Update grand total
+      let grand = 0;
+      LEC_REGIONS.forEach(r => { grand += (lecData[month][r] || []).reduce((s, l) => s + (l.value || 0), 0); });
+      const gtEl = document.querySelector('#lecModalBody .lec-grand-total span:last-child');
+      if (gtEl) gtEl.textContent = grand > 0 ? grand + '萬' : '—';
+      saveLecData();
+    }
+
+    // ========== 各通路績效 ==========
+    const CH_KEY_SUFFIX = '_channel_v1';
+    const CH_CHANNELS = [
+      { key: 'net', name: '網際網路', cls: 'net', targetType: 'goal', target: 1500000 },
+      { key: 'purchase', name: '學員加購', cls: 'purchase', targetType: 'goal', target: 500000 },
+      { key: 'event', name: '展場活動', cls: 'event', targetType: 'low', target: 500000 },
+      { key: 'referral', name: '學員介紹', cls: 'referral', targetType: 'low', target: 500000 },
+      { key: 'admin', name: '班務追回', cls: 'admin', targetType: 'low', target: 500000 },
+      { key: 'cash', name: '現＋刷', cls: 'cash', targetType: 'low', target: 500000 }
+    ];
+    const DEFAULT_ACADEMIES = ['高雄建國','中壢學院','中壢二部','台中一部','中壢三部','台中三部','台中二部'];
+    // Map sheet names to channel keys (flexible matching)
+    const CH_SHEET_MAP = {
+      '網際網路': 'net', '網際': 'net', '網路': 'net',
+      '學員加購': 'purchase', '加購': 'purchase',
+      '展場活動': 'event', '展場': 'event',
+      '學員介紹': 'referral', '介紹': 'referral',
+      '班務追回': 'admin', '班務': 'admin', '追回': 'admin',
+      '現＋刷': 'cash', '現+刷': 'cash', '現金': 'cash', '刷卡': 'cash'
+    };
+    let chData = {};
+    let chCurrentMonth = null;
+    let chParsedExcel = null; // temp holding parsed data before confirm
+
+    function getChSK() { return getSK() + CH_KEY_SUFFIX; }
+
+    function makeDefaultAcademies() {
+      return DEFAULT_ACADEMIES.map(name => ({ name, value: 0 }));
+    }
+
+    function getDefaultChData() {
+      const d = {};
+      for (let m = 1; m <= 12; m++) {
+        d[m] = {};
+        CH_CHANNELS.forEach(ch => {
+          d[m][ch.key] = { target: ch.target, targetType: ch.targetType, ranking: [], academies: makeDefaultAcademies() };
+        });
+      }
+      return d;
+    }
+
+    function loadChData() {
+      const stored = localStorage.getItem(getChSK());
+      chData = stored ? JSON.parse(stored) : getDefaultChData();
+      for (let m = 1; m <= 12; m++) {
+        if (!chData[m]) chData[m] = {};
+        CH_CHANNELS.forEach(ch => {
+          if (!chData[m][ch.key]) chData[m][ch.key] = { target: ch.target, targetType: ch.targetType, ranking: [], academies: makeDefaultAcademies() };
+          if (!chData[m][ch.key].academies || chData[m][ch.key].academies.length === 0) {
+            chData[m][ch.key].academies = makeDefaultAcademies();
+          }
+        });
+      }
+      // 修復季度重複匯入的舊資料
+      fixDuplicateQuarterData();
+    }
+
+    function saveChData() { localStorage.setItem(getChSK(), JSON.stringify(chData)); }
+
+    // 清理季度重複匯入（同一季三個月資料一模一樣→只保留第一月）
+    function fixDuplicateQuarterData() {
+      if (localStorage.getItem('ch_quarter_dup_fix_v2')) return;
+      const quarters = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]];
+      let fixed = false;
+      quarters.forEach(q => {
+        const m1 = q[0], m2 = q[1], m3 = q[2];
+        CH_CHANNELS.forEach(ch => {
+          const d1 = chData[m1]?.[ch.key], d2 = chData[m2]?.[ch.key], d3 = chData[m3]?.[ch.key];
+          if (!d1 || !d2 || !d3) return;
+          if (d1.ranking.length === 0) return;
+          const s1 = JSON.stringify(d1.ranking);
+          const s2 = JSON.stringify(d2.ranking);
+          const s3 = JSON.stringify(d3.ranking);
+          if (s1 === s2 && s2 === s3) {
+            d2.ranking = []; d2.academies = makeDefaultAcademies();
+            d3.ranking = []; d3.academies = makeDefaultAcademies();
+            fixed = true;
+          } else if (s1 === s2 && s3 !== s1) {
+            d2.ranking = []; d2.academies = makeDefaultAcademies();
+            fixed = true;
+          } else if (s2 === s3 && s1 !== s2) {
+            d3.ranking = []; d3.academies = makeDefaultAcademies();
+            fixed = true;
+          }
+        });
+      });
+      if (fixed) saveChData();
+      try { localStorage.setItem('ch_quarter_dup_fix_v2', '1'); } catch(e) {}
+    }
+
+    // Format: drop last 4 digits, append 萬
+    function fmtWan(n) {
+      if (n === 0) return '—';
+      const v = Math.round(n / 10000);
+      return fmtComma(v) + '萬';
+    }
+    function fmtComma(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+    // Quarter helper: get academy total for months range
+    function getChQuarterTotal(chKey, months) {
+      let sum = 0;
+      months.forEach(m => {
+        const acads = chData[m]?.[chKey]?.academies || [];
+        sum += acads.reduce((s, a) => s + (a.value || 0), 0);
+      });
+      return sum;
+    }
+
+    // Month card: show academy totals per channel
+    function renderChMonths() {
+      const container = document.getElementById('channelMonthsGrid');
+      if (!container) return;
+      let html = '';
+
+      // Q1-Q4 cards first row
+      const quarters = [
+        { label: 'Q1', months: [1, 2, 3] },
+        { label: 'Q2', months: [4, 5, 6] },
+        { label: 'Q3', months: [7, 8, 9] },
+        { label: 'Q4', months: [10, 11, 12] }
+      ];
+      quarters.forEach(q => {
+        html += `<div class="ch-month-card ch-quarter-card" onclick="openChQuarter('${q.label}', [${q.months}])">
+          <div class="lec-month-title" style="font-size:1.1rem;color:#ffd700;">${q.label}</div>`;
+        CH_CHANNELS.forEach(ch => {
+          const total = getChQuarterTotal(ch.key, q.months);
+          html += `<div class="lec-month-row">
+            <span class="lec-month-region" style="font-size:.78rem;">${ch.name}</span>
+            <span class="lec-month-val" style="font-size:.78rem;">${total > 0 ? fmtWan(total) : '—'}</span>
+          </div>`;
+        });
+        html += `<div class="lec-hint">點擊查看詳情 →</div></div>`;
+      });
+
+      // 12 monthly cards
+      for (let m = 1; m <= 12; m++) {
+        html += `<div class="ch-month-card" onclick="openChDetail(${m})">
+          <div class="lec-month-title">${m}月</div>`;
+        CH_CHANNELS.forEach(ch => {
+          const d = chData[m]?.[ch.key];
+          const acads = d?.academies || [];
+          const total = acads.reduce((s, a) => s + (a.value || 0), 0);
+          html += `<div class="lec-month-row">
+            <span class="lec-month-region" style="font-size:.78rem;">${ch.name}</span>
+            <span class="lec-month-val" style="font-size:.78rem;">${total > 0 ? fmtWan(total) : '—'}</span>
+          </div>`;
+        });
+        html += `<div class="lec-hint">點擊查看詳情 →</div></div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function openChDetail(month) {
+      chCurrentMonth = month;
+      chQuarterView = null;
+      document.getElementById('chModalTitle').textContent = '📋 ' + month + '月 各通路績效';
+      renderChDetail();
+      document.getElementById('chDetailModal').classList.add('open');
+    }
+
+    let chQuarterView = null; // null = monthly, {label, months} = quarter
+    let chQViewMonth = null;  // null = 整季合計, number = 單月
+
+    function openChQuarter(label, months) {
+      chQuarterView = { label, months };
+      chQViewMonth = null; // 預設顯示整季
+      renderChQuarterModal();
+      document.getElementById('chDetailModal').classList.add('open');
+    }
+
+    // 季度 Modal 切換：整季 or 單月
+    function chQSwitchTo(month) {
+      chQViewMonth = month; // null=整季, number=單月
+      renderChQuarterModal();
+    }
+
+    function renderChQuarterModal() {
+      const { label, months } = chQuarterView;
+      const body = document.getElementById('chModalBody');
+      const titleEl = document.getElementById('chModalTitle');
+
+      // ── 上方月份快速切換列 ──
+      let navHtml = '<div class="ch-q-nav">';
+      // 整季按鈕
+      navHtml += `<button class="ch-q-nav-btn${chQViewMonth === null ? ' active' : ''}" onclick="chQSwitchTo(null)">📊 ${label} 整季</button>`;
+      // 各月按鈕
+      months.forEach(m => {
+        navHtml += `<button class="ch-q-nav-btn${chQViewMonth === m ? ' active' : ''}" onclick="chQSwitchTo(${m})">${m}月</button>`;
+      });
+      navHtml += '</div>';
+
+      let contentHtml = '';
+
+      if (chQViewMonth === null) {
+        // ── 整季合計（原有邏輯） ──
+        titleEl.textContent = '📋 ' + label + ' 各通路績效（' + months.map(m => m + '月').join('+') + '）';
+        contentHtml = buildChQuarterHtml(months);
+      } else {
+        // ── 單月檢視 ──
+        titleEl.textContent = '📋 ' + chQViewMonth + '月 各通路績效';
+        contentHtml = buildChSingleMonthHtml(chQViewMonth);
+      }
+
+      body.innerHTML = navHtml + contentHtml;
+    }
+
+    // 建構整季合計 HTML
+    function buildChQuarterHtml(months) {
+      const agg = aggregateQuarter(months);
+      let html = '<div class="ch-tables-grid">';
+      CH_CHANNELS.forEach(ch => {
+        const ranking = agg[ch.key].ranking;
+        html += `<div class="ch-table-card"><div class="ch-table-header ${ch.cls}">${ch.name}</div>`;
+        if (ranking.length === 0) {
+          html += `<div style="padding:16px;text-align:center;color:var(--dim);font-size:.82rem;">尚無資料</div>`;
+        } else {
+          html += `<div class="ch-row" style="background:rgba(255,255,255,.03);font-weight:600;">
+            <span class="ch-rank">名次</span><span class="ch-name">姓名</span><span class="ch-val">${ch.name}</span></div>`;
+          ranking.slice(0, 15).forEach((r, i) => {
+            const isFirst = i === 0;
+            html += `<div class="ch-row ${isFirst ? 'rank1' : ''}">
+              <span class="ch-rank">${isFirst ? '<span class="ch-crown">👑</span>' : (i + 1)}</span>
+              <span class="ch-name">${r.name}</span>
+              <span class="ch-val">${fmtWan(r.value)}</span>
+            </div>`;
+          });
+        }
+        html += `</div>`;
+      });
+      html += '</div>';
+
+      // Academy section
+      html += '<div style="margin-top:8px;padding-top:12px;border-top:1px solid var(--border);"><div class="ch-academy-grid">';
+      CH_CHANNELS.forEach(ch => {
+        const academies = agg[ch.key].academies;
+        const d = chData[months[0]]?.[ch.key] || {};
+        const targetLabel = d.targetType === 'goal' ? '目標' : '低標';
+        const targetColor = d.targetType === 'goal' ? '#ffd700' : '#ef5350';
+        const dataMonths = agg[ch.key].dataMonths || 1;
+        const qTarget = (d.target || 0) * dataMonths;
+        html += `<div class="ch-academy-card">
+          <div class="ch-academy-header" style="color:${targetColor};">
+            <span class="ch-ah-label">${targetLabel}×${months.length}</span>
+            <span class="ch-ah-target">${fmtComma(qTarget)}</span>
+          </div>
+          <div class="ch-academy-header" style="color:var(--accent);">
+            <span class="ch-ah-label">學院</span><span class="ch-ah-target">${ch.name}</span>
+          </div>`;
+        if (academies.length === 0) {
+          html += `<div style="padding:10px;text-align:center;color:var(--dim);font-size:.8rem;">尚無學院資料</div>`;
+        } else {
+          academies.forEach((a, idx) => {
+            const isNeg = a.value < 0;
+            const crown = idx === 0 ? '<span class="ch-crown" style="margin-right:4px;">👑</span>' : '';
+            html += `<div class="ch-academy-row ${idx === 0 ? 'rank1' : ''}">
+              <span class="ch-academy-name">${crown}${a.name}</span>
+              <span class="ch-academy-val ${isNeg ? 'negative' : ''}">${fmtComma(a.value)}</span>
+            </div>`;
+          });
+        }
+        html += `</div>`;
+      });
+      html += '</div></div>';
+      return html;
+    }
+
+    // 建構單月 HTML（複用 renderChDetail 的邏輯）
+    function buildChSingleMonthHtml(m) {
+      let html = '<div class="ch-tables-grid">';
+      CH_CHANNELS.forEach(ch => {
+        const d = chData[m]?.[ch.key] || {};
+        const rows = d.ranking || [];
+        html += `<div class="ch-table-card"><div class="ch-table-header ${ch.cls}">${ch.name}</div>`;
+        if (rows.length === 0) {
+          html += `<div style="padding:16px;text-align:center;color:var(--dim);font-size:.82rem;">尚無資料</div>`;
+        } else {
+          html += `<div class="ch-row" style="background:rgba(255,255,255,.03);font-weight:600;">
+            <span class="ch-rank">名次</span><span class="ch-name">姓名</span><span class="ch-val">${ch.name}</span></div>`;
+          rows.forEach((r, i) => {
+            const isFirst = i === 0;
+            html += `<div class="ch-row ${isFirst ? 'rank1' : ''}">
+              <span class="ch-rank">${isFirst ? '<span class="ch-crown">👑</span>' : (i + 1)}</span>
+              <span class="ch-name">${r.name}</span>
+              <span class="ch-val">${fmtWan(r.value)}</span>
+            </div>`;
+          });
+        }
+        html += `</div>`;
+      });
+      html += '</div>';
+
+      // Academy section
+      html += '<div style="margin-top:8px;padding-top:12px;border-top:1px solid var(--border);"><div class="ch-academy-grid">';
+      CH_CHANNELS.forEach(ch => {
+        const d = chData[m]?.[ch.key] || {};
+        const academies = d.academies || [];
+        const targetLabel = d.targetType === 'goal' ? '目標' : '低標';
+        const targetColor = d.targetType === 'goal' ? '#ffd700' : '#ef5350';
+        html += `<div class="ch-academy-card">
+          <div class="ch-academy-header" style="color:${targetColor};">
+            <span class="ch-ah-label">${targetLabel}</span>
+            <span class="ch-ah-target">${fmtComma(d.target || 0)}</span>
+          </div>
+          <div class="ch-academy-header" style="color:var(--accent);">
+            <span class="ch-ah-label">學院</span><span class="ch-ah-target">${ch.name}</span>
+          </div>`;
+        if (academies.length === 0) {
+          html += `<div style="padding:10px;text-align:center;color:var(--dim);font-size:.8rem;">尚無學院資料</div>`;
+        } else {
+          const sorted = [...academies].sort((a, b) => b.value - a.value);
+          sorted.forEach((a, idx) => {
+            const isNeg = a.value < 0;
+            const crown = idx === 0 ? '<span class="ch-crown" style="margin-right:4px;">👑</span>' : '';
+            html += `<div class="ch-academy-row ${idx === 0 ? 'rank1' : ''}">
+              <span class="ch-academy-name">${crown}${a.name}</span>
+              <span class="ch-academy-val ${isNeg ? 'negative' : ''}">${fmtComma(a.value)}</span>
+            </div>`;
+          });
+        }
+        html += `</div>`;
+      });
+      html += '</div></div>';
+      return html;
+    }
+
+    function closeChDetail() {
+      document.getElementById('chDetailModal').classList.remove('open');
+      saveChData();
+      renderChMonths();
+    }
+
+    function renderChDetail() {
+      const m = chCurrentMonth;
+      if (!m) return;
+      const body = document.getElementById('chModalBody');
+
+      // Top: ranking tables
+      let html = '<div class="ch-tables-grid">';
+      CH_CHANNELS.forEach(ch => {
+        const d = chData[m][ch.key];
+        const rows = d.ranking || [];
+        html += `<div class="ch-table-card"><div class="ch-table-header ${ch.cls}">${ch.name}</div>`;
+        if (rows.length === 0) {
+          html += `<div style="padding:16px;text-align:center;color:var(--dim);font-size:.82rem;">尚無資料</div>`;
+        } else {
+          html += `<div class="ch-row" style="background:rgba(255,255,255,.03);font-weight:600;">
+            <span class="ch-rank">名次</span><span class="ch-name">姓名</span><span class="ch-val">${ch.name}</span></div>`;
+          rows.forEach((r, i) => {
+            const isFirst = i === 0;
+            html += `<div class="ch-row ${isFirst ? 'rank1' : ''}">
+              <span class="ch-rank">${isFirst ? '<span class="ch-crown">👑</span>' : (i + 1)}</span>
+              <span class="ch-name">${r.name}</span>
+              <span class="ch-val">${fmtWan(r.value)}</span>
+            </div>`;
+          });
+        }
+        html += `</div>`;
+      });
+      html += '</div>';
+
+      // Bottom: academy aggregate
+      html += '<div style="margin-top:8px;padding-top:12px;border-top:1px solid var(--border);"><div class="ch-academy-grid">';
+      CH_CHANNELS.forEach(ch => {
+        const d = chData[m][ch.key];
+        const academies = d.academies || [];
+        const targetLabel = d.targetType === 'goal' ? '目標' : '低標';
+        const targetColor = d.targetType === 'goal' ? '#ffd700' : '#ef5350';
+        html += `<div class="ch-academy-card">
+          <div class="ch-academy-header" style="color:${targetColor};">
+            <span class="ch-ah-label">${targetLabel}</span>
+            <span class="ch-ah-target">${fmtComma(d.target || 0)}</span>
+          </div>
+          <div class="ch-academy-header" style="color:var(--accent);">
+            <span class="ch-ah-label">學院</span><span class="ch-ah-target">${ch.name}</span>
+          </div>`;
+        if (academies.length === 0) {
+          html += `<div style="padding:10px;text-align:center;color:var(--dim);font-size:.8rem;">尚無學院資料</div>`;
+        } else {
+          const sorted = [...academies].sort((a, b) => b.value - a.value);
+          sorted.forEach((a, idx) => {
+            const isNeg = a.value < 0;
+            const crown = idx === 0 ? '<span class="ch-crown" style="margin-right:4px;">👑</span>' : '';
+            html += `<div class="ch-academy-row ${idx === 0 ? 'rank1' : ''}">
+              <span class="ch-academy-name">${crown}${a.name}</span>
+              <span class="ch-academy-val ${isNeg ? 'negative' : ''}">${fmtComma(a.value)}</span>
+            </div>`;
+          });
+        }
+        html += `</div>`;
+      });
+      html += '</div></div>';
+      body.innerHTML = html;
+    }
+
+    // ===== Download Template =====
+    function downloadChTemplate() {
+      // Build template Excel with SheetJS
+      const wb = XLSX.utils.book_new();
+      const channels = [
+        { name: '網際網路', targetType: '目標', target: 1500000 },
+        { name: '學員加購', targetType: '目標', target: 500000 },
+        { name: '展場活動', targetType: '低標', target: 500000 },
+        { name: '學員介紹', targetType: '低標', target: 500000 },
+        { name: '班務追回', targetType: '低標', target: 500000 }
+      ];
+      channels.forEach(ch => {
+        const rows = [
+          ['名次', '姓名', ch.name],
+          [1, '（範例）王小明', 278993],
+          [2, '（範例）陳大華', 251611],
+          [3, '', ''],
+          [4, '', ''],
+          [5, '', ''],
+          [6, '', ''],
+          [7, '', ''],
+          [8, '', ''],
+          [9, '', ''],
+          [10, '', ''],
+          [],
+          ['← 可往下新增更多人'],
+          [],
+          [],
+          [ch.targetType, ch.target],
+          ['學院', ch.name],
+          ['高雄建國', ''],
+          ['中壢學院', ''],
+          ['中壢二部', ''],
+          ['台中一部', ''],
+          ['中壢三部', ''],
+          ['台中三部', ''],
+          ['台中二部', ''],
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 16 }];
+        XLSX.utils.book_append_sheet(wb, ws, ch.name);
+      });
+      // Add instruction sheet at front
+      const instrRows = [
+        ['📋 各通路績效 Excel 匯入範本'],
+        [''],
+        ['【使用方式】'],
+        ['1. 每個工作表（Sheet）對應一個通路'],
+        ['2. 上半部填入個人排名：名次、姓名、數字（填原始數字，系統自動顯示為「萬」）'],
+        ['3. 下半部填入學院合計：先填 目標/低標 + 目標數值，再填 學院名 + 數字'],
+        ['4. 範本中的（範例）資料請覆蓋或刪除'],
+        ['5. 可以往下新增更多列'],
+        ['6. 填完後儲存，在系統中按「📥 匯入 Excel」上傳即可'],
+        [''],
+        ['【注意事項】'],
+        ['• 數字請填原始數字（例如 278993），不要填「萬」'],
+        ['• 工作表名稱不要修改（網際網路、學員加購...等）'],
+        ['• 名次欄可以不填，系統會自動排序'],
+      ];
+      const instrWs = XLSX.utils.aoa_to_sheet(instrRows);
+      instrWs['!cols'] = [{ wch: 60 }];
+      XLSX.utils.book_append_sheet(wb, instrWs, '使用說明');
+      // Move instruction sheet to front
+      wb.SheetNames.unshift(wb.SheetNames.pop());
+      XLSX.writeFile(wb, '各通路績效匯入範本.xlsx');
+    }
+
+    // ===== Excel Import =====
+    function openChImport() {
+      chParsedExcel = null;
+      document.getElementById('chExcelInput').value = '';
+      document.getElementById('chExcelFileName').textContent = '支援 .xlsx / .xls（Numbers 請先輸出為 Excel）';
+      document.getElementById('chImportPreview').innerHTML = '';
+      document.getElementById('chDoImportBtn').disabled = true;
+      // Show month picker when in quarter view
+      const picker = document.getElementById('chImportMonthPicker');
+      if (chQuarterView) {
+        const ms = chQuarterView.months;
+        picker.innerHTML = '<div style="font-size:.85rem;color:#ffd700;margin-bottom:6px;">📅 匯入範圍</div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          `<label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(255,215,0,.12);border:1px solid #ffd700;border-radius:8px;cursor:pointer;font-size:.85rem;color:#ffd700;font-weight:700;"><input type="radio" name="chImportMonth" value="all" style="accent-color:#ffd700;" checked> 整季（${ms.map(m=>m+'月').join('+')}）</label>` +
+          ms.map(m => `<label style="display:flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(74,234,255,.06);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:.85rem;color:var(--text);"><input type="radio" name="chImportMonth" value="${m}" style="accent-color:#ffd700;"> 僅${m}月</label>`).join('') +
+          '</div>';
+        picker.style.display = 'block';
+      } else {
+        picker.style.display = 'none';
+        picker.innerHTML = '';
+      }
+      document.getElementById('chImportModal').classList.add('open');
+    }
+    function closeChImport() {
+      document.getElementById('chImportModal').classList.remove('open');
+    }
+
+    function chExcelSelected(inp) {
+      const f = inp.files[0];
+      if (!f) return;
+      document.getElementById('chExcelFileName').textContent = f.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array' });
+          chParsedExcel = parseChExcel(wb);
+          showChImportPreview(chParsedExcel);
+          document.getElementById('chDoImportBtn').disabled = false;
+        } catch (err) {
+          document.getElementById('chImportPreview').innerHTML = '<div style="color:#ff6b6b;">❌ 檔案讀取失敗：' + err.message + '</div>';
+        }
+      };
+      reader.readAsArrayBuffer(f);
+    }
+
+    function parseChExcel(wb) {
+      let result = {};
+      let savedColMap = null;
+
+      // === Strategy 1: Multi-sheet (one sheet per channel) ===
+      if (wb.SheetNames.length >= 2) {
+        wb.SheetNames.forEach(sheetName => {
+          let chKey = null;
+          const sn = sheetName.trim();
+          if (CH_SHEET_MAP[sn]) chKey = CH_SHEET_MAP[sn];
+          else { for (const [k, v] of Object.entries(CH_SHEET_MAP)) { if (sn.includes(k)) { chKey = v; break; } } }
+          if (!chKey) return;
+          const parsed = parseSingleChannelSheet(wb.Sheets[sheetName], chKey);
+          if (parsed) result[chKey] = parsed;
+        });
+        if (Object.keys(result).length >= 2) return result;
+      }
+
+      // === Strategy 2: Single-sheet side-by-side (like Numbers export) ===
+      // Approach: find ALL "名次" cells in header rows → detect column groups → identify channels
+      result = {}; // reset
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (!rows.length) continue;
+
+        // Step 1: Find all "名次" cells in first 5 rows → each marks a column group start
+        const groups = []; // [{rankCol, nameCol, valCol, headerRow, chKey}]
+        for (let ri = 0; ri < Math.min(rows.length, 5); ri++) {
+          const row = rows[ri] || [];
+          for (let ci = 0; ci < row.length; ci++) {
+            const cell = String(row[ci] || '').trim();
+            if (cell === '名次') {
+              // Found a column group: 名次(ci), 姓名(ci+1), value(ci+2)
+              const nextCell = ci + 1 < row.length ? String(row[ci + 1] || '').trim() : '';
+              if (nextCell === '姓名' || nextCell === '') {
+                // Check ci+2 for channel name (same row or rows above/below)
+                let chKey = null;
+                // Check same row ci+2
+                const valHeader = ci + 2 < row.length ? String(row[ci + 2] || '').trim() : '';
+                if (valHeader) {
+                  for (const [k, v] of Object.entries(CH_SHEET_MAP)) {
+                    if (valHeader === k || valHeader.includes(k)) { chKey = v; break; }
+                  }
+                }
+                // Check row above for channel name spanning this area
+                if (!chKey && ri > 0) {
+                  for (let ck = ci; ck <= ci + 2 && ck < (rows[ri-1]||[]).length; ck++) {
+                    const above = String((rows[ri-1]||[])[ck] || '').trim();
+                    if (!above) continue;
+                    for (const [k, v] of Object.entries(CH_SHEET_MAP)) {
+                      if (above === k || above.includes(k)) { chKey = v; break; }
+                    }
+                    if (chKey) break;
+                  }
+                }
+                // Avoid duplicates
+                if (chKey && !groups.find(g => g.chKey === chKey)) {
+                  groups.push({ rankCol: ci, nameCol: ci + 1, valCol: ci + 2, headerRow: ri, chKey });
+                } else if (!chKey) {
+                  // Unknown channel — assign later by position order
+                  groups.push({ rankCol: ci, nameCol: ci + 1, valCol: ci + 2, headerRow: ri, chKey: null });
+                }
+              }
+            }
+          }
+        }
+
+        // Step 1b: If no "名次" found, try finding channel names directly in headers
+        if (groups.length === 0) {
+          for (let ri = 0; ri < Math.min(rows.length, 5); ri++) {
+            const row = rows[ri] || [];
+            for (let ci = 0; ci < row.length; ci++) {
+              const cell = String(row[ci] || '').trim();
+              if (!cell) continue;
+              let matchedKey = null;
+              for (const [k, v] of Object.entries(CH_SHEET_MAP)) {
+                if (cell === k || cell.includes(k)) { matchedKey = v; break; }
+              }
+              if (matchedKey && !groups.find(g => g.chKey === matchedKey)) {
+                // Assume pattern: 名次(ci-2), 姓名(ci-1), value(ci)
+                const ll = ci >= 2 ? String(row[ci-2] || '').trim() : '';
+                const l = ci >= 1 ? String(row[ci-1] || '').trim() : '';
+                if (ll === '名次' && l === '姓名') {
+                  groups.push({ rankCol: ci-2, nameCol: ci-1, valCol: ci, headerRow: ri, chKey: matchedKey });
+                }
+              }
+            }
+          }
+        }
+
+        // Step 1c: Assign unidentified groups to channels by position order
+        if (groups.length >= 2) {
+          groups.sort((a, b) => a.rankCol - b.rankCol);
+          const usedKeys = new Set(groups.filter(g => g.chKey).map(g => g.chKey));
+          const availKeys = CH_CHANNELS.map(c => c.key).filter(k => !usedKeys.has(k));
+          let ai = 0;
+          groups.forEach(g => {
+            if (!g.chKey && ai < availKeys.length) { g.chKey = availKeys[ai++]; }
+          });
+          // Remove groups still without a key
+          const validGroups = groups.filter(g => g.chKey);
+          if (validGroups.length < 2) continue;
+
+          savedColMap = validGroups;
+          const detectedHeaderRow = Math.max(...validGroups.map(g => g.headerRow));
+          const dataStartRow = detectedHeaderRow + 1;
+
+          // Step 2: Find where ranking data ends
+          let rankEndRow = rows.length;
+          for (let ri = dataStartRow; ri < rows.length; ri++) {
+            const row = rows[ri] || [];
+            const allVals = row.map(c => String(c || '').trim());
+            if (allVals.includes('目標') || allVals.includes('低標')) { rankEndRow = ri; break; }
+            // Check for mostly empty row followed by academy markers
+            const filled = allVals.filter(v => v !== '').length;
+            if (filled === 0) {
+              let foundAcad = false;
+              for (let rj = ri + 1; rj < Math.min(ri + 4, rows.length); rj++) {
+                const rr = (rows[rj] || []).map(c => String(c || '').trim());
+                if (rr.includes('目標') || rr.includes('低標') || rr.includes('學院')) { foundAcad = true; break; }
+              }
+              if (foundAcad) { rankEndRow = ri; break; }
+            }
+          }
+
+          // Step 3: Parse ranking for each channel group
+          validGroups.forEach(cm => {
+            const ranking = [];
+            for (let ri = dataStartRow; ri < rankEndRow; ri++) {
+              const row = rows[ri] || [];
+              const name = String(row[cm.nameCol] || '').trim();
+              const valRaw = String(row[cm.valCol] || '').replace(/,/g, '');
+              const value = parseFloat(valRaw) || 0;
+              if (name && value && !/^(名次|姓名)$/.test(name)) {
+                ranking.push({ name, value });
+              }
+            }
+            ranking.sort((a, b) => b.value - a.value);
+            const chInfo = CH_CHANNELS.find(c => c.key === cm.chKey);
+            result[cm.chKey] = { ranking, academies: [], target: chInfo?.target || 0, targetType: chInfo?.targetType || 'low' };
+          });
+
+          // Step 4: Parse academy sections (below ranking area)
+          // Strategy A: Channel-name-driven — find each channel's academy block by scanning
+          //   for rows containing the channel name near 目標/低標/學院 markers
+          const acadBlocks = []; // [{chKey, targetRow, acadStartRow, col}]
+          for (let ri = rankEndRow; ri < rows.length; ri++) {
+            const row = (rows[ri] || []).map(c => String(c || '').trim());
+            for (let ci = 0; ci < row.length; ci++) {
+              // Look for channel names anywhere in academy area
+              const cell = row[ci];
+              if (!cell) continue;
+              let foundKey = null;
+              for (const [k, v] of Object.entries(CH_SHEET_MAP)) {
+                if (cell === k || cell.includes(k)) { foundKey = v; break; }
+              }
+              if (foundKey && result[foundKey] && !acadBlocks.find(b => b.chKey === foundKey)) {
+                // Found a channel name — look for CLOSEST 目標/低標 nearby
+                let targetRow = -1, targetCol = -1, tType = '', tVal = 0, bestDist = 999;
+                for (let rr = Math.max(rankEndRow, ri - 2); rr <= Math.min(ri + 1, rows.length - 1); rr++) {
+                  const r = (rows[rr] || []).map(c => String(c || '').trim());
+                  for (let cc = Math.max(0, ci - 3); cc <= ci + 3 && cc < r.length; cc++) {
+                    if (r[cc] === '目標' || r[cc] === '低標') {
+                      const dist = Math.abs(cc - ci) + Math.abs(rr - ri);
+                      if (dist < bestDist) {
+                        bestDist = dist;
+                        targetRow = rr;
+                        targetCol = cc;
+                        tType = r[cc] === '目標' ? 'goal' : 'low';
+                        tVal = parseFloat(String(r[cc + 1] || '0').replace(/,/g, '')) || 0;
+                      }
+                    }
+                  }
+                }
+                // Determine academy data column — the column where academy names will be
+                // It's typically at targetCol or the column where the channel name's 學院 label is
+                const acadCol = targetCol >= 0 ? targetCol : ci;
+                // Find the first academy data row (skip header rows with 目標/低標/學院)
+                let startRow = ri + 1;
+                // Scan a few rows to find the first actual academy name
+                for (let aj = Math.max(rankEndRow, ri - 1); aj < Math.min(rows.length, ri + 4); aj++) {
+                  const ar = (rows[aj] || []).map(c => String(c || '').trim());
+                  const cellAt = ar[acadCol] || '';
+                  if (cellAt && !['目標','低標','學院'].includes(cellAt) && DEFAULT_ACADEMIES.includes(cellAt)) {
+                    startRow = aj;
+                    break;
+                  }
+                  // Also check if it's a non-keyword, non-channel name with a numeric value next to it
+                  if (cellAt && !['目標','低標','學院',''].includes(cellAt)) {
+                    let isChName = false;
+                    for (const k of Object.keys(CH_SHEET_MAP)) { if (cellAt.includes(k)) { isChName = true; break; } }
+                    if (!isChName) {
+                      const testVal = parseFloat(String((rows[aj] || [])[acadCol + 1] || '0').replace(/,/g, '')) || 0;
+                      if (testVal > 0) { startRow = aj; break; }
+                    }
+                  }
+                }
+                acadBlocks.push({ chKey: foundKey, targetRow, acadCol, startRow, tType, tVal });
+              }
+            }
+          }
+
+          // Parse academy rows for each detected block
+          acadBlocks.forEach(block => {
+            if (!result[block.chKey]) return;
+            if (block.tVal) {
+              result[block.chKey].target = block.tVal;
+              result[block.chKey].targetType = block.tType;
+            }
+            const academies = [];
+            for (let aj = block.startRow; aj < rows.length; aj++) {
+              const ar = rows[aj] || [];
+              const aName = String(ar[block.acadCol] || '').trim();
+              const aVal = parseFloat(String(ar[block.acadCol + 1] || '0').replace(/,/g, '')) || 0;
+              if (!aName) break;
+              // Stop if hitting another section marker
+              if (['目標','低標','學院'].includes(aName)) break;
+              // Stop if hitting another channel name
+              let isChName = false;
+              for (const k of Object.keys(CH_SHEET_MAP)) { if (aName.includes(k)) { isChName = true; break; } }
+              if (isChName) break;
+              academies.push({ name: aName, value: aVal });
+            }
+            if (academies.length > 0) result[block.chKey].academies = academies;
+          });
+
+          // Strategy B: Column-proximity fallback for channels still missing academies
+          function findNearestCh(ci) {
+            let best = null, bestDist = 999;
+            validGroups.forEach(cm => {
+              const dist = Math.min(Math.abs(ci - cm.rankCol), Math.abs(ci - cm.valCol));
+              if (dist < bestDist) { bestDist = dist; best = cm.chKey; }
+            });
+            return bestDist <= 3 ? best : null;
+          }
+
+          const missingAcad = validGroups.filter(cm => !result[cm.chKey]?.academies?.length);
+          if (missingAcad.length > 0) {
+            for (let ri = rankEndRow; ri < rows.length; ri++) {
+              const row = (rows[ri] || []).map(c => String(c || '').trim());
+              for (let ci = 0; ci < row.length; ci++) {
+                if (row[ci] === '目標' || row[ci] === '低標') {
+                  const matchKey = findNearestCh(ci);
+                  if (matchKey && result[matchKey] && (!result[matchKey].academies || result[matchKey].academies.length === 0)) {
+                    const tType = row[ci] === '目標' ? 'goal' : 'low';
+                    const tVal = parseFloat(String(row[ci + 1] || '0').replace(/,/g, '')) || 0;
+                    result[matchKey].target = tVal;
+                    result[matchKey].targetType = tType;
+                    let acadStart = ri + 1;
+                    for (let aj = ri + 1; aj < Math.min(ri + 3, rows.length); aj++) {
+                      const ar = (rows[aj] || []).map(c => String(c || '').trim());
+                      if (ar[ci] === '學院') { acadStart = aj + 1; break; }
+                      const testVal = parseFloat(String(rows[aj]?.[ci + 1] || '0').replace(/,/g, '')) || 0;
+                      if (ar[ci] && !['目標','低標','學院'].includes(ar[ci]) && testVal > 0) { acadStart = aj; break; }
+                    }
+                    const academies = [];
+                    for (let aj = acadStart; aj < rows.length; aj++) {
+                      const ar = rows[aj] || [];
+                      const aName = String(ar[ci] || '').trim();
+                      const aVal = parseFloat(String(ar[ci + 1] || '0').replace(/,/g, '')) || 0;
+                      if (!aName || ['目標','低標','學院'].includes(aName)) break;
+                      academies.push({ name: aName, value: aVal });
+                    }
+                    if (academies.length > 0) result[matchKey].academies = academies;
+                  }
+                }
+              }
+            }
+          }
+
+          // Strategy C: Scan for DEFAULT_ACADEMIES names by column proximity
+          validGroups.forEach(cm => {
+            if (result[cm.chKey]?.academies?.length > 0) return;
+            const academies = [];
+            for (let ri = rankEndRow; ri < rows.length; ri++) {
+              const row = rows[ri] || [];
+              for (let ci = Math.max(0, cm.rankCol - 1); ci <= cm.valCol + 1 && ci < row.length; ci++) {
+                const cell = String(row[ci] || '').trim();
+                if (DEFAULT_ACADEMIES.includes(cell)) {
+                  const val = parseFloat(String(row[ci + 1] || '0').replace(/,/g, '')) || 0;
+                  if (!academies.find(a => a.name === cell)) academies.push({ name: cell, value: val });
+                }
+              }
+            }
+            if (academies.length > 0 && result[cm.chKey]) result[cm.chKey].academies = academies;
+          });
+
+          break; // done with side-by-side
+        }
+      }
+
+      // === Strategy 3: Content-based sheet scanning for academy data ===
+      // Numbers exports each academy table as a separate sheet with generic names.
+      // Scan ALL sheets: if a sheet starts with 目標/低標 and row 2 has 學院 + channel name,
+      // it's an academy sheet. Parse it and merge into result.
+      wb.SheetNames.forEach(sheetName => {
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (!rows || rows.length < 3) return;
+        const r0 = (rows[0] || []).map(c => String(c || '').trim());
+        const r1 = (rows[1] || []).map(c => String(c || '').trim());
+        // Check if first row starts with 目標/低標
+        if (r0[0] !== '目標' && r0[0] !== '低標') return;
+        // Check if second row has 學院 + channel name
+        if (r1[0] !== '學院') return;
+        // Identify channel from row 1
+        let chKey = null;
+        for (let ci = 0; ci < r1.length; ci++) {
+          const cell = r1[ci];
+          if (!cell || cell === '學院') continue;
+          for (const [k, v] of Object.entries(CH_SHEET_MAP)) {
+            if (cell === k || cell.includes(k)) { chKey = v; break; }
+          }
+          if (chKey) break;
+        }
+        if (!chKey) return;
+        // Parse target
+        const tType = r0[0] === '目標' ? 'goal' : 'low';
+        const tVal = parseFloat(String(r0[1] || '0').replace(/,/g, '')) || 0;
+        // Parse academy rows (from row 2 onward)
+        const academies = [];
+        for (let ri = 2; ri < rows.length; ri++) {
+          const row = rows[ri] || [];
+          const aName = String(row[0] || '').trim();
+          const aVal = parseFloat(String(row[1] || '0').replace(/,/g, '')) || 0;
+          if (!aName) continue;
+          if (['目標','低標','學院'].includes(aName)) continue;
+          academies.push({ name: aName, value: aVal });
+        }
+        // Merge into result
+        if (!result[chKey]) {
+          const chInfo = CH_CHANNELS.find(c => c.key === chKey);
+          result[chKey] = { ranking: [], academies, target: tVal, targetType: tType };
+        } else {
+          result[chKey].academies = academies;
+          result[chKey].target = tVal;
+          result[chKey].targetType = tType;
+        }
+      });
+
+      // === Strategy 4: fallback — assign sheets by index ===
+      if (Object.keys(result).length === 0) {
+        wb.SheetNames.forEach((sheetName, idx) => {
+          if (idx < CH_CHANNELS.length) {
+            const parsed = parseSingleChannelSheet(wb.Sheets[sheetName], CH_CHANNELS[idx].key);
+            if (parsed && parsed.ranking.length > 0) result[CH_CHANNELS[idx].key] = parsed;
+          }
+        });
+      }
+
+      return result;
+    }
+
+    // Parse a single sheet as one channel
+    function parseSingleChannelSheet(ws, chKey) {
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      const ranking = [];
+      const academies = [];
+      let target = 0, targetType = '';
+      let inAcademy = false;
+
+      for (let ri = 0; ri < rows.length; ri++) {
+        const row = rows[ri];
+        if (!row || row.length === 0) continue;
+        const c0 = String(row[0] || '').trim();
+        const c1 = String(row[1] || '').trim();
+
+        if (c0 === '目標' || c0 === '低標') {
+          inAcademy = true;
+          targetType = c0 === '目標' ? 'goal' : 'low';
+          target = parseFloat(String(row[1] || '0').replace(/,/g, '')) || 0;
+          continue;
+        }
+        if (c0 === '學院' || c1 === '學院') continue;
+
+        if (inAcademy) {
+          const val = parseFloat(String(row[1] || '0').replace(/,/g, '')) || 0;
+          if (c0 && c0 !== '名次' && c0 !== '姓名') academies.push({ name: c0, value: val });
+        } else {
+          if (c0 === '名次' || c0 === '姓名') continue;
+          let name, value;
+          if (row.length >= 3 && /^\d+$/.test(c0)) {
+            name = String(row[1] || '').trim();
+            value = parseFloat(String(row[2] || '0').replace(/,/g, '')) || 0;
+          } else if (row.length >= 2) {
+            name = c0;
+            value = parseFloat(String(row[row.length - 1] || '0').replace(/,/g, '')) || 0;
+          }
+          if (name && value) ranking.push({ name, value });
+        }
+      }
+
+      ranking.sort((a, b) => b.value - a.value);
+      const chInfo = CH_CHANNELS.find(c => c.key === chKey);
+      return { ranking, academies, target: target || chInfo?.target || 0, targetType: targetType || chInfo?.targetType || 'low' };
+    }
+
+    function showChImportPreview(parsed) {
+      const el = document.getElementById('chImportPreview');
+      if (!parsed || Object.keys(parsed).length === 0) {
+        el.innerHTML = '<div style="color:#ffa726;">⚠️ 未偵測到符合的通路工作表</div>';
+        return;
+      }
+      let html = '<div style="color:#66bb6a;margin-bottom:6px;">✅ 已解析以下通路：</div>';
+      for (const [key, d] of Object.entries(parsed)) {
+        const ch = CH_CHANNELS.find(c => c.key === key);
+        const hasAcad = d.academies && d.academies.length > 0;
+        const acadNames = hasAcad ? d.academies.map(a => a.name).join('、') : '';
+        const acadTotal = hasAcad ? d.academies.reduce((s, a) => s + a.value, 0) : 0;
+        html += `<div style="margin-bottom:4px;padding:6px 8px;background:rgba(255,255,255,.03);border-radius:4px;">
+          <div><span style="color:var(--accent);font-weight:600;">${ch?.name || key}</span>
+          <span style="color:var(--dim);margin-left:8px;">排名 ${d.ranking.length} 人</span>
+          <span style="color:${hasAcad ? '#66bb6a' : '#ffa726'};margin-left:8px;">學院 ${d.academies.length} 筆${hasAcad ? ' (合計 ' + fmtWan(acadTotal) + ')' : ''}</span></div>
+          ${hasAcad ? '<div style="color:var(--dim);font-size:.72rem;margin-top:2px;padding-left:4px;">' + acadNames + '</div>' : ''}
+        </div>`;
+      }
+      // Show missing channels
+      const parsedKeys = Object.keys(parsed);
+      const missingCh = CH_CHANNELS.filter(c => !parsedKeys.includes(c.key));
+      if (missingCh.length > 0) {
+        html += '<div style="color:#ffa726;margin-top:6px;">⚠️ 未偵測到：' + missingCh.map(c => c.name).join('、') + '</div>';
+      }
+      el.innerHTML = html;
+    }
+
+    function applyChImportToMonth(m) {
+      if (!chData[m]) {
+        chData[m] = {};
+        CH_CHANNELS.forEach(ch => { chData[m][ch.key] = { ranking: [], academies: makeDefaultAcademies(), target: ch.target, targetType: ch.targetType }; });
+      }
+      for (const [key, d] of Object.entries(chParsedExcel)) {
+        if (!chData[m][key]) continue;
+        chData[m][key].ranking = d.ranking;
+        if (d.academies && d.academies.length > 0) {
+          const importMap = {};
+          d.academies.forEach(a => { importMap[a.name] = a.value; });
+          let updated = false;
+          chData[m][key].academies.forEach(a => {
+            if (importMap[a.name] !== undefined) { a.value = importMap[a.name]; updated = true; }
+          });
+          d.academies.forEach(a => {
+            if (!chData[m][key].academies.find(x => x.name === a.name)) {
+              chData[m][key].academies.push({ name: a.name, value: a.value });
+              updated = true;
+            }
+          });
+          if (!updated) chData[m][key].academies = d.academies;
+        }
+        if (d.target !== undefined && d.target !== null) chData[m][key].target = d.target;
+        if (d.targetType) chData[m][key].targetType = d.targetType;
+      }
+    }
+
+    function doChExcelImport() {
+      if (!chParsedExcel) { alert('請先選擇 Excel 檔案'); return; }
+      if (chQuarterView) {
+        const sel = document.querySelector('input[name="chImportMonth"]:checked');
+        const val = sel ? sel.value : null;
+        if (!val) { alert('請選擇匯入範圍'); return; }
+        if (val === 'all') {
+          // 整季匯入：資料寫入第一個月，其餘月份清空（避免季度加總重複）
+          const ms = chQuarterView.months;
+          applyChImportToMonth(ms[0]);
+          for (let i = 1; i < ms.length; i++) {
+            const mm = ms[i];
+            if (!chData[mm]) { chData[mm] = {}; CH_CHANNELS.forEach(ch => { chData[mm][ch.key] = { ranking: [], academies: makeDefaultAcademies(), target: ch.target, targetType: ch.targetType }; }); }
+            for (const key of Object.keys(chParsedExcel)) {
+              if (!chData[mm][key]) continue;
+              chData[mm][key].ranking = [];
+              chData[mm][key].academies = makeDefaultAcademies();
+            }
+          }
+        } else {
+          applyChImportToMonth(parseInt(val));
+        }
+      } else {
+        if (!chCurrentMonth) { alert('請選擇月份'); return; }
+        applyChImportToMonth(chCurrentMonth);
+      }
+      saveChData();
+      closeChImport();
+      if (chQuarterView) {
+        openChQuarter(chQuarterView.label, chQuarterView.months);
+      } else {
+        renderChDetail();
+      }
+      renderChMonths();
+    }
+
+    // ===== Honor Cards System =====
+    const HONOR_KEY = '_honor_v1';
+    function getHonorSK() { return getSK() + HONOR_KEY; }
+
+    function loadHonorHistory() {
+      const raw = localStorage.getItem(getHonorSK());
+      return raw ? JSON.parse(raw) : [];
+    }
+    function saveHonorHistory(history) {
+      localStorage.setItem(getHonorSK(), JSON.stringify(history));
+    }
+
+    // Load castle cards for photo lookup
+    function getCastleCards() {
+      try {
+        const raw = localStorage.getItem('castle_cards_v1');
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
+
+    function findCastleCard(name) {
+      const cards = getCastleCards();
+      return cards.find(c => c.name && c.name.trim() === name.trim() && c.photo);
+    }
+
+    // 學院卡牌配對：acadName = 通路績效裡的學院名（如「中壢二部」）
+    // 配對策略：1.完全相同 2.卡牌名含學院名 3.學院名含卡牌名（取最長匹配避免歧義）
+    // 一次性清除舊的錯誤學院配對，讓新邏輯重新配
+    (function resetBadAcadAssign() {
+      if (localStorage.getItem('honor_acad_rematch_v1')) return;
+      try {
+        const sk = getSK() + HONOR_ASSIGN_KEY;
+        const raw = localStorage.getItem(sk);
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (data.academy) { data.academy = {}; localStorage.setItem(sk, JSON.stringify(data)); }
+        }
+      } catch(e) {}
+      try { localStorage.setItem('honor_acad_rematch_v1', '1'); } catch(e) {}
+    })();
+
+    function matchAcademyCard(acadName, allCards) {
+      if (!acadName) return null;
+      const acadColors = ['yellow','purple','black','blue'];
+      const candidates = allCards.filter(c => c.photo && acadColors.includes(c.color) && c.name);
+      // 1) 完全相同
+      let match = candidates.find(c => c.name.trim() === acadName.trim());
+      if (match) return match;
+      // 2) 卡牌名包含學院名（如卡牌叫「中壢二部學院」，學院名叫「中壢二部」）
+      match = candidates.find(c => c.name.includes(acadName));
+      if (match) return match;
+      // 3) 學院名包含卡牌名 — 取最長匹配（避免「中壢」同時配到「中壢學院」和「中壢二部」）
+      let bestMatch = null, bestLen = 0;
+      candidates.forEach(c => {
+        if (acadName.includes(c.name.trim()) && c.name.trim().length > bestLen) {
+          bestLen = c.name.trim().length;
+          bestMatch = c;
+        }
+      });
+      return bestMatch;
+    }
+
+    let honorCurrentData = null; // { month, label, channels: [{chKey, chName, ranking, academies}] }
+
+    function aggregateQuarter(months) {
+      // 合併季度資料：先找有資料的月份，避免重複加總
+      const result = {};
+      CH_CHANNELS.forEach(ch => {
+        const personMap = {};
+        const acadMap = {};
+        let hasData = 0;
+        months.forEach(m => {
+          const r = chData[m]?.[ch.key]?.ranking || [];
+          if (r.length > 0) hasData++;
+          r.forEach(p => { personMap[p.name] = (personMap[p.name] || 0) + p.value; });
+          (chData[m]?.[ch.key]?.academies || []).forEach(a => { if (a.value) acadMap[a.name] = (acadMap[a.name] || 0) + a.value; });
+        });
+        const ranking = Object.entries(personMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+        const academies = Object.entries(acadMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+        result[ch.key] = { ranking, academies, dataMonths: hasData };
+      });
+      return result;
+    }
+
+    function openHonorCards() {
+      if (chQuarterView && chQViewMonth === null) {
+        // Quarter mode — 整季合計
+        const { label, months } = chQuarterView;
+        honorCurrentData = { month: label, label, channels: [] };
+        const agg = aggregateQuarter(months);
+        CH_CHANNELS.forEach(ch => {
+          honorCurrentData.channels.push({ chKey: ch.key, chName: ch.name, ranking: agg[ch.key].ranking, academies: agg[ch.key].academies });
+        });
+        document.getElementById('honorTitle').textContent = '🏆 ' + label + ' 嘉許翻牌';
+      } else if (chQuarterView && chQViewMonth !== null) {
+        // Quarter mode — 單月檢視
+        const m = chQViewMonth;
+        honorCurrentData = { month: m, label: m + '月', channels: [] };
+        CH_CHANNELS.forEach(ch => {
+          const d = chData[m]?.[ch.key] || {};
+          const ranking = [...(d.ranking || [])].sort((a, b) => b.value - a.value);
+          const academies = [...(d.academies || [])].sort((a, b) => b.value - a.value);
+          honorCurrentData.channels.push({ chKey: ch.key, chName: ch.name, ranking, academies });
+        });
+        document.getElementById('honorTitle').textContent = '🏆 ' + m + '月 嘉許翻牌';
+      } else {
+        // Monthly mode
+        const m = chCurrentMonth;
+        if (!m) return;
+        honorCurrentData = { month: m, label: m + '月', channels: [] };
+        CH_CHANNELS.forEach(ch => {
+          const d = chData[m]?.[ch.key] || {};
+          const ranking = [...(d.ranking || [])].sort((a, b) => b.value - a.value);
+          const academies = [...(d.academies || [])].sort((a, b) => b.value - a.value);
+          honorCurrentData.channels.push({ chKey: ch.key, chName: ch.name, ranking, academies });
+        });
+        document.getElementById('honorTitle').textContent = '🏆 ' + m + '月 嘉許翻牌';
+      }
+
+      renderHonorCards();
+      // Reset card flips, then open overlay
+      document.querySelectorAll('#honorOverlay .honor-card').forEach(c => c.classList.remove('flipped'));
+      document.getElementById('honorOverlay').classList.add('open');
+      // Apply stagger entrance delays to cards
+      const allCards = document.querySelectorAll('#honorOverlay .honor-card');
+      allCards.forEach((c, i) => { c.style.animationDelay = (i * 100) + 'ms'; });
+      // Auto-flip after cards finish entrance animation
+      const entranceDone = allCards.length * 100 + 500;
+      setTimeout(() => flipAllHonorCards(), entranceDone);
+    }
+
+    const CH_KING_TITLES = {
+      net: '網路王', purchase: '加購王', event: '展場王', referral: '介紹王', admin: '班務王', cash: '現金王'
+    };
+    const CH_ACAD_TITLES = {
+      net: '學院網路王', purchase: '學院加購王', event: '學院展場王', referral: '學院介紹王', admin: '學院班務王'
+    };
+
+    function renderHonorCards() {
+      if (!honorCurrentData) return;
+      const assign = loadHonorAssign();
+      const allCastle = getCastleCards();
+
+      // Individual cards — split into two rows (3+3)
+      const indEl = document.getElementById('honorIndividualCards');
+      const ROW1_KEYS = ['net', 'purchase', 'event'];
+      let indHtml = '';
+      function buildIndCard(ch) {
+        const top5 = ch.ranking.slice(0, 5);
+        if (top5.length === 0) return '';
+        const king = top5[0];
+        const assignedId = assign.individual[ch.chKey];
+        const castle = assignedId
+          ? allCastle.find(c => String(c.id) === String(assignedId) && c.photo)
+          : findCastleCard(king.name);
+        const title = CH_KING_TITLES[ch.chKey] || ch.chName + '王';
+        return `<div class="honor-card" onclick="this.classList.toggle('flipped')" data-ch="${ch.chKey}" data-type="individual">
+          <div class="honor-card-inner">
+            <div class="honor-card-back">
+              <div class="hcb-icon">🏆</div>
+              <div class="hcb-label">${title}</div>
+            </div>
+            <div class="honor-card-front" style="background:linear-gradient(180deg, var(--bg2), var(--bg3));">
+              <div class="hcf-header">
+                <div class="hcf-channel">${ch.chName}</div>
+                <div class="hcf-title">👑 ${title}</div>
+              </div>
+              <div class="hcf-photo-area">
+                ${castle ? `<img src="${castle.photo}" alt="${king.name}">` : `<div class="hcf-no-photo">👤</div>`}
+              </div>
+              <div class="hcf-crown-name">👑 ${king.name}</div>
+              <div class="hcf-crown-val">${fmtWan(king.value)}</div>
+              <div class="hcf-runners">
+                ${top5.slice(1).map((r, i) => `<div class="hcf-runner-row"><span class="rank">${i + 2}</span><span>${r.name}</span><span class="val">${fmtWan(r.value)}</span></div>`).join('')}
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }
+      // Row 1: 網路王、加購王、展場王
+      indHtml += '<div class="honor-cards-row">';
+      honorCurrentData.channels.filter(ch => ROW1_KEYS.includes(ch.chKey)).forEach(ch => { indHtml += buildIndCard(ch); });
+      indHtml += '</div>';
+      // Row 2: 介紹王、班務王、現金王
+      indHtml += '<div class="honor-cards-row" style="margin-top:12px;">';
+      honorCurrentData.channels.filter(ch => !ROW1_KEYS.includes(ch.chKey)).forEach(ch => { indHtml += buildIndCard(ch); });
+      indHtml += '</div>';
+      indEl.innerHTML = indHtml;
+
+      // Academy cards — use admin-assigned photo
+      const acadEl = document.getElementById('honorAcademyCards');
+      let acadHtml = '';
+      honorCurrentData.channels.forEach(ch => {
+        if (ch.chKey === 'cash') return; // 現金王不顯示學院卡牌
+        const sorted = [...ch.academies].sort((a, b) => b.value - a.value);
+        if (sorted.length === 0) return;
+        const topAcad = sorted[0];
+        const title = CH_ACAD_TITLES[ch.chKey] || '學院' + ch.chName + '王';
+        const acadAssignId = assign.academy[ch.chKey];
+        let acadCard = acadAssignId ? allCastle.find(c => String(c.id) === String(acadAssignId) && c.photo) : null;
+        // 自動配對：用第一名學院名稱匹配城堡卡牌（學院卡牌）
+        if (!acadCard && topAcad) {
+          acadCard = matchAcademyCard(topAcad.name, allCastle);
+          if (acadCard) { assign.academy[ch.chKey] = String(acadCard.id); saveHonorAssign(assign); }
+        }
+
+        acadHtml += `<div class="honor-card" onclick="this.classList.toggle('flipped')" data-ch="${ch.chKey}" data-type="academy">
+          <div class="honor-card-inner">
+            <div class="honor-card-back">
+              <div class="hcb-icon">🏫</div>
+              <div class="hcb-label">${title}</div>
+            </div>
+            <div class="honor-card-front" style="background:linear-gradient(180deg, var(--bg2), var(--bg3));">
+              <div class="hcf-header">
+                <div class="hcf-channel">${ch.chName} 學院</div>
+                <div class="hcf-title">👑 ${title}</div>
+              </div>
+              <div class="hcf-photo-area" style="height:70px;">
+                ${acadCard ? `<img src="${acadCard.photo}" alt="${acadCard.name}">` : `<div class="hcf-no-photo" style="width:55px;height:55px;font-size:1.4rem;">🏫</div>`}
+              </div>
+              <div class="hcf-crown-name" style="font-size:.85rem;">👑 ${topAcad.name}</div>
+              <div class="hcf-crown-val">${fmtComma(topAcad.value)}</div>
+              ${acadCard ? `<div style="text-align:center;font-size:.72rem;color:var(--dim);">代表：${acadCard.name}</div>` : `<div style="text-align:center;font-size:.72rem;color:rgba(255,200,100,.6);">⚙️ 請至人物管理指定代表</div>`}
+              <div class="hcf-runners" style="font-size:.7rem;">
+                ${sorted.slice(1, 5).map((a, i) => `<div class="hcf-runner-row"><span class="rank">${i + 2}</span><span>${a.name}</span><span class="val">${fmtComma(a.value)}</span></div>`).join('')}
+              </div>
+            </div>
+          </div>
+        </div>`;
+      });
+      acadEl.innerHTML = acadHtml;
+    }
+
+    function setAcadRep(chKey, cardId) {
+      const photoEl = document.getElementById('acadPhoto_' + chKey);
+      if (!photoEl) return;
+      if (!cardId) {
+        photoEl.innerHTML = '<div class="hcf-no-photo" style="width:50px;height:50px;font-size:1.2rem;">🏫</div>';
+        return;
+      }
+      const cards = getCastleCards();
+      const card = cards[parseInt(cardId)];
+      if (card && card.photo) {
+        photoEl.innerHTML = `<img src="${card.photo}" alt="${card.name}" style="width:50px;height:50px;">`;
+      }
+    }
+
+    function flipAllHonorCards() {
+      const cards = document.querySelectorAll('#honorOverlay .honor-card');
+      cards.forEach((card, i) => {
+        setTimeout(() => {
+          card.classList.add('flipped');
+        }, i * 400);
+      });
+    }
+
+    function replayHonorFlip() {
+      const cards = document.querySelectorAll('#honorOverlay .honor-card');
+      cards.forEach(c => c.classList.remove('flipped'));
+      setTimeout(() => flipAllHonorCards(), 300);
+    }
+
+    function closeHonor() {
+      const el = document.getElementById('honorOverlay');
+      el.classList.remove('open');
+      // Reset flipped state after transition
+      setTimeout(() => {
+        document.querySelectorAll('#honorOverlay .honor-card').forEach(c => c.classList.remove('flipped'));
+      }, 500);
+    }
+
+    // ===== Honor Admin Panel =====
+    // Stores overrides: { individual: { net: cardId, ... }, academy: { net: cardId, ... } }
+    const HONOR_ASSIGN_KEY = '_honor_assign_v1';
+    function getHonorAssignSK() { return getSK() + HONOR_ASSIGN_KEY; }
+    function loadHonorAssign() {
+      try { const r = localStorage.getItem(getHonorAssignSK()); return r ? JSON.parse(r) : { individual: {}, academy: {} }; }
+      catch(e) { return { individual: {}, academy: {} }; }
+    }
+    function saveHonorAssign(data) { localStorage.setItem(getHonorAssignSK(), JSON.stringify(data)); }
+
+    function openHonorAdmin() {
+      renderHonorAdmin();
+      document.getElementById('honorAdminOverlay').classList.add('open');
+    }
+    function closeHonorAdmin() {
+      document.getElementById('honorAdminOverlay').classList.remove('open');
+      // Re-render honor cards with updated assignments
+      renderHonorCards();
+    }
+
+    function renderHonorAdmin() {
+      const assign = loadHonorAssign();
+      // Show all castle cards that have a real name AND photo (not default "角色 X")
+      const allCastle = ensureCastleCards();
+      const castleCards = allCastle.filter(c => c.name && c.photo && !c.name.match(/^角色\s*\d+$/));
+      const body = document.getElementById('honorAdminBody');
+      if (!honorCurrentData) { body.innerHTML = '<p style="color:var(--dim);">請先開啟嘉許翻牌</p>'; return; }
+
+      let html = '';
+      if (castleCards.length === 0) {
+        html += '<div style="padding:12px;background:rgba(255,100,100,.08);border:1px solid rgba(255,100,100,.2);border-radius:10px;margin-bottom:16px;color:rgba(255,200,150,.9);font-size:.85rem;">⚠️ 城堡卡牌中尚無已設定照片的人物，請先在下方新增人物，或到 🏰 指揮城堡 設定卡牌。</div>';
+      } else {
+        html += `<div style="padding:6px 12px;margin-bottom:12px;font-size:.78rem;color:var(--dim);">可選人物：${castleCards.map(c => c.name).join('、')}（共 ${castleCards.length} 人）</div>`;
+      }
+
+      // Section 1: Individual channel kings
+      html += '<div class="ha-section"><div class="ha-section-title">👤 個人通路王 — 指定人物照片</div>';
+      honorCurrentData.channels.forEach(ch => {
+        const top5 = ch.ranking.slice(0, 5);
+        const king = top5.length > 0 ? top5[0] : null;
+        const kingName = king ? king.name : '（無資料）';
+        const title = CH_KING_TITLES[ch.chKey] || ch.chName + '王';
+        const assignedId = assign.individual[ch.chKey] || '';
+        const assignedCard = assignedId ? castleCards.find(c => String(c.id) === String(assignedId)) : null;
+        const autoCard = king ? findCastleCard(king.name) : null;
+        const currentCard = assignedCard || autoCard;
+        const photoHtml = currentCard && currentCard.photo
+          ? `<img src="${currentCard.photo}" class="ha-photo-preview">`
+          : `<div class="ha-photo-placeholder">👤</div>`;
+
+        html += `<div class="ha-row">
+          ${photoHtml}
+          <div class="ha-row-label">${title}</div>
+          <div class="ha-row-current">👑 <span class="ha-name">${kingName}</span>${king ? ' ' + fmtWan(king.value) : ''}</div>
+          <select class="ha-select" onchange="haSetIndividual('${ch.chKey}', this.value)">
+            <option value="">自動配對</option>
+            ${castleCards.map(c => `<option value="${c.id}" ${String(c.id) === String(assignedId) ? 'selected' : ''}>${c.name}</option>`).join('')}
+          </select>
+        </div>`;
+      });
+      html += '</div>';
+
+      // Section 2: Academy channel kings
+      html += '<div class="ha-section"><div class="ha-section-title">🏫 學院通路王 — 指定代表人物</div>';
+      honorCurrentData.channels.forEach(ch => {
+        if (ch.chKey === 'cash') return; // 現金王不顯示學院卡牌
+        const sorted = [...ch.academies].sort((a, b) => b.value - a.value);
+        const topAcad = sorted.length > 0 ? sorted[0] : null;
+        const acadName = topAcad ? topAcad.name : '（無資料）';
+        const title = CH_ACAD_TITLES[ch.chKey] || '學院' + ch.chName + '王';
+        let assignedId = assign.academy[ch.chKey] || '';
+        let assignedCard = assignedId ? castleCards.find(c => String(c.id) === String(assignedId)) : null;
+        // 自動配對學院卡牌
+        if (!assignedCard && topAcad) {
+          assignedCard = matchAcademyCard(topAcad.name, allCastle);
+          if (assignedCard) { assignedId = String(assignedCard.id); assign.academy[ch.chKey] = assignedId; saveHonorAssign(assign); }
+        }
+        const photoHtml = assignedCard && assignedCard.photo
+          ? `<img src="${assignedCard.photo}" class="ha-photo-preview">`
+          : `<div class="ha-photo-placeholder">🏫</div>`;
+
+        html += `<div class="ha-row">
+          ${photoHtml}
+          <div class="ha-row-label">${title}</div>
+          <div class="ha-row-current">👑 <span class="ha-name">${acadName}</span>${topAcad ? ' ' + fmtComma(topAcad.value) : ''}</div>
+          <select class="ha-select" onchange="haSetAcademy('${ch.chKey}', this.value)">
+            <option value="">— 選擇代表 —</option>
+            ${castleCards.map(c => `<option value="${c.id}" ${String(c.id) === String(assignedId) ? 'selected' : ''}>${c.name}</option>`).join('')}
+          </select>
+        </div>`;
+      });
+      html += '</div>';
+
+      body.innerHTML = html;
+    }
+
+    function haSetIndividual(chKey, cardId) {
+      const assign = loadHonorAssign();
+      if (cardId) { assign.individual[chKey] = cardId; }
+      else { delete assign.individual[chKey]; }
+      saveHonorAssign(assign);
+      renderHonorAdmin();
+    }
+    function haSetAcademy(chKey, cardId) {
+      const assign = loadHonorAssign();
+      if (cardId) { assign.academy[chKey] = cardId; }
+      else { delete assign.academy[chKey]; }
+      saveHonorAssign(assign);
+      renderHonorAdmin();
+    }
+
+    function haPhotoPreview(input) {
+      const preview = document.getElementById('haNewPhotoPreview');
+      if (!input.files || !input.files[0]) { preview.innerHTML = ''; return; }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.innerHTML = `<img src="${e.target.result}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,215,0,.3);">`;
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+
+    function ensureCastleCards() {
+      // If castle_cards_v1 doesn't exist, create 32 default cards
+      let cards = getCastleCards();
+      if (!cards || cards.length === 0) {
+        cards = [];
+        for (let i = 0; i < 32; i++) {
+          cards.push({
+            id: i, name: '角色 ' + (i + 1), title: '', color: 'gray',
+            photo: '', personalRevenue: '', groupRevenue: '', teamSize: '',
+            refund: '', groupTarget: '', subtitle: '', active: false,
+            cropZoom: 100, cropX: 50, cropY: 20, mascot: '', epicReveal: false
+          });
+        }
+        localStorage.setItem('castle_cards_v1', JSON.stringify(cards));
+      }
+      return cards;
+    }
+
+    function haAddPerson() {
+      const nameInput = document.getElementById('haNewName');
+      const photoInput = document.getElementById('haNewPhoto');
+      const name = nameInput.value.trim();
+      if (!name) { alert('請輸入姓名'); return; }
+
+      function doSave(photoData) {
+        const cards = ensureCastleCards();
+        // Find an empty slot (default name "角色 X" with no photo)
+        let slotIdx = cards.findIndex(c => (!c.photo || !c.photo.trim()) && (!c.name || c.name.match(/^角色\s*\d+$/)));
+        if (slotIdx === -1) {
+          // All named — find one without photo
+          slotIdx = cards.findIndex(c => !c.photo || !c.photo.trim());
+        }
+        if (slotIdx === -1) {
+          alert('城堡卡牌已滿（32張皆有資料），請先在指揮城堡清出空位');
+          return;
+        }
+        cards[slotIdx].name = name;
+        if (photoData) cards[slotIdx].photo = photoData;
+        cards[slotIdx].active = true;
+        try {
+          localStorage.setItem('castle_cards_v1', JSON.stringify(cards));
+        } catch(e) {
+          alert('❌ 儲存失敗：' + (e.message || '可能照片太大，請選擇較小的圖片'));
+          return;
+        }
+        nameInput.value = '';
+        photoInput.value = '';
+        document.getElementById('haNewPhotoPreview').innerHTML = '';
+        alert('✅ 已新增「' + name + '」到城堡卡牌（位置 ' + (slotIdx + 1) + '）！');
+        renderHonorAdmin();
+      }
+
+      if (photoInput.files && photoInput.files[0]) {
+        // Compress image before saving to avoid localStorage quota
+        const file = photoInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxSize = 200;
+            let w = img.width, h = img.height;
+            if (w > h) { if (w > maxSize) { h = h * maxSize / w; w = maxSize; } }
+            else { if (h > maxSize) { w = w * maxSize / h; h = maxSize; } }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            const compressed = canvas.toDataURL('image/jpeg', 0.7);
+            doSave(compressed);
+          };
+          img.onerror = function() { doSave(e.target.result); };
+          img.src = e.target.result;
+        };
+        reader.onerror = function() { alert('❌ 照片讀取失敗'); };
+        reader.readAsDataURL(file);
+      } else {
+        doSave('');
+      }
+    }
+
+    function saveHonorRecord() {
+      if (!honorCurrentData) return;
+      const history = loadHonorHistory();
+      const record = {
+        date: new Date().toISOString(),
+        label: honorCurrentData.label,
+        month: honorCurrentData.month,
+        individuals: {},
+        academies: {}
+      };
+      honorCurrentData.channels.forEach(ch => {
+        const top5 = ch.ranking.slice(0, 5);
+        if (top5.length > 0) {
+          record.individuals[ch.chKey] = {
+            chName: ch.chName,
+            title: CH_KING_TITLES[ch.chKey],
+            top5: top5.map(r => ({ name: r.name, value: r.value }))
+          };
+        }
+        if (ch.chKey === 'cash') return; // 現金王不記錄學院資料
+        const sortedAcad = [...ch.academies].sort((a, b) => b.value - a.value);
+        if (sortedAcad.length > 0) {
+          const selEl = document.getElementById('acadRep_' + ch.chKey);
+          const repId = selEl ? selEl.value : '';
+          const repCard = repId ? getCastleCards()[parseInt(repId)] : null;
+          record.academies[ch.chKey] = {
+            chName: ch.chName,
+            title: CH_ACAD_TITLES[ch.chKey],
+            topAcademy: sortedAcad[0].name,
+            topValue: sortedAcad[0].value,
+            representative: repCard ? repCard.name : '',
+            top5: sortedAcad.slice(0, 5).map(a => ({ name: a.name, value: a.value }))
+          };
+        }
+      });
+      history.push(record);
+      saveHonorHistory(history);
+      alert('✅ 嘉許記錄已儲存！（共 ' + history.length + ' 筆歷史記錄）');
+    }
+
+    // ========== 激勵排行榜 ==========
+    var _motivAcademy = [{"name":"中壢二部","value":2881646},{"name":"東區二部","value":2648288},{"name":"台中三部","value":2515480},{"name":"中壢學院","value":2396300},{"name":"台中學院","value":2369151},{"name":"高雄建國","value":2322056},{"name":"台中二部","value":2037363},{"name":"站二學院","value":1962163},{"name":"館前學院","value":1909139},{"name":"站前二部","value":1753781},{"name":"站前學院","value":1705653},{"name":"中壢三部","value":1659212},{"name":"板橋學院","value":1570025},{"name":"OBO個別指導","value":65335},{"name":"赫綵設計學院","value":1},{"name":"東區學院","value":0},{"name":"高雄學院","value":0}];
+    var _motivSales = [{"name":"陳怡雯","value":599203},{"name":"凃敏薰","value":599067},{"name":"易子莫","value":586986},{"name":"陳昕妮","value":549727},{"name":"楊雅晴","value":523069},{"name":"石韋頡","value":505011},{"name":"洪思婷","value":478401},{"name":"吳昀璇","value":468566},{"name":"林詩婕","value":449794},{"name":"吳郁瑾","value":436141},{"name":"盧嘉豪","value":418301},{"name":"宋和樹","value":403671},{"name":"邱屹芊","value":381940},{"name":"李念庭","value":379910},{"name":"陳千茹","value":361703},{"name":"何泳禛","value":358647},{"name":"黃筱涵","value":347076},{"name":"邱國龍","value":346003},{"name":"李幼綾","value":345984},{"name":"張承鈞","value":338916},{"name":"黃翰傑","value":322420},{"name":"游密純","value":301075},{"name":"陳煒翔","value":280309},{"name":"王奕期","value":276042},{"name":"鄭蕎萱","value":275587},{"name":"楊晏穎","value":274705},{"name":"黃士驊","value":262239},{"name":"范淯維","value":262006},{"name":"胡榮芳","value":259929},{"name":"吳淏芸","value":245509},{"name":"唐瑄成","value":245456},{"name":"李婉琳","value":242998},{"name":"楊雅筑","value":237991},{"name":"林栢舟","value":235225},{"name":"陳韻伃","value":234690},{"name":"蔡青倚","value":234338},{"name":"劉曉函","value":228213},{"name":"劉樺玲","value":226395},{"name":"黃翊","value":226157},{"name":"何紫寧","value":222394},{"name":"吳詠琪","value":215424},{"name":"陳品禎","value":210479},{"name":"曾亞芸","value":202053},{"name":"董慈娟","value":188273},{"name":"王楷翔","value":161638},{"name":"蔡宛凌","value":141884},{"name":"江安琪","value":134475},{"name":"吳盈緯","value":134207},{"name":"江佩蓮","value":130690},{"name":"柯珈安","value":120243},{"name":"陳思羽","value":109280},{"name":"繆秉岑","value":107234},{"name":"李翔威","value":60042},{"name":"蔡蕎安","value":59377},{"name":"林昭宏","value":58693},{"name":"張之薰","value":49002},{"name":"李岱謙","value":43465},{"name":"劉尚哲","value":22663},{"name":"凃佩妤","value":6779},{"name":"蔣慈","value":1083},{"name":"俞佳均","value":500},{"name":"陳玉淳","value":500},{"name":"張媛","value":200},{"name":"楊琇雯","value":0},{"name":"劉哲彣","value":0},{"name":"石宇皓","value":0},{"name":"王志軒","value":0},{"name":"姜惠馨","value":0},{"name":"杜唯熙","value":0},{"name":"黃雅慧","value":0},{"name":"唐鈺棋","value":0},{"name":"許文珊","value":0},{"name":"林季醇","value":0},{"name":"伍依儒","value":0},{"name":"廖世承","value":0},{"name":"蔡旻諭","value":0},{"name":"全歆玥","value":0},{"name":"林姿妤","value":0},{"name":"施品瑜","value":0},{"name":"曾雍盛","value":0}];
+    var _motivCurrentBoard = 0;
+
+    // Load from localStorage if available
+    (function(){
+      try {
+        var cid = '';
+        try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+        var saved = localStorage.getItem(cid + 'motiv_academy_v1');
+        if (saved) _motivAcademy = JSON.parse(saved);
+        var saved2 = localStorage.getItem(cid + 'motiv_sales_v1');
+        if (saved2) _motivSales = JSON.parse(saved2);
+      } catch(e){}
+    })();
+
+    function motivSaveData(){
+      try {
+        var cid = '';
+        try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+        localStorage.setItem(cid + 'motiv_academy_v1', JSON.stringify(_motivAcademy));
+        localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(_motivSales));
+      } catch(e){}
+    }
+
+    function motivFmt(n){
+      if (n == null || isNaN(n)) return '0';
+      return Math.round(Number(n)).toLocaleString('zh-TW');
+    }
+
+    function motivSwitchBoard(idx){
+      _motivCurrentBoard = idx;
+      document.querySelectorAll('.motiv-sub-tab').forEach(function(b,i){
+        b.classList.toggle('active', i === idx);
+      });
+      document.querySelectorAll('.motiv-board').forEach(function(b,i){
+        b.classList.toggle('active', i === idx);
+      });
+    }
+
+    function motivRenderBoard(data, podiumId, listId){
+      var sorted = data.slice().sort(function(a,b){ return (b.value||0) - (a.value||0); });
+      var maxVal = sorted.length > 0 ? (sorted[0].value || 1) : 1;
+      var medals = ['🥇','🥈','🥉'];
+      var topClass = ['top1','top2','top3'];
+      var listEl = document.getElementById(listId);
+
+      // All items in one unified list — top 3 get medal + special class
+      var listHtml = '';
+      for (var i = 0; i < sorted.length; i++){
+        var pct = maxVal > 0 ? Math.round((sorted[i].value||0) / maxVal * 100) : 0;
+        var barW = Math.max(pct, 2);
+        var rowCls = 'motiv-row';
+        var rankLabel = String(i + 1);
+        if (i < 3) {
+          rowCls += ' ' + topClass[i];
+          rankLabel = medals[i];
+        }
+        listHtml += '<div class="' + rowCls + '">'
+          + '<div class="motiv-row-bar" style="width:calc(' + barW + '% - 46px);background:linear-gradient(90deg,rgba(74,234,255,.1),rgba(167,139,250,.04));"></div>'
+          + '<div class="motiv-rank">' + rankLabel + '</div>'
+          + '<div class="motiv-row-info">'
+          + '<span class="motiv-row-name">' + (sorted[i].name||'') + '</span>'
+          + '<span class="motiv-row-val">$' + motivFmt(sorted[i].value) + '</span>'
+          + '</div></div>';
+      }
+      listEl.innerHTML = listHtml;
+    }
+
+    function motivRenderAll(){
+      motivRenderBoard(_motivAcademy, 'motivPodium0', 'motivList0');
+      motivRenderBoard(_motivSales, 'motivPodium1', 'motivList1');
+      // Show update time
+      var info = document.getElementById('motivUpdateInfo');
+      if (info) {
+        try {
+          var cid = '';
+          try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+          var t = localStorage.getItem(cid + 'motiv_updated_at');
+          if (t) info.textContent = '上次更新: ' + t;
+        } catch(e){}
+      }
+    }
+
+    function motivImportFile(evt){
+      var file = evt.target.files[0];
+      if (!file) return;
+      var ext = file.name.split('.').pop().toLowerCase();
+
+      if (ext === 'csv') {
+        var reader = new FileReader();
+        reader.onload = function(e){
+          motivParseCSV(e.target.result);
+        };
+        reader.readAsText(file);
+      } else {
+        // xlsx / numbers → use SheetJS
+        motivLoadSheetJS(function(){
+          var reader = new FileReader();
+          reader.onload = function(e){
+            try {
+              var wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+              motivParseWorkbook(wb);
+            } catch(err){
+              alert('❌ 無法解析檔案: ' + err.message);
+            }
+          };
+          reader.readAsArrayBuffer(file);
+        });
+      }
+      evt.target.value = '';
+    }
+
+    function motivLoadSheetJS(cb){
+      if (window.XLSX) return cb();
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = cb;
+      s.onerror = function(){ alert('❌ 無法載入 SheetJS 函式庫'); };
+      document.head.appendChild(s);
+    }
+
+    function motivParseWorkbook(wb){
+      if (wb.SheetNames.length < 2) {
+        alert('⚠️ 需要至少 2 個工作表（工作表1=學院排名, 工作表2=業務排名）');
+        return;
+      }
+
+      // Sheet 1: 學院排名 — Col B=學院, Col M=業績
+      var ws1 = wb.Sheets[wb.SheetNames[0]];
+      var rows1 = XLSX.utils.sheet_to_json(ws1, {header:1, defval:''});
+      var newAcademy = [];
+      // Find header row
+      var hdr1 = rows1[0] || [];
+      var colName1 = 1; // B
+      var colVal1 = 12; // M
+      // Try to auto-detect columns
+      for (var c = 0; c < hdr1.length; c++){
+        if (String(hdr1[c]).indexOf('學院') >= 0 && colName1 === 1) colName1 = c;
+        if (String(hdr1[c]) === '業績' && colVal1 === 12) colVal1 = c;
+      }
+      for (var r = 1; r < rows1.length; r++){
+        var nm = rows1[r][colName1];
+        var vl = rows1[r][colVal1];
+        if (nm && nm !== '') {
+          var numVal = typeof vl === 'number' ? vl : parseFloat(String(vl).replace(/,/g,'')) || 0;
+          newAcademy.push({name: String(nm), value: numVal});
+        }
+      }
+      newAcademy.sort(function(a,b){ return b.value - a.value; });
+
+      // Sheet 2: 業務排名 — Col C=姓名, Col N=合計業績
+      var ws2 = wb.Sheets[wb.SheetNames[1]];
+      var rows2 = XLSX.utils.sheet_to_json(ws2, {header:1, defval:''});
+      var newSales = [];
+      var hdr2 = rows2[0] || [];
+      var colName2 = 2; // C
+      var colVal2 = 13; // N
+      for (var c = 0; c < hdr2.length; c++){
+        if (String(hdr2[c]).indexOf('姓名') >= 0 && colName2 === 2) colName2 = c;
+        if (String(hdr2[c]).indexOf('合計業績') >= 0 && colVal2 === 13) colVal2 = c;
+      }
+      for (var r = 1; r < rows2.length; r++){
+        var nm = rows2[r][colName2];
+        var vl = rows2[r][colVal2];
+        if (nm && nm !== '') {
+          var numVal = typeof vl === 'number' ? vl : parseFloat(String(vl).replace(/,/g,'')) || 0;
+          newSales.push({name: String(nm), value: numVal});
+        }
+      }
+      newSales.sort(function(a,b){ return b.value - a.value; });
+
+      if (newAcademy.length === 0 && newSales.length === 0){
+        alert('⚠️ 未找到有效資料，請確認檔案格式');
+        return;
+      }
+
+      _motivAcademy = newAcademy;
+      _motivSales = newSales;
+      motivSaveData();
+      // Save update time
+      try {
+        var cid = '';
+        try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+        var now = new Date();
+        localStorage.setItem(cid + 'motiv_updated_at', now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate() + ' ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0'));
+      } catch(e){}
+      motivRenderAll();
+      alert('✅ 匯入成功！學院 ' + newAcademy.length + ' 筆，業務 ' + newSales.length + ' 筆');
+    }
+
+    function motivParseCSV(text){
+      alert('⚠️ CSV 格式暫不支援，請使用 .xlsx 或 .numbers 檔案');
+    }
+
+    function motivTriggerEipSync(){
+      alert('請點擊瀏覽器右上角的「🏆 EIP 激勵同步」擴充功能圖示，\n選擇年月後按「從 EIP 同步資料」。\n\n如尚未安裝，請到 chrome://extensions 載入 appedu-eip-sync 資料夾。');
+    }
+
+    // Initialize on load
+    window.addEventListener('load', init);
+  </script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

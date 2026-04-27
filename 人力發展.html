@@ -1,0 +1,3691 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人力發展 - 太空基地</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width:100vw; height:100vh; overflow:hidden;
+    font-family:'Noto Sans TC',sans-serif;
+    background:radial-gradient(ellipse at 30% 20%,#0b1a3e 0%,#060d1f 50%,#020810 100%);
+    color:#e0e8ff; position:relative;
+  }
+  #stars-canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+  .nebula { position:fixed; border-radius:50%; filter:blur(80px); opacity:0.18; z-index:0; pointer-events:none; }
+  .nebula-1 { width:600px; height:600px; background:radial-gradient(circle,#6c3baa,transparent); top:-10%; left:-5%; }
+  .nebula-2 { width:500px; height:500px; background:radial-gradient(circle,#1a6baa,transparent); bottom:-10%; right:-5%; }
+  .nebula-3 { width:400px; height:400px; background:radial-gradient(circle,#aa3b6c,transparent); top:40%; left:50%; }
+  .panel {
+    background:rgba(15,25,60,0.7); border:1px solid rgba(100,160,255,0.25);
+    border-radius:16px; backdrop-filter:blur(12px);
+    box-shadow:0 0 20px rgba(80,140,255,0.1),inset 0 0 30px rgba(80,140,255,0.05);
+  }
+
+  /* ===== 左上 ===== */
+  .top-left { position:absolute; top:24px; left:24px; z-index:10; display:flex; align-items:center; gap:16px; }
+  .mascot-wrap {
+    width:72px; height:72px; border-radius:50%;
+    background:linear-gradient(135deg,#ffd54f,#ff8f00);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; position:relative; overflow:hidden;
+    box-shadow:0 0 18px rgba(255,200,50,0.4); transition:transform 0.3s;
+  }
+  .mascot-wrap:hover { transform:scale(1.1); }
+  .mascot-wrap img { width:100%; height:100%; object-fit:cover; border-radius:50%; display:none; }
+  .mascot-wrap .mascot-emoji { font-size:38px; }
+  .mascot-wrap input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .date-block { display:flex; gap:8px; }
+  .date-cell {
+    padding:8px 16px; border-radius:10px;
+    font-family:'Orbitron',monospace; font-weight:700; font-size:18px;
+    background:linear-gradient(180deg,rgba(80,160,255,0.2),rgba(40,80,160,0.3));
+    border:1px solid rgba(100,180,255,0.3); color:#b0d4ff;
+    text-shadow:0 0 8px rgba(100,180,255,0.5); min-width:50px; text-align:center;
+  }
+  .progress-row { display:flex; align-items:center; gap:10px; margin-top:8px; font-size:13px; color:#8ab4ff; }
+  .progress-bar { flex:1; height:8px; border-radius:4px; background:rgba(255,255,255,0.08); overflow:hidden; }
+  .progress-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,#ffd54f,#ff8f00); box-shadow:0 0 10px rgba(255,180,0,0.5); transition:width 0.5s; }
+  .revenue-stats { display:flex; gap:12px; margin-top:5px; font-size:11px; color:#7a9abf; flex-wrap:wrap; }
+  .revenue-stats span { white-space:nowrap; }
+  .revenue-stats .rv-val { color:#ffd54f; font-weight:700; }
+
+  /* ===== 右上 ===== */
+  .top-right { position:absolute; top:24px; right:24px; z-index:10; display:flex; align-items:center; gap:14px; }
+  .icon-btn {
+    width:48px; height:48px; border-radius:50%;
+    background:rgba(15,25,60,0.7); border:1px solid rgba(100,160,255,0.3);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; position:relative; transition:all 0.3s; font-size:22px; backdrop-filter:blur(8px);
+  }
+  .icon-btn:hover { background:rgba(60,120,255,0.25); box-shadow:0 0 18px rgba(80,140,255,0.4); transform:scale(1.1); }
+  .badge {
+    position:absolute; top:-4px; right:-4px; width:20px; height:20px; border-radius:50%;
+    background:linear-gradient(135deg,#ff5252,#ff1744);
+    font-size:11px; font-weight:700; color:#fff;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(255,23,68,0.5);
+  }
+  .save-toast {
+    position:fixed; top:80px; right:24px; z-index:999;
+    padding:12px 24px; border-radius:12px; background:rgba(0,200,100,0.9); color:#fff; font-weight:700; font-size:14px;
+    opacity:0; transform:translateY(-10px); transition:all 0.4s; pointer-events:none;
+  }
+  .save-toast.show { opacity:1; transform:translateY(0); }
+
+  /* ===== 左下：組長評核 ===== */
+  .bottom-left {
+    position:absolute; bottom:24px; left:24px; z-index:10; padding:18px 22px; min-width:230px; cursor:pointer;
+  }
+  .bl-title { font-size:13px; font-weight:700; color:#8ab4ff; margin-bottom:10px; letter-spacing:2px; }
+  .total-score-display {
+    font-family:'Orbitron',monospace; font-size:36px; font-weight:900;
+    background:linear-gradient(90deg,#ffd54f,#ff8f00);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    line-height:1;
+  }
+  .total-score-unit { font-size:14px; color:#8a7040; font-weight:600; margin-left:2px; }
+  .score-sub { font-size:12px; color:#6a8fcc; margin-top:4px; }
+  .dim-bars { margin-top:10px; display:flex; flex-direction:column; gap:5px; }
+  .dim-bar-row { display:flex; align-items:center; gap:6px; }
+  .dim-bar-name { font-size:10px; color:#8aa0cc; min-width:52px; text-align:right; letter-spacing:0.5px; }
+  .dim-bar-track { flex:1; height:7px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden; min-width:60px; }
+  .dim-bar-fill { height:100%; border-radius:4px; transition:width 0.6s ease; }
+  .dim-bar-val { font-size:10px; color:#94a3b8; min-width:32px; font-family:'Orbitron',monospace; font-weight:600; }
+  .upload-score-btn {
+    margin-top:12px; padding:8px 18px; border-radius:8px;
+    background:linear-gradient(135deg,rgba(100,180,255,0.2),rgba(60,120,200,0.3));
+    border:1px solid rgba(100,180,255,0.3); color:#a0ccff; font-size:13px; font-weight:600;
+    cursor:pointer; transition:all 0.3s; display:inline-flex; align-items:center; gap:6px;
+  }
+  .upload-score-btn:hover { box-shadow:0 0 15px rgba(80,140,255,0.3); }
+
+  /* ===== 右下 ===== */
+  .bottom-right { position:absolute; bottom:24px; right:24px; z-index:10; display:flex; align-items:flex-end; gap:16px; }
+  .speech-bubble {
+    background:rgba(255,255,255,0.9); color:#333; padding:12px 16px; border-radius:14px 14px 4px 14px;
+    font-size:14px; font-weight:500; max-width:180px; box-shadow:0 4px 20px rgba(0,0,0,0.15);
+  }
+  .profile-area { display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; position:relative; }
+  .profile-circle {
+    width:140px; height:140px; border-radius:50%;
+    background:linear-gradient(135deg,#ffd54f,#ffe082);
+    display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;
+    box-shadow:0 0 30px rgba(255,200,50,0.3); transition:transform 0.3s;
+  }
+  .profile-circle:hover { transform:scale(1.05); }
+  .profile-circle img { width:100%; height:100%; object-fit:cover; display:none; }
+  .profile-circle .profile-placeholder { font-size:60px; opacity:0.8; }
+  .profile-circle input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .profile-label {
+    padding:6px 18px; border-radius:20px; background:rgba(255,255,255,0.9);
+    color:#333; font-size:14px; font-weight:700; box-shadow:0 2px 12px rgba(0,0,0,0.1); outline:none;
+  }
+
+  /* ===== 中央 ===== */
+  .center-stage {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:5; display:flex; flex-direction:column; align-items:center; gap:20px;
+  }
+  .center-title {
+    font-family:'Orbitron',monospace; font-size:22px; font-weight:900;
+    padding:10px 36px; border-radius:30px;
+    background:rgba(15,25,60,0.7); border:1px solid rgba(100,180,255,0.35);
+    color:#c0dcff; text-shadow:0 0 12px rgba(100,180,255,0.5); letter-spacing:4px; backdrop-filter:blur(8px);
+  }
+  .hex-grid { display:flex; align-items:center; gap:0; position:relative; }
+  .hex-building {
+    width:200px; height:220px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    cursor:pointer; position:relative; transition:transform 0.4s; will-change:transform;
+  }
+  .hex-building:hover { transform:translateY(-10px) scale(1.05); }
+  .hex-building:hover .hex-glow { opacity:1; }
+  .hex-shape {
+    width:170px; height:170px;
+    clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+    display:flex; align-items:center; justify-content:center; position:relative;
+    overflow:hidden; -webkit-backface-visibility:hidden; backface-visibility:hidden;
+  }
+  .hex-shape img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; }
+  .hex-glow { position:absolute; inset:-20px; border-radius:50%; opacity:0; transition:opacity 0.4s; pointer-events:none; filter:blur(30px); }
+  .hex-building.castle .hex-shape { background:linear-gradient(180deg,#1a237e,#283593); width:200px; height:200px; }
+  .hex-building.castle .hex-glow { background:rgba(80,120,255,0.3); }
+  .hex-building.castle { z-index:3; }
+  .hex-building.training .hex-shape { background:linear-gradient(180deg,#4a148c,#6a1b9a); }
+  .hex-building.training .hex-glow { background:rgba(160,80,255,0.3); }
+  .hex-building.plaza .hex-shape { background:linear-gradient(180deg,#004d40,#00695c); }
+  .hex-building.plaza .hex-glow { background:rgba(80,255,180,0.3); }
+  .hex-building.perf .hex-shape { background:linear-gradient(180deg,#0d47a1,#1565c0); }
+  .hex-building.perf .hex-glow { background:rgba(50,160,255,0.3); }
+  .hex-icon { font-size:52px; z-index:2; filter:drop-shadow(0 0 10px rgba(255,255,255,0.3)); }
+  .hex-label { margin-top:10px; font-size:16px; font-weight:700; letter-spacing:3px; text-shadow:0 0 10px rgba(100,180,255,0.5); }
+  .hex-change-btn {
+    position:absolute; bottom:30px; right:10px; z-index:5;
+    width:32px; height:32px; border-radius:50%;
+    background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3);
+    display:flex; align-items:center; justify-content:center; font-size:14px; cursor:pointer;
+    opacity:0; transition:opacity 0.3s; overflow:hidden;
+  }
+  .hex-building:hover .hex-change-btn { opacity:1; }
+  .hex-change-btn input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .connector { width:50px; height:3px; background:linear-gradient(90deg,transparent,rgba(100,180,255,0.4),transparent); box-shadow:0 0 8px rgba(100,180,255,0.2); z-index:1; }
+  .add-zone {
+    position:absolute; bottom:-70px; width:56px; height:56px; border-radius:50%;
+    background:rgba(100,180,255,0.1); border:2px dashed rgba(100,180,255,0.3);
+    display:flex; align-items:center; justify-content:center; font-size:28px; color:rgba(100,180,255,0.5);
+    cursor:pointer; transition:all 0.3s;
+  }
+  .add-zone:hover { background:rgba(100,180,255,0.2); border-color:rgba(100,180,255,0.5); color:rgba(100,180,255,0.8); }
+
+  /* ===== 行星 ===== */
+  .floating-planet { position:fixed; z-index:1; pointer-events:none; border-radius:50%; opacity:0.6; }
+  .planet-1 { width:80px; height:80px; top:15%; right:18%; background:radial-gradient(circle at 35% 35%,#ff9e80,#d84315); box-shadow:0 0 30px rgba(216,67,21,0.4); animation:floatY 8s ease-in-out infinite; }
+  .planet-2 { width:40px; height:40px; top:70%; left:15%; background:radial-gradient(circle at 35% 35%,#80d8ff,#0277bd); box-shadow:0 0 20px rgba(2,119,189,0.4); animation:floatY 6s ease-in-out infinite 2s; }
+  .planet-3 { width:25px; height:25px; top:30%; left:30%; background:radial-gradient(circle at 35% 35%,#ffe082,#ff8f00); box-shadow:0 0 15px rgba(255,143,0,0.4); animation:floatY 10s ease-in-out infinite 4s; }
+  .planet-1::after { content:''; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotateX(70deg); width:130px; height:130px; border-radius:50%; border:3px solid rgba(255,158,128,0.3); }
+  @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }
+
+  /* ========== 廣場 / 子頁面共用浮層 ========== */
+  .page-overlay {
+    position:fixed; inset:0; z-index:150;
+    display:flex; align-items:flex-end; justify-content:center;
+    pointer-events:none; opacity:0;
+    transition:opacity 0.4s;
+  }
+  .page-overlay.active { pointer-events:auto; opacity:1; }
+  .page-overlay .page-backdrop {
+    position:absolute; inset:0;
+    background:rgba(0,0,0,0.5);
+    backdrop-filter:blur(6px);
+  }
+  .page-overlay .page-panel {
+    position:relative; z-index:2;
+    width:96%; max-width:1200px; height:92vh;
+    border-radius:28px 28px 0 0;
+    overflow:hidden;
+    transform:translateY(100%);
+    transition:transform 0.5s cubic-bezier(0.22,1,0.36,1);
+    display:flex; flex-direction:column;
+  }
+  .page-overlay.active .page-panel {
+    transform:translateY(0);
+  }
+  /* 廣場特有背景 */
+  .plaza-bg {
+    background:linear-gradient(180deg,#060d2a 0%,#0a1545 30%,#0c1a55 100%);
+    border:1px solid rgba(100,180,255,0.2);
+    box-shadow:0 -10px 60px rgba(60,120,255,0.2);
+  }
+  .page-header {
+    padding:20px 30px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid rgba(100,180,255,0.15);
+    background:rgba(0,0,0,0.2); flex-shrink:0;
+  }
+  .page-header h2 {
+    font-family:'Orbitron',monospace; font-size:20px; color:#c0dcff;
+    letter-spacing:3px; text-shadow:0 0 12px rgba(100,180,255,0.5);
+  }
+  .page-close {
+    width:40px; height:40px; border-radius:50%; background:rgba(255,60,60,0.15);
+    border:1px solid rgba(255,60,60,0.3); color:#ff6b6b; font-size:20px;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.3s;
+  }
+  .page-close:hover { background:rgba(255,60,60,0.3); transform:scale(1.1); }
+
+  /* ===== 返回按鈕（手機友善） ===== */
+  .nav-back-btn {
+    padding:6px 14px; border-radius:8px; font-size:13px; font-weight:700;
+    background:rgba(74,234,255,0.08); border:1px solid rgba(74,234,255,0.25);
+    color:#4aeaff; cursor:pointer; transition:all 0.25s; font-family:inherit;
+    white-space:nowrap; letter-spacing:0.5px; flex-shrink:0;
+  }
+  .nav-back-btn:hover { background:rgba(74,234,255,0.18); border-color:rgba(74,234,255,0.5); }
+  .nav-back-btn:active { transform:scale(0.95); }
+
+  /* ===== 廣場地圖內容 ===== */
+  .plaza-map {
+    flex:1; position:relative; overflow:hidden;
+    background:
+      radial-gradient(ellipse at 20% 80%, rgba(60,100,255,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 30%, rgba(120,60,200,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(20,40,100,0.4) 0%, transparent 70%);
+  }
+  /* 星際地面 */
+  .plaza-ground {
+    position:absolute; bottom:0; left:0; right:0; height:55%;
+    background:linear-gradient(180deg,transparent 0%,rgba(20,30,80,0.4) 20%,rgba(15,25,60,0.7) 100%);
+    border-top:2px solid rgba(100,180,255,0.1);
+    clip-path:ellipse(75% 100% at 50% 100%);
+  }
+  /* 星際河流 */
+  .plaza-river {
+    position:absolute; top:25%; left:30%; width:45%; height:50%;
+    pointer-events:none;
+  }
+  .plaza-river svg { width:100%; height:100%; }
+
+  /* ===== 廣場建築物 ===== */
+  .plaza-building {
+    position:absolute; display:flex; flex-direction:column; align-items:center; gap:8px;
+    cursor:pointer; transition:transform 0.4s, filter 0.4s; z-index:5;
+  }
+  .plaza-building:hover { transform:scale(1.08) translateY(-8px); }
+  .plaza-building:hover .pb-glow { opacity:1; }
+  .pb-icon-wrap {
+    width:120px; height:120px; border-radius:20px; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; transition:all 0.4s;
+  }
+  .pb-icon-wrap img {
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:20px; display:none;
+  }
+  .pb-glow {
+    position:absolute; inset:-15px; border-radius:50%; opacity:0;
+    transition:opacity 0.4s; pointer-events:none; filter:blur(25px);
+  }
+  .pb-icon { font-size:56px; z-index:2; filter:drop-shadow(0 4px 12px rgba(0,0,0,0.4)); }
+  .pb-label {
+    font-size:16px; font-weight:900; letter-spacing:3px;
+    text-shadow:0 0 12px rgba(100,180,255,0.6),0 2px 4px rgba(0,0,0,0.5);
+  }
+  .pb-sublabel {
+    font-size:11px; color:#8ab4ff; font-weight:600; letter-spacing:1px;
+    background:rgba(0,0,0,0.3); padding:2px 10px; border-radius:8px;
+  }
+  /* 金色六角徽章 */
+  .pb-badge {
+    position:absolute; top:-8px; right:-8px; z-index:10;
+    width:30px; height:30px;
+    background:radial-gradient(circle,#ffd54f,#ff8f00);
+    clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 12px rgba(255,180,0,0.5);
+    animation:pulse-badge 2s ease-in-out infinite;
+  }
+  @keyframes pulse-badge { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+
+  /* 各建築配色 */
+  .pb-ocean .pb-icon-wrap { background:linear-gradient(180deg,#0d47a1,#1565c0); box-shadow:0 8px 30px rgba(21,101,192,0.4); }
+  .pb-ocean .pb-glow { background:rgba(30,136,229,0.4); }
+  .pb-court .pb-icon-wrap { background:linear-gradient(180deg,#4a148c,#7b1fa2); box-shadow:0 8px 30px rgba(123,31,162,0.4); }
+  .pb-court .pb-glow { background:rgba(156,39,176,0.4); }
+  .pb-waterfall .pb-icon-wrap { background:linear-gradient(180deg,#006064,#00838f); box-shadow:0 8px 30px rgba(0,131,143,0.4); }
+  .pb-waterfall .pb-glow { background:rgba(0,188,212,0.4); }
+  .pb-vault .pb-icon-wrap { background:linear-gradient(180deg,#bf360c,#e65100); box-shadow:0 8px 30px rgba(230,81,0,0.4); }
+  .pb-vault .pb-glow { background:rgba(255,111,0,0.4); }
+  .pb-fire .pb-icon-wrap { background:linear-gradient(180deg,#b71c1c,#d32f2f); box-shadow:0 8px 30px rgba(211,47,47,0.4); }
+  .pb-fire .pb-glow { background:rgba(244,67,54,0.4); }
+
+  /* 建築位置（仿截圖佈局） */
+  .pb-ocean    { left:6%;  bottom:12%; }
+  .pb-court    { left:18%; top:14%; }
+  .pb-waterfall { right:18%; top:10%; }
+  .pb-vault    { right:5%; bottom:15%; }
+  .pb-fire     { left:50%; bottom:8%; transform:translateX(-50%); }
+  .pb-fire:hover { transform:translateX(-50%) scale(1.08) translateY(-8px); }
+
+  /* 換圖按鈕(廣場建築用) */
+  .pb-change-btn {
+    position:absolute; bottom:0; right:0; z-index:15;
+    width:28px; height:28px; border-radius:50%;
+    background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3);
+    display:flex; align-items:center; justify-content:center; font-size:12px;
+    cursor:pointer; opacity:0; transition:opacity 0.3s; overflow:hidden;
+  }
+  .plaza-building:hover .pb-change-btn { opacity:1; }
+  .pb-change-btn input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+
+  /* ========== 子頁面（大海/法院/瀑布/藏寶庫/火種） ========== */
+  .subpage-bg {
+    background:linear-gradient(180deg,#040b20 0%,#081030 40%,#0a1545 100%);
+    border:1px solid rgba(100,180,255,0.2);
+    box-shadow:0 -10px 60px rgba(60,120,255,0.15);
+  }
+  .subpage-content {
+    flex:1; overflow-y:auto; padding:40px; display:flex; flex-direction:column; align-items:center;
+  }
+  .subpage-content::-webkit-scrollbar { width:6px; }
+  .subpage-content::-webkit-scrollbar-thumb { background:rgba(100,180,255,0.3); border-radius:3px; }
+  .subpage-hero {
+    font-size:80px; margin-bottom:20px;
+    filter:drop-shadow(0 0 20px rgba(100,180,255,0.4));
+    animation:floatY 4s ease-in-out infinite;
+  }
+  .subpage-title {
+    font-family:'Orbitron',monospace; font-size:28px; font-weight:900;
+    color:#c0dcff; letter-spacing:4px; margin-bottom:8px;
+    text-shadow:0 0 20px rgba(100,180,255,0.5);
+  }
+  .subpage-subtitle {
+    font-size:14px; color:#6a8fcc; margin-bottom:30px; letter-spacing:2px;
+  }
+  .subpage-placeholder {
+    padding:40px 60px; border-radius:20px;
+    background:rgba(15,25,60,0.5); border:1px dashed rgba(100,180,255,0.2);
+    text-align:center; color:#4a6fa5; font-size:15px; line-height:2;
+    max-width:600px;
+  }
+
+  /* ===== 成績單檢視器 ===== */
+  .score-viewer-overlay {
+    position:fixed; inset:0; z-index:300;
+    background:rgba(0,0,0,0.85); backdrop-filter:blur(10px);
+    display:none; flex-direction:column;
+  }
+  .score-viewer-overlay.active { display:flex; }
+  .sv-header {
+    padding:20px 30px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid rgba(100,180,255,0.2);
+  }
+  .sv-header h2 { font-family:'Orbitron',monospace; color:#a0ccff; font-size:20px; }
+  .sv-close {
+    width:40px; height:40px; border-radius:50%; background:rgba(255,60,60,0.2);
+    border:1px solid rgba(255,60,60,0.4); color:#ff6b6b; font-size:20px;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.3s;
+  }
+  .sv-close:hover { background:rgba(255,60,60,0.4); }
+  .sv-body { flex:1; overflow-y:auto; padding:30px; display:flex; flex-direction:column; align-items:center; gap:30px; }
+  .sv-body::-webkit-scrollbar { width:8px; }
+  .sv-body::-webkit-scrollbar-thumb { background:rgba(100,180,255,0.3); border-radius:4px; }
+  .sv-card { max-width:900px; width:100%; border-radius:16px; overflow:hidden; background:rgba(15,25,60,0.6); border:1px solid rgba(100,180,255,0.2); }
+  .sv-card-header {
+    padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
+    background:rgba(100,180,255,0.1); border-bottom:1px solid rgba(100,180,255,0.15);
+  }
+  .sv-card-header span { font-weight:700; color:#8ab4ff; font-size:14px; }
+  .sv-card-delete { background:none; border:none; color:#ff6b6b; cursor:pointer; font-size:18px; opacity:0.6; transition:opacity 0.2s; }
+  .sv-card-delete:hover { opacity:1; }
+  .sv-card-content { padding:20px; display:flex; justify-content:center; }
+  .sv-card-content img { max-width:100%; max-height:70vh; border-radius:8px; }
+  .sv-card-content object { width:100%; height:70vh; border-radius:8px; }
+  .sv-empty { color:#6a8fcc; font-size:16px; text-align:center; margin-top:60px; }
+  .sv-add-btn {
+    padding:14px 30px; border-radius:12px;
+    background:linear-gradient(135deg,rgba(100,180,255,0.2),rgba(60,120,200,0.3));
+    border:1px solid rgba(100,180,255,0.3); color:#a0ccff; font-size:15px; font-weight:700;
+    cursor:pointer; transition:all 0.3s; display:inline-flex; align-items:center; gap:8px; position:relative; overflow:hidden;
+  }
+  .sv-add-btn:hover { box-shadow:0 0 20px rgba(80,140,255,0.3); }
+  .sv-add-btn input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+
+  /* ===== 後台 ===== */
+  .admin-overlay {
+    position:fixed; inset:0; z-index:250;
+    background:rgba(0,0,0,0.85); backdrop-filter:blur(10px);
+    display:none; align-items:center; justify-content:center;
+  }
+  .admin-overlay.active { display:flex; }
+  .admin-panel {
+    width:90%; max-width:700px; max-height:85vh;
+    background:rgba(10,18,50,0.97); border:1px solid rgba(100,180,255,0.3);
+    border-radius:20px; overflow:hidden; display:flex; flex-direction:column;
+    box-shadow:0 0 60px rgba(80,140,255,0.15);
+  }
+  .admin-header {
+    padding:24px 30px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid rgba(100,180,255,0.2); background:rgba(100,180,255,0.05);
+  }
+  .admin-header h2 { font-family:'Orbitron',monospace; color:#a0ccff; font-size:18px; letter-spacing:2px; }
+  .admin-body { flex:1; overflow-y:auto; padding:30px; }
+  .admin-body::-webkit-scrollbar { width:6px; }
+  .admin-body::-webkit-scrollbar-thumb { background:rgba(100,180,255,0.3); border-radius:3px; }
+  .admin-section { margin-bottom:28px; }
+  .admin-section h3 { font-size:14px; font-weight:700; color:#ffd54f; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid rgba(255,213,79,0.2); }
+  .admin-row { display:flex; align-items:center; gap:14px; margin-bottom:12px; }
+  .admin-row label { min-width:100px; font-size:13px; color:#8ab4ff; font-weight:600; }
+  .admin-row input[type="text"] {
+    flex:1; padding:8px 14px; border-radius:8px;
+    background:rgba(255,255,255,0.06); border:1px solid rgba(100,180,255,0.2);
+    color:#e0e8ff; font-size:14px; outline:none;
+  }
+  .admin-row input[type="text"]:focus { border-color:rgba(100,180,255,0.5); }
+  .admin-img-preview {
+    width:60px; height:60px; border-radius:12px; overflow:hidden;
+    background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; font-size:28px;
+  }
+  .admin-img-preview img { width:100%; height:100%; object-fit:cover; }
+  .admin-file-btn {
+    padding:6px 14px; border-radius:6px; background:rgba(100,180,255,0.15);
+    border:1px solid rgba(100,180,255,0.25); color:#8ab4ff; font-size:12px;
+    cursor:pointer; position:relative; overflow:hidden;
+  }
+  .admin-file-btn input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .admin-save-btn {
+    width:100%; padding:14px; border-radius:12px;
+    background:linear-gradient(135deg,#1a237e,#3949ab);
+    border:1px solid rgba(100,180,255,0.3); color:#c0dcff; font-size:16px; font-weight:700;
+    cursor:pointer; transition:all 0.3s; letter-spacing:2px;
+  }
+  .admin-save-btn:hover { box-shadow:0 0 25px rgba(80,140,255,0.4); }
+  .admin-danger-btn {
+    width:100%; padding:12px; border-radius:10px; margin-top:10px;
+    background:rgba(255,60,60,0.1); border:1px solid rgba(255,60,60,0.3);
+    color:#ff6b6b; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.3s;
+  }
+  .admin-danger-btn:hover { background:rgba(255,60,60,0.2); }
+
+  /* 通用彈窗 */
+  .modal-overlay {
+    position:fixed; inset:0; z-index:100;
+    background:rgba(0,0,0,0.6); backdrop-filter:blur(6px);
+    display:none; align-items:center; justify-content:center;
+  }
+  .modal-overlay.active { display:flex; }
+  .modal-box {
+    padding:40px; border-radius:20px; max-width:420px; width:90%;
+    background:rgba(15,25,60,0.95); border:1px solid rgba(100,180,255,0.3);
+    text-align:center; box-shadow:0 0 40px rgba(80,140,255,0.2);
+  }
+  .modal-box h3 { font-family:'Orbitron',monospace; font-size:20px; color:#a0ccff; margin-bottom:16px; }
+  .modal-box p { color:#8ab4ff; font-size:14px; line-height:1.7; white-space:pre-line; }
+  .modal-close {
+    margin-top:24px; padding:10px 32px; border-radius:10px;
+    background:linear-gradient(135deg,#3949ab,#1a237e);
+    border:1px solid rgba(100,160,255,0.3); color:#c0dcff; font-size:14px; font-weight:700;
+    cursor:pointer; transition:all 0.3s;
+  }
+  .modal-close:hover { box-shadow:0 0 20px rgba(80,140,255,0.4); }
+
+  /* ===== ☀️ 白天模式 ===== */
+  body.day-mode {
+    background:linear-gradient(180deg,#c9e8ff 0%,#f0e4f7 40%,#fde8f0 70%,#fff5f0 100%);
+    color:#4a3a5c;
+  }
+  body.day-mode #stars-canvas { opacity:0; }
+  body.day-mode .nebula-1 { background:radial-gradient(circle,#f0c8e8,transparent); opacity:0.35; }
+  body.day-mode .nebula-2 { background:radial-gradient(circle,#c8d8f8,transparent); opacity:0.3; }
+  body.day-mode .nebula-3 { background:radial-gradient(circle,#e8c8f0,transparent); opacity:0.25; }
+  body.day-mode .panel {
+    background:rgba(255,255,255,0.65); border-color:rgba(200,180,220,0.4);
+    box-shadow:0 4px 24px rgba(180,160,200,0.15),inset 0 0 20px rgba(255,255,255,0.3);
+  }
+  body.day-mode .top-left .date-cell {
+    background:linear-gradient(180deg,rgba(220,200,240,0.4),rgba(200,180,230,0.3));
+    border-color:rgba(180,160,220,0.4); color:#6a5a8a;
+    text-shadow:none;
+  }
+  body.day-mode .icon-btn {
+    background:rgba(255,255,255,0.6); border-color:rgba(180,160,220,0.4);
+    color:#6a5a8a;
+  }
+  body.day-mode .icon-btn:hover { background:rgba(220,200,240,0.5); box-shadow:0 0 15px rgba(180,160,220,0.3); }
+  body.day-mode .center-title {
+    background:rgba(255,255,255,0.7); border-color:rgba(200,180,230,0.4);
+    color:#6a4a8a; text-shadow:0 1px 3px rgba(180,160,220,0.3);
+  }
+  body.day-mode .hex-building.castle .hex-shape { background:linear-gradient(180deg,#d8c0f0,#e8d4f8); }
+  body.day-mode .hex-building.castle .hex-glow { background:rgba(200,170,240,0.3); }
+  body.day-mode .hex-building.training .hex-shape { background:linear-gradient(180deg,#e0c0e8,#f0d0f0); }
+  body.day-mode .hex-building.training .hex-glow { background:rgba(220,180,240,0.3); }
+  body.day-mode .hex-building.plaza .hex-shape { background:linear-gradient(180deg,#c0e0d8,#d8f0e8); }
+  body.day-mode .hex-building.plaza .hex-glow { background:rgba(160,220,200,0.3); }
+  body.day-mode .hex-building.perf .hex-shape { background:linear-gradient(180deg,#c0d8f0,#d8e8f8); }
+  body.day-mode .hex-building.perf .hex-glow { background:rgba(160,200,240,0.3); }
+  body.day-mode .hex-label { color:#6a5a8a; text-shadow:0 1px 3px rgba(180,160,220,0.3); }
+  body.day-mode .hex-icon { filter:drop-shadow(0 2px 4px rgba(120,100,160,0.2)); }
+  body.day-mode .connector { background:linear-gradient(90deg,transparent,rgba(200,180,230,0.5),transparent); box-shadow:0 0 6px rgba(200,180,230,0.2); }
+  body.day-mode .bl-title { color:#8a6aaa; }
+  body.day-mode .total-score-display { background:linear-gradient(90deg,#c060a0,#8a50c0); -webkit-background-clip:text; }
+  body.day-mode .total-score-unit { color:#a080b0; }
+  body.day-mode .score-sub { color:#8a7aaa; }
+  body.day-mode .dim-bar-name { color:#8a7aaa; }
+  body.day-mode .dim-bar-track { background:rgba(180,160,220,0.15); }
+  body.day-mode .dim-bar-val { color:#8a7aaa; }
+  body.day-mode .upload-score-btn {
+    background:linear-gradient(135deg,rgba(200,180,240,0.3),rgba(180,160,220,0.4));
+    border-color:rgba(180,160,220,0.4); color:#7a6a9a;
+  }
+  body.day-mode .speech-bubble { background:rgba(255,255,255,0.95); color:#4a3a5c; box-shadow:0 4px 20px rgba(180,160,200,0.2); }
+  body.day-mode .profile-circle { background:linear-gradient(135deg,#f0c0d8,#e0d0f0); box-shadow:0 0 25px rgba(220,180,230,0.3); }
+  body.day-mode .profile-label { background:rgba(255,255,255,0.6); border-color:rgba(200,180,230,0.3); color:#6a5a8a; }
+  body.day-mode .progress-row { color:#8a7aaa; }
+  body.day-mode .progress-fill { background:linear-gradient(90deg,#d070a0,#a050c0); box-shadow:0 0 8px rgba(200,100,180,0.4); }
+  body.day-mode .revenue-stats { color:#8a7aaa; }
+  body.day-mode .revenue-stats .rv-val { color:#c060a0; }
+  body.day-mode .mascot-wrap { background:linear-gradient(135deg,#f0c0d8,#e0d0f0); box-shadow:0 0 15px rgba(220,180,230,0.3); }
+  body.day-mode .badge { background:linear-gradient(135deg,#e060a0,#c050d0); }
+  body.day-mode .add-zone { background:rgba(200,180,230,0.15); border-color:rgba(200,180,230,0.4); color:rgba(160,140,200,0.6); }
+  body.day-mode .add-zone:hover { background:rgba(200,180,230,0.25); }
+  body.day-mode #fontSizeGroup { background:rgba(255,255,255,0.5); border-color:rgba(200,180,230,0.3); }
+  body.day-mode .font-sz-btn { color:#8a7aaa !important; }
+  body.day-mode .font-sz-btn.active { background:rgba(200,180,240,0.35) !important; color:#6a4a8a !important; }
+  /* 白天模式 overlay panels 也要調 */
+  body.day-mode .page-panel { background:linear-gradient(180deg,#e8e0f4,#f4eefa,#fff5f8) !important; }
+  body.day-mode .page-panel iframe { filter:none; }
+  body.day-mode .modal-box { background:rgba(255,255,255,0.95); border-color:rgba(200,180,230,0.3); }
+  body.day-mode .modal-box h3 { color:#6a4a8a; }
+  body.day-mode .modal-box p { color:#7a6a9a; }
+  body.day-mode .modal-close { background:linear-gradient(135deg,#c080d0,#9060b0); border-color:rgba(200,180,230,0.4); color:#fff; }
+  body.day-mode .page-overlay .page-backdrop { background:rgba(200,190,220,0.5) !important; }
+  /* 子頁面頂部深色 bar 也要改 */
+  body.day-mode .page-panel > div:first-child {
+    background:linear-gradient(180deg,rgba(240,232,248,0.97),rgba(248,240,252,0.93)) !important;
+    border-bottom-color:rgba(200,180,230,0.3) !important;
+  }
+  body.day-mode .page-panel > div:first-child span { color:#6a5a8a !important; -webkit-text-fill-color:#6a5a8a !important; }
+  body.day-mode .page-panel > div:first-child button { color:#8a7aaa !important; background:rgba(220,210,240,0.3) !important; border-color:rgba(200,180,230,0.3) !important; }
+  /* 白天雲朵動畫 */
+  body.day-mode::after {
+    content:''; position:fixed; top:15%; left:-300px; width:400px; height:120px;
+    background:radial-gradient(ellipse, rgba(255,255,255,0.6) 0%, transparent 70%);
+    border-radius:50%; filter:blur(20px); z-index:1; pointer-events:none;
+    animation:cloud-drift 45s linear infinite;
+  }
+  @keyframes cloud-drift { 0%{left:-300px;opacity:0.4;} 50%{opacity:0.7;} 100%{left:110vw;opacity:0.4;} }
+
+  /* ===== 文字縮放 ===== */
+  body.font-sm { font-size:12px; }
+  body.font-md { font-size:14px; }
+  body.font-lg { font-size:18px; }
+  body.font-lg .date-cell { font-size:22px !important; }
+  body.font-lg .center-title { font-size:28px !important; }
+  body.font-lg .hex-label { font-size:20px !important; }
+  body.font-lg .bl-title { font-size:16px !important; }
+  body.font-lg .total-score-display { font-size:44px !important; }
+  body.font-lg .speech-bubble { font-size:18px !important; }
+  body.font-lg .dim-bar-name { font-size:13px !important; }
+  body.font-lg .dim-bar-val { font-size:13px !important; }
+  body.font-lg .score-sub { font-size:15px !important; }
+  body.font-lg .profile-label { font-size:16px !important; }
+  body.font-sm .date-cell { font-size:14px !important; }
+  body.font-sm .center-title { font-size:17px !important; }
+  body.font-sm .hex-label { font-size:12px !important; }
+  body.font-sm .total-score-display { font-size:28px !important; }
+  body.font-sm .speech-bubble { font-size:11px !important; }
+
+  /* ===== 768px Tablet Breakpoint ===== */
+  @media (max-width:768px) {
+    body {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Top-left adjustments */
+    .top-left { top:12px; left:12px; gap:12px; }
+    .mascot-wrap { width:52px; height:52px; }
+    .mascot-wrap .mascot-emoji { font-size:26px; }
+    .date-cell { font-size:14px; padding:5px 10px; min-width:42px; }
+    .progress-row { font-size:12px; }
+
+    /* Top-right adjustments */
+    .top-right { top:12px; right:12px; gap:10px; }
+    .icon-btn { width:40px; height:40px; font-size:18px; }
+    .icon-btn:hover { min-height:44px; }
+
+    /* Center title */
+    .center-title { font-size:16px; padding:8px 28px; letter-spacing:2px; }
+
+    /* Hex grid and buildings */
+    .hex-grid { flex-direction:column; gap:10px; }
+    .hex-building { width:150px; height:165px; }
+    .hex-shape { width:130px; height:130px; }
+    .hex-building.castle .hex-shape { width:150px; height:150px; }
+    .hex-icon { font-size:40px; }
+    .hex-label { font-size:13px; letter-spacing:2px; margin-top:8px; }
+    .connector { width:3px; height:20px; }
+
+    /* Bottom-left panel — 上移避免擋到導航列 */
+    .bottom-left { bottom:36px; left:12px; padding:14px 18px; min-width:180px; }
+    .bl-title { font-size:12px; margin-bottom:8px; }
+    .total-score-display { font-size:32px; }
+    .total-score-unit { font-size:13px; }
+    .score-sub { font-size:11px; }
+    .dim-bar-name { font-size:9px; min-width:48px; }
+    .dim-bar-val { font-size:9px; }
+    .upload-score-btn { padding:6px 14px; font-size:12px; margin-top:10px; }
+    .upload-score-btn:hover { min-height:44px; }
+
+    /* Bottom-right profile area */
+    /* Bottom-right — 上移避免擋到導航列 */
+    .bottom-right { bottom:36px; right:12px; gap:12px; }
+    .speech-bubble { max-width:140px; font-size:12px; padding:10px 12px; }
+    .profile-circle { width:100px; height:100px; }
+    .profile-circle .profile-placeholder { font-size:40px; }
+    .profile-label { font-size:12px; padding:4px 14px; }
+
+    /* Page overlay */
+    .page-overlay .page-panel { height:95vh; border-radius:20px 20px 0 0; }
+    .page-header { padding:14px 18px; }
+    .page-header h2 { font-size:16px; letter-spacing:2px; }
+    .page-close { width:36px; height:36px; font-size:18px; }
+
+    /* Subpage content */
+    .subpage-content { padding:20px; }
+    .subpage-hero { font-size:60px; margin-bottom:16px; }
+    .subpage-title { font-size:22px; margin-bottom:6px; }
+    .subpage-subtitle { font-size:12px; margin-bottom:20px; }
+    .subpage-placeholder { padding:24px 40px; font-size:13px; }
+
+    /* Plaza buildings */
+    .pb-icon-wrap { width:80px; height:80px; border-radius:16px; }
+    .pb-icon { font-size:36px; }
+    .pb-label { font-size:13px; letter-spacing:2px; }
+    .pb-sublabel { font-size:10px; padding:2px 8px; }
+    .pb-change-btn { width:24px; height:24px; font-size:11px; }
+
+    /* 廣場建築物平板版微調位置 */
+    .pb-ocean     { left:4%;   bottom:10%; }
+    .pb-court     { left:16%;  top:12%; }
+    .pb-waterfall { right:16%; top:8%; }
+    .pb-vault     { right:4%;  bottom:12%; }
+    .pb-fire      { left:50%;  bottom:6%; }
+
+    /* Admin panel */
+    .admin-panel { width:95%; max-width:95%; max-height:90vh; }
+    .admin-header { padding:18px 24px; }
+    .admin-header h2 { font-size:16px; letter-spacing:1px; }
+    .admin-body { padding:20px; }
+    .admin-section h3 { font-size:13px; margin-bottom:12px; }
+    .admin-row { gap:10px; margin-bottom:10px; }
+    .admin-row label { min-width:90px; font-size:12px; }
+    .admin-row input[type="text"] { padding:6px 10px; font-size:13px; }
+    .admin-img-preview { width:50px; height:50px; font-size:24px; }
+    .admin-file-btn { padding:4px 10px; font-size:11px; }
+    .admin-save-btn { padding:12px; font-size:14px; }
+    .admin-danger-btn { padding:10px; font-size:13px; }
+
+    /* Score viewer */
+    .sv-header { padding:16px 20px; }
+    .sv-header h2 { font-size:16px; }
+    .sv-close { width:36px; height:36px; font-size:18px; }
+    .sv-body { padding:20px; gap:20px; }
+    .sv-card-header { padding:12px 16px; font-size:13px; }
+    .sv-card-content { padding:16px; }
+    .sv-card-content img { max-height:60vh; }
+    .sv-card-content object { height:60vh; }
+    .sv-add-btn { padding:10px 20px; font-size:13px; }
+
+    /* Modal box */
+    .modal-box { padding:28px; border-radius:16px; }
+    .modal-box h3 { font-size:18px; margin-bottom:12px; }
+    .modal-box p { font-size:13px; }
+    .modal-close { padding:8px 24px; font-size:13px; }
+
+    /* Hidden elements */
+    .floating-planet { display:none; }
+    .nebula { filter:blur(60px); opacity:0.12; }
+
+    /* Touch-friendly */
+    button, .icon-btn, .upload-score-btn, .modal-close, .sv-add-btn, .admin-save-btn, .admin-file-btn {
+      min-height:44px;
+      touch-action:manipulation;
+    }
+  }
+
+  /* ===== 480px Mobile Breakpoint ===== */
+  @media (max-width:480px) {
+    body {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Top-left adjustments */
+    .top-left {
+      top:8px; left:8px;
+      flex-wrap:wrap;
+      width:calc(100% - 16px);
+      gap:8px;
+    }
+    .mascot-wrap { width:44px; height:44px; }
+    .mascot-wrap .mascot-emoji { font-size:22px; }
+    .date-cell { font-size:12px; padding:4px 8px; min-width:38px; }
+    .progress-row { font-size:11px; margin-top:4px; }
+    .revenue-stats { font-size:10px; margin-top:4px; gap:8px; }
+
+    /* Top-right adjustments */
+    .top-right { top:8px; right:8px; gap:8px; }
+    .icon-btn { width:36px; height:36px; font-size:16px; }
+    .icon-btn:hover { min-height:44px; }
+    .badge { width:18px; height:18px; font-size:10px; }
+
+    /* Center title */
+    .center-title {
+      font-size:13px;
+      padding:6px 18px;
+      letter-spacing:2px;
+      border-radius:24px;
+    }
+
+    /* Hex grid and buildings */
+    .hex-grid { flex-direction:column; gap:8px; }
+    .hex-building { width:120px; height:130px; }
+    .hex-shape { width:100px; height:100px; }
+    .hex-building.castle .hex-shape { width:120px; height:120px; }
+    .hex-icon { font-size:36px; }
+    .hex-label { font-size:12px; letter-spacing:1px; margin-top:6px; }
+    .hex-change-btn { width:28px; height:28px; font-size:12px; }
+    .connector { width:3px; height:20px; }
+
+    /* Bottom-left panel */
+    .bottom-left {
+      bottom:40px; left:8px;
+      padding:10px 14px;
+      min-width:auto;
+      max-width:55%;
+    }
+    .bl-title { font-size:11px; margin-bottom:6px; letter-spacing:1px; }
+    .total-score-display { font-size:28px; }
+    .total-score-unit { font-size:11px; }
+    .score-sub { font-size:10px; margin-top:2px; }
+    .dim-bars { gap:4px; margin-top:8px; }
+    .dim-bar-row { gap:4px; }
+    .dim-bar-name { font-size:8px; min-width:40px; }
+    .dim-bar-track { min-width:50px; }
+    .dim-bar-val { font-size:8px; min-width:28px; }
+    .upload-score-btn { padding:5px 10px; font-size:11px; margin-top:8px; }
+    .upload-score-btn:hover { min-height:44px; }
+
+    /* Bottom-right profile area */
+    .bottom-right {
+      bottom:40px; right:8px;
+      gap:10px;
+      flex-direction:column;
+    }
+    .speech-bubble {
+      max-width:120px;
+      font-size:11px;
+      padding:8px 10px;
+      order:1;
+    }
+    .profile-circle { width:80px; height:80px; }
+    .profile-circle .profile-placeholder { font-size:32px; }
+    .profile-label { font-size:11px; padding:3px 12px; }
+
+    /* Page overlay */
+    .page-overlay .page-panel {
+      width:100%;
+      height:100vh;
+      border-radius:16px 16px 0 0;
+      max-width:100%;
+    }
+    .page-header { padding:12px 14px; }
+    .page-header h2 { font-size:14px; letter-spacing:1px; }
+    .page-close { width:32px; height:32px; font-size:16px; }
+    .nav-back-btn { padding:5px 10px; font-size:12px; }
+    .nav-subtitle { display:none; }
+
+    /* Subpage content */
+    .subpage-content { padding:16px; }
+    .subpage-hero { font-size:48px; margin-bottom:12px; }
+    .subpage-title { font-size:18px; letter-spacing:2px; margin-bottom:4px; }
+    .subpage-subtitle { font-size:11px; margin-bottom:16px; letter-spacing:1px; }
+    .subpage-placeholder {
+      padding:16px 24px;
+      font-size:12px;
+      line-height:1.6;
+      max-width:100%;
+    }
+
+    /* Plaza buildings */
+    .pb-icon-wrap { width:70px; height:70px; border-radius:14px; }
+    .pb-icon { font-size:32px; }
+    .pb-label { font-size:11px; letter-spacing:1px; }
+    .pb-sublabel { font-size:9px; padding:2px 6px; }
+    .pb-badge { width:26px; height:26px; }
+    .pb-change-btn { width:22px; height:22px; font-size:10px; }
+
+    /* 廣場建築物手機版重新排列，避免重疊 */
+    .pb-ocean     { left:5%;   bottom:auto; top:8%;  }
+    .pb-court     { left:auto; right:5%;    top:8%;  }
+    .pb-waterfall { left:5%;   bottom:auto; top:42%; right:auto; }
+    .pb-vault     { right:5%;  bottom:auto; top:42%; left:auto; }
+    .pb-fire      { left:50%;  bottom:5%;   top:auto; transform:translateX(-50%); }
+    .pb-fire:hover { transform:translateX(-50%) scale(1.08) translateY(-8px); }
+
+    /* Admin panel */
+    .admin-panel {
+      width:98%;
+      max-width:98%;
+      max-height:95vh;
+      border-radius:16px;
+    }
+    .admin-header { padding:14px 16px; }
+    .admin-header h2 { font-size:14px; letter-spacing:1px; }
+    .admin-body { padding:14px; }
+    .admin-section { margin-bottom:16px; }
+    .admin-section h3 { font-size:12px; margin-bottom:10px; }
+    .admin-row {
+      flex-direction:column;
+      align-items:flex-start;
+      gap:6px;
+      margin-bottom:12px;
+    }
+    .admin-row label {
+      min-width:70px;
+      font-size:11px;
+      width:100%;
+    }
+    .admin-row input[type="text"] {
+      padding:6px 10px;
+      font-size:12px;
+      width:100%;
+    }
+    .admin-img-preview { width:44px; height:44px; font-size:20px; }
+    .admin-file-btn { padding:4px 8px; font-size:10px; }
+    .admin-save-btn { padding:10px; font-size:13px; }
+    .admin-danger-btn { padding:8px; font-size:12px; }
+
+    /* Score viewer */
+    .sv-header { padding:12px 14px; }
+    .sv-header h2 { font-size:14px; }
+    .sv-close { width:32px; height:32px; font-size:16px; }
+    .sv-body { padding:14px; gap:16px; }
+    .sv-card { border-radius:12px; }
+    .sv-card-header { padding:10px 12px; font-size:12px; }
+    .sv-card-delete { font-size:16px; }
+    .sv-card-content { padding:12px; }
+    .sv-card-content img { max-height:50vh; border-radius:6px; }
+    .sv-card-content object { height:50vh; border-radius:6px; }
+    .sv-empty { font-size:14px; margin-top:40px; }
+    .sv-add-btn {
+      padding:8px 16px;
+      font-size:12px;
+      width:100%;
+      max-width:200px;
+    }
+
+    /* Modal box */
+    .modal-box {
+      padding:20px;
+      border-radius:14px;
+      max-width:95%;
+    }
+    .modal-box h3 { font-size:16px; margin-bottom:10px; }
+    .modal-box p { font-size:12px; line-height:1.6; }
+    .modal-close { padding:8px 20px; font-size:12px; margin-top:16px; }
+
+    /* Hidden elements */
+    .floating-planet { display:none; }
+    .nebula { filter:blur(40px); opacity:0.08; }
+    .save-toast { top:60px; right:8px; font-size:12px; padding:10px 16px; }
+
+    /* Touch-friendly */
+    button, .icon-btn, .upload-score-btn, .modal-close, .sv-add-btn, .admin-save-btn, .admin-file-btn, .page-close, .sv-close {
+      min-height:44px;
+      touch-action:manipulation;
+    }
+  }
+
+  /* ── 訓練徽章提醒 ── */
+  .train-badge{
+    position:absolute; top:-6px; right:-6px; z-index:5;
+    min-width:22px; height:22px;
+    background:linear-gradient(135deg,#ef4444,#dc2626);
+    color:#fff; font-size:12px; font-weight:800;
+    border-radius:11px; display:flex; align-items:center; justify-content:center;
+    padding:0 6px;
+    box-shadow:0 2px 8px rgba(239,68,68,0.5);
+    animation:tbPulse 2s ease-in-out infinite;
+    cursor:pointer; pointer-events:auto;
+  }
+  .train-badge.hidden{display:none;}
+  @keyframes tbPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+
+  .train-popup-backdrop{
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    z-index:9998; background:transparent;
+  }
+  .train-popup{
+    position:absolute; top:calc(100% + 12px); left:50%; transform:translateX(-50%);
+    width:280px; z-index:9999;
+    background:rgba(10,15,30,0.95);
+    border:1px solid rgba(239,68,68,0.25);
+    border-radius:12px;
+    box-shadow:0 8px 30px rgba(0,0,0,0.5);
+    overflow:hidden;
+    animation:tbPopIn 0.2s ease-out;
+  }
+  .train-popup.hidden{display:none;}
+  @keyframes tbPopIn{from{opacity:0;transform:translateX(-50%) translateY(-6px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+  .train-popup-arrow{
+    position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+    width:12px; height:6px;
+    clip-path:polygon(50% 0%,0% 100%,100% 100%);
+    background:rgba(10,15,30,0.95);
+  }
+  .train-popup-header{
+    padding:10px 14px;
+    background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));
+    border-bottom:1px solid rgba(239,68,68,0.15);
+    font-size:12px; font-weight:700; color:#fca5a5;
+    display:flex; align-items:center; gap:6px;
+  }
+  .train-popup-body{padding:8px 12px; max-height:200px; overflow-y:auto;}
+  .train-popup-item{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 8px; border-radius:8px; margin-bottom:4px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(239,68,68,0.08);
+    transition:all 0.2s;
+  }
+  .train-popup-item:hover{background:rgba(239,68,68,0.06);border-color:rgba(239,68,68,0.2);}
+  .train-popup-item-name{
+    flex:1; font-size:11px; color:#e2e8f0; font-weight:600;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .train-popup-item-link{
+    color:#4aeaff; font-size:10px; text-decoration:none; white-space:nowrap;
+  }
+  .train-popup-item-link:hover{text-decoration:underline;}
+
+  @media(max-width:480px){
+    .train-popup{ width:240px; }
+    .train-popup-item-name{ font-size:10px; }
+  }
+</style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+</head>
+<body>
+
+<canvas id="stars-canvas"></canvas>
+<div class="nebula nebula-1"></div>
+<div class="nebula nebula-2"></div>
+<div class="nebula nebula-3"></div>
+<div class="floating-planet planet-1"></div>
+<div class="floating-planet planet-2"></div>
+<div class="floating-planet planet-3"></div>
+<div class="save-toast" id="saveToast"></div>
+
+
+<!-- ===== 左上 ===== -->
+<div class="top-left">
+  <div class="mascot-wrap" title="點擊更換吉祥物圖片">
+    <span class="mascot-emoji" id="mascotEmoji">🐝</span>
+    <img id="mascotImg" alt="mascot">
+    <input type="file" accept="image/*" id="mascotInput">
+  </div>
+  <div>
+    <div class="date-block">
+      <div class="date-cell" id="dateDay">--</div>
+      <div class="date-cell" id="dateMonth">---</div>
+      <div class="date-cell" id="dateYear">----</div>
+    </div>
+    <div class="progress-row" title="組年度業績達成率">
+      <span id="progressPct" style="min-width:38px;">0%</span>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+    <div class="revenue-stats" id="revenueStats"></div>
+  </div>
+</div>
+
+<!-- ===== 右上 ===== -->
+<div class="top-right">
+  <!-- 文字大小 -->
+  <div style="display:flex;gap:3px;background:rgba(15,25,60,0.5);border-radius:20px;padding:3px;border:1px solid rgba(100,160,255,0.2);backdrop-filter:blur(8px);" id="fontSizeGroup">
+    <button class="font-sz-btn" data-size="sm" title="小字" style="width:32px;height:32px;border:none;border-radius:50%;background:transparent;color:#8ab4ff;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;">A</button>
+    <button class="font-sz-btn active" data-size="md" title="中字" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(100,160,255,0.25);color:#c0dcff;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;">A</button>
+    <button class="font-sz-btn" data-size="lg" title="大字" style="width:32px;height:32px;border:none;border-radius:50%;background:transparent;color:#8ab4ff;font-size:18px;font-weight:700;cursor:pointer;transition:all .2s;">A</button>
+  </div>
+  <!-- 白天/黑夜 -->
+  <div class="icon-btn" id="dayNightBtn" title="切換白天/黑夜">🌙</div>
+  <div class="icon-btn" id="bellBtn" title="背景音樂">🔔<div class="badge" id="bellBadge" style="display:none;">♪</div></div>
+  <div class="icon-btn" id="settingsBtn" title="後台管理">⚙️<div class="badge" style="background:linear-gradient(135deg,#ff9100,#ff6d00);" id="settingsBadge">!</div></div>
+</div>
+
+<!-- ===== 左下：評分 ===== -->
+<div class="bottom-left panel" id="scorePanelBtn" title="點擊查看所有成績單">
+  <div class="bl-title">📊 組長評核</div>
+  <div style="display:flex;align-items:baseline;gap:2px;">
+    <div class="total-score-display" id="totalScoreDisplay">0</div>
+    <span class="total-score-unit">/100</span>
+  </div>
+  <div class="score-sub" id="scoreCountLabel">尚未評估</div>
+  <div class="dim-bars" id="dimBars">
+    <div class="dim-bar-row"><span class="dim-bar-name">會議</span><div class="dim-bar-track"><div class="dim-bar-fill" id="dimFill1" style="width:0%;background:#3b82f6;"></div></div><span class="dim-bar-val" id="dimVal1">0/25</span></div>
+    <div class="dim-bar-row"><span class="dim-bar-name">績效管理</span><div class="dim-bar-track"><div class="dim-bar-fill" id="dimFill2" style="width:0%;background:#8b5cf6;"></div></div><span class="dim-bar-val" id="dimVal2">0/30</span></div>
+    <div class="dim-bar-row"><span class="dim-bar-name">人員管理</span><div class="dim-bar-track"><div class="dim-bar-fill" id="dimFill3" style="width:0%;background:#06b6d4;"></div></div><span class="dim-bar-val" id="dimVal3">0/15</span></div>
+    <div class="dim-bar-row"><span class="dim-bar-name">日常輔導</span><div class="dim-bar-track"><div class="dim-bar-fill" id="dimFill4" style="width:0%;background:#10b981;"></div></div><span class="dim-bar-val" id="dimVal4">0/15</span></div>
+    <div class="dim-bar-row"><span class="dim-bar-name">小組發展</span><div class="dim-bar-track"><div class="dim-bar-fill" id="dimFill5" style="width:0%;background:#f59e0b;"></div></div><span class="dim-bar-val" id="dimVal5">0/10</span></div>
+    <div class="dim-bar-row"><span class="dim-bar-name">宣誓</span><div class="dim-bar-track"><div class="dim-bar-fill" id="dimFill6" style="width:0%;background:#ef4444;"></div></div><span class="dim-bar-val" id="dimVal6">0/5</span></div>
+  </div>
+  <button class="upload-score-btn" id="uploadScoreBtn" onclick="event.stopPropagation()">📂 匯入成績單</button>
+  <input type="file" accept=".pdf,.jpg,.jpeg,.png" multiple id="scoreFileInput" >
+</div>
+
+<!-- ===== 右下 ===== -->
+<div class="bottom-right">
+  <div class="speech-bubble" id="speechBubble">歡迎來到太空基地！<br>一起提升團隊戰力吧 🚀</div>
+  <div class="profile-area">
+    <div class="profile-circle" title="點擊更換形象照">
+      <span class="profile-placeholder" id="profilePlaceholder">👩‍🚀</span>
+      <img id="profileImg" alt="profile">
+      <input type="file" accept="image/*" id="profileInput">
+    </div>
+    <div class="profile-label" id="profileLabel" contenteditable="true"></div>
+  </div>
+</div>
+
+<!-- ===== 中央 ===== -->
+<div class="center-stage">
+  <div class="center-title">🏰 太空指揮部</div>
+  <div class="hex-grid">
+    <div class="hex-building training" onclick="openTrainingRoom()">
+      <div class="hex-glow"></div>
+      <div class="hex-shape" id="trainingHex"><img id="trainingImg"><span class="hex-icon" id="trainingIcon">🔮</span></div>
+      <div class="hex-label">練功坊</div>
+      <div class="hex-change-btn" title="更換圖片">📷<input type="file" accept="image/*" onchange="changeHexImg('training',this)"></div>
+      <!-- 訓練徽章 -->
+      <div class="train-badge hidden" id="trainBadge" onclick="event.stopPropagation();toggleTrainPopup();">0</div>
+      <div class="train-popup hidden" id="trainPopup" onclick="event.stopPropagation();">
+        <div class="train-popup-arrow"></div>
+        <div class="train-popup-header">📋 待驗收訓練</div>
+        <div class="train-popup-body" id="trainPopupBody"></div>
+      </div>
+    </div>
+    <div class="connector"></div>
+    <div class="hex-building castle" onclick="openCastle()">
+      <div class="hex-glow"></div>
+      <div class="hex-shape" id="castleHex"><img id="castleImg"><span class="hex-icon" id="castleIcon">🏰</span></div>
+      <div class="hex-label">指揮城堡</div>
+      <div class="hex-change-btn" title="更換圖片">📷<input type="file" accept="image/*" onchange="changeHexImg('castle',this)"></div>
+    </div>
+    <div class="connector"></div>
+    <div class="hex-building plaza" onclick="openPlaza()">
+      <div class="hex-glow"></div>
+      <div class="hex-shape" id="plazaHex"><img id="plazaImg"><span class="hex-icon" id="plazaIcon">🌌</span></div>
+      <div class="hex-label">星際廣場</div>
+      <div class="hex-change-btn" title="更換圖片">📷<input type="file" accept="image/*" onchange="changeHexImg('plaza',this)"></div>
+    </div>
+  </div>
+  <!-- 第二排：業績數據中心 -->
+  <div style="display:flex;justify-content:center;margin-top:16px;">
+    <div class="hex-building perf" onclick="openPerformance()">
+      <div class="hex-glow"></div>
+      <div class="hex-shape" id="perfHex"><img id="perfImg"><span class="hex-icon" id="perfIcon">📊</span></div>
+      <div class="hex-label">業績數據中心</div>
+      <div class="hex-change-btn" title="更換圖片">📷<input type="file" accept="image/*" onchange="changeHexImg('perf',this)"></div>
+    </div>
+  </div>
+  <div class="add-zone" title="新增區域">＋</div>
+</div>
+<!-- ========== 業績數據中心（密碼保護） ========== -->
+<div class="page-overlay" id="perfOverlay" style="z-index:9999;">
+  <div class="page-backdrop" onclick="closePerformance()"></div>
+  <div class="page-panel" style="background:radial-gradient(ellipse at 50% 30%,#0d1b3e 0%,#070d1f 50%,#03060f 100%);width:100%;height:100%;max-width:100%;border-radius:0;padding:0;position:relative;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;min-height:52px;background:linear-gradient(180deg,rgba(10,18,45,0.97),rgba(8,14,35,0.93));border-bottom:1px solid rgba(50,160,255,0.15);backdrop-filter:blur(12px);box-shadow:0 2px 16px rgba(0,0,0,0.4);z-index:10;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:22px;">📊</span>
+        <span style="font-size:15px;font-weight:700;background:linear-gradient(135deg,#4aeaff,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;">業績數據中心</span>
+        <span style="font-size:11px;color:#4a6a9a;border:1px solid rgba(74,234,255,0.15);border-radius:20px;padding:2px 10px;background:rgba(74,234,255,0.05);">🔒 密碼保護</span>
+      </div>
+      <button onclick="closePerformance()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(100,180,255,0.2);color:#6a8fcc;font-size:1.1rem;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;" onmouseover="this.style.background='rgba(255,80,80,0.25)';this.style.color='#ff8a8a'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#6a8fcc'">✕</button>
+    </div>
+    <iframe id="perfFrame" src="" style="flex:1;width:100%;border:none;background:transparent;"></iframe>
+  </div>
+</div>
+
+<!-- 密碼輸入彈窗 -->
+<div id="perfPwModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(135deg,#0d1b3e,#0a1628);border:1px solid rgba(74,234,255,0.3);border-radius:20px;padding:32px;max-width:340px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <div style="font-size:36px;margin-bottom:12px;">🔒</div>
+    <h3 style="color:#4aeaff;font-size:18px;margin-bottom:8px;">業績數據中心</h3>
+    <p style="color:#4a6a9a;font-size:13px;margin-bottom:20px;">請輸入 4 位數密碼</p>
+    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:20px;" id="perfPwDots">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:900;background:rgba(255,255,255,0.06);border:2px solid rgba(74,234,255,0.2);border-radius:12px;color:#4aeaff;outline:none;font-family:inherit;" onfocus="this.style.borderColor='rgba(74,234,255,0.6)'" onblur="this.style.borderColor='rgba(74,234,255,0.2)'" oninput="perfPwNext(this,0)">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:900;background:rgba(255,255,255,0.06);border:2px solid rgba(74,234,255,0.2);border-radius:12px;color:#4aeaff;outline:none;font-family:inherit;" onfocus="this.style.borderColor='rgba(74,234,255,0.6)'" onblur="this.style.borderColor='rgba(74,234,255,0.2)'" oninput="perfPwNext(this,1)">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:900;background:rgba(255,255,255,0.06);border:2px solid rgba(74,234,255,0.2);border-radius:12px;color:#4aeaff;outline:none;font-family:inherit;" onfocus="this.style.borderColor='rgba(74,234,255,0.6)'" onblur="this.style.borderColor='rgba(74,234,255,0.2)'" oninput="perfPwNext(this,2)">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:900;background:rgba(255,255,255,0.06);border:2px solid rgba(74,234,255,0.2);border-radius:12px;color:#4aeaff;outline:none;font-family:inherit;" onfocus="this.style.borderColor='rgba(74,234,255,0.6)'" onblur="this.style.borderColor='rgba(74,234,255,0.2)'" oninput="perfPwNext(this,3)">
+    </div>
+    <div id="perfPwError" style="color:#ff6b6b;font-size:12px;margin-bottom:12px;min-height:18px;"></div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="perfPwSubmit()" style="padding:10px 28px;background:linear-gradient(135deg,rgba(74,234,255,0.15),rgba(100,165,250,0.1));border:1px solid rgba(74,234,255,0.3);border-radius:10px;color:#4aeaff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;">確認</button>
+      <button onclick="perfPwCancel()" style="padding:10px 28px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#6a8fcc;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 廣場頁面 ========== -->
+<div class="page-overlay" id="plazaOverlay">
+  <div class="page-backdrop" onclick="closePlaza()"></div>
+  <div class="page-panel plaza-bg">
+    <div class="page-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="closePlaza()" class="nav-back-btn">◀ 返回</button>
+        <h2 style="margin:0;">🌌 星際廣場</h2>
+      </div>
+      <button class="page-close" onclick="closePlaza()">✕</button>
+    </div>
+    <div class="plaza-map" id="plazaMap">
+      <!-- 星際地面 -->
+      <div class="plaza-ground"></div>
+      <!-- 星際河流(SVG) -->
+      <div class="plaza-river">
+        <svg viewBox="0 0 500 400" fill="none">
+          <path d="M0 50 Q100 80 200 40 Q350 0 400 80 Q450 140 500 120 L500 160 Q450 180 400 120 Q350 40 200 80 Q100 120 0 90 Z"
+            fill="url(#riverGrad)" opacity="0.3"/>
+          <defs>
+            <linearGradient id="riverGrad" x1="0" y1="0" x2="500" y2="0">
+              <stop offset="0%" stop-color="#4fc3f7"/>
+              <stop offset="50%" stop-color="#29b6f6"/>
+              <stop offset="100%" stop-color="#0288d1"/>
+            </linearGradient>
+          </defs>
+          <path d="M0 50 Q100 80 200 40 Q350 0 400 80 Q450 140 500 120"
+            stroke="rgba(79,195,247,0.4)" stroke-width="2" fill="none"/>
+        </svg>
+      </div>
+
+      <!-- 360度能力檢核 -->
+      <div class="plaza-building pb-ocean" onclick="open360Assessment()">
+        <div class="pb-glow"></div>
+        <div class="pb-icon-wrap" id="oceanWrap">
+          <img id="oceanCustomImg" >
+          <span class="pb-icon">🎯</span>
+          <div class="pb-badge"></div>
+          <div class="pb-change-btn">📷<input type="file" accept="image/*" onchange="changePlazaImg('ocean',this);event.stopPropagation()"></div>
+        </div>
+        <div class="pb-label">360度能力檢核</div>
+        <div class="pb-sublabel"></div>
+      </div>
+
+      <!-- 法院 -->
+      <div class="plaza-building pb-court" onclick="prOpenSystem()">
+        <div class="pb-glow"></div>
+        <div class="pb-icon-wrap" id="courtWrap">
+          <img id="courtCustomImg" >
+          <span class="pb-icon">⚖️</span>
+          <div class="pb-badge"></div>
+          <div class="pb-change-btn">📷<input type="file" accept="image/*" onchange="changePlazaImg('court',this);event.stopPropagation()"></div>
+        </div>
+        <div class="pb-label">法 院</div>
+        <div class="pb-sublabel">（懲罰）</div>
+      </div>
+
+      <!-- 瀑布 -->
+      <div class="plaza-building pb-waterfall" onclick="openWaterfall()">
+        <div class="pb-glow"></div>
+        <div class="pb-icon-wrap" id="waterfallWrap">
+          <img id="waterfallCustomImg" >
+          <span class="pb-icon">🏔️</span>
+          <div class="pb-badge"></div>
+          <div class="pb-change-btn">📷<input type="file" accept="image/*" onchange="changePlazaImg('waterfall',this);event.stopPropagation()"></div>
+        </div>
+        <div class="pb-label">瀑 布</div>
+        <div class="pb-sublabel">（各通路研究）</div>
+      </div>
+
+      <!-- 成就解鎖 -->
+      <div class="plaza-building pb-vault" onclick="openAchievement()">
+        <div class="pb-glow"></div>
+        <div class="pb-icon-wrap" id="vaultWrap">
+          <img id="vaultCustomImg" >
+          <span class="pb-icon">🏆</span>
+          <div class="pb-badge"></div>
+          <div class="pb-change-btn">📷<input type="file" accept="image/*" onchange="changePlazaImg('vault',this);event.stopPropagation()"></div>
+        </div>
+        <div class="pb-label">成就解鎖</div>
+        <div class="pb-sublabel">（獎勵成就）</div>
+      </div>
+
+      <!-- 火種 -->
+      <div class="plaza-building pb-fire" onclick="openFireMandala()">
+        <div class="pb-glow"></div>
+        <div class="pb-icon-wrap" id="fireWrap">
+          <img id="fireCustomImg" >
+          <span class="pb-icon">🔥</span>
+          <div class="pb-badge"></div>
+          <div class="pb-change-btn">📷<input type="file" accept="image/*" onchange="changePlazaImg('fire',this);event.stopPropagation()"></div>
+        </div>
+        <div class="pb-label">火 種</div>
+        <div class="pb-sublabel">（影響力）</div>
+      </div>
+
+      <!-- 裝飾粒子 -->
+      <canvas id="plazaParticles" style="position:absolute;inset:0;pointer-events:none;z-index:1;"></canvas>
+    </div>
+  </div>
+</div>
+
+
+<!-- ========== 子頁面（大海/法院/瀑布/藏寶庫/火種 各自的詳細頁） ========== -->
+<div class="page-overlay" id="subpageOverlay">
+  <div class="page-backdrop" onclick="closeSubpage()"></div>
+  <div class="page-panel subpage-bg">
+    <div class="page-header">
+      <h2 id="subpageTitle"></h2>
+      <button class="page-close" onclick="closeSubpage()">✕</button>
+    </div>
+    <div class="subpage-content" id="subpageContent">
+    </div>
+  </div>
+</div>
+
+<!-- ===== 360度能力檢核 ===== -->
+<div class="page-overlay" id="assess360Overlay" style="z-index:9999;">
+  <div class="page-backdrop" onclick="close360Assessment()"></div>
+  <div class="page-panel" style="background:radial-gradient(ellipse at 20% 30%,#0d1b3e 0%,#070d1f 50%,#03060f 100%);width:100%;height:100%;max-width:100%;border-radius:0;padding:0;position:relative;display:flex;flex-direction:column;">
+    <!-- 太空風格頂部導覽列 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 8px;height:52px;min-height:52px;background:linear-gradient(180deg,rgba(10,18,45,0.97),rgba(8,14,35,0.93));border-bottom:1px solid rgba(100,180,255,0.15);backdrop-filter:blur(12px);box-shadow:0 2px 16px rgba(0,0,0,0.4),0 1px 0 rgba(100,180,255,0.06) inset;z-index:10;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="close360Assessment()" class="nav-back-btn">◀ 返回</button>
+        <span style="font-size:22px;">🎯</span>
+        <span style="font-size:15px;font-weight:700;background:linear-gradient(135deg,#4aeaff,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;">360度能力檢核</span>
+        <span class="nav-subtitle" style="font-size:11px;color:#4a6a9a;border:1px solid rgba(100,180,255,0.15);border-radius:20px;padding:2px 10px;background:rgba(74,234,255,0.05);">自評 · 主管 · 同儕 · 部屬</span>
+      </div>
+      <button onclick="close360Assessment()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(100,180,255,0.2);color:#6a8fcc;font-size:1.1rem;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;" onmouseover="this.style.background='rgba(255,80,80,0.25)';this.style.color='#ff8a8a';this.style.borderColor='rgba(255,100,100,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#6a8fcc';this.style.borderColor='rgba(100,180,255,0.2)'">✕</button>
+    </div>
+    <!-- iframe 內容 -->
+    <iframe id="assess360Frame" src="" style="flex:1;width:100%;border:none;background:transparent;"></iframe>
+  </div>
+</div>
+
+<!-- ===== 成就解鎖 ===== -->
+<div class="page-overlay" id="achieveOverlay" style="z-index:9999;">
+  <div class="page-backdrop" onclick="closeAchievement()"></div>
+  <div class="page-panel" style="background:radial-gradient(ellipse at 50% 20%,#0d1b3e 0%,#070d1f 50%,#03060f 100%);width:100%;height:100%;max-width:100%;border-radius:0;padding:0;position:relative;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 8px;height:52px;min-height:52px;background:linear-gradient(180deg,rgba(10,18,45,0.97),rgba(8,14,35,0.93));border-bottom:1px solid rgba(100,180,255,0.15);backdrop-filter:blur(12px);box-shadow:0 2px 16px rgba(0,0,0,0.4),0 1px 0 rgba(100,180,255,0.06) inset;z-index:10;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="closeAchievement()" class="nav-back-btn">◀ 返回</button>
+        <span style="font-size:22px;">🏆</span>
+        <span style="font-size:15px;font-weight:700;background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;">成就解鎖</span>
+      </div>
+      <button onclick="closeAchievement()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(100,180,255,0.2);color:#6a8fcc;font-size:1.1rem;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;" onmouseover="this.style.background='rgba(255,80,80,0.25)';this.style.color='#ff8a8a'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#6a8fcc'">✕</button>
+    </div>
+    <iframe id="achieveFrame" src="" style="flex:1;width:100%;border:none;background:transparent;" allow="fullscreen;autoplay;encrypted-media" allowfullscreen></iframe>
+  </div>
+</div>
+
+<!-- ===== 火種九宮格 ===== -->
+<div class="page-overlay" id="fireOverlay" style="z-index:9999;">
+  <div class="page-backdrop" onclick="closeFireMandala()"></div>
+  <div class="page-panel" style="background:radial-gradient(ellipse at 50% 20%,#1a0a0a 0%,#070d1f 50%,#03060f 100%);width:100%;height:100%;max-width:100%;border-radius:0;padding:0;position:relative;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 8px;height:52px;min-height:52px;background:linear-gradient(180deg,rgba(10,18,45,0.97),rgba(8,14,35,0.93));border-bottom:1px solid rgba(255,100,50,0.15);backdrop-filter:blur(12px);box-shadow:0 2px 16px rgba(0,0,0,0.4),0 1px 0 rgba(255,100,50,0.06) inset;z-index:10;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="closeFireMandala()" class="nav-back-btn">◀ 返回</button>
+        <span style="font-size:22px;">🔥</span>
+        <span style="font-size:15px;font-weight:700;background:linear-gradient(135deg,#f97316,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;">火種九宮格</span>
+      </div>
+      <button onclick="closeFireMandala()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(100,180,255,0.2);color:#6a8fcc;font-size:1.1rem;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;" onmouseover="this.style.background='rgba(255,80,80,0.25)';this.style.color='#ff8a8a'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#6a8fcc'">✕</button>
+    </div>
+    <iframe id="fireFrame" src="" style="flex:1;width:100%;border:none;background:transparent;"></iframe>
+  </div>
+</div>
+
+<!-- ===== 練功坊 ===== -->
+<div class="page-overlay" id="trainingOverlay" style="z-index:9999;">
+  <div class="page-backdrop" onclick="closeTrainingRoom()"></div>
+  <div class="page-panel" style="background:radial-gradient(ellipse at 50% 30%,#0d1b3e 0%,#070d1f 50%,#03060f 100%);width:100%;height:100%;max-width:100%;border-radius:0;padding:0;position:relative;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 8px;height:52px;min-height:52px;background:linear-gradient(180deg,rgba(10,18,45,0.97),rgba(8,14,35,0.93));border-bottom:1px solid rgba(100,180,255,0.15);backdrop-filter:blur(12px);box-shadow:0 2px 16px rgba(0,0,0,0.4),0 1px 0 rgba(100,180,255,0.06) inset;z-index:10;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="closeTrainingRoom()" class="nav-back-btn">◀ 返回</button>
+        <span style="font-size:22px;">🔮</span>
+        <span style="font-size:15px;font-weight:700;background:linear-gradient(135deg,#c084fc,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;">練功坊</span>
+        <span class="nav-subtitle" style="font-size:11px;color:#4a6a9a;border:1px solid rgba(160,100,255,0.15);border-radius:20px;padding:2px 10px;background:rgba(160,100,255,0.05);">業務 · 主管 · 組長</span>
+      </div>
+      <button onclick="closeTrainingRoom()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(100,180,255,0.2);color:#6a8fcc;font-size:1.1rem;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;" onmouseover="this.style.background='rgba(255,80,80,0.25)';this.style.color='#ff8a8a';this.style.borderColor='rgba(255,100,100,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#6a8fcc';this.style.borderColor='rgba(100,180,255,0.2)'">✕</button>
+    </div>
+    <iframe id="trainingFrame" src="" style="flex:1;width:100%;border:none;background:transparent;"></iframe>
+  </div>
+</div>
+
+<!-- ===== 指揮城堡 ===== -->
+<div class="page-overlay" id="castleOverlay" style="z-index:9999;">
+  <div class="page-backdrop" onclick="closeCastle()"></div>
+  <div class="page-panel" style="background:radial-gradient(ellipse at 50% 30%,#0d1b3e 0%,#070d1f 50%,#03060f 100%);width:100%;height:100%;max-width:100%;border-radius:0;padding:0;position:relative;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;min-height:52px;background:linear-gradient(180deg,rgba(10,18,45,0.97),rgba(8,14,35,0.93));border-bottom:1px solid rgba(100,180,255,0.15);backdrop-filter:blur(12px);box-shadow:0 2px 16px rgba(0,0,0,0.4),0 1px 0 rgba(100,180,255,0.06) inset;z-index:10;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="closeCastle()" class="nav-back-btn">◀ 返回</button>
+        <span style="font-size:22px;">🏰</span>
+        <span style="font-size:15px;font-weight:700;background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;">指揮城堡</span>
+        <span style="font-size:11px;color:#4a6a9a;border:1px solid rgba(251,191,36,0.15);border-radius:20px;padding:2px 10px;background:rgba(251,191,36,0.05);">卡牌 · 角色 · 管理</span>
+      </div>
+      <button onclick="closeCastle()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(100,180,255,0.2);color:#6a8fcc;font-size:1.1rem;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;" onmouseover="this.style.background='rgba(255,80,80,0.25)';this.style.color='#ff8a8a';this.style.borderColor='rgba(255,100,100,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#6a8fcc';this.style.borderColor='rgba(100,180,255,0.2)'">✕</button>
+    </div>
+    <iframe id="castleFrame" src="" style="flex:1;width:100%;border:none;background:transparent;" allow="autoplay"></iframe>
+  </div>
+</div>
+
+<!-- ===== 瀑布（各通路研究） ===== -->
+<div class="page-overlay" id="waterfallOverlay" style="z-index:9999;">
+  <div class="page-backdrop" onclick="closeWaterfall()"></div>
+  <div class="page-panel" style="background:radial-gradient(ellipse at 50% 30%,#0a1628 0%,#070d1f 50%,#03060f 100%);width:100%;height:100%;max-width:100%;border-radius:0;padding:0;position:relative;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 8px;height:52px;min-height:52px;background:linear-gradient(180deg,rgba(10,18,45,0.97),rgba(8,14,35,0.93));border-bottom:1px solid rgba(6,182,212,0.15);backdrop-filter:blur(12px);box-shadow:0 2px 16px rgba(0,0,0,0.4),0 1px 0 rgba(6,182,212,0.06) inset;z-index:10;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="closeWaterfall()" class="nav-back-btn">◀ 返回</button>
+        <span style="font-size:22px;">🏔️</span>
+        <span style="font-size:15px;font-weight:700;background:linear-gradient(135deg,#06b6d4,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;">瀑 布</span>
+        <span class="nav-subtitle" style="font-size:11px;color:#4a6a9a;border:1px solid rgba(6,182,212,0.15);border-radius:20px;padding:2px 10px;background:rgba(6,182,212,0.05);">通路 · 錄音 · 話術</span>
+      </div>
+      <button onclick="closeWaterfall()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(100,180,255,0.2);color:#6a8fcc;font-size:1.1rem;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;" onmouseover="this.style.background='rgba(255,80,80,0.25)';this.style.color='#ff8a8a';this.style.borderColor='rgba(255,100,100,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#6a8fcc';this.style.borderColor='rgba(100,180,255,0.2)'">✕</button>
+    </div>
+    <iframe id="waterfallFrame" src="" style="flex:1;width:100%;border:none;background:transparent;" allow="autoplay"></iframe>
+  </div>
+</div>
+
+<!-- ===== 成績單檢視器 ===== -->
+<div class="score-viewer-overlay" id="scoreViewer">
+  <div class="sv-header">
+    <h2>📋 成績單總覽</h2>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <button class="sv-add-btn">➕ 新增成績單<input type="file" accept=".pdf,.jpg,.jpeg,.png" multiple id="svAddInput"></button>
+      <button class="sv-close" onclick="closeScoreViewer()">✕</button>
+    </div>
+  </div>
+  <div class="sv-body" id="svBody">
+    <!-- 360度評估報告 -->
+    <div id="svReportSection" style="margin-bottom:16px;display:none;">
+      <div style="font-size:13px;font-weight:700;color:#4ade80;margin-bottom:8px;">📊 360度能力檢核 — 生成報告</div>
+      <pre id="svReportContent" style="background:rgba(0,0,0,0.3);border:1px solid rgba(74,234,255,0.15);border-radius:10px;padding:14px;font-size:11px;line-height:1.6;color:#c8d6e5;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto;font-family:'SF Mono','Menlo',monospace;"></pre>
+    </div>
+    <div class="sv-empty" id="svEmpty">尚未匯入任何成績單<br>請點擊上方「新增成績單」按鈕匯入 PDF 或 JPG 檔案</div>
+  </div>
+</div>
+
+<!-- ===== 後台 ===== -->
+<div class="admin-overlay" id="adminOverlay">
+  <div class="admin-panel">
+    <div class="admin-header">
+      <h2>⚙️ 後台管理</h2>
+      <button class="sv-close" onclick="closeAdmin()">✕</button>
+    </div>
+    <div class="admin-body">
+      <button class="admin-save-btn" id="saveAllBtn" style="margin-bottom:18px;font-size:15px;padding:14px;background:linear-gradient(135deg,#1565c0,#0d47a1);letter-spacing:1px;" onclick="saveAll()">💾 儲存所有資料</button>
+      <div class="admin-section" id="adminCharSection">
+        <h3>🎮 當前角色</h3>
+        <div id="adminCharInfo" style="display:flex;align-items:center;gap:10px;padding:8px 0;flex-wrap:wrap;">
+          <span style="color:#ffd54f;font-weight:700;" id="adminCharName">載入中...</span>
+        </div>
+      </div>
+      <div class="admin-section">
+        <h3>👤 個人資料</h3>
+        <div class="admin-row"><label>顯示名稱</label><input type="text" id="adminName" placeholder="輸入顯示名稱"></div>
+        <div class="admin-row"><label>對話泡泡</label><input type="text" id="adminBubble" placeholder="歡迎來到太空基地！"></div>
+        <div class="admin-row"><label>形象照</label><div class="admin-img-preview" id="adminProfilePreview">👩‍🚀</div><div class="admin-file-btn">選擇圖片<input type="file" accept="image/*" id="adminProfileFile"></div></div>
+        <div class="admin-row"><label>吉祥物</label><div class="admin-img-preview" id="adminMascotPreview">🐝</div><div class="admin-file-btn">選擇圖片<input type="file" accept="image/*" id="adminMascotFile"></div></div>
+      </div>
+      <div class="admin-section">
+        <h3>🏗️ 建築圖片管理</h3>
+        <div class="admin-row"><label>練功坊</label><div class="admin-img-preview" id="adminTrainingPreview">🔮</div><div class="admin-file-btn">選擇圖片<input type="file" accept="image/*" id="adminTrainingFile"></div></div>
+        <div class="admin-row"><label>指揮城堡</label><div class="admin-img-preview" id="adminCastlePreview">🏰</div><div class="admin-file-btn">選擇圖片<input type="file" accept="image/*" id="adminCastleFile"></div></div>
+        <div class="admin-row"><label>星際廣場</label><div class="admin-img-preview" id="adminPlazaPreview">🌌</div><div class="admin-file-btn">選擇圖片<input type="file" accept="image/*" id="adminPlazaFile"></div></div>
+        <div class="admin-row"><label>業績數據中心</label><div class="admin-img-preview" id="adminPerfPreview">📊</div><div class="admin-file-btn">選擇圖片<input type="file" accept="image/*" id="adminPerfFile"></div></div>
+      </div>
+      <div class="admin-section">
+        <h3>📊 成績單管理</h3>
+        <div class="admin-row"><label>已存數量</label><span id="adminScoreCount" style="color:#ffd54f;font-weight:700;">0 份</span></div>
+        <div class="admin-row"><label>總分</label><input type="text" id="adminTotalScore" placeholder="手動輸入總分 (選填)"></div>
+      </div>
+      <div class="admin-section">
+        <h3>🎵 首頁背景音樂</h3>
+        <div class="admin-row">
+          <label>音檔</label>
+          <span id="bgmFileName" style="font-size:11px;color:#94a3b8;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">未設定</span>
+          <div class="admin-file-btn" style="margin-left:8px;">選擇音檔<input type="file" accept="audio/*" id="bgmFileInput"></div>
+          <button style="margin-left:6px;background:rgba(255,80,80,.15);border:1px solid rgba(255,80,80,.25);color:#ff8a8a;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;" onclick="removeBgm()">移除</button>
+        </div>
+        <div class="admin-row" style="align-items:center;">
+          <label>音量</label>
+          <input type="range" id="bgmVolume" min="0" max="100" value="30" style="flex:1;accent-color:#fbbf24;cursor:pointer;" oninput="setBgmVolume(this.value)">
+          <span id="bgmVolLabel" style="font-size:11px;color:#ffd54f;min-width:36px;text-align:right;">30%</span>
+        </div>
+        <div style="font-size:11px;color:#6a8fcc;line-height:1.6;margin-top:4px;">
+          💡 進入首頁自動播放，點任何按鈕會停止。之後按 🔔 可重新播放。
+        </div>
+      </div>
+      <div class="admin-section">
+        <h3>🔒 業績數據中心密碼</h3>
+        <div class="admin-row"><label>4 位數密碼</label><input type="password" id="adminPerfPw" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="輸入 4 位數字" style="width:120px;text-align:center;letter-spacing:8px;font-size:16px;font-weight:700;"></div>
+        <div style="font-size:11px;color:#6a8fcc;line-height:1.6;margin-top:4px;">
+          💡 設定後，開啟業績數據中心需輸入此密碼。留空則不需密碼。
+        </div>
+      </div>
+      <button class="admin-save-btn" onclick="adminSave()">💾 儲存所有設定</button>
+      <div class="admin-section" style="margin-top:24px;">
+        <h3>📦 備份與還原</h3>
+        <div id="storageInfo" style="font-size:11px;color:#94a3b8;line-height:1.8;margin-bottom:10px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid rgba(100,180,255,.08);"></div>
+        <div style="display:flex;gap:12px;margin-bottom:12px;">
+          <button class="admin-save-btn" style="width:auto;flex:1;padding:12px;font-size:14px;background:linear-gradient(135deg,#00695c,#00897b);" onclick="downloadBackup()">⬇️ 下載備份檔</button>
+          <button class="admin-save-btn" style="width:auto;flex:1;padding:12px;font-size:14px;background:linear-gradient(135deg,#e65100,#ff8f00);position:relative;overflow:hidden;" id="restoreBtn">
+            ⬆️ 上傳還原檔
+            <input type="file" accept=".json" id="restoreInput" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+          </button>
+        </div>
+        <div style="font-size:11px;color:#6a8fcc;line-height:1.6;">
+          備份檔包含：所有角色資料、圖片、成績單、個人設定、<br>
+          瀑布錄音/話術檔、城堡音效、成就解鎖等全部頁面資料。<br>
+          還原時會覆蓋現有資料，請先確認。
+        </div>
+      </div>
+      <!-- ===== 管理者匯入區 ===== -->
+      <div class="admin-section" style="margin-top:24px;border:2px solid rgba(255,215,0,0.25);background:rgba(255,215,0,0.03);">
+        <h3>👑 管理者匯入（個別主角備份）</h3>
+        <div style="font-size:12px;color:#ffd54f;line-height:1.6;margin-bottom:12px;">
+          匯入個別主角的備份檔。只更新該主角的資料，<b>不會影響其他主角</b>。
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <select id="mergeCharSelect" onchange="onMergeCharSelectChange()" style="flex:1;min-width:160px;padding:10px 12px;border:1px solid rgba(100,180,255,0.25);background:rgba(15,20,60,0.85);color:#ffd700;border-radius:8px;font-size:13px;cursor:pointer;">
+            <option value="">── 選擇要匯入的主角 ──</option>
+          </select>
+          <button class="admin-save-btn" style="width:auto;flex:1;padding:12px;font-size:14px;background:linear-gradient(135deg,#6a1b9a,#ab47bc);position:relative;overflow:hidden;" id="mergeRestoreBtn">
+            👑 匯入此主角的備份
+            <input type="file" accept=".json" id="mergeRestoreInput" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+          </button>
+        </div>
+        <div id="mergeManualRow" style="display:none;margin-bottom:12px;">
+          <input type="text" id="mergeManualName" placeholder="輸入主角名字（必須跟城堡卡牌的名字一致）" style="width:100%;padding:10px 12px;border:1px solid rgba(255,215,0,0.3);background:rgba(15,20,60,0.85);color:#ffd700;border-radius:8px;font-size:13px;">
+        </div>
+        <div id="mergeCharList" style="font-size:11px;color:#94a3b8;line-height:1.8;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid rgba(100,180,255,.08);max-height:200px;overflow-y:auto;"></div>
+      </div>
+      <button class="admin-danger-btn" onclick="clearAllData()">🗑️ 清除所有資料（重置）</button>
+    </div>
+  </div>
+</div>
+
+<audio id="bgmAudio" loop preload="auto"></audio>
+
+<!-- 通用彈窗 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <h3 id="modalTitle"></h3>
+    <p id="modalBody"></p>
+    <button class="modal-close" onclick="closeModal()">關閉</button>
+  </div>
+</div>
+
+<script>
+// ========== IndexedDB ==========
+const DB_NAME='SpaceBaseDB', DB_VER=1;
+let db=null;
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,DB_VER);
+    r.onupgradeneeded=(e)=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains('images')) d.createObjectStore('images');
+      if(!d.objectStoreNames.contains('scores')) d.createObjectStore('scores',{keyPath:'id',autoIncrement:true});
+    };
+    r.onsuccess=(e)=>{db=e.target.result;res(db)};
+    r.onerror=rej;
+  });
+}
+function dbPut(s,k,v){return new Promise((res,rej)=>{const t=db.transaction(s,'readwrite');t.objectStore(s).put(v,k);t.oncomplete=res;t.onerror=rej})}
+function dbGet(s,k){return new Promise((res,rej)=>{const t=db.transaction(s,'readonly');const r=t.objectStore(s).get(k);r.onsuccess=()=>res(r.result);r.onerror=rej})}
+function dbGetAll(s){return new Promise((res,rej)=>{const t=db.transaction(s,'readonly');const r=t.objectStore(s).getAll();r.onsuccess=()=>res(r.result);r.onerror=rej})}
+function dbDelete(s,k){return new Promise((res,rej)=>{const t=db.transaction(s,'readwrite');t.objectStore(s).delete(k);t.oncomplete=res;t.onerror=rej})}
+function dbClear(s){return new Promise((res,rej)=>{const t=db.transaction(s,'readwrite');t.objectStore(s).clear();t.oncomplete=res;t.onerror=rej})}
+
+function fileToDataURL(f){return new Promise(r=>{const x=new FileReader();x.onload=e=>r(e.target.result);x.readAsDataURL(f)})}
+
+// ★ 壓縮圖片為小縮圖（用於 localStorage，保證不超過 50KB）
+function compressToThumb(dataUrl, maxSize){
+  maxSize = maxSize || 120;
+  return new Promise(function(res){
+    var img = new Image();
+    img.onload = function(){
+      var c = document.createElement('canvas');
+      var w = img.width, h = img.height;
+      if(w > h){ h = Math.round(h * maxSize / w); w = maxSize; }
+      else { w = Math.round(w * maxSize / h); h = maxSize; }
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      res(c.toDataURL('image/jpeg', 0.7));
+    };
+    img.onerror = function(){ res(null); };
+    img.src = dataUrl;
+  });
+}
+function showToast(m){const t=document.getElementById('saveToast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+
+// ========== 星空 ==========
+(function(){
+  const c=document.getElementById('stars-canvas'),ctx=c.getContext('2d');
+  function resize(){c.width=innerWidth;c.height=innerHeight}
+  resize();addEventListener('resize',resize);
+  const stars=Array.from({length:260},()=>({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.8+0.3,a:Math.random(),da:(Math.random()-0.5)*0.02}));
+  let ss=[];
+  setInterval(()=>ss.push({x:Math.random()*c.width,y:0,vx:(Math.random()-0.3)*6,vy:Math.random()*4+3,life:1,decay:0.015+Math.random()*0.01}),4000);
+  function frame(){
+    ctx.clearRect(0,0,c.width,c.height);
+    for(const s of stars){s.a+=s.da;if(s.a>1||s.a<0.2)s.da*=-1;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(200,220,255,${s.a})`;ctx.fill()}
+    for(let i=ss.length-1;i>=0;i--){const s=ss[i];ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x-s.vx*8,s.y-s.vy*8);ctx.strokeStyle=`rgba(200,230,255,${s.life*0.6})`;ctx.lineWidth=2;ctx.stroke();s.x+=s.vx;s.y+=s.vy;s.life-=s.decay;if(s.life<=0)ss.splice(i,1)}
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+// ========== 日期 ==========
+function updateDate(){
+  const n=new Date(),m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('dateDay').textContent=String(n.getDate()).padStart(2,'0');
+  document.getElementById('dateMonth').textContent=m[n.getMonth()];
+  document.getElementById('dateYear').textContent=n.getFullYear();
+}
+
+// ========== 換圖 ==========
+document.getElementById('mascotInput').addEventListener('change',async function(e){
+  const f=e.target.files[0];if(!f)return;const d=await fileToDataURL(f);applyMascot(d);await dbPut('images','mascot',d);showToast('✅ 吉祥物已儲存！');
+});
+function applyMascot(d){const i=document.getElementById('mascotImg');i.src=d;i.style.display='block';document.getElementById('mascotEmoji').style.display='none'}
+
+document.getElementById('profileInput').addEventListener('change',async function(e){
+  const f=e.target.files[0];if(!f)return;const d=await fileToDataURL(f);applyProfile(d);await dbPut('images','profile',d);showToast('✅ 形象照已儲存！');
+});
+function applyProfile(d){const i=document.getElementById('profileImg');i.src=d;i.style.display='block';document.getElementById('profilePlaceholder').style.display='none';try{localStorage.setItem('profileImgData',d)}catch(e){}}
+
+document.getElementById('profileLabel').addEventListener('blur',function(){localStorage.setItem('profileName',this.textContent)});
+
+// ★ 六角形換圖 — 完全比照吉祥物模式：只用 IndexedDB
+async function changeHexImg(k,inp){
+  const f=inp.files[0];if(!f)return;const d=await fileToDataURL(f);
+  // ★ 根據白天/黑夜模式存到不同的 key，互不影響
+  var _curDay = (typeof isDayMode === 'function') ? isDayMode() : false;
+  var dbKey = _curDay ? ('hex_' + k + '_day') : ('hex_' + k);
+  console.log('[changeHexImg] 儲存圖片:', dbKey, '模式:', _curDay ? '白天' : '黑夜', '大小:', d.length);
+  applyHexImg(k,d);
+  await dbPut('images',dbKey,d);
+  // ★ 驗證寫入成功
+  var verify = await dbGet('images', dbKey);
+  console.log('[changeHexImg] 驗證:', dbKey, verify ? ('✅ ' + verify.length + '字元') : '❌ 未找到');
+  // ★ 立即推送到雲端（確保不遺失）
+  try{if(window.firebaseSync&&window.firebaseSync.push) await window.firebaseSync.push();}catch(e){}
+  var modeLabel = _curDay ? '（白天版）' : '（黑夜版）';
+  showToast('✅ 圖片已儲存！' + modeLabel);
+}
+// ★ 圖片資料驗證 — 防止損壞的 data URL 被套用
+function isValidImageData(d){
+  if(!d||typeof d!=='string')return false;
+  if(d.indexOf('data:image/')!==0)return false;
+  // 損壞的縮圖通常很小（<500字元），正常圖片至少 1KB+
+  if(d.length<500)return false;
+  return true;
+}
+// ★ applyHexImg — 完全比照 applyMascot，最簡單的寫法（加驗證）
+function applyHexImg(k,d){
+  if(!isValidImageData(d)){console.warn('[applyHexImg] 無效圖片資料，跳過:',k,d?d.substring(0,60)+'…':'null');return false;}
+  var i=document.getElementById(k+'Img');
+  if(!i)return false;
+  i.src=d;i.style.display='block';
+  var icon=document.getElementById(k+'Icon');
+  if(icon)icon.style.display='none';
+  return true;
+}
+
+// ★ 廣場建築換圖 — 完全比照吉祥物模式
+async function changePlazaImg(k,inp){
+  const f=inp.files[0];if(!f)return;const d=await fileToDataURL(f);
+  applyPlazaImg(k,d);await dbPut('images','plaza_'+k,d);
+  try{if(window.firebaseSync&&window.firebaseSync.push) await window.firebaseSync.push();}catch(e){}
+  showToast('✅ 圖片已儲存！');
+}
+function applyPlazaImg(k,d){
+  if(!isValidImageData(d)){console.warn('[applyPlazaImg] 無效圖片資料，跳過:',k,d?d.substring(0,60)+'…':'null');return false;}
+  var i=document.getElementById(k+'CustomImg');
+  if(!i)return false;
+  i.src=d;i.style.display='block';
+  var icon=document.getElementById(k+'Wrap');
+  if(icon){var sp=icon.querySelector('.pb-icon');if(sp)sp.style.display='none';}
+  return true;
+}
+
+// ========== 評分系統 ==========
+let scoreFiles=[];
+document.getElementById('uploadScoreBtn').addEventListener('click',(e)=>{e.stopPropagation();document.getElementById('scoreFileInput').click()});
+document.getElementById('scoreFileInput').addEventListener('change',handleScoreUpload);
+document.getElementById('svAddInput').addEventListener('change',handleScoreUpload);
+
+async function handleScoreUpload(e){
+  const files=Array.from(e.target.files);if(!files.length)return;
+  for(const f of files){
+    const d=await fileToDataURL(f);
+    const rec={name:f.name,type:f.type,dataURL:d,timestamp:Date.now()};
+    const tx=db.transaction('scores','readwrite');const s=tx.objectStore('scores');const r=s.add(rec);
+    r.onsuccess=()=>{rec.id=r.result;scoreFiles.push(rec)};
+    await new Promise(r=>{tx.oncomplete=r});
+  }
+  updateScoreDisplay();renderScoreViewer();showToast(`✅ 已匯入 ${files.length} 份成績單！`);e.target.value='';
+}
+function fmtWan(v){
+  // 去掉後四位數，加「萬」
+  var n=parseFloat(v)||0;
+  if(n===0) return '—';
+  return (n/10000).toFixed(0)+'萬';
+}
+function updateScoreDisplay(){
+  // 年度業績達成率（從 castle_cards_v1 讀取當前角色資料）
+  var pct=0, personal=0, groupRev=0, groupTarget=0, groupRatio=0;
+  var isAcad=false;
+  try{
+    var cid=localStorage.getItem('activeCharacterId');
+    var raw=localStorage.getItem('castle_cards_v1');
+    if(cid!=null&&raw){
+      var allCards=JSON.parse(raw);
+      var card=allCards.find(function(c){return c.name===cid;})||allCards[parseInt(cid)];
+      if(card){
+        isAcad=['yellow','purple','black','blue'].includes(card.color);
+        personal=parseFloat(card.personalRevenue)||0;
+        groupRev=parseFloat(card.groupRevenue)||0;
+        groupTarget=parseFloat(card.groupTarget)||0;
+        if(groupTarget>0) pct=Math.min(100,(groupRev/groupTarget*100));
+        if(groupRev>0) groupRatio=(personal/groupRev*100);
+      }
+    }
+  }catch(e){}
+  var pctEl=document.getElementById('progressPct');
+  var fillEl=document.getElementById('progressFill');
+  if(pctEl) pctEl.textContent=pct>0?pct.toFixed(1)+'%':'0%';
+  if(fillEl) fillEl.style.width=Math.min(100,pct)+'%';
+  // 顯示業績數字 — 學院色卡顯示不同欄位
+  var statsEl=document.getElementById('revenueStats');
+  if(statsEl){
+    if(isAcad){
+      statsEl.innerHTML=
+        '<span>學院業績 <span class="rv-val">'+fmtWan(groupRev)+'</span></span>'+
+        '<span>學院目標 <span class="rv-val">'+fmtWan(groupTarget)+'</span></span>'+
+        '<span>達成率 <span class="rv-val">'+(pct>0?pct.toFixed(1)+'%':'—')+'</span></span>';
+    }else{
+      statsEl.innerHTML=
+        '<span>個人 <span class="rv-val">'+fmtWan(personal)+'</span></span>'+
+        '<span>組 <span class="rv-val">'+fmtWan(groupRev)+'</span></span>'+
+        '<span>目標 <span class="rv-val">'+fmtWan(groupTarget)+'</span></span>'+
+        '<span>占比 <span class="rv-val">'+(groupRatio>0?groupRatio.toFixed(1)+'%':'—')+'</span></span>';
+    }
+  }
+  // 讀取 360 度能力檢核六大維度分數
+  update360DimScores();
+}
+
+function update360DimScores(){
+  const DIMS_META=[
+    {id:1,name:'會議',max:25,color:'#3b82f6'},
+    {id:2,name:'績效管理',max:30,color:'#8b5cf6'},
+    {id:3,name:'人員管理',max:15,color:'#06b6d4'},
+    {id:4,name:'日常輔導',max:15,color:'#10b981'},
+    {id:5,name:'小組發展',max:10,color:'#f59e0b'},
+    {id:6,name:'宣誓',max:5,color:'#ef4444'}
+  ];
+  let scores={};
+  try{
+    const cid=localStorage.getItem('activeCharacterId');
+    const baseKey=cid!=null?'char_'+cid+'_appedu_leader_map_v1':'appedu_leader_map_v1';
+    // ★ 優先讀主管分數，fallback 到自評
+    const raw=localStorage.getItem(baseKey+'_manager')||localStorage.getItem(baseKey+'_self')||localStorage.getItem(baseKey);
+    if(raw){const state=JSON.parse(raw);if(state.scores) scores=state.scores;}
+  }catch(e){}
+
+  let total=0;
+  DIMS_META.forEach(d=>{
+    const val=parseInt(scores[d.id])||0;
+    total+=val;
+    const pct=Math.round(val/d.max*100);
+    const fill=document.getElementById('dimFill'+d.id);
+    const valEl=document.getElementById('dimVal'+d.id);
+    if(fill) fill.style.width=pct+'%';
+    if(valEl) valEl.textContent=val+'/'+d.max;
+  });
+
+  document.getElementById('totalScoreDisplay').textContent=total;
+  const label=document.getElementById('scoreCountLabel');
+  if(total>0){
+    let grade='';
+    if(total>=90) grade='優秀 Excellent';
+    else if(total>=75) grade='良好 Good';
+    else if(total>=60) grade='達標 Pass';
+    else if(total>=40) grade='待改善';
+    else grade='需提升';
+    label.textContent='等級：'+grade;
+  } else {
+    label.textContent='尚未評估（請至 360度能力檢核 由主管計分）';
+  }
+}
+document.getElementById('scorePanelBtn').addEventListener('click',()=>{document.getElementById('scoreViewer').classList.add('active');renderScoreViewer()});
+function closeScoreViewer(){document.getElementById('scoreViewer').classList.remove('active')}
+function renderScoreViewer(){
+  const b=document.getElementById('svBody'),em=document.getElementById('svEmpty');
+  b.querySelectorAll('.sv-card').forEach(c=>c.remove());
+
+  // 顯示 360 度報告
+  const reportSection=document.getElementById('svReportSection');
+  const reportContent=document.getElementById('svReportContent');
+  try{
+    const cid=localStorage.getItem('activeCharacterId');
+    const baseKey=cid!=null?'char_'+cid+'_appedu_leader_map_v1':'appedu_leader_map_v1';
+    const reportRaw=localStorage.getItem(baseKey+'_report');
+    if(reportRaw){
+      const rpt=JSON.parse(reportRaw);
+      if(rpt.report){
+        reportContent.textContent=rpt.report;
+        reportSection.style.display='block';
+      } else { reportSection.style.display='none'; }
+    } else { reportSection.style.display='none'; }
+  }catch(e){ reportSection.style.display='none'; }
+
+  if(!scoreFiles.length && reportSection.style.display==='none'){em.style.display='block';return}
+  em.style.display='none';
+  scoreFiles.forEach(sf=>{
+    const c=document.createElement('div');c.className='sv-card';
+    const isPDF=sf.type==='application/pdf';
+    c.innerHTML=`<div class="sv-card-header"><span>${isPDF?'📄':'🖼️'} ${sf.name}</span><button class="sv-card-delete" onclick="deleteScore(${sf.id})">🗑️</button></div><div class="sv-card-content">${isPDF?`<object data="${sf.dataURL}" type="application/pdf" width="100%" height="100%"><p>無法預覽 PDF</p></object>`:`<img src="${sf.dataURL}">`}</div>`;
+    b.appendChild(c);
+  });
+}
+async function deleteScore(id){if(!confirm('確定刪除？'))return;await dbDelete('scores',id);scoreFiles=scoreFiles.filter(s=>s.id!==id);updateScoreDisplay();renderScoreViewer();showToast('🗑️ 已刪除')}
+
+// ========== 儲存/設定/後台 ==========
+// ★ 切換主角前：城堡會呼叫此函式，先讓所有 iframe 用「舊主角」的 key 存完
+function saveAllBeforeCharSwitch(){
+  const ids=['assess360Frame','fireFrame','achieveFrame','trainingFrame','waterfallFrame','perfFrame'];
+  ids.forEach(id=>{
+    try{
+      const f=document.getElementById(id);
+      if(f&&f.contentWindow&&typeof f.contentWindow.triggerSave==='function'){
+        f.contentWindow.triggerSave();
+      }
+    }catch(e){}
+  });
+  console.log('[saveAllBeforeCharSwitch] done — all iframes saved with current character key');
+}
+
+function saveAll(){
+  localStorage.setItem('profileName',document.getElementById('profileLabel').textContent);
+  const iframeIds=['assess360Frame','fireFrame','achieveFrame','trainingFrame','castleFrame','waterfallFrame','perfFrame'];
+  iframeIds.forEach(id=>{
+    try{
+      const frame=document.getElementById(id);
+      if(frame&&frame.contentWindow&&typeof frame.contentWindow.triggerSave==='function'){
+        frame.contentWindow.triggerSave();
+      }
+    }catch(e){}
+  });
+  if(typeof prSave==='function') prSave();
+  showToast('✅ 所有資料已儲存！');
+}
+document.getElementById('settingsBtn').addEventListener('click',openAdmin);
+function openAdmin(){
+  document.getElementById('adminOverlay').classList.add('active');
+  document.getElementById('adminName').value=document.getElementById('profileLabel').textContent;
+  document.getElementById('adminBubble').value=document.getElementById('speechBubble').textContent;
+  document.getElementById('adminScoreCount').textContent=scoreFiles.length+' 份';
+  document.getElementById('adminTotalScore').value=localStorage.getItem('manualTotalScore')||'';
+  document.getElementById('adminPerfPw').value=localStorage.getItem('perf_password')||'';
+  // 更新當前角色資訊 & 儲存狀態
+  updateAdminCharInfo();
+  updateStorageInfo();
+  refreshMergeCharList();
+}
+async function updateStorageInfo(){
+  const el=document.getElementById('storageInfo');if(!el)return;
+  // localStorage usage
+  let lsSize=0;
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);lsSize+=k.length+(localStorage.getItem(k)||'').length;}
+  const lsMB=(lsSize*2/1024/1024).toFixed(2); // UTF-16 = 2 bytes per char
+  // Count character data keys
+  let charCount=0;
+  const charSet=new Set();
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    const m=k.match(/^char_(\d+)_/);
+    if(m) charSet.add(m[1]);
+  }
+  charCount=charSet.size;
+  // IndexedDB estimate
+  let idbInfo='';
+  if(navigator.storage&&navigator.storage.estimate){
+    try{const est=await navigator.storage.estimate();
+      idbInfo=' · IndexedDB: '+(est.usage/1024/1024).toFixed(1)+' MB / '+(est.quota/1024/1024/1024).toFixed(1)+' GB';
+    }catch(e){}
+  }
+  el.innerHTML='📊 <b>儲存狀態</b>：LocalStorage '+lsMB+' MB'+idbInfo+'<br>👥 角色資料：'+charCount+' 位角色 · 成績單 '+scoreFiles.length+' 份';
+}
+
+function updateAdminCharInfo(){
+  const el=document.getElementById('adminCharName');
+  const cid=localStorage.getItem('activeCharacterId');
+  const cn=localStorage.getItem('activeCharacterName');
+  if(cid!=null&&cn){
+    el.innerHTML='🎮 <span style="color:#ffd54f;">'+cn+'</span>';
+  }else{
+    el.innerHTML='<span style="color:var(--mu);">未登入角色（預設模式）</span>';
+  }
+}
+function closeAdmin(){document.getElementById('adminOverlay').classList.remove('active')}
+['Profile','Mascot','Training','Castle','Plaza','Perf'].forEach(k=>{
+  const el=document.getElementById('admin'+k+'File');if(!el)return;
+  el.addEventListener('change',async function(e){
+    const f=e.target.files[0];if(!f)return;const d=await fileToDataURL(f);
+    document.getElementById('admin'+k+'Preview').innerHTML=`<img src="${d}">`;
+    if(k==='Profile'){applyProfile(d);await dbPut('images','profile',d)}
+    else if(k==='Mascot'){applyMascot(d);await dbPut('images','mascot',d)}
+    else{
+      const lk=k.toLowerCase();
+      // ★ 根據白天/黑夜模式存到不同的 key
+      var dbKey = (typeof getHexImgKey === 'function') ? getHexImgKey(lk) : ('hex_' + lk);
+      applyHexImg(lk,d);await dbPut('images',dbKey,d);
+    }
+  });
+});
+async function adminSave(){
+  const n=document.getElementById('adminName').value,b=document.getElementById('adminBubble').value,ts=document.getElementById('adminTotalScore').value;
+  if(n){document.getElementById('profileLabel').textContent=n;localStorage.setItem('profileName',n)}
+  if(b){document.getElementById('speechBubble').textContent=b;localStorage.setItem('speechBubble',b)}
+  if(ts)localStorage.setItem('manualTotalScore',ts);else localStorage.removeItem('manualTotalScore');
+  // 儲存業績數據中心密碼
+  const perfPw=document.getElementById('adminPerfPw').value.trim();
+  if(perfPw)localStorage.setItem('perf_password',perfPw);else localStorage.removeItem('perf_password');
+  updateScoreDisplay();closeAdmin();showToast('✅ 設定已儲存！');
+}
+async function clearAllData(){
+  if(!confirm('⚠️ 確定清除所有資料？無法復原！'))return;
+  if(!confirm('⚠️ 再次確認：所有角色資料、錄音、照片等都將清除！'))return;
+  localStorage.clear();
+  await dbClear('images');await dbClear('scores');
+  // 清除外部 IndexedDB
+  try{indexedDB.deleteDatabase('waterfall_blob_store');}catch(e){}
+  try{indexedDB.deleteDatabase('castle_cards_sfx_db');}catch(e){}
+  location.reload();
+}
+
+// ========== 備份下載 ==========
+// Helper: open external IndexedDB and get all data
+function extIdbGetAll(dbName,storeName){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open(dbName);
+    req.onsuccess=()=>{
+      const d=req.result;
+      if(!d.objectStoreNames.contains(storeName)){d.close();res({});return;}
+      const tx=d.transaction(storeName,'readonly');
+      const store=tx.objectStore(storeName);
+      const allKeys=store.getAllKeys();
+      const allVals=store.getAll();
+      tx.oncomplete=()=>{
+        const map={};
+        for(let i=0;i<allKeys.result.length;i++) map[allKeys.result[i]]=allVals.result[i];
+        d.close();res(map);
+      };
+      tx.onerror=()=>{d.close();rej(tx.error);};
+    };
+    req.onerror=()=>rej(req.error);
+  });
+}
+function extIdbPutAll(dbName,storeName,map){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open(dbName);
+    req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains(storeName))d.createObjectStore(storeName);};
+    req.onsuccess=()=>{
+      const d=req.result;
+      if(!d.objectStoreNames.contains(storeName)){d.close();res();return;}
+      const tx=d.transaction(storeName,'readwrite');
+      const store=tx.objectStore(storeName);
+      store.clear();
+      for(const[k,v] of Object.entries(map)) store.put(v,k);
+      tx.oncomplete=()=>{d.close();res();};
+      tx.onerror=()=>{d.close();rej(tx.error);};
+    };
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+async function downloadBackup(){
+  showToast('📦 正在打包備份檔...');
+  const backup={version:3,timestamp:Date.now(),localStorage:{},images:{},scores:[],waterfallBlobs:{},castleSfxBlobs:{}};
+  // localStorage (所有 key)
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);backup.localStorage[k]=localStorage.getItem(k)}
+  // images from IndexedDB (SpaceBaseDB)
+  const imgKeys=['mascot','profile','hex_training','hex_castle','hex_plaza','hex_perf','hex_training_day','hex_castle_day','hex_plaza_day','hex_perf_day','plaza_ocean','plaza_court','plaza_waterfall','plaza_vault','plaza_fire','bgm_audio'];
+  for(const k of imgKeys){const v=await dbGet('images',k);if(v)backup.images[k]=v}
+  // scores
+  backup.scores=await dbGetAll('scores');
+  // waterfall IndexedDB (audio + files)
+  try{backup.waterfallBlobs=await extIdbGetAll('waterfall_blob_store','blobs');}catch(e){console.warn('waterfall backup skip',e);}
+  // castle SFX IndexedDB
+  try{backup.castleSfxBlobs=await extIdbGetAll('castle_cards_sfx_db','blobs');}catch(e){console.warn('castle sfx backup skip',e);}
+  // download
+  const blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`太空基地備份_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  showToast('✅ 備份檔已下載！');
+}
+
+// ========== 上傳還原 ==========
+document.getElementById('restoreInput').addEventListener('change',async function(e){
+  const file=e.target.files[0];if(!file)return;
+  if(!confirm('⚠️ 上傳還原檔將覆蓋目前所有資料，確定要繼續嗎？'))return;
+  showToast('📦 正在還原資料...');
+  const text=await file.text();
+  try{
+    const backup=JSON.parse(text);
+    // 還原 localStorage
+    if(backup.localStorage){localStorage.clear();for(const[k,v]of Object.entries(backup.localStorage))localStorage.setItem(k,v)}
+    // 還原 images (SpaceBaseDB)
+    if(backup.images){await dbClear('images');for(const[k,v]of Object.entries(backup.images))await dbPut('images',k,v)}
+    // 還原 scores
+    if(backup.scores&&backup.scores.length){
+      await dbClear('scores');
+      for(const s of backup.scores){
+        const rec={name:s.name,type:s.type,dataURL:s.dataURL,timestamp:s.timestamp};
+        const tx=db.transaction('scores','readwrite');tx.objectStore('scores').add(rec);
+        await new Promise(r=>{tx.oncomplete=r});
+      }
+    }
+    // 還原 waterfall IndexedDB
+    if(backup.waterfallBlobs&&Object.keys(backup.waterfallBlobs).length){
+      try{await extIdbPutAll('waterfall_blob_store','blobs',backup.waterfallBlobs);}catch(e){console.warn('waterfall restore fail',e);}
+    }
+    // 還原 castle SFX IndexedDB
+    if(backup.castleSfxBlobs&&Object.keys(backup.castleSfxBlobs).length){
+      try{await extIdbPutAll('castle_cards_sfx_db','blobs',backup.castleSfxBlobs);}catch(e){console.warn('castle sfx restore fail',e);}
+    }
+    showToast('✅ 還原完成！頁面即將重新載入...');
+    setTimeout(()=>location.reload(),1500);
+  }catch(err){alert('❌ 備份檔格式錯誤：'+err.message)}
+})
+
+// ========== 管理者匯入（合併不覆蓋） ==========
+function refreshMergeCharList(){
+  const sel=document.getElementById('mergeCharSelect');
+  const listEl=document.getElementById('mergeCharList');
+  // Build character list from castle_cards_v1（放寬條件：只要有名字且不是預設名）
+  let cards=[];
+  try{const raw=localStorage.getItem('castle_cards_v1');if(raw)cards=JSON.parse(raw);}catch(e){}
+  const allChars=cards.filter(c=>c&&c.name&&!/^角色\s?\d+$/.test(c.name));
+  // 也從 localStorage 的 char_xxx_ key 找出已有資料的角色名
+  const existingNames=new Set();
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    const m=k.match(/^char_(.+?)_/);
+    if(m&&!/^\d+$/.test(m[1]))existingNames.add(m[1]);
+  }
+  // 合併兩個來源
+  const charNames=new Set(allChars.map(c=>c.name));
+  existingNames.forEach(n=>charNames.add(n));
+
+  // Populate dropdown
+  sel.innerHTML='<option value="">── 選擇要匯入的主角 ──</option>';
+  [...charNames].sort().forEach(name=>{
+    const card=allChars.find(c=>c.name===name);
+    const label=card?`${name}（${card.title||''}）`:name;
+    sel.innerHTML+=`<option value="${name}">${label}</option>`;
+  });
+  // 最後加「✏️ 手動輸入名字」選項
+  sel.innerHTML+='<option value="__manual__">✏️ 手動輸入名字...</option>';
+
+  // Show all imported characters and their data status
+  const charMap={};
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    const m=k.match(/^char_(.+?)_/);
+    if(m){
+      const name=m[1];
+      if(!charMap[name])charMap[name]={count:0};
+      charMap[name].count++;
+    }
+  }
+  const names=Object.keys(charMap).sort();
+  if(names.length===0){
+    listEl.innerHTML='尚無任何主角資料。匯入第一位主角的備份後就會顯示在這裡。';
+  }else{
+    listEl.innerHTML='<div style="color:#ffd54f;margin-bottom:6px;font-weight:600;">📋 已匯入的主角資料（共 '+names.length+' 位）：</div>'+
+      names.map(n=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(100,180,255,0.06);"><span style="color:#e0e0e0;">👤 ${n}</span><span style="color:#64b0ff;">${charMap[n].count} 個資料項</span></div>`).join('');
+  }
+}
+
+function onMergeCharSelectChange(){
+  const sel=document.getElementById('mergeCharSelect');
+  const manualRow=document.getElementById('mergeManualRow');
+  manualRow.style.display=sel.value==='__manual__'?'block':'none';
+}
+
+function getMergeTargetName(){
+  const sel=document.getElementById('mergeCharSelect');
+  if(sel.value==='__manual__'){
+    const manual=document.getElementById('mergeManualName').value.trim();
+    return manual||'';
+  }
+  return sel.value;
+}
+
+document.getElementById('mergeRestoreInput').addEventListener('change',async function(e){
+  const file=e.target.files[0];if(!file)return;
+  const targetChar=getMergeTargetName();
+  if(!targetChar){alert('⚠️ 請先選擇要匯入的主角，或手動輸入名字！');e.target.value='';return;}
+  if(!confirm(`👑 將匯入「${targetChar}」的備份資料。\n\n✅ 只會更新「${targetChar}」的個人資料\n✅ 其他主角的資料完全不受影響\n✅ 業績數據中心不受影響\n\n確定要匯入嗎？`)){e.target.value='';return;}
+
+  showToast('👑 正在匯入「'+targetChar+'」的資料...');
+  const text=await file.text();
+  try{
+    const backup=JSON.parse(text);
+    if(!backup.localStorage){throw new Error('備份檔格式不正確，缺少 localStorage 資料');}
+
+    // === Step 1: 找出備份檔中的主角名稱 ===
+    const backupKeys=Object.keys(backup.localStorage);
+    // 找備份檔的 activeCharacterId
+    const backupCharId=backup.localStorage.activeCharacterId||'';
+    // 找備份檔中所有 char_xxx_ 前綴
+    const backupCharNames=new Set();
+    backupKeys.forEach(k=>{const m=k.match(/^char_(.+?)_/);if(m)backupCharNames.add(m[1]);});
+
+    // 決定來源前綴：優先用備份的 activeCharacterId，否則用備份中找到的第一個角色名
+    let sourceCharName=backupCharId;
+    if(!sourceCharName&&backupCharNames.size>0)sourceCharName=[...backupCharNames][0];
+
+    const sourcePrefix=sourceCharName?'char_'+sourceCharName+'_':'';
+    const targetPrefix='char_'+targetChar+'_';
+
+    // === Step 2: 先清除目標主角的舊資料（只清這個人的） ===
+    const keysToRemove=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k.startsWith(targetPrefix))keysToRemove.push(k);
+    }
+    keysToRemove.forEach(k=>localStorage.removeItem(k));
+
+    // === Step 3: 把備份資料寫入目標主角的 key ===
+    let importedCount=0;
+
+    // (A) 角色專屬 key（char_xxx_ 開頭的）
+    if(sourcePrefix){
+      backupKeys.filter(k=>k.startsWith(sourcePrefix)).forEach(k=>{
+        const suffix=k.substring(sourcePrefix.length);
+        const newKey=targetPrefix+suffix;
+        localStorage.setItem(newKey,backup.localStorage[k]);
+        importedCount++;
+      });
+    }
+
+    // (B) 非 char_ 開頭但屬於角色的共用 key（只在沒有 char_ 版本時寫入）
+    const personalBaseKeys=['appedu_leader_map_v1','fire_mandala_data','team_issues',
+      'prCases','prRps','prNextId','training_sales_v1','training_leader_screenshots_v1',
+      'training_room_door_imgs','waterfall_channel_v2','waterfall_script_files_v2',
+      'achievement_unlock_data','committee_roles_v1'];
+    personalBaseKeys.forEach(base=>{
+      // 如果備份有無前綴版本，且還沒被上面的 char_xxx_ 覆蓋到
+      if(backup.localStorage[base]&&!localStorage.getItem(targetPrefix+base)){
+        localStorage.setItem(targetPrefix+base,backup.localStorage[base]);
+        importedCount++;
+      }
+    });
+
+    // (C) 更新 castle_cards_v1 中該角色的卡牌資料
+    let localCards=[];
+    try{const r=localStorage.getItem('castle_cards_v1');if(r)localCards=JSON.parse(r);}catch(e){}
+    let backupCards=[];
+    try{if(backup.localStorage.castle_cards_v1)backupCards=JSON.parse(backup.localStorage.castle_cards_v1);}catch(e){}
+
+    if(backupCards.length>0){
+      // 找備份中對應的角色卡牌
+      const srcCard=backupCards.find(c=>c.name===sourceCharName)||backupCards.find(c=>c.name===targetChar);
+      if(srcCard){
+        const tgtIdx=localCards.findIndex(c=>c.name===targetChar);
+        if(tgtIdx>=0){
+          // 保留本地的 id/name，更新其他欄位
+          const preserve=['id','name'];
+          Object.keys(srcCard).forEach(k=>{
+            if(!preserve.includes(k))localCards[tgtIdx][k]=srcCard[k];
+          });
+          // 確保名稱正確
+          localCards[tgtIdx].name=targetChar;
+          localStorage.setItem('castle_cards_v1',JSON.stringify(localCards));
+          importedCount++;
+        }
+      }
+    }
+
+    // === Step 4: 合併 IndexedDB（圖片、音效等） ===
+    // 圖片：只合併屬於此角色的（用 targetChar 作為 prefix 標記）
+    if(backup.images){
+      const imgKeys=['mascot','profile','hex_training','hex_castle','hex_plaza','hex_perf',
+        'hex_training_day','hex_castle_day','hex_plaza_day','hex_perf_day',
+        'plaza_ocean','plaza_court','plaza_waterfall','plaza_vault','plaza_fire'];
+      for(const ik of imgKeys){
+        if(backup.images[ik]){
+          // 存為角色專屬 key：char_xxx_img_yyy
+          await dbPut('images','char_'+targetChar+'_img_'+ik,backup.images[ik]);
+        }
+      }
+    }
+
+    // waterfall blobs
+    if(backup.waterfallBlobs&&Object.keys(backup.waterfallBlobs).length){
+      try{
+        // 用角色前綴存 waterfall 資料
+        const prefixed={};
+        Object.entries(backup.waterfallBlobs).forEach(([k,v])=>{
+          prefixed['char_'+targetChar+'_wf_'+k]=v;
+        });
+        await extIdbPutAll('waterfall_blob_store','blobs',prefixed);
+      }catch(e){console.warn('waterfall merge skip',e);}
+    }
+
+    showToast(`✅ 「${targetChar}」匯入完成！共更新 ${importedCount} 項資料。其他主角資料完好無損。`);
+    refreshMergeCharList();
+    // 不重新載入頁面 — 保持管理者視角
+  }catch(err){
+    alert('❌ 匯入失敗：'+err.message);
+    console.error(err);
+  }
+  e.target.value='';
+});
+
+// ========== 廣場頁面 ==========
+function openPlaza(){stopBgm();document.getElementById('plazaOverlay').classList.add('active');initPlazaParticles()}
+function closePlaza(){document.getElementById('plazaOverlay').classList.remove('active')}
+
+// 廣場粒子效果
+let plazaAnimId=null;
+function initPlazaParticles(){
+  const c=document.getElementById('plazaParticles');
+  if(!c)return;
+  const ctx=c.getContext('2d');
+  const map=document.getElementById('plazaMap');
+  c.width=map.offsetWidth; c.height=map.offsetHeight;
+  const pts=Array.from({length:50},()=>({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*2+0.5,vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.3,a:Math.random()}));
+  if(plazaAnimId)cancelAnimationFrame(plazaAnimId);
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    for(const p of pts){
+      p.x+=p.vx;p.y+=p.vy;p.a+=0.01;
+      if(p.x<0)p.x=c.width;if(p.x>c.width)p.x=0;
+      if(p.y<0)p.y=c.height;if(p.y>c.height)p.y=0;
+      const alpha=0.3+Math.sin(p.a)*0.2;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(150,200,255,${alpha})`;ctx.fill();
+    }
+    plazaAnimId=requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ========== 子頁面 ==========
+const subpageData={
+  ocean:  {icon:'🎯',title:'🎯 360度能力檢核',subtitle:'全方位評估',desc:'自評、主管、同儕、部屬四大面向，全方位檢視你的核心能力。'},
+  court:  {icon:'⚖️',title:'⚖️ 法 院',subtitle:'懲罰機制',desc:'星際法院維護團隊紀律與公平。\n\n違規記錄、懲處機制、改善追蹤都在這裡管理。'},
+  waterfall:{icon:'🏔️',title:'🏔️ 瀑 布',subtitle:'各通路研究',desc:'如同飛流直下的瀑布，各通路的數據與研究在這裡匯聚。\n\n通路分析、市場趨勢、競爭情報一覽無遺。'},
+  vault:  {icon:'🏆',title:'🏆 成就解鎖',subtitle:'獎勵成就',desc:'每一次突破都是一枚勳章，在這裡解鎖並收藏你的所有成就。\n\n累積更多里程碑來獲得稀有成就！'},
+  fire:   {icon:'🔥',title:'🔥 火 種',subtitle:'影響力',desc:'每一把火種都能點燃團隊的熱情與影響力。\n\n在這裡追蹤你的影響力指數、mentoring 記錄、團隊擴展成果。'}
+};
+
+function openSubpage(key){
+  stopBgm();
+  const d=subpageData[key];if(!d)return;
+  document.getElementById('subpageTitle').textContent=d.title;
+  document.getElementById('subpageContent').innerHTML=`
+    <div class="subpage-hero">${d.icon}</div>
+    <div class="subpage-title">${d.title}</div>
+    <div class="subpage-subtitle">${d.subtitle}</div>
+    <div class="subpage-placeholder">${d.desc.replace(/\n/g,'<br>')}<br><br>🚧 功能頁面開發中，敬請期待...</div>
+  `;
+  document.getElementById('subpageOverlay').classList.add('active');
+}
+function closeSubpage(){document.getElementById('subpageOverlay').classList.remove('active')}
+
+// ========== 成就解鎖 ==========
+function openAchievement(){
+  stopBgm();
+  document.getElementById('achieveFrame').src='achievement-unlock.html';
+  document.getElementById('achieveOverlay').classList.add('active');
+}
+function closeAchievement(){
+  try{const f=document.getElementById('achieveFrame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}
+  document.getElementById('achieveOverlay').classList.remove('active');
+  document.getElementById('achieveFrame').src='';
+}
+
+// ========== 火種九宮格 ==========
+function openFireMandala(){
+  stopBgm();
+  document.getElementById('fireFrame').src='fire-mandala.html';
+  document.getElementById('fireOverlay').classList.add('active');
+}
+function closeFireMandala(){
+  try{const f=document.getElementById('fireFrame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}
+  document.getElementById('fireOverlay').classList.remove('active');
+  document.getElementById('fireFrame').src='';
+}
+
+// ========== 360度能力檢核 ==========
+function open360Assessment(){
+  stopBgm();
+  var _f360 = document.getElementById('assess360Frame');
+  _f360.src = 'team-leader-map-assessment.html';
+  document.getElementById('assess360Overlay').classList.add('active');
+  _f360.onload = function() {
+    var _cid = localStorage.getItem('activeCharacterId');
+    if (_cid && _f360.contentWindow) {
+      _f360.contentWindow.postMessage({action: 'characterSwitched', characterId: _cid}, '*');
+    }
+    _f360.onload = null;
+  };
+}
+function close360Assessment(){
+  // ★ 先觸發儲存（確保分數和備註都寫入 localStorage）
+  try{const f=document.getElementById('assess360Frame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}
+  // ★ 等待儲存完成後再銷毀 iframe（防止分數遺失）
+  setTimeout(function(){
+    document.getElementById('assess360Overlay').classList.remove('active');
+    document.getElementById('assess360Frame').src='';
+    // 關閉後刷新左下角六大維度分數
+    setTimeout(update360DimScores, 200);
+  }, 100);
+}
+
+// ========== 練功坊 ==========
+function openTrainingRoom(){
+  stopBgm();
+  document.getElementById('trainingFrame').src='training-room.html';
+  document.getElementById('trainingOverlay').classList.add('active');
+}
+function closeTrainingRoom(){
+  try{const f=document.getElementById('trainingFrame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}
+  document.getElementById('trainingOverlay').classList.remove('active');
+  document.getElementById('trainingFrame').src='';
+  loadTrainReminders();
+}
+
+// ══════ 訓練徽章提醒 ══════
+function loadTrainReminders(){
+  const badge = document.getElementById('trainBadge');
+  const popup = document.getElementById('trainPopup');
+  const body  = document.getElementById('trainPopupBody');
+  if(!badge) return;
+
+  let items = [];
+  try{
+    const raw = localStorage.getItem('appedu_training_library');
+    if(raw){
+      const d = JSON.parse(raw);
+      if(d && d.items) items = d.items.filter(function(it){ return it.needRemind; });
+    }
+  }catch(e){}
+
+  if(items.length === 0){
+    badge.classList.add('hidden');
+    if(popup) popup.classList.add('hidden');
+    return;
+  }
+
+  badge.classList.remove('hidden');
+  badge.textContent = items.length;
+
+  if(body){
+    let html = '';
+    items.forEach(function(item){
+      html += '<div class="train-popup-item">';
+      html += '<div class="train-popup-item-name" title="' + _trEscA(item.title) + '">' + _trEscH(item.title) + '</div>';
+      if(item.url){
+        html += '<a class="train-popup-item-link" href="' + _trEscA(item.url) + '" target="_blank" onclick="event.stopPropagation();">🔗 教材</a>';
+      }
+      html += '</div>';
+    });
+    body.innerHTML = html;
+  }
+}
+
+function _trEscA(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _trEscH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function toggleTrainPopup(){
+  var popup = document.getElementById('trainPopup');
+  if(!popup) return;
+  var isHidden = popup.classList.contains('hidden');
+  if(isHidden){
+    popup.classList.remove('hidden');
+    // 點其他地方關閉
+    setTimeout(function(){
+      var bd = document.createElement('div');
+      bd.className = 'train-popup-backdrop';
+      bd.id = 'trainPopupBackdrop';
+      bd.onclick = function(){ closeTrainPopup(); };
+      document.body.appendChild(bd);
+    },0);
+  } else {
+    closeTrainPopup();
+  }
+}
+function closeTrainPopup(){
+  var popup = document.getElementById('trainPopup');
+  if(popup) popup.classList.add('hidden');
+  var bd = document.getElementById('trainPopupBackdrop');
+  if(bd) bd.remove();
+}
+
+// 監聽 localStorage 變更（iframe 內修改教材庫時自動更新）
+window.addEventListener('storage', function(e){
+  if(e.key === 'appedu_training_library') loadTrainReminders();
+});
+
+// ========== 從 castle_cards_v1 直接讀取角色資料（不依賴 profileImgData） ==========
+async function syncFromCastleCards(){
+  var cid=localStorage.getItem('activeCharacterId');
+  if(cid==null) return;
+  try{
+    var raw=localStorage.getItem('castle_cards_v1');
+    if(!raw) return;
+    var cardsData=JSON.parse(raw);
+    var card=cardsData.find(function(c){return c.name===cid;})||cardsData[parseInt(cid)];
+    if(!card) return;
+    // 套用形象照
+    if(card.photo){
+      applyProfile(card.photo);
+      try{await dbPut('images','profile',card.photo);}catch(e){}
+    }
+    // 套用角色名稱
+    if(card.name){
+      document.getElementById('profileLabel').textContent=card.name;
+      try{localStorage.setItem('profileName',card.name);}catch(e){}
+    }
+    // 套用吉祥物
+    if(card.mascot){
+      applyMascot(card.mascot);
+      try{await dbPut('images','mascot',card.mascot);}catch(e){}
+    }
+  }catch(e){console.warn('syncFromCastleCards error',e);}
+  // 重新載入角色專屬的客訴/獎懲/小組問題資料
+  try{
+    prCases=prLoadData();
+    prRps=prLoadRps();
+    prNextId=prLoadNextId();
+    if(typeof prRenderAll==='function') prRenderAll();
+    if(typeof tiRender==='function') tiRender();
+  }catch(e){console.warn('syncCourtData error',e);}
+}
+
+// ========== 指揮城堡 ==========
+function openCastle(){
+  stopBgm();
+  document.getElementById('castleFrame').src='castle-cards.html';
+  document.getElementById('castleOverlay').classList.add('active');
+}
+async function closeCastle(){
+  // 若城堡內有翻牌動畫正在播放，先關閉翻牌而不是關閉城堡
+  try{
+    var cf=document.getElementById('castleFrame');
+    if(cf&&cf.contentWindow){
+      var ro=cf.contentWindow.document.getElementById('revealOverlay');
+      if(ro&&ro.classList.contains('active')){
+        cf.contentWindow.closeReveal();
+        return; // 不關閉城堡，留在城堡頁
+      }
+    }
+  }catch(e){}
+  // 1. 先觸發城堡存檔（確保 castle_cards_v1 已寫入）
+  try{const f=document.getElementById('castleFrame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}
+  // 2. 等一小段時間確保 localStorage 完全寫入
+  await new Promise(r=>setTimeout(r,200));
+  // 3. 隱藏城堡並清除 iframe
+  document.getElementById('castleOverlay').classList.remove('active');
+  document.getElementById('castleFrame').src='';
+  // 4. 從 castle_cards_v1 直接讀取角色照片與名稱
+  await syncFromCastleCards();
+  // 5. 更新 360 評核分數
+  update360DimScores();
+  updateScoreDisplay();
+}
+
+// ========== 瀑布 ==========
+function openWaterfall(){
+  stopBgm();
+  document.getElementById('waterfallFrame').src='waterfall-channel.html';
+  document.getElementById('waterfallOverlay').classList.add('active');
+}
+function closeWaterfall(){
+  try{const f=document.getElementById('waterfallFrame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}
+  document.getElementById('waterfallOverlay').classList.remove('active');
+  document.getElementById('waterfallFrame').src='';
+}
+
+// ========== 彈窗 ==========
+const modalData={
+  castle:{title:'🏰 指揮城堡',body:'這裡是太空指揮總部，管理團隊的核心樞紐。\n\n（功能頁面開發中，敬請期待...）'},
+  training:{title:'🔮 練功坊',body:'在這裡磨練技能、提升戰力！\n\n（功能頁面開發中，敬請期待...）'}
+};
+function openModal(k){const d=modalData[k];if(!d)return;document.getElementById('modalTitle').textContent=d.title;document.getElementById('modalBody').textContent=d.body;document.getElementById('modalOverlay').classList.add('active')}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('active')}
+document.getElementById('modalOverlay').addEventListener('click',function(e){if(e.target===this)closeModal()});
+document.getElementById('adminOverlay').addEventListener('click',function(e){if(e.target===this)closeAdmin()});
+document.getElementById('bellBtn').addEventListener('click',function(){
+  // 鈴鐺按鈕：播放/暫停背景音樂
+  if(!bgmReady){showToast('⚠ 尚未設定背景音樂，請到 ⚙️ 後台上傳音檔');return;}
+  if(bgmAudio.paused){
+    bgmStopped=false;
+    bgmAudio.play().catch(function(){});
+    showToast('🎵 音樂播放中');
+  }else{
+    bgmStopped=true;
+    bgmAudio.pause();
+    showToast('🔇 音樂已暫停');
+  }
+  updateBellIcon();
+});
+
+// ========== ☀️🌙 白天/黑夜模式 ==========
+
+// ★ 判斷目前是白天模式
+function isDayMode(){ return document.body.classList.contains('day-mode'); }
+
+// ★ 取得正確的 IndexedDB 圖片 key（白天加 _day 後綴，黑夜用原本的）
+function getHexImgKey(k){ return 'hex_' + k + (isDayMode() ? '_day' : ''); }
+
+// ★ 切換白天/黑夜時，更換四個建築縮圖（互不影響）
+async function swapHexImgsForMode(){
+  var _curDay = isDayMode();
+  console.log('[swapHexImgs] 切換模式:', _curDay ? '白天' : '黑夜');
+  var keys = ['training','castle','plaza','perf'];
+  for(var i = 0; i < keys.length; i++){
+    var k = keys[i];
+    var dbKey = _curDay ? ('hex_' + k + '_day') : ('hex_' + k);
+    try {
+      var img = await dbGet('images', dbKey);
+      var imgEl = document.getElementById(k + 'Img');
+      var iconEl = document.getElementById(k + 'Icon');
+      if(img && isValidImageData(img)){
+        console.log('[swapHexImgs] ✅ 載入:', dbKey);
+        applyHexImg(k, img);
+      } else {
+        console.log('[swapHexImgs] ⚠️ 無圖片:', dbKey, '→ 顯示預設 icon');
+        // 此模式沒有設定圖片 → 顯示預設 icon
+        if(imgEl){ imgEl.src = ''; imgEl.style.display = 'none'; }
+        if(iconEl){ iconEl.style.display = ''; }
+      }
+    }catch(e){ console.warn('[swapHexImgs] 載入失敗:', k, e); }
+  }
+}
+
+(function(){
+  var saved = localStorage.getItem('appedu_day_mode');
+  var isDay = saved === '1';
+  if(isDay) document.body.classList.add('day-mode');
+  var btn = document.getElementById('dayNightBtn');
+  btn.textContent = isDay ? '☀️' : '🌙';
+  btn.title = isDay ? '切換為黑夜模式' : '切換為白天模式';
+  btn.addEventListener('click', async function(){
+    isDay = !isDay;
+    document.body.classList.toggle('day-mode', isDay);
+    btn.textContent = isDay ? '☀️' : '🌙';
+    btn.title = isDay ? '切換為黑夜模式' : '切換為白天模式';
+    try{ localStorage.setItem('appedu_day_mode', isDay ? '1' : '0'); }catch(e){}
+    // ★ 切換建築縮圖（白天/黑夜各自獨立的圖片）
+    await swapHexImgsForMode();
+    // ★ 通知所有 iframe 即時切換（同源 iframe 的 storage 事件不會自動觸發）
+    var iframeIds = ['assess360Frame','castleFrame','trainingFrame','waterfallFrame','perfFrame'];
+    iframeIds.forEach(function(id){
+      try{
+        var f = document.getElementById(id);
+        if(f && f.contentWindow && f.contentWindow.document && f.contentWindow.document.body){
+          f.contentWindow.document.body.classList.toggle('day-mode', isDay);
+          f.contentWindow.document.documentElement.classList.toggle('day-mode', isDay);
+        }
+      }catch(e){}
+    });
+    showToast(isDay ? '☀️ 已切換為白天模式' : '🌙 已切換為黑夜模式');
+  });
+})();
+
+// ========== 文字大小切換 ==========
+(function(){
+  var sizes = ['sm','md','lg'];
+  var saved = localStorage.getItem('appedu_font_size') || 'md';
+  if(sizes.indexOf(saved) === -1) saved = 'md';
+  applyFontSize(saved);
+  var btns = document.querySelectorAll('.font-sz-btn');
+  btns.forEach(function(b){
+    b.addEventListener('click', function(){
+      var sz = this.getAttribute('data-size');
+      applyFontSize(sz);
+      try{ localStorage.setItem('appedu_font_size', sz); }catch(e){}
+    });
+  });
+  function applyFontSize(sz){
+    document.body.classList.remove('font-sm','font-md','font-lg');
+    document.body.classList.add('font-'+sz);
+    // 更新按鈕樣式
+    var allBtns = document.querySelectorAll('.font-sz-btn');
+    allBtns.forEach(function(b){
+      if(b.getAttribute('data-size') === sz){
+        b.style.background = 'rgba(100,160,255,0.25)';
+        b.style.color = '#c0dcff';
+        b.classList.add('active');
+      } else {
+        b.style.background = 'transparent';
+        b.style.color = '#8ab4ff';
+        b.classList.remove('active');
+      }
+    });
+  }
+})();
+
+// ========== 背景音樂 ==========
+var bgmAudio=document.getElementById('bgmAudio');
+var bgmReady=false;
+
+function getBgmSettings(){
+  try{var r=localStorage.getItem('bgm_settings');if(r)return JSON.parse(r);}catch(e){}
+  return {volume:30,fileName:''};
+}
+function saveBgmSettings(){
+  var s=getBgmSettings();
+  s.volume=parseInt(document.getElementById('bgmVolume').value)||30;
+  localStorage.setItem('bgm_settings',JSON.stringify(s));
+}
+function setBgmVolume(v){
+  bgmAudio.volume=Math.max(0,Math.min(100,parseInt(v)))/100;
+  document.getElementById('bgmVolLabel').textContent=v+'%';
+  saveBgmSettings();
+}
+function toggleBgm(){
+  if(!bgmReady){showToast('⚠ 尚未設定音檔');return;}
+  if(bgmAudio.paused){
+    bgmAudio.play().catch(function(){});
+  }else{
+    bgmAudio.pause();
+  }
+  updateBellIcon();
+}
+function stopBgm(){
+  bgmStopped=true;
+  if(!bgmAudio.paused){bgmAudio.pause();bgmAudio.currentTime=0;}
+  updateBellIcon();
+}
+function updateBellIcon(){
+  var bell=document.getElementById('bellBtn');
+  var badge=document.getElementById('bellBadge');
+  if(bgmReady&&!bgmAudio.paused){
+    bell.title='背景音樂（播放中）- 點擊暫停';
+    badge.style.display='';badge.textContent='♪';
+  }else{
+    bell.title='背景音樂 - 點擊播放';
+    badge.style.display='none';
+  }
+}
+bgmAudio.addEventListener('play',updateBellIcon);
+bgmAudio.addEventListener('pause',updateBellIcon);
+
+document.getElementById('bgmFileInput').addEventListener('change',async function(){
+  var file=this.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    var data=e.target.result;
+    try{await dbPut('images','bgm_audio',data);}catch(ex){showToast('⚠ 音檔儲存失敗');return;}
+    bgmAudio.src=data;
+    bgmReady=true;
+    var s=getBgmSettings();s.fileName=file.name;localStorage.setItem('bgm_settings',JSON.stringify(s));
+    document.getElementById('bgmFileName').textContent='🎵 '+file.name;
+    bgmAudio.volume=(s.volume||30)/100;
+    bgmAudio.play().catch(function(){});
+    updateBellIcon();
+    showToast('✅ 背景音樂已設定');
+  };
+  reader.readAsDataURL(file);
+  this.value='';
+});
+
+async function removeBgm(){
+  bgmAudio.pause();bgmAudio.src='';bgmReady=false;
+  try{await dbPut('images','bgm_audio','');}catch(e){}
+  var s=getBgmSettings();s.fileName='';localStorage.setItem('bgm_settings',JSON.stringify(s));
+  document.getElementById('bgmFileName').textContent='未設定';
+  updateBellIcon();
+  showToast('🗑 背景音樂已移除');
+}
+
+var bgmStopped=false; // 用戶主動停止後，不再自動播
+
+async function initBgm(){
+  var s=getBgmSettings();
+  document.getElementById('bgmVolume').value=s.volume||30;
+  document.getElementById('bgmVolLabel').textContent=(s.volume||30)+'%';
+  if(s.fileName) document.getElementById('bgmFileName').textContent='🎵 '+s.fileName;
+  bgmAudio.volume=(s.volume||30)/100;
+  try{
+    var data=await dbGet('images','bgm_audio');
+    if(data){
+      bgmAudio.src=data;
+      bgmReady=true;
+      bgmStopped=false;
+      // 進入首頁自動播放
+      bgmAudio.play().then(function(){
+        updateBellIcon();
+      }).catch(function(){
+        // 瀏覽器阻擋自動播放 → 監聽互動，但要判斷是否被 stopBgm 攔截
+        function autoPlayOnce(e){
+          document.removeEventListener('click',autoPlayOnce,true);
+          document.removeEventListener('touchstart',autoPlayOnce,true);
+          // 延遲一個 tick，讓 stopBgm() 先執行完
+          setTimeout(function(){
+            if(bgmReady&&!bgmStopped&&bgmAudio.paused){
+              bgmAudio.play().catch(function(){});
+            }
+            updateBellIcon();
+          },50);
+        }
+        document.addEventListener('click',autoPlayOnce,true);
+        document.addEventListener('touchstart',autoPlayOnce,true);
+      });
+    }
+  }catch(e){}
+  updateBellIcon();
+}
+
+// ========== 初始化 ==========
+async function init(){
+  updateDate();setInterval(updateDate,60000);
+  // 開 IndexedDB，完全比照吉祥物載入方式
+  await openDB();
+  const mascot=await dbGet('images','mascot');if(mascot)applyMascot(mascot);
+  const profile=await dbGet('images','profile');if(profile)applyProfile(profile);
+  // ★ 六角形圖片：根據白天/黑夜模式載入對應的獨立圖片
+  var _isDay = isDayMode();
+  console.log('[init] 載入建築縮圖，目前模式:', _isDay ? '白天' : '黑夜');
+  for(const k of['training','castle','plaza','perf']){
+    try{
+      var hexKey = _isDay ? ('hex_' + k + '_day') : ('hex_' + k);
+      var img = await dbGet('images', hexKey);
+      if(img && isValidImageData(img)){
+        console.log('[init] ✅ 載入:', hexKey);
+        applyHexImg(k, img);
+      } else {
+        console.log('[init] ⚠️ 找不到:', hexKey);
+      }
+    }catch(e){ console.warn('[init] 載入失敗:', k, e); }
+  }
+  // ★ 廣場建築圖片：同上
+  for(const k of['ocean','court','waterfall','vault','fire']){
+    try{const d=await dbGet('images','plaza_'+k);if(d)applyPlazaImg(k,d);}catch(e){}
+  }
+  // 載入設定
+  const sn=localStorage.getItem('profileName');if(sn)document.getElementById('profileLabel').textContent=sn;
+  const sb=localStorage.getItem('speechBubble');if(sb)document.getElementById('speechBubble').innerHTML=sb;
+  scoreFiles=await dbGetAll('scores');updateScoreDisplay();
+  await syncFromCastleCards();
+  await initBgm();
+  loadTrainReminders();
+}
+init();
+
+// ========== 雲端同步完成後重新載入所有圖片 ==========
+// firebase-sync.js pullFromCloud 完成後會觸發此事件
+// 確保從雲端拉回的圖片能正確顯示（特別是新瀏覽器首次開啟時）
+window.addEventListener('firebase-sync-ready', async function(){
+  console.log('[人力發展] 雲端同步完成，重新載入資料');
+  try{
+    // ★ 重新開啟 IndexedDB（pullFromCloud 可能更新了資料）
+    try{ await openDB(); }catch(e){}
+    const mascot=await dbGet('images','mascot');if(mascot)applyMascot(mascot);
+    const profile=await dbGet('images','profile');if(profile)applyProfile(profile);
+    // ★ 六角形圖片：保護已顯示的好圖 + 驗證雲端拉取的資料（支援白天/黑夜獨立圖片）
+    var _needCleanPush=false;
+    for(const k of['training','castle','plaza','perf']){
+      var hexKey = (typeof getHexImgKey === 'function') ? getHexImgKey(k) : ('hex_' + k);
+      var _img=document.getElementById(k+'Img');
+      if(_img&&_img.style.display==='block'&&_img.src&&_img.src.indexOf('data:')===0){
+        try{await dbPut('images',hexKey,_img.src);}catch(e){}
+        continue;
+      }
+      try{
+        var d=await dbGet('images',hexKey);
+        if(d){
+          if(isValidImageData(d)){applyHexImg(k,d);}
+          else{console.warn('[sync] 雲端'+hexKey+'資料損壞，刪除');await dbDelete('images',hexKey);_needCleanPush=true;}
+        }
+      }catch(e){}
+    }
+    for(const k of['ocean','court','waterfall','vault','fire']){
+      var _ci=document.getElementById(k+'CustomImg');
+      if(_ci&&_ci.style.display==='block'&&_ci.src&&_ci.src.indexOf('data:')===0){
+        try{await dbPut('images','plaza_'+k,_ci.src);}catch(e){}
+        continue;
+      }
+      try{
+        const d=await dbGet('images','plaza_'+k);
+        if(d){
+          if(isValidImageData(d)){applyPlazaImg(k,d);}
+          else{console.warn('[sync] 雲端plaza_'+k+'資料損壞，刪除');await dbDelete('images','plaza_'+k);_needCleanPush=true;}
+        }
+      }catch(e){}
+    }
+    // ★ 把修復後的好資料推回雲端（徹底修復雲端的損壞資料）
+    // _needCleanPush=true 表示有損壞資料被刪除，也需要推送清理結果
+    try{if(window.firebaseSync&&window.firebaseSync.push) await window.firebaseSync.push();}catch(e){}
+    await syncFromCastleCards();
+    const sn=localStorage.getItem('profileName');if(sn)document.getElementById('profileLabel').textContent=sn;
+    const sb=localStorage.getItem('speechBubble');if(sb)document.getElementById('speechBubble').innerHTML=sb;
+    scoreFiles=await dbGetAll('scores');updateScoreDisplay();
+    update360DimScores();
+    // ★ 最後安全步：重新載入當前模式的建築縮圖（防止 sync 過程中遺失）
+    if(typeof swapHexImgsForMode === 'function') await swapHexImgsForMode();
+  }catch(e){console.warn('[人力發展] 雲端同步後重載失敗',e);}
+});
+
+// 監聽子頁面（iframe）的角色登入訊息
+window.addEventListener('message',async function(e){
+  if(!e.data||!e.data.action) return;
+  if(e.data.action==='characterLogin'){
+    // ★★★ 關鍵修正：切換主角前，先讓所有 iframe 用「舊主角」的 key 存完資料 ★★★
+    saveAllBeforeCharSwitch();
+    // 標記已處理，避免 firebase-sync.js 的 storage 事件觸發不必要的 reload
+    window._characterSwitchHandled = true;
+    // file:// 模式下 localStorage 不共享，先用 postMessage 帶來的資料寫入
+    if(e.data.name){
+      try{localStorage.setItem('activeCharacterId',e.data.name);}catch(ex){}
+      try{localStorage.setItem('activeCharacterName',e.data.name);}catch(ex){}
+      try{localStorage.setItem('profileName',e.data.name);}catch(ex){}
+    }
+    // 直接從 castle_cards_v1 讀取（避免 profileImgData quota 問題）
+    await syncFromCastleCards();
+    // file:// fallback: 如果 syncFromCastleCards 無法讀到照片，用 postMessage 帶的
+    if(e.data.photo){
+      try{applyProfile(e.data.photo);}catch(ex){}
+    }
+    if(e.data.name){
+      try{document.getElementById('profileLabel').textContent=e.data.name;}catch(ex){}
+    }
+    if(e.data.mascot){
+      try{applyMascot(e.data.mascot);}catch(ex){}
+    }
+    // ★ 通知 assess360 iframe 切換主角（file:// 模式 storage 事件不觸發）
+    try{
+      var af=document.getElementById('assess360Frame');
+      if(af&&af.contentWindow){
+        af.contentWindow.postMessage({action:'characterSwitched',characterId:e.data.name},'*');
+      }
+    }catch(ex){}
+    // 更新評分
+    update360DimScores();
+    updateScoreDisplay();
+  }
+  if(e.data.action==='closePerformance'){
+    closePerformance();
+  }
+});
+
+// ========== 業績數據中心 ==========
+function openPerformance(){
+  stopBgm();
+  const pw=localStorage.getItem('perf_password');
+  if(pw){
+    // 有密碼 → 顯示密碼輸入框
+    const modal=document.getElementById('perfPwModal');
+    modal.style.display='flex';
+    // 清空輸入
+    const inputs=document.querySelectorAll('#perfPwDots input');
+    inputs.forEach(inp=>{inp.value='';});
+    document.getElementById('perfPwError').textContent='';
+    setTimeout(()=>inputs[0].focus(),100);
+  }else{
+    // 無密碼 → 直接開啟
+    perfOpen();
+  }
+}
+function perfOpen(){
+  const ov=document.getElementById('perfOverlay');
+  ov.classList.add('active');
+  const frame=document.getElementById('perfFrame');
+  if(!frame.src||frame.src==='about:blank'||!frame.src.includes('performance-compare'))
+    frame.src='performance-compare.html';
+}
+function closePerformance(){
+  // 關閉不用密碼
+  const ov=document.getElementById('perfOverlay');
+  ov.classList.remove('active');
+  // 嘗試觸發儲存
+  try{
+    const frame=document.getElementById('perfFrame');
+    if(frame&&frame.contentWindow&&typeof frame.contentWindow.triggerSave==='function')
+      frame.contentWindow.triggerSave();
+  }catch(e){}
+}
+function perfPwNext(inp,idx){
+  // 只保留數字
+  inp.value=inp.value.replace(/[^0-9]/g,'');
+  if(inp.value.length===1){
+    const inputs=document.querySelectorAll('#perfPwDots input');
+    if(idx<3){
+      inputs[idx+1].focus();
+    }else{
+      // 最後一位 → 自動提交
+      perfPwSubmit();
+    }
+  }
+}
+function perfPwSubmit(){
+  const inputs=document.querySelectorAll('#perfPwDots input');
+  const entered=Array.from(inputs).map(i=>i.value).join('');
+  const stored=localStorage.getItem('perf_password')||'';
+  if(entered===stored){
+    document.getElementById('perfPwModal').style.display='none';
+    perfOpen();
+  }else{
+    document.getElementById('perfPwError').textContent='密碼錯誤，請重新輸入';
+    inputs.forEach(i=>{i.value='';i.style.borderColor='rgba(255,100,100,0.5)';});
+    inputs[0].focus();
+    setTimeout(()=>{inputs.forEach(i=>{i.style.borderColor='rgba(74,234,255,0.2)';});},1000);
+  }
+}
+function perfPwCancel(){
+  document.getElementById('perfPwModal').style.display='none';
+}
+</script>
+
+<!-- ========== 客訴處理系統（太空風格） ========== -->
+<style>
+#pr-app{display:none;position:fixed;inset:0;z-index:9998;overflow-y:auto;font-family:'Noto Sans TC',sans-serif;}
+#pr-app *{box-sizing:border-box;margin:0;padding:0;}
+#pr-app{
+  --b:#0d1b3e;--bl:rgba(80,140,255,0.12);--or:#e65a2f;--gr:#00c853;--gl:rgba(0,200,83,0.1);
+  --yw:#ffa000;--yl:rgba(255,160,0,0.1);--rd:#ff5252;--rl:rgba(255,82,82,0.1);
+  --gz:rgba(10,18,45,0.6);--bd:rgba(100,160,255,0.2);--tx:#e0e8ff;--mu:#6a8fcc;
+}
+#pr-app .pr-wrap{max-width:100%;margin:0;background:linear-gradient(180deg,#060d2a,#0a1545,#0c1a55);min-height:100vh;overflow-y:auto;}
+#pr-app .pr-header{background:rgba(10,20,50,0.95);color:#c0dcff;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid rgba(100,180,255,0.15);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10;}
+#pr-app .pr-header h1{font-size:1.15rem;font-weight:900;font-family:'Orbitron',monospace;letter-spacing:2px;color:#a0ccff;text-shadow:0 0 12px rgba(100,180,255,0.4);}
+#pr-app .pr-header p{font-size:.75rem;opacity:.6;margin-top:3px;color:#6a8fcc;}
+#pr-app .pr-hbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+#pr-app .pr-close-btn{background:rgba(255,255,255,0.06);color:#a0ccff;border:1px solid rgba(100,180,255,0.3);border-radius:8px;padding:8px 16px;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .3s;backdrop-filter:blur(6px);}
+#pr-app .pr-close-btn:hover{background:rgba(100,180,255,0.15);box-shadow:0 0 12px rgba(80,140,255,0.3);}
+#pr-app .pr-tabs{background:rgba(10,18,45,0.8);border-bottom:1px solid rgba(100,180,255,0.15);display:flex;padding:0 28px;overflow-x:auto;backdrop-filter:blur(8px);position:sticky;top:56px;z-index:9;}
+#pr-app .pr-tab{padding:13px 18px;border:none;background:none;font-size:.88rem;color:#6a8fcc;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;font-family:inherit;transition:all .3s;}
+#pr-app .pr-tab.active{color:#ffd54f;border-bottom-color:#ffd54f;font-weight:700;text-shadow:0 0 8px rgba(255,213,79,0.3);}
+#pr-app .pr-tab:hover{color:#a0ccff;}
+#pr-app .pr-main{max-width:960px;margin:0 auto;padding:24px 20px;}
+#pr-app .pr-panel{display:none;}
+#pr-app .pr-panel.active{display:block;}
+#pr-app .pr-card{background:rgba(15,25,60,0.7);border-radius:14px;border:1px solid rgba(100,180,255,0.15);padding:22px;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,0,0,0.3);backdrop-filter:blur(8px);}
+#pr-app .pr-card-title{font-size:.95rem;font-weight:700;color:#a0ccff;margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+#pr-app .pr-field{margin-bottom:12px;}
+#pr-app .pr-field label{display:block;font-size:.81rem;font-weight:600;color:#8ab4ff;margin-bottom:4px;}
+#pr-app input[type=text],#pr-app input[type=date],#pr-app textarea,#pr-app select{
+  width:100%;padding:9px 12px;border:1px solid rgba(100,180,255,0.2);border-radius:8px;
+  font-size:.87rem;font-family:inherit;background:rgba(10,18,45,0.8);color:#e0e8ff;transition:all .3s;
+}
+#pr-app input:focus,#pr-app textarea:focus,#pr-app select:focus{outline:none;border-color:rgba(100,180,255,0.5);box-shadow:0 0 12px rgba(80,140,255,0.2);}
+#pr-app textarea{resize:vertical;min-height:62px;}
+#pr-app select option{background:#0a1545;color:#e0e8ff;}
+#pr-app .pr-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+#pr-app .pr-irow{display:flex;gap:8px;margin-bottom:7px;}
+#pr-app .pr-irow input{flex:1;}
+#pr-app .pr-irow button{padding:0 14px;background:linear-gradient(135deg,#1a237e,#3949ab);color:#c0dcff;border:1px solid rgba(100,180,255,0.3);border-radius:8px;cursor:pointer;font-size:1.2rem;flex-shrink:0;transition:all .3s;}
+#pr-app .pr-irow button:hover{box-shadow:0 0 12px rgba(80,140,255,0.4);}
+#pr-app .pr-tag{display:inline-flex;align-items:center;gap:5px;background:rgba(80,140,255,0.15);color:#a0ccff;border:1px solid rgba(100,180,255,0.2);border-radius:20px;padding:5px 12px;font-size:.8rem;font-weight:600;margin:3px 3px 3px 0;}
+#pr-app .pr-tag .del{cursor:pointer;color:#ff6b6b;font-size:.9rem;}
+#pr-app .btn{padding:9px 20px;border-radius:8px;border:none;font-size:.86rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .3s;font-family:inherit;}
+#pr-app .btn:hover{opacity:.85;box-shadow:0 0 12px rgba(80,140,255,0.2);}
+#pr-app .btn-b{background:linear-gradient(135deg,#1a237e,#3949ab);color:#c0dcff;border:1px solid rgba(100,180,255,0.25);}
+#pr-app .btn-or{background:linear-gradient(135deg,#e65100,#ff8f00);color:white;}
+#pr-app .btn-ol{background:rgba(255,255,255,0.05);color:#a0ccff;border:1px solid rgba(100,180,255,0.3);}
+#pr-app .btn-gr{background:linear-gradient(135deg,#00695c,#00c853);color:white;}
+#pr-app .btn-sm{padding:5px 13px;font-size:.78rem;}
+#pr-app .btn-grp{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+#pr-app .pr-case-hd{background:linear-gradient(135deg,rgba(20,30,70,0.9),rgba(30,40,90,0.9));border:1px solid rgba(100,180,255,0.2);color:#c0dcff;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+#pr-app .pr-case-hd h2{font-size:.96rem;font-weight:700;color:#a0ccff;}
+#pr-app .pr-case-hd p{font-size:.77rem;opacity:.6;margin-top:3px;}
+#pr-app .pr-ss-thumb{width:64px;height:48px;border-radius:6px;object-fit:cover;border:1px solid rgba(100,180,255,.25);cursor:pointer;flex-shrink:0;transition:transform .2s,box-shadow .2s;}
+#pr-app .pr-ss-thumb:hover{transform:scale(1.08);box-shadow:0 0 12px rgba(74,234,255,.3);}
+#pr-app .pr-ss-upload{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1px dashed rgba(100,180,255,.3);background:rgba(100,180,255,.06);color:#6a8fcc;font-size:.73rem;cursor:pointer;transition:all .2s;flex-shrink:0;}
+#pr-app .pr-ss-upload:hover{border-color:rgba(74,234,255,.5);color:#4aeaff;background:rgba(74,234,255,.1);}
+#pr-app .pr-ss-actions{display:flex;gap:4px;margin-top:4px;}
+#pr-app .pr-ss-del{background:none;border:1px solid rgba(255,80,80,.2);border-radius:4px;color:#ff8a8a;font-size:.7rem;padding:2px 6px;cursor:pointer;}
+#pr-app .pr-ss-del:hover{background:rgba(255,80,80,.15);}
+#pr-app .pr-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;backdrop-filter:blur(4px);}
+#pr-app .pr-lightbox img{max-width:92%;max-height:90%;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.5);}
+#pr-app .pr-issue{border:1px solid rgba(100,180,255,0.15);border-radius:10px;margin-bottom:10px;overflow:hidden;}
+#pr-app .pr-issue-hd{display:flex;align-items:center;gap:10px;padding:12px 15px;background:rgba(15,25,60,0.5);cursor:pointer;user-select:none;transition:background .3s;}
+#pr-app .pr-issue-hd:hover{background:rgba(30,50,100,0.5);}
+#pr-app .pr-num{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#1a237e,#3949ab);color:#c0dcff;font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 8px rgba(80,140,255,0.3);}
+#pr-app .pr-itxt{flex:1;font-size:.87rem;font-weight:600;color:#c0dcff;}
+#pr-app .pr-badge{padding:4px 10px;border-radius:20px;font-size:.73rem;font-weight:700;flex-shrink:0;}
+#pr-app .pr-del-issue{background:none;border:none;color:#5a6a8a;font-size:.95rem;cursor:pointer;padding:2px 6px;border-radius:50%;transition:all .25s;flex-shrink:0;line-height:1;}
+#pr-app .pr-del-issue:hover{color:#ff5252;background:rgba(255,82,82,0.15);}
+#pr-app .s-pd{background:rgba(100,100,140,0.2);color:#8a8faa;border:1px solid rgba(100,100,140,0.3);}
+#pr-app .s-ou{background:rgba(255,160,0,0.15);color:#ffa000;border:1px solid rgba(255,160,0,0.3);}
+#pr-app .s-tr{background:rgba(80,140,255,0.15);color:#64b5f6;border:1px solid rgba(80,140,255,0.3);}
+#pr-app .s-dn{background:rgba(0,200,83,0.12);color:#00c853;border:1px solid rgba(0,200,83,0.3);}
+#pr-app .pr-ibody{padding:0 15px 15px;background:rgba(10,18,45,0.5);border-top:1px solid rgba(100,180,255,0.1);display:none;}
+#pr-app .pr-ibody.open{display:block;padding-top:12px;}
+#pr-app .pr-choices{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+#pr-app .pr-cbtn{padding:8px 16px;border-radius:8px;border:1px solid rgba(100,180,255,0.2);background:rgba(15,25,60,0.6);font-size:.83rem;font-weight:600;cursor:pointer;color:#6a8fcc;font-family:inherit;transition:all .3s;}
+#pr-app .pr-cbtn:hover{border-color:rgba(100,180,255,0.5);color:#a0ccff;box-shadow:0 0 10px rgba(80,140,255,0.15);}
+#pr-app .sel-ou{border-color:#ffa000!important;background:rgba(255,160,0,0.12)!important;color:#ffa000!important;box-shadow:0 0 12px rgba(255,160,0,0.2)!important;}
+#pr-app .sel-tr{border-color:#64b5f6!important;background:rgba(80,140,255,0.12)!important;color:#64b5f6!important;box-shadow:0 0 12px rgba(80,140,255,0.2)!important;}
+#pr-app .pr-depts{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px;}
+#pr-app .pr-dept{padding:7px 18px;border-radius:20px;border:1px solid rgba(100,180,255,0.2);background:rgba(15,25,60,0.6);font-size:.83rem;font-weight:700;cursor:pointer;color:#6a8fcc;font-family:inherit;transition:all .3s;}
+#pr-app .pr-dept:hover{border-color:rgba(100,180,255,0.5);color:#a0ccff;}
+#pr-app .d-prd{border-color:#b388ff!important;background:rgba(124,58,237,0.3)!important;color:#ce93d8!important;box-shadow:0 0 10px rgba(124,58,237,0.2)!important;}
+#pr-app .d-gx{border-color:#80deea!important;background:rgba(0,188,212,0.2)!important;color:#80deea!important;box-shadow:0 0 10px rgba(0,188,212,0.2)!important;}
+#pr-app .d-fm{border-color:#ffab91!important;background:rgba(255,111,0,0.2)!important;color:#ffab91!important;box-shadow:0 0 10px rgba(255,111,0,0.2)!important;}
+#pr-app .d-cs{border-color:#a5d6a7!important;background:rgba(76,175,80,0.2)!important;color:#a5d6a7!important;box-shadow:0 0 10px rgba(76,175,80,0.2)!important;}
+#pr-app .pr-ttrack{background:rgba(80,140,255,0.08);border:1px solid rgba(80,140,255,0.2);border-radius:10px;padding:14px 16px;margin-top:10px;}
+#pr-app .pr-ttrack h4{font-size:.84rem;font-weight:700;color:#64b5f6;margin-bottom:9px;}
+#pr-app .pr-prog{display:flex;align-items:center;gap:0;margin-top:9px;overflow-x:auto;}
+#pr-app .pr-pstep{display:flex;flex-direction:column;align-items:center;min-width:68px;}
+#pr-app .pr-pdot{width:24px;height:24px;border-radius:50%;border:2px solid rgba(100,180,255,0.3);background:rgba(15,25,60,0.8);font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;color:#6a8fcc;transition:all .3s;}
+#pr-app .pr-pdot.act{background:linear-gradient(135deg,#1a237e,#3949ab);border-color:#64b5f6;color:#c0dcff;box-shadow:0 0 10px rgba(80,140,255,0.4);}
+#pr-app .pr-pdot.dn{background:#00c853;border-color:#00c853;color:white;box-shadow:0 0 10px rgba(0,200,83,0.4);}
+#pr-app .pr-plbl{font-size:.68rem;color:#6a8fcc;margin-top:3px;text-align:center;}
+#pr-app .pr-pline{height:2px;flex:1;background:rgba(100,180,255,0.15);min-width:18px;margin-top:-10.5px;}
+#pr-app .pr-pline.dn{background:#00c853;box-shadow:0 0 6px rgba(0,200,83,0.3);}
+#pr-app .pr-sub{margin-top:10px;}
+#pr-app .pr-sub label{font-size:.81rem;font-weight:600;color:#8ab4ff;display:block;margin-bottom:4px;}
+#pr-app .pr-step{display:flex;gap:6px;margin-bottom:6px;align-items:center;}
+#pr-app .pr-step input{flex:1;}
+#pr-app .pr-step .ow{width:88px;flex-shrink:0;}
+#pr-app .pr-step .dt{width:128px;flex-shrink:0;}
+#pr-app .pr-step .del{padding:6px 8px;background:none;border:1px solid rgba(255,82,82,0.3);border-radius:6px;cursor:pointer;color:#ff6b6b;flex-shrink:0;font-family:inherit;transition:all .3s;}
+#pr-app .pr-step .del:hover{background:rgba(255,82,82,0.15);}
+#pr-app .pr-addstep{background:none;border:1.5px dashed rgba(100,180,255,0.2);border-radius:8px;color:#6a8fcc;font-size:.8rem;padding:6px 12px;cursor:pointer;margin-top:3px;width:100%;font-family:inherit;transition:all .3s;}
+#pr-app .pr-addstep:hover{border-color:rgba(100,180,255,0.5);color:#a0ccff;}
+#pr-app .pr-done{display:flex;align-items:center;gap:8px;background:rgba(0,200,83,0.1);border:1px solid rgba(0,200,83,0.3);border-radius:8px;padding:9px 13px;margin-top:8px;font-size:.86rem;color:#00c853;font-weight:700;}
+#pr-app .pr-sbar{display:flex;gap:8px;margin-bottom:13px;flex-wrap:wrap;}
+#pr-app .pr-sbar input{flex:1;min-width:140px;}
+#pr-app .pr-sbar select{width:138px;flex-shrink:0;}
+#pr-app .pr-hcard{background:rgba(15,25,60,0.6);border:1px solid rgba(100,180,255,0.15);border-radius:10px;padding:14px 18px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .3s;}
+#pr-app .pr-hcard:hover{box-shadow:0 2px 16px rgba(80,140,255,0.15);border-color:rgba(100,180,255,0.3);}
+#pr-app .pr-hdot{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px currentColor;}
+#pr-app .do{background:#ffa000;color:#ffa000;}
+#pr-app .dc{background:#00c853;color:#00c853;}
+#pr-app .pr-hm{flex:1;}
+#pr-app .pr-hm h4{font-size:.89rem;font-weight:700;color:#c0dcff;}
+#pr-app .pr-hm p{font-size:.76rem;color:#6a8fcc;margin-top:2px;}
+#pr-app .pr-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;}
+#pr-app .ch{font-size:.7rem;padding:3px 8px;border-radius:20px;font-weight:600;}
+#pr-app .ch-dn{background:rgba(0,200,83,0.12);color:#00c853;}
+#pr-app .ch-ou{background:rgba(255,160,0,0.12);color:#ffa000;}
+#pr-app .ch-tr{background:rgba(80,140,255,0.12);color:#64b5f6;}
+#pr-app .ch-pd{background:rgba(100,100,140,0.15);color:#8a8faa;}
+#pr-app .pr-rpi{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;border:1px solid rgba(100,180,255,0.15);background:rgba(15,25,60,0.5);margin-bottom:6px;}
+#pr-app .pr-rpi h4{font-size:.86rem;font-weight:700;color:#c0dcff;}
+#pr-app .pr-rpi p{font-size:.76rem;color:#6a8fcc;margin-top:2px;}
+#pr-app .rp-rw{background:rgba(0,200,83,0.15);color:#00c853;padding:3px 10px;border-radius:20px;font-size:.76rem;font-weight:700;border:1px solid rgba(0,200,83,0.3);}
+#pr-app .rp-pn{background:rgba(255,82,82,0.15);color:#ff6b6b;padding:3px 10px;border-radius:20px;font-size:.76rem;font-weight:700;border:1px solid rgba(255,82,82,0.3);}
+#pr-app .pr-rpform{background:rgba(10,18,45,0.6);border:1px solid rgba(100,180,255,0.12);border-radius:10px;padding:16px;margin-top:10px;}
+#pr-app .pr-bbanner{background:rgba(255,160,0,0.08);border:1px solid rgba(255,160,0,0.2);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;font-size:.83rem;color:#ffa000;}
+#pr-app .pr-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
+#pr-app .pr-ov.open{display:flex;}
+#pr-app .pr-modal{background:rgba(10,18,50,0.97);border:1px solid rgba(100,180,255,0.25);border-radius:16px;padding:28px;max-width:700px;width:95%;max-height:88vh;overflow-y:auto;box-shadow:0 8px 50px rgba(0,0,0,0.5);}
+#pr-app .pr-modal::-webkit-scrollbar{width:6px;}
+#pr-app .pr-modal::-webkit-scrollbar-thumb{background:rgba(100,180,255,0.3);border-radius:3px;}
+#pr-app .pr-mtitle{font-size:1.05rem;font-weight:700;color:#a0ccff;margin-bottom:16px;font-family:'Orbitron',monospace;letter-spacing:1px;}
+#pr-app .pr-mclose{float:right;background:none;border:none;font-size:1.4rem;cursor:pointer;color:#ff6b6b;margin-top:-3px;transition:all .3s;}
+#pr-app .pr-mclose:hover{transform:scale(1.2);}
+@media(max-width:580px){#pr-app .pr-row2{grid-template-columns:1fr;}#pr-app .pr-main{padding:12px 8px;}#pr-app .pr-step{flex-wrap:wrap;}#pr-app .pr-step .dt,#pr-app .pr-step .ow{width:100%;}}
+</style>
+
+<div id="pr-app">
+<div class="pr-wrap">
+  <div class="pr-header">
+    <div><h1>⚖️ 星際法院</h1><p>客訴追蹤・部門轉接・獎懲管理 <span id="prCharLabel" style="color:#ffd54f;font-weight:700;"></span></p></div>
+    <div class="pr-hbtns">
+      <button class="pr-close-btn" onclick="prExportData()">📤 備份</button>
+      <label class="pr-close-btn" style="cursor:pointer;">📥 還原<input type="file" accept=".json" onchange="prImportData(event)" style="display:none;"></label>
+      <button class="btn btn-or" onclick="prOpenNewCase()">＋ 新增客訴</button>
+      <button class="pr-close-btn" onclick="prCloseSystem()" style="border-color:rgba(74,234,255,0.3);color:#4aeaff;">◀ 返回</button>
+    </div>
+  </div>
+  <nav class="pr-tabs">
+    <button class="pr-tab active" onclick="prSwitchTab('handle',this)">📝 處理中</button>
+    <button class="pr-tab" onclick="prSwitchTab('history',this)">📂 歷史紀錄</button>
+    <button class="pr-tab" onclick="prSwitchTab('rp',this)">🏅 獎懲記錄</button>
+    <button class="pr-tab" onclick="prSwitchTab('teamissue',this)">📋 小組問題</button>
+  </nav>
+  <div class="pr-main">
+    <div class="pr-panel active" id="pr-panel-handle">
+      <div class="pr-bbanner">
+        <span>💡 請定期點 <strong>📤 備份</strong> 下載 .json 存至雲端。</span>
+        <button class="btn btn-sm" style="background:linear-gradient(135deg,#e65100,#ff8f00);color:white;" onclick="prExportData()">立即備份</button>
+      </div>
+      <div id="pr-empty" class="pr-card" style="text-align:center;padding:40px;color:#6a8fcc;display:none;">
+        <div style="font-size:2.5rem;margin-bottom:10px;">📭</div>
+        <div style="font-weight:700;margin-bottom:5px;color:#a0ccff;">目前沒有進行中的客訴</div>
+        <div style="font-size:.83rem;">點擊右上角「＋ 新增客訴」開始記錄</div>
+      </div>
+      <div id="pr-caselist"></div>
+    </div>
+    <div class="pr-panel" id="pr-panel-history">
+      <div class="pr-card">
+        <div class="pr-card-title">📂 歷史紀錄查詢</div>
+        <div class="pr-sbar">
+          <input type="text" id="pr-kw" placeholder="搜尋主旨或編號…" oninput="prRenderHistory()">
+          <select id="pr-st" onchange="prRenderHistory()"><option value="">全部狀態</option><option value="open">處理中</option><option value="closed">已結案</option></select>
+          <select id="pr-dp" onchange="prRenderHistory()"><option value="">全部部門</option><option>產品</option><option>顧行</option><option>財管</option><option>客服</option></select>
+        </div>
+        <div id="pr-hlist"><div style="text-align:center;padding:28px;color:#6a8fcc;">尚無紀錄</div></div>
+      </div>
+    </div>
+    <div class="pr-panel" id="pr-panel-rp">
+      <div class="pr-card">
+        <div class="pr-card-title">🏅 獎懲記錄</div>
+        <div style="font-size:.83rem;font-weight:700;color:#a0ccff;margin-bottom:9px;">新增獎懲</div>
+        <div class="pr-rpform">
+          <div class="pr-row2" style="margin-bottom:9px;">
+            <div class="pr-field" style="margin:0;"><label>人員姓名</label><input type="text" id="pr-rname" placeholder="例：王小明"></div>
+            <div class="pr-field" style="margin:0;"><label>部門</label><select id="pr-rdept"><option>產品</option><option>顧行</option><option>財管</option><option>客服</option><option>其他</option></select></div>
+          </div>
+          <div class="pr-row2" style="margin-bottom:9px;">
+            <div class="pr-field" style="margin:0;"><label>類型</label><select id="pr-rtype"><option value="reward">🌟 獎勵</option><option value="punish">⚠️ 懲處</option></select></div>
+            <div class="pr-field" style="margin:0;"><label>關聯客訴編號</label><input type="text" id="pr-rcase" placeholder="例：CR-001（可空白）"></div>
+          </div>
+          <div class="pr-field" style="margin-bottom:9px;"><label>原因說明</label><textarea id="pr-rreason" placeholder="說明獎懲原因…" style="min-height:52px;"></textarea></div>
+          <button class="btn btn-b btn-sm" onclick="prAddRp()">＋ 新增</button>
+        </div>
+        <div style="font-size:.83rem;font-weight:700;color:#a0ccff;margin:14px 0 9px;">紀錄列表</div>
+        <div id="pr-rplist"><div style="text-align:center;padding:20px;color:#6a8fcc;">尚無紀錄</div></div>
+      </div>
+    </div>
+    <div class="pr-panel" id="pr-panel-teamissue">
+      <div class="pr-card">
+        <div class="pr-card-title">📋 小組問題追蹤 <span id="tiCharLabel" style="font-size:.8rem;color:#ffd54f;font-weight:400;margin-left:8px;"></span></div>
+        <div style="font-size:.83rem;color:#6a8fcc;margin-bottom:12px;">記錄此主角歷年來發生的小組管理問題，追蹤是否改善。</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <div class="pr-field" style="margin:0;"><label>問題分類</label>
+            <select id="ti-cat"><option>出勤</option><option>績效</option><option>態度</option><option>人際衝突</option><option>違規</option><option>招生問題</option><option>退費爭議</option><option>其他</option></select>
+          </div>
+          <div class="pr-field" style="margin:0;"><label>嚴重程度</label>
+            <select id="ti-sev"><option value="low">🟢 輕微</option><option value="mid">🟡 中度</option><option value="high">🔴 嚴重</option></select>
+          </div>
+        </div>
+        <div class="pr-field" style="margin-bottom:8px;"><label>問題描述</label><textarea id="ti-desc" placeholder="說明問題發生的狀況…" style="min-height:60px;"></textarea></div>
+        <div class="pr-field" style="margin-bottom:10px;"><label>改善措施 / 處理方式</label><textarea id="ti-action" placeholder="紀錄採取的行動或改善計畫…" style="min-height:50px;"></textarea></div>
+        <button class="btn btn-b btn-sm" onclick="tiAdd()">＋ 新增問題記錄</button>
+        <div style="font-size:.83rem;font-weight:700;color:#a0ccff;margin:16px 0 9px;">📜 歷史問題記錄</div>
+        <div id="ti-list"><div style="text-align:center;padding:20px;color:#6a8fcc;">尚無紀錄</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 新增客訴 Modal -->
+<div class="pr-ov" id="pr-ov-new">
+  <div class="pr-modal">
+    <div class="pr-mtitle">＋ 新增客訴 <button class="pr-mclose" onclick="prCloseOv('pr-ov-new')">×</button></div>
+    <div class="pr-row2"><div class="pr-field"><label>客訴編號</label><input type="text" id="pr-ncid" readonly></div><div class="pr-field"><label>日期</label><input type="date" id="pr-ncdate"></div></div>
+    <div class="pr-field"><label>客訴主旨</label><input type="text" id="pr-nctitle" placeholder="一句話描述客訴核心…"></div>
+    <div class="pr-row2">
+      <div class="pr-field"><label>來源管道</label><select id="pr-ncch"><option>電話</option><option>電子郵件</option><option>現場反映</option><option>社群媒體</option><option>其他</option></select></div>
+      <div class="pr-field"><label>客戶姓名（可匿名）</label><input type="text" id="pr-nccl" placeholder="例：陳女士 / 匿名"></div>
+    </div>
+    <div class="pr-field">
+      <label>逐條列出客訴問題 <span style="color:#6a8fcc;font-weight:400;">（輸入後按 Enter 或點 ＋）</span></label>
+      <div class="pr-irow"><input type="text" id="pr-ncinp" placeholder="輸入一條問題…" onkeydown="if(event.key==='Enter'){prAddTag();event.preventDefault();}"><button onclick="prAddTag()">＋</button></div>
+      <div id="pr-nctags"></div>
+    </div>
+    <div class="btn-grp"><button class="btn btn-b" onclick="prCreateCase()">✅ 建立客訴</button><button class="btn btn-ol" onclick="prCloseOv('pr-ov-new')">取消</button></div>
+  </div>
+</div>
+<!-- 歷史詳情 Modal -->
+<div class="pr-ov" id="pr-ov-det">
+  <div class="pr-modal" id="pr-ov-det-body"></div>
+</div>
+</div>
+
+<script>
+// ========== 舊 index→name key 全面遷移 ==========
+(function migrateAllOldCharKeys(){
+  const cid=localStorage.getItem('activeCharacterId');
+  if(!cid || /^\d+$/.test(cid)) return;
+  try{
+    const raw=localStorage.getItem('castle_cards_v1');
+    if(!raw) return;
+    const allCards=JSON.parse(raw);
+    // 找到目前角色在 cards 陣列中的 index
+    let myIdx=-1;
+    for(let i=0;i<allCards.length;i++){
+      if(allCards[i].name===cid){ myIdx=i; break; }
+    }
+    if(myIdx<0) return;
+    const oldPrefix='char_'+myIdx+'_';
+    const newPrefix='char_'+cid+'_';
+    // 掃描所有 localStorage key，把 char_{index}_ 開頭的搬到 char_{name}_
+    const allKeys=Object.keys(localStorage);
+    allKeys.forEach(function(k){
+      if(!k.startsWith(oldPrefix)) return;
+      const newKey=newPrefix+k.substring(oldPrefix.length);
+      if(!localStorage.getItem(newKey)){
+        try{ localStorage.setItem(newKey,localStorage.getItem(k)); }catch(e){}
+      }
+      try{ localStorage.removeItem(k); }catch(e){}
+    });
+  }catch(e){}
+})();
+
+// ========== 客訴處理系統 JS ==========
+// --- per-character storage keys ---
+function prGetKey(base){
+  const cid=localStorage.getItem('activeCharacterId');
+  return cid!=null ? 'char_'+cid+'_'+base : base;
+}
+function prScanFallback(suffix){
+  // 掃描所有 localStorage 找任何包含 suffix 的 key
+  try{
+    const allKeys=Object.keys(localStorage);
+    const mainKey=prGetKey(suffix);
+    for(let k=0;k<allKeys.length;k++){
+      const key=allKeys[k];
+      if(key===mainKey) continue;
+      if(key.indexOf(suffix)===-1) continue;
+      const d=JSON.parse(localStorage.getItem(key)||'[]');
+      if(d.length){
+        localStorage.setItem(mainKey,JSON.stringify(d));
+        localStorage.removeItem(key);
+        return d;
+      }
+    }
+  }catch(e){}
+  return null;
+}
+function prLoadData(){
+  const key=prGetKey('prCases');
+  let data=[];
+  try{ data=JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ data=[]; }
+  if(!data.length){
+    const found=prScanFallback('prCases');
+    if(found) return found;
+    try{
+      const old=JSON.parse(localStorage.getItem('prCases')||'[]');
+      if(old.length) data=old;
+    }catch(e){}
+  }
+  return data;
+}
+function prLoadRps(){
+  const key=prGetKey('prRps');
+  let data=[];
+  try{ data=JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ data=[]; }
+  if(!data.length){
+    const found=prScanFallback('prRps');
+    if(found) return found;
+    try{
+      const old=JSON.parse(localStorage.getItem('prRps')||'[]');
+      if(old.length) data=old;
+    }catch(e){}
+  }
+  return data;
+}
+function prLoadNextId(){
+  const key=prGetKey('prNextId');
+  let val=parseInt(localStorage.getItem(key)||'0');
+  if(!val){
+    val=parseInt(localStorage.getItem('prNextId')||'1');
+  }
+  return val||1;
+}
+
+let prCases=prLoadData();
+let prRps=prLoadRps();
+let prNextId=prLoadNextId();
+let prNewTags=[];
+
+function prSave(){
+  try{
+    localStorage.setItem(prGetKey('prCases'),JSON.stringify(prCases));
+    localStorage.setItem(prGetKey('prRps'),JSON.stringify(prRps));
+    localStorage.setItem(prGetKey('prNextId'),String(prNextId));
+  }catch(e){
+    showToast('⚠ 儲存失敗：空間不足，請清理截圖或備份後刪除舊資料');
+    console.error('prSave error',e);
+  }
+}
+function prOpenSystem(){
+  stopBgm();
+  // Reload per-character data when opening
+  prCases=prLoadData();
+  prRps=prLoadRps();
+  prNextId=prLoadNextId();
+  document.getElementById('pr-app').style.display='block';
+  prRenderAll();
+}
+function prCloseSystem(){document.getElementById('pr-app').style.display='none'}
+function prSwitchTab(t,btn){document.querySelectorAll('#pr-app .pr-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('#pr-app .pr-panel').forEach(p=>p.classList.remove('active'));document.getElementById('pr-panel-'+t).classList.add('active');if(t==='history')prRenderHistory();if(t==='rp')prRenderRp();if(t==='teamissue')tiRender()}
+
+function prRenderAll(){
+  // Show character label
+  const prLabel=document.getElementById('prCharLabel');
+  if(prLabel){
+    const cn=localStorage.getItem('activeCharacterName');
+    prLabel.textContent=cn?'（'+cn+'）':'';
+  }
+  const list=document.getElementById('pr-caselist');
+  const empty=document.getElementById('pr-empty');
+  const open=prCases.filter(c=>c.status==='open');
+  list.innerHTML='';
+  if(!open.length){empty.style.display='block';return}
+  empty.style.display='none';
+  open.forEach(c=>{
+    const done=c.issues.filter(i=>i.done).length;
+    const ssHtml=c.screenshot
+      ?`<div style="flex-shrink:0;text-align:center;"><img class="pr-ss-thumb" src="${c.screenshot}" onclick="prShowSS('${c.id}')" title="點擊放大檢視"><div class="pr-ss-actions"><button class="pr-ss-del" onclick="prDelSS('${c.id}')">✕ 移除</button></div></div>`
+      :`<label class="pr-ss-upload"><input type="file" accept="image/*" style="display:none" onchange="prUploadSS('${c.id}',this)">📷 截圖</label>`;
+    let h=`<div class="pr-card" id="prc-${c.id}"><div class="pr-case-hd">${ssHtml}<div style="flex:1;"><h2>${esc(c.title)}</h2><p>${esc(c.client)} ｜ ${esc(c.channel)} ｜ ${c.date}</p></div><div style="text-align:right;flex-shrink:0;"><div style="font-size:.77rem;opacity:.6;">${c.id}</div><div style="font-size:.79rem;margin-top:5px;opacity:.8;">已處理 ${done}/${c.issues.length} 項</div></div></div>`;
+    c.issues.forEach((is,i)=>{
+      const st=is.done?'s-dn':(is.type==='ours'?'s-ou':(is.type==='transfer'?'s-tr':'s-pd'));
+      const stxt=is.done?'已完成':(is.type==='ours'?'需行動':(is.type==='transfer'?'已轉接':'待處理'));
+      const deptBadge=is.dept?`<span class="pr-badge" style="background:rgba(80,140,255,0.12);color:#64b5f6;margin-right:3px;">${is.dept}</span>`:'';
+      h+=`<div class="pr-issue"><div class="pr-issue-hd" onclick="prToggle('${c.id}',${i})"><div class="pr-num">${i+1}</div><div class="pr-itxt">${esc(is.text)}</div>${deptBadge}<span class="pr-badge ${st}">${stxt}</span><button class="pr-del-issue" onclick="event.stopPropagation();prDelIssue('${c.id}',${i})" title="刪除此問題">✕</button><span style="color:#6a8fcc;font-size:.93rem;margin-left:3px;">▼</span></div><div class="pr-ibody">`;
+      if(is.done){
+        h+=`<div class="pr-done">✅ 此問題已標記完成</div>`;
+      }else if(is.type==='ours'){
+        h+=prRenderOurs(c.id,i,is);
+      }else if(is.type==='transfer'){
+        h+=prRenderTransfer(c.id,i,is);
+      }else{
+        h+=`<div style="font-size:.81rem;color:#6a8fcc;font-weight:600;margin-bottom:9px;">選擇處理方式：</div><div class="pr-choices"><button class="pr-cbtn" onclick="prSetType('${c.id}',${i},'ours')">🔧 是我方問題，提出行動方案</button><button class="pr-cbtn" onclick="prSetType('${c.id}',${i},'transfer')">📤 非我方問題，轉接部門</button></div>`;
+      }
+      h+=`</div></div>`;
+    });
+    // 結案按鈕
+    if(done===c.issues.length&&c.issues.length>0){
+      h+=`<div class="btn-grp"><button class="btn btn-gr" onclick="prCloseCase('${c.id}')">📁 全部完成，結案此客訴，移至歷史記錄</button></div>`;
+    }
+    h+=`</div>`;
+    list.insertAdjacentHTML('beforeend',h);
+  });
+}
+
+function prRenderOurs(cid,i,is){
+  let h=`<div class="pr-choices"><button class="pr-cbtn sel-ou" onclick="prSetType('${cid}',${i},'ours')">🔧 是我方問題</button><button class="pr-cbtn" onclick="prSetType('${cid}',${i},'transfer')">📤 轉接部門</button></div>`;
+  h+=`<div class="pr-sub"><label>行動方案（指定負責人與期限）</label><div id="prst-${cid}-${i}">`;
+  (is.steps||[{text:'',owner:'',deadline:''}]).forEach((s,si)=>{
+    h+=`<div class="pr-step"><input type="text" value="${esc(s.text)}" placeholder="行動內容…" onchange="prUpdStep('${cid}',${i},${si},'text',this.value)"><input type="text" class="ow" value="${esc(s.owner)}" placeholder="負責人" onchange="prUpdStep('${cid}',${i},${si},'owner',this.value)"><input type="date" class="dt" value="${s.deadline||''}" onchange="prUpdStep('${cid}',${i},${si},'deadline',this.value)"><button class="del" onclick="prDelStep('${cid}',${i},${si})">✕</button></div>`;
+  });
+  h+=`</div><button class="pr-addstep" onclick="prAddStep('${cid}',${i})">＋ 新增行動步驟</button></div>`;
+  h+=`<div class="pr-sub"><label>備註</label><textarea placeholder="補充說明…" onchange="prSetField('${cid}',${i},'note',this.value)">${esc(is.note||'')}</textarea></div>`;
+  h+=`<div class="btn-grp" style="margin-top:9px;"><button class="btn btn-b btn-sm" onclick="prMarkDone('${cid}',${i})">✅ 標記此問題已完成</button></div>`;
+  return h;
+}
+
+function prRenderTransfer(cid,i,is){
+  const depts=['產品','顧行','財管','客服'];
+  const dcls={產品:'d-prd',顧行:'d-gx',財管:'d-fm',客服:'d-cs'};
+  const tp=is.transferProgress||1;
+  let h=`<div class="pr-choices"><button class="pr-cbtn" onclick="prSetType('${cid}',${i},'ours')">🔧 是我方問題</button><button class="pr-cbtn sel-tr" onclick="prSetType('${cid}',${i},'transfer')">📤 轉接部門</button></div>`;
+  h+=`<div class="pr-ttrack"><h4>📤 轉接追蹤</h4><div style="font-size:.82rem;font-weight:600;color:#8ab4ff;margin-bottom:6px;">轉接至哪個部門？</div><div class="pr-depts">`;
+  depts.forEach(d=>{h+=`<button class="pr-dept ${is.dept===d?dcls[d]:''}" onclick="prSetDept('${cid}',${i},'${d}')">${d}</button>`});
+  h+=`</div><div style="margin-top:11px;"><div style="font-size:.81rem;font-weight:600;color:#8ab4ff;margin-bottom:4px;">轉接備註</div><textarea style="min-height:48px;" placeholder="說明轉接原因…" onchange="prSetField('${cid}',${i},'transferNote',this.value)">${esc(is.transferNote||'')}</textarea>`;
+  h+=`<div style="font-size:.81rem;font-weight:600;color:#8ab4ff;margin:9px 0 4px;">追蹤進度</div><div class="pr-prog">`;
+  const steps=['已轉交','處理中','已完成'];
+  steps.forEach((s,si)=>{
+    const cls=si<tp-1?'dn':(si===tp-1?'act':'');
+    h+=`<div class="pr-pstep"><div class="pr-pdot ${cls}">${cls==='dn'?'✓':si+1}</div><div class="pr-plbl">${s}</div></div>`;
+    if(si<2)h+=`<div class="pr-pline ${si<tp-1?'dn':''}"></div>`;
+  });
+  h+=`</div>`;
+  if(tp<3)h+=`<div class="pr-trow"><button class="btn btn-b btn-sm" onclick="prAdvTr('${cid}',${i})">✅ 推進下一步</button></div>`;
+  else h+=`<div class="pr-trow"><button class="btn btn-gr btn-sm" onclick="prMarkDone('${cid}',${i})">✅ 標記此問題已完成</button></div>`;
+  h+=`</div></div>`;
+  return h;
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function prFindCase(id){return prCases.find(c=>c.id===id)}
+function prFindIssue(cid,idx){const c=prFindCase(cid);return c?c.issues[idx]:null}
+
+function prToggle(cid,idx){
+  const card=document.getElementById('prc-'+cid);if(!card)return;
+  const issues=card.querySelectorAll('.pr-issue');
+  const body=issues[idx]?.querySelector('.pr-ibody');
+  if(body)body.classList.toggle('open');
+}
+
+function prSetType(cid,idx,type){
+  const is=prFindIssue(cid,idx);if(!is)return;
+  is.type=type;if(type==='ours'&&!is.steps)is.steps=[{text:'',owner:'',deadline:''}];
+  if(type==='transfer'&&!is.transferProgress)is.transferProgress=1;
+  prSave();prRenderAll();
+}
+
+function prSetDept(cid,idx,dept){const is=prFindIssue(cid,idx);if(!is)return;is.dept=dept;prSave();prRenderAll()}
+function prSetField(cid,idx,field,val){const is=prFindIssue(cid,idx);if(!is)return;is[field]=val;prSave()}
+
+function prUpdStep(cid,idx,si,field,val){
+  const is=prFindIssue(cid,idx);if(!is||!is.steps[si])return;
+  is.steps[si][field]=val;prSave();
+}
+function prDelStep(cid,idx,si){
+  const is=prFindIssue(cid,idx);if(!is)return;
+  is.steps.splice(si,1);if(!is.steps.length)is.steps=[{text:'',owner:'',deadline:''}];
+  prSave();prRenderAll();
+}
+function prAddStep(cid,idx){
+  const is=prFindIssue(cid,idx);if(!is)return;
+  if(!is.steps)is.steps=[];is.steps.push({text:'',owner:'',deadline:''});
+  prSave();prRenderAll();
+}
+function prDelIssue(cid,idx){const c=prFindCase(cid);if(!c)return;if(!confirm('確定刪除第 '+(idx+1)+' 項問題？'))return;c.issues.splice(idx,1);prSave();prRenderAll()}
+function prMarkDone(cid,idx){const is=prFindIssue(cid,idx);if(!is)return;is.done=true;prSave();prRenderAll()}
+function prAdvTr(cid,idx){const is=prFindIssue(cid,idx);if(!is)return;is.transferProgress=Math.min(3,(is.transferProgress||1)+1);prSave();prRenderAll()}
+function prCloseCase(cid){
+  const c=prFindCase(cid);if(!c)return;
+  if(!confirm('確定結案此客訴？'))return;
+  c.status='closed';
+  prSave();
+  // 結案後自動轉入小組問題追蹤的歷史記錄
+  try{
+    const cn=localStorage.getItem('activeCharacterName')||'(未登入)';
+    const issues=c.issues||[];
+    const desc='【客訴結案】'+c.title+'\n客戶：'+(c.client||'')+'／通路：'+(c.channel||'')+'\n問題：'+issues.map(function(is,i){return(i+1)+'. '+is.text+(is.done?' ✅':'');}).join('、');
+    const tiItem={
+      id:'TI-'+Date.now(),
+      date:new Date().toISOString().slice(0,10),
+      character:cn,
+      characterId:localStorage.getItem('activeCharacterId')||'',
+      cat:'客訴案件',
+      severity:issues.some(function(is){return is.type==='ours';})?'high':'mid',
+      desc:desc,
+      action:c.rpId?('已建立獎懲記錄 '+c.rpId):'',
+      status:'closed',
+      followUps:[],
+      screenshot:c.screenshot||'',
+      sourceCase:c.id
+    };
+    const list=tiLoad();
+    list.unshift(tiItem);
+    tiSaveList(list);
+  }catch(e){console.error('prCloseCase→tiLoad error',e);}
+  prRenderAll();
+  showToast('📁 已結案，已永久存檔至此角色的📜 歷史問題記錄');
+}
+
+function prReopenCase(cid){
+  const c=prFindCase(cid);if(!c)return;
+  if(!confirm('確定要重新開啟案件 '+cid+' 嗎？'))return;
+  c.status='open';
+  prSave();prRenderAll();prRenderHistory();
+  showToast('🔄 案件已重新開啟，已回到「處理中」');
+}
+
+// ===== 客訴截圖功能 =====
+function prUploadSS(cid,input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    // 壓縮圖片
+    const img=new Image();
+    img.onload=function(){
+      let w=img.width,h=img.height;
+      const maxW=1200,maxH=900;
+      if(w>maxW){h=h*maxW/w;w=maxW;}
+      if(h>maxH){w=w*maxH/h;h=maxH;}
+      const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      const compressed=cv.toDataURL('image/jpeg',0.8);
+      const c=prFindCase(cid);if(!c)return;
+      c.screenshot=compressed;
+      prSave();prRenderAll();
+      showSysToast('📷 截圖已儲存');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+function prShowSS(cid){
+  const c=prFindCase(cid);if(!c||!c.screenshot)return;
+  const lb=document.createElement('div');
+  lb.className='pr-lightbox';
+  lb.onclick=function(){lb.remove();};
+  lb.innerHTML='<img src="'+c.screenshot+'" onclick="event.stopPropagation()">';
+  document.getElementById('pr-app').appendChild(lb);
+}
+function prDelSS(cid){
+  const c=prFindCase(cid);if(!c)return;
+  if(!confirm('確定要移除此截圖？'))return;
+  c.screenshot='';
+  prSave();prRenderAll();
+  showSysToast('🗑 截圖已移除');
+}
+function showSysToast(msg){try{var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}catch(e){}}
+
+function prOpenNewCase(){
+  const id='CR-'+String(prNextId).padStart(3,'0');
+  document.getElementById('pr-ncid').value=id;
+  document.getElementById('pr-ncdate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('pr-nctitle').value='';
+  document.getElementById('pr-nccl').value='';
+  document.getElementById('pr-nctags').innerHTML='';
+  prNewTags=[];
+  document.getElementById('pr-ov-new').classList.add('open');
+}
+function prAddTag(){
+  const inp=document.getElementById('pr-ncinp');const v=inp.value.trim();if(!v)return;
+  prNewTags.push(v);inp.value='';
+  const container=document.getElementById('pr-nctags');
+  container.innerHTML=prNewTags.map((t,i)=>`<span class="pr-tag">${esc(t)}<span class="del" onclick="prRemoveTag(${i})">✕</span></span>`).join('');
+}
+function prRemoveTag(i){prNewTags.splice(i,1);document.getElementById('pr-nctags').innerHTML=prNewTags.map((t,j)=>`<span class="pr-tag">${esc(t)}<span class="del" onclick="prRemoveTag(${j})">✕</span></span>`).join('')}
+function prCreateCase(){
+  const title=document.getElementById('pr-nctitle').value.trim();
+  if(!title){alert('請輸入客訴主旨');return}
+  if(!prNewTags.length){alert('請至少輸入一條客訴問題');return}
+  const c={id:'CR-'+String(prNextId).padStart(3,'0'),title,date:document.getElementById('pr-ncdate').value,channel:document.getElementById('pr-ncch').value,client:document.getElementById('pr-nccl').value||'匿名',status:'open',issues:prNewTags.map(t=>({text:t,type:null,dept:null,steps:null,note:'',done:false,transferNote:'',transferProgress:1}))};
+  prCases.push(c);prNextId++;prSave();prCloseOv('pr-ov-new');prRenderAll();
+  showToast('✅ 客訴 '+c.id+' 已建立！');
+}
+function prCloseOv(id){document.getElementById(id).classList.remove('open')}
+function prCloseBg(e,id){if(e.target===document.getElementById(id))prCloseOv(id)}
+
+function prRenderHistory(){
+  const kw=document.getElementById('pr-kw').value.toLowerCase();
+  const st=document.getElementById('pr-st').value;
+  const dp=document.getElementById('pr-dp').value;
+  let list=prCases.filter(c=>{
+    if(kw&&!c.title.toLowerCase().includes(kw)&&!c.id.toLowerCase().includes(kw))return false;
+    if(st==='open'&&c.status!=='open')return false;
+    if(st==='closed'&&c.status!=='closed')return false;
+    if(dp&&!c.issues.some(i=>i.dept===dp))return false;
+    return true;
+  });
+  const el=document.getElementById('pr-hlist');
+  if(!list.length){el.innerHTML='<div style="text-align:center;padding:28px;color:#6a8fcc;">無符合的紀錄</div>';return}
+  el.innerHTML=list.map(c=>{
+    const dn=c.issues.filter(i=>i.done).length;
+    const chips=c.issues.map(i=>{const cls=i.done?'ch-dn':(i.type==='ours'?'ch-ou':(i.type==='transfer'?'ch-tr':'ch-pd'));return`<span class="ch ${cls}">${i.done?'完成':(i.type==='ours'?'我方':(i.type==='transfer'?(i.dept||'轉接'):'待處理'))}</span>`}).join('');
+    const reopenBtn=c.status==='closed'?`<button onclick="event.stopPropagation();prReopenCase('${c.id}')" style="background:none;border:none;color:#42a5f5;cursor:pointer;font-size:.85rem;margin-left:6px;padding:4px 8px;border-radius:4px;transition:background .2s;white-space:nowrap;" onmouseover="this.style.background='rgba(66,165,245,0.15)'" onmouseout="this.style.background='none'" title="重新開啟此案件">🔄</button>`:'';
+    return`<div class="pr-hcard" onclick="prShowDetail('${c.id}')" style="position:relative;"><div class="pr-hdot ${c.status==='closed'?'dc':'do'}"></div><div class="pr-hm"><h4>${esc(c.title)}</h4><p>${c.id} ｜ ${c.date} ｜ ${esc(c.client)}</p><div class="pr-chips">${chips}</div></div><span class="pr-badge ${c.status==='closed'?'s-dn':'s-ou'}">${c.status==='closed'?'已結案':'處理中'}</span>${reopenBtn}<button onclick="event.stopPropagation();prDeleteCase('${c.id}')" style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:1.1rem;margin-left:8px;padding:4px 6px;border-radius:4px;transition:background .2s;" onmouseover="this.style.background='rgba(255,80,80,0.15)'" onmouseout="this.style.background='none'" title="刪除此案件">🗑️</button></div>`;
+  }).join('');
+}
+
+function prDeleteCase(id){
+  if(!confirm('確定要刪除案件 '+id+' 嗎？此操作無法復原。'))return;
+  prCases=prCases.filter(c=>c.id!==id);
+  prSave();
+  prRenderHistory();
+  showToast('🗑️ 案件 '+id+' 已刪除');
+}
+
+function prShowDetail(id){
+  const c=prFindCase(id);if(!c)return;
+  const body=document.getElementById('pr-ov-det-body');
+  let h=`<div class="pr-mtitle">${esc(c.title)} <button class="pr-mclose" onclick="prCloseOv('pr-ov-det')">×</button></div>`;
+  h+=`<p style="font-size:.82rem;color:#6a8fcc;margin-bottom:14px;">${c.id} ｜ ${c.date} ｜ ${esc(c.client)} ｜ ${esc(c.channel)} ｜ <strong style="color:${c.status==='closed'?'#00c853':'#ffa000'}">${c.status==='closed'?'已結案':'處理中'}</strong></p>`;
+  c.issues.forEach((is,i)=>{
+    const st=is.done?'✅ 已完成':(is.type==='ours'?'🔧 我方處理':(is.type==='transfer'?'📤 轉接'+(is.dept?(' → '+is.dept):''):'⏳ 待處理'));
+    h+=`<div style="border:1px solid rgba(100,180,255,0.15);border-radius:8px;padding:12px;margin-bottom:8px;background:rgba(15,25,60,0.4);"><div style="font-weight:700;color:#c0dcff;margin-bottom:4px;">${i+1}. ${esc(is.text)}</div><div style="font-size:.8rem;color:#6a8fcc;">${st}</div>`;
+    if(is.note)h+=`<div style="font-size:.8rem;color:#8ab4ff;margin-top:4px;">備註：${esc(is.note)}</div>`;
+    h+=`</div>`;
+  });
+  if(c.status==='open')h+=`<div class="btn-grp"><button class="btn btn-gr btn-sm" onclick="prCloseCase('${c.id}');prCloseOv('pr-ov-det');prRenderHistory()">📁 結案</button></div>`;
+  if(c.status==='closed')h+=`<div class="btn-grp"><button class="btn btn-sm" style="background:linear-gradient(135deg,#1976d2,#42a5f5);color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:.9rem;" onclick="prReopenCase('${c.id}');prCloseOv('pr-ov-det')">🔄 重新開啟</button></div>`;
+  body.innerHTML=h;
+  document.getElementById('pr-ov-det').classList.add('open');
+}
+
+function prAddRp(){
+  const name=document.getElementById('pr-rname').value.trim();
+  if(!name){alert('請輸入姓名');return}
+  const rp={name,dept:document.getElementById('pr-rdept').value,type:document.getElementById('pr-rtype').value,caseId:document.getElementById('pr-rcase').value,reason:document.getElementById('pr-rreason').value,date:new Date().toISOString().slice(0,10)};
+  prRps.push(rp);prSave();
+  document.getElementById('pr-rname').value='';document.getElementById('pr-rcase').value='';document.getElementById('pr-rreason').value='';
+  prRenderRp();showToast('✅ 獎懲記錄已新增');
+}
+function prRenderRp(){
+  const el=document.getElementById('pr-rplist');
+  if(!prRps.length){el.innerHTML='<div style="text-align:center;padding:20px;color:#6a8fcc;">尚無紀錄</div>';return}
+  el.innerHTML=prRps.map((r,i)=>`<div class="pr-rpi"><div style="flex:1;"><h4>${esc(r.name)} <span style="font-weight:400;font-size:.8rem;color:#6a8fcc;">(${r.dept})</span></h4><p>${r.date}${r.caseId?' ｜ '+esc(r.caseId):''} — ${esc(r.reason)}</p></div><span class="${r.type==='reward'?'rp-rw':'rp-pn'}">${r.type==='reward'?'🌟 獎勵':'⚠️ 懲處'}</span><button style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:1rem;margin-left:6px;" onclick="prDelRp(${i})">🗑️</button></div>`).join('');
+}
+function prDelRp(i){if(!confirm('確定刪除？'))return;prRps.splice(i,1);prSave();prRenderRp()}
+
+function prExportData(){
+  const cn=localStorage.getItem('activeCharacterName')||'全域';
+  const data={prCases,prRps,prNextId,teamIssues:tiLoad(),character:cn};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`客訴備份_${cn}_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  showToast('✅ 客訴備份已下載（'+cn+'）！');
+}
+function prImportData(e){
+  const f=e.target.files[0];if(!f)return;
+  if(!confirm('⚠️ 匯入將覆蓋目前角色的客訴資料，確定嗎？'))return;
+  const r=new FileReader();r.onload=function(ev){
+    try{const d=JSON.parse(ev.target.result);
+      if(d.prCases)prCases=d.prCases;if(d.prRps)prRps=d.prRps;if(d.prNextId)prNextId=d.prNextId;
+      if(d.teamIssues)tiSaveList(d.teamIssues);
+      prSave();prRenderAll();showToast('✅ 客訴資料已還原！');
+    }catch(err){alert('檔案格式錯誤')}
+  };r.readAsText(f);
+}
+
+// ========== 小組問題追蹤 (per character) ==========
+function tiGetKey(){
+  const cid=localStorage.getItem('activeCharacterId');
+  return cid!=null?'char_'+cid+'_team_issues':'team_issues';
+}
+function tiLoad(){
+  try{
+    const mainKey=tiGetKey();
+    const data=JSON.parse(localStorage.getItem(mainKey)||'[]');
+    if(data.length) return data;
+    const cid=localStorage.getItem('activeCharacterId');
+    if(cid!=null){
+      // Fallback 1: 掃描所有 localStorage 找任何 team_issues key 有資料的
+      try{
+        const allKeys=Object.keys(localStorage);
+        for(let k=0;k<allKeys.length;k++){
+          const key=allKeys[k];
+          if(key===mainKey) continue;
+          if(key.indexOf('team_issues')===-1) continue;
+          const d=JSON.parse(localStorage.getItem(key)||'[]');
+          if(d.length){
+            // 找到資料！遷移到正確的 key
+            localStorage.setItem(mainKey,JSON.stringify(d));
+            localStorage.removeItem(key);
+            return d;
+          }
+        }
+      }catch(e3){}
+      // Fallback 2: 全域 key
+      try{
+        const old=JSON.parse(localStorage.getItem('team_issues')||'[]');
+        if(old.length){
+          const mine=old.filter(t=>t.characterId===cid);
+          if(mine.length) return mine;
+          if(old.length) return old;
+        }
+      }catch(e2){}
+    }
+    return data;
+  }catch(e){return[];}
+}
+function tiSaveList(list){
+  try{
+    localStorage.setItem(tiGetKey(),JSON.stringify(list));
+  }catch(e){
+    showToast('⚠ 儲存失敗：空間不足，請清理截圖或備份後清除舊資料');
+    console.error('tiSaveList error',e);
+  }
+}
+
+function tiAdd(){
+  const cat=document.getElementById('ti-cat').value;
+  const sev=document.getElementById('ti-sev').value;
+  const desc=document.getElementById('ti-desc').value.trim();
+  const action=document.getElementById('ti-action').value.trim();
+  if(!desc){alert('請輸入問題描述');return;}
+  const list=tiLoad();
+  const cn=localStorage.getItem('activeCharacterName')||'(未登入)';
+  list.unshift({
+    id:'TI-'+Date.now(),
+    date:new Date().toISOString().slice(0,10),
+    character:cn,
+    characterId:localStorage.getItem('activeCharacterId')||'',
+    cat:cat,
+    severity:sev,
+    desc:desc,
+    action:action,
+    status:'open',
+    followUps:[]
+  });
+  tiSaveList(list);
+  document.getElementById('ti-desc').value='';
+  document.getElementById('ti-action').value='';
+  tiRender();showToast('✅ 問題已記錄');
+}
+
+function tiRender(){
+  const cid=localStorage.getItem('activeCharacterId');
+  const cn=localStorage.getItem('activeCharacterName');
+  const label=document.getElementById('tiCharLabel');
+  if(label) label.textContent=cn?'（'+cn+'）':'（未登入角色）';
+  const list=tiLoad();
+  const el=document.getElementById('ti-list');
+  if(!list.length){el.innerHTML='<div style="text-align:center;padding:20px;color:#6a8fcc;">尚無紀錄</div>';return;}
+  const sevMap={low:'🟢 輕微',mid:'🟡 中度',high:'🔴 嚴重'};
+  const stMap={open:'⏳ 追蹤中',improved:'✅ 已改善',closed:'📁 已結案'};
+  el.innerHTML=list.map((t,i)=>{
+    const sevLabel=sevMap[t.severity]||t.severity;
+    const stLabel=stMap[t.status]||t.status;
+    const stColor=t.status==='improved'?'#4caf50':t.status==='closed'?'#78909c':'#ffa726';
+    let h=`<div class="pr-card" style="margin-bottom:10px;padding:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <span class="pr-badge" style="background:rgba(100,180,255,.12);color:#64b5f6;margin-right:4px;">${esc(t.cat)}</span>
+          <span class="pr-badge" style="background:rgba(255,160,0,.1);color:${t.severity==='high'?'#ff5252':t.severity==='mid'?'#ffa726':'#66bb6a'};">${sevLabel}</span>
+          <span style="font-size:.75rem;color:#6a8fcc;margin-left:6px;">${t.date}</span>
+        </div>
+        <span style="font-size:.8rem;font-weight:700;color:${stColor};">${stLabel}</span>
+      </div>
+      <div style="font-size:.88rem;color:#e0e8ff;margin-bottom:6px;line-height:1.5;">${esc(t.desc)}</div>`;
+    if(t.action) h+=`<div style="font-size:.82rem;color:#81c784;margin-bottom:6px;"><b>措施：</b>${esc(t.action)}</div>`;
+    // 截圖（從客訴結案帶入）
+    if(t.screenshot){
+      h+=`<div style="margin:6px 0;"><img src="${t.screenshot}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid rgba(100,180,255,.15);cursor:pointer;" onclick="window.open(this.src)">
+        <button class="btn btn-sm" style="font-size:.7rem;padding:2px 8px;margin-left:6px;background:rgba(255,82,82,.1);color:#ff5252;border:1px solid rgba(255,82,82,.2);vertical-align:top;" onclick="tiDelScreenshot(${i})">🗑 刪除截圖</button></div>`;
+    }
+    // Follow-ups
+    if(t.followUps&&t.followUps.length){
+      h+=`<div style="border-top:1px solid rgba(100,180,255,.1);padding-top:6px;margin-top:6px;">`;
+      t.followUps.forEach(f=>{
+        h+=`<div style="font-size:.8rem;color:#b0bec5;margin-bottom:3px;"><span style="color:#64b5f6;">${f.date}</span> — ${esc(f.note)}</div>`;
+      });
+      h+=`</div>`;
+    }
+    h+=`<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">`;
+    if(t.status==='open'){
+      h+=`<button class="btn btn-sm" style="font-size:.75rem;padding:3px 10px;background:rgba(76,175,80,.15);color:#66bb6a;border:1px solid rgba(76,175,80,.3);" onclick="tiSetStatus(${i},'improved')">✅ 標記改善</button>`;
+      h+=`<button class="btn btn-sm" style="font-size:.75rem;padding:3px 10px;background:rgba(120,144,156,.15);color:#90a4ae;border:1px solid rgba(120,144,156,.3);" onclick="tiSetStatus(${i},'closed')">📁 結案</button>`;
+    }else if(t.status==='improved'){
+      h+=`<button class="btn btn-sm" style="font-size:.75rem;padding:3px 10px;background:rgba(255,167,38,.15);color:#ffa726;border:1px solid rgba(255,167,38,.3);" onclick="tiSetStatus(${i},'open')">⏳ 重新追蹤</button>`;
+    }
+    h+=`<button class="btn btn-sm" style="font-size:.75rem;padding:3px 10px;background:rgba(100,180,255,.1);color:#64b5f6;border:1px solid rgba(100,180,255,.2);" onclick="tiAddFollowUp(${i})">💬 追蹤紀錄</button>`;
+    h+=`<button class="btn btn-sm" style="font-size:.75rem;padding:3px 10px;background:rgba(255,82,82,.1);color:#ff5252;border:1px solid rgba(255,82,82,.2);" onclick="tiDel(${i})">🗑</button>`;
+    h+=`</div></div>`;
+    return h;
+  }).join('');
+}
+
+function tiSetStatus(idx,status){
+  const list=tiLoad();if(!list[idx])return;
+  list[idx].status=status;
+  tiSaveList(list);tiRender();
+  showToast(status==='improved'?'✅ 已標記改善':'📁 已結案');
+}
+function tiAddFollowUp(idx){
+  const note=prompt('輸入追蹤紀錄：');
+  if(!note||!note.trim())return;
+  const list=tiLoad();if(!list[idx])return;
+  if(!list[idx].followUps)list[idx].followUps=[];
+  list[idx].followUps.push({date:new Date().toISOString().slice(0,10),note:note.trim()});
+  tiSaveList(list);tiRender();showToast('💬 追蹤紀錄已新增');
+}
+function tiDel(idx){
+  if(!confirm('確定刪除此問題記錄？'))return;
+  const list=tiLoad();list.splice(idx,1);
+  tiSaveList(list);tiRender();showToast('🗑 已刪除');
+}
+function tiDelScreenshot(idx){
+  if(!confirm('確定刪除此截圖？刪除後無法復原。'))return;
+  const list=tiLoad();if(!list[idx])return;
+  list[idx].screenshot='';
+  tiSaveList(list);tiRender();showToast('🗑 截圖已刪除');
+}
+</script>
+<script src="./nav-home.js"></script>
+</body>
+</html>

@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>瀑布 — 各通路研究</title>
+<style>
+:root {
+  --bg: #0a0e1a;
+  --card: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.1);
+  --accent: #06b6d4;
+  --accent2: #3b82f6;
+  --gold: #fbbf24;
+  --green: #22c55e;
+  --red: #ef4444;
+  --dim: #64748b;
+  --text: #e2e8f0;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,'Noto Sans TC','PingFang TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── HEADER ── */
+.header{
+  background:linear-gradient(135deg,#0a1628 0%,#0f172a 50%,#071320 100%);
+  padding:28px 24px 20px;text-align:center;
+  border-bottom:1px solid rgba(6,182,212,0.2);position:relative;overflow:hidden;
+}
+.header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(6,182,212,0.12) 0%,transparent 70%);}
+.header h1{font-size:24px;font-weight:800;color:#fff;position:relative;letter-spacing:1px;}
+.header h1 span{color:var(--accent);}
+.header p{margin-top:6px;color:#94a3b8;font-size:13px;position:relative;}
+
+/* ── MONTH SELECTOR ── */
+.month-bar{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border);}
+.month-bar button{background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;transition:all .2s;}
+.month-bar button:hover{background:rgba(6,182,212,0.2);border-color:var(--accent);}
+.month-label{font-size:18px;font-weight:700;color:#fff;min-width:140px;text-align:center;}
+
+/* ── CONTAINER ── */
+.container{max-width:1100px;margin:0 auto;padding:20px 16px 80px;}
+
+/* ── SECTION ── */
+.section{margin-bottom:28px;}
+.section-title{font-size:16px;font-weight:700;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.section-title .icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+
+/* ── RECORDING CARDS ── */
+.rec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;}
+.rec-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden;transition:all .3s;}
+.rec-card:hover{border-color:rgba(6,182,212,0.3);box-shadow:0 0 20px rgba(6,182,212,0.1);}
+.rec-card.bad{border-color:rgba(239,68,68,0.2);}
+.rec-card.bad::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--red);}
+.rec-card.good::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--green);}
+.rec-card.best::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),#f59e0b);}
+.rec-card.best{border-color:rgba(251,191,36,0.3);}
+.rec-label{font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;display:inline-block;margin-bottom:10px;}
+.rec-label.good{background:rgba(34,197,94,0.15);color:#4ade80;}
+.rec-label.bad{background:rgba(239,68,68,0.15);color:#f87171;}
+.rec-label.best{background:rgba(251,191,36,0.15);color:#fbbf24;}
+.rec-person{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.rec-avatar{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.08);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:2px solid var(--border);}
+.rec-avatar img{width:100%;height:100%;object-fit:cover;}
+.rec-name{font-weight:700;font-size:14px;}
+.rec-title{font-size:11px;color:var(--dim);}
+.rec-note{font-size:12px;color:#94a3b8;margin-bottom:10px;line-height:1.5;min-height:36px;}
+
+/* Audio player */
+.rec-audio-wrap{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.rec-play-btn,.rec-skip-btn{width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;}
+.rec-play-btn{width:36px;height:36px;font-size:16px;}
+.rec-skip-btn{width:28px;height:28px;font-size:11px;background:rgba(255,255,255,0.08);color:var(--text);}
+.rec-skip-btn:hover{background:rgba(255,255,255,0.15);}
+.rec-play-btn.good-btn{background:rgba(34,197,94,0.2);color:#4ade80;}
+.rec-play-btn.bad-btn{background:rgba(239,68,68,0.2);color:#f87171;}
+.rec-play-btn.best-btn{background:rgba(251,191,36,0.2);color:#fbbf24;}
+.rec-play-btn:hover{transform:scale(1.1);}
+.rec-audio-bar{flex:1;min-width:60px;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;cursor:pointer;position:relative;}
+.rec-audio-fill{height:100%;width:0%;background:var(--accent);border-radius:3px;transition:width .1s linear;pointer-events:none;}
+.rec-duration{font-size:11px;color:var(--dim);flex-shrink:0;width:72px;text-align:right;}
+
+/* Upload area */
+.upload-zone{border:2px dashed rgba(255,255,255,0.15);border-radius:10px;padding:14px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.upload-zone:hover{border-color:var(--accent);background:rgba(6,182,212,0.05);}
+.upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.upload-zone .uz-icon{font-size:24px;margin-bottom:4px;}
+.upload-zone .uz-text{font-size:11px;color:var(--dim);}
+
+/* ── BEST PERSON AWARD ── */
+.award-card{background:linear-gradient(135deg,rgba(251,191,36,0.08),rgba(245,158,11,0.04));border:1px solid rgba(251,191,36,0.25);border-radius:16px;padding:24px;text-align:center;position:relative;overflow:hidden;}
+.award-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(251,191,36,0.1) 0%,transparent 60%);}
+.award-trophy{font-size:48px;position:relative;display:inline-block;}
+.award-trophy::after{content:'✨';position:absolute;top:-8px;right:-16px;font-size:20px;animation:sparkle 1.5s ease infinite;}
+@keyframes sparkle{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3) rotate(15deg);}}
+.award-name{font-size:22px;font-weight:800;color:#fbbf24;position:relative;margin:10px 0 4px;}
+.award-subtitle{font-size:13px;color:#94a3b8;position:relative;}
+.award-photo{width:80px;height:80px;border-radius:50%;margin:12px auto;overflow:hidden;border:3px solid rgba(251,191,36,0.4);box-shadow:0 0 30px rgba(251,191,36,0.2);}
+.award-photo img{width:100%;height:100%;object-fit:cover;}
+.award-reason{font-size:13px;color:#cbd5e1;position:relative;margin-top:8px;line-height:1.6;}
+
+/* ── 話術 SCRIPTS ── */
+.script-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;}
+.script-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:all .3s;}
+.script-card:hover{border-color:rgba(59,130,246,0.3);box-shadow:0 0 20px rgba(59,130,246,0.1);transform:translateY(-2px);}
+.script-preview{padding:16px;max-height:200px;overflow:hidden;position:relative;}
+.script-preview::after{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(transparent,rgba(10,14,26,0.95));}
+.script-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+.script-title .tag{font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(59,130,246,0.15);color:#60a5fa;font-weight:600;}
+.script-body{font-size:12px;color:#94a3b8;line-height:1.7;white-space:pre-wrap;}
+.script-footer{padding:10px 16px;background:rgba(255,255,255,0.03);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.script-footer span{font-size:11px;color:var(--dim);}
+.script-expand{font-size:11px;color:var(--accent);font-weight:600;}
+
+/* ── 話術檔案 SECTION ── */
+.file-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.file-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .3s;position:relative;}
+.file-card:hover{border-color:rgba(167,139,250,0.4);box-shadow:0 0 16px rgba(167,139,250,0.12);transform:translateY(-2px);}
+.file-thumb{width:100%;height:140px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);}
+.file-thumb img{width:100%;height:100%;object-fit:cover;}
+.file-thumb .pdf-icon{font-size:48px;}
+.file-info{padding:10px;display:flex;align-items:center;justify-content:space-between;}
+.file-info .fname{font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.file-del{width:24px;height:24px;border-radius:50%;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#f87171;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
+.file-del:hover{background:rgba(239,68,68,0.2);}
+
+/* ── FULLSCREEN OVERLAY ── */
+.fs-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:none;overflow-y:auto;padding:20px;}
+.fs-overlay.active{display:flex;flex-direction:column;align-items:center;}
+.fs-header{width:100%;max-width:800px;display:flex;align-items:center;justify-content:space-between;padding:12px 0;margin-bottom:16px;}
+.fs-title{font-size:18px;font-weight:700;color:#fff;}
+.fs-close{background:rgba(255,255,255,0.1);border:1px solid var(--border);color:#fff;width:40px;height:40px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.fs-close:hover{background:rgba(255,80,80,0.3);border-color:rgba(255,100,100,0.3);}
+.fs-body{width:100%;max-width:800px;background:rgba(15,23,42,0.95);border:1px solid var(--border);border-radius:16px;padding:32px;font-size:14px;color:#cbd5e1;line-height:1.8;white-space:pre-wrap;}
+
+/* File fullscreen */
+.fs-file-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;}
+.fs-file-overlay.active{display:flex;}
+.fs-file-close{position:fixed;top:16px;right:16px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;width:44px;height:44px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;transition:all .2s;}
+.fs-file-close:hover{background:rgba(255,80,80,0.35);}
+.fs-file-img{max-width:95vw;max-height:90vh;object-fit:contain;border-radius:8px;}
+.fs-file-pdf{width:95vw;height:90vh;border:none;border-radius:8px;background:#fff;}
+
+/* ── ADMIN (EDIT) CONTROLS ── */
+.edit-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.edit-row label{font-size:12px;color:var(--dim);width:60px;flex-shrink:0;}
+.edit-row input[type="text"],.edit-row textarea{flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:13px;outline:none;font-family:inherit;}
+.edit-row textarea{min-height:80px;resize:vertical;}
+.edit-row input[type="text"]:focus,.edit-row textarea:focus{border-color:var(--accent);}
+.small-btn{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,0.06);color:var(--text);font-size:11px;cursor:pointer;transition:all .2s;font-family:inherit;}
+.small-btn:hover{background:rgba(255,255,255,0.12);}
+.small-btn.danger{border-color:rgba(239,68,68,0.3);color:#f87171;}
+.small-btn.danger:hover{background:rgba(239,68,68,0.15);}
+.small-btn.primary{border-color:rgba(6,182,212,0.3);color:#22d3ee;}
+.small-btn.primary:hover{background:rgba(6,182,212,0.15);}
+.small-btn.purple{border-color:rgba(167,139,250,0.3);color:#a78bfa;}
+.small-btn.purple:hover{background:rgba(167,139,250,0.15);}
+
+/* ── SAVE BAR ── */
+.save-bar{position:fixed;bottom:40px;left:0;right:0;background:linear-gradient(180deg,transparent,rgba(10,14,26,0.95) 30%);padding:16px 24px;display:flex;justify-content:center;gap:12px;z-index:100;}
+.save-btn{padding:10px 24px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;border:none;font-family:inherit;}
+.save-btn.primary{background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;}
+.save-btn.primary:hover{box-shadow:0 0 20px rgba(6,182,212,0.4);transform:translateY(-1px);}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-60px);padding:10px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:all .3s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:600px){
+  .rec-grid{grid-template-columns:1fr;}
+  .script-grid{grid-template-columns:1fr;}
+  .file-grid{grid-template-columns:repeat(2,1fr);}
+}
+
+@media(max-width:480px){
+  .container{padding:8px;}
+  .month-bar button{width:28px;height:28px;font-size:14px;}
+  .month-label{font-size:14px;min-width:100px;}
+  .rec-grid{grid-template-columns:1fr;}
+  .script-grid{grid-template-columns:1fr;}
+  .rec-card{padding:12px;}
+  .rec-note{font-size:11px;min-height:30px;}
+  .rec-avatar{width:32px;height:32px;font-size:16px;}
+  .rec-name{font-size:12px;}
+  .rec-title{font-size:10px;}
+  .header h1{font-size:18px;}
+  .section-title{font-size:14px;}
+  .section-title .icon{width:24px;height:24px;font-size:14px;}
+  .fs-overlay{padding:12px;}
+  .fs-body{padding:16px;font-size:12px;}
+  .fs-header{padding:8px 0;}
+  .script-body{font-size:11px;}
+  .script-title{font-size:12px;}
+}
+</style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<div class="header">
+  <h1>🏔️ <span>瀑 布</span></h1>
+  <p>各通路研究 · 錄音嘉許 · 話術庫</p>
+</div>
+
+<div class="month-bar">
+  <button onclick="changeMonth(-1)">◀</button>
+  <div class="month-label" id="monthLabel">2026 年 3 月</div>
+  <button onclick="changeMonth(1)">▶</button>
+</div>
+
+<div class="container">
+
+  <!-- ══════ 🏆 本月約訪之星 ══════ -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:rgba(251,191,36,0.2);">🏆</div>
+      本月約訪之星
+    </div>
+    <div class="award-card" id="awardCard">
+      <div class="award-trophy">🏆</div>
+      <div class="award-photo" id="awardPhoto" style="display:none;"><img id="awardPhotoImg" src=""></div>
+      <div class="award-name" id="awardName">尚未選定</div>
+      <div class="award-subtitle">本月約訪表現最佳</div>
+      <div class="award-reason" id="awardReason"></div>
+      <div style="margin-top:16px;text-align:left;position:relative;">
+        <div class="edit-row"><label>姓名</label><input type="text" id="awardNameInput" placeholder="輸入嘉獎人名" oninput="updateAward()"></div>
+        <div class="edit-row"><label>嘉獎原因</label><input type="text" id="awardReasonInput" placeholder="例：本月約訪率 85%，面談轉化最高" oninput="updateAward()"></div>
+        <div class="edit-row"><label>照片</label>
+          <div class="upload-zone" style="flex:1;padding:8px;">
+            <span class="uz-text">📷 選擇照片</span>
+            <input type="file" accept="image/*" onchange="uploadAwardPhoto(this)">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ 🎧 嘉許錄音 (Good x3) ══════ -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:rgba(34,197,94,0.2);">🎧</div>
+      嘉許錄音（約訪優秀示範 × 3）
+    </div>
+    <div class="rec-grid" id="goodRecGrid"></div>
+  </div>
+
+  <!-- ══════ ⚠️ 警惕錄音 (Bad x1) ══════ -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:rgba(239,68,68,0.2);">⚠️</div>
+      警惕錄音（待改善示範 × 1）
+    </div>
+    <div class="rec-grid" id="badRecGrid"></div>
+  </div>
+
+  <!-- ══════ 📝 當月話術 ══════ -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:rgba(59,130,246,0.2);">📝</div>
+      當月話術
+      <button class="small-btn primary" onclick="addScript()">＋ 新增話術</button>
+    </div>
+    <div class="script-grid" id="scriptGrid"></div>
+  </div>
+
+  <!-- ══════ 📂 話術檔案庫 ══════ -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:rgba(167,139,250,0.2);">📂</div>
+      話術檔案庫
+      <button class="small-btn purple" onclick="addScriptFile()">＋ 上傳 JPG / PDF</button>
+      <span style="font-size:11px;color:var(--dim);margin-left:4px;">（檔案可累積疊加）</span>
+    </div>
+    <div class="file-grid" id="fileGrid"></div>
+  </div>
+
+</div>
+
+<!-- Fullscreen overlay for text scripts -->
+<div class="fs-overlay" id="fsOverlay">
+  <div class="fs-header">
+    <div class="fs-title" id="fsTitle"></div>
+    <button class="fs-close" onclick="closeFullscreen()">✕</button>
+  </div>
+  <div class="fs-body" id="fsBody"></div>
+</div>
+
+<!-- Fullscreen overlay for file viewer -->
+<div class="fs-file-overlay" id="fsFileOverlay">
+  <button class="fs-file-close" onclick="closeFileViewer()">✕</button>
+  <img class="fs-file-img" id="fsFileImg" src="" style="display:none;">
+  <iframe class="fs-file-pdf" id="fsFilePdf" src="" style="display:none;"></iframe>
+</div>
+
+<div class="toast" id="toast">✓ 已儲存</div>
+
+<div class="save-bar">
+  <button class="save-btn primary" onclick="saveAll()">💾 儲存本月資料</button>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+// IndexedDB — 大容量儲存（錄音、圖片、檔案）
+// 容量數百 MB，遠超 localStorage 的 5~10 MB
+// ════════════════════════════════════════════════
+const IDB_NAME = 'waterfall_blob_store';
+const IDB_VER = 1;
+const IDB_STORE = 'blobs';
+let _idb = null;
+
+function openIDB(){
+  return new Promise((resolve, reject)=>{
+    if(_idb){ resolve(_idb); return; }
+    const req = indexedDB.open(IDB_NAME, IDB_VER);
+    req.onupgradeneeded = function(e){
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(IDB_STORE)){
+        db.createObjectStore(IDB_STORE);
+      }
+    };
+    req.onsuccess = function(e){ _idb = e.target.result; resolve(_idb); };
+    req.onerror = function(e){ reject(e); };
+  });
+}
+
+function idbPut(key, value){
+  return openIDB().then(db => new Promise((resolve, reject)=>{
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(value, key);
+    tx.oncomplete = ()=> resolve();
+    tx.onerror = e => reject(e);
+  }));
+}
+
+function idbGet(key){
+  return openIDB().then(db => new Promise((resolve, reject)=>{
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = e => reject(e);
+  }));
+}
+
+function idbDel(key){
+  return openIDB().then(db => new Promise((resolve, reject)=>{
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(key);
+    tx.oncomplete = ()=> resolve();
+    tx.onerror = e => reject(e);
+  }));
+}
+
+// Generate unique blob key
+function blobKey(){ return 'blob_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+
+// ════════════════════════════════════════════════
+// STORAGE (localStorage for metadata, IndexedDB for blobs)
+// ════════════════════════════════════════════════
+const BASE_KEY = 'waterfall_channel_v2';
+const FILES_KEY = 'waterfall_script_files_v2';
+// 瀑布資料全角色共用，不做角色隔離
+function getSK(){ return BASE_KEY; }
+function getFilesSK(){ return FILES_KEY; }
+
+// ════════════════════════════════════════════════
+// IMAGE COMPRESSION
+// ════════════════════════════════════════════════
+function compressImage(dataUrl, maxW, maxH, quality, cb){
+  const img = new Image();
+  img.onload = function(){
+    let w = img.width, h = img.height;
+    if(w > maxW){ h = h * maxW / w; w = maxW; }
+    if(h > maxH){ w = w * maxH / h; h = maxH; }
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    cb(c.toDataURL('image/jpeg', quality));
+  };
+  img.src = dataUrl;
+}
+
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let allData = {};
+let scriptFiles = [];
+
+function monthKey(){ return currentYear + '-' + String(currentMonth).padStart(2,'0'); }
+
+function getMonthData(){
+  const mk = monthKey();
+  if(!allData[mk]) allData[mk] = defaultMonth();
+  return allData[mk];
+}
+
+function defaultMonth(){
+  return {
+    award: {name:'', reason:'', photo:''},
+    goodRecs: [
+      {name:'', title:'', note:'', audioKey:'', photo:''},
+      {name:'', title:'', note:'', audioKey:'', photo:''},
+      {name:'', title:'', note:'', audioKey:'', photo:''}
+    ],
+    badRec: {name:'', title:'', note:'', audioKey:'', photo:''},
+    scripts: []
+  };
+}
+
+// ════════════════════════════════════════════════
+// DATA MIGRATION (v1 → v2: move audio from localStorage inline to IndexedDB)
+// ════════════════════════════════════════════════
+async function migrateV1(){
+  const oldKey1 = 'waterfall_channel_v1';
+  const oldSK = oldKey1;
+  const raw = localStorage.getItem(oldSK);
+  if(!raw) return;
+  try{
+    const oldData = JSON.parse(raw);
+    // Iterate each month and migrate inline audio → IndexedDB
+    for(const mk of Object.keys(oldData)){
+      const md = oldData[mk];
+      if(!md) continue;
+      // goodRecs
+      if(md.goodRecs){
+        for(const rec of md.goodRecs){
+          if(rec.audio && rec.audio.startsWith('data:')){
+            const key = blobKey();
+            await idbPut(key, rec.audio);
+            rec.audioKey = key;
+            delete rec.audio;
+          } else if(rec.audio){
+            rec.audioKey = rec.audio; // already a key
+            delete rec.audio;
+          }
+        }
+      }
+      // badRec
+      if(md.badRec && md.badRec.audio && md.badRec.audio.startsWith('data:')){
+        const key = blobKey();
+        await idbPut(key, md.badRec.audio);
+        md.badRec.audioKey = key;
+        delete md.badRec.audio;
+      }
+    }
+    allData = oldData;
+    localStorage.setItem(getSK(), JSON.stringify(allData));
+    localStorage.removeItem(oldSK);
+    showToast('✅ 資料已自動升級');
+  }catch(e){ console.warn('Migration error', e); }
+  // Also migrate script files
+  const oldFKey = 'waterfall_script_files_v1';
+  const oldFSK = oldFKey;
+  const rawF = localStorage.getItem(oldFSK);
+  if(rawF){
+    try{
+      const oldFiles = JSON.parse(rawF);
+      // Move large file data to IndexedDB
+      for(const f of oldFiles){
+        if(f.data && f.data.startsWith('data:')){
+          const key = blobKey();
+          await idbPut(key, f.data);
+          f.dataKey = key;
+          delete f.data;
+        }
+        if(f.thumb && f.thumb.startsWith('data:') && f.thumb.length > 5000){
+          // keep thumbs small in localStorage, only move big ones
+          const key = blobKey();
+          await idbPut(key, f.thumb);
+          f.thumbKey = key;
+          delete f.thumb;
+        }
+      }
+      scriptFiles = oldFiles;
+      localStorage.setItem(getFilesSK(), JSON.stringify(scriptFiles));
+      localStorage.removeItem(oldFSK);
+    }catch(e){}
+  }
+}
+
+// ════════════════════════════════════════════════
+// MONTH NAVIGATION
+// ════════════════════════════════════════════════
+function updateMonthLabel(){
+  document.getElementById('monthLabel').textContent = currentYear + ' 年 ' + currentMonth + ' 月';
+}
+
+function changeMonth(dir){
+  saveCurrentToMemory();
+  currentMonth += dir;
+  if(currentMonth > 12){ currentMonth = 1; currentYear++; }
+  if(currentMonth < 1){ currentMonth = 12; currentYear--; }
+  updateMonthLabel();
+  renderAll();
+}
+
+// ════════════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════════════
+function renderAll(){
+  renderAward();
+  renderGoodRecs();
+  renderBadRec();
+  renderScripts();
+  renderFileGrid();
+}
+
+// ── AWARD ──
+function renderAward(){
+  const d = getMonthData().award;
+  document.getElementById('awardNameInput').value = d.name || '';
+  document.getElementById('awardReasonInput').value = d.reason || '';
+  document.getElementById('awardName').textContent = d.name || '尚未選定';
+  document.getElementById('awardReason').textContent = d.reason || '';
+  const photoDiv = document.getElementById('awardPhoto');
+  if(d.photo){
+    photoDiv.style.display = 'block';
+    document.getElementById('awardPhotoImg').src = d.photo;
+  } else {
+    photoDiv.style.display = 'none';
+  }
+}
+function updateAward(){
+  const d = getMonthData();
+  d.award.name = document.getElementById('awardNameInput').value;
+  d.award.reason = document.getElementById('awardReasonInput').value;
+  document.getElementById('awardName').textContent = d.award.name || '尚未選定';
+  document.getElementById('awardReason').textContent = d.award.reason || '';
+  scheduleAutoSave();
+}
+function uploadAwardPhoto(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    compressImage(e.target.result, 400, 400, 0.7, function(compressed){
+      getMonthData().award.photo = compressed;
+      renderAward();
+      scheduleAutoSave();
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── RECORDINGS ──
+function renderGoodRecs(){
+  const recs = getMonthData().goodRecs;
+  const grid = document.getElementById('goodRecGrid');
+  grid.innerHTML = recs.map((r, i) => buildRecCard(r, i, 'good')).join('');
+  recs.forEach((r, i) => { if(r.audioKey) loadAndBindAudio('good', i, r.audioKey); });
+}
+
+function renderBadRec(){
+  const r = getMonthData().badRec;
+  const grid = document.getElementById('badRecGrid');
+  grid.innerHTML = buildRecCard(r, 0, 'bad');
+  if(r.audioKey) loadAndBindAudio('bad', 0, r.audioKey);
+}
+
+function buildRecCard(r, idx, type){
+  const labelText = type === 'good' ? '✅ 嘉許 #'+(idx+1) : type === 'bad' ? '⚠️ 警惕' : '🏆 最佳';
+  const labelCls = type;
+  const cardCls = type;
+  const btnCls = type + '-btn';
+  const hasAudio = !!r.audioKey;
+
+  return `
+    <div class="rec-card ${cardCls}">
+      <span class="rec-label ${labelCls}">${labelText}</span>
+      <div class="rec-person">
+        <div class="rec-avatar" id="recAvatar_${type}_${idx}">
+          ${r.photo ? '<img src="'+r.photo+'">' : '👤'}
+        </div>
+        <div>
+          <div class="rec-name" id="recNameDisplay_${type}_${idx}">${r.name || '（未填）'}</div>
+          <div class="rec-title" id="recTitleDisplay_${type}_${idx}">${r.title || ''}</div>
+        </div>
+      </div>
+      <div class="rec-note" id="recNoteDisplay_${type}_${idx}">${r.note || '（尚無備註）'}</div>
+
+      ${hasAudio ? `
+      <div class="rec-audio-wrap">
+        <button class="rec-skip-btn" onclick="skipAudio('${type}',${idx},-10)" title="倒退10秒">⏪</button>
+        <button class="rec-play-btn ${btnCls}" id="recPlayBtn_${type}_${idx}" onclick="togglePlay('${type}',${idx})">▶</button>
+        <button class="rec-skip-btn" onclick="skipAudio('${type}',${idx},10)" title="快進10秒">⏩</button>
+        <div class="rec-audio-bar" id="recBar_${type}_${idx}" onclick="seekAudio(event,'${type}',${idx})">
+          <div class="rec-audio-fill" id="recFill_${type}_${idx}"></div>
+        </div>
+        <div class="rec-duration" id="recDur_${type}_${idx}">載入中…</div>
+        <audio id="recAudio_${type}_${idx}" preload="metadata"></audio>
+      </div>` : ''}
+
+      <!-- Edit area -->
+      <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:8px;">
+        <div class="edit-row"><label>姓名</label><input type="text" value="${escAttr(r.name||'')}" oninput="updateRec('${type}',${idx},'name',this.value)"></div>
+        <div class="edit-row"><label>職稱</label><input type="text" value="${escAttr(r.title||'')}" oninput="updateRec('${type}',${idx},'title',this.value)"></div>
+        <div class="edit-row"><label>備註</label><input type="text" value="${escAttr(r.note||'')}" oninput="updateRec('${type}',${idx},'note',this.value)"></div>
+        <div class="edit-row"><label>照片</label>
+          <div class="upload-zone" style="flex:1;padding:6px;">
+            <span class="uz-text">📷 上傳照片</span>
+            <input type="file" accept="image/*" onchange="uploadRecPhoto('${type}',${idx},this)">
+          </div>
+        </div>
+        <div class="edit-row"><label>錄音</label>
+          <div class="upload-zone" style="flex:1;padding:6px;">
+            <span class="uz-text">🎙️ 上傳錄音 (mp3/wav/m4a)</span>
+            <input type="file" accept="audio/*" onchange="uploadRecAudio('${type}',${idx},this)">
+          </div>
+          ${hasAudio ? `<button class="small-btn danger" onclick="removeRecAudio('${type}',${idx})">🗑️</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function escAttr(s){ return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function updateRec(type, idx, field, val){
+  const d = getMonthData();
+  if(type === 'bad') d.badRec[field] = val;
+  else d.goodRecs[idx][field] = val;
+  const nameEl = document.getElementById('recNameDisplay_'+type+'_'+idx);
+  const titleEl = document.getElementById('recTitleDisplay_'+type+'_'+idx);
+  const noteEl = document.getElementById('recNoteDisplay_'+type+'_'+idx);
+  if(field==='name' && nameEl) nameEl.textContent = val || '（未填）';
+  if(field==='title' && titleEl) titleEl.textContent = val;
+  if(field==='note' && noteEl) noteEl.textContent = val || '（尚無備註）';
+  scheduleAutoSave();
+}
+
+function uploadRecPhoto(type, idx, input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    compressImage(e.target.result, 400, 400, 0.7, function(compressed){
+      const d = getMonthData();
+      if(type==='bad') d.badRec.photo = compressed;
+      else d.goodRecs[idx].photo = compressed;
+      if(type==='bad') renderBadRec(); else renderGoodRecs();
+      scheduleAutoSave();
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function uploadRecAudio(type, idx, input){
+  const file = input.files[0]; if(!file) return;
+  showToast('⏳ 錄音上傳中…');
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    try{
+      const key = blobKey();
+      await idbPut(key, e.target.result);
+      const d = getMonthData();
+      // Remove old audio blob if exists
+      const oldKey = type==='bad' ? d.badRec.audioKey : d.goodRecs[idx].audioKey;
+      if(oldKey) idbDel(oldKey).catch(()=>{});
+      if(type==='bad') d.badRec.audioKey = key;
+      else d.goodRecs[idx].audioKey = key;
+      if(type==='bad') renderBadRec(); else renderGoodRecs();
+      scheduleAutoSave();
+      showToast('✅ 錄音已儲存');
+    }catch(err){
+      showToast('⚠ 錄音儲存失敗：'+err.message, true);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeRecAudio(type, idx){
+  const d = getMonthData();
+  const key = type==='bad' ? d.badRec.audioKey : d.goodRecs[idx].audioKey;
+  if(key) idbDel(key).catch(()=>{});
+  if(type==='bad') d.badRec.audioKey = '';
+  else d.goodRecs[idx].audioKey = '';
+  if(type==='bad') renderBadRec(); else renderGoodRecs();
+  scheduleAutoSave();
+}
+
+// ── AUDIO PLAYER ──
+let currentPlaying = null;
+
+async function loadAndBindAudio(type, idx, audioKey){
+  const audio = document.getElementById('recAudio_'+type+'_'+idx);
+  if(!audio || !audioKey) return;
+  try{
+    const dataUrl = await idbGet(audioKey);
+    if(dataUrl){
+      audio.src = dataUrl;
+      bindAudio(type, idx);
+    } else {
+      const dur = document.getElementById('recDur_'+type+'_'+idx);
+      if(dur) dur.textContent = '無資料';
+    }
+  }catch(e){
+    const dur = document.getElementById('recDur_'+type+'_'+idx);
+    if(dur) dur.textContent = '載入失敗';
+  }
+}
+
+function bindAudio(type, idx){
+  const audio = document.getElementById('recAudio_'+type+'_'+idx);
+  if(!audio) return;
+  const fill = document.getElementById('recFill_'+type+'_'+idx);
+  const dur = document.getElementById('recDur_'+type+'_'+idx);
+  audio.addEventListener('timeupdate', ()=>{
+    if(audio.duration){
+      fill.style.width = (audio.currentTime/audio.duration*100)+'%';
+      dur.textContent = formatTime(audio.currentTime) + ' / ' + formatTime(audio.duration);
+    }
+  });
+  audio.addEventListener('ended', ()=>{
+    const btn = document.getElementById('recPlayBtn_'+type+'_'+idx);
+    if(btn) btn.textContent = '▶';
+    fill.style.width = '0%';
+    currentPlaying = null;
+  });
+  audio.addEventListener('loadedmetadata', ()=>{
+    dur.textContent = '0:00 / ' + formatTime(audio.duration);
+  });
+}
+
+function togglePlay(type, idx){
+  const audio = document.getElementById('recAudio_'+type+'_'+idx);
+  const btn = document.getElementById('recPlayBtn_'+type+'_'+idx);
+  if(!audio || !audio.src) return;
+  if(currentPlaying && currentPlaying !== audio){
+    currentPlaying.pause();
+    currentPlaying.currentTime = 0;
+    document.querySelectorAll('.rec-play-btn').forEach(b=>b.textContent='▶');
+  }
+  if(audio.paused){
+    audio.play();
+    btn.textContent = '⏸';
+    currentPlaying = audio;
+  } else {
+    audio.pause();
+    btn.textContent = '▶';
+    currentPlaying = null;
+  }
+}
+
+function skipAudio(type, idx, seconds){
+  const audio = document.getElementById('recAudio_'+type+'_'+idx);
+  if(!audio || !audio.duration) return;
+  audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + seconds));
+}
+
+function seekAudio(e, type, idx){
+  const audio = document.getElementById('recAudio_'+type+'_'+idx);
+  const bar = document.getElementById('recBar_'+type+'_'+idx);
+  if(!audio || !audio.duration || !bar) return;
+  const rect = bar.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  audio.currentTime = ratio * audio.duration;
+  if(audio.paused){
+    audio.play();
+    const btn = document.getElementById('recPlayBtn_'+type+'_'+idx);
+    if(btn) btn.textContent = '⏸';
+    if(currentPlaying && currentPlaying !== audio){
+      currentPlaying.pause(); currentPlaying.currentTime = 0;
+      document.querySelectorAll('.rec-play-btn').forEach(b=>b.textContent='▶');
+    }
+    currentPlaying = audio;
+  }
+}
+
+function formatTime(s){
+  if(!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s/60);
+  const sec = Math.floor(s%60);
+  return m + ':' + String(sec).padStart(2,'0');
+}
+
+// ── SCRIPTS (話術文字) ──
+function renderScripts(){
+  const scripts = getMonthData().scripts;
+  const grid = document.getElementById('scriptGrid');
+  if(scripts.length === 0){
+    grid.innerHTML = '<div style="text-align:center;color:var(--dim);padding:30px;font-size:13px;">尚未新增話術，點擊上方「＋ 新增話術」按鈕</div>';
+    return;
+  }
+  grid.innerHTML = scripts.map((s, i) => `
+    <div class="script-card" onclick="openFullscreen(${i})">
+      <div class="script-preview">
+        <div class="script-title">
+          📄 ${escHtml(s.title || '未命名話術')}
+          <span class="tag">${escHtml(s.tag || '通用')}</span>
+        </div>
+        <div class="script-body">${escHtml(s.body || '')}</div>
+      </div>
+      <div class="script-footer">
+        <span>點擊預覽全文</span>
+        <span class="script-expand">🔍 放大檢視</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:-8px;margin-bottom:14px;">
+      <button class="small-btn" onclick="event.stopPropagation();editScript(${i})">✏️ 編輯</button>
+      <button class="small-btn danger" onclick="event.stopPropagation();removeScript(${i})">🗑️ 刪除</button>
+    </div>
+  `).join('');
+}
+
+function addScript(){
+  const title = prompt('話術標題：');
+  if(title === null) return;
+  const tag = prompt('分類標籤（如：通路/班務/加購/展場）：', '通用') || '通用';
+  const body = prompt('貼上話術內容：');
+  if(body === null) return;
+  getMonthData().scripts.push({title, tag, body});
+  renderScripts();
+  scheduleAutoSave();
+}
+
+function editScript(idx){
+  const s = getMonthData().scripts[idx];
+  const title = prompt('話術標題：', s.title);
+  if(title === null) return;
+  const tag = prompt('分類標籤：', s.tag || '通用') || '通用';
+  const body = prompt('話術內容：', s.body);
+  if(body === null) return;
+  s.title = title; s.tag = tag; s.body = body;
+  renderScripts();
+  scheduleAutoSave();
+}
+
+function removeScript(idx){
+  if(!confirm('確定刪除這份話術？')) return;
+  getMonthData().scripts.splice(idx, 1);
+  renderScripts();
+  scheduleAutoSave();
+}
+
+function openFullscreen(idx){
+  const s = getMonthData().scripts[idx];
+  document.getElementById('fsTitle').textContent = '📄 ' + (s.title || '未命名話術');
+  document.getElementById('fsBody').textContent = s.body || '';
+  document.getElementById('fsOverlay').classList.add('active');
+}
+
+function closeFullscreen(){
+  document.getElementById('fsOverlay').classList.remove('active');
+}
+
+function escHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ════════════════════════════════════════════════
+// 話術檔案庫（JPG / PDF，跨月累積，存 IndexedDB）
+// ════════════════════════════════════════════════
+function renderFileGrid(){
+  const grid = document.getElementById('fileGrid');
+  if(scriptFiles.length === 0){
+    grid.innerHTML = '<div style="text-align:center;color:var(--dim);padding:30px;font-size:13px;grid-column:1/-1;">尚未上傳檔案，點擊上方「＋ 上傳 JPG / PDF」</div>';
+    return;
+  }
+  grid.innerHTML = scriptFiles.map((f, i) => `
+    <div class="file-card" onclick="openFileViewer(${i})">
+      <div class="file-thumb">
+        ${f.type === 'jpg' ? '<img src="'+(f.thumb||'')+'">' : '<div class="pdf-icon">📄</div>'}
+      </div>
+      <div class="file-info">
+        <span class="fname">${escHtml(f.name)}</span>
+        <button class="file-del" onclick="event.stopPropagation();removeFile(${i})" title="刪除">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addScriptFile(){
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/jpeg,image/png,image/webp,application/pdf';
+  input.multiple = true;
+  input.onchange = function(){
+    Array.from(input.files).forEach(file => {
+      showToast('⏳ 上傳中…');
+      const reader = new FileReader();
+      reader.onload = async function(e){
+        const dataUrl = e.target.result;
+        const isPdf = file.type === 'application/pdf';
+        try{
+          const dataKey = blobKey();
+          await idbPut(dataKey, dataUrl);
+          if(isPdf){
+            scriptFiles.push({ name: file.name, type: 'pdf', dataKey: dataKey, thumb: '' });
+            renderFileGrid();
+            saveFilesMeta();
+            showToast('✅ PDF 已上傳');
+          } else {
+            compressImage(dataUrl, 320, 320, 0.6, function(thumb){
+              scriptFiles.push({ name: file.name, type: 'jpg', dataKey: dataKey, thumb: thumb });
+              renderFileGrid();
+              saveFilesMeta();
+              showToast('✅ 圖片已上傳');
+            });
+          }
+        }catch(err){
+          showToast('⚠ 上傳失敗：'+err.message, true);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  input.click();
+}
+
+function removeFile(idx){
+  if(!confirm('確定刪除「'+scriptFiles[idx].name+'」？')) return;
+  const f = scriptFiles[idx];
+  if(f.dataKey) idbDel(f.dataKey).catch(()=>{});
+  scriptFiles.splice(idx, 1);
+  renderFileGrid();
+  saveFilesMeta();
+}
+
+// 將 base64 data URL 轉為 Blob URL（瀏覽器對 data URL 有長度限制，Blob URL 無此問題）
+function dataUrlToBlob(dataUrl){
+  const parts = dataUrl.split(',');
+  const mime = parts[0].match(/:(.*?);/)[1];
+  const raw = atob(parts[1]);
+  const arr = new Uint8Array(raw.length);
+  for(let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return new Blob([arr], {type: mime});
+}
+
+let _activeBlobUrl = null; // 追蹤當前 blob URL 以便釋放記憶體
+
+async function openFileViewer(idx){
+  const f = scriptFiles[idx];
+  const overlay = document.getElementById('fsFileOverlay');
+  const img = document.getElementById('fsFileImg');
+  const pdf = document.getElementById('fsFilePdf');
+  // 先釋放舊的 blob URL
+  if(_activeBlobUrl){ URL.revokeObjectURL(_activeBlobUrl); _activeBlobUrl = null; }
+  // 從 IndexedDB 讀取
+  let dataUrl = '';
+  if(f.dataKey){
+    try{ dataUrl = await idbGet(f.dataKey); }catch(e){}
+  } else if(f.data){
+    dataUrl = f.data;
+  }
+  if(!dataUrl){ showToast('⚠ 檔案載入失敗',true); return; }
+  // 轉為 Blob URL
+  try{
+    const blob = dataUrlToBlob(dataUrl);
+    _activeBlobUrl = URL.createObjectURL(blob);
+  }catch(e){
+    showToast('⚠ 檔案格式錯誤',true); return;
+  }
+  if(f.type === 'jpg'){
+    img.src = _activeBlobUrl;
+    img.style.display = 'block';
+    pdf.style.display = 'none';
+    pdf.src = '';
+  } else {
+    pdf.src = _activeBlobUrl;
+    pdf.style.display = 'block';
+    img.style.display = 'none';
+    img.src = '';
+  }
+  overlay.classList.add('active');
+}
+
+function closeFileViewer(){
+  const overlay = document.getElementById('fsFileOverlay');
+  overlay.classList.remove('active');
+  document.getElementById('fsFileImg').src = '';
+  document.getElementById('fsFilePdf').src = '';
+  if(_activeBlobUrl){ URL.revokeObjectURL(_activeBlobUrl); _activeBlobUrl = null; }
+}
+
+function saveFilesMeta(){
+  try{
+    // Only metadata + small thumbs go to localStorage
+    localStorage.setItem(getFilesSK(), JSON.stringify(scriptFiles));
+  }catch(e){}
+}
+
+// ════════════════════════════════════════════════
+// SAVE / LOAD (metadata in localStorage, blobs in IndexedDB)
+// ════════════════════════════════════════════════
+function saveCurrentToMemory(){}
+
+let _autoTimer = null;
+function scheduleAutoSave(){
+  clearTimeout(_autoTimer);
+  _autoTimer = setTimeout(()=>{
+    try{
+      localStorage.setItem(getSK(), JSON.stringify(allData));
+    }catch(e){
+      if(e.name==='QuotaExceededError'||e.code===22||e.code===1014){
+        showToast('⚠ 儲存空間不足', true);
+      }
+    }
+  }, 800);
+}
+
+function saveAll(){
+  try{
+    localStorage.setItem(getSK(), JSON.stringify(allData));
+    saveFilesMeta();
+    showToast('✅ 已儲存（' + monthKey() + '）');
+  }catch(e){
+    if(e.name==='QuotaExceededError'||e.code===22||e.code===1014){
+      showToast('⚠ 儲存空間不足：' + e.message, true);
+    } else {
+      showToast('⚠ 儲存失敗：' + e.message, true);
+    }
+  }
+}
+
+function loadAll(){
+  try{
+    const raw = localStorage.getItem(getSK());
+    if(raw) allData = JSON.parse(raw);
+  }catch(e){}
+}
+
+function loadFiles(){
+  try{
+    const raw = localStorage.getItem(getFilesSK());
+    if(raw) scriptFiles = JSON.parse(raw);
+  }catch(e){}
+}
+
+function showToast(msg, isError){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? '#7f1d1d' : '#166534';
+  t.style.color = isError ? '#fca5a5' : '#4ade80';
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+// ════════════════════════════════════════════════
+// INIT (async for IndexedDB + migration)
+// ════════════════════════════════════════════════
+(async function init(){
+  await openIDB();
+  loadAll();
+  loadFiles();
+  // If no v2 data, try migrate from v1
+  if(Object.keys(allData).length === 0){
+    await migrateV1();
+  }
+  updateMonthLabel();
+  renderAll();
+})();
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    closeFullscreen();
+    closeFileViewer();
+  }
+});
+
+window.triggerSave = saveAll;
+// ★ 頁面離開緊急儲存
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')saveAll();});
+window.addEventListener('beforeunload',saveAll);
+window.addEventListener('pagehide',saveAll);
+</script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

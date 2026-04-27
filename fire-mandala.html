@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔥 火種 — 領導版九宮格</title>
+<style>
+  :root {
+    --bg-deep: #03060f;
+    --bg-mid: #070d1f;
+    --bg-panel: rgba(12,22,50,0.85);
+    --border: rgba(100,180,255,0.12);
+    --border-hi: rgba(74,234,255,0.3);
+    --text: #c0dcff;
+    --text-dim: #4a6a9a;
+    --text-bright: #e8f0ff;
+    --accent: #4aeaff;
+    --accent2: #a78bfa;
+    --gold: #ffd700;
+    --red-strike: #ff4444;
+    --center-bg: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.1));
+    --theme-bg: linear-gradient(135deg, rgba(74,234,255,0.08), rgba(167,139,250,0.06));
+    --cell-bg: rgba(10,18,40,0.7);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, 'Noto Sans TC', 'PingFang TC', sans-serif;
+    background: radial-gradient(ellipse at 20% 30%, #0d1b3e 0%, var(--bg-mid) 50%, var(--bg-deep) 100%);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── 星空粒子 ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(1px 1px at 10% 20%, rgba(150,200,255,0.6), transparent),
+      radial-gradient(1px 1px at 25% 45%, rgba(180,220,255,0.4), transparent),
+      radial-gradient(1.5px 1.5px at 40% 15%, rgba(100,180,255,0.7), transparent),
+      radial-gradient(1px 1px at 55% 70%, rgba(200,230,255,0.3), transparent),
+      radial-gradient(1px 1px at 70% 35%, rgba(130,190,255,0.5), transparent),
+      radial-gradient(1.5px 1.5px at 85% 60%, rgba(160,210,255,0.6), transparent),
+      radial-gradient(1px 1px at 15% 80%, rgba(140,200,255,0.4), transparent),
+      radial-gradient(1px 1px at 90% 85%, rgba(120,185,255,0.3), transparent),
+      radial-gradient(1px 1px at 48% 88%, rgba(130,195,255,0.6), transparent);
+    pointer-events: none;
+    z-index: 0;
+    animation: twinkle 8s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle { 0%{opacity:.7} 100%{opacity:1} }
+
+  /* ── 光暈裝飾 ── */
+  .glow1, .glow2 {
+    position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(80px);
+  }
+  .glow1 { width:400px; height:400px; background:rgba(74,234,255,0.04); top:5%; right:-8%; animation:gf1 12s ease-in-out infinite; }
+  .glow2 { width:350px; height:350px; background:rgba(167,139,250,0.04); bottom:5%; left:-5%; animation:gf2 15s ease-in-out infinite; }
+  @keyframes gf1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-30px,20px)} }
+  @keyframes gf2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(20px,-30px)} }
+
+  /* ── 頂部標題 ── */
+  .page-header {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; height: 52px;
+    background: linear-gradient(180deg, rgba(10,18,45,0.97), rgba(8,14,35,0.93));
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.4);
+  }
+  .page-header .title-area {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .page-header .title-icon { font-size: 22px; }
+  .page-header .title-text {
+    font-size: 15px; font-weight: 700;
+    background: linear-gradient(135deg, #ff6b35, #ffd700);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: 1px;
+  }
+  .page-header .title-badge {
+    font-size: 11px; color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 2px 10px;
+    background: rgba(255,165,0,0.05);
+  }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .header-btn {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 12px; font-weight: 600;
+    padding: 6px 14px; border-radius: 8px;
+    cursor: pointer; transition: all .25s;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .header-btn:hover { background: rgba(74,234,255,0.1); color: var(--accent); border-color: var(--border-hi); }
+  .header-btn.save-btn {
+    background: rgba(74,234,255,0.12); border-color: rgba(74,234,255,0.3);
+    color: #4aeaff;
+  }
+  .header-btn.save-btn:hover { background: rgba(74,234,255,0.25); }
+
+  /* ── 導覽分頁 ── */
+  .nav-tabs { display: flex; gap: 4px; }
+  .nav-tab {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 13px; font-weight: 600;
+    padding: 7px 16px; border-radius: 10px 10px 4px 4px;
+    cursor: pointer; transition: all .25s;
+    position: relative;
+  }
+  .nav-tab:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+  .nav-tab.active {
+    background: linear-gradient(135deg, rgba(255,107,53,0.15), rgba(255,215,0,0.1));
+    border-color: rgba(255,165,0,0.4);
+    color: #ffd700; font-weight: 700;
+    box-shadow: 0 2px 8px rgba(255,165,0,0.15);
+  }
+
+  /* ── 進度條 ── */
+  .progress-bar-wrap {
+    padding: 12px 20px 8px;
+    position: relative; z-index: 1;
+  }
+  .progress-info {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px; font-size: 12px; color: var(--text-dim);
+  }
+  .progress-info .count { color: var(--accent); font-weight: 700; }
+  .progress-track {
+    height: 6px; background: rgba(255,255,255,0.06);
+    border-radius: 3px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, #ff6b35, #ffd700, #4aeaff);
+    transition: width 0.5s ease;
+    box-shadow: 0 0 10px rgba(255,165,0,0.3);
+  }
+
+  /* ── 九宮格容器 ── */
+  .mandala-wrap {
+    padding: 12px;
+    position: relative; z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .mandala-grid {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    grid-template-rows: repeat(9, 1fr);
+    gap: 3px;
+  }
+
+  /* ── 單元格 ── */
+  .m-cell {
+    position: relative;
+    min-height: 62px;
+    background: var(--cell-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s;
+    cursor: default;
+  }
+  .m-cell:hover {
+    border-color: rgba(100,180,255,0.25);
+    background: rgba(15,25,55,0.8);
+  }
+
+  /* 中心主夢想 */
+  .m-cell.center-main {
+    background: var(--center-bg);
+    border-color: rgba(255,215,0,0.35);
+    box-shadow: 0 0 20px rgba(255,215,0,0.1), inset 0 0 20px rgba(255,215,0,0.05);
+  }
+  .m-cell.center-main .cell-text {
+    color: var(--gold);
+    font-weight: 800;
+    font-size: 13px;
+    text-shadow: 0 0 8px rgba(255,215,0,0.3);
+  }
+
+  /* 8大主題中心 */
+  .m-cell.theme-center {
+    background: var(--theme-bg);
+    border-color: rgba(74,234,255,0.25);
+    box-shadow: 0 0 12px rgba(74,234,255,0.06), inset 0 0 12px rgba(74,234,255,0.03);
+  }
+  .m-cell.theme-center .cell-text {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 12px;
+  }
+
+  /* 中間圈（center 3x3 非中心） */
+  .m-cell.center-ring {
+    background: linear-gradient(135deg, rgba(255,165,0,0.06), rgba(255,215,0,0.04));
+    border-color: rgba(255,200,100,0.2);
+  }
+  .m-cell.center-ring .cell-text {
+    color: #ffd080;
+    font-weight: 600;
+  }
+
+  /* ── 文字 ── */
+  .cell-text {
+    font-size: 11px;
+    line-height: 1.4;
+    text-align: center;
+    color: var(--text);
+    width: 100%;
+    min-height: 20px;
+    padding: 2px 4px;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: inherit;
+    cursor: text;
+    transition: all 0.2s;
+    position: relative;
+    word-break: break-word;
+  }
+  .cell-text:focus {
+    background: rgba(74,234,255,0.06);
+    border-radius: 4px;
+    box-shadow: 0 0 0 1px rgba(74,234,255,0.2);
+  }
+
+  /* ── 完成狀態 ── */
+  .m-cell.done {
+    opacity: 0.75;
+  }
+  .m-cell.done .cell-text {
+    color: var(--text-dim) !important;
+    text-shadow: none !important;
+    font-weight: 400 !important;
+  }
+  .m-cell.done .strike-line {
+    display: block;
+  }
+  .strike-line {
+    display: none;
+    position: absolute;
+    left: 8%; right: 8%;
+    top: 50%;
+    height: 2.5px;
+    background: linear-gradient(90deg, transparent, var(--red-strike), var(--red-strike), transparent);
+    border-radius: 2px;
+    box-shadow: 0 0 6px rgba(255,68,68,0.4);
+    z-index: 5;
+    pointer-events: none;
+    animation: strikeIn 0.3s ease-out;
+  }
+  @keyframes strikeIn {
+    from { transform: scaleX(0); } to { transform: scaleX(1); }
+  }
+
+  /* ── 打勾按鈕 ── */
+  .check-btn {
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(100,180,255,0.2);
+    background: transparent;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    color: transparent;
+    transition: all 0.25s;
+    z-index: 10;
+    padding: 0;
+  }
+  .check-btn:hover {
+    border-color: rgba(74,234,255,0.5);
+    background: rgba(74,234,255,0.1);
+    color: var(--accent);
+  }
+  .m-cell.done .check-btn {
+    border-color: rgba(255,68,68,0.5);
+    background: rgba(255,68,68,0.15);
+    color: var(--red-strike);
+  }
+
+  /* 中心格和主題格不顯示勾選 */
+  .m-cell.center-main .check-btn,
+  .m-cell.theme-center .check-btn,
+  .m-cell.center-ring .check-btn { display: none; }
+  .m-cell.center-main .strike-line,
+  .m-cell.theme-center .strike-line,
+  .m-cell.center-ring .strike-line { display: none !important; }
+
+  /* ── 區塊分隔 ── */
+  .mandala-grid {
+    background:
+      linear-gradient(to right, transparent calc(33.33% - 1px), rgba(74,234,255,0.12) calc(33.33%), transparent calc(33.33% + 1px),
+                       transparent calc(66.66% - 1px), rgba(74,234,255,0.12) calc(66.66%), transparent calc(66.66% + 1px)),
+      linear-gradient(to bottom, transparent calc(33.33% - 1px), rgba(74,234,255,0.12) calc(33.33%), transparent calc(33.33% + 1px),
+                       transparent calc(66.66% - 1px), rgba(74,234,255,0.12) calc(66.66%), transparent calc(66.66% + 1px));
+    padding: 2px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── 區塊標籤 ── */
+  .block-labels {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, auto);
+    gap: 3px;
+    max-width: 1100px;
+    margin: 8px auto 0;
+    padding: 0 12px;
+  }
+  .block-label {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 4px;
+  }
+  .block-label span { color: var(--accent); font-weight: 600; }
+
+  /* ── 備份/還原彈窗 ── */
+  .modal-bg {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200; align-items: center; justify-content: center;
+  }
+  .modal-bg.open { display: flex; }
+  .modal-box {
+    background: linear-gradient(135deg, #0d1b3e, #0a1628);
+    border: 1px solid var(--border-hi);
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 360px; width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-box h3 { color: var(--accent); margin-bottom: 16px; font-size: 16px; }
+  .modal-box p { color: var(--text-dim); font-size: 13px; margin-bottom: 16px; line-height: 1.6; }
+  .modal-btn {
+    background: linear-gradient(135deg, rgba(74,234,255,0.15), rgba(167,139,250,0.1));
+    border: 1px solid var(--border-hi);
+    color: var(--accent); font-weight: 600; font-size: 13px;
+    padding: 10px 24px; border-radius: 10px;
+    cursor: pointer; transition: all .25s; margin: 4px;
+  }
+  .modal-btn:hover { background: rgba(74,234,255,0.2); transform: translateY(-1px); }
+  .modal-btn.danger { border-color: rgba(255,68,68,0.3); color: #ff8a8a; }
+  .modal-btn.danger:hover { background: rgba(255,68,68,0.15); }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: linear-gradient(135deg, rgba(10,20,50,0.95), rgba(15,25,60,0.95));
+    border: 1px solid var(--border-hi);
+    color: var(--accent); padding: 10px 24px; border-radius: 10px;
+    font-size: 13px; font-weight: 600; z-index: 300;
+    opacity: 0; transition: all 0.4s ease;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* ── RWD ── */
+  @media (max-width: 768px) {
+    /* Header adjustments */
+    .page-header {
+      padding: 0 12px;
+      height: 48px;
+    }
+    .page-header .title-text {
+      font-size: 13px;
+    }
+    .page-header .title-icon {
+      font-size: 18px;
+    }
+    .page-header .title-badge {
+      display: none;
+    }
+
+    /* Header action buttons */
+    .header-btn {
+      font-size: 11px;
+      padding: 5px 10px;
+    }
+
+    /* Nav tabs */
+    .nav-tab {
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+
+    /* Progress bar */
+    .progress-bar-wrap {
+      padding: 10px 12px 6px;
+    }
+    .progress-info {
+      font-size: 11px;
+    }
+
+    /* Mandala grid */
+    .mandala-wrap {
+      padding: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .mandala-grid {
+      min-width: 600px;
+    }
+
+    /* Grid cells */
+    .m-cell {
+      min-height: 48px;
+      padding: 3px;
+      font-size: 10px;
+    }
+    .cell-text {
+      font-size: 9px;
+      padding: 2px 3px;
+    }
+    .check-btn {
+      width: 15px;
+      height: 15px;
+      font-size: 8px;
+    }
+
+    /* Center cell adjustments */
+    .m-cell.center-main .cell-text {
+      font-size: 10px;
+    }
+    .m-cell.theme-center .cell-text {
+      font-size: 9px;
+    }
+
+    /* Glow decorations - reduce size */
+    .glow1 {
+      width: 300px;
+      height: 300px;
+      opacity: 0.6;
+    }
+    .glow2 {
+      width: 250px;
+      height: 250px;
+      opacity: 0.6;
+    }
+
+    /* Block labels */
+    .block-labels {
+      max-width: 100%;
+      padding: 0 8px;
+    }
+    .block-label {
+      font-size: 10px;
+      padding: 3px;
+    }
+
+    /* Modal adjustments */
+    .modal-box {
+      padding: 20px;
+      max-width: 85%;
+    }
+    .modal-box h3 {
+      font-size: 14px;
+    }
+    .modal-box p {
+      font-size: 12px;
+    }
+    .modal-btn {
+      font-size: 12px;
+      padding: 8px 16px;
+    }
+
+    /* Toast */
+    .toast {
+      font-size: 12px;
+      padding: 8px 16px;
+      bottom: 15px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    /* Header adjustments */
+    .page-header {
+      height: 44px;
+      padding: 0 8px;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .page-header .title-area {
+      width: 100%;
+      gap: 6px;
+    }
+    .page-header .title-text {
+      font-size: 12px;
+      letter-spacing: 0;
+    }
+    .page-header .title-icon {
+      font-size: 16px;
+    }
+    .header-actions {
+      width: 100%;
+      gap: 4px;
+      justify-content: flex-start;
+    }
+    .header-btn {
+      font-size: 10px;
+      padding: 4px 8px;
+      flex: 1;
+      justify-content: center;
+    }
+
+    /* Nav tabs - full width with horizontal scroll */
+    .nav-tabs {
+      width: 100%;
+      gap: 2px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 2px;
+    }
+    .nav-tab {
+      font-size: 11px;
+      padding: 5px 10px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Progress bar */
+    .progress-bar-wrap {
+      padding: 8px 8px 4px;
+    }
+    .progress-info {
+      font-size: 10px;
+    }
+
+    /* Mandala grid - horizontal scroll required */
+    .mandala-wrap {
+      padding: 6px;
+      overflow-x: auto;
+      overflow-y: visible;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 8px;
+    }
+    .mandala-grid {
+      min-width: 500px;
+      gap: 2px;
+    }
+
+    /* Grid cells - smaller */
+    .m-cell {
+      min-height: 40px;
+      padding: 2px;
+    }
+    .cell-text {
+      font-size: 8px;
+      padding: 1px 2px;
+      line-height: 1.3;
+    }
+    .check-btn {
+      width: 13px;
+      height: 13px;
+      font-size: 7px;
+      top: 1px;
+      right: 1px;
+    }
+
+    /* Center cell text - smaller */
+    .m-cell.center-main .cell-text {
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .m-cell.theme-center .cell-text {
+      font-size: 8px;
+    }
+
+    /* Hide glow decorations on mobile */
+    .glow1, .glow2 {
+      display: none;
+    }
+
+    /* Block labels - stack vertically */
+    .block-labels {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+      max-width: 100%;
+      padding: 0 6px;
+      margin: 6px auto 0;
+    }
+    .block-label {
+      font-size: 9px;
+      padding: 2px;
+    }
+
+    /* Modal adjustments */
+    .modal-box {
+      padding: 16px;
+      max-width: 92%;
+    }
+    .modal-box h3 {
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .modal-box p {
+      font-size: 11px;
+      margin-bottom: 12px;
+    }
+    .modal-btn {
+      display: block;
+      width: 100%;
+      font-size: 11px;
+      padding: 8px 12px;
+      margin: 6px 0;
+    }
+
+    /* Toast */
+    .toast {
+      font-size: 11px;
+      padding: 8px 12px;
+      bottom: 10px;
+      width: calc(100% - 20px);
+      left: 10px;
+      transform: translateX(0) translateY(80px);
+    }
+    .toast.show {
+      transform: translateX(0) translateY(0);
+    }
+  }
+</style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<div class="glow1"></div>
+<div class="glow2"></div>
+
+<!-- 頂部導覽 -->
+<div class="page-header">
+  <div class="title-area">
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="tabMandala" onclick="switchTab('mandala')">🔥 領導版九宮格</button>
+      <button class="nav-tab" id="tabCommittee" onclick="switchTab('committee')">👑 歷練各主委</button>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="header-btn save-btn" onclick="manualSave()">💾 儲存</button>
+    <button class="header-btn" style="background:rgba(74,234,255,.1);border-color:rgba(74,234,255,.3);color:#4aeaff;" onclick="exportXlsx()">📤 輸出</button>
+    <button class="header-btn" onclick="resetConfirm()">🔄 重置</button>
+    <button class="header-btn" onclick="exportData()">📋 備份</button>
+    <button class="header-btn" onclick="document.getElementById('importFile').click()">📂 還原</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</div>
+
+<!-- 進度條 -->
+<div class="progress-bar-wrap">
+  <div class="progress-info">
+    <span>🎯 目標完成進度</span>
+    <span>已完成 <span class="count" id="doneCount">0</span> / <span id="totalCount">0</span></span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+</div>
+
+<!-- 九宮格 -->
+<div class="mandala-wrap">
+  <div class="mandala-grid" id="mandalaGrid"></div>
+</div>
+
+<!-- 重置確認彈窗 -->
+<div class="modal-bg" id="resetModal">
+  <div class="modal-box">
+    <h3>⚠️ 確定要重置嗎？</h3>
+    <p>所有文字與完成狀態將恢復為預設值，此操作無法復原。</p>
+    <button class="modal-btn danger" onclick="doReset()">確定重置</button>
+    <button class="modal-btn" onclick="closeModal('resetModal')">取消</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- 歷練各主委 全螢幕 overlay -->
+<div id="committeeOverlay" style="position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0;transition:opacity .3s;">
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.6);" onclick="closeCommittee()"></div>
+  <div id="committeeContent" style="position:absolute;inset:0;display:flex;flex-direction:column;">
+    <iframe id="committeeFrame" src="" style="flex:1;width:100%;border:none;background:transparent;"></iframe>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+// ===== 預設九宮格資料 =====
+// 9x9 陣列，中心 [4][4] 是主夢想
+const DEFAULT_DATA = [
+  // Block: 輔導力 (0-2, 0-2) | 訓練力 (0-2, 3-5) | 銷售力 (0-2, 6-8)
+  ["家庭拜訪","有一份超屌的變革策略","當組員朋友家人","全員達標能力","六日翻盤行動","推銷夾製作","各通路研究還要有自己的講義","熟練六大步驟然後不斷更新","一個很頂的服務學生紀錄給組員用"],
+  ["危機處理","輔導力","對成敗感同身受","講座翻盤行動","訓練力","因材施教","破一次百萬","銷售力","學員故事範本給組員用"],
+  ["受信賴","陪同作業","給予目標","保持熱情","耐煩重複","每日13:40會議","星光班講師","50萬磨練","看書一月一本"],
+
+  // Block: 心理素質 (3-5, 0-2) | 中心 (3-5, 3-5) | 尋找人才 (3-5, 6-8)
+  ["期待離夢想更近的一天","不達目標不放棄","五次的重建","輔導力","訓練力","銷售力","每月一個幫朋友做一個表意識","朋友介紹朋友","104每日十通"],
+  ["強大自己的內心：不開心的是秒忘","心理素質","挫折是禮物拆開他","心理素質","組長年薪百萬","尋找人才","說明增才簡報能力","尋找人才","優質學生經營"],
+  ["找隊友督促支持","隨時修正錯誤","正面思考保持熱情","生活","良師益友","業務力","朋友","成為榜樣","發正面IG文記錄戰功/月"],
+
+  // Block: 生活 (6-8, 0-2) | 良師益友 (6-8, 3-5) | 業務力 (6-8, 6-8)
+  ["解鎖新技能/月","買車","準備購屋金","培養感恩","精進技巧","解惑難題","時間管理","書信文字力","故事力"],
+  ["送自己禮物","生活","健身與保養/季","保持謙虛","良師益友","每用請益","建議與規劃能力","業務力","口語表達說話課"],
+  ["享受但不迷失","活出熱情","家人旅遊/年","形象專業","開電腦次數","文案製作","DM推銷","經營優質同事","增才簡報"]
+];
+
+// 定義哪些格子是特殊類型
+const CENTER_MAIN = '4,4'; // 主夢想
+const THEME_CENTERS = ['1,1','1,4','1,7','4,1','4,7','7,1','7,4','7,7']; // 8大主題
+const CENTER_RING = ['3,3','3,4','3,5','4,3','4,5','5,3','5,4','5,5']; // 中間圈
+
+// 可被勾選的格子 = 所有格子 - 中心 - 主題中心 - 中間圈
+function isCheckable(r, c) {
+  const k = r+','+c;
+  return k !== CENTER_MAIN && !THEME_CENTERS.includes(k) && !CENTER_RING.includes(k);
+}
+
+// ===== 狀態管理 =====
+const BASE_KEY = 'fire_mandala_data';
+const _cachedCharId=localStorage.getItem('activeCharacterId');
+function getSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+BASE_KEY:BASE_KEY;}
+let state = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(getSK());
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return { texts: DEFAULT_DATA.map(r => [...r]), done: {} };
+}
+
+function saveState() {
+  localStorage.setItem(getSK(), JSON.stringify(state));
+}
+
+// ===== 渲染九宮格 =====
+function render() {
+  const grid = document.getElementById('mandalaGrid');
+  grid.innerHTML = '';
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const key = r+','+c;
+      const cell = document.createElement('div');
+      cell.className = 'm-cell';
+
+      if (key === CENTER_MAIN) cell.classList.add('center-main');
+      else if (THEME_CENTERS.includes(key)) cell.classList.add('theme-center');
+      else if (CENTER_RING.includes(key)) cell.classList.add('center-ring');
+
+      const isDone = !!state.done[key];
+      if (isDone && isCheckable(r, c)) cell.classList.add('done');
+
+      // 文字區 (contenteditable div)
+      const txt = document.createElement('div');
+      txt.className = 'cell-text';
+      txt.contentEditable = true;
+      txt.textContent = state.texts[r][c];
+      txt.dataset.r = r;
+      txt.dataset.c = c;
+      txt.addEventListener('blur', function() {
+        state.texts[this.dataset.r][this.dataset.c] = this.textContent.trim();
+        saveState();
+      });
+      txt.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+      });
+
+      // 刪除線
+      const strike = document.createElement('div');
+      strike.className = 'strike-line';
+
+      // 打勾按鈕
+      const chk = document.createElement('button');
+      chk.className = 'check-btn';
+      chk.innerHTML = isDone ? '✓' : '○';
+      chk.title = isDone ? '取消完成' : '標記完成';
+      chk.dataset.r = r;
+      chk.dataset.c = c;
+      chk.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleDone(this.dataset.r, this.dataset.c);
+      });
+
+      cell.appendChild(chk);
+      cell.appendChild(txt);
+      cell.appendChild(strike);
+      grid.appendChild(cell);
+    }
+  }
+  updateProgress();
+}
+
+function toggleDone(r, c) {
+  const key = r+','+c;
+  if (!isCheckable(+r, +c)) return;
+  state.done[key] = !state.done[key];
+  if (!state.done[key]) delete state.done[key];
+  saveState();
+  render();
+}
+
+function updateProgress() {
+  let total = 0, done = 0;
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (isCheckable(r, c)) {
+        total++;
+        if (state.done[r+','+c]) done++;
+      }
+    }
+  }
+  document.getElementById('doneCount').textContent = done;
+  document.getElementById('totalCount').textContent = total;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+// ===== 備份 & 還原 =====
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `九宮格備份_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('💾 備份檔已下載');
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.texts && data.texts.length === 9) {
+        state = data;
+        saveState();
+        render();
+        showToast('✅ 還原成功！');
+      } else {
+        showToast('❌ 檔案格式不正確');
+      }
+    } catch(err) {
+      showToast('❌ 檔案讀取失敗');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ===== 重置 =====
+function resetConfirm() {
+  document.getElementById('resetModal').classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+function doReset() {
+  state = { texts: DEFAULT_DATA.map(r => [...r]), done: {} };
+  saveState();
+  render();
+  closeModal('resetModal');
+  showToast('🔄 已恢復預設值');
+}
+
+// ===== Toast =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===== 手動儲存 =====
+function manualSave(){
+  saveState();
+  showToast('💾 九宮格已儲存');
+}
+
+// ===== 初始化 =====
+render();
+
+// ===== 分頁切換 =====
+function switchTab(tab){
+  if(tab==='committee'){
+    document.getElementById('tabMandala').classList.remove('active');
+    document.getElementById('tabCommittee').classList.add('active');
+    openCommittee();
+  }else{
+    document.getElementById('tabCommittee').classList.remove('active');
+    document.getElementById('tabMandala').classList.add('active');
+    closeCommittee();
+  }
+}
+
+// ===== 歷練各主委 =====
+function openCommittee(){
+  document.getElementById('committeeFrame').src='committee-roles.html';
+  const ov=document.getElementById('committeeOverlay');
+  ov.style.pointerEvents='auto';ov.style.opacity='1';
+  document.getElementById('committeeContent').style.pointerEvents='auto';
+}
+function closeCommittee(){
+  try{const f=document.getElementById('committeeFrame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}
+  const ov=document.getElementById('committeeOverlay');
+  ov.style.pointerEvents='none';ov.style.opacity='0';
+  document.getElementById('committeeContent').style.pointerEvents='none';
+  setTimeout(()=>{document.getElementById('committeeFrame').src='';},300);
+}
+
+// 接收子 iframe 的 postMessage
+window.addEventListener('message', function(e){
+  if(e.data && e.data.action==='closeCommittee'){
+    closeCommittee();
+    document.getElementById('tabCommittee').classList.remove('active');
+    document.getElementById('tabMandala').classList.add('active');
+  }
+});
+
+// 暴露給 parent iframe 呼叫
+window.triggerSave = function(){ saveState(); showToast('💾 九宮格已儲存'); };
+// ★ 頁面離開緊急儲存
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')saveState();});
+window.addEventListener('beforeunload',saveState);
+window.addEventListener('pagehide',saveState);
+
+// ===== 輸出 Excel (xlsx) =====
+async function exportXlsx(){
+  if(typeof ExcelJS==='undefined'){showToast('⏳ 載入中，請稍後再試');return;}
+  showToast('📤 正在產生檔案...');
+  try{
+    var wb=new ExcelJS.Workbook();
+    wb.creator='領導版九宮格';
+    wb.created=new Date();
+    var ws=wb.addWorksheet('領導版九宮格',{
+      pageSetup:{paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:1,
+        margins:{left:0.3,right:0.3,top:0.4,bottom:0.4,header:0.2,footer:0.2}}
+    });
+
+    // 配色對照 .numbers 範本
+    var GOLD='FFFFD700';      // 中心主夢想
+    var ORANGE='FFFFA500';    // 主題中心 + 中間圈
+    var LIGHTBLUE='FFD6EEFF'; // 十字帶(中間行列連接區)
+    var WHITE='FFFFFFFF';     // 其餘
+
+    // 判斷是否屬於十字帶(中間3行或中間3列)
+    function isInCross(r,c){
+      return (r>=3&&r<=5)||(c>=3&&c<=5);
+    }
+
+    // 取得該格的背景色
+    function getCellBg(r,c){
+      var k=r+','+c;
+      if(k===CENTER_MAIN) return GOLD;
+      if(THEME_CENTERS.includes(k)) return ORANGE;
+      if(CENTER_RING.includes(k)) return ORANGE;
+      if(isInCross(r,c)) return LIGHTBLUE;
+      return WHITE;
+    }
+
+    // 標題列
+    var titleRow=ws.addRow(['🔥 領導版九宮格']);
+    ws.mergeCells('A1:I1');
+    var titleCell=ws.getCell('A1');
+    titleCell.font={name:'PingFang TC',size:18,bold:true,color:{argb:'FFFF6B35'}};
+    titleCell.alignment={horizontal:'center',vertical:'middle'};
+    titleCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0A1228'}};
+    ws.getRow(1).height=36;
+
+    // 進度列
+    var total=0,done=0;
+    for(var rr=0;rr<9;rr++)for(var cc=0;cc<9;cc++){if(isCheckable(rr,cc)){total++;if(state.done[rr+','+cc])done++;}}
+    var pct=total?Math.round(done/total*100):0;
+    var progRow=ws.addRow(['完成進度: '+done+' / '+total+' ('+pct+'%)']);
+    ws.mergeCells('A2:I2');
+    var progCell=ws.getCell('A2');
+    progCell.font={name:'PingFang TC',size:11,color:{argb:'FF4AEAFF'}};
+    progCell.alignment={horizontal:'center',vertical:'middle'};
+    progCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0D1B3E'}};
+    ws.getRow(2).height=22;
+
+    // 空白間隔列
+    ws.addRow([]);
+    ws.getRow(3).height=6;
+
+    // 設定欄寬(9欄平均)
+    for(var ci=1;ci<=9;ci++){
+      ws.getColumn(ci).width=16;
+    }
+
+    // 9x9 九宮格資料 (從第4列開始)
+    var dataStartRow=4;
+    for(var r=0;r<9;r++){
+      var rowData=[];
+      for(var c=0;c<9;c++){
+        rowData.push(state.texts[r][c]);
+      }
+      ws.addRow(rowData);
+      var excelRow=dataStartRow+r;
+      ws.getRow(excelRow).height=52;
+
+      for(var c=0;c<9;c++){
+        var cell=ws.getCell(excelRow,c+1);
+        var k=r+','+c;
+        var bg=getCellBg(r,c);
+        var isDone=!!state.done[k]&&isCheckable(r,c);
+
+        // 背景色
+        cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}};
+
+        // 邊框
+        var thin={style:'thin',color:{argb:'FFB0B0B0'}};
+        var thick={style:'medium',color:{argb:'FF4A6A9A'}};
+        cell.border={
+          top:(r%3===0)?thick:thin,
+          bottom:(r%3===2||r===8)?thick:thin,
+          left:(c%3===0)?thick:thin,
+          right:(c%3===2||c===8)?thick:thin
+        };
+
+        // 字型
+        var fontSize=10;
+        var fontColor='FF333333';
+        var fontBold=false;
+
+        if(k===CENTER_MAIN){
+          fontSize=13; fontColor='FF8B4513'; fontBold=true;
+        }else if(THEME_CENTERS.includes(k)){
+          fontSize=11; fontColor='FF8B4513'; fontBold=true;
+        }else if(CENTER_RING.includes(k)){
+          fontSize=10; fontColor='FF8B4513'; fontBold=true;
+        }
+
+        // 達成的格子: 紅色刪除線 + 紅色文字 + 淡紅背景
+        if(isDone){
+          cell.font={
+            name:'PingFang TC', size:fontSize, bold:fontBold,
+            color:{argb:'FFCC3333'},
+            strike:true
+          };
+          // 覆蓋背景加淡紅色調
+          cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF0F0'}};
+        }else{
+          cell.font={
+            name:'PingFang TC', size:fontSize, bold:fontBold,
+            color:{argb:fontColor}
+          };
+        }
+
+        cell.alignment={horizontal:'center',vertical:'middle',wrapText:true};
+      }
+    }
+
+    // 頁尾:日期
+    var footRow=ws.addRow(['輸出日期: '+new Date().toLocaleDateString('zh-TW')]);
+    ws.mergeCells('A13:I13');
+    var footCell=ws.getCell('A13');
+    footCell.font={name:'PingFang TC',size:9,italic:true,color:{argb:'FF888888'}};
+    footCell.alignment={horizontal:'right',vertical:'middle'};
+
+    // 圖例列
+    var legendRow=ws.addRow(['■ 金色=主夢想  ■ 橘色=主題/核心  ■ 淺藍=連結帶  ■ 白色=行動項  ■ 刪除線=已達成']);
+    ws.mergeCells('A14:I14');
+    var legCell=ws.getCell('A14');
+    legCell.font={name:'PingFang TC',size:9,color:{argb:'FF666666'}};
+    legCell.alignment={horizontal:'center',vertical:'middle'};
+
+    // 產生並下載
+    var buf=await wb.xlsx.writeBuffer();
+    var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    var charName='';
+    try{
+      var cid=_cachedCharId;
+      if(cid!=null){
+        var raw=localStorage.getItem('castle_cards_v1');
+        if(raw){var cards=JSON.parse(raw);var fc=cards.find(function(c){return c.name===cid;});if(fc)charName=fc.name+'_';else if(cards[parseInt(cid)]&&cards[parseInt(cid)].name)charName=cards[parseInt(cid)].name+'_';}
+      }
+    }catch(e){}
+    a.download=charName+'領導版九宮格_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('✅ 檔案已下載！可用 Numbers 或 Excel 開啟');
+  }catch(err){
+    console.error('exportXlsx error',err);
+    showToast('❌ 輸出失敗: '+err.message);
+  }
+}
+</script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

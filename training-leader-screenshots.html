@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>組長截圖紀錄</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Segoe UI','Microsoft JhengHei',sans-serif;
+  background:radial-gradient(ellipse at 50% 30%,#0d1b3e 0%,#070d1f 50%,#03060f 100%);
+  color:#e2e8f0;
+  min-height:100vh;
+  padding:20px;
+}
+
+.stars{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+.star{position:absolute;background:#fff;border-radius:50%;animation:twinkle var(--dur) ease-in-out infinite alternate;}
+@keyframes twinkle{0%{opacity:0.2;transform:scale(0.8)}100%{opacity:1;transform:scale(1.2)}}
+
+.container{position:relative;z-index:2;max-width:900px;margin:0 auto;}
+
+.header{text-align:center;margin-bottom:30px;}
+.header h1{
+  font-size:1.6rem;font-weight:900;
+  background:linear-gradient(135deg,#fbbf24,#f59e0b);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:3px;margin-bottom:6px;
+}
+.header .sub{font-size:0.85rem;color:#6a7faa;letter-spacing:1px;}
+
+/* 截圖卡片 */
+.screenshot-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:24px;
+}
+@media(max-width:600px){
+  .screenshot-grid{grid-template-columns:1fr;gap:16px;}
+}
+
+@media(max-width:480px){
+  .container{max-width:100%;padding:8px;}
+  .screenshot-grid{grid-template-columns:1fr;gap:12px;}
+  .header h1{font-size:1.3rem;}
+  .header .sub{font-size:0.75rem;}
+  .preview-area{min-height:250px;}
+  .preview-area img{max-height:350px;}
+  .card-header{padding:10px 12px;}
+  .card-title{font-size:0.85rem;}
+  .card-badge{font-size:0.65rem;padding:2px 8px;}
+  .card-actions{padding:8px 12px;gap:6px;}
+  .card-actions button{padding:6px 0;font-size:0.75rem;}
+  .card-note textarea{min-height:50px;padding:8px 10px;font-size:0.75rem;}
+  .toolbar{gap:6px;margin-bottom:16px;}
+  .toolbar button{padding:7px 14px;font-size:0.75rem;}
+  .autosave-label{font-size:0.7rem;}
+  .preview-placeholder{gap:8px;}
+  .preview-placeholder .icon{font-size:2rem;}
+  .preview-placeholder .text{font-size:0.75rem;}
+  .preview-placeholder .hint{font-size:0.65rem;}
+  .file-input{display:none;}
+}
+
+.screenshot-card{
+  background:rgba(10,18,45,0.7);
+  border:1px solid rgba(100,180,255,0.12);
+  border-radius:16px;
+  overflow:hidden;
+  backdrop-filter:blur(8px);
+  transition:border-color 0.3s,box-shadow 0.3s;
+}
+.screenshot-card:hover{
+  border-color:rgba(100,180,255,0.25);
+  box-shadow:0 8px 30px rgba(74,234,255,0.08);
+}
+
+.card-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;
+  background:rgba(55,48,80,0.3);
+  border-bottom:1px solid rgba(100,180,255,0.08);
+}
+.card-title{
+  font-size:0.95rem;font-weight:700;
+  color:#a5b4fc;letter-spacing:1px;
+}
+.card-badge{
+  font-size:0.7rem;
+  background:rgba(74,234,255,0.1);
+  border:1px solid rgba(74,234,255,0.2);
+  border-radius:20px;padding:3px 12px;
+  color:#4aeaff;
+}
+
+/* 預覽區 */
+.preview-area{
+  position:relative;
+  width:100%;
+  min-height:380px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.2);
+  cursor:pointer;
+  overflow:hidden;
+}
+.preview-area img{
+  max-width:100%;max-height:500px;
+  object-fit:contain;
+  border-radius:4px;
+}
+.preview-placeholder{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  color:#4a6a8a;
+}
+.preview-placeholder .icon{font-size:3rem;opacity:0.5;}
+.preview-placeholder .text{font-size:0.85rem;letter-spacing:1px;}
+.preview-placeholder .hint{font-size:0.72rem;color:#3a5a7a;}
+
+.preview-area:hover .preview-placeholder .icon{opacity:0.8;}
+
+/* 隱藏file input */
+.file-input{display:none;}
+
+/* 操作按鈕 */
+.card-actions{
+  display:flex;gap:8px;padding:12px 18px;
+  border-top:1px solid rgba(100,180,255,0.06);
+}
+.card-actions button{
+  flex:1;
+  background:rgba(100,180,255,0.08);
+  border:1px solid rgba(100,180,255,0.15);
+  color:#8aa8cc;border-radius:8px;
+  padding:8px 0;font-size:0.8rem;font-weight:600;
+  cursor:pointer;transition:all 0.25s;
+  font-family:inherit;
+}
+.card-actions button:hover{
+  background:rgba(100,180,255,0.18);color:#fff;
+}
+.card-actions button.remove-btn:hover{
+  background:rgba(255,80,80,0.2);color:#ff8a8a;
+  border-color:rgba(255,80,80,0.3);
+}
+
+/* 備註 */
+.card-note{
+  padding:0 18px 14px;
+}
+.card-note textarea{
+  width:100%;min-height:60px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(100,180,255,0.1);
+  border-radius:8px;
+  padding:10px 12px;
+  color:#e2e8f0;font-size:0.82rem;
+  font-family:inherit;resize:vertical;
+  outline:none;transition:border-color 0.2s;
+}
+.card-note textarea:focus{
+  border-color:rgba(74,234,255,0.35);
+  background:rgba(74,234,255,0.04);
+}
+.card-note textarea::placeholder{color:#4a6a8a;}
+
+/* 工具列 */
+.toolbar{
+  display:flex;gap:10px;margin-bottom:20px;align-items:center;
+}
+.toolbar button{
+  background:linear-gradient(135deg,rgba(74,234,255,0.15),rgba(160,100,255,0.1));
+  border:1px solid rgba(74,234,255,0.25);
+  color:#4aeaff;border-radius:8px;
+  padding:9px 20px;font-size:0.85rem;font-weight:600;
+  cursor:pointer;transition:all 0.25s;
+  font-family:inherit;
+}
+.toolbar button:hover{
+  background:linear-gradient(135deg,rgba(74,234,255,0.25),rgba(160,100,255,0.18));
+  box-shadow:0 4px 16px rgba(74,234,255,0.15);
+}
+.autosave-label{
+  font-size:0.75rem;color:#4a6a8a;margin-left:auto;
+}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:50px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:rgba(10,18,45,0.95);border:1px solid rgba(74,234,255,0.3);
+  border-radius:12px;padding:10px 24px;
+  font-size:0.85rem;color:#4aeaff;
+  box-shadow:0 8px 30px rgba(0,0,0,0.5);
+  transition:transform 0.35s,opacity 0.35s;opacity:0;z-index:9999;pointer-events:none;
+}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+</style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<div class="container">
+  <div class="header">
+    <h1>📸 組長截圖紀錄</h1>
+    <div class="sub">上傳重要截圖，記錄關鍵時刻</div>
+  </div>
+
+  <div class="toolbar">
+    <button onclick="saveAll()">💾 儲存</button>
+    <span class="autosave-label" id="autosaveLabel">尚未儲存</span>
+  </div>
+
+  <div class="screenshot-grid" id="grid">
+    <!-- Card 1 -->
+    <div class="screenshot-card" id="card0">
+      <div class="card-header">
+        <span class="card-title">📷 截圖 1</span>
+        <span class="card-badge" id="badge0">未上傳</span>
+      </div>
+      <div class="preview-area" id="preview0" onclick="document.getElementById('file0').click()">
+        <div class="preview-placeholder" id="ph0">
+          <div class="icon">📤</div>
+          <div class="text">點擊上傳截圖</div>
+          <div class="hint">支援 JPG / PNG / GIF</div>
+        </div>
+      </div>
+      <input type="file" class="file-input" id="file0" accept="image/*" onchange="handleFile(0,this)">
+      <div class="card-note">
+        <textarea id="note0" placeholder="輸入備註說明..." oninput="scheduleAutoSave()"></textarea>
+      </div>
+      <div class="card-actions">
+        <button onclick="document.getElementById('file0').click()">📤 更換圖片</button>
+        <button class="remove-btn" onclick="removeImg(0)">🗑 移除</button>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="screenshot-card" id="card1">
+      <div class="card-header">
+        <span class="card-title">📷 截圖 2</span>
+        <span class="card-badge" id="badge1">未上傳</span>
+      </div>
+      <div class="preview-area" id="preview1" onclick="document.getElementById('file1').click()">
+        <div class="preview-placeholder" id="ph1">
+          <div class="icon">📤</div>
+          <div class="text">點擊上傳截圖</div>
+          <div class="hint">支援 JPG / PNG / GIF</div>
+        </div>
+      </div>
+      <input type="file" class="file-input" id="file1" accept="image/*" onchange="handleFile(1,this)">
+      <div class="card-note">
+        <textarea id="note1" placeholder="輸入備註說明..." oninput="scheduleAutoSave()"></textarea>
+      </div>
+      <div class="card-actions">
+        <button onclick="document.getElementById('file1').click()">📤 更換圖片</button>
+        <button class="remove-btn" onclick="removeImg(1)">🗑 移除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SK = 'training_leader_screenshots_v1';
+let data = [{img:'',note:''},{img:'',note:''}];
+
+function init(){
+  const raw = localStorage.getItem(SK);
+  if(raw){
+    try{ data = JSON.parse(raw); }catch(e){}
+  }
+  applyState();
+}
+
+function applyState(){
+  data.forEach((d,i)=>{
+    const preview = document.getElementById('preview'+i);
+    const ph = document.getElementById('ph'+i);
+    const badge = document.getElementById('badge'+i);
+    const note = document.getElementById('note'+i);
+
+    if(d.img){
+      // 有圖片
+      let img = preview.querySelector('img');
+      if(!img){
+        img = document.createElement('img');
+        preview.appendChild(img);
+      }
+      img.src = d.img;
+      if(ph) ph.style.display='none';
+      badge.textContent='已上傳';
+      badge.style.color='#34d399';
+      badge.style.borderColor='rgba(52,211,153,0.3)';
+      badge.style.background='rgba(52,211,153,0.1)';
+    } else {
+      // 無圖片
+      const img = preview.querySelector('img');
+      if(img) img.remove();
+      if(ph) ph.style.display='';
+      badge.textContent='未上傳';
+      badge.style.color='#4aeaff';
+      badge.style.borderColor='rgba(74,234,255,0.2)';
+      badge.style.background='rgba(74,234,255,0.1)';
+    }
+    if(note) note.value = d.note || '';
+  });
+}
+
+function handleFile(idx, input){
+  const file = input.files[0];
+  if(!file) return;
+
+  // 壓縮圖片以存入 localStorage
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      const canvas = document.createElement('canvas');
+      const maxW = 1200, maxH = 900;
+      let w = img.width, h = img.height;
+      if(w > maxW){ h = h * maxW / w; w = maxW; }
+      if(h > maxH){ w = w * maxH / h; h = maxH; }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      data[idx].img = canvas.toDataURL('image/jpeg', 0.8);
+      applyState();
+      scheduleAutoSave();
+      showToast('📸 截圖 ' + (idx+1) + ' 已上傳');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function removeImg(idx){
+  if(!data[idx].img) return;
+  if(!confirm('確定要移除截圖 ' + (idx+1) + '？')) return;
+  data[idx].img = '';
+  applyState();
+  scheduleAutoSave();
+  showToast('🗑 截圖已移除');
+}
+
+function gatherNotes(){
+  data.forEach((d,i)=>{
+    const note = document.getElementById('note'+i);
+    if(note) d.note = note.value;
+  });
+}
+
+function saveAll(){
+  try{
+    gatherNotes();
+    localStorage.setItem(SK, JSON.stringify(data));
+    const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('autosaveLabel').textContent = '已儲存：' + t;
+    showToast('💾 已儲存');
+  }catch(e){
+    showToast('⚠ 儲存失敗：'+e.message);
+  }
+}
+
+let _ast = null;
+function scheduleAutoSave(){
+  clearTimeout(_ast);
+  _ast = setTimeout(()=>{
+    try{
+      gatherNotes();
+      localStorage.setItem(SK, JSON.stringify(data));
+      const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('autosaveLabel').textContent = '自動儲存：' + t;
+    }catch(e){}
+  }, 800);
+}
+
+window.triggerSave = function(){
+  saveAll();
+};
+// ★ 頁面離開緊急儲存
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')saveAll();});
+window.addEventListener('beforeunload',saveAll);
+window.addEventListener('pagehide',saveAll);
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// 星空
+(function(){
+  const c=document.getElementById('stars');
+  for(let i=0;i<60;i++){
+    const s=document.createElement('div');
+    s.className='star';
+    const size=Math.random()*2+0.5;
+    s.style.cssText=`width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${Math.random()*3+2}s;animation-delay:${Math.random()*3}s;opacity:${Math.random()*0.5+0.2};`;
+    c.appendChild(s);
+  }
+})();
+
+init();
+</script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

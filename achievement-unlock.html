@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏆 成就解鎖</title>
+<style>
+:root {
+  --bg:#03060f; --bg2:#070d1f; --bg3:#0d1b3e;
+  --border:rgba(100,180,255,0.12); --border-hi:rgba(74,234,255,0.3);
+  --text:#c0dcff; --dim:#4a6a9a; --bright:#e8f0ff;
+  --accent:#4aeaff; --accent2:#a78bfa; --gold:#ffd700; --red:#ff4444;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,'Noto Sans TC',sans-serif;background:radial-gradient(ellipse at 20% 30%,var(--bg3),var(--bg2) 50%,var(--bg));color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1px at 10% 20%,rgba(150,200,255,.6),transparent),radial-gradient(1px 1px at 40% 15%,rgba(100,180,255,.7),transparent),radial-gradient(1px 1px at 70% 35%,rgba(130,190,255,.5),transparent),radial-gradient(1.5px 1.5px at 85% 60%,rgba(160,210,255,.6),transparent),radial-gradient(1px 1px at 55% 80%,rgba(140,200,255,.4),transparent),radial-gradient(1px 1px at 25% 55%,rgba(180,220,255,.4),transparent);pointer-events:none;z-index:0;animation:tw 8s ease-in-out infinite alternate;}
+@keyframes tw{0%{opacity:.7}100%{opacity:1}}
+
+/* ── NAV ── */
+.nav{position:sticky;top:0;z-index:100;display:flex;background:linear-gradient(180deg,rgba(10,18,45,.97),rgba(8,14,35,.93));border-bottom:1px solid var(--border);backdrop-filter:blur(12px);box-shadow:0 2px 16px rgba(0,0,0,.4);}
+.nav button{flex:1;padding:14px 8px;background:transparent;border:none;color:var(--dim);font-size:13px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;transition:all .3s;letter-spacing:1px;}
+.nav button:hover{color:var(--text);background:rgba(100,180,255,.04);}
+.nav button.active{color:var(--accent);border-bottom-color:var(--accent);text-shadow:0 0 12px rgba(74,234,255,.4);}
+
+/* ── PAGES ── */
+.page{display:none;position:relative;z-index:1;padding:20px;min-height:calc(100vh - 50px);}
+.page.active{display:block;}
+
+/* ── 等級 ── */
+.level-bar{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:20px;}
+.level-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:20px;font-weight:700;font-size:14px;border:1px solid rgba(255,215,0,.3);background:rgba(255,215,0,.08);color:var(--gold);}
+.level-badge .lbl{background:var(--gold);color:#000;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:800;}
+
+/* ══════ 潛能 ══════ */
+.radar-wrap{display:flex;flex-direction:column;align-items:center;gap:20px;}
+.radar-container{position:relative;width:420px;height:420px;}
+.radar-container canvas{width:100%;height:100%;}
+.radar-photo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100px;height:100px;border-radius:50%;overflow:hidden;border:3px solid var(--gold);box-shadow:0 0 30px rgba(255,215,0,.3);}
+.radar-photo img{width:100%;height:100%;object-fit:cover;}
+.radar-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;width:100%;max-width:600px;}
+.stat-card{background:rgba(10,18,40,.7);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.stat-card .stat-label{font-size:12px;color:var(--dim);margin-bottom:6px;}
+.stat-card .stat-bar-wrap{display:flex;align-items:center;gap:8px;}
+.stat-card .stat-bar{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.stat-card .stat-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .6s;}
+.stat-card .stat-pct{font-size:12px;font-weight:700;color:var(--accent);min-width:35px;text-align:right;}
+.stat-card .stat-detail{font-size:11px;color:var(--dim);margin-top:4px;text-align:right;}
+
+/* ══════ 蒐藏 ══════ */
+.collect-tabs{display:flex;justify-content:center;gap:0;margin-bottom:20px;}
+.collect-tabs button{padding:10px 32px;background:rgba(10,18,40,.6);border:1px solid var(--border);color:var(--dim);font-size:13px;font-weight:600;cursor:pointer;transition:all .25s;}
+.collect-tabs button:first-child{border-radius:10px 0 0 10px;}
+.collect-tabs button:last-child{border-radius:0 10px 10px 0;}
+.collect-tabs button.active{background:rgba(74,234,255,.1);color:var(--accent);border-color:var(--border-hi);}
+.hex-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;max-width:700px;margin:0 auto;}
+.hex-item{width:120px;text-align:center;cursor:pointer;transition:transform .25s;}
+.hex-item:hover{transform:translateY(-4px);}
+.hex-shape{width:110px;height:110px;margin:0 auto 6px;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);background:linear-gradient(135deg,rgba(74,234,255,.15),rgba(167,139,250,.1));display:flex;align-items:center;justify-content:center;position:relative;transition:all .3s;overflow:hidden;}
+.hex-shape.has-img{background:#111;}
+.hex-shape img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+.hex-shape .hex-placeholder{font-size:32px;opacity:.4;}
+.hex-shape input[type=file]{display:none;}
+.hex-note{font-size:11px;color:var(--dim);min-height:16px;padding:0 4px;outline:none;max-width:110px;margin:0 auto;word-break:break-word;}
+.hex-note:focus{color:var(--text);background:rgba(74,234,255,.06);border-radius:4px;}
+
+/* ══════ 成就 ══════ */
+.achieve-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:700px;margin:0 auto;}
+.achieve-card{background:rgba(10,18,40,.7);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.achieve-card .a-info{flex:1;}
+.achieve-card .a-title{font-size:14px;font-weight:700;color:var(--bright);margin-bottom:4px;outline:none;}
+.achieve-card .a-title:focus{background:rgba(74,234,255,.06);border-radius:4px;padding:2px 4px;}
+.achieve-card .a-desc{font-size:12px;color:var(--dim);line-height:1.6;outline:none;}
+.achieve-card .a-desc:focus{background:rgba(74,234,255,.06);border-radius:4px;padding:2px 4px;}
+.achieve-card .a-count{font-size:28px;font-weight:800;color:var(--accent);min-width:40px;text-align:right;}
+.achieve-card .a-count[contenteditable]:focus{background:rgba(74,234,255,.06);border-radius:6px;}
+.achieve-sep{grid-column:1/-1;border:none;border-top:2px dotted rgba(74,234,255,.15);margin:4px 0;}
+
+/* 等級全屏動畫 */
+.level-ceremony{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;opacity:0;transition:opacity .6s;}
+.level-ceremony.show{display:flex;opacity:1;}
+.level-ceremony .lc-bg{position:absolute;inset:0;transition:background .4s;}
+.level-ceremony .lc-content{position:relative;z-index:1;text-align:center;}
+.level-ceremony .lc-icon{font-size:80px;animation:lcFloat 2s ease-in-out infinite;}
+.level-ceremony .lc-title{font-size:36px;font-weight:900;margin:16px 0 8px;text-shadow:0 0 30px currentColor;}
+.level-ceremony .lc-sub{font-size:16px;opacity:.7;}
+.level-ceremony .lc-close{margin-top:24px;padding:10px 28px;border-radius:12px;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.3);color:#fff;font-size:14px;cursor:pointer;transition:all .25s;}
+.level-ceremony .lc-close:hover{background:rgba(255,255,255,.15);}
+@keyframes lcFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-15px) scale(1.05)}}
+
+.level-picker{display:flex;gap:12px;justify-content:center;margin-bottom:16px;}
+.level-picker button{width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.15);cursor:pointer;font-size:18px;transition:all .3s;position:relative;}
+.level-picker button:hover{transform:scale(1.15);}
+.level-picker button.picked{border-width:3px;box-shadow:0 0 16px currentColor;}
+.lp-gold{background:linear-gradient(135deg,#ffd700,#ffaa00);color:#7a5500;border-color:rgba(255,215,0,.5);}
+.lp-red{background:linear-gradient(135deg,#ff4444,#cc0000);color:#fff;border-color:rgba(255,68,68,.5);}
+.lp-purple{background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;border-color:rgba(167,139,250,.5);}
+
+/* ══════ 精華區（YouTube） ══════ */
+.yt-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.yt-toolbar .yt-manage-btn{padding:8px 18px;background:linear-gradient(135deg,rgba(255,59,48,.15),rgba(255,149,0,.1));border:1px solid rgba(255,59,48,.25);border-radius:8px;color:#ff6b6b;font-size:12px;font-weight:700;cursor:pointer;transition:all .25s;font-family:inherit;}
+.yt-toolbar .yt-manage-btn:hover{background:rgba(255,59,48,.22);box-shadow:0 4px 16px rgba(255,59,48,.12);}
+.yt-cat-tabs{display:flex;gap:6px;flex-wrap:wrap;flex:1;}
+.yt-cat-tab{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--dim);font-size:12px;font-weight:600;cursor:pointer;transition:all .25s;font-family:inherit;white-space:nowrap;}
+.yt-cat-tab.active{background:rgba(255,59,48,.15);border-color:rgba(255,59,48,.35);color:#ff6b6b;}
+.yt-cat-tab:hover{border-color:rgba(255,59,48,.3);color:#ff9a9a;}
+.yt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:860px;margin:0 auto;}
+@media(max-width:700px){.yt-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:440px){.yt-grid{grid-template-columns:1fr;}}
+.yt-card{background:rgba(10,18,40,.7);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .3s;position:relative;}
+.yt-card:hover{border-color:rgba(255,59,48,.35);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.3);}
+.yt-card .yt-thumb{position:relative;width:100%;padding-top:56.25%;background:#0a0a1a;overflow:hidden;}
+.yt-card .yt-thumb img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;transition:none;}
+/* 小圖裁切調整面板 */
+.thumb-crop-panel{background:rgba(6,12,30,.95);border:1px solid rgba(74,234,255,.2);border-radius:8px;padding:10px;margin-top:6px;}
+.thumb-crop-panel .crop-preview{position:relative;width:160px;height:90px;overflow:hidden;border-radius:6px;border:1px solid rgba(100,180,255,.2);margin:0 auto 8px;}
+.thumb-crop-panel .crop-preview img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;}
+.thumb-crop-panel label{font-size:10px;color:var(--dim);display:flex;align-items:center;gap:6px;margin-top:4px;}
+.thumb-crop-panel input[type=range]{flex:1;height:4px;accent-color:#4aeaff;}
+.thumb-crop-panel .crop-val{color:#4aeaff;font-size:10px;min-width:32px;text-align:right;}
+.thumb-crop-panel .crop-actions{display:flex;gap:6px;margin-top:8px;justify-content:center;}
+.thumb-crop-panel .crop-actions button{padding:3px 10px;font-size:10px;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:rgba(100,180,255,.1);color:#60a5fa;font-family:inherit;}
+.thumb-crop-panel .crop-actions button:hover{background:rgba(100,180,255,.2);}
+.yt-card .yt-play-icon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px;height:44px;background:rgba(255,0,0,.85);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .25s;}
+.yt-card:hover .yt-play-icon{opacity:1;}
+.yt-card .yt-play-icon::after{content:'';border-left:16px solid #fff;border-top:10px solid transparent;border-bottom:10px solid transparent;margin-left:3px;}
+.yt-card .yt-live{position:absolute;bottom:6px;right:6px;background:rgba(255,0,0,.9);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:.5px;}
+.yt-card .yt-info{padding:10px 12px;}
+.yt-card .yt-title{font-size:12px;font-weight:600;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.yt-card .yt-channel{font-size:11px;color:var(--dim);margin-top:4px;}
+.yt-card .yt-desc{font-size:11px;color:#94a3b8;margin-top:6px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.yt-card .yt-photo-badge{position:absolute;top:6px;left:6px;background:rgba(59,130,246,.85);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:.5px;z-index:3;}
+.yt-card .yt-del{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.7);border:none;color:#ff8a8a;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;z-index:3;}
+.yt-card:hover .yt-del{opacity:1;}
+.yt-pagination{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:18px;}
+.yt-pagination button{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--dim);font-size:13px;cursor:pointer;transition:all .25s;font-family:inherit;display:flex;align-items:center;justify-content:center;}
+.yt-pagination button.active{background:rgba(255,59,48,.2);border-color:rgba(255,59,48,.4);color:#ff6b6b;}
+.yt-pagination button:hover{border-color:rgba(255,59,48,.3);}
+.yt-pagination button:disabled{opacity:.3;cursor:default;}
+.yt-empty{text-align:center;padding:60px 20px;color:var(--dim);font-size:14px;}
+
+/* YouTube 管理面板 */
+.yt-mgr-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(3,6,15,.88);backdrop-filter:blur(6px);z-index:9999;display:none;align-items:center;justify-content:center;}
+.yt-mgr-overlay.active{display:flex;}
+.yt-mgr-panel{background:rgba(12,20,48,.97);border:1px solid var(--border-hi);border-radius:16px;width:90%;max-width:560px;max-height:85vh;overflow-y:auto;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+.yt-mgr-panel h3{font-size:16px;font-weight:800;background:linear-gradient(135deg,#ff6b6b,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:16px;letter-spacing:1px;}
+.yt-mgr-row{display:flex;gap:8px;margin-bottom:12px;align-items:center;}
+.yt-mgr-row input[type="text"]{flex:1;padding:9px 12px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;outline:none;}
+.yt-mgr-row input[type="text"]:focus{border-color:var(--border-hi);}
+.yt-mgr-row select{padding:9px 10px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:inherit;outline:none;min-width:90px;}
+.yt-mgr-row .yt-add-btn{padding:9px 16px;background:rgba(255,59,48,.15);border:1px solid rgba(255,59,48,.3);border-radius:8px;color:#ff6b6b;font-weight:700;font-size:13px;cursor:pointer;transition:all .25s;font-family:inherit;white-space:nowrap;}
+.yt-mgr-row .yt-add-btn:hover{background:rgba(255,59,48,.25);}
+.yt-mgr-cats{margin-bottom:16px;}
+.yt-mgr-cats label{font-size:12px;color:var(--dim);margin-bottom:6px;display:block;}
+.yt-mgr-cat-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;}
+.yt-mgr-cat-row input{flex:1;padding:7px 10px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:inherit;outline:none;}
+.yt-mgr-cat-row button{padding:5px 10px;background:transparent;border:1px solid rgba(255,80,80,.2);border-radius:6px;color:#ff8a8a;font-size:11px;cursor:pointer;font-family:inherit;}
+.yt-mgr-add-cat{padding:6px 14px;background:transparent;border:1px dashed var(--border);border-radius:6px;color:var(--dim);font-size:12px;cursor:pointer;font-family:inherit;transition:all .25s;}
+.yt-mgr-add-cat:hover{border-color:var(--border-hi);color:var(--accent);}
+.yt-mgr-close{display:block;margin:16px auto 0;padding:10px 30px;background:rgba(100,180,255,.1);border:1px solid var(--border-hi);border-radius:8px;color:var(--accent);font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;}
+
+/* YouTube 全螢幕播放器 */
+.yt-player-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.96);z-index:99999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:20px;}
+.yt-player-overlay.active{display:flex;}
+.yt-player-overlay .yt-player-close{position:absolute;top:16px;right:70px;width:42px;height:42px;border-radius:50%;background:rgba(255,59,48,.2);border:2px solid rgba(255,59,48,.4);color:#ff6b6b;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;transition:all .25s;box-shadow:0 2px 12px rgba(255,59,48,.2);}
+.yt-player-overlay .yt-player-close:hover{background:rgba(255,59,48,.45);border-color:rgba(255,59,48,.6);color:#fff;box-shadow:0 4px 20px rgba(255,59,48,.35);}
+.yt-player-thumb{width:80%;max-width:720px;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;box-shadow:0 16px 60px rgba(0,0,0,.6);}
+.yt-player-thumb img{width:100%;display:block;}
+.yt-player-thumb .yt-big-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:72px;height:72px;background:rgba(255,0,0,.9);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 30px rgba(255,0,0,.4);transition:transform .2s;}
+.yt-player-thumb:hover .yt-big-play{transform:translate(-50%,-50%) scale(1.1);}
+.yt-player-thumb .yt-big-play::after{content:'';border-left:26px solid #fff;border-top:16px solid transparent;border-bottom:16px solid transparent;margin-left:5px;}
+.yt-player-title{color:#fff;font-size:16px;font-weight:700;text-align:center;max-width:700px;line-height:1.5;}
+.yt-player-desc{color:#94a3b8;font-size:14px;text-align:center;max-width:700px;line-height:1.7;margin-top:8px;white-space:pre-wrap;}
+.yt-player-photo-img{max-width:90vw;max-height:75vh;border-radius:12px;box-shadow:0 16px 60px rgba(0,0,0,.6);object-fit:contain;}
+.yt-player-actions{display:flex;gap:12px;align-items:center;}
+.yt-player-actions button{padding:12px 28px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .25s;font-family:inherit;border:none;display:flex;align-items:center;gap:8px;}
+.yt-player-actions .yt-play-btn{background:linear-gradient(135deg,#ff0000,#cc0000);color:#fff;box-shadow:0 4px 20px rgba(255,0,0,.3);}
+.yt-player-actions .yt-play-btn:hover{box-shadow:0 6px 30px rgba(255,0,0,.45);transform:translateY(-2px);}
+.yt-player-actions .yt-copy-btn{background:rgba(255,255,255,.1);color:#ccc;border:1px solid rgba(255,255,255,.2);}
+.yt-player-actions .yt-copy-btn:hover{background:rgba(255,255,255,.18);color:#fff;}
+
+/* ══════ 留言板 ══════ */
+.msg-compose{display:flex;gap:12px;align-items:flex-start;margin-bottom:24px;padding:16px;background:rgba(10,18,40,.7);border:1px solid var(--border);border-radius:12px;}
+.msg-compose .mc-avatar{width:50px;height:50px;border-radius:50%;overflow:hidden;border:2px solid var(--border-hi);flex-shrink:0;}
+.msg-compose .mc-avatar img{width:100%;height:100%;object-fit:cover;}
+.msg-compose .mc-body{flex:1;display:flex;flex-direction:column;gap:8px;}
+.msg-compose .mc-name{font-size:13px;font-weight:700;color:var(--accent);}
+.msg-compose textarea{width:100%;min-height:60px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;}
+.msg-compose textarea:focus{border-color:var(--border-hi);}
+.msg-compose .mc-send{align-self:flex-end;padding:8px 20px;background:linear-gradient(135deg,rgba(74,234,255,.15),rgba(167,139,250,.1));border:1px solid var(--border-hi);border-radius:8px;color:var(--accent);font-weight:600;font-size:13px;cursor:pointer;transition:all .25s;}
+.msg-compose .mc-send:hover{background:rgba(74,234,255,.2);}
+
+.msg-list{max-width:700px;margin:0 auto;}
+.msg-item{padding:16px;border-bottom:2px dotted rgba(74,234,255,.1);display:flex;gap:12px;align-items:flex-start;}
+.msg-item .mi-avatar{width:50px;height:50px;border-radius:50%;overflow:hidden;border:2px solid var(--border);flex-shrink:0;}
+.msg-item .mi-avatar img{width:100%;height:100%;object-fit:cover;}
+.msg-item .mi-body{flex:1;}
+.msg-item .mi-head{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.msg-item .mi-station{font-size:12px;color:var(--dim);}
+.msg-item .mi-name{font-size:14px;font-weight:700;color:var(--accent);}
+.msg-item .mi-text{font-size:13px;color:var(--text);line-height:1.7;}
+.msg-item .mi-time{font-size:11px;color:var(--dim);margin-top:4px;}
+.msg-item .mi-actions{display:flex;gap:8px;margin-top:8px;}
+.msg-item .mi-actions button{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 12px;font-size:11px;color:var(--dim);cursor:pointer;transition:all .2s;}
+.msg-item .mi-actions button:hover{color:var(--accent);border-color:var(--border-hi);}
+.msg-replies{margin-left:62px;border-left:2px solid rgba(74,234,255,.1);padding-left:12px;margin-top:8px;}
+.msg-replies .msg-item{padding:10px 0;border-bottom:1px dotted rgba(74,234,255,.06);}
+.reply-box{display:none;margin-left:62px;margin-top:8px;padding:10px;background:rgba(10,18,40,.5);border-radius:8px;border:1px solid var(--border);}
+.reply-box.open{display:flex;gap:8px;align-items:flex-end;}
+.reply-box textarea{flex:1;min-height:40px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px;font-size:12px;font-family:inherit;outline:none;resize:none;}
+.reply-box button{padding:6px 14px;background:rgba(74,234,255,.1);border:1px solid var(--border-hi);border-radius:6px;color:var(--accent);font-size:12px;cursor:pointer;}
+.msg-empty{text-align:center;padding:60px;color:var(--dim);}
+.msg-del{background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:12px;padding:2px 6px;opacity:.5;transition:opacity .2s;}
+.msg-del:hover{opacity:1;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:50px;left:50%;transform:translateX(-50%) translateY(80px);background:linear-gradient(135deg,rgba(10,20,50,.95),rgba(15,25,60,.95));border:1px solid var(--border-hi);color:var(--accent);padding:10px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:600;opacity:0;transition:all .4s;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+@media(max-width:768px){
+  .radar-container{width:100%;max-width:360px;height:360px;}
+  .radar-stats{grid-template-columns:1fr 1fr;}
+  .hex-item{width:100px;}
+  .hex-shape{width:90px;height:90px;}
+  .achieve-grid{grid-template-columns:1fr;}
+  .stat-card{padding:10px 12px;font-size:12px;}
+  .page{padding:16px;}
+  .nav button{padding:12px 6px;font-size:12px;}
+  .yt-toolbar{margin-bottom:12px;gap:8px;}
+  .yt-manage-btn{padding:6px 14px;font-size:11px;}
+  .yt-cat-tab{padding:4px 12px;font-size:11px;}
+  .yt-mgr-panel{width:85%;max-width:500px;padding:18px;}
+  .yt-card .yt-info{padding:8px 10px;}
+  .yt-card .yt-title{font-size:11px;}
+  .yt-card .yt-channel{font-size:10px;}
+  .thumb-crop-panel{padding:8px;}
+  .thumb-crop-panel .crop-preview{width:140px;height:78px;}
+  .msg-compose{padding:12px;}
+  .msg-item{padding:12px;}
+  .msg-compose .mc-avatar,.msg-item .mi-avatar{width:45px;height:45px;}
+  .msg-replies{margin-left:57px;}
+  .level-bar{margin-bottom:16px;}
+  .collect-tabs button{padding:8px 24px;font-size:12px;}
+}
+
+@media(max-width:600px){
+  .radar-container{width:300px;height:300px;}
+  .radar-photo{width:70px;height:70px;}
+  .achieve-grid{grid-template-columns:1fr;}
+  .stat-card{padding:8px 10px;}
+  .hex-item{width:100px;}
+  .hex-shape{width:90px;height:90px;}
+}
+
+@media(max-width:480px){
+  .radar-container{max-width:280px;width:100%;height:280px;}
+  .radar-stats{grid-template-columns:1fr;gap:8px;}
+  .radar-photo{width:60px;height:60px;}
+  .hex-item{width:85px;}
+  .hex-shape{width:75px;height:75px;}
+  .hex-note{font-size:10px;max-width:75px;}
+  .achieve-grid{grid-template-columns:1fr;gap:12px;}
+  .achieve-card{padding:12px;flex-direction:column;gap:8px;}
+  .achieve-card .a-count{font-size:24px;min-width:auto;text-align:left;}
+  .stat-card{padding:8px 9px;font-size:11px;}
+  .stat-label{font-size:11px;}
+  .stat-pct{font-size:11px;}
+  .stat-detail{font-size:10px;}
+  .page{padding:12px;}
+  .nav{display:flex;flex-wrap:wrap;}
+  .nav button{padding:10px 4px;font-size:11px;letter-spacing:.5px;}
+  .level-bar{margin-bottom:14px;gap:10px;}
+  .level-badge{padding:5px 12px;font-size:12px;gap:6px;}
+  .level-badge .lbl{padding:1px 8px;font-size:10px;}
+  .yt-toolbar{flex-direction:column;align-items:stretch;margin-bottom:12px;gap:8px;}
+  .yt-manage-btn{width:100%;padding:8px 12px;font-size:11px;}
+  .yt-cat-tabs{gap:4px;}
+  .yt-cat-tab{padding:3px 10px;font-size:10px;}
+  .yt-grid{gap:10px;max-width:100%;}
+  .yt-card{border-radius:10px;}
+  .yt-card .yt-info{padding:6px 8px;}
+  .yt-card .yt-title{font-size:10px;line-height:1.3;}
+  .yt-card .yt-channel{font-size:9px;}
+  .yt-card .yt-desc{font-size:9px;}
+  .yt-card .yt-play-icon{width:40px;height:40px;}
+  .yt-card .yt-play-icon::after{border-left:12px solid #fff;border-top:8px solid transparent;border-bottom:8px solid transparent;}
+  .yt-pagination{gap:6px;margin-top:14px;}
+  .yt-pagination button{width:30px;height:30px;font-size:12px;}
+  .yt-mgr-overlay{align-items:flex-end;justify-content:center;}
+  .yt-mgr-panel{width:100%;max-width:100%;max-height:85vh;border-radius:16px 16px 0 0;padding:16px;margin-bottom:0;}
+  .yt-mgr-panel h3{font-size:14px;margin-bottom:12px;}
+  .yt-mgr-row{flex-direction:column;gap:6px;margin-bottom:10px;align-items:stretch;}
+  .yt-mgr-row input[type="text"]{font-size:12px;padding:8px 10px;}
+  .yt-mgr-row select{font-size:11px;padding:8px 8px;}
+  .yt-mgr-row .yt-add-btn{width:100%;padding:8px 12px;font-size:12px;}
+  .yt-mgr-cats{margin-bottom:12px;}
+  .yt-mgr-cats label{font-size:11px;margin-bottom:6px;}
+  .yt-mgr-cat-row{flex-direction:column;gap:4px;margin-bottom:6px;align-items:stretch;}
+  .yt-mgr-cat-row input{padding:6px 8px;font-size:11px;}
+  .yt-mgr-cat-row button{padding:4px 8px;font-size:10px;}
+  .yt-mgr-add-cat{width:100%;padding:6px 10px;font-size:11px;}
+  .yt-mgr-close{width:100%;margin:12px auto 0;padding:9px 20px;font-size:12px;}
+  .thumb-crop-panel{padding:6px;margin-top:4px;}
+  .thumb-crop-panel .crop-preview{width:120px;height:67px;}
+  .thumb-crop-panel label{font-size:9px;gap:4px;margin-top:3px;}
+  .thumb-crop-panel input[type=range]{height:3px;}
+  .thumb-crop-panel .crop-val{font-size:9px;min-width:28px;}
+  .thumb-crop-panel .crop-actions{gap:4px;margin-top:6px;}
+  .thumb-crop-panel .crop-actions button{padding:2px 8px;font-size:9px;}
+  .yt-player-overlay{gap:12px;}
+  .yt-player-thumb{width:90%;max-width:100%;}
+  .yt-player-title{font-size:14px;}
+  .yt-player-desc{font-size:12px;}
+  .yt-player-photo-img{max-width:95vw;max-height:60vh;}
+  .yt-player-actions{flex-wrap:wrap;gap:8px;justify-content:center;}
+  .yt-player-actions button{padding:10px 20px;font-size:12px;}
+  .yt-player-close{width:38px;height:38px;top:12px;right:60px;font-size:1.1rem;}
+  .msg-compose{gap:10px;padding:10px;border-radius:10px;margin-bottom:18px;}
+  .msg-compose .mc-avatar{width:40px;height:40px;border-width:1px;}
+  .msg-compose .mc-body{gap:6px;}
+  .msg-compose .mc-name{font-size:12px;}
+  .msg-compose textarea{min-height:50px;padding:8px;font-size:12px;}
+  .msg-compose .mc-send{padding:6px 16px;font-size:12px;}
+  .msg-list{max-width:100%;}
+  .msg-item{gap:10px;padding:10px;border-bottom:1px dotted rgba(74,234,255,.08);}
+  .msg-item .mi-avatar{width:40px;height:40px;border-width:1px;}
+  .msg-item .mi-head{gap:6px;}
+  .msg-item .mi-station{font-size:10px;}
+  .msg-item .mi-name{font-size:12px;}
+  .msg-item .mi-text{font-size:12px;}
+  .msg-item .mi-time{font-size:10px;}
+  .msg-item .mi-actions{gap:6px;margin-top:6px;}
+  .msg-item .mi-actions button{padding:3px 8px;font-size:10px;}
+  .msg-replies{margin-left:50px;padding-left:10px;margin-top:6px;}
+  .reply-box{margin-left:50px;margin-top:6px;padding:8px;}
+  .reply-box textarea{min-height:35px;padding:6px;font-size:11px;}
+  .reply-box button{padding:5px 10px;font-size:11px;}
+  .msg-empty{padding:40px 15px;}
+  .msg-del{padding:1px 4px;font-size:11px;}
+  .level-ceremony .lc-icon{font-size:60px;}
+  .level-ceremony .lc-title{font-size:28px;margin:12px 0 6px;}
+  .level-ceremony .lc-sub{font-size:14px;}
+  .level-ceremony .lc-close{margin-top:18px;padding:8px 20px;font-size:12px;}
+  .toast{padding:8px 18px;font-size:12px;bottom:15px;}
+  .collect-tabs{margin-bottom:16px;gap:2px;}
+  .collect-tabs button{padding:8px 16px;font-size:11px;border-radius:8px;}
+  .collect-tabs button:first-child{border-radius:8px 0 0 8px;}
+  .collect-tabs button:last-child{border-radius:0 8px 8px 0;}
+}
+</style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<!-- NAV -->
+<div class="nav">
+  <button class="active" onclick="showTab('potential',this)">潛 能</button>
+  <button onclick="showTab('collect',this)">蒐 藏</button>
+  <button onclick="showTab('achieve',this)">成 就</button>
+  <button onclick="showTab('gallery',this)">精華區</button>
+  <button onclick="showTab('board',this)">留言板</button>
+</div>
+
+<!-- ══════ 潛能 ══════ -->
+<div id="page-potential" class="page active">
+  <div class="level-bar">
+    <div class="level-badge"><span class="lbl">等級</span> <span id="levelText">傳說級</span> <span style="font-size:12px;color:var(--dim)">（金色）</span></div>
+  </div>
+  <div class="radar-wrap">
+    <div class="radar-container">
+      <canvas id="radarCanvas" width="420" height="420"></canvas>
+      <div class="radar-photo"><img id="radarPhoto" src="" alt=""></div>
+    </div>
+    <div class="radar-stats" id="radarStats"></div>
+  </div>
+</div>
+
+<!-- ══════ 蒐藏 ══════ -->
+<div id="page-collect" class="page">
+  <div class="level-bar">
+    <div class="level-badge"><span class="lbl">等級</span> <span>傳說級</span> <span style="font-size:12px;color:var(--dim)">（金色）</span></div>
+  </div>
+  <div class="collect-tabs">
+    <button class="active" onclick="switchCollect('items',this)">物 品</button>
+    <button onclick="switchCollect('exchange',this)">實體兌換</button>
+  </div>
+  <div id="collectItems" class="hex-grid"></div>
+  <div id="collectExchange" class="hex-grid" style="display:none;"></div>
+</div>
+
+<!-- ══════ 成就 ══════ -->
+<div id="page-achieve" class="page">
+  <div class="level-bar">
+    <div class="level-badge"><span class="lbl">等級</span> <span>傳說級</span> <span style="font-size:12px;color:var(--dim)">（金色）</span></div>
+  </div>
+  <div class="level-picker">
+    <button class="lp-red" onclick="triggerCeremony('red',this)" title="紅色">🔴</button>
+    <button class="lp-gold" onclick="triggerCeremony('gold',this)" title="金色">👑</button>
+    <button class="lp-purple" onclick="triggerCeremony('purple',this)" title="紫色">🟣</button>
+  </div>
+  <div class="achieve-grid" id="achieveGrid"></div>
+</div>
+
+<!-- ══════ 精華區（YouTube） ══════ -->
+<div id="page-gallery" class="page">
+  <div class="yt-toolbar">
+    <button class="yt-manage-btn" onclick="openYtManager()">⚙ 管理影片</button>
+    <div class="yt-cat-tabs" id="ytCatTabs"></div>
+  </div>
+  <div class="yt-grid" id="ytGrid"></div>
+  <div class="yt-pagination" id="ytPagination"></div>
+  <div class="yt-empty" id="ytEmpty">尚無影片或照片，點擊「管理影片」新增 YouTube 連結或上傳照片</div>
+</div>
+
+<!-- YouTube 管理面板 -->
+<div class="yt-mgr-overlay" id="ytMgrOverlay" onclick="if(event.target===this)closeYtManager()">
+  <div class="yt-mgr-panel">
+    <h3>📺 YouTube 精華管理</h3>
+    <div class="yt-mgr-cats">
+      <label>分頁類別（可自訂名稱）：</label>
+      <div id="ytMgrCatList"></div>
+      <button class="yt-mgr-add-cat" onclick="addYtCategory()">＋ 新增分頁</button>
+    </div>
+    <div style="border-top:1px solid rgba(100,180,255,.1);margin:16px 0;"></div>
+    <label style="font-size:12px;color:var(--dim);margin-bottom:8px;display:block;">新增影片 / 照片：</label>
+    <div class="yt-mgr-row">
+      <input type="text" id="ytMgrUrl" placeholder="貼上 YouTube 連結..." />
+      <select id="ytMgrCatSelect"></select>
+      <button class="yt-add-btn" onclick="addYtVideo()">＋ 加入影片</button>
+    </div>
+    <div class="yt-mgr-row">
+      <label style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 12px;background:rgba(59,130,246,.06);border:1px dashed rgba(59,130,246,.3);border-radius:8px;cursor:pointer;color:#60a5fa;font-size:12px;font-weight:600;position:relative;overflow:hidden;">
+        📷 上傳瀏覽照片
+        <input type="file" accept="image/*" id="ytMgrPhotoInput" onchange="addPhotoItem(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+      </label>
+      <select id="ytMgrPhotoCatSelect"></select>
+    </div>
+    <div style="margin-top:16px;">
+      <label style="font-size:12px;color:var(--dim);margin-bottom:8px;display:block;">已加入的影片：</label>
+      <div id="ytMgrList" style="max-height:300px;overflow-y:auto;"></div>
+    </div>
+    <button class="yt-mgr-close" onclick="closeYtManager()">✓ 完成</button>
+  </div>
+</div>
+
+<!-- 全螢幕播放器（YouTube + 照片共用） -->
+<div class="yt-player-overlay" id="ytPlayerOverlay" onclick="if(event.target===this)closeYtPlayer()">
+  <button class="yt-player-close" onclick="closeYtPlayer()">✕</button>
+  <!-- YouTube 模式 -->
+  <div id="ytPlayerVideoMode">
+    <div class="yt-player-thumb" id="ytPlayerThumb" onclick="openYtInNewTab()">
+      <img id="ytPlayerBigThumb" src="" alt="">
+      <div class="yt-big-play"></div>
+    </div>
+  </div>
+  <!-- 照片模式 -->
+  <div id="ytPlayerPhotoMode" style="display:none;text-align:center;">
+    <img class="yt-player-photo-img" id="ytPlayerPhotoImg" src="" alt="">
+  </div>
+  <div class="yt-player-title" id="ytPlayerTitle"></div>
+  <div class="yt-player-desc" id="ytPlayerDesc"></div>
+  <div class="yt-player-actions" id="ytPlayerActions">
+    <button class="yt-play-btn" onclick="openYtInNewTab()">▶ 前往 YouTube 播放</button>
+    <button class="yt-copy-btn" onclick="copyYtLink()">📋 複製連結</button>
+  </div>
+</div>
+
+<!-- ══════ 留言板 ══════ -->
+<div id="page-board" class="page">
+  <div class="msg-compose">
+    <div class="mc-avatar"><img id="boardAvatar" src="" alt=""></div>
+    <div class="mc-body">
+      <div class="mc-name" id="boardName">—</div>
+      <textarea id="boardInput" placeholder="記錄豐功偉業..."></textarea>
+      <button class="mc-send" onclick="postMessage()">📝 發佈</button>
+    </div>
+  </div>
+  <div class="msg-list" id="msgList"></div>
+  <div class="msg-empty" id="msgEmpty">尚無留言，來記錄第一筆豐功偉業吧！</div>
+</div>
+
+<!-- 等級全屏儀式 -->
+<div class="level-ceremony" id="ceremony">
+  <div class="lc-bg" id="ceremonyBg"></div>
+  <div class="lc-content">
+    <div class="lc-icon" id="ceremonyIcon">👑</div>
+    <div class="lc-title" id="ceremonyTitle">傳說級</div>
+    <div class="lc-sub" id="ceremonySub">你已達到傳說等級！</div>
+    <button class="lc-close" onclick="closeCeremony()">✨ 確認</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 工具 =====
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function showTab(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='potential') drawRadar();
+}
+const BASE_SK='achievement_unlock_data';
+const SHARED_YT_SK='achievement_shared_all_yt'; // 精華區影片照片：全角色共享
+
+const _cachedCharId=localStorage.getItem('activeCharacterId');
+function getSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+BASE_SK:BASE_SK;}
+
+let D=loadData();
+function loadData(){
+  let d;
+  try{const r=localStorage.getItem(getSK());if(r)d=JSON.parse(r);}catch(e){}
+  if(!d) d=getDefault();
+  // ====== 精華區影片照片：全角色共享（SHARED_YT_SK 為唯一真實來源） ======
+  try{
+    var sharedRaw=localStorage.getItem(SHARED_YT_SK);
+    var migrated=localStorage.getItem(SHARED_YT_SK+'_migrated');
+    if(sharedRaw && migrated){
+      // 已完成遷移，直接從共用 key 讀取
+      var sp=JSON.parse(sharedRaw);
+      if(sp.ytVideos&&sp.ytVideos.length) d.ytVideos=sp.ytVideos;
+      if(sp.ytCategories&&sp.ytCategories.length) d.ytCategories=sp.ytCategories;
+    } else {
+      // 首次：從所有來源合併一次，之後只用共用 key
+      var allVideos=[];
+      var seen={};
+      function addUniq(arr){
+        (arr||[]).forEach(function(v){
+          var key=(v.ytId||v.photo||'').slice(0,60)+'|'+(v.title||'')+'|'+(v.addedAt||'');
+          if(seen[key]) return;
+          seen[key]=true;
+          allVideos.push(v);
+        });
+      }
+      try{if(sharedRaw){var sp2=JSON.parse(sharedRaw);addUniq(sp2.ytVideos);}}catch(ex){}
+      try{var or=localStorage.getItem('achievement_shared_regional_yt');if(or){var op=JSON.parse(or);addUniq(op.ytVideos);}}catch(ex){}
+      try{var br=localStorage.getItem(BASE_SK);if(br){var bp=JSON.parse(br);addUniq(bp.ytVideos);}}catch(ex){}
+      for(var ci=0;ci<32;ci++){
+        try{var cr=localStorage.getItem('char_'+ci+'_'+BASE_SK);if(cr){var cp=JSON.parse(cr);addUniq(cp.ytVideos);}}catch(ex){}
+      }
+      if(allVideos.length) d.ytVideos=allVideos;
+      // 寫入共用 key 並標記已遷移
+      localStorage.setItem(SHARED_YT_SK, JSON.stringify({ytVideos:d.ytVideos||[], ytCategories:d.ytCategories||[]}));
+      localStorage.setItem(SHARED_YT_SK+'_migrated','1');
+      // 清除所有舊來源的 ytVideos，防止幽靈復活
+      try{localStorage.removeItem('achievement_shared_regional_yt');}catch(ex){}
+      try{var bd=localStorage.getItem(BASE_SK);if(bd){var bj=JSON.parse(bd);if(bj.ytVideos){bj.ytVideos=[];localStorage.setItem(BASE_SK,JSON.stringify(bj));}}}catch(ex){}
+      for(var ci2=0;ci2<32;ci2++){
+        try{var ck='char_'+ci2+'_'+BASE_SK;var cd=localStorage.getItem(ck);if(cd){var cj=JSON.parse(cd);if(cj.ytVideos&&cj.ytVideos.length){cj.ytVideos=[];localStorage.setItem(ck,JSON.stringify(cj));}}}catch(ex){}
+      }
+    }
+  }catch(e){}
+  // 確保有預設分類
+  if(!d.ytCategories) d.ytCategories=['全部','區域活動','學院活動','小組活動'];
+  if(!d.ytCategories.includes('區域活動')) d.ytCategories.splice(1,0,'區域活動');
+  if(!d.ytCategories.includes('學院活動')&&!d.ytCategories.some(c=>c==='學院活動')) d.ytCategories.push('學院活動');
+  if(!d.ytCategories.includes('小組活動')&&!d.ytCategories.some(c=>c==='小組活動')) d.ytCategories.push('小組活動');
+  return d;
+}
+
+function save(){
+  try{
+    // 精華區影片照片：寫入共用 key（全角色共享）
+    localStorage.setItem(SHARED_YT_SK, JSON.stringify({ytVideos:D.ytVideos||[], ytCategories:D.ytCategories||[]}));
+    // 角色專屬資料（不含影片，避免重複儲存佔空間）
+    const saveD=Object.assign({}, D, {ytVideos:[]});
+    localStorage.setItem(getSK(), JSON.stringify(saveD));
+    return true;
+  }catch(e){
+    if(e.name==='QuotaExceededError'||e.code===22||e.code===1014){
+      showToast('⚠ 儲存空間不足，請刪除部分照片或影片');
+    }
+    return false;
+  }
+}
+
+function getDefault(){
+  return {
+    // radarScores now read from 360 assessment localStorage
+    collectItems:Array.from({length:10},(_,i)=>({id:'item_'+i,img:'',note:i===0?'文件':i===1?'TOP獎狀':i===2?'榮譽餐會':'OBJECT',type:'items'})),
+    collectExchange:Array.from({length:10},(_,i)=>({id:'ex_'+i,img:'',note:'OBJECT',type:'exchange'})),
+    achievements:[
+      {title:'連續次數',count:'20',desc:'Lorem ipsum dolor sit amet, consectetuer adipiscing elit...'},
+      {title:'事蹟紀錄',count:'10',desc:'Lorem ipsum dolor sit amet, consectetuer adipiscing elit...'},
+      {title:'為公司提案',count:'2',desc:'Lorem ipsum dolor sit amet, consectetuer adipiscing elit...'},
+      {title:'成績紀錄',count:'15',desc:'Lorem ipsum dolor sit amet, consectetuer adipiscing elit...'},
+      {title:'推銷大賽排名',count:'3',desc:'Lorem ipsum dolor sit amet, consectetuer adipiscing elit...'},
+      {title:'增員比賽排名',count:'5',desc:'Lorem ipsum dolor sit amet, consectetuer adipiscing elit...'}
+    ],
+    level:'red',
+    ytCategories:['全部','區域活動','學院活動','小組活動'],
+    ytVideos:[],
+    ytCurrentCat:'全部',
+    ytCurrentPage:0,
+    messages:[]
+  };
+}
+
+// ===== 同步封面資料 =====
+function getProfileImg(){
+  // 優先從 parent iframe 讀取
+  try{
+    const p=window.parent;
+    if(p&&p.document){
+      const img=p.document.getElementById('profileImg');
+      if(img&&img.src&&img.src.startsWith('data:')) return img.src;
+    }
+  }catch(e){}
+  // fallback: 從 localStorage 讀取
+  try{
+    const d=localStorage.getItem('profileImgData');
+    if(d) return d;
+  }catch(e){}
+  return '';
+}
+function getProfileName(){
+  // 優先從 parent iframe 讀取
+  try{
+    const p=window.parent;
+    if(p&&p.document){
+      const el=p.document.getElementById('profileLabel');
+      if(el&&el.textContent.trim()) return el.textContent.trim();
+    }
+  }catch(e){}
+  // fallback: 從 localStorage 讀取
+  try{
+    const n=localStorage.getItem('profileName');
+    if(n) return n;
+  }catch(e){}
+  return '—';
+}
+function syncProfile(){
+  const src=getProfileImg();
+  const name=getProfileName();
+  document.getElementById('radarPhoto').src=src||'';
+  document.getElementById('boardAvatar').src=src||'';
+  document.getElementById('boardName').textContent=name||'—';
+  // 同步留言板的形象照
+  document.querySelectorAll('.mi-avatar img').forEach(img=>{
+    if(src) img.src=src;
+  });
+}
+
+// ===== 六大維度定義（連動 360度能力檢核） =====
+const DIMS = [
+  {id:1, name:'會議', max:25, color:'#3b82f6'},
+  {id:2, name:'績效管理', max:30, color:'#8b5cf6'},
+  {id:3, name:'人員管理', max:15, color:'#f59e0b'},
+  {id:4, name:'日常輔導', max:15, color:'#ef4444'},
+  {id:5, name:'小組發展', max:10, color:'#10b981'},
+  {id:6, name:'宣誓', max:5, color:'#ec4899'}
+];
+
+function getAssessmentScores(){
+  // 從 360度能力檢核 的 localStorage 讀取「自評」分數
+  try{
+    const cid=_cachedCharId;
+    const baseKey=cid!=null?'char_'+cid+'_appedu_leader_map_v1':'appedu_leader_map_v1';
+    // 讀自評分數，fallback 到舊的無後綴 key
+    const raw=localStorage.getItem(baseKey+'_self')||localStorage.getItem(baseKey);
+    if(raw){const state=JSON.parse(raw);if(state.scores)return state.scores;}
+    // 嘗試從 parent 取（因為是 iframe 嵌套）
+    const raw2=window.parent.localStorage.getItem(baseKey+'_self')||window.parent.localStorage.getItem(baseKey);
+    if(raw2){const state2=JSON.parse(raw2);if(state2.scores)return state2.scores;}
+  }catch(e){}
+  return {1:0,2:0,3:0,4:0,5:0,6:0};
+}
+
+// ===== 潛能雷達圖（六大維度） =====
+function drawRadar(){
+  const canvas=document.getElementById('radarCanvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  const cx=W/2,cy=H/2;
+  const R=155;
+  ctx.clearRect(0,0,W,H);
+
+  const scores=getAssessmentScores();
+  const n=DIMS.length; // 6
+  const step=Math.PI*2/n;
+  const startAngle=-Math.PI/2;
+
+  // 背景六邊形環
+  for(let ring=5;ring>=1;ring--){
+    const r=R*ring/5;
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const a=startAngle+i*step;
+      const x=cx+Math.cos(a)*r;
+      const y=cy+Math.sin(a)*r;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle='rgba(74,234,255,'+(0.06+ring*0.03)+')';
+    ctx.lineWidth=1;
+    ctx.stroke();
+    if(ring===5){ctx.fillStyle='rgba(74,234,255,0.02)';ctx.fill();}
+  }
+
+  // 射線
+  for(let i=0;i<n;i++){
+    const a=startAngle+i*step;
+    ctx.beginPath();ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);
+    ctx.strokeStyle='rgba(74,234,255,0.1)';ctx.lineWidth=1;ctx.stroke();
+  }
+
+  // 數據六邊形
+  ctx.beginPath();
+  DIMS.forEach((d,i)=>{
+    const val=scores[d.id]||0;
+    let pct=d.max>0?val/d.max:0;
+    pct=Math.min(Math.max(pct,0.05),1);
+    const a=startAngle+i*step;
+    const x=cx+Math.cos(a)*R*pct;
+    const y=cy+Math.sin(a)*R*pct;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.closePath();
+  // 漸層填充
+  const grad=ctx.createRadialGradient(cx,cy,0,cx,cy,R);
+  grad.addColorStop(0,'rgba(74,234,255,0.15)');
+  grad.addColorStop(1,'rgba(74,200,255,0.25)');
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.strokeStyle='rgba(74,234,255,0.8)';ctx.lineWidth=2.5;ctx.stroke();
+
+  // 頂點圓點
+  DIMS.forEach((d,i)=>{
+    const val=scores[d.id]||0;
+    let pct=d.max>0?val/d.max:0;
+    pct=Math.min(Math.max(pct,0.05),1);
+    const a=startAngle+i*step;
+    const x=cx+Math.cos(a)*R*pct;
+    const y=cy+Math.sin(a)*R*pct;
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);
+    ctx.fillStyle=d.color;ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.lineWidth=1.5;ctx.stroke();
+  });
+
+  // 維度標籤 + 分數
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  DIMS.forEach((d,i)=>{
+    const val=scores[d.id]||0;
+    const a=startAngle+i*step;
+    const lr=R+35;
+    const x=cx+Math.cos(a)*lr;
+    const y=cy+Math.sin(a)*lr;
+    ctx.font='bold 13px -apple-system, sans-serif';
+    ctx.fillStyle=d.color;
+    ctx.fillText(d.name,x,y-8);
+    ctx.font='11px -apple-system, sans-serif';
+    ctx.fillStyle='#6a8fcc';
+    ctx.fillText(val+'/'+d.max,x,y+8);
+  });
+
+  renderRadarStats(scores);
+}
+
+function renderRadarStats(scores){
+  if(!scores) scores=getAssessmentScores();
+  const total=DIMS.reduce((s,d)=>s+(scores[d.id]||0),0);
+  const maxTotal=DIMS.reduce((s,d)=>s+d.max,0);
+  const totalPct=maxTotal>0?Math.round(total/maxTotal*100):0;
+  const el=document.getElementById('radarStats');
+  el.innerHTML=`<div class="stat-card" style="grid-column:1/-1;text-align:center;border-color:rgba(74,234,255,0.2);"><div class="stat-label">六大維度加總</div><div style="font-size:24px;font-weight:800;color:var(--accent);margin:4px 0;">${total} <span style="font-size:14px;color:var(--dim);">/ ${maxTotal}</span></div><div class="stat-bar-wrap"><div class="stat-bar" style="height:8px;"><div class="stat-fill" style="width:${totalPct}%"></div></div><div class="stat-pct">${totalPct}%</div></div></div>`+
+  DIMS.map(d=>{
+    const val=scores[d.id]||0;
+    const pct=d.max>0?Math.round(val/d.max*100):0;
+    return `<div class="stat-card"><div class="stat-label" style="color:${d.color};">${d.name}</div><div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill" style="width:${pct}%;background:${d.color};"></div></div><div class="stat-pct">${pct}%</div></div><div class="stat-detail">${val} / ${d.max}</div></div>`;
+  }).join('');
+}
+
+// ===== 蒐藏 =====
+function switchCollect(type,btn){
+  document.querySelectorAll('.collect-tabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('collectItems').style.display=type==='items'?'flex':'none';
+  document.getElementById('collectExchange').style.display=type==='exchange'?'flex':'none';
+}
+
+function renderCollect(){
+  renderHexGrid('collectItems',D.collectItems);
+  renderHexGrid('collectExchange',D.collectExchange);
+}
+
+function renderHexGrid(containerId,items){
+  const el=document.getElementById(containerId);
+  el.innerHTML=items.map((item,i)=>`
+    <div class="hex-item">
+      <div class="hex-shape ${item.img?'has-img':''}" onclick="document.getElementById('hf_${item.id}').click()">
+        ${item.img?`<img src="${item.img}">`:`<span class="hex-placeholder">📦</span>`}
+        <input type="file" id="hf_${item.id}" accept="image/*" style="display:none" onchange="changeHexImg('${item.id}','${item.type}',${i},event)">
+      </div>
+      <div class="hex-note" contenteditable="true" data-id="${item.id}" data-type="${item.type}" data-idx="${i}" onblur="saveHexNote(this)">${item.note||''}</div>
+    </div>
+  `).join('');
+}
+
+function changeHexImg(id,type,idx,e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    compressImage(ev.target.result, 600, 600, 0.7, function(compressed){
+      const arr=type==='items'?D.collectItems:D.collectExchange;
+      arr[idx].img=compressed;
+      if(!save()){
+        // save failed, revert
+        arr[idx].img='';
+        renderCollect();
+        return;
+      }
+      renderCollect();showToast('✅ 圖片已更新');
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveHexNote(el){
+  const type=el.dataset.type;
+  const idx=parseInt(el.dataset.idx);
+  const arr=type==='items'?D.collectItems:D.collectExchange;
+  arr[idx].note=el.textContent.trim();
+  save();
+}
+
+// ===== 成就 =====
+function renderAchievements(){
+  const el=document.getElementById('achieveGrid');
+  el.innerHTML=D.achievements.map((a,i)=>{
+    let html=`<div class="achieve-card"><div class="a-info"><div class="a-title" contenteditable="true" data-i="${i}" data-f="title" onblur="saveAchieve(this)">${a.title}</div><div class="a-desc" contenteditable="true" data-i="${i}" data-f="desc" onblur="saveAchieve(this)">${a.desc}</div></div><div class="a-count" contenteditable="true" data-i="${i}" data-f="count" onblur="saveAchieve(this)">${a.count}</div></div>`;
+    if(i%2===1&&i<D.achievements.length-1) html+=`<hr class="achieve-sep">`;
+    return html;
+  }).join('');
+}
+
+function saveAchieve(el){
+  const i=parseInt(el.dataset.i);
+  const f=el.dataset.f;
+  D.achievements[i][f]=el.textContent.trim();
+  save();
+}
+
+const LEVEL_CONFIGS={
+  red:{bg:'radial-gradient(ellipse at 50% 40%,rgba(255,50,50,0.12),rgba(200,0,0,0.06) 50%,rgba(3,6,15,0.95))',icon:'🔴',title:'王者級',sub:'紅焰燃燒！王者風範展現！',color:'#ff6666',colorLabel:'（紅色）',navAccent:'#ff6666',navGlow:'rgba(255,100,100,0.4)'},
+  gold:{bg:'radial-gradient(ellipse at 50% 40%,rgba(255,215,0,0.15),rgba(255,165,0,0.08) 50%,rgba(3,6,15,0.95))',icon:'👑',title:'傳說級',sub:'金光閃耀！你已達到傳說等級！',color:'#ffd700',colorLabel:'（金色）',navAccent:'#ffd700',navGlow:'rgba(255,215,0,0.4)'},
+  purple:{bg:'radial-gradient(ellipse at 50% 40%,rgba(167,139,250,0.12),rgba(124,58,237,0.06) 50%,rgba(3,6,15,0.95))',icon:'💎',title:'史詩級',sub:'紫氣東來！史詩傳說由你書寫！',color:'#c4b5fd',colorLabel:'（紫色）',navAccent:'#c4b5fd',navGlow:'rgba(167,139,250,0.4)'}
+};
+
+function applyLevelTheme(color){
+  const cfg=LEVEL_CONFIGS[color];if(!cfg)return;
+  // 更新所有等級顯示
+  document.querySelectorAll('.level-badge').forEach(el=>{
+    el.innerHTML=`<span class="lbl" style="background:${cfg.color};color:#000;">等級</span> <span>${cfg.title}</span> <span style="font-size:12px;color:var(--dim)">${cfg.colorLabel}</span>`;
+    el.style.borderColor=cfg.color+'55';
+    el.style.background=cfg.color+'14';
+    el.style.color=cfg.color;
+  });
+  // 更新 nav 的 active 顏色
+  document.documentElement.style.setProperty('--accent',cfg.navAccent);
+  // 更新 picker 選中狀態
+  document.querySelectorAll('.level-picker button').forEach(b=>b.classList.remove('picked'));
+  const btnMap={red:0,gold:1,purple:2};
+  const btns=document.querySelectorAll('.level-picker button');
+  if(btns[btnMap[color]])btns[btnMap[color]].classList.add('picked');
+}
+
+function triggerCeremony(color,btn){
+  D.level=color;save();
+  applyLevelTheme(color);
+
+  const c=document.getElementById('ceremony');
+  const bg=document.getElementById('ceremonyBg');
+  const icon=document.getElementById('ceremonyIcon');
+  const title=document.getElementById('ceremonyTitle');
+  const sub=document.getElementById('ceremonySub');
+
+  const cfg=LEVEL_CONFIGS[color];
+  bg.style.background=cfg.bg;
+  icon.textContent=cfg.icon;
+  title.textContent=cfg.title;
+  title.style.color=cfg.color;
+  sub.textContent=cfg.sub;
+  sub.style.color=cfg.color;
+
+  c.classList.add('show');
+  setTimeout(()=>{c.style.opacity='1';},10);
+}
+
+function closeCeremony(){
+  const c=document.getElementById('ceremony');
+  c.style.opacity='0';
+  setTimeout(()=>c.classList.remove('show'),600);
+}
+
+// ===== 精華區（YouTube） =====
+const YT_PER_PAGE=6;
+
+// 確保舊資料相容
+if(!D.ytCategories) D.ytCategories=['全部','區域活動','學院活動','小組活動'];
+if(!D.ytVideos) D.ytVideos=[];
+if(!D.ytCurrentCat) D.ytCurrentCat='全部';
+if(D.ytCurrentPage==null) D.ytCurrentPage=0;
+
+function extractYtId(url){
+  if(!url) return null;
+  url=url.trim();
+  // 支援各種 YouTube 連結格式
+  let m=url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/|live\/|v\/))([A-Za-z0-9_-]{11})/);
+  if(m) return m[1];
+  // 嘗試直接貼 ID
+  m=url.match(/^([A-Za-z0-9_-]{11})$/);
+  return m?m[1]:null;
+}
+function ytThumb(id){return `https://img.youtube.com/vi/${id}/mqdefault.jpg`;}
+
+function renderYtCatTabs(){
+  const el=document.getElementById('ytCatTabs');
+  el.innerHTML=D.ytCategories.map(c=>
+    `<button class="yt-cat-tab${c===D.ytCurrentCat?' active':''}" onclick="selectYtCat('${esc(c)}')">${esc(c)}</button>`
+  ).join('');
+}
+
+function selectYtCat(cat){
+  D.ytCurrentCat=cat;D.ytCurrentPage=0;
+  renderYtCatTabs();renderYtGrid();save();
+}
+
+function getFilteredVideos(){
+  if(D.ytCurrentCat==='全部') return D.ytVideos;
+  return D.ytVideos.filter(v=>v.cat===D.ytCurrentCat);
+}
+
+function renderYtGrid(){
+  const filtered=getFilteredVideos();
+  const grid=document.getElementById('ytGrid');
+  const pagination=document.getElementById('ytPagination');
+  const empty=document.getElementById('ytEmpty');
+  const totalPages=Math.max(1,Math.ceil(filtered.length/YT_PER_PAGE));
+  if(D.ytCurrentPage>=totalPages) D.ytCurrentPage=totalPages-1;
+  if(D.ytCurrentPage<0) D.ytCurrentPage=0;
+
+  if(!filtered.length){grid.innerHTML='';pagination.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  const start=D.ytCurrentPage*YT_PER_PAGE;
+  const pageItems=filtered.slice(start,start+YT_PER_PAGE);
+
+  grid.innerHTML=pageItems.map((v,i)=>{
+    const idx=D.ytVideos.indexOf(v);
+    const isPhoto=v.type==='photo';
+    const thumbSrc=v.thumb||(isPhoto?(v.photo||''):ytThumb(v.ytId));
+    const tz=v.thumbZoom||100, tx=v.thumbX!=null?v.thumbX:50, ty=v.thumbY!=null?v.thumbY:50;
+    const imgStyle=tz!==100||tx!==50||ty!==50?`object-position:${tx}% ${ty}%;transform:scale(${tz/100});`:'';
+    return `<div class="yt-card" onclick="${isPhoto?`openPhotoViewer(${idx})`:`playYtVideo('${v.ytId}',${idx})`}">
+      <div class="yt-thumb">
+        <img src="${thumbSrc}" alt="" loading="lazy" style="${imgStyle}">
+        ${isPhoto?'<div class="yt-photo-badge">📷 照片</div>':'<div class="yt-play-icon"></div>'}
+      </div>
+      <div class="yt-info">
+        <div class="yt-title">${esc(v.title||(isPhoto?'瀏覽照片':'YouTube 影片'))}</div>
+        <div class="yt-channel">${esc(v.cat||'未分類')}</div>
+        ${v.desc?`<div class="yt-desc">${esc(v.desc)}</div>`:''}
+      </div>
+      <button class="yt-del" onclick="event.stopPropagation();delYtVideo(${idx})">✕</button>
+    </div>`;
+  }).join('');
+
+  // 分頁
+  if(totalPages<=1){pagination.innerHTML='';return;}
+  let phtml='<button '+(D.ytCurrentPage<=0?'disabled':'')+' onclick="ytGoPage('+(D.ytCurrentPage-1)+')">◀</button>';
+  for(let p=0;p<totalPages;p++){
+    phtml+=`<button class="${p===D.ytCurrentPage?'active':''}" onclick="ytGoPage(${p})">${p+1}</button>`;
+  }
+  phtml+='<button '+(D.ytCurrentPage>=totalPages-1?'disabled':'')+' onclick="ytGoPage('+(D.ytCurrentPage+1)+')">▶</button>';
+  pagination.innerHTML=phtml;
+}
+
+function ytGoPage(p){D.ytCurrentPage=p;renderYtGrid();}
+
+let _currentYtId='';
+let _currentPlayerMode='video'; // 'video' or 'photo'
+
+function playYtVideo(ytId, idx){
+  _currentYtId=ytId;
+  _currentPlayerMode='video';
+  const overlay=document.getElementById('ytPlayerOverlay');
+  // 顯示大縮圖 + 標題
+  document.getElementById('ytPlayerBigThumb').src='https://img.youtube.com/vi/'+ytId+'/maxresdefault.jpg';
+  // 嘗試找到影片標題 & 說明
+  const vid = typeof idx==='number' ? D.ytVideos[idx] : D.ytVideos.find(v=>v.ytId===ytId);
+  document.getElementById('ytPlayerTitle').textContent=vid&&vid.title?vid.title:'';
+  document.getElementById('ytPlayerDesc').textContent=vid&&vid.desc?vid.desc:'';
+  // 切到影片模式
+  document.getElementById('ytPlayerVideoMode').style.display='';
+  document.getElementById('ytPlayerPhotoMode').style.display='none';
+  document.getElementById('ytPlayerActions').style.display='flex';
+  overlay.classList.add('active');
+  overlay.style.display='flex';
+  // maxresdefault 可能不存在，fallback 到 hqdefault
+  document.getElementById('ytPlayerBigThumb').onerror=function(){
+    this.src='https://img.youtube.com/vi/'+ytId+'/hqdefault.jpg';
+    this.onerror=null;
+  };
+}
+
+function openPhotoViewer(idx){
+  const v=D.ytVideos[idx]; if(!v)return;
+  _currentYtId='';
+  _currentPlayerMode='photo';
+  const overlay=document.getElementById('ytPlayerOverlay');
+  document.getElementById('ytPlayerPhotoImg').src=v.photo||'';
+  document.getElementById('ytPlayerTitle').textContent=v.title||'瀏覽照片';
+  document.getElementById('ytPlayerDesc').textContent=v.desc||'';
+  // 切到照片模式
+  document.getElementById('ytPlayerVideoMode').style.display='none';
+  document.getElementById('ytPlayerPhotoMode').style.display='';
+  document.getElementById('ytPlayerActions').style.display='none';
+  overlay.classList.add('active');
+  overlay.style.display='flex';
+}
+
+function closeYtPlayer(){
+  _currentYtId='';
+  const overlay=document.getElementById('ytPlayerOverlay');
+  overlay.classList.remove('active');
+  overlay.style.display='';
+}
+function openYtInNewTab(){
+  if(!_currentYtId) return;
+  window.open('https://www.youtube.com/watch?v='+_currentYtId,'_blank');
+}
+function copyYtLink(){
+  if(!_currentYtId) return;
+  const url='https://www.youtube.com/watch?v='+_currentYtId;
+  navigator.clipboard.writeText(url).then(()=>{
+    showToast('✅ 連結已複製');
+  }).catch(()=>{
+    // fallback
+    const t=document.createElement('textarea');
+    t.value=url;document.body.appendChild(t);t.select();
+    document.execCommand('copy');document.body.removeChild(t);
+    showToast('✅ 連結已複製');
+  });
+}
+
+function delYtVideo(idx){
+  if(!confirm('確定移除此影片？'))return;
+  D.ytVideos.splice(idx,1);save();renderYtGrid();renderYtMgrList();showToast('🗑 影片已移除');
+}
+
+// ── 管理面板 ──
+function openYtManager(){
+  document.getElementById('ytMgrOverlay').classList.add('active');
+  renderYtMgrCats();renderYtMgrList();updateMgrCatSelect();
+}
+function closeYtManager(){
+  document.getElementById('ytMgrOverlay').classList.remove('active');
+  renderYtCatTabs();renderYtGrid();
+}
+
+function renderYtMgrCats(){
+  const el=document.getElementById('ytMgrCatList');
+  el.innerHTML=D.ytCategories.map((c,i)=>{
+    if(c==='全部') return `<div class="yt-mgr-cat-row"><input value="${esc(c)}" disabled style="opacity:.5;"><span style="font-size:11px;color:var(--dim);">（固定）</span></div>`;
+    return `<div class="yt-mgr-cat-row">
+      <input value="${esc(c)}" onchange="renameYtCat(${i},this.value)">
+      <button onclick="delYtCat(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function addYtCategory(){
+  const name='新分頁'+(D.ytCategories.length);
+  D.ytCategories.push(name);save();
+  renderYtMgrCats();updateMgrCatSelect();
+}
+
+function renameYtCat(idx,newName){
+  const oldName=D.ytCategories[idx];
+  D.ytCategories[idx]=newName;
+  D.ytVideos.forEach(v=>{if(v.cat===oldName)v.cat=newName;});
+  if(D.ytCurrentCat===oldName) D.ytCurrentCat=newName;
+  save();updateMgrCatSelect();
+}
+
+function delYtCat(idx){
+  const name=D.ytCategories[idx];
+  if(!confirm('刪除分頁「'+name+'」？該分頁下的影片將歸到全部。'))return;
+  D.ytCategories.splice(idx,1);
+  if(D.ytCurrentCat===name) D.ytCurrentCat='全部';
+  save();renderYtMgrCats();updateMgrCatSelect();
+}
+
+function updateMgrCatSelect(){
+  const opts=D.ytCategories.filter(c=>c!=='全部').map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  document.getElementById('ytMgrCatSelect').innerHTML=opts;
+  const photoSel=document.getElementById('ytMgrPhotoCatSelect');
+  if(photoSel) photoSel.innerHTML=opts;
+}
+
+function addYtVideo(){
+  const urlInput=document.getElementById('ytMgrUrl');
+  const catSel=document.getElementById('ytMgrCatSelect');
+  const url=urlInput.value.trim();
+  if(!url){showToast('請貼上 YouTube 連結');return;}
+  const ytId=extractYtId(url);
+  if(!ytId){showToast('⚠ 無法解析 YouTube 連結');return;}
+  if(D.ytVideos.some(v=>v.ytId===ytId&&v.type!=='photo')){showToast('⚠ 此影片已加入');return;}
+  const cat=catSel.value||D.ytCategories[1]||'未分類';
+  D.ytVideos.push({ytId:ytId,title:'',cat:cat,desc:'',type:'video',thumb:'',addedAt:new Date().toISOString()});
+  save();urlInput.value='';
+  renderYtMgrList();renderYtGrid();
+  showToast('✅ 影片已加入');
+  // 嘗試抓取標題
+  fetchYtTitle(ytId,D.ytVideos.length-1);
+}
+
+// 壓縮圖片工具（限制尺寸 + JPEG 壓縮）
+function compressImage(dataUrl, maxW, maxH, quality, cb){
+  const img=new Image();
+  img.onload=function(){
+    let w=img.width, h=img.height;
+    if(w>maxW){h=h*maxW/w;w=maxW;}
+    if(h>maxH){w=w*maxH/h;h=maxH;}
+    const c=document.createElement('canvas');
+    c.width=w;c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    cb(c.toDataURL('image/jpeg',quality));
+  };
+  img.src=dataUrl;
+}
+
+function addPhotoItem(input){
+  const file=input.files[0]; if(!file) return;
+  const catSel=document.getElementById('ytMgrPhotoCatSelect');
+  const cat=catSel.value||D.ytCategories[1]||'未分類';
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const title=file.name.replace(/\.[^.]+$/,'');
+    // 壓縮照片後儲存（最大 800x800, JPEG 75%）
+    compressImage(e.target.result, 800, 800, 0.75, function(compressed){
+      D.ytVideos.push({type:'photo',photo:compressed,title:title,cat:cat,desc:'',thumb:'',addedAt:new Date().toISOString()});
+      save();renderYtMgrList();renderYtGrid();
+      showToast('✅ 照片已加入');
+    });
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+// 上傳/移除自訂瀏覽小圖
+function uploadItemThumb(idx,input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    // 壓縮小圖（最大 320x180, JPEG 70%）
+    compressImage(e.target.result, 320, 180, 0.70, function(compressed){
+      D.ytVideos[idx].thumb=compressed;
+      save();renderYtMgrList();renderYtGrid();
+      showToast('✅ 小圖已更新');
+    });
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+function removeItemThumb(idx){
+  D.ytVideos[idx].thumb='';
+  save();renderYtMgrList();renderYtGrid();
+  showToast('🗑 已恢復預設小圖');
+}
+
+// ===== 小圖裁切調整 =====
+function toggleCropPanel(idx){
+  var panel=document.getElementById('cropPanel'+idx);
+  if(!panel){console.warn('cropPanel'+idx+' not found');return;}
+  var isHidden=!panel.style.display||panel.style.display==='none';
+  panel.style.display=isHidden?'block':'none';
+  if(isHidden) panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function cropAdjust(idx,axis,val){
+  val=parseInt(val);
+  var v=D.ytVideos[idx];
+  if(!v) return;
+  if(axis==='zoom'){v.thumbZoom=val;document.getElementById('cropZ'+idx).textContent=val+'%';}
+  else if(axis==='x'){v.thumbX=val;document.getElementById('cropX'+idx).textContent=val+'%';}
+  else if(axis==='y'){v.thumbY=val;document.getElementById('cropY'+idx).textContent=val+'%';}
+  // 即時預覽
+  var prev=document.getElementById('cropPreview'+idx);
+  if(prev){
+    var z=v.thumbZoom||100, x=v.thumbX!=null?v.thumbX:50, y=v.thumbY!=null?v.thumbY:50;
+    prev.style.objectPosition=x+'% '+y+'%';
+    prev.style.transform='scale('+(z/100)+')';
+  }
+  save();renderYtGrid();
+}
+function cropReset(idx){
+  var v=D.ytVideos[idx];
+  if(!v) return;
+  v.thumbZoom=100;v.thumbX=50;v.thumbY=50;
+  save();renderYtMgrList();renderYtGrid();
+  showToast('↩ 已重置小圖位置');
+}
+
+// 精華區排序（插入式，非交換）
+function moveYtItem(idx,dir){
+  const t=idx+dir;
+  if(t<0||t>=D.ytVideos.length) return;
+  const item=D.ytVideos.splice(idx,1)[0];
+  D.ytVideos.splice(t,0,item);
+  save();renderYtMgrList();renderYtGrid();
+}
+
+function fetchYtTitle(ytId,idx){
+  // 用 noembed 免費 API 抓標題
+  fetch('https://noembed.com/embed?url=https://www.youtube.com/watch?v='+ytId)
+    .then(r=>r.json())
+    .then(data=>{
+      if(data.title && D.ytVideos[idx]){
+        D.ytVideos[idx].title=data.title;
+        save();renderYtMgrList();renderYtGrid();
+      }
+    }).catch(()=>{});
+}
+
+function renderYtMgrList(){
+  const el=document.getElementById('ytMgrList');
+  if(!D.ytVideos.length){el.innerHTML='<div style="color:var(--dim);font-size:12px;text-align:center;padding:20px;">尚無影片或照片</div>';return;}
+  el.innerHTML=D.ytVideos.map((v,i)=>{
+    const isPhoto=v.type==='photo';
+    const displayThumb=v.thumb||(isPhoto?(v.photo||''):ytThumb(v.ytId));
+    const hasCustomThumb=!!v.thumb;
+    const tz=v.thumbZoom||100, tx=v.thumbX!=null?v.thumbX:50, ty=v.thumbY!=null?v.thumbY:50;
+    const cropStyle=tz!==100||tx!==50||ty!==50?`object-position:${tx}% ${ty}%;transform:scale(${tz/100});`:'';
+    const typeBadge=isPhoto?'<span style="font-size:9px;background:rgba(59,130,246,.2);color:#60a5fa;padding:1px 6px;border-radius:3px;margin-left:4px;">📷</span>'
+                           :'<span style="font-size:9px;background:rgba(255,59,48,.2);color:#ff6b6b;padding:1px 6px;border-radius:3px;margin-left:4px;">▶</span>';
+    return `
+    <div style="padding:10px 8px;border-bottom:1px solid rgba(100,180,255,.06);">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="position:relative;flex-shrink:0;width:80px;">
+          <div style="width:80px;height:45px;overflow:hidden;border-radius:4px;position:relative;">
+            <img src="${displayThumb}" style="width:100%;height:100%;object-fit:cover;${cropStyle}">
+          </div>
+          ${hasCustomThumb?'<div style="position:absolute;top:1px;left:1px;font-size:7px;background:rgba(34,197,94,.8);color:#fff;padding:0 4px;border-radius:2px;">自訂</div>':''}
+          <label style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:rgba(100,180,255,.2);border:1px solid rgba(100,180,255,.3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;" title="自訂瀏覽小圖">
+            📷<input type="file" accept="image/*" onchange="uploadItemThumb(${i},this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+          </label>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <input type="text" value="${esc(v.title||(isPhoto?'照片':v.ytId))}" style="flex:1;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:11px;padding:2px 0;outline:none;font-family:inherit;" onchange="D.ytVideos[${i}].title=this.value;save();renderYtGrid();">
+            ${typeBadge}
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:3px;">
+            <select style="flex:1;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:10px;padding:2px 4px;outline:none;" onchange="D.ytVideos[${i}].cat=this.value;save();renderYtGrid();">
+              ${D.ytCategories.filter(c=>c!=='全部').map(c=>`<option value="${esc(c)}"${c===v.cat?' selected':''}>${esc(c)}</option>`).join('')}
+            </select>
+            ${hasCustomThumb?`<button onclick="removeItemThumb(${i})" style="background:transparent;border:1px solid rgba(255,80,80,.2);border-radius:4px;color:#ff8a8a;cursor:pointer;font-size:9px;padding:2px 6px;white-space:nowrap;" title="移除自訂小圖">✕ 小圖</button>`:''}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;">
+          <button onclick="moveYtItem(${i},-1)" style="background:rgba(100,180,255,.1);border:1px solid rgba(100,180,255,.2);border-radius:4px;color:${i===0?'rgba(100,180,255,.25)':'#60a5fa'};cursor:${i===0?'default':'pointer'};font-size:10px;padding:2px 4px;line-height:1;" ${i===0?'disabled':''} title="上移">▲</button>
+          <button onclick="moveYtItem(${i},1)" style="background:rgba(100,180,255,.1);border:1px solid rgba(100,180,255,.2);border-radius:4px;color:${i===D.ytVideos.length-1?'rgba(100,180,255,.25)':'#60a5fa'};cursor:${i===D.ytVideos.length-1?'default':'pointer'};font-size:10px;padding:2px 4px;line-height:1;" ${i===D.ytVideos.length-1?'disabled':''} title="下移">▼</button>
+        </div>
+        <button onclick="delYtVideo(${i})" style="background:transparent;border:none;color:#ff8a8a;cursor:pointer;font-size:14px;padding:4px;">✕</button>
+      </div>
+      <div style="margin-top:6px;padding-left:88px;">
+        <textarea placeholder="說明文字（會顯示在卡片下方和全螢幕檢視）" style="width:100%;min-height:36px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;color:#94a3b8;font-size:11px;padding:6px 8px;outline:none;font-family:inherit;resize:vertical;" onchange="D.ytVideos[${i}].desc=this.value;save();renderYtGrid();">${esc(v.desc||'')}</textarea>
+      </div>
+      <div style="margin-top:6px;padding-left:88px;">
+        <button onclick="toggleCropPanel(${i})" style="background:rgba(255,165,0,.12);border:1px solid rgba(255,165,0,.3);border-radius:6px;color:#ffa500;cursor:pointer;font-size:11px;padding:4px 12px;font-family:inherit;font-weight:600;">✂ 調整小圖顯示範圍</button>
+      </div>
+      <div class="thumb-crop-panel" id="cropPanel${i}" style="display:none;margin:8px 0 0 88px;">
+        <div class="crop-preview">
+          <img id="cropPreview${i}" src="${displayThumb}" style="object-position:${tx}% ${ty}%;transform:scale(${tz/100});">
+        </div>
+        <label>🔍 縮放 <input type="range" min="100" max="250" value="${tz}" oninput="cropAdjust(${i},'zoom',this.value)"> <span class="crop-val" id="cropZ${i}">${tz}%</span></label>
+        <label>↔ 水平 <input type="range" min="0" max="100" value="${tx}" oninput="cropAdjust(${i},'x',this.value)"> <span class="crop-val" id="cropX${i}">${tx}%</span></label>
+        <label>↕ 垂直 <input type="range" min="0" max="100" value="${ty}" oninput="cropAdjust(${i},'y',this.value)"> <span class="crop-val" id="cropY${i}">${ty}%</span></label>
+        <div class="crop-actions">
+          <button onclick="cropReset(${i})">重置</button>
+          <button onclick="toggleCropPanel(${i})" style="background:rgba(74,234,255,.15);color:#4aeaff;">完成</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function initYtGallery(){
+  renderYtCatTabs();renderYtGrid();
+}
+
+// ===== 留言板 =====
+function postMessage(){
+  const input=document.getElementById('boardInput');
+  const text=input.value.trim();
+  if(!text){showToast('請輸入內容');return;}
+  D.messages.unshift({
+    id:Date.now().toString(),
+    name:getProfileName()||'—',
+    avatar:getProfileImg()||'',
+    text:text,
+    time:new Date().toLocaleString('zh-TW'),
+    replies:[]
+  });
+  save();input.value='';renderMessages();showToast('✅ 留言已發佈');
+}
+
+function renderMessages(){
+  const el=document.getElementById('msgList');
+  const empty=document.getElementById('msgEmpty');
+  if(!D.messages.length){el.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  // 使用即時的形象照，確保同步首頁
+  const liveAvatar=getProfileImg()||'';
+  el.innerHTML=D.messages.map((m,i)=>`
+    <div class="msg-item">
+      <div class="mi-avatar"><img src="${liveAvatar||m.avatar||''}" alt=""></div>
+      <div class="mi-body">
+        <div class="mi-head">
+          <span class="mi-name">${esc(m.name)}</span>
+          <span class="mi-time">${m.time}</span>
+          <button class="msg-del" onclick="delMsg(${i})">🗑️</button>
+        </div>
+        <div class="mi-text">${esc(m.text)}</div>
+        <div class="mi-actions">
+          <button onclick="toggleReply(${i})">💬 回覆</button>
+        </div>
+        ${m.replies.length?`<div class="msg-replies">${m.replies.map((r,ri)=>`
+          <div class="msg-item">
+            <div class="mi-avatar" style="width:36px;height:36px;"><img src="${liveAvatar||r.avatar||''}" alt=""></div>
+            <div class="mi-body">
+              <div class="mi-head"><span class="mi-name" style="font-size:12px;">${esc(r.name)}</span><span class="mi-time">${r.time}</span><button class="msg-del" onclick="delReply(${i},${ri})">🗑️</button></div>
+              <div class="mi-text" style="font-size:12px;">${esc(r.text)}</div>
+            </div>
+          </div>
+        `).join('')}</div>`:''}
+        <div class="reply-box" id="reply_${i}">
+          <textarea id="replyInput_${i}" placeholder="回覆..."></textarea>
+          <button onclick="submitReply(${i})">送出</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleReply(i){
+  const box=document.getElementById('reply_'+i);
+  box.classList.toggle('open');
+  if(box.classList.contains('open'))document.getElementById('replyInput_'+i).focus();
+}
+
+function submitReply(i){
+  const input=document.getElementById('replyInput_'+i);
+  const text=input.value.trim();if(!text)return;
+  D.messages[i].replies.push({
+    name:getProfileName()||'—',
+    avatar:getProfileImg()||'',
+    text:text,
+    time:new Date().toLocaleString('zh-TW')
+  });
+  save();renderMessages();
+}
+
+function delMsg(i){if(!confirm('確定刪除？'))return;D.messages.splice(i,1);save();renderMessages();}
+function delReply(mi,ri){if(!confirm('確定刪除？'))return;D.messages[mi].replies.splice(ri,1);save();renderMessages();}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+// ===== 初始化 =====
+syncProfile();
+drawRadar();
+renderCollect();
+renderAchievements();
+initYtGallery();
+renderMessages();
+// 套用已儲存的等級顏色
+applyLevelTheme(D.level||'red');
+
+// 定期同步封面資料 & 雷達圖分數
+setInterval(()=>{syncProfile();},3000);
+
+// 暴露給 parent iframe 呼叫
+window.triggerSave = function(){ save(); showToast('💾 成就解鎖已儲存'); };
+// ★ 頁面離開緊急儲存
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')save();});
+window.addEventListener('beforeunload',save);
+window.addEventListener('pagehide',save);
+</script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

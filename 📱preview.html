@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📱 手機預覽模式</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:#1a1a2e;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  color:#e0e0e0;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+/* ── 頂部工具列 ── */
+.toolbar{
+  background:#16213e;
+  border-bottom:1px solid rgba(74,234,255,0.15);
+  padding:10px 16px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  z-index:100;
+}
+.toolbar-title{
+  font-size:1.1rem;
+  font-weight:700;
+  color:#4aeaff;
+  white-space:nowrap;
+  margin-right:8px;
+}
+.toolbar select, .toolbar button{
+  background:#0f3460;
+  border:1px solid rgba(74,234,255,0.25);
+  color:#e0e0e0;
+  padding:6px 12px;
+  border-radius:8px;
+  font-size:0.82rem;
+  cursor:pointer;
+  font-family:inherit;
+}
+.toolbar select:hover, .toolbar button:hover{
+  border-color:#4aeaff;
+  background:#1a4a80;
+}
+.toolbar select{min-width:140px;}
+.device-btn{
+  padding:6px 10px !important;
+  font-size:0.78rem !important;
+  transition:all 0.2s;
+}
+.device-btn.active{
+  background:#4aeaff !important;
+  color:#0a0a23 !important;
+  font-weight:700;
+}
+.toolbar .separator{
+  width:1px;height:24px;background:rgba(74,234,255,0.15);flex-shrink:0;
+}
+.toolbar .refresh-btn{
+  background:rgba(0,255,136,0.1);
+  border-color:rgba(0,255,136,0.3);
+  color:#00ff88;
+}
+.toolbar .refresh-btn:hover{
+  background:rgba(0,255,136,0.2);
+}
+.url-display{
+  flex:1;min-width:120px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:6px;
+  padding:5px 10px;
+  font-size:0.75rem;
+  color:#888;
+  font-family:'SF Mono',monospace;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* ── 快速頁面選單 ── */
+.page-grid{
+  background:#16213e;
+  border-bottom:1px solid rgba(74,234,255,0.1);
+  padding:8px 16px;
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.page-chip{
+  background:rgba(74,234,255,0.06);
+  border:1px solid rgba(74,234,255,0.12);
+  color:#aad4ff;
+  padding:4px 10px;
+  border-radius:14px;
+  font-size:0.72rem;
+  cursor:pointer;
+  transition:all 0.2s;
+  white-space:nowrap;
+}
+.page-chip:hover{
+  background:rgba(74,234,255,0.15);
+  border-color:rgba(74,234,255,0.35);
+  color:#4aeaff;
+}
+.page-chip.active{
+  background:rgba(74,234,255,0.2);
+  border-color:#4aeaff;
+  color:#4aeaff;
+  font-weight:600;
+}
+
+/* ── 預覽區域 ── */
+.preview-area{
+  flex:1;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:20px;
+  overflow:auto;
+}
+
+/* ── 手機外框 ── */
+.phone-frame{
+  background:#000;
+  border-radius:44px;
+  padding:12px;
+  box-shadow:
+    0 0 0 2px #333,
+    0 0 0 4px #111,
+    0 20px 60px rgba(0,0,0,0.5),
+    inset 0 0 4px rgba(255,255,255,0.05);
+  position:relative;
+  flex-shrink:0;
+  transition:width 0.3s, height 0.3s;
+}
+.phone-notch{
+  position:absolute;
+  top:8px;
+  left:50%;
+  transform:translateX(-50%);
+  width:120px;
+  height:28px;
+  background:#000;
+  border-radius:0 0 18px 18px;
+  z-index:10;
+}
+.phone-notch::after{
+  content:'';
+  position:absolute;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  width:8px;height:8px;
+  background:#1a1a2e;
+  border-radius:50%;
+}
+.phone-screen{
+  border-radius:32px;
+  overflow:hidden;
+  background:#fff;
+  position:relative;
+}
+.phone-screen iframe{
+  border:none;
+  width:100%;
+  height:100%;
+  display:block;
+}
+.phone-home-bar{
+  position:absolute;
+  bottom:6px;
+  left:50%;
+  transform:translateX(-50%);
+  width:100px;
+  height:4px;
+  background:#555;
+  border-radius:2px;
+}
+
+/* ── 無框模式 ── */
+.phone-frame.frameless{
+  border-radius:0;
+  padding:0;
+  box-shadow:0 4px 20px rgba(0,0,0,0.3);
+}
+.phone-frame.frameless .phone-notch,
+.phone-frame.frameless .phone-home-bar{display:none;}
+.phone-frame.frameless .phone-screen{border-radius:0;}
+
+/* ── 狀態指示 ── */
+.status-bar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-left:auto;
+}
+.status-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:#00ff88;
+  box-shadow:0 0 6px rgba(0,255,136,0.5);
+}
+.status-text{
+  font-size:0.7rem;
+  color:#888;
+}
+
+/* ── 操作提示面板 ── */
+.info-panel{
+  background:#16213e;
+  border-top:1px solid rgba(74,234,255,0.1);
+  padding:8px 16px;
+  font-size:0.72rem;
+  color:#666;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.info-panel kbd{
+  background:#0f3460;
+  border:1px solid rgba(74,234,255,0.15);
+  border-radius:4px;
+  padding:1px 6px;
+  font-size:0.68rem;
+  color:#aad4ff;
+}
+
+/* ── 橫向模式 ── */
+.phone-frame.landscape{
+  /* 寬高在 JS 中動態設定 */
+}
+
+/* ── 響應式 ── */
+@media(max-width:600px){
+  .toolbar{padding:8px 10px;gap:6px;}
+  .preview-area{padding:10px;}
+  .phone-frame{border-radius:24px;padding:6px;}
+  .phone-screen{border-radius:18px;}
+  .phone-notch{width:80px;height:20px;border-radius:0 0 12px 12px;}
+}
+</style>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<!-- 工具列 -->
+<div class="toolbar">
+  <span class="toolbar-title">📱 手機預覽</span>
+  <div class="separator"></div>
+
+  <!-- 裝置選擇 -->
+  <button class="device-btn active" onclick="setDevice('iphone14')" id="d_iphone14">iPhone 14</button>
+  <button class="device-btn" onclick="setDevice('iphoneSE')" id="d_iphoneSE">iPhone SE</button>
+  <button class="device-btn" onclick="setDevice('ipad')" id="d_ipad">iPad Mini</button>
+  <button class="device-btn" onclick="setDevice('android')" id="d_android">Android</button>
+  <div class="separator"></div>
+
+  <!-- 旋轉 -->
+  <button class="device-btn" onclick="toggleRotation()" id="rotateBtn" title="旋轉螢幕">🔄 旋轉</button>
+  <button class="device-btn" onclick="toggleFrame()" id="frameBtn" title="切換外框">🖼️ 外框</button>
+  <div class="separator"></div>
+
+  <button class="refresh-btn" onclick="refreshPreview()">🔄 重新整理</button>
+
+  <div class="url-display" id="urlDisplay">---</div>
+
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-text" id="statusText">就緒</span>
+  </div>
+</div>
+
+<!-- 頁面快速選單 -->
+<div class="page-grid" id="pageGrid"></div>
+
+<!-- 預覽區域 -->
+<div class="preview-area">
+  <div class="phone-frame" id="phoneFrame">
+    <div class="phone-notch"></div>
+    <div class="phone-screen" id="phoneScreen">
+      <iframe id="previewFrame" src="about:blank"></iframe>
+    </div>
+    <div class="phone-home-bar"></div>
+  </div>
+</div>
+
+<!-- 底部資訊 -->
+<div class="info-panel">
+  <span>💡 直接在電腦瀏覽器開啟此檔案即可預覽手機效果</span>
+  <span>|</span>
+  <span>修改檔案後按 <kbd>🔄 重新整理</kbd> 即可看到最新結果</span>
+  <span>|</span>
+  <span id="dimDisplay">375 × 812</span>
+</div>
+
+<script>
+// ===== 頁面清單 =====
+var PAGES = [
+  {name:'🏠 登入頁', file:'index.html'},
+  {name:'🎮 主頁面', file:'人力發展.html'},
+  {name:'🏋️ 練功坊', file:'training-room.html'},
+  {name:'👑 組長學堂', file:'training-leader-academy.html'},
+  {name:'📊 營業訓練', file:'training-sales.html'},
+  {name:'🏰 城堡卡片', file:'castle-cards.html'},
+  {name:'🏆 成就解鎖', file:'achievement-unlock.html'},
+  {name:'🔥 火種九宮格', file:'fire-mandala.html'},
+  {name:'🌊 瀑布通路', file:'waterfall-channel.html'},
+  {name:'📈 月績效', file:'monthly-performance.html'},
+  {name:'📊 績效比較', file:'performance-compare.html'},
+  {name:'🎭 委員角色', file:'committee-roles.html'},
+  {name:'🗺️ 組長地圖', file:'team-leader-map-assessment.html'},
+  {name:'📸 組長截圖', file:'training-leader-screenshots.html'}
+];
+
+// ===== 裝置尺寸 =====
+var DEVICES = {
+  iphone14:  {w:390, h:844,  name:'iPhone 14'},
+  iphoneSE:  {w:375, h:667,  name:'iPhone SE'},
+  ipad:      {w:744, h:1133, name:'iPad Mini'},
+  android:   {w:412, h:915,  name:'Android'}
+};
+
+var currentDevice = 'iphone14';
+var isLandscape = false;
+var showFrame = true;
+var currentPage = '';
+
+// ===== 初始化頁面選單 =====
+function renderPageGrid(){
+  var html = '';
+  PAGES.forEach(function(p){
+    var cls = 'page-chip' + (currentPage === p.file ? ' active' : '');
+    html += '<span class="'+cls+'" onclick="loadPage(\''+p.file+'\')">'+p.name+'</span>';
+  });
+  document.getElementById('pageGrid').innerHTML = html;
+}
+
+// ===== 載入頁面 =====
+function loadPage(file){
+  currentPage = file;
+  var frame = document.getElementById('previewFrame');
+  var dot = document.getElementById('statusDot');
+  var txt = document.getElementById('statusText');
+
+  dot.style.background = '#ffd700';
+  dot.style.boxShadow = '0 0 6px rgba(255,215,0,0.5)';
+  txt.textContent = '載入中…';
+
+  frame.src = './' + file;
+  document.getElementById('urlDisplay').textContent = file;
+  renderPageGrid();
+
+  frame.onload = function(){
+    dot.style.background = '#00ff88';
+    dot.style.boxShadow = '0 0 6px rgba(0,255,136,0.5)';
+    txt.textContent = '已載入';
+    // 2 秒後自動淡化狀態
+    setTimeout(function(){
+      txt.textContent = '就緒';
+    }, 2000);
+  };
+  frame.onerror = function(){
+    dot.style.background = '#ff6666';
+    dot.style.boxShadow = '0 0 6px rgba(255,102,102,0.5)';
+    txt.textContent = '載入失敗';
+  };
+}
+
+// ===== 切換裝置 =====
+function setDevice(id){
+  currentDevice = id;
+  // 更新按鈕狀態
+  document.querySelectorAll('.device-btn').forEach(function(b){
+    b.classList.remove('active');
+  });
+  var btn = document.getElementById('d_'+id);
+  if(btn) btn.classList.add('active');
+  applyDeviceSize();
+}
+
+// ===== 套用裝置尺寸 =====
+function applyDeviceSize(){
+  var dev = DEVICES[currentDevice];
+  var w = isLandscape ? dev.h : dev.w;
+  var h = isLandscape ? dev.w : dev.h;
+
+  var screen = document.getElementById('phoneScreen');
+  var frame = document.getElementById('phoneFrame');
+
+  screen.style.width = w + 'px';
+  screen.style.height = h + 'px';
+
+  document.getElementById('dimDisplay').textContent = w + ' × ' + h;
+
+  // iPad 不需要手機外框
+  if(currentDevice === 'ipad'){
+    frame.classList.add('frameless');
+  } else if(showFrame){
+    frame.classList.remove('frameless');
+  }
+}
+
+// ===== 旋轉 =====
+function toggleRotation(){
+  isLandscape = !isLandscape;
+  var btn = document.getElementById('rotateBtn');
+  btn.textContent = isLandscape ? '🔄 直立' : '🔄 旋轉';
+  applyDeviceSize();
+}
+
+// ===== 外框切換 =====
+function toggleFrame(){
+  showFrame = !showFrame;
+  var frame = document.getElementById('phoneFrame');
+  if(showFrame){
+    frame.classList.remove('frameless');
+  } else {
+    frame.classList.add('frameless');
+  }
+  document.getElementById('frameBtn').textContent = showFrame ? '🖼️ 外框' : '🖼️ 無框';
+}
+
+// ===== 重新整理 =====
+function refreshPreview(){
+  var frame = document.getElementById('previewFrame');
+  if(currentPage){
+    // 加時間戳避免快取
+    frame.src = './' + currentPage + '?t=' + Date.now();
+    document.getElementById('statusText').textContent = '重新載入…';
+    document.getElementById('statusDot').style.background = '#ffd700';
+  }
+}
+
+// ===== 鍵盤快捷鍵 =====
+document.addEventListener('keydown', function(e){
+  // F5 或 Ctrl+R → 只重新整理預覽 iframe
+  if(e.key === 'F5' || (e.ctrlKey && e.key === 'r')){
+    e.preventDefault();
+    refreshPreview();
+  }
+  // 左右方向鍵切換頁面
+  if(e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+    var idx = -1;
+    PAGES.forEach(function(p,i){if(p.file===currentPage)idx=i;});
+    if(e.key === 'ArrowLeft' && idx > 0){
+      loadPage(PAGES[idx-1].file);
+    } else if(e.key === 'ArrowRight' && idx < PAGES.length-1){
+      loadPage(PAGES[idx+1].file);
+    }
+  }
+});
+
+// ===== 啟動 =====
+renderPageGrid();
+applyDeviceSize();
+// 預設載入登入頁
+loadPage('index.html');
+</script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

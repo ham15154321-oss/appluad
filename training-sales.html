@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>業務基礎訓練項目檢核表</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Segoe UI','Microsoft JhengHei',sans-serif;
+  background:radial-gradient(ellipse at 50% 30%,#0d1b3e 0%,#070d1f 50%,#03060f 100%);
+  color:#e2e8f0;
+  min-height:100vh;
+  padding:20px;
+}
+
+/* 星空 */
+.stars{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+.star{position:absolute;background:#fff;border-radius:50%;animation:twinkle var(--dur) ease-in-out infinite alternate;}
+@keyframes twinkle{0%{opacity:0.2;transform:scale(0.8)}100%{opacity:1;transform:scale(1.2)}}
+
+.container{position:relative;z-index:2;max-width:1100px;margin:0 auto;}
+
+/* 標題區 */
+.header{
+  text-align:center;margin-bottom:24px;
+}
+.header h1{
+  font-size:1.8rem;font-weight:900;
+  background:linear-gradient(135deg,#fbbf24,#f59e0b,#fbbf24);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:3px;margin-bottom:6px;
+}
+.header .sub{
+  font-size:0.85rem;color:#6a7faa;letter-spacing:1px;
+}
+
+/* 演練成績單標籤 */
+.section-label{
+  display:inline-block;
+  background:linear-gradient(135deg,rgba(74,234,255,0.12),rgba(160,100,255,0.08));
+  border:1px solid rgba(100,180,255,0.15);
+  border-radius:8px;padding:6px 18px;margin-bottom:16px;
+  font-size:0.9rem;font-weight:700;color:#a5b4fc;letter-spacing:1px;
+}
+
+/* ── 新人頭像列 ── */
+.avatar-bar{
+  display:flex;align-items:center;gap:14px;
+  margin-bottom:18px;padding:12px 16px;
+  background:rgba(10,18,45,0.5);
+  border:1px solid rgba(100,180,255,0.1);
+  border-radius:14px;
+  backdrop-filter:blur(6px);
+  flex-wrap:wrap;
+}
+.avatar-bar-label{
+  font-size:0.8rem;color:#6a7faa;font-weight:600;white-space:nowrap;letter-spacing:0.5px;
+}
+.avatar-slot{
+  display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;
+  transition:transform 0.2s;
+  min-width:56px;
+}
+.avatar-slot:hover{transform:translateY(-2px);}
+.avatar-circle{
+  width:48px;height:48px;border-radius:50%;
+  border:2.5px solid rgba(100,180,255,0.2);
+  background:rgba(30,50,80,0.6);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;
+  transition:all 0.25s;
+  position:relative;
+  overflow:hidden;
+}
+.avatar-slot.active .avatar-circle{
+  border-color:#4aeaff;
+  box-shadow:0 0 14px rgba(74,234,255,0.35);
+  background:rgba(74,234,255,0.1);
+}
+.avatar-slot.empty .avatar-circle{
+  border-style:dashed;
+  border-color:rgba(100,180,255,0.15);
+  opacity:0.5;
+}
+.avatar-slot.empty:hover .avatar-circle{
+  opacity:0.8;border-color:rgba(100,180,255,0.35);
+}
+.avatar-name{
+  font-size:0.68rem;color:#94a3b8;max-width:60px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;
+  transition:color 0.2s;
+}
+.avatar-slot.active .avatar-name{color:#4aeaff;font-weight:700;}
+.avatar-progress{
+  font-size:0.6rem;color:#6a7faa;
+}
+.avatar-slot.active .avatar-progress{color:rgba(74,234,255,0.7);}
+
+/* 名稱編輯 popup */
+.name-edit-popup{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.6);z-index:999;
+  display:flex;align-items:center;justify-content:center;
+}
+.name-edit-box{
+  background:#16213e;border:1px solid rgba(74,234,255,0.2);
+  border-radius:14px;padding:20px 24px;width:280px;
+  box-shadow:0 12px 40px rgba(0,0,0,0.5);
+}
+.name-edit-box h3{
+  font-size:0.95rem;color:#4aeaff;margin-bottom:12px;font-weight:700;
+}
+.name-edit-box input{
+  width:100%;background:rgba(255,255,255,0.06);
+  border:1px solid rgba(74,234,255,0.2);border-radius:8px;
+  padding:8px 12px;color:#e2e8f0;font-size:0.88rem;
+  font-family:inherit;outline:none;margin-bottom:12px;
+}
+.name-edit-box input:focus{border-color:rgba(74,234,255,0.5);}
+.name-edit-actions{display:flex;gap:8px;justify-content:flex-end;}
+.name-edit-actions button{
+  padding:6px 16px;border-radius:8px;font-size:0.8rem;
+  cursor:pointer;font-family:inherit;border:1px solid;
+}
+.name-edit-actions .ne-save{
+  background:rgba(74,234,255,0.15);border-color:rgba(74,234,255,0.3);color:#4aeaff;
+}
+.name-edit-actions .ne-cancel{
+  background:transparent;border-color:rgba(100,180,255,0.15);color:#94a3b8;
+}
+.name-edit-actions .ne-remove{
+  background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.2);color:#f87171;
+  margin-right:auto;
+}
+
+/* 表格 */
+.score-table{
+  width:100%;border-collapse:separate;border-spacing:0;
+  border:1px solid rgba(100,180,255,0.12);
+  border-radius:12px;overflow:hidden;
+  background:rgba(10,18,45,0.6);
+  backdrop-filter:blur(8px);
+}
+.score-table thead th{
+  background:linear-gradient(180deg,rgba(55,48,80,0.95),rgba(40,35,65,0.9));
+  color:#d4c5f0;font-size:0.8rem;font-weight:700;
+  padding:12px 8px;text-align:center;
+  border-bottom:2px solid rgba(100,180,255,0.15);
+  letter-spacing:1px;
+  position:sticky;top:0;z-index:5;
+}
+.score-table thead .pts{
+  display:block;font-size:0.68rem;color:#94a3b8;font-weight:600;margin-top:2px;
+}
+.score-table tbody td{
+  padding:6px 4px;text-align:center;
+  border-bottom:1px solid rgba(100,180,255,0.06);
+  font-size:0.85rem;
+  vertical-align:middle;
+}
+.score-table tbody tr:hover{
+  background:rgba(74,234,255,0.04);
+}
+.score-table tbody tr.chapter-row td{
+  background:rgba(160,100,255,0.08);
+  font-weight:700;color:#c084fc;
+  border-bottom:1px solid rgba(160,100,255,0.15);
+}
+
+/* 可編輯欄位 */
+.editable{
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(100,180,255,0.1);
+  border-radius:6px;
+  padding:6px 8px;
+  color:#e2e8f0;
+  font-size:0.82rem;
+  font-family:inherit;
+  width:100%;
+  min-width:50px;
+  outline:none;
+  transition:border-color 0.2s,background 0.2s;
+  text-align:center;
+}
+.editable:focus{
+  border-color:rgba(74,234,255,0.4);
+  background:rgba(74,234,255,0.06);
+  box-shadow:0 0 10px rgba(74,234,255,0.1);
+}
+.editable.text-left{text-align:left;min-width:100px;}
+.editable.wide{min-width:80px;}
+
+/* 總分自動計算 */
+.total-cell{
+  font-weight:700;
+  color:#4aeaff;
+  font-size:0.9rem;
+}
+
+/* 操作列 */
+.toolbar{
+  display:flex;gap:10px;margin:20px 0 16px;flex-wrap:wrap;align-items:center;
+}
+.toolbar button{
+  background:rgba(100,180,255,0.1);
+  border:1px solid rgba(100,180,255,0.2);
+  color:#a5b4fc;border-radius:8px;
+  padding:8px 18px;font-size:0.82rem;font-weight:600;
+  cursor:pointer;transition:all 0.25s;letter-spacing:0.5px;
+  font-family:inherit;
+}
+.toolbar button:hover{
+  background:rgba(100,180,255,0.2);color:#fff;
+  box-shadow:0 4px 16px rgba(74,234,255,0.15);
+}
+.toolbar .save-btn{
+  background:linear-gradient(135deg,rgba(74,234,255,0.2),rgba(160,100,255,0.15));
+  border-color:rgba(74,234,255,0.3);
+  color:#4aeaff;
+}
+.autosave-label{
+  font-size:0.75rem;color:#4a6a8a;margin-left:auto;
+}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:50px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:rgba(10,18,45,0.95);border:1px solid rgba(74,234,255,0.3);
+  border-radius:12px;padding:10px 24px;
+  font-size:0.85rem;color:#4aeaff;
+  box-shadow:0 8px 30px rgba(0,0,0,0.5);
+  transition:transform 0.35s,opacity 0.35s;opacity:0;
+  z-index:9999;pointer-events:none;
+}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+/* ── 連結卡片（Google Drive） ── */
+.link-row td{
+  background:rgba(30,50,80,0.35);
+  border-bottom:2px solid rgba(160,100,255,0.1);
+  padding:10px 12px !important;
+  text-align:left !important;
+}
+.link-row-inner{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+}
+.link-row-label{
+  font-size:0.75rem;color:#6a7faa;font-weight:600;margin-right:4px;white-space:nowrap;
+}
+.link-display{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(74,234,255,0.06);
+  border:1px solid rgba(74,234,255,0.15);
+  border-radius:8px;padding:5px 12px;
+  transition:all 0.2s;
+}
+.link-display:hover{
+  background:rgba(74,234,255,0.12);border-color:rgba(74,234,255,0.3);
+}
+.link-display a{
+  color:#4aeaff;text-decoration:none;font-size:0.78rem;font-weight:600;
+  white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;
+}
+.link-display a:hover{text-decoration:underline;}
+.link-card{
+  display:flex;flex-direction:column;gap:4px;
+  background:rgba(10,18,45,0.6);
+  border:1px solid rgba(100,180,255,0.15);
+  border-radius:10px;padding:8px 10px;
+  min-width:200px;max-width:320px;
+}
+.link-card-row{display:flex;align-items:center;gap:6px;}
+.link-card-label{font-size:0.68rem;color:#6a7faa;white-space:nowrap;width:56px;flex-shrink:0;}
+.link-card-input{
+  flex:1;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(100,180,255,0.12);
+  border-radius:6px;padding:4px 8px;
+  color:#e2e8f0;font-size:0.76rem;font-family:inherit;outline:none;
+}
+.link-card-input:focus{border-color:rgba(74,234,255,0.4);background:rgba(74,234,255,0.05);}
+.link-card-input::placeholder{color:#4a6a8a;}
+.link-card-actions{
+  display:flex;align-items:center;gap:6px;margin-top:2px;
+}
+.link-card-actions a{
+  color:#4aeaff;font-size:0.7rem;text-decoration:none;
+}
+.link-card-actions a:hover{text-decoration:underline;}
+.lc-btn{
+  background:rgba(100,180,255,0.1);
+  border:1px solid rgba(100,180,255,0.2);
+  color:#a5b4fc;border-radius:6px;
+  padding:3px 10px;font-size:0.7rem;cursor:pointer;
+  font-family:inherit;transition:all 0.2s;
+}
+.lc-btn:hover{background:rgba(100,180,255,0.2);color:#fff;}
+.lc-btn.confirm{color:#4aeaff;border-color:rgba(74,234,255,0.25);}
+.lc-btn.danger{color:#f87171;border-color:rgba(248,113,113,0.2);}
+.lc-btn.danger:hover{background:rgba(248,113,113,0.15);}
+.lc-btn.add-link{
+  font-size:0.72rem;padding:4px 10px;
+  background:rgba(74,234,255,0.06);border-color:rgba(74,234,255,0.15);
+  color:#6a9fbf;
+}
+.lc-btn.add-link:hover{color:#4aeaff;background:rgba(74,234,255,0.12);}
+
+/* ── 訓練教材庫 ── */
+.tlib-section{
+  background:rgba(10,18,45,0.6);
+  border:1px solid rgba(160,100,255,0.15);
+  border-radius:14px;padding:16px 18px;margin-bottom:20px;
+  backdrop-filter:blur(6px);
+}
+.tlib-title{
+  font-size:1rem;font-weight:800;color:#c084fc;margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.tlib-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.tlib-item{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(100,180,255,0.1);
+  border-radius:10px;padding:10px 14px;
+  transition:all 0.2s;
+}
+.tlib-item:hover{background:rgba(74,234,255,0.04);border-color:rgba(100,180,255,0.2);}
+.tlib-item-title{
+  flex:1;font-size:0.85rem;color:#e2e8f0;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.tlib-item-link{
+  color:#4aeaff;font-size:0.75rem;text-decoration:none;white-space:nowrap;
+}
+.tlib-item-link:hover{text-decoration:underline;}
+.tlib-remind-toggle{
+  display:flex;align-items:center;gap:4px;
+  font-size:0.7rem;color:#6a7faa;cursor:pointer;white-space:nowrap;
+  user-select:none;
+}
+.tlib-remind-toggle input[type=checkbox]{
+  accent-color:#f59e0b;width:16px;height:16px;cursor:pointer;
+}
+.tlib-remind-toggle.active{color:#f59e0b;}
+.tlib-del{
+  background:none;border:none;color:rgba(248,113,113,0.6);
+  font-size:0.85rem;cursor:pointer;padding:2px 6px;transition:color 0.2s;
+}
+.tlib-del:hover{color:#f87171;}
+.tlib-add-btn{
+  background:rgba(160,100,255,0.1);
+  border:1px solid rgba(160,100,255,0.25);
+  color:#c084fc;border-radius:10px;
+  padding:10px 20px;font-size:0.82rem;font-weight:600;
+  cursor:pointer;transition:all 0.25s;font-family:inherit;
+  width:100%;letter-spacing:0.5px;
+}
+.tlib-add-btn:hover{background:rgba(160,100,255,0.2);color:#d4b4ff;}
+.tlib-empty{
+  text-align:center;color:#4a6a8a;font-size:0.8rem;padding:16px 0;
+}
+
+/* 響應式 */
+@media(max-width:768px){
+  body{padding:10px;}
+  .header h1{font-size:1.3rem;}
+  .editable{font-size:0.75rem;padding:4px 3px;}
+  .score-table thead th{font-size:0.7rem;padding:8px 3px;}
+  .tlib-section{padding:12px 14px;}
+  .tlib-item{padding:8px 10px;gap:8px;}
+  .tlib-item-title{font-size:0.8rem;}
+}
+
+@media(max-width:480px){
+  body{padding:8px;}
+  .container{max-width:100%;}
+  .header h1{font-size:1.1rem;}
+  .header .sub{font-size:0.75rem;}
+  .section-label{font-size:0.8rem;padding:4px 12px;}
+  .score-table{font-size:0.75rem;}
+  .score-table thead th{font-size:0.65rem;padding:6px 2px;}
+  .score-table tbody td{padding:4px 2px;font-size:0.8rem;}
+  .editable{font-size:0.7rem;padding:3px 2px;min-width:40px;}
+  .editable.text-left{min-width:60px;}
+  .toolbar{flex-wrap:wrap;gap:6px;margin:16px 0 12px;}
+  .toolbar button{padding:6px 12px;font-size:0.75rem;}
+  .total-cell{font-size:0.85rem;}
+  .autosave-label{font-size:0.7rem;}
+  .toast{font-size:0.8rem;padding:8px 16px;}
+  .link-card{min-width:160px;max-width:100%;}
+  .link-display a{max-width:120px;}
+  .link-card-label{width:48px;font-size:0.64rem;}
+  .link-card-input{font-size:0.7rem;padding:3px 6px;}
+  .avatar-bar{gap:10px;padding:10px 12px;}
+  .avatar-circle{width:40px;height:40px;font-size:1.1rem;}
+  .avatar-name{font-size:0.62rem;max-width:50px;}
+  .avatar-bar-label{font-size:0.72rem;}
+  .tlib-section{padding:10px 12px;}
+  .tlib-item{flex-wrap:wrap;gap:6px;padding:8px;}
+  .tlib-item-title{font-size:0.78rem;min-width:100%;}
+  .tlib-remind-toggle{font-size:0.65rem;}
+  .tlib-add-btn{font-size:0.78rem;padding:8px 14px;}
+}
+</style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<div class="container">
+  <div class="header">
+    <h1>業務基礎訓練項目檢核表</h1>
+    <div class="sub">演練成績單 — 逐項訓練、逐步成長</div>
+  </div>
+
+  <!-- 新人頭像選擇列 -->
+  <div class="avatar-bar" id="avatarBar"></div>
+
+  <div class="section-label">📋 演練成績單</div>
+
+  <div class="toolbar">
+    <button class="save-btn" onclick="saveAll()">💾 儲存</button>
+    <button onclick="addChapter()">＋ 新增章節</button>
+    <button onclick="resetAll()">🔄 重置</button>
+    <button onclick="exportCSV()">📥 匯出 CSV</button>
+    <span class="autosave-label" id="autosaveLabel">尚未儲存</span>
+  </div>
+
+  <!-- 訓練教材庫 -->
+  <div class="tlib-section">
+    <div class="tlib-title">📚 訓練教材庫 <span style="font-size:0.72rem;color:#6a7faa;font-weight:400;">管理最新訓練教材連結</span></div>
+    <div class="tlib-list" id="tlibList"></div>
+    <button class="tlib-add-btn" onclick="tlibAdd()">＋ 新增教材</button>
+  </div>
+
+  <div style="overflow-x:auto;border-radius:12px;">
+    <table class="score-table" id="mainTable">
+      <thead>
+        <tr>
+          <th style="width:60px;">章節</th>
+          <th style="width:130px;">訓練主題</th>
+          <th style="width:70px;"></th>
+          <th style="width:80px;">引發興趣<span class="pts">滿分 20</span></th>
+          <th style="width:80px;">話術內容掌握<span class="pts">滿分 50</span></th>
+          <th style="width:80px;">深構互動性<span class="pts">滿分 20</span></th>
+          <th style="width:80px;">時間掌握<span class="pts">滿分 10</span></th>
+          <th style="width:80px;">總分<span class="pts">滿分 100</span></th>
+          <th style="width:100px;">評核人簽名</th>
+          <th style="width:110px;">評核日期</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BASE_KEY = 'training_sales_v2';
+const _cachedCharId = localStorage.getItem('activeCharacterId');
+function getSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+BASE_KEY:BASE_KEY;}
+const OLD_KEY = 'training_sales_v1';
+function getOldSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+OLD_KEY:OLD_KEY;}
+
+const AVATARS = ['👤','👩','👨','🧑','👩‍💼','👨‍💼','🧑‍🎓','👩‍🏫','👨‍🏫'];
+const MAX_PEOPLE = 4;
+
+function createDefaultChapters(){
+  return Array.from({length:12},(_,i)=>({
+    id: i+1, name: '', links: [],
+    drills: [
+      {label:'演練1', scores:[0,0,0,0], evaluator:'', date:''},
+      {label:'演練2', scores:[0,0,0,0], evaluator:'', date:''},
+      {label:'演練3', scores:[0,0,0,0], evaluator:'', date:''}
+    ]
+  }));
+}
+
+function createPerson(name){
+  return { name: name||'', avatar: '👤', chapters: createDefaultChapters() };
+}
+
+// ===== 資料結構 =====
+// store = { people: [{name, avatar, chapters:[...]}], currentIdx: 0 }
+let store = { people: [], currentIdx: 0 };
+let chapters = []; // 指向當前人的 chapters
+
+function init(){
+  let loaded = false;
+  // 嘗試載入 v2
+  const raw = localStorage.getItem(getSK());
+  if(raw){
+    try{
+      const parsed = JSON.parse(raw);
+      if(parsed && parsed.people){
+        store = parsed;
+        loaded = true;
+      }
+    }catch(e){}
+  }
+  // v2 沒有 → 嘗試遷移 v1 舊資料
+  if(!loaded){
+    const oldRaw = localStorage.getItem(getOldSK());
+    if(oldRaw){
+      try{
+        const oldChapters = JSON.parse(oldRaw);
+        if(Array.isArray(oldChapters)){
+          store = { people: [{ name:'新人1', avatar:'👤', chapters: oldChapters }], currentIdx: 0 };
+          loaded = true;
+        }
+      }catch(e){}
+    }
+  }
+  // 都沒有 → 建立第一位新人
+  if(!loaded || !store.people || store.people.length===0){
+    store = { people: [createPerson('新人1')], currentIdx: 0 };
+  }
+  // 確保 currentIdx 有效
+  if(store.currentIdx >= store.people.length) store.currentIdx = 0;
+  chapters = store.people[store.currentIdx].chapters;
+  renderAvatars();
+  render();
+}
+
+// ===== 頭像列渲染 =====
+function renderAvatars(){
+  const bar = document.getElementById('avatarBar');
+  let html = '<span class="avatar-bar-label">👥 新人驗收</span>';
+
+  store.people.forEach((p, i) => {
+    const active = i === store.currentIdx ? ' active' : '';
+    // 計算進度（已填分數的演練 / 總演練）
+    let filled = 0, total = 0;
+    p.chapters.forEach(ch => {
+      ch.drills.forEach(dr => {
+        total++;
+        const sum = dr.scores.reduce((a,b) => a + (parseFloat(b)||0), 0);
+        if(sum > 0) filled++;
+      });
+    });
+    const pct = total ? Math.round(filled/total*100) : 0;
+
+    html += `<div class="avatar-slot${active}" onclick="switchPerson(${i})" ondblclick="editPersonName(${i})">
+      <div class="avatar-circle">${p.avatar}</div>
+      <div class="avatar-name" title="${escHtml(p.name)}">${escHtml(p.name||'未命名')}</div>
+      <div class="avatar-progress">${pct}%</div>
+    </div>`;
+  });
+
+  // 空位（可新增）
+  for(let i = store.people.length; i < MAX_PEOPLE; i++){
+    html += `<div class="avatar-slot empty" onclick="addPerson()">
+      <div class="avatar-circle">＋</div>
+      <div class="avatar-name">新增新人</div>
+    </div>`;
+  }
+
+  bar.innerHTML = html;
+}
+
+// ===== 切換新人 =====
+function switchPerson(idx){
+  if(idx === store.currentIdx) return;
+  // 儲存目前的 chapters 回 store
+  store.people[store.currentIdx].chapters = chapters;
+  store.currentIdx = idx;
+  chapters = store.people[idx].chapters;
+  renderAvatars();
+  render();
+  scheduleAutoSave();
+  showToast('👤 切換至 ' + (store.people[idx].name || '未命名'));
+}
+
+// ===== 新增新人 =====
+function addPerson(){
+  if(store.people.length >= MAX_PEOPLE){
+    showToast('⚠ 最多 ' + MAX_PEOPLE + ' 位新人');
+    return;
+  }
+  const num = store.people.length + 1;
+  store.people.push(createPerson('新人' + num));
+  switchPerson(store.people.length - 1);
+}
+
+// ===== 編輯新人名稱（雙擊頭像） =====
+function editPersonName(idx){
+  const p = store.people[idx];
+  // 建立 popup
+  const overlay = document.createElement('div');
+  overlay.className = 'name-edit-popup';
+  overlay.id = 'nameEditPopup';
+  overlay.innerHTML = `
+    <div class="name-edit-box">
+      <h3>✏️ 編輯新人資訊</h3>
+      <div style="margin-bottom:10px;font-size:0.78rem;color:#6a7faa;">選擇頭像</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="avatarPicker">
+        ${AVATARS.map(a => `<span style="font-size:1.5rem;cursor:pointer;padding:4px;border-radius:8px;border:2px solid ${a===p.avatar?'#4aeaff':'transparent'};background:${a===p.avatar?'rgba(74,234,255,0.1)':'transparent'};" onclick="pickAvatar('${a}',this)">${a}</span>`).join('')}
+      </div>
+      <input id="nameEditInput" value="${escAttr(p.name)}" placeholder="輸入新人姓名" autofocus>
+      <div class="name-edit-actions">
+        ${store.people.length > 1 ? `<button class="ne-remove" onclick="removePerson(${idx})">🗑 移除</button>` : ''}
+        <button class="ne-cancel" onclick="closeNameEdit()">取消</button>
+        <button class="ne-save" onclick="savePersonName(${idx})">確定</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  // 按 Enter 確定
+  document.getElementById('nameEditInput').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') savePersonName(idx);
+  });
+  // 點背景關閉
+  overlay.addEventListener('click', function(e){
+    if(e.target === overlay) closeNameEdit();
+  });
+}
+
+var _pickedAvatar = null;
+function pickAvatar(emoji, el){
+  _pickedAvatar = emoji;
+  document.querySelectorAll('#avatarPicker span').forEach(s => {
+    s.style.borderColor = 'transparent';
+    s.style.background = 'transparent';
+  });
+  el.style.borderColor = '#4aeaff';
+  el.style.background = 'rgba(74,234,255,0.1)';
+}
+
+function savePersonName(idx){
+  const input = document.getElementById('nameEditInput');
+  if(input) store.people[idx].name = input.value.trim();
+  if(_pickedAvatar){
+    store.people[idx].avatar = _pickedAvatar;
+    _pickedAvatar = null;
+  }
+  closeNameEdit();
+  renderAvatars();
+  scheduleAutoSave();
+}
+
+function removePerson(idx){
+  if(store.people.length <= 1){ showToast('⚠ 至少需要一位新人'); return; }
+  if(!confirm('確定要移除「' + (store.people[idx].name||'未命名') + '」的所有驗收資料？此操作無法復原。')) return;
+  const name = store.people[idx].name;
+  store.people.splice(idx, 1);
+  if(store.currentIdx >= store.people.length) store.currentIdx = store.people.length - 1;
+  if(store.currentIdx < 0) store.currentIdx = 0;
+  chapters = store.people[store.currentIdx].chapters;
+  closeNameEdit();
+  renderAvatars();
+  render();
+  scheduleAutoSave();
+  showToast('🗑 已移除 ' + (name||'未命名'));
+}
+
+function closeNameEdit(){
+  _pickedAvatar = null;
+  const el = document.getElementById('nameEditPopup');
+  if(el) el.remove();
+}
+
+function render(){
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  const totalCols = 10; // 章節 + 訓練主題 + 演練 + 4分數 + 總分 + 評核人 + 日期
+
+  chapters.forEach((ch, ci) => {
+    // 確保 links 陣列存在（舊資料相容）
+    if(!ch.links) ch.links = [];
+
+    ch.drills.forEach((dr, di) => {
+      const tr = document.createElement('tr');
+
+      // 章節（只在第一個演練顯示，rowspan 要包含連結列 → 3 演練 + 1 連結 = 4）
+      let chCell = '';
+      if(di === 0){
+        chCell = `<td rowspan="4" style="font-weight:700;color:#c084fc;font-size:0.9rem;vertical-align:middle;">
+          <input type="text" class="editable" value="${escHtml(ch.id.toString())}" data-ch="${ci}" data-field="id"
+            style="width:40px;text-align:center;font-weight:700;color:#c084fc;background:transparent;border:1px solid rgba(160,100,255,0.15);"
+            oninput="onChapterIdChange(this)">
+        </td>
+        <td rowspan="4" style="vertical-align:middle;">
+          <input type="text" class="editable text-left" value="${escHtml(ch.name)}" placeholder="輸入訓練主題"
+            data-ch="${ci}" data-field="name" oninput="onChapterNameChange(this)">
+        </td>`;
+      }
+
+      // 演練標籤
+      const drillLabel = `<td style="color:#94a3b8;font-size:0.8rem;font-weight:600;">${dr.label}</td>`;
+
+      // 四個分數欄（滿分分別為 20, 50, 20, 10）
+      const MAXS = [20, 50, 20, 10];
+      const scoreCells = dr.scores.map((s,si) => `
+        <td><input type="number" class="editable" min="0" max="${MAXS[si]}" value="${s||''}"
+          data-ch="${ci}" data-dr="${di}" data-si="${si}"
+          oninput="onScoreChange(this,${MAXS[si]})" placeholder="0"></td>
+      `).join('');
+
+      // 總分（直接加總）
+      const total = calcTotal(dr.scores);
+      const totalCell = `<td class="total-cell" id="total_${ci}_${di}">${total}</td>`;
+
+      // 評核人
+      const evalCell = `<td><input type="text" class="editable" value="${escHtml(dr.evaluator)}" placeholder="簽名"
+        data-ch="${ci}" data-dr="${di}" data-field="evaluator" oninput="onDrillFieldChange(this)"></td>`;
+
+      // 日期
+      const dateCell = `<td><input type="date" class="editable" value="${dr.date||''}"
+        data-ch="${ci}" data-dr="${di}" data-field="date" oninput="onDrillFieldChange(this)"
+        style="font-size:0.78rem;"></td>`;
+
+      tr.innerHTML = (di===0 ? chCell : '') + drillLabel + scoreCells + totalCell + evalCell + dateCell;
+      tbody.appendChild(tr);
+    });
+
+    // ── 每個章節最後加一列：Google Drive 連結 ──
+    const linkTr = document.createElement('tr');
+    linkTr.className = 'link-row';
+    // colspan = totalCols - 2（因為章節和主題用 rowspan 佔了 2 欄）
+    const linkColspan = totalCols - 2;
+    let linkHtml = `<td colspan="${linkColspan}"><div class="link-row-inner">`;
+    linkHtml += `<span class="link-row-label">📂 教材連結</span>`;
+
+    // 渲染已有連結
+    ch.links.forEach((lnk, li) => {
+      linkHtml += renderLinkCard(ci, li, lnk);
+    });
+
+    linkHtml += `<button class="lc-btn add-link" onclick="addLink(${ci})">＋ 新增</button>`;
+    linkHtml += `</div></td>`;
+    linkTr.innerHTML = linkHtml;
+    tbody.appendChild(linkTr);
+  });
+}
+
+// ── 連結卡片渲染 ──
+function renderLinkCard(ci, li, lnk){
+  var title = '', url = '';
+  if(typeof lnk === 'string'){ url = lnk; }
+  else if(lnk){ title = lnk.title||''; url = lnk.url||''; }
+  var isEditing = lnk && typeof lnk === 'object' && lnk._editing;
+
+  // 已確定模式：有標題和URL，顯示為精簡連結
+  if(title && url && !isEditing){
+    return `<div class="link-display">
+      <a href="${escAttr(url)}" target="_blank" title="${escAttr(url)}">🔗 ${escHtml(title)}</a>
+      <button class="lc-btn" onclick="editLink(${ci},${li})" style="padding:2px 6px;font-size:0.65rem;">✏️</button>
+      <button class="lc-btn danger" onclick="removeLink(${ci},${li})" style="padding:2px 6px;font-size:0.65rem;">✕</button>
+    </div>`;
+  }
+
+  // 編輯模式
+  var html = `<div class="link-card" id="lc_${ci}_${li}">`;
+  html += `<div class="link-card-row"><span class="link-card-label">連結標題</span>`;
+  html += `<input class="link-card-input lc-title" data-ci="${ci}" data-li="${li}" value="${escAttr(title)}" placeholder="例如：第${ci+1}章教材" oninput="onLinkInput(${ci},${li})"></div>`;
+  html += `<div class="link-card-row"><span class="link-card-label">導向 URL</span>`;
+  html += `<input class="link-card-input lc-url" data-ci="${ci}" data-li="${li}" value="${escAttr(url)}" placeholder="貼上 Google Drive 連結" oninput="onLinkInput(${ci},${li})"></div>`;
+  html += `<div class="link-card-actions">`;
+  if(url){ html += `<a href="${escAttr(url)}" target="_blank">↗ 前往</a>`; }
+  html += `<span style="flex:1;"></span>`;
+  html += `<button class="lc-btn confirm" onclick="confirmLink(${ci},${li})">確定</button>`;
+  html += `<button class="lc-btn danger" onclick="removeLink(${ci},${li})">✕</button>`;
+  html += `</div></div>`;
+  return html;
+}
+
+function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function calcTotal(scores){
+  return scores.reduce((sum, s) => sum + (parseFloat(s)||0), 0);
+}
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function onScoreChange(el, maxVal){
+  const ci=parseInt(el.dataset.ch), di=parseInt(el.dataset.dr), si=parseInt(el.dataset.si);
+  maxVal = maxVal || 100;
+  let v = parseFloat(el.value)||0;
+  if(v>maxVal){v=maxVal; el.value=v;} if(v<0){v=0; el.value=v;}
+  chapters[ci].drills[di].scores[si] = v;
+  // 更新總分
+  const total = calcTotal(chapters[ci].drills[di].scores);
+  const td = document.getElementById(`total_${ci}_${di}`);
+  if(td) td.textContent = total;
+  scheduleAutoSave();
+}
+
+function onChapterIdChange(el){
+  const ci=parseInt(el.dataset.ch);
+  chapters[ci].id = el.value;
+  scheduleAutoSave();
+}
+
+function onChapterNameChange(el){
+  const ci=parseInt(el.dataset.ch);
+  chapters[ci].name = el.value;
+  scheduleAutoSave();
+}
+
+function onDrillFieldChange(el){
+  const ci=parseInt(el.dataset.ch), di=parseInt(el.dataset.dr), field=el.dataset.field;
+  chapters[ci].drills[di][field] = el.value;
+  scheduleAutoSave();
+}
+
+// ── 連結卡片操作 ──
+function collectLinkInputs(ci, li){
+  var titleEl = document.querySelector('.lc-title[data-ci="'+ci+'"][data-li="'+li+'"]');
+  var urlEl = document.querySelector('.lc-url[data-ci="'+ci+'"][data-li="'+li+'"]');
+  if(!titleEl || !urlEl) return null;
+  return {title: titleEl.value.trim(), url: urlEl.value.trim()};
+}
+
+function onLinkInput(ci, li){
+  var vals = collectLinkInputs(ci, li);
+  if(vals){
+    if(!chapters[ci].links) chapters[ci].links = [];
+    while(chapters[ci].links.length <= li) chapters[ci].links.push({title:'', url:''});
+    chapters[ci].links[li] = {title: vals.title, url: vals.url, _editing: true};
+  }
+  scheduleAutoSave();
+}
+
+function addLink(ci){
+  if(!chapters[ci].links) chapters[ci].links = [];
+  chapters[ci].links.push({title:'', url:''});
+  render();
+}
+
+function confirmLink(ci, li){
+  var vals = collectLinkInputs(ci, li);
+  if(vals){
+    chapters[ci].links[li] = {title: vals.title, url: vals.url};
+  }
+  scheduleAutoSave();
+  render();
+}
+
+function editLink(ci, li){
+  var lnk = chapters[ci].links[li];
+  if(lnk && typeof lnk === 'object') lnk._editing = true;
+  render();
+}
+
+function removeLink(ci, li){
+  chapters[ci].links.splice(li, 1);
+  scheduleAutoSave();
+  render();
+}
+
+function addChapter(){
+  const newId = chapters.length + 1;
+  chapters.push({
+    id: newId,
+    name: '',
+    links: [],
+    drills:[
+      {label:'演練1',scores:[0,0,0,0],evaluator:'',date:''},
+      {label:'演練2',scores:[0,0,0,0],evaluator:'',date:''},
+      {label:'演練3',scores:[0,0,0,0],evaluator:'',date:''}
+    ]
+  });
+  render();
+  scheduleAutoSave();
+  showToast('✅ 已新增章節 ' + newId);
+}
+
+function resetAll(){
+  const pName = store.people[store.currentIdx].name || '未命名';
+  if(!confirm('確定要重置「' + pName + '」的所有驗收資料？此操作無法復原。')) return;
+  chapters = createDefaultChapters();
+  store.people[store.currentIdx].chapters = chapters;
+  render();
+  saveAll();
+  showToast('🔄 已重置 ' + pName);
+}
+
+function exportCSV(){
+  const pName = store.people[store.currentIdx].name || '未命名';
+  let csv = '\uFEFF新人,章節,訓練主題,演練,引發興趣,話術內容掌握,深構互動性,時間掌握,總分,評核人簽名,評核日期\n';
+  chapters.forEach(ch=>{
+    ch.drills.forEach(dr=>{
+      const total = calcTotal(dr.scores);
+      csv += `${pName},${ch.id},${ch.name},${dr.label},${dr.scores[0]},${dr.scores[1]},${dr.scores[2]},${dr.scores[3]},${total},${dr.evaluator},${dr.date}\n`;
+    });
+  });
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '業務訓練_' + pName + '_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  showToast('📥 CSV 已匯出（' + pName + '）');
+}
+
+// ── 儲存 / 讀取 ──
+function _prepareStore(){
+  // 確保當前 chapters 同步回 store
+  store.people[store.currentIdx].chapters = chapters;
+  cleanEditingFlags();
+}
+
+function _storeToJSON(){
+  _prepareStore();
+  var copy = JSON.parse(JSON.stringify(store));
+  // 清除所有 _editing 暫存標記
+  copy.people.forEach(p => {
+    p.chapters.forEach(ch => {
+      (ch.links||[]).forEach(lnk => { if(lnk) delete lnk._editing; });
+    });
+  });
+  return JSON.stringify(copy);
+}
+
+function saveAll(){
+  try{
+    localStorage.setItem(getSK(), _storeToJSON());
+    const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('autosaveLabel').textContent = '已儲存：' + t;
+    showToast('💾 已儲存');
+    try{ if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+  }catch(e){
+    showToast('⚠ 儲存失敗：'+e.message);
+  }
+}
+
+let _ast = null;
+function scheduleAutoSave(){
+  clearTimeout(_ast);
+  document.getElementById('autosaveLabel').textContent = '✏️ 編輯中…';
+  _ast = setTimeout(()=>{
+    try{
+      localStorage.setItem(getSK(), _storeToJSON());
+      const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('autosaveLabel').textContent = '✅ 自動儲存：' + t;
+      try{ if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+    }catch(e){
+      document.getElementById('autosaveLabel').textContent = '⚠ 儲存失敗';
+    }
+  }, 800);
+}
+
+window.triggerSave = function(){
+  saveAll();
+};
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ── 儲存前清除 _editing 暫存標記 ──
+function cleanEditingFlags(){
+  store.people.forEach(p => {
+    (p.chapters||[]).forEach(ch => {
+      (ch.links||[]).forEach(lnk => {
+        if(lnk && typeof lnk === 'object') delete lnk._editing;
+      });
+    });
+  });
+}
+
+// ── 頁面離開自動儲存 ──
+function _emergencySave(){
+  try{ localStorage.setItem(getSK(), _storeToJSON()); }catch(e){}
+}
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'hidden') _emergencySave();
+});
+window.addEventListener('beforeunload', _emergencySave);
+window.addEventListener('pagehide', _emergencySave);
+
+// 星空
+(function(){
+  const c=document.getElementById('stars');
+  for(let i=0;i<80;i++){
+    const s=document.createElement('div');
+    s.className='star';
+    const size=Math.random()*2+0.5;
+    s.style.cssText=`width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${Math.random()*3+2}s;animation-delay:${Math.random()*3}s;opacity:${Math.random()*0.5+0.2};`;
+    c.appendChild(s);
+  }
+})();
+
+// ══════ 訓練教材庫 (全域，不分主角) ══════
+const TLIB_KEY = 'appedu_training_library';
+let _tlibData = { items: [] };
+
+function tlibLoad(){
+  try{
+    const raw = localStorage.getItem(TLIB_KEY);
+    if(raw){ const d = JSON.parse(raw); if(d && d.items) _tlibData = d; }
+  }catch(e){}
+  tlibRender();
+}
+
+function tlibSave(){
+  try{
+    localStorage.setItem(TLIB_KEY, JSON.stringify(_tlibData));
+    try{ if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+  }catch(e){}
+}
+
+function tlibRender(){
+  const list = document.getElementById('tlibList');
+  if(!list) return;
+  if(_tlibData.items.length === 0){
+    list.innerHTML = '<div class="tlib-empty">尚未新增任何訓練教材</div>';
+    return;
+  }
+  let html = '';
+  _tlibData.items.forEach((item, idx) => {
+    const remindClass = item.needRemind ? ' active' : '';
+    const checked = item.needRemind ? ' checked' : '';
+    html += `<div class="tlib-item">
+      <div class="tlib-item-title" title="${escAttr(item.title)}">${escHtml(item.title)}</div>
+      <a class="tlib-item-link" href="${escAttr(item.url)}" target="_blank">🔗 開啟</a>
+      <label class="tlib-remind-toggle${remindClass}">
+        <input type="checkbox"${checked} onchange="tlibToggleRemind(${idx},this.checked)">
+        首頁提醒
+      </label>
+      <button class="tlib-del" onclick="tlibRemove(${idx})" title="刪除">✕</button>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+function tlibAdd(){
+  const title = prompt('請輸入訓練教材名稱：');
+  if(!title || !title.trim()) return;
+  const url = prompt('請貼上 Google Drive 連結（URL）：');
+  if(!url || !url.trim()) return;
+  _tlibData.items.push({
+    id: Date.now(),
+    title: title.trim(),
+    url: url.trim(),
+    needRemind: true,
+    createdAt: new Date().toISOString()
+  });
+  tlibSave();
+  tlibRender();
+  showToast('✅ 已新增教材：' + title.trim());
+}
+
+function tlibToggleRemind(idx, val){
+  if(_tlibData.items[idx]){
+    _tlibData.items[idx].needRemind = !!val;
+    tlibSave();
+    tlibRender();
+  }
+}
+
+function tlibRemove(idx){
+  const item = _tlibData.items[idx];
+  if(!item) return;
+  if(!confirm('確定要刪除「' + item.title + '」？')) return;
+  _tlibData.items.splice(idx, 1);
+  tlibSave();
+  tlibRender();
+  showToast('🗑 已刪除教材');
+}
+
+// 讓 parent (首頁) 可以讀取需要提醒的項目
+window.getTrainingReminders = function(){
+  return (_tlibData.items || []).filter(function(it){ return it.needRemind; });
+};
+
+init();
+tlibLoad();
+</script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

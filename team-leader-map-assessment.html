@@ -1,0 +1,3591 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Applaud 組長職能評估地圖</title>
+<style>
+  :root {
+    --green: #1a7a4a;
+    --green-light: #2ea86a;
+    --green-pale: #e6f5ed;
+    --dark: #1a1a2e;
+    --gray: #6b7280;
+    --gray-light: #f3f4f6;
+    --white: #ffffff;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --score-1: #ef4444;
+    --score-2: #f59e0b;
+    --score-3: #84cc16;
+    --score-4: #22c55e;
+    --score-5: #10b981;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, 'Noto Sans TC', 'PingFang TC', sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #0f4c2a 0%, #1a1a2e 50%, #0a2a3a 100%);
+    padding: 32px 24px 24px;
+    text-align: center;
+    border-bottom: 1px solid rgba(30,200,100,0.2);
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(30,200,100,0.15) 0%, transparent 70%);
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    position: relative;
+    letter-spacing: 1px;
+  }
+  .header h1 span {
+    color: #2ea86a;
+  }
+  .header p {
+    margin-top: 8px;
+    color: #94a3b8;
+    font-size: 13px;
+    position: relative;
+  }
+  .badge {
+    display: inline-block;
+    background: rgba(46,168,106,0.2);
+    border: 1px solid rgba(46,168,106,0.4);
+    color: #4ade80;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 20px;
+    margin-top: 8px;
+    position: relative;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 4px;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 10px 8px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab-btn.active {
+    background: #1a7a4a;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(26,122,74,0.4);
+  }
+  .tab-btn:hover:not(.active) {
+    background: rgba(255,255,255,0.08);
+    color: #e2e8f0;
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── CARDS ── */
+  .card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-title .icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  /* ── DIMENSION SCORES ── */
+  .dim-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .dim-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .dim-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .dim-card[data-dim="1"]::before { background: #3b82f6; }
+  .dim-card[data-dim="2"]::before { background: #8b5cf6; }
+  .dim-card[data-dim="3"]::before { background: #f59e0b; }
+  .dim-card[data-dim="4"]::before { background: #ef4444; }
+  .dim-card[data-dim="5"]::before { background: #10b981; }
+  .dim-card[data-dim="6"]::before { background: #ec4899; }
+
+  .dim-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .dim-name {
+    font-weight: 700;
+    font-size: 15px;
+    color: #f1f5f9;
+  }
+  .dim-max {
+    font-size: 12px;
+    color: #64748b;
+  }
+  .score-display {
+    font-size: 28px;
+    font-weight: 800;
+    color: #2ea86a;
+  }
+  .score-display span {
+    font-size: 14px;
+    color: #64748b;
+    font-weight: 400;
+  }
+
+  /* Score slider */
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .score-label { font-size: 12px; color: #94a3b8; width: 70px; flex-shrink: 0; }
+  .slider-wrap { flex: 1; position: relative; }
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.1);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #2ea86a;
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 0 6px rgba(46,168,106,0.5);
+  }
+  .score-val {
+    font-weight: 700;
+    color: #4ade80;
+    font-size: 15px;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── BAR CHART ── */
+  .bar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 50px;
+    align-items: center;
+    gap: 10px;
+  }
+  .bar-label {
+    font-size: 12px;
+    color: #94a3b8;
+    text-align: right;
+  }
+  .bar-track {
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    height: 20px;
+    overflow: hidden;
+    position: relative;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+    min-width: 0%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 6px;
+  }
+  .bar-fill-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    white-space: nowrap;
+  }
+  .bar-pct {
+    font-size: 12px;
+    color: #94a3b8;
+    text-align: right;
+  }
+
+  /* Colors by dim */
+  .bar-fill[data-dim="1"] { background: linear-gradient(90deg, #1d4ed8, #3b82f6); }
+  .bar-fill[data-dim="2"] { background: linear-gradient(90deg, #6d28d9, #8b5cf6); }
+  .bar-fill[data-dim="3"] { background: linear-gradient(90deg, #b45309, #f59e0b); }
+  .bar-fill[data-dim="4"] { background: linear-gradient(90deg, #dc2626, #ef4444); }
+  .bar-fill[data-dim="5"] { background: linear-gradient(90deg, #065f46, #10b981); }
+  .bar-fill[data-dim="6"] { background: linear-gradient(90deg, #9d174d, #ec4899); }
+
+  /* ── TOTAL SCORE ── */
+  .total-card {
+    background: linear-gradient(135deg, rgba(26,122,74,0.3), rgba(46,168,106,0.1));
+    border: 1px solid rgba(46,168,106,0.3);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .total-score-big {
+    font-size: 64px;
+    font-weight: 900;
+    color: #4ade80;
+    line-height: 1;
+  }
+  .total-score-big span {
+    font-size: 24px;
+    color: #64748b;
+    font-weight: 400;
+  }
+  .total-label {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 6px;
+  }
+  .total-grade {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 6px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  /* ── RADAR CHART ── */
+  .radar-container {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+  }
+  .radar-svg {
+    filter: drop-shadow(0 0 20px rgba(46,168,106,0.2));
+  }
+
+  /* ── LEADING INDICATORS TRACKER ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+  }
+  .kpi-label {
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 6px;
+  }
+  .kpi-input {
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: #f1f5f9;
+    font-size: 15px;
+    font-weight: 700;
+    text-align: center;
+    outline: none;
+  }
+  .kpi-input:focus {
+    border-color: #2ea86a;
+    background: rgba(46,168,106,0.1);
+  }
+  .kpi-unit {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+  }
+  .kpi-rate {
+    font-size: 18px;
+    font-weight: 800;
+    margin-top: 4px;
+    padding: 4px 0;
+    border-radius: 4px;
+  }
+
+  /* Funnel */
+  .funnel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin: 20px 0;
+  }
+  .funnel-step {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 500px;
+  }
+  .funnel-bar-wrap {
+    flex: 1;
+    position: relative;
+  }
+  .funnel-bar {
+    height: 36px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    transition: width 0.6s ease;
+    min-width: 60px;
+  }
+  .funnel-bar-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .funnel-info {
+    width: 120px;
+    text-align: left;
+    padding-left: 12px;
+  }
+  .funnel-name {
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .funnel-pct {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .funnel-arrow {
+    text-align: center;
+    color: #64748b;
+    font-size: 16px;
+    margin: 0 auto;
+  }
+
+  /* ── CHECKLIST ── */
+  .checklist-section {
+    margin-bottom: 20px;
+  }
+  .checklist-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .checklist-title .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .check-item:hover { background: rgba(255,255,255,0.06); }
+  .check-item.done { background: rgba(46,168,106,0.08); border-color: rgba(46,168,106,0.2); }
+  .check-box {
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    border: 2px solid #475569;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .check-item.done .check-box {
+    background: #2ea86a;
+    border-color: #2ea86a;
+  }
+  .check-box::after {
+    content: '';
+    display: none;
+    width: 5px; height: 9px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg) translate(-1px, -1px);
+  }
+  .check-item.done .check-box::after { display: block; }
+  .check-text {
+    font-size: 13px;
+    color: #cbd5e1;
+    line-height: 1.4;
+  }
+  .check-item.done .check-text {
+    color: #64748b;
+    text-decoration: line-through;
+  }
+
+  /* Progress ring */
+  .progress-ring-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .progress-ring-text {
+    font-size: 13px;
+    color: #94a3b8;
+  }
+  .progress-ring-text strong {
+    color: #4ade80;
+    font-size: 18px;
+  }
+
+  /* ── NOTES AREA ── */
+  textarea {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 12px;
+    color: #e2e8f0;
+    font-size: 13px;
+    resize: vertical;
+    min-height: 100px;
+    outline: none;
+    font-family: inherit;
+  }
+  textarea:focus {
+    border-color: #2ea86a;
+    background: rgba(46,168,106,0.08);
+  }
+
+  /* ── 備註全螢幕 ── */
+  .note-fs-overlay{
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(15,23,42,0.97);z-index:9999;
+    display:flex;flex-direction:column;
+    animation:noteFsIn 0.2s ease;
+  }
+  @keyframes noteFsIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  .note-fs-header{
+    display:flex;align-items:center;gap:12px;
+    padding:16px 20px;
+    border-bottom:1px solid rgba(46,168,106,0.2);
+    background:rgba(15,30,20,0.8);
+    flex-shrink:0;
+  }
+  .note-fs-title{
+    font-size:15px;font-weight:700;color:#4ade80;flex:1;
+  }
+  .note-fs-close{
+    padding:6px 16px;border-radius:8px;font-size:13px;font-weight:700;
+    background:rgba(46,168,106,0.1);border:1px solid rgba(46,168,106,0.3);
+    color:#4ade80;cursor:pointer;font-family:inherit;
+  }
+  .note-fs-body{flex:1;padding:16px 20px;display:flex;flex-direction:column;}
+  .note-fs-body textarea{
+    flex:1;min-height:0;resize:none;
+    font-size:15px;line-height:1.7;
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(46,168,106,0.15);
+    border-radius:10px;padding:16px;
+  }
+  .note-fs-hint{
+    text-align:center;padding:8px;font-size:11px;color:#475569;flex-shrink:0;
+  }
+  .note-expand-hint{
+    display:inline-block;
+    font-size:11px;color:#e8851e;cursor:pointer;margin-top:4px;
+    background:rgba(232,133,30,0.1);
+    border:1px solid rgba(232,133,30,0.2);
+    border-radius:6px;padding:3px 10px;
+    transition:all 0.2s;
+  }
+  .note-expand-hint:hover{
+    color:#ffa940;
+    background:rgba(232,133,30,0.2);
+    border-color:rgba(232,133,30,0.4);
+  }
+
+  /* ── GLOSSARY ── */
+  .glossary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
+  }
+  .glossary-item {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .glossary-term {
+    font-weight: 700;
+    color: #4ade80;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .glossary-def {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+
+  /* ── EXPORT ── */
+  .export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #1a7a4a;
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .export-btn:hover {
+    background: #2ea86a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(46,168,106,0.4);
+  }
+
+  /* ── TABLE ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    background: rgba(255,255,255,0.08);
+    color: #94a3b8;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: #cbd5e1;
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+
+  /* ── DAILY MEETING FLOW ── */
+  .meeting-flow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 640px) {
+    .meeting-flow { grid-template-columns: 1fr; }
+    .tabs { flex-wrap: wrap; }
+    .tab-btn { flex: none; width: calc(50% - 2px); font-size: 11px; }
+  }
+  .meeting-col {
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .meeting-col.yesterday { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); }
+  .meeting-col.today { background: rgba(46,168,106,0.1); border: 1px solid rgba(46,168,106,0.2); }
+  .meeting-col.tomorrow { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); }
+  .meeting-col-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .meeting-col.yesterday .meeting-col-title { color: #60a5fa; }
+  .meeting-col.today .meeting-col-title { color: #4ade80; }
+  .meeting-col.tomorrow .meeting-col-title { color: #fbbf24; }
+  .meeting-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .meeting-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .meeting-col.yesterday .meeting-dot { color: #60a5fa; }
+  .meeting-col.today .meeting-dot { color: #4ade80; }
+  .meeting-col.tomorrow .meeting-dot { color: #fbbf24; }
+
+  /* ── SCORE GAUGE ── */
+  .gauge-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .gauge-item {
+    text-align: center;
+    flex: 1;
+    min-width: 80px;
+  }
+  .gauge-circle {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    margin: 0 auto 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    position: relative;
+  }
+  .gauge-name {
+    font-size: 11px;
+    color: #64748b;
+  }
+
+  /* ── TIPS ── */
+  .tip {
+    background: rgba(245,158,11,0.08);
+    border-left: 3px solid #f59e0b;
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 13px;
+    color: #fcd34d;
+  }
+  .tip-green {
+    background: rgba(46,168,106,0.08);
+    border-left: 3px solid #2ea86a;
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 13px;
+    color: #86efac;
+  }
+
+  /* ── EDIT CONTROLS ── */
+  .edit-item-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .edit-item-text {
+    flex: 1;
+  }
+  .edit-item-btns {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .edit-item-btns button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+    padding: 2px 4px;
+    color: #94a3b8;
+  }
+  .edit-item-btns button:hover {
+    opacity: 1;
+  }
+  .edit-item-btns button.del-btn:hover {
+    color: #ef4444;
+  }
+  .add-item-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(46,168,106,0.1);
+    border: 1px dashed rgba(46,168,106,0.3);
+    color: #4ade80;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .add-item-btn:hover {
+    background: rgba(46,168,106,0.2);
+    border-style: solid;
+  }
+  .inline-edit {
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(46,168,106,0.4);
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: #e2e8f0;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+  }
+  .inline-edit:focus {
+    border-color: #2ea86a;
+    background: rgba(46,168,106,0.12);
+  }
+  select.inline-edit {
+    cursor: pointer;
+    -webkit-appearance: auto;
+  }
+  td .inline-edit {
+    width: 100%;
+    min-width: 60px;
+  }
+
+  /* ── SAVE BAR ── */
+  .save-bar {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+  }
+  .save-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    color: #e2e8f0;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(8px);
+  }
+  .save-btn:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.3);
+  }
+  .save-btn.primary {
+    background: rgba(46,168,106,0.3);
+    border-color: rgba(46,168,106,0.5);
+    color: #4ade80;
+  }
+  .save-btn.primary:hover {
+    background: rgba(46,168,106,0.5);
+  }
+  .save-btn.danger {
+    background: rgba(239,68,68,0.15);
+    border-color: rgba(239,68,68,0.3);
+    color: #f87171;
+  }
+  .save-btn.danger:hover {
+    background: rgba(239,68,68,0.3);
+  }
+  .save-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-60px);
+    background: #166534;
+    color: #4ade80;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    z-index: 9999;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+  }
+  .save-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .autosave-indicator {
+    font-size: 11px;
+    color: #475569;
+    position: relative;
+    margin-top: 4px;
+    text-align: right;
+  }
+  .autosave-indicator.saved { color: #4ade80; }
+
+  @media (max-width: 640px) {
+    .save-bar {
+      position: static;
+      justify-content: center;
+      margin-top: 12px;
+    }
+  }
+
+  /* ── ROLE SELECTOR ── */
+  .role-selector {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 6px;
+    flex-wrap: wrap;
+  }
+  .role-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 10px 8px;
+    border: 2px solid transparent;
+    background: rgba(255,255,255,0.06);
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.25s;
+    font-family: inherit;
+    text-align: center;
+  }
+  .role-btn:hover:not(.active) {
+    background: rgba(255,255,255,0.12);
+    color: #e2e8f0;
+  }
+  .role-btn.active {
+    background: linear-gradient(135deg, rgba(46,168,106,0.3), rgba(30,100,200,0.25));
+    border-color: #2ea86a;
+    color: #4ade80;
+    box-shadow: 0 0 12px rgba(46,168,106,0.3);
+  }
+  .role-indicator {
+    text-align: center;
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 16px;
+    padding: 6px 0;
+  }
+  .role-indicator span {
+    color: #4ade80;
+    font-weight: 700;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+  /* History and Links Cards */
+  .history-entry {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+
+  .link-card {
+    background: rgba(59,130,246,0.2);
+    border: 1px solid rgba(59,130,246,0.4);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .link-card:hover {
+    background: rgba(59,130,246,0.3);
+    border-color: rgba(59,130,246,0.6);
+  }
+
+  .link-card-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .link-card-remove {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    transition: color 0.2s;
+  }
+
+  .link-card-remove:hover {
+    color: #fca5a5;
+  }
+</style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="save-bar">
+    <button class="save-btn primary" onclick="saveAll()" title="儲存所有設定到瀏覽器">💾 儲存</button>
+    <button class="save-btn" onclick="loadAll()" title="載入上次儲存的設定">📂 載入</button>
+    <button class="save-btn" onclick="exportJSON()" title="匯出為檔案備份">📤 匯出</button>
+    <button class="save-btn" onclick="document.getElementById('importFile').click()" title="從備份檔案匯入">📥 匯入</button>
+    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importJSON(event)">
+    <button class="save-btn danger" onclick="clearSave()" title="清除所有已儲存的資料">🗑️ 清除</button>
+  </div>
+  <h1><span>Applaud</span> 組長職能評估地圖</h1>
+  <p>赫綠設計學院 · 正式六大考評維度 · 領先指標追蹤系統</p>
+  <div class="badge">2026 版本</div>
+  <div class="autosave-indicator" id="autosaveStatus"></div>
+</div>
+<div class="save-toast" id="saveToast">✓ 已儲存</div>
+
+<div class="container">
+
+  <!-- ROLE SELECTOR -->
+  <div class="role-selector" id="roleSelector">
+    <button class="role-btn active" data-role="manager" onclick="switchRole('manager',this)">👔 主管</button>
+    <button class="role-btn" data-role="area_mgr" onclick="switchRole('area_mgr',this)">🏢 區主管</button>
+    <button class="role-btn" data-role="gm" onclick="switchRole('gm',this)">🏛️ 總經理</button>
+    <button class="role-btn" data-role="self" onclick="switchRole('self',this)">📝 自評</button>
+    <button class="role-btn" data-role="peer" onclick="switchRole('peer',this)">🤝 同儕</button>
+    <button class="role-btn" data-role="subordinate" onclick="switchRole('subordinate',this)">👥 部屬</button>
+  </div>
+  <div class="role-indicator" id="roleIndicator">目前身份：<span id="roleLabel">👔 主管</span></div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('assessment')">📊 評估計分</button>
+    <button class="tab-btn" onclick="switchTab('checklist')">✅ 每日清單</button>
+    <button class="tab-btn" onclick="switchTab('glossary')">📖 管理重點提醒</button>
+    <button class="tab-btn" onclick="switchTab('report')">📋 生成報告</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       TAB 1: ASSESSMENT
+  ═══════════════════════════════════════════════ -->
+  <div id="tab-assessment" class="tab-panel active">
+
+    <!-- Total Score -->
+    <div class="total-card">
+      <div style="font-size:13px; color:#64748b; margin-bottom:4px;">總評分</div>
+      <div class="total-score-big" id="totalScore">0<span>/100</span></div>
+      <div class="total-label">六大維度加總</div>
+      <div class="total-grade" id="gradeLabel" style="background:rgba(100,116,139,0.2); color:#94a3b8;">尚未評分</div>
+    </div>
+
+    <!-- Bar Chart Overview -->
+    <div class="card">
+      <div class="card-title">
+        <div class="icon" style="background:rgba(139,92,246,0.2);">📊</div>
+        六大維度一覽
+      </div>
+      <div class="bar-chart" id="barChart">
+        <!-- Generated by JS -->
+      </div>
+    </div>
+
+    <!-- Radar Chart -->
+    <div class="card">
+      <div class="card-title">
+        <div class="icon" style="background:rgba(59,130,246,0.2);">🕸️</div>
+        能力雷達圖
+      </div>
+      <div class="radar-container">
+        <svg class="radar-svg" width="320" height="320" id="radarSvg"><!-- JS --></svg>
+      </div>
+    </div>
+
+    <!-- Dimension Sliders -->
+    <div class="dim-grid" id="dimGrid">
+      <!-- Generated by JS -->
+    </div>
+
+    <!-- Evaluation History & Links -->
+    <div class="card">
+      <div class="card-title">
+        <div class="icon" style="background:rgba(46,168,106,0.2);">📋</div>
+        重新評估紀錄
+      </div>
+
+      <!-- Basic Info Fields -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:16px;">
+        <div>
+          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">姓名</label>
+          <input id="name" type="text" placeholder="輸入組長姓名" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
+        </div>
+        <div>
+          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">組別</label>
+          <input id="group" type="text" placeholder="如：中堰一部A組" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
+        </div>
+        <div>
+          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">評估者</label>
+          <input id="evaluator" type="text" placeholder="主管/HR/自評" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
+        </div>
+        <div>
+          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">評估日期</label>
+          <input id="evaldate" type="date" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
+        </div>
+      </div>
+
+      <!-- New Evaluation Round Button -->
+      <div style="margin-bottom:16px;">
+        <button class="export-btn" onclick="startNewEvalRound()" style="background:#10b981; width:100%;">🔄 進行新一輪評估</button>
+      </div>
+
+      <!-- Drive Links Section -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:13px; color:#94a3b8; margin-bottom:8px; font-weight:600;">簡報 / 檔案連結</div>
+        <div id="driveLinksList" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          <!-- Generated by JS -->
+        </div>
+        <button class="export-btn" onclick="addDriveLink()" style="background:#3b82f6; width:100%;">+ 新增連結</button>
+      </div>
+
+      <!-- Evaluation History -->
+      <div id="evalHistoryContainer" style="margin-top:16px;">
+        <!-- Generated by JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TAB 2 (LEADING INDICATORS) REMOVED -->
+
+  <!-- ═══════════════════════════════════════════════
+       TAB 3: DAILY CHECKLIST
+  ═══════════════════════════════════════════════ -->
+  <div id="tab-checklist" class="tab-panel">
+
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
+      <div class="progress-ring-wrap">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="4"/>
+          <circle cx="24" cy="24" r="20" fill="none" stroke="#2ea86a" stroke-width="4"
+            stroke-dasharray="125.6" stroke-dashoffset="125.6"
+            stroke-linecap="round" transform="rotate(-90 24 24)"
+            id="progressCircle"/>
+        </svg>
+        <div class="progress-ring-text">
+          <strong id="checkCount">0</strong> / <span id="checkTotal">0</span> 完成
+        </div>
+      </div>
+      <button class="export-btn" onclick="resetChecklist()" style="background:#374151; font-size:12px; padding:8px 14px;">重置清單</button>
+    </div>
+
+    <div class="checklist-section">
+      <div class="checklist-title">
+        <div class="dot" style="background:#3b82f6;"></div>每日必做
+      </div>
+      <div id="daily-checks"></div>
+    </div>
+
+    <div class="checklist-section">
+      <div class="checklist-title">
+        <div class="dot" style="background:#8b5cf6;"></div>每週必做
+      </div>
+      <div id="weekly-checks"></div>
+    </div>
+
+    <div class="checklist-section">
+      <div class="checklist-title">
+        <div class="dot" style="background:#f59e0b;"></div>每月必做
+      </div>
+      <div id="monthly-checks"></div>
+    </div>
+
+    <!-- 每日小組會議結構（從會議結構搬過來） -->
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title">
+        <div class="icon" style="background:rgba(46,168,106,0.2);">🗣️</div>
+        每日小組會議結構（昨日 / 今日 / 明日）
+      </div>
+      <div class="meeting-flow">
+        <div class="meeting-col yesterday">
+          <div class="meeting-col-title">📅 昨日（Review）</div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>報到分析（通話量、報到量）</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>績效檢討（個人面率/注冊率）</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>面談放人標準檢視</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>基本盤達成逐人確認</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>繳費方式比率檢視</span></div>
+        </div>
+        <div class="meeting-col today">
+          <div class="meeting-col-title">📌 今日（Plan）</div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>族群+課程反對問題演練</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>今日排程/TA撥打計畫</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>衝班計畫</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>加購計畫</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>各通路話術設計</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>沙盤推演（面談當日）</span></div>
+        </div>
+        <div class="meeting-col tomorrow">
+          <div class="meeting-col-title">🔮 明日（Prepare）</div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>開班迎賓/單元課轉換計畫</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>結業服務計畫</span></div>
+          <div class="meeting-item"><div class="meeting-dot"></div><span>明日報到分配確認</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TAB 4 (MEETING STRUCTURE) REMOVED -->
+
+  <!-- ═══════════════════════════════════════════════
+       TAB 5: GLOSSARY
+  ═══════════════════════════════════════════════ -->
+  <div id="tab-glossary" class="tab-panel">
+    <div class="card">
+      <div class="card-title">
+        <div class="icon" style="background:rgba(46,168,106,0.2);">📖</div>
+        Applaud 管理重點提醒
+      </div>
+      <div class="glossary-grid" id="glossaryGrid"><!-- JS --></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <div class="icon" style="background:rgba(59,130,246,0.2);">📊</div>
+        系統報表查詢路徑
+      </div>
+      <div id="reportPathsTable"></div>
+      <button class="add-item-btn" onclick="addReportPath(event)" style="margin-top:10px;">＋ 新增報表</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <div class="icon" style="background:rgba(245,158,11,0.2);">⚖️</div>
+        領先 vs 落後指標對照
+      </div>
+      <div id="indicatorsTable"></div>
+      <button class="add-item-btn" onclick="addIndicator(event)" style="margin-top:10px;">＋ 新增指標</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       TAB 6: REPORT
+  ═══════════════════════════════════════════════ -->
+  <div id="tab-report" class="tab-panel">
+    <div class="card">
+      <div class="card-title">
+        <div class="icon" style="background:rgba(46,168,106,0.2);">📋</div>
+        評估報告預覽
+      </div>
+      <div id="reportPreview" style="
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 20px;
+        font-size: 13px;
+        line-height: 1.8;
+        color: #cbd5e1;
+        white-space: pre-wrap;
+        font-family: 'Noto Sans TC', monospace;
+        min-height: 300px;
+      ">點擊「生成報告」查看評估結果…</div>
+      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="export-btn" onclick="generateReport()">📋 生成評估報告</button>
+        <button class="export-btn" onclick="copyReport()" style="background:#1e40af;">📋 複製報告文字</button>
+        <button class="export-btn" onclick="printReport()" style="background:#374151;">🖨️ 列印</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <div class="icon" style="background:rgba(245,158,11,0.2);">📝</div>
+        評估筆記 / 主管建議
+      </div>
+      <textarea id="evalNotes" placeholder="在此記錄評估過程中的觀察、具體舉例、改善建議…" style="min-height:150px;" onfocus="stampNoteDate('evalNotes')" oninput="scheduleAutoSave()"></textarea>
+      <div class="note-expand-hint" onclick="openNoteFullscreen('evalNotes', '評估筆記 / 主管建議')">🔍 點擊展開全螢幕編輯</div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════
+
+const DIMS = [
+  { id:1, name:'會議', max:25, color:'#3b82f6',
+    desc:'小組會議（昨/今/明/每月）召開品質與執行力',
+    questions:['是否每日有昨日/今日/明日三段會議？','是否逐一追蹤每個組員的基本盤達成？','每月會議是否有成績單製作＋作戰計畫佈達？'],
+    tips:['若昨日回顧只看整體業績，建議改為逐人基本盤分析（約訪/面談/注冊各別追蹤）','今日沙盤演練可以找成功比例高的組員帶著做，降低時間成本']
+  },
+  { id:2, name:'績效管理', max:30, color:'#8b5cf6',
+    desc:'數據分析能力、問題識別、有效解決方案',
+    questions:['是否能區分領先指標與落後指標？','是否熟悉通路/班務/服務三大類系統報表？','當面談率偏低，是否能具體分析原因並給解法？'],
+    tips:['先看通話量（如果量不夠，其他數據沒有意義）','待追表分類：定期清除不堪、追蹤假帳轉化、重點跟進有溫度的潛力客戶']
+  },
+  { id:3, name:'人員管理', max:15, color:'#f59e0b',
+    desc:'組員狀況掌握、徵員計畫、二照驗收機制',
+    questions:['是否清楚每位組員的強弱項？','二照驗收是否穩定執行（不只是口頭確認）？','目前是否有積極的徵員計畫？'],
+    tips:['二照不只是拍到就好——要看時間戳記、地點、對話截圖，確認行為真的發生','組員異常靜默 = 可能出現隱患，要在早會觀察並主動關心']
+  },
+  { id:4, name:'日常輔導', max:15, color:'#ef4444',
+    desc:'1-on-1心談品質、沙盤演練深度、輔導後行為改變',
+    questions:['心談是否有結構（不只是聊天）？','沙盤演練是否有針對當日具體面談對象設計話術？','輔導後是否有後續驗收機制（隔天行為是否改變）？'],
+    tips:['沙盤推演最低限度：列出今日面談者族群 + 可能的反對問題 + 應對話術演練一遍','心談有效果的關鍵：問對方「你覺得問題在哪」，而不是直接告訴他答案']
+  },
+  { id:5, name:'小組發展', max:10, color:'#10b981',
+    desc:'教育訓練規劃、個別化培育、驗收機制',
+    questions:['訓練是否根據個別組員弱項設計？','是否有月度訓練排程？','訓練後是否有驗收（不只是上完課就算）？'],
+    tips:['業務強但課程不熟的組員：優先安排課程知識訓練（否則面談會被問倒）','課程強但業務弱：先從話術演練入手，配對練習比單向教學更有效']
+  },
+  { id:6, name:'宣誓', max:5, color:'#ec4899',
+    desc:'年度個人/小組發展計畫的具體程度',
+    questions:['是否有年度個人小組發展計畫？','目標是否有具體數字和時間節點？'],
+    tips:['計畫要具體：「提升業績」→「Q1讓3位組員達到每日基本盤穩定6分」']
+  }
+];
+
+const SCORES = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0};
+
+let GLOSSARY = [
+  {term:'基本盤', def:'每日業績基礎分：約訪1分 + 面談1分 + 注冊2分，全部完成＝6分'},
+  {term:'待追表', def:'追蹤潛在客戶狀態的清單，分類為：興趣類別 / 待跟進 / 未報名 / 假帳'},
+  {term:'二照', def:'檢查小組是否完成撥款'},
+  {term:'沙盤推演', def:'面談前和組員演練對話話術的準備動作，針對當日面談對象設計'},
+  {term:'通路', def:'約訪分成ABCD級，主動接觸潛在學員'},
+  {term:'班務', def:'以在學班級為基礎的招生追蹤，針對在學學員的班境'},
+  {term:'展場', def:'展覽/活動現場招生，需準備展場問卷與話術'},
+  {term:'加購', def:'對在學學員進行延伸銷售，推薦下一門課程'},
+  {term:'報未註', def:'已報到面談但尚未注冊的潛在學員，需持續追蹤'},
+  {term:'面談率', def:'面談數 ÷ 報到數 × 100%，衡量面談機會把握能力'},
+  {term:'成功率', def:'注冊數 ÷ 面談數 × 100%，衡量面談話術效果'},
+  {term:'注冊率', def:'注冊數 ÷ 報名數 × 100%，衡量最終轉化率'},
+  {term:'心談', def:'1-on-1 深度輔導談話，需有結構與後續追蹤'},
+  {term:'okbom', def:'組內話術訓練工具/系統，面談前必練'},
+  {term:'抓班', def:'從現有班級中識別潛力加購或升班學員'},
+  {term:'D1-D7', def:'新進人員前7天標準化入職SOP'},
+];
+
+let REPORT_PATHS = [
+  {name:'學院通路績效分析表', path:'通路管理系統 › 報表', purpose:'不選小組，看全院通路狀況'},
+  {name:'承辦通路統計報表', path:'通路管理系統 › 報表', purpose:'各承辦人通路明細'},
+  {name:'通路業績報表', path:'個人工作系統 › 報表 › 營業績效', purpose:'副類別分類，各通路業績一覽'},
+  {name:'個人績效表', path:'個人工作系統 › 報表 › 營業績效', purpose:'個人業績詳細'},
+  {name:'面談紀錄總表', path:'班務管理系統 › 學員設定 › 學員資料區 › 面談紀錄', purpose:'建立面談紀錄、建立總表'},
+  {name:'注冊登記上課統計總表', path:'班務管理系統 › 學員設定 › 學員資料區', purpose:'含別人分的業績，須一起說明'},
+  {name:'個人收支業績', path:'個人工作系統 › 報表 › 營業績效 › 個人收支', purpose:'每月解約案件查詢（繳費狀態還解約）'},
+];
+
+let INDICATORS = [
+  {type:'落後', name:'月業績、月入帳、組別排名', desc:'結果已發生，無法改變，只能作為回顧依據'},
+  {type:'落後', name:'月注冊人數、月退費率', desc:'同上，已成定局'},
+  {type:'領先', name:'每日通話量', desc:'最關鍵！量不夠，一切免談'},
+  {type:'領先', name:'約訪率 = 約訪 ÷ 通話', desc:'話術品質的反映'},
+  {type:'領先', name:'面談率 = 面談 ÷ 報到', desc:'是否有效把報到轉成面談機會'},
+  {type:'領先', name:'成功率 = 注冊 ÷ 面談', desc:'面談話術和壓優惠能力'},
+  {type:'領先', name:'二照完成率', desc:'驗證組員是否真的有在行動'},
+  {type:'領先', name:'待追表健康度', desc:'不穩/假帳比率是否上升？'},
+];
+
+let MEETING_YESTERDAY = ['報到分析（通話量、報到量）','績效檢討（個人面率/注冊率）','面談放人標準檢視','基本盤達成逐人確認','繳費方式比率檢視'];
+let MEETING_TODAY = ['族群+課程反對問題演練','今日排程/TA撥打計畫','衝班計畫','加購計畫','各通路話術設計','沙盤推演（面談當日）'];
+let MEETING_TOMORROW = ['開班迎賓/單元課轉換計畫','結業服務計畫','明日報到分配確認'];
+
+let DAILY_CHECKS = [
+  '面談狀況追蹤（確認今日面談名單）',
+  '更新待追表（新增/更新客戶狀態）',
+  '當日/明日報到分配確認',
+  '電話約訪：通路（陌開）',
+  '電話約訪：班務（服務）',
+  '上課班級名單分析加購機會',
+  '驗收/訓練組員（至少一項）',
+  '調整組員心態，給予適當關心',
+  '核對組員日排程是否落實',
+  '規劃明日排程',
+  '檢查二照（確認行為真實發生）',
+  '面談前沙盤演練',
+  '下班回報主管今日小組狀況',
+  '和主管討論前一日小組需改善的狀況',
+];
+
+let WEEKLY_CHECKS = [
+  '小組週會議召開',
+  '待追表檢視（不堪/假帳/待跟進比率）',
+  '確認本週機會點：面談壓優惠方式及細節',
+  '確認講座/實際報到/隔日檢討',
+  '分享新知識/心靈湯文章給組員',
+  '查看小組績效是否在進度上',
+  '驗收成績/訓練',
+  '面談錄音檢討（挑一個最差的聽）',
+];
+
+let MONTHLY_CHECKS = [
+  '小組月目標設定 + 個人期許調整',
+  '教育訓練月度規劃排程',
+  '小組註冊未消耗追蹤',
+  '上月問題件追蹤（二照/報名費/帳單逾期）',
+  '上月績效成績單製作',
+  '佈達本月作戰計畫',
+  '檢視新開班可上課的舊生/新生排講',
+  '徵員計畫執行',
+  '月度 1-on-1 心談（每位組員）',
+  '小組聚餐安排',
+];
+
+// Initialize custom questions and tips from DIMS defaults
+let customQuestions = {};
+let customTips = {};
+DIMS.forEach(d => {
+  customQuestions[d.id] = [...d.questions];
+  customTips[d.id] = [...d.tips];
+});
+
+// ★ 預設值快照（用於 gatherState 省略未修改的預設清單，節省 localStorage 空間）
+var _DEFAULTS = {
+  dailyChecks: JSON.stringify(DAILY_CHECKS),
+  weeklyChecks: JSON.stringify(WEEKLY_CHECKS),
+  monthlyChecks: JSON.stringify(MONTHLY_CHECKS),
+  glossary: JSON.stringify(GLOSSARY),
+  reportPaths: JSON.stringify(REPORT_PATHS),
+  indicators: JSON.stringify(INDICATORS),
+  meetingYesterday: JSON.stringify(MEETING_YESTERDAY),
+  meetingToday: JSON.stringify(MEETING_TODAY),
+  meetingTomorrow: JSON.stringify(MEETING_TOMORROW),
+  customQuestions: JSON.stringify(customQuestions),
+  customTips: JSON.stringify(customTips)
+};
+
+// State
+let members = [{name:'組員A', yue_tong:0, yue_ban:0, mian:0, zhu:0, cash:0}];
+let checks = {};
+let evalHistory = [];
+let driveLinks = [];
+
+// ════════════════════════════════════════════════
+// EVALUATION HISTORY & DRIVE LINKS
+// ════════════════════════════════════════════════
+function startNewEvalRound() {
+  const confirmed = confirm('確認開始新一輪評估嗎？目前的評估內容將被保存到歷史紀錄。');
+  if (!confirmed) return;
+
+  // 收集當前評估數據
+  const currentEval = {
+    date: document.getElementById('evaldate').value || new Date().toISOString().split('T')[0],
+    scores: {...SCORES},
+    totalScore: Object.values(SCORES).reduce((a,b) => a+(parseInt(b)||0), 0),
+    name: document.getElementById('name').value,
+    group: document.getElementById('group').value,
+    evaluator: document.getElementById('evaluator').value
+  };
+
+  // 計算等級
+  const total = currentEval.totalScore;
+  let grade = '';
+  if (total >= 90) grade = '優秀';
+  else if (total >= 75) grade = '良好';
+  else if (total >= 60) grade = '達標';
+  else if (total >= 40) grade = '待改善';
+  else grade = '需立即提升';
+  currentEval.grade = grade;
+
+  // 保存到歷史
+  evalHistory.push(currentEval);
+
+  // 重置 UI
+  resetForNewRound();
+
+  // 儲存
+  scheduleAutoSave();
+  showToast('✓ 新一輪評估已開始');
+}
+
+function resetForNewRound() {
+  // 重置分數
+  DIMS.forEach(d => { SCORES[d.id] = 0; });
+  // 重置分數滑桿
+  DIMS.forEach(d => {
+    const slider = document.querySelector('.dim-card[data-dim="'+d.id+'"] input[type="range"]');
+    if(slider) {
+      slider.value = 0;
+      updateDim(d.id, 0);
+    }
+  });
+  // 設置今天的日期
+  document.getElementById('evaldate').value = new Date().toISOString().split('T')[0];
+  // 清除評估筆記
+  const evalNotes = document.getElementById('evalNotes');
+  if (evalNotes) evalNotes.value = '';
+  // 清除維度備註
+  DIMS.forEach(d => {
+    const noteEl = document.getElementById('dimNote'+d.id);
+    if (noteEl) noteEl.value = '';
+  });
+  // 更新 UI
+  updateTotal();
+  updateBarChart();
+  updateRadar();
+  // 重建歷史記錄列表
+  buildEvalHistoryUI();
+}
+
+function buildEvalHistoryUI() {
+  const container = document.getElementById('evalHistoryContainer');
+  if (!container) return;
+
+  if (evalHistory.length === 0) {
+    container.innerHTML = '<div style="color:#64748b; font-size:12px;">暫無評估歷史</div>';
+    return;
+  }
+
+  let html = '<div style="font-size:13px; color:#94a3b8; margin-bottom:8px; font-weight:600;">歷史評估記錄</div>';
+  evalHistory.forEach((entry, idx) => {
+    const scoreDisplay = Object.values(entry.scores).map(s => parseInt(s)||0).join(' + ');
+    html += `<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:600; color:#f1f5f9;">📅 ${entry.date}</div>
+          <div style="font-size:12px; color:#94a3b8; margin-top:4px;">${entry.name || '（未命名）'} • ${entry.group || '（未設定組別）'}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:14px; font-weight:600; color:#4ade80;">${entry.totalScore}/100</div>
+          <div style="font-size:11px; color:#64748b; margin-top:2px;">${entry.grade}</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function addDriveLink() {
+  const url = prompt('輸入 Google Drive 連結 URL：');
+  if (!url || !url.trim()) return;
+
+  const title = prompt('輸入連結標題：') || '新連結';
+  if (!title.trim()) return;
+
+  driveLinks.push({ title: title.trim(), url: url.trim() });
+  buildDriveLinkUI();
+  scheduleAutoSave();
+  showToast('✓ 已新增連結');
+}
+
+function buildDriveLinkUI() {
+  const container = document.getElementById('driveLinksList');
+  if (!container) return;
+
+  if (driveLinks.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+  driveLinks.forEach((link, idx) => {
+    html += `<div style="background:rgba(59,130,246,0.2); border:1px solid rgba(59,130,246,0.4); border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:8px; flex:1; min-width:150px; cursor:pointer;" onclick="window.open('${link.url.replace(/'/g, "\\'")}', '_blank');">
+      <span style="font-size:16px;">📎</span>
+      <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${link.title}</span>
+      <button style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; padding:0;" onclick="event.stopPropagation(); removeDriveLink(${idx});">✕</button>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function removeDriveLink(idx) {
+  driveLinks.splice(idx, 1);
+  buildDriveLinkUI();
+  scheduleAutoSave();
+  showToast('✓ 連結已移除');
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+window.onload = function() {
+  // ★ 頁面載入時清理舊的 _roleSnap_ 備份（回收空間）
+  try{
+    var keysToClean = [];
+    for(var i=0; i<localStorage.length; i++){
+      var k = localStorage.key(i);
+      if(k && k.indexOf('_roleSnap_') === 0) keysToClean.push(k);
+    }
+    if(keysToClean.length > 0){
+      keysToClean.forEach(function(k){ localStorage.removeItem(k); });
+      console.log('[init] 清理舊 roleSnap 備份:', keysToClean.length, '筆');
+    }
+  }catch(e){}
+  migrateOldData();
+  document.getElementById('evaldate').value = new Date().toISOString().split('T')[0];
+  buildDimGrid();
+  buildBarChart();
+  buildRadar();
+  buildScorecard();
+  buildFunnel();
+  buildChannelCards();
+  buildChecklist();
+  buildGlossary();
+  buildReportPaths();
+  buildIndicators();
+  buildDriveLinkUI();
+  buildEvalHistoryUI();
+  updateFunnel();
+
+  // 載入已儲存的資料（預設角色 manager）
+  try{
+    var raw = localStorage.getItem(getSK());
+    // ★ 如果主資料不存在但有備份，自動恢復
+    if(!raw){
+      var bakKey = '_bak_' + getSK().replace(ROLE_SUFFIXES[currentRole],'');
+      // 嘗試恢復各角色的備份
+      var baseK = _cachedCharId!=null ? 'char_'+_cachedCharId+'_'+BASE_KEY : BASE_KEY;
+      var bakRaw = localStorage.getItem('_bak_'+baseK+ROLE_SUFFIXES[currentRole]);
+      if(bakRaw){
+        raw = bakRaw;
+        localStorage.setItem(getSK(), bakRaw); // 恢復到正式 key
+        console.log('[init] recovered from backup for', getSK());
+      }
+    }
+    if(raw){
+      var state = JSON.parse(raw);
+      applyState(state);
+    }
+  }catch(e){}
+
+  // ★ 崩潰恢復：檢查是否有比 localStorage 更新的草稿
+  _tryRecoverDraft();
+
+  updateTotal();
+  updateBarChart();
+  updateRadar();
+};
+
+// ════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ════════════════════════════════════════════════
+// DIMENSION GRID
+// ════════════════════════════════════════════════
+function buildDimGrid() {
+  // ★ 重建 DOM 前，先保存所有 dimNote + 分數，避免遺失
+  const _savedNotes = {};
+  const _savedScores = {};
+  DIMS.forEach(d => {
+    const noteEl = document.getElementById('dimNote'+d.id);
+    if(noteEl && noteEl.value) _savedNotes[d.id] = noteEl.value;
+    _savedScores[d.id] = SCORES[d.id] || 0;
+  });
+
+  const grid = document.getElementById('dimGrid');
+  grid.innerHTML = DIMS.map(d => {
+    const questions = customQuestions[d.id] || d.questions;
+    const tips = customTips[d.id] || d.tips;
+    return `
+      <div class="dim-card" data-dim="${d.id}">
+        <div class="dim-header">
+          <div>
+            <div class="dim-name">${d.id}. ${d.name}</div>
+            <div style="font-size:11px; color:#64748b; margin-top:2px;">${d.desc}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="score-display" id="dimScore${d.id}">0<span>/${d.max}</span></div>
+          </div>
+        </div>
+        <div class="score-row">
+          <div class="score-label" style="font-size:11px; color:#64748b;">得分</div>
+          <div class="slider-wrap">
+            <input type="range" min="0" max="${d.max}" value="0"
+              oninput="updateDim(${d.id}, this.value)"
+              style="accent-color:${d.color};">
+          </div>
+          <div class="score-val" id="dimVal${d.id}">0</div>
+        </div>
+        <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.07); padding-top:12px;">
+          <div style="font-size:11px; color:#475569; margin-bottom:6px;">評估重點</div>
+          <div id="dimQuestions${d.id}">
+            ${questions.map((q, qi) => `
+              <div class="edit-item-row" data-question-idx="${qi}">
+                <div class="edit-item-text" style="font-size:12px; color:#64748b;">• ${q}</div>
+                <div class="edit-item-btns">
+                  <button class="edit-btn" title="編輯" onclick="startEditQuestion(${d.id}, ${qi}, event)">✏️</button>
+                  <button class="del-btn" title="刪除" onclick="deleteQuestion(${d.id}, ${qi}, event)">✕</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <button class="add-item-btn" onclick="addQuestion(${d.id}, event)">+ 新增評估重點</button>
+        </div>
+        <div style="margin-top:10px;">
+          <div style="font-size:11px; color:#475569; margin-bottom:6px;">輔導建議</div>
+          <div id="dimTips${d.id}">
+            ${tips.map((t, ti) => `
+              <div class="edit-item-row" data-tip-idx="${ti}" style="margin-bottom:6px;">
+                <div class="edit-item-text" style="font-size:11px; color:#2ea86a; background:rgba(46,168,106,0.08); border-radius:4px; padding:6px 8px;">💡 ${t}</div>
+                <div class="edit-item-btns">
+                  <button class="edit-btn" title="編輯" onclick="startEditTip(${d.id}, ${ti}, event)">✏️</button>
+                  <button class="del-btn" title="刪除" onclick="deleteTip(${d.id}, ${ti}, event)">✕</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <button class="add-item-btn" onclick="addTip(${d.id}, event)">+ 新增輔導建議</button>
+        </div>
+        <div style="margin-top:10px;">
+          <label style="font-size:11px; color:#475569;">備註</label>
+          <textarea id="dimNote${d.id}" placeholder="記錄具體情況…" style="min-height:60px; margin-top:4px; font-size:12px;" onfocus="stampNoteDate('dimNote${d.id}')" oninput="scheduleAutoSave()"></textarea>
+          <div class="note-expand-hint" onclick="openNoteFullscreen('dimNote${d.id}', '${d.name} — 備註')">🔍 點擊展開全螢幕編輯</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // ★ 重建 DOM 後，還原備註和分數
+  DIMS.forEach(d => {
+    // 還原備註
+    if(_savedNotes[d.id] != null){
+      const noteEl = document.getElementById('dimNote'+d.id);
+      if(noteEl) noteEl.value = _savedNotes[d.id];
+    }
+    // 還原分數滑桿
+    const score = _savedScores[d.id] || 0;
+    const slider = document.querySelector(`.dim-card[data-dim="${d.id}"] input[type="range"]`);
+    if(slider){ slider.value = score; }
+    const scoreEl = document.getElementById('dimScore'+d.id);
+    if(scoreEl) scoreEl.innerHTML = score + `<span>/${d.max}</span>`;
+    const valEl = document.getElementById('dimVal'+d.id);
+    if(valEl) valEl.textContent = score;
+  });
+}
+
+function startEditQuestion(dimId, qIdx, event) {
+  event?.stopPropagation();
+  const container = document.querySelector(`#dimQuestions${dimId} [data-question-idx="${qIdx}"]`);
+  if (!container) return;
+
+  const text = customQuestions[dimId][qIdx];
+  container.innerHTML = `
+    <input type="text" class="inline-edit" value="${text.replace(/"/g, '&quot;')}" placeholder="編輯評估重點..." onkeydown="handleDimKeydown(event, ${dimId}, 'q', ${qIdx})" style="flex:1;">
+    <div class="edit-item-btns">
+      <button onclick="saveEditQuestion(${dimId}, ${qIdx}, event)" title="保存">💾</button>
+      <button onclick="cancelEditQuestion(${dimId}, event)" title="取消">❌</button>
+    </div>
+  `;
+  container.querySelector('input').focus();
+}
+
+function handleDimKeydown(event, dimId, type, idx) {
+  if (event.key === 'Enter') {
+    if (type === 'q') saveEditQuestion(dimId, idx, event);
+    else if (type === 't') saveEditTip(dimId, idx, event);
+  }
+  if (event.key === 'Escape') {
+    if (type === 'q') cancelEditQuestion(dimId, event);
+    else if (type === 't') cancelEditTip(dimId, event);
+  }
+  event.stopPropagation();
+}
+
+function saveEditQuestion(dimId, qIdx, event) {
+  event?.stopPropagation();
+  const container = document.querySelector(`#dimQuestions${dimId} [data-question-idx="${qIdx}"]`);
+  const input = container?.querySelector('input');
+  if (input && input.value.trim()) {
+    customQuestions[dimId][qIdx] = input.value.trim();
+    buildDimGrid();
+    scheduleAutoSave();
+  }
+}
+
+function cancelEditQuestion(dimId, event) {
+  event?.stopPropagation();
+  buildDimGrid();
+}
+
+function deleteQuestion(dimId, qIdx, event) {
+  event?.stopPropagation();
+  if (!confirm('確定要刪除此評估重點嗎？')) return;
+  customQuestions[dimId].splice(qIdx, 1);
+  buildDimGrid();
+  scheduleAutoSave();
+}
+
+function addQuestion(dimId, event) {
+  event?.stopPropagation();
+  if (!customQuestions[dimId]) customQuestions[dimId] = [];
+  customQuestions[dimId].push('');
+  buildDimGrid();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll(`#dimQuestions${dimId} input.inline-edit`);
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  }, 0);
+}
+
+function startEditTip(dimId, tIdx, event) {
+  event?.stopPropagation();
+  const container = document.querySelector(`#dimTips${dimId} [data-tip-idx="${tIdx}"]`);
+  if (!container) return;
+
+  const text = customTips[dimId][tIdx];
+  container.innerHTML = `
+    <input type="text" class="inline-edit" value="${text.replace(/"/g, '&quot;')}" placeholder="編輯輔導建議..." onkeydown="handleDimKeydown(event, ${dimId}, 't', ${tIdx})" style="flex:1;">
+    <div class="edit-item-btns">
+      <button onclick="saveEditTip(${dimId}, ${tIdx}, event)" title="保存">💾</button>
+      <button onclick="cancelEditTip(${dimId}, event)" title="取消">❌</button>
+    </div>
+  `;
+  container.querySelector('input').focus();
+}
+
+function saveEditTip(dimId, tIdx, event) {
+  event?.stopPropagation();
+  const container = document.querySelector(`#dimTips${dimId} [data-tip-idx="${tIdx}"]`);
+  const input = container?.querySelector('input');
+  if (input && input.value.trim()) {
+    customTips[dimId][tIdx] = input.value.trim();
+    buildDimGrid();
+    scheduleAutoSave();
+  }
+}
+
+function cancelEditTip(dimId, event) {
+  event?.stopPropagation();
+  buildDimGrid();
+}
+
+function deleteTip(dimId, tIdx, event) {
+  event?.stopPropagation();
+  if (!confirm('確定要刪除此輔導建議嗎？')) return;
+  customTips[dimId].splice(tIdx, 1);
+  buildDimGrid();
+  scheduleAutoSave();
+}
+
+function addTip(dimId, event) {
+  event?.stopPropagation();
+  if (!customTips[dimId]) customTips[dimId] = [];
+  customTips[dimId].push('');
+  buildDimGrid();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll(`#dimTips${dimId} input.inline-edit`);
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  }, 0);
+}
+
+function updateDim(id, val) {
+  val = parseInt(val);
+  SCORES[id] = val;
+  document.getElementById('dimScore'+id).innerHTML = val + `<span>/${DIMS[id-1].max}</span>`;
+  document.getElementById('dimVal'+id).textContent = val;
+  updateTotal();
+  updateBarChart();
+  updateRadar();
+  scheduleAutoSave();
+}
+
+// ── 自動儲存（防抖） ──
+let _autoSaveTimer = null;
+function scheduleAutoSave(){
+  if(_switchingRole) return; // 切換角色期間不存
+  clearTimeout(_autoSaveTimer);
+  _draftSaveNow(); // ★ 立即存草稿到 sessionStorage（無延遲）
+  _autoSaveTimer = setTimeout(function(){
+    if(_switchingRole) return;
+    try{
+      var state = gatherState();
+      var json = JSON.stringify(state);
+      var key = getSK();
+      _safeSetItem(key, json);
+      var t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+      updateAutosaveLabel('自動儲存：' + t);
+      _clearDraft();
+    }catch(e){
+      console.error('[autoSave] failed:', e);
+    }
+  }, 800);
+}
+
+// ══════ 草稿即時儲存系統（防崩潰） ══════
+// sessionStorage 速度極快，每次 input 都存，頁面崩潰也不會遺失
+function _getDraftKey(){ return 'DRAFT_' + getSK(); }
+
+function _draftSaveNow(){
+  try{
+    const draft = {
+      ts: Date.now(),
+      role: currentRole,
+      dimNotes: {},
+      evalNotes: '',
+      meetingNotes: '',
+      scores: {...SCORES},
+      name: '', group: '', evaluator: '', evaldate: ''
+    };
+    // 讀取所有備註 textarea
+    DIMS.forEach(function(d){
+      var el = document.getElementById('dimNote'+d.id);
+      if(el) draft.dimNotes[d.id] = el.value;
+    });
+    var en = document.getElementById('evalNotes');
+    if(en) draft.evalNotes = en.value;
+    var mn = document.getElementById('meetingNotes');
+    if(mn) draft.meetingNotes = mn.value;
+    // 基本資訊
+    ['name','group','evaluator','evaldate'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) draft[id] = el.value;
+    });
+    sessionStorage.setItem(_getDraftKey(), JSON.stringify(draft));
+  }catch(e){}
+}
+
+function _clearDraft(){
+  try{ sessionStorage.removeItem(_getDraftKey()); }catch(e){}
+}
+
+// ── 定時完整備份（每 15 秒強制存一次 localStorage） ──
+setInterval(function(){
+  if(_switchingRole) return; // 切換角色期間不存
+  try{
+    var state = gatherState();
+    var json = JSON.stringify(state);
+    var key = getSK();
+    _safeSetItem(key, json);
+    _clearDraft();
+  }catch(e){
+    console.error('[periodicSave] failed:', e);
+  }
+}, 15000);
+
+// ── 崩潰恢復：頁面載入時檢查是否有未儲存的草稿 ──
+function _tryRecoverDraft(){
+  try{
+    var draftRaw = sessionStorage.getItem(_getDraftKey());
+    if(!draftRaw) return false;
+    var draft = JSON.parse(draftRaw);
+    if(!draft || !draft.ts) return false;
+
+    // 比較草稿時間 vs localStorage 已存時間
+    var savedRaw = localStorage.getItem(getSK());
+    var savedTs = 0;
+    if(savedRaw){
+      try{
+        var saved = JSON.parse(savedRaw);
+        if(saved.savedAt) savedTs = new Date(saved.savedAt).getTime();
+      }catch(e){}
+    }
+
+    // 草稿比正式存檔新超過 2 秒才恢復（避免誤判）
+    if(draft.ts > savedTs + 2000){
+      // 恢復草稿內容到 DOM
+      if(draft.role === currentRole){
+        // 恢復備註
+        if(draft.dimNotes){
+          Object.keys(draft.dimNotes).forEach(function(id){
+            var el = document.getElementById('dimNote'+id);
+            if(el && draft.dimNotes[id]) el.value = draft.dimNotes[id];
+          });
+        }
+        if(draft.evalNotes){
+          var en = document.getElementById('evalNotes');
+          if(en) en.value = draft.evalNotes;
+        }
+        if(draft.meetingNotes){
+          var mn = document.getElementById('meetingNotes');
+          if(mn) mn.value = draft.meetingNotes;
+        }
+        // 恢復基本資訊
+        ['name','group','evaluator','evaldate'].forEach(function(id){
+          if(draft[id] != null){
+            var el = document.getElementById(id);
+            if(el) el.value = draft[id];
+          }
+        });
+        // 恢復分數
+        if(draft.scores){
+          Object.keys(draft.scores).forEach(function(k){
+            SCORES[k] = draft.scores[k];
+          });
+        }
+
+        // 立即存入 localStorage 確保恢復的資料不再遺失
+        var state = gatherState();
+        localStorage.setItem(getSK(), JSON.stringify(state));
+        _clearDraft();
+
+        var draftTime = new Date(draft.ts).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        showToast('🔄 已恢復上次未儲存的草稿（' + draftTime + '）');
+        console.log('[crashRecovery] restored draft from', draftTime);
+        return true;
+      }
+    }
+
+    // 草稿已過時，清除
+    _clearDraft();
+  }catch(e){
+    console.error('[crashRecovery] error:', e);
+  }
+  return false;
+}
+
+function updateTotal() {
+  const total = Object.values(SCORES).reduce((a,b) => a+b, 0);
+  document.getElementById('totalScore').innerHTML = total + '<span>/100</span>';
+  const gl = document.getElementById('gradeLabel');
+  if (total >= 90) { gl.textContent = '🏆 優秀 Excellent'; gl.style.background = 'rgba(16,185,129,0.2)'; gl.style.color = '#4ade80'; }
+  else if (total >= 75) { gl.textContent = '✅ 良好 Good'; gl.style.background = 'rgba(59,130,246,0.2)'; gl.style.color = '#60a5fa'; }
+  else if (total >= 60) { gl.textContent = '📈 達標 Pass'; gl.style.background = 'rgba(245,158,11,0.2)'; gl.style.color = '#fbbf24'; }
+  else if (total >= 40) { gl.textContent = '⚠️ 待改善'; gl.style.background = 'rgba(239,68,68,0.15)'; gl.style.color = '#f87171'; }
+  else { gl.textContent = '🔴 需立即提升'; gl.style.background = 'rgba(239,68,68,0.2)'; gl.style.color = '#ef4444'; }
+}
+
+// ════════════════════════════════════════════════
+// BAR CHART
+// ════════════════════════════════════════════════
+function buildBarChart() {
+  const el = document.getElementById('barChart');
+  el.innerHTML = DIMS.map(d => `
+    <div class="bar-row">
+      <div class="bar-label">${d.name}（${d.max}）</div>
+      <div class="bar-track">
+        <div class="bar-fill" data-dim="${d.id}" id="barFill${d.id}" style="width:0%;">
+          <span class="bar-fill-label" id="barFillLabel${d.id}"></span>
+        </div>
+      </div>
+      <div class="bar-pct" id="barPct${d.id}">0%</div>
+    </div>
+  `).join('');
+}
+
+function updateBarChart() {
+  DIMS.forEach(d => {
+    const pct = Math.round(SCORES[d.id] / d.max * 100);
+    const fill = document.getElementById('barFill'+d.id);
+    const pctEl = document.getElementById('barPct'+d.id);
+    if (fill) {
+      fill.style.width = pct + '%';
+      document.getElementById('barFillLabel'+d.id).textContent = SCORES[d.id] > 0 ? SCORES[d.id] : '';
+    }
+    if (pctEl) pctEl.textContent = pct + '%';
+  });
+}
+
+// ════════════════════════════════════════════════
+// RADAR CHART
+// ════════════════════════════════════════════════
+function buildRadar() { updateRadar(); }
+
+function updateRadar() {
+  const svg = document.getElementById('radarSvg');
+  const cx = 160, cy = 160, r = 120;
+  const n = DIMS.length;
+  const angles = DIMS.map((_, i) => (i / n) * 2 * Math.PI - Math.PI/2);
+
+  const gridLines = [0.2, 0.4, 0.6, 0.8, 1.0].map(scale => {
+    const pts = angles.map(a => `${cx + r*scale*Math.cos(a)},${cy + r*scale*Math.sin(a)}`).join(' ');
+    return `<polygon points="${pts}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+  }).join('');
+
+  const axisLines = angles.map(a =>
+    `<line x1="${cx}" y1="${cy}" x2="${cx + r*Math.cos(a)}" y2="${cy + r*Math.sin(a)}" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>`
+  ).join('');
+
+  const scorePoints = DIMS.map((d, i) => {
+    const pct = SCORES[d.id] / d.max;
+    return `${cx + r*pct*Math.cos(angles[i])},${cy + r*pct*Math.sin(angles[i])}`;
+  }).join(' ');
+
+  const labels = DIMS.map((d, i) => {
+    const lx = cx + (r + 20) * Math.cos(angles[i]);
+    const ly = cy + (r + 20) * Math.sin(angles[i]);
+    return `<text x="${lx}" y="${ly + 4}" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="sans-serif">${d.name}</text>`;
+  }).join('');
+
+  svg.innerHTML = gridLines + axisLines + labels +
+    `<polygon points="${scorePoints}" fill="rgba(46,168,106,0.25)" stroke="#2ea86a" stroke-width="2"/>` +
+    DIMS.map((d, i) => {
+      const pct = SCORES[d.id] / d.max;
+      const px = cx + r*pct*Math.cos(angles[i]);
+      const py = cy + r*pct*Math.sin(angles[i]);
+      return `<circle cx="${px}" cy="${py}" r="4" fill="${d.color}" stroke="#1a1a2e" stroke-width="2"/>`;
+    }).join('');
+}
+
+// ════════════════════════════════════════════════
+// SCORECARD
+// ════════════════════════════════════════════════
+function buildScorecard() {
+  const tbody = document.getElementById('scorecardBody');
+  if (!tbody) return;
+  tbody.innerHTML = members.map((m, i) => {
+    const pts = Math.min(1, m.yue_tong + m.yue_ban) + Math.min(1, m.mian) + Math.min(2, m.zhu * 2);
+    const reached = pts >= 6;
+    return `
+      <tr>
+        <td><input type="text" value="${m.name}" onchange="members[${i}].name=this.value" style="background:transparent; border:none; color:#f1f5f9; font-size:13px; width:80px; outline:none;"></td>
+        <td><input type="number" value="${m.yue_tong}" min="0" onchange="members[${i}].yue_tong=+this.value; buildScorecard()" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#f1f5f9; width:50px; padding:4px; text-align:center; outline:none;"></td>
+        <td><input type="number" value="${m.yue_ban}" min="0" onchange="members[${i}].yue_ban=+this.value; buildScorecard()" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#f1f5f9; width:50px; padding:4px; text-align:center; outline:none;"></td>
+        <td><input type="number" value="${m.mian}" min="0" onchange="members[${i}].mian=+this.value; buildScorecard()" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#f1f5f9; width:50px; padding:4px; text-align:center; outline:none;"></td>
+        <td><input type="number" value="${m.zhu}" min="0" onchange="members[${i}].zhu=+this.value; buildScorecard()" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#f1f5f9; width:50px; padding:4px; text-align:center; outline:none;"></td>
+        <td><input type="number" value="${m.cash}" min="0" onchange="members[${i}].cash=+this.value" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#f1f5f9; width:80px; padding:4px; text-align:center; outline:none;"></td>
+        <td style="font-weight:700; color:${pts>=6?'#4ade80':pts>=4?'#fbbf24':'#f87171'};">${pts}/6</td>
+        <td>${reached ? '✅' : '❌'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function addMember() {
+  members.push({name:`組員${String.fromCharCode(65+members.length)}`, yue_tong:0, yue_ban:0, mian:0, zhu:0, cash:0});
+  buildScorecard();
+}
+
+function clearMembers() {
+  members = [{name:'組員A', yue_tong:0, yue_ban:0, mian:0, zhu:0, cash:0}];
+  buildScorecard();
+}
+
+// ════════════════════════════════════════════════
+// FUNNEL
+// ════════════════════════════════════════════════
+function buildFunnel() { updateFunnel(); }
+
+const FUNNEL_COLORS = ['#3b82f6','#6366f1','#8b5cf6','#a855f7','#ec4899'];
+const FUNNEL_NAMES = ['通話量','約訪量','面談數','報名數','注冊數'];
+const FUNNEL_IDS = ['f1','f2','f3','f4','f5'];
+
+function updateFunnel() {
+  if (!document.getElementById('f1')) return;
+  const vals = FUNNEL_IDS.map(id => parseInt(document.getElementById(id).value)||0);
+  const max = Math.max(...vals, 1);
+
+  const funnelEl = document.getElementById('funnelViz');
+  funnelEl.innerHTML = '';
+
+  vals.forEach((v, i) => {
+    const pct = Math.round(v / max * 100);
+    const row = document.createElement('div');
+    row.className = 'funnel-step';
+    const convPct = i > 0 && vals[i-1] > 0 ? Math.round(v / vals[i-1] * 100) : 100;
+    row.innerHTML = `
+      <div class="funnel-bar-wrap">
+        <div class="funnel-bar" style="width:${Math.max(pct,5)}%; background:${FUNNEL_COLORS[i]};">
+          <span class="funnel-bar-label">${v}</span>
+        </div>
+      </div>
+      <div class="funnel-info">
+        <div class="funnel-name">${FUNNEL_NAMES[i]}</div>
+        <div class="funnel-pct" style="color:${FUNNEL_COLORS[i]};">${i>0 ? convPct+'%' : '—'}</div>
+      </div>
+    `;
+    funnelEl.appendChild(row);
+    if (i < vals.length - 1) {
+      const arrow = document.createElement('div');
+      arrow.className = 'funnel-arrow';
+      arrow.textContent = '↓';
+      funnelEl.appendChild(arrow);
+    }
+  });
+
+  // Rate cards
+  const rateCards = document.getElementById('rateCards');
+  const rates = [
+    {label:'約訪率', val: vals[0]>0 ? (vals[1]/vals[0]*100).toFixed(1) : '-', sub:'約訪 ÷ 通話', color:'#6366f1'},
+    {label:'面談率', val: vals[1]>0 ? (vals[2]/vals[1]*100).toFixed(1) : '-', sub:'面談 ÷ 約訪', color:'#8b5cf6'},
+    {label:'成功率', val: vals[2]>0 ? (vals[3]/vals[2]*100).toFixed(1) : '-', sub:'報名 ÷ 面談', color:'#a855f7'},
+    {label:'注冊率', val: vals[3]>0 ? (vals[4]/vals[3]*100).toFixed(1) : '-', sub:'注冊 ÷ 報名', color:'#ec4899'},
+  ];
+  rateCards.innerHTML = rates.map(r => `
+    <div class="kpi-card">
+      <div class="kpi-label">${r.label}</div>
+      <div class="kpi-rate" style="color:${r.color};">${r.val === '-' ? '—' : r.val+'%'}</div>
+      <div class="kpi-unit">${r.sub}</div>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════════════
+// CHANNEL CARDS
+// ════════════════════════════════════════════════
+function buildChannelCards() {
+  if (!document.getElementById('channelCards')) return;
+  const channels = [
+    {name:'通路（陌開）', icon:'📞', color:'#3b82f6', fields:['calls','appts','consults']},
+    {name:'班務（班境）', icon:'🏫', color:'#10b981', fields:['class_leads','class_appts','class_consults']},
+    {name:'展場（活動）', icon:'🎪', color:'#f59e0b', fields:['event_leads','event_appts','event_consults']},
+  ];
+  document.getElementById('channelCards').innerHTML = channels.map(c => `
+    <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:14px;">
+      <div style="font-size:14px; font-weight:700; color:${c.color}; margin-bottom:10px;">${c.icon} ${c.name}</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+        <div>
+          <div style="font-size:10px; color:#64748b;">通話/來源</div>
+          <input type="number" value="0" min="0" style="width:100%; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#f1f5f9; padding:4px; text-align:center; outline:none; font-size:13px; font-weight:700;">
+        </div>
+        <div>
+          <div style="font-size:10px; color:#64748b;">約訪/預約</div>
+          <input type="number" value="0" min="0" style="width:100%; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#f1f5f9; padding:4px; text-align:center; outline:none; font-size:13px; font-weight:700;">
+        </div>
+        <div>
+          <div style="font-size:10px; color:#64748b;">面談/注冊</div>
+          <input type="number" value="0" min="0" style="width:100%; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:4px; color:#f1f5f9; padding:4px; text-align:center; outline:none; font-size:13px; font-weight:700;">
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════════════
+// CHECKLIST
+// ════════════════════════════════════════════════
+function buildChecklist() {
+  renderChecks('daily-checks', DAILY_CHECKS, 'daily');
+  renderChecks('weekly-checks', WEEKLY_CHECKS, 'weekly');
+  renderChecks('monthly-checks', MONTHLY_CHECKS, 'monthly');
+  updateCheckProgress();
+}
+
+function renderChecks(containerId, items, prefix) {
+  const el = document.getElementById(containerId);
+  const html = items.map((item, i) => {
+    const key = prefix + '_' + i;
+    const done = checks[key];
+    return `
+      <div class="check-item ${done ? 'done' : ''}" data-check-key="${key}" data-prefix="${prefix}" data-index="${i}">
+        <div class="check-box" onclick="toggleCheck('${key}', event)" style="cursor:pointer;"></div>
+        <div class="check-text" onclick="toggleCheck('${key}', event)" style="flex:1; cursor:pointer;">${item}</div>
+        <div class="edit-item-btns">
+          <button class="edit-btn" title="編輯" onclick="startEditCheck(this, '${prefix}', ${i}, event)">✏️</button>
+          <button class="del-btn" title="刪除" onclick="deleteCheck('${prefix}', ${i}, event)">✕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  el.innerHTML = html + `<button class="add-item-btn" onclick="addCheck('${prefix}', event)">+ 新增項目</button>`;
+}
+
+function toggleCheck(key, event) {
+  event?.stopPropagation();
+  checks[key] = !checks[key];
+  const item = document.querySelector(`[data-check-key="${key}"]`);
+  if (item) item.classList.toggle('done', checks[key]);
+  updateCheckProgress();
+  scheduleAutoSave();
+}
+
+function startEditCheck(btn, prefix, idx, event) {
+  event?.stopPropagation();
+  const item = document.querySelector(`[data-check-key="${prefix}_${idx}"]`);
+  if (!item) return;
+
+  const arr = prefix === 'daily' ? DAILY_CHECKS : prefix === 'weekly' ? WEEKLY_CHECKS : MONTHLY_CHECKS;
+  const text = arr[idx];
+
+  item.innerHTML = `
+    <div class="check-box"></div>
+    <input type="text" class="inline-edit" value="${text.replace(/"/g, '&quot;')}" placeholder="編輯項目..." onkeydown="handleEditKeydown(event, '${prefix}', ${idx})" style="flex:1;">
+    <div class="edit-item-btns">
+      <button onclick="saveEditCheck('${prefix}', ${idx}, event)" title="保存">💾</button>
+      <button onclick="cancelEditCheck('${prefix}', ${idx}, event)" title="取消">❌</button>
+    </div>
+  `;
+  item.querySelector('input').focus();
+}
+
+function handleEditKeydown(event, prefix, idx) {
+  if (event.key === 'Enter') saveEditCheck(prefix, idx, event);
+  if (event.key === 'Escape') cancelEditCheck(prefix, idx, event);
+  event.stopPropagation();
+}
+
+function saveEditCheck(prefix, idx, event) {
+  event?.stopPropagation();
+  const arr = prefix === 'daily' ? DAILY_CHECKS : prefix === 'weekly' ? WEEKLY_CHECKS : MONTHLY_CHECKS;
+  const input = document.querySelector(`[data-check-key="${prefix}_${idx}"] input`);
+  if (input && input.value.trim()) {
+    arr[idx] = input.value.trim();
+    buildChecklist();
+    scheduleAutoSave();
+  }
+}
+
+function cancelEditCheck(prefix, idx, event) {
+  event?.stopPropagation();
+  buildChecklist();
+}
+
+function deleteCheck(prefix, idx, event) {
+  event?.stopPropagation();
+  if (!confirm('確定要刪除此項目嗎？')) return;
+  const arr = prefix === 'daily' ? DAILY_CHECKS : prefix === 'weekly' ? WEEKLY_CHECKS : MONTHLY_CHECKS;
+  arr.splice(idx, 1);
+  // Remove all checks for items after this one and shift
+  const checkKeys = Object.keys(checks).filter(k => k.startsWith(prefix + '_'));
+  checkKeys.forEach(k => {
+    const oldIdx = parseInt(k.split('_')[1]);
+    if (oldIdx === idx) {
+      delete checks[k];
+    } else if (oldIdx > idx) {
+      const newKey = prefix + '_' + (oldIdx - 1);
+      checks[newKey] = checks[k];
+      delete checks[k];
+    }
+  });
+  buildChecklist();
+  updateCheckProgress();
+  scheduleAutoSave();
+}
+
+function addCheck(prefix, event) {
+  event?.stopPropagation();
+  const arr = prefix === 'daily' ? DAILY_CHECKS : prefix === 'weekly' ? WEEKLY_CHECKS : MONTHLY_CHECKS;
+  arr.push('');
+  buildChecklist();
+  // Focus on the last input
+  setTimeout(() => {
+    const lastInput = document.querySelector(`[data-prefix="${prefix}"] .inline-edit`);
+    if (lastInput) {
+      lastInput.focus();
+    } else {
+      const inputs = document.querySelectorAll(`#${prefix === 'daily' ? 'daily-checks' : prefix === 'weekly' ? 'weekly-checks' : 'monthly-checks'} input.inline-edit`);
+      if (inputs.length > 0) inputs[inputs.length - 1].focus();
+    }
+  }, 0);
+}
+
+function updateCheckProgress() {
+  const total = DAILY_CHECKS.length + WEEKLY_CHECKS.length + MONTHLY_CHECKS.length;
+  const done = Object.values(checks).filter(v => v).length;
+  document.getElementById('checkCount').textContent = done;
+  document.getElementById('checkTotal').textContent = total;
+  const circle = document.getElementById('progressCircle');
+  const circumference = 125.6;
+  const offset = circumference * (1 - done / total);
+  circle.style.strokeDashoffset = offset;
+}
+
+function resetChecklist() {
+  checks = {};
+  buildChecklist();
+}
+
+// ════════════════════════════════════════════════
+// GLOSSARY
+// ════════════════════════════════════════════════
+function buildGlossary() {
+  const html = GLOSSARY.map((g, i) => `
+    <div class="glossary-item" data-glossary-idx="${i}">
+      <div class="glossary-term" data-term="${g.term}">${g.term}</div>
+      <div class="glossary-def" data-def="${g.def}">${g.def}</div>
+      <div class="edit-item-btns" style="margin-top:8px;">
+        <button class="edit-btn" title="編輯" onclick="startEditGlossary(${i}, event)">✏️</button>
+        <button class="del-btn" title="刪除" onclick="deleteGlossary(${i}, event)">✕</button>
+      </div>
+    </div>
+  `).join('');
+
+  const container = document.getElementById('glossaryGrid');
+  container.innerHTML = html + `<div style="grid-column:1/-1;"><button class="add-item-btn" onclick="addGlossary(event)">+ 新增詞彙</button></div>`;
+}
+
+function startEditGlossary(idx, event) {
+  event?.stopPropagation();
+  const item = document.querySelector(`[data-glossary-idx="${idx}"]`);
+  if (!item) return;
+
+  const term = item.querySelector('.glossary-term')?.textContent || '';
+  const def = item.querySelector('.glossary-def')?.textContent || '';
+
+  item.innerHTML = `
+    <div style="margin-bottom:8px;">
+      <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">術語</label>
+      <input type="text" class="inline-edit" value="${term.replace(/"/g, '&quot;')}" placeholder="輸入術語..." onkeydown="handleGlossaryKeydown(event, ${idx})" style="margin-bottom:8px;">
+    </div>
+    <div style="margin-bottom:8px;">
+      <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">定義</label>
+      <input type="text" class="inline-edit" value="${def.replace(/"/g, '&quot;')}" placeholder="輸入定義..." onkeydown="handleGlossaryKeydown(event, ${idx})">
+    </div>
+    <div class="edit-item-btns">
+      <button onclick="saveEditGlossary(${idx}, event)" title="保存">💾</button>
+      <button onclick="cancelEditGlossary(${idx}, event)" title="取消">❌</button>
+    </div>
+  `;
+  item.querySelector('input').focus();
+}
+
+function handleGlossaryKeydown(event, idx) {
+  if (event.key === 'Enter') saveEditGlossary(idx, event);
+  if (event.key === 'Escape') cancelEditGlossary(idx, event);
+  event.stopPropagation();
+}
+
+function saveEditGlossary(idx, event) {
+  event?.stopPropagation();
+  const item = document.querySelector(`[data-glossary-idx="${idx}"]`);
+  const inputs = item.querySelectorAll('input');
+  const term = inputs[0]?.value?.trim() || '';
+  const def = inputs[1]?.value?.trim() || '';
+
+  if (term && def) {
+    GLOSSARY[idx] = {term, def};
+    buildGlossary();
+    scheduleAutoSave();
+  }
+}
+
+function cancelEditGlossary(idx, event) {
+  event?.stopPropagation();
+  buildGlossary();
+}
+
+function deleteGlossary(idx, event) {
+  event?.stopPropagation();
+  if (!confirm('確定要刪除此詞彙嗎？')) return;
+  GLOSSARY.splice(idx, 1);
+  buildGlossary();
+  scheduleAutoSave();
+}
+
+function addGlossary(event) {
+  event?.stopPropagation();
+  GLOSSARY.push({term: '', def: ''});
+  buildGlossary();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#glossaryGrid input.inline-edit');
+    if (inputs.length > 0) inputs[inputs.length - 2].focus();
+  }, 0);
+}
+
+// ════════════════════════════════════════════════
+// REPORT PATHS TABLE (dynamic)
+// ════════════════════════════════════════════════
+function buildReportPaths() {
+  const el = document.getElementById('reportPathsTable');
+  if (!el) return;
+  el.innerHTML = `<table><thead><tr><th>報表名稱</th><th>路徑</th><th>用途</th><th style="width:50px;"></th></tr></thead><tbody>` +
+    REPORT_PATHS.map((r, i) => `
+      <tr id="rp-row-${i}">
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.path)}</td>
+        <td>${esc(r.purpose)}</td>
+        <td style="white-space:nowrap;">
+          <span class="edit-item-btns" style="display:inline-flex;">
+            <button onclick="startEditRP(${i},event)" title="編輯">✏️</button>
+            <button class="del-btn" onclick="deleteRP(${i},event)" title="刪除">✕</button>
+          </span>
+        </td>
+      </tr>
+    `).join('') + `</tbody></table>`;
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function startEditRP(idx, event) {
+  event?.stopPropagation();
+  const r = REPORT_PATHS[idx];
+  const row = document.getElementById('rp-row-'+idx);
+  if (!row) return;
+  row.innerHTML = `
+    <td><input class="inline-edit" value="${esc(r.name)}" id="rp-name-${idx}"></td>
+    <td><input class="inline-edit" value="${esc(r.path)}" id="rp-path-${idx}"></td>
+    <td><input class="inline-edit" value="${esc(r.purpose)}" id="rp-purp-${idx}"></td>
+    <td style="white-space:nowrap;">
+      <span class="edit-item-btns" style="display:inline-flex;">
+        <button onclick="saveEditRP(${idx},event)" title="確認" style="opacity:1;color:#4ade80;">✓</button>
+        <button onclick="buildReportPaths()" title="取消" style="opacity:1;color:#f87171;">✕</button>
+      </span>
+    </td>`;
+  document.getElementById('rp-name-'+idx).focus();
+  // Enter to save
+  row.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('keydown', e => { if(e.key==='Enter') saveEditRP(idx,e); if(e.key==='Escape') buildReportPaths(); });
+  });
+}
+
+function saveEditRP(idx, event) {
+  event?.stopPropagation();
+  const n = document.getElementById('rp-name-'+idx);
+  const p = document.getElementById('rp-path-'+idx);
+  const u = document.getElementById('rp-purp-'+idx);
+  if (n) REPORT_PATHS[idx].name = n.value.trim();
+  if (p) REPORT_PATHS[idx].path = p.value.trim();
+  if (u) REPORT_PATHS[idx].purpose = u.value.trim();
+  buildReportPaths();
+  scheduleAutoSave();
+}
+
+function deleteRP(idx, event) {
+  event?.stopPropagation();
+  if (!confirm('確定刪除此報表？')) return;
+  REPORT_PATHS.splice(idx, 1);
+  buildReportPaths();
+  scheduleAutoSave();
+}
+
+function addReportPath(event) {
+  event?.stopPropagation();
+  REPORT_PATHS.push({name:'', path:'', purpose:''});
+  buildReportPaths();
+  // auto-start editing the new row
+  setTimeout(() => startEditRP(REPORT_PATHS.length - 1, new Event('click')), 50);
+  scheduleAutoSave();
+}
+
+// ════════════════════════════════════════════════
+// INDICATORS TABLE (dynamic)
+// ════════════════════════════════════════════════
+function buildIndicators() {
+  const el = document.getElementById('indicatorsTable');
+  if (!el) return;
+  el.innerHTML = `<table><thead><tr><th>類型</th><th>指標</th><th>說明</th><th style="width:50px;"></th></tr></thead><tbody>` +
+    INDICATORS.map((ind, i) => {
+      const isLead = ind.type === '領先';
+      const bg = isLead ? 'rgba(46,168,106,0.05)' : 'rgba(239,68,68,0.05)';
+      const color = isLead ? '#4ade80' : '#f87171';
+      return `
+        <tr id="ind-row-${i}" style="background:${bg};">
+          <td style="color:${color};">${esc(ind.type)}指標</td>
+          <td>${esc(ind.name)}</td>
+          <td>${esc(ind.desc)}</td>
+          <td style="white-space:nowrap;">
+            <span class="edit-item-btns" style="display:inline-flex;">
+              <button onclick="startEditInd(${i},event)" title="編輯">✏️</button>
+              <button class="del-btn" onclick="deleteInd(${i},event)" title="刪除">✕</button>
+            </span>
+          </td>
+        </tr>`;
+    }).join('') + `</tbody></table>`;
+}
+
+function startEditInd(idx, event) {
+  event?.stopPropagation();
+  const ind = INDICATORS[idx];
+  const row = document.getElementById('ind-row-'+idx);
+  if (!row) return;
+  row.style.background = 'rgba(255,255,255,0.04)';
+  row.innerHTML = `
+    <td>
+      <select class="inline-edit" id="ind-type-${idx}" style="padding:4px;">
+        <option value="領先" ${ind.type==='領先'?'selected':''}>領先</option>
+        <option value="落後" ${ind.type==='落後'?'selected':''}>落後</option>
+      </select>
+    </td>
+    <td><input class="inline-edit" value="${esc(ind.name)}" id="ind-name-${idx}"></td>
+    <td><input class="inline-edit" value="${esc(ind.desc)}" id="ind-desc-${idx}"></td>
+    <td style="white-space:nowrap;">
+      <span class="edit-item-btns" style="display:inline-flex;">
+        <button onclick="saveEditInd(${idx},event)" title="確認" style="opacity:1;color:#4ade80;">✓</button>
+        <button onclick="buildIndicators()" title="取消" style="opacity:1;color:#f87171;">✕</button>
+      </span>
+    </td>`;
+  document.getElementById('ind-name-'+idx).focus();
+  row.querySelectorAll('input,select').forEach(inp => {
+    inp.addEventListener('keydown', e => { if(e.key==='Enter') saveEditInd(idx,e); if(e.key==='Escape') buildIndicators(); });
+  });
+}
+
+function saveEditInd(idx, event) {
+  event?.stopPropagation();
+  const t = document.getElementById('ind-type-'+idx);
+  const n = document.getElementById('ind-name-'+idx);
+  const d = document.getElementById('ind-desc-'+idx);
+  if (t) INDICATORS[idx].type = t.value;
+  if (n) INDICATORS[idx].name = n.value.trim();
+  if (d) INDICATORS[idx].desc = d.value.trim();
+  buildIndicators();
+  scheduleAutoSave();
+}
+
+function deleteInd(idx, event) {
+  event?.stopPropagation();
+  if (!confirm('確定刪除此指標？')) return;
+  INDICATORS.splice(idx, 1);
+  buildIndicators();
+  scheduleAutoSave();
+}
+
+function addIndicator(event) {
+  event?.stopPropagation();
+  INDICATORS.push({type:'領先', name:'', desc:''});
+  buildIndicators();
+  setTimeout(() => startEditInd(INDICATORS.length - 1, new Event('click')), 50);
+  scheduleAutoSave();
+}
+
+// ════════════════════════════════════════════════
+// MEETING NOTES
+// ════════════════════════════════════════════════
+function saveMeetingNotes() {
+  const status = document.getElementById('saveStatus');
+  status.style.display = 'inline';
+  setTimeout(() => { status.style.display = 'none'; }, 2000);
+}
+
+// ════════════════════════════════════════════════
+// REPORT
+// ════════════════════════════════════════════════
+// ── 讀取所有角色的備註（跨角色統整） ──
+function _readAllRoleNotes(){
+  const cid = _cachedCharId;
+  const baseKey = cid!=null ? 'char_'+cid+'_'+BASE_KEY : BASE_KEY;
+  const roles = ['manager','area_mgr','gm','peer','subordinate'];
+  const result = [];
+
+  roles.forEach(role => {
+    try{
+      const raw = localStorage.getItem(baseKey + ROLE_SUFFIXES[role]);
+      if(!raw) return;
+      const st = JSON.parse(raw);
+      const label = ROLE_LABELS[role];
+      let hasContent = false;
+      let section = '\n【' + label + '】\n';
+
+      // 維度備註
+      if(st.dimNotes){
+        DIMS.forEach(d => {
+          const note = st.dimNotes[d.id];
+          if(note && note.trim()){
+            section += '  ' + d.name + '：' + note.trim() + '\n';
+            hasContent = true;
+          }
+        });
+      }
+      // 整體評估筆記
+      if(st.evalNotes && st.evalNotes.trim()){
+        section += '  整體建議：' + st.evalNotes.trim() + '\n';
+        hasContent = true;
+      }
+      if(hasContent) result.push(section);
+    }catch(e){}
+  });
+
+  // 也加上當前角色（如果是自評）的備註
+  if(currentRole === 'self'){
+    const selfNotes = document.getElementById('evalNotes');
+    if(selfNotes && selfNotes.value.trim()){
+      let section = '\n【📝 自評】\n';
+      DIMS.forEach(d => {
+        const note = document.getElementById('dimNote'+d.id)?.value;
+        if(note && note.trim()) section += '  ' + d.name + '：' + note.trim() + '\n';
+      });
+      section += '  整體建議：' + selfNotes.value.trim() + '\n';
+      result.unshift(section);
+    }
+  }
+
+  return result.length > 0 ? result.join('') : '（無）';
+}
+
+function generateReport() {
+  // 先儲存當前角色，確保資料是最新的
+  _emergencySave();
+
+  const name = document.getElementById('name').value || '（未填寫）';
+  const group = document.getElementById('group').value || '（未填寫）';
+  const date = document.getElementById('evaldate').value || new Date().toISOString().split('T')[0];
+
+  // 讀取主管分數（優先）做為報告主體
+  const cid = _cachedCharId;
+  const baseKey = cid!=null ? 'char_'+cid+'_'+BASE_KEY : BASE_KEY;
+  let mgrScores = {};
+  try{
+    const raw = localStorage.getItem(baseKey + '_manager');
+    if(raw){ const st = JSON.parse(raw); if(st.scores) mgrScores = st.scores; }
+  }catch(e){}
+  // 如果主管沒有分數，用當前 SCORES
+  const reportScores = Object.keys(mgrScores).length > 0 ? mgrScores : {...SCORES};
+
+  const total = Object.values(reportScores).reduce((a,b) => a+(parseInt(b)||0), 0);
+
+  let grade = '';
+  if (total >= 90) grade = '優秀 Excellent';
+  else if (total >= 75) grade = '良好 Good';
+  else if (total >= 60) grade = '達標 Pass';
+  else if (total >= 40) grade = '待改善';
+  else grade = '需立即提升';
+
+  const dimTable = DIMS.map(d => {
+    const score = parseInt(reportScores[d.id])||0;
+    const pct = Math.round(score / d.max * 100);
+    const level = pct >= 80 ? '強' : pct >= 60 ? '良' : pct >= 40 ? '尚可' : '待加強';
+    return `  ${d.id}. ${d.name.padEnd(6)} │ ${String(score).padStart(2)}/${d.max} │ ${pct}% │ ${level}`;
+  }).join('\n');
+
+  // 統整所有角色的備註建議
+  const allNotes = _readAllRoleNotes();
+
+  const report = `
+╔══════════════════════════════════════════════════════╗
+║     Applaud 赫綠設計學院 ─ 組長職能評估報告          ║
+╚══════════════════════════════════════════════════════╝
+
+姓名：${name}　　組別：${group}
+評估日期：${date}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  六大維度得分（👔 主管評分）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${dimTable}
+
+  ┌─────────────────────────────────┐
+  │  總分：${String(total).padStart(3)} / 100　等級：${grade}  │
+  └─────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  30/60/90 天發展建議
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【30 天行動清單（馬上能做）】
+${getActionPlan(30)}
+
+【60 天行動清單（需要練習）】
+${getActionPlan(60)}
+
+【90 天行動清單（需要累積）】
+${getActionPlan(90)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  各角色評估備註與建議
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${allNotes}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  建議追蹤機制
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• 每週：基本盤達成率自評（約訪/面談/注冊/二照）
+• 每月：主管 1-on-1 心談，對照本計畫進度
+• 每季：重新進行六大維度評分，追蹤成長曲線
+
+Generated by Applaud 組長職能評估地圖 | ${date}
+`.trim();
+
+  document.getElementById('reportPreview').textContent = report;
+
+  // 同時儲存報告到 localStorage，讓首頁可以讀取
+  try{
+    const reportKey = baseKey + '_report';
+    localStorage.setItem(reportKey, JSON.stringify({
+      report: report,
+      total: total,
+      grade: grade,
+      scores: reportScores,
+      date: date,
+      name: name,
+      savedAt: new Date().toISOString()
+    }));
+  }catch(e){}
+}
+
+function getActionPlan(days) {
+  const weakDims = DIMS
+    .filter(d => SCORES[d.id] / d.max < 0.7)
+    .sort((a, b) => (SCORES[a.id]/a.max) - (SCORES[b.id]/b.max));
+
+  if (weakDims.length === 0) return '  • 各維度表現良好，持續維持並追求更高標準';
+
+  const plans = {
+    30: {
+      1: '  • 從下週起，昨日回顧改為逐人基本盤分析（通路/班務分開計）',
+      2: '  • 每天查看個人績效表，記錄面談率數字並找一個卡點',
+      3: '  • 本週開始每日檢查二照，建立驗收習慣',
+      4: '  • 明天先從沙盤推演開始：幫一位組員準備面談對話',
+      5: '  • 本月選一個最弱的組員安排個別訓練',
+      6: '  • 本週完成年度個人/小組目標草稿（有數字）',
+    },
+    60: {
+      1: '  • 每週會議加入「上週數據vs目標差距」分析環節',
+      2: '  • 學會讀通路業績副類別報表，找出哪個通路轉化率最低',
+      3: '  • 每月做一次組員能力盤點，更新強弱項記錄',
+      4: '  • 連續30天在面談前做沙盤推演，觀察成功率變化',
+      5: '  • 設計月度教育訓練排程，針對個人弱項客製化',
+      6: '  • 和主管確認目標可行性，制定季度里程碑',
+    },
+    90: {
+      1: '  • 讓「昨/今/明三段式會議」成為組內文化，新人也能主持',
+      2: '  • 建立個人版「組員績效成長追蹤表」，月月對比',
+      3: '  • 發展出屬於自己的徵員話術，連續3個月有新人加入',
+      4: '  • 讓至少2位組員能夠獨立帶新人做沙盤演練',
+      5: '  • 完成年度訓練計畫，並有文字版教材或SOP',
+      6: '  • 年中review計畫達成率，調整下半年目標',
+    }
+  };
+
+  return weakDims.slice(0, 3).map(d => plans[days][d.id] || `  • 針對「${d.name}」維度持續改善`).join('\n');
+}
+
+function copyReport() {
+  const text = document.getElementById('reportPreview').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('報告已複製到剪貼板！');
+  });
+}
+
+function printReport() {
+  window.print();
+}
+
+// ════════════════════════════════════════════════
+// NOTE DATE STAMPING — 每次編輯自動堆疊日期
+// ════════════════════════════════════════════════
+function _todayTag(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  const wd = ['日','一','二','三','四','五','六'][d.getDay()];
+  return `── ${y}/${m}/${dd}（${wd}）──`;
+}
+
+/**
+ * stampNoteDate(textareaId)
+ * 在備註最前方自動加上今天的日期標記（如果今天還沒加過的話）
+ * 格式：── 2026/04/17（四）──
+ * 每天第一次編輯才會加，後續同一天不重複
+ */
+function stampNoteDate(textareaId){
+  const el = document.getElementById(textareaId);
+  if(!el) return;
+  const tag = _todayTag();
+  const val = el.value || '';
+  // 如果已有今天的日期標記 → 不重複加
+  if(val.indexOf(tag) !== -1) return;
+  // 在最前方插入今天日期
+  const prefix = tag + '\n';
+  el.value = prefix + val;
+  // 游標放在日期後方（方便直接打字）
+  const pos = prefix.length;
+  el.setSelectionRange(pos, pos);
+  // 觸發自動儲存
+  scheduleAutoSave();
+}
+
+// ════════════════════════════════════════════════
+// FULLSCREEN NOTE EDITOR
+// ════════════════════════════════════════════════
+function openNoteFullscreen(textareaId, title){
+  const srcEl = document.getElementById(textareaId);
+  if(!srcEl) return;
+  // 展開全螢幕時也自動加日期戳記
+  stampNoteDate(textareaId);
+  const overlay = document.createElement('div');
+  overlay.className = 'note-fs-overlay';
+  overlay.id = 'noteFsOverlay';
+  overlay.innerHTML = `
+    <div class="note-fs-header">
+      <span class="note-fs-title">${title} <span style="font-size:11px;color:#94a3b8;font-weight:400;">[${ROLE_LABELS[currentRole]}]</span></span>
+      <button class="note-fs-close" onclick="closeNoteFullscreen()">◀ 返回</button>
+    </div>
+    <div class="note-fs-body">
+      <textarea id="noteFsText" placeholder="記錄具體情況…">${srcEl.value||''}</textarea>
+    </div>
+    <div class="note-fs-hint">內容會自動同步回原欄位</div>
+  `;
+  document.body.appendChild(overlay);
+  const ta = document.getElementById('noteFsText');
+  ta.focus();
+  ta.addEventListener('input', function(){
+    srcEl.value = ta.value;
+    scheduleAutoSave();
+  });
+}
+function closeNoteFullscreen(){
+  const ta = document.getElementById('noteFsText');
+  if(ta){
+    // 確保最後的值已同步（防止最後一次 input 還沒觸發）
+    scheduleAutoSave();
+  }
+  const el = document.getElementById('noteFsOverlay');
+  if(el) el.remove();
+}
+
+// ════════════════════════════════════════════════
+// SAVE / LOAD SYSTEM
+// ════════════════════════════════════════════════
+const BASE_KEY = 'appedu_leader_map_v1';
+const ROLE_SUFFIXES = {self:'_self', area_mgr:'_area_mgr', manager:'_manager', gm:'_gm', peer:'_peer', subordinate:'_subordinate'};
+const ROLE_LABELS = {self:'📝 自評', area_mgr:'🏢 區主管', manager:'👔 主管', gm:'🏛️ 總經理', peer:'🤝 同儕', subordinate:'👥 部屬'};
+let currentRole = 'manager';
+
+// ★ 快取主角 ID — 頁面載入時鎖定，不受其他 iframe 切換主角影響
+let _cachedCharId = localStorage.getItem('activeCharacterId');
+
+function getSK(){
+  const base = _cachedCharId!=null ? 'char_'+_cachedCharId+'_'+BASE_KEY : BASE_KEY;
+  return base + ROLE_SUFFIXES[currentRole];
+}
+
+// Backward compat: migrate old unsuffixed data → _self on first load
+function migrateOldData(){
+  try{
+    const cid=_cachedCharId;
+    const oldKey = cid!=null ? 'char_'+cid+'_'+BASE_KEY : BASE_KEY;
+    const newKey = oldKey + '_self';
+    const oldRaw = localStorage.getItem(oldKey);
+    if(oldRaw && !localStorage.getItem(newKey)){
+      localStorage.setItem(newKey, oldRaw);
+      // Also copy to _manager so dashboard shows something
+      const mgrKey = oldKey + '_manager';
+      if(!localStorage.getItem(mgrKey)) localStorage.setItem(mgrKey, oldRaw);
+    }
+  }catch(e){}
+}
+
+// ★ 防止角色切換期間的定時存檔干擾
+let _switchingRole = false;
+// ★ 安全保護：_switchingRole 最多鎖 3 秒，避免因異常卡死導致永久無法儲存
+var _switchingRoleTimer = null;
+function _setSwitchingRole(val){
+  _switchingRole = val;
+  clearTimeout(_switchingRoleTimer);
+  if(val){
+    _switchingRoleTimer = setTimeout(function(){
+      if(_switchingRole){
+        console.warn('[switchRole] ⚠ _switchingRole 超時強制解鎖！');
+        _switchingRole = false;
+      }
+    }, 3000);
+  }
+}
+
+// ★ localStorage 空間管理 — quota 滿時一次清理所有可犧牲的 key
+function _freeStorageSpace(){
+  console.log('[storage] 開始清理空間…');
+  var removed = 0;
+  function _removeByPrefix(prefix){
+    var keys = [];
+    for(var i=0; i<localStorage.length; i++){
+      var k = localStorage.key(i);
+      if(k && k.indexOf(prefix) === 0) keys.push(k);
+    }
+    keys.forEach(function(k){ localStorage.removeItem(k); removed++; });
+  }
+  // 第一批：低價值暫存
+  _removeByPrefix('_roleSnap_');
+  _removeByPrefix('DRAFT_');
+  _removeByPrefix('_plaza_bak_');
+  // 第二批：_bak_ 備份（犧牲備份來保證主資料能存）
+  _removeByPrefix('_bak_');
+  // 第三批：大圖（可從 IndexedDB 重讀）
+  try{ localStorage.removeItem('profileImgData'); removed++; }catch(e){}
+  // 第四批：★ 壓縮 castle_cards_v1 — 移除 base64 photo（通常 300KB+）
+  // photo 會從 IndexedDB 的 images store 重讀，不影響功能
+  try{
+    var ccRaw = localStorage.getItem('castle_cards_v1');
+    if(ccRaw){
+      var cc = JSON.parse(ccRaw);
+      var hadPhotos = false;
+      cc.forEach(function(card){
+        if(card && card.photo && card.photo.length > 200){
+          card.photo = ''; hadPhotos = true;
+        }
+      });
+      if(hadPhotos){
+        localStorage.setItem('castle_cards_v1', JSON.stringify(cc));
+        removed++;
+        console.log('[storage] ★ castle_cards_v1 photo 已移除以騰出空間');
+      }
+    }
+  }catch(e){}
+  console.log('[storage] 清理完成，移除/壓縮', removed, '筆');
+}
+
+// ★ 安全寫入 localStorage（quota 滿時自動清理後重試）
+function _safeSetItem(key, json){
+  try{
+    localStorage.setItem(key, json);
+  }catch(e){
+    if(e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014){
+      console.warn('[storage] 空間不足，清理後重試…', key, '('+json.length+'B)');
+      _freeStorageSpace();
+      localStorage.setItem(key, json); // 清理後重試
+    } else {
+      throw e;
+    }
+  }
+}
+
+function switchRole(role, btn){
+  if(_switchingRole) return; // 防止重複觸發
+  _setSwitchingRole(true);
+
+  // ★ 先取消任何待執行的自動儲存
+  clearTimeout(_autoSaveTimer);
+
+  // ════ 第一步：儲存當前角色 ════
+  var prevRole = currentRole;
+  var prevKey = getSK();
+  var savedJson = '';
+  try{
+    var state = gatherState();
+    savedJson = JSON.stringify(state);
+    _safeSetItem(prevKey, savedJson);
+    // 寫後驗證
+    var verify = localStorage.getItem(prevKey);
+    if(!verify || verify.length !== savedJson.length){
+      console.error('[switchRole] ⚠ 寫後驗證失敗！重試');
+      _safeSetItem(prevKey, savedJson);
+    }
+    var scoreTotal = 0;
+    Object.values(state.scores||{}).forEach(function(v){ scoreTotal += (parseInt(v)||0); });
+    console.log('[switchRole] ✅ saved', ROLE_LABELS[prevRole], '→', prevKey,
+      'scoreTotal:', scoreTotal, 'bytes:', savedJson.length);
+  }catch(e){
+    console.error('[switchRole] ❌ SAVE FAILED for', ROLE_LABELS[prevRole], e);
+    alert('⚠ 儲存失敗：' + e.message + '\n請截圖回報！');
+    _setSwitchingRole(false);
+    return; // 儲存失敗就不切換，保留畫面
+  }
+
+  // ════ 第二步：切換角色 ════
+  currentRole = role;
+  document.querySelectorAll('.role-btn').forEach(function(b){b.classList.remove('active');});
+  if(btn) btn.classList.add('active');
+  document.getElementById('roleLabel').textContent = ROLE_LABELS[role];
+
+  // ════ 第三步：完整清空 JS 變數 + DOM（避免舊角色殘留） ════
+  Object.keys(SCORES).forEach(function(k){ SCORES[k]=0; });
+  members = [{name:'組員A', yue_tong:0, yue_ban:0, mian:0, zhu:0, cash:0}];
+  checks = {};
+  evalHistory = [];
+  driveLinks = [];
+  // 重設 customQuestions / customTips 到預設值
+  DIMS.forEach(function(d){
+    customQuestions[d.id] = d.questions.slice();
+    customTips[d.id] = d.tips.slice();
+  });
+  // 清空 DOM
+  DIMS.forEach(function(d){
+    var noteEl = document.getElementById('dimNote'+d.id);
+    if(noteEl) noteEl.value = '';
+    var slider = document.querySelector('.dim-card[data-dim="'+d.id+'"] input[type="range"]');
+    if(slider) slider.value = 0;
+    var scoreEl = document.getElementById('dimScore'+d.id);
+    if(scoreEl) scoreEl.innerHTML = '0<span>/'+d.max+'</span>';
+    var valEl = document.getElementById('dimVal'+d.id);
+    if(valEl) valEl.textContent = '0';
+  });
+  var evalEl = document.getElementById('evalNotes');
+  if(evalEl) evalEl.value = '';
+  var mnEl = document.getElementById('meetingNotes');
+  if(mnEl) mnEl.value = '';
+  // 清空基本資訊（每個角色各自獨立）
+  ['name','group','evaluator'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value = '';
+  });
+
+  // ════ 第四步：載入新角色資料 ════
+  var newKey = getSK();
+  try{
+    var raw = localStorage.getItem(newKey);
+    // 正式 key 沒有資料？嘗試 _bak_ 備份
+    if(!raw){
+      var baseK = _cachedCharId!=null ? 'char_'+_cachedCharId+'_'+BASE_KEY : BASE_KEY;
+      raw = localStorage.getItem('_bak_'+baseK+ROLE_SUFFIXES[role]);
+      if(raw) console.log('[switchRole] 📦 從 _bak_ 備份恢復:', newKey);
+    }
+    if(raw){
+      var newState = JSON.parse(raw);
+      applyState(newState);
+      var loadedTotal = 0;
+      Object.values(newState.scores||{}).forEach(function(v){ loadedTotal += (parseInt(v)||0); });
+      console.log('[switchRole] ✅ loaded', ROLE_LABELS[role], 'from', newKey,
+        'scoreTotal:', loadedTotal);
+    } else {
+      resetUI();
+      console.log('[switchRole] 📭 no data for', ROLE_LABELS[role], '→ resetUI');
+    }
+  }catch(e){
+    console.error('[switchRole] ❌ LOAD FAILED for', ROLE_LABELS[role], e);
+    resetUI();
+  }
+
+  updateTotal();
+  updateBarChart();
+  updateRadar();
+  _setSwitchingRole(false);
+}
+
+function resetUI(){
+  ['name','group','evaluator'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('evaldate').value = new Date().toISOString().split('T')[0];
+
+  // Reset custom questions and tips to defaults
+  DIMS.forEach(d=>{
+    customQuestions[d.id] = [...d.questions];
+    customTips[d.id] = [...d.tips];
+  });
+
+  DIMS.forEach(d=>{
+    const slider = document.querySelector('.dim-card[data-dim="'+d.id+'"] input[type="range"]');
+    if(slider) slider.value=0;
+    const scoreEl = document.getElementById('dimScore'+d.id);
+    if(scoreEl) scoreEl.innerHTML='0<span>/'+d.max+'</span>';
+    const valEl = document.getElementById('dimVal'+d.id);
+    if(valEl) valEl.textContent='0';
+    const noteEl = document.getElementById('dimNote'+d.id);
+    if(noteEl) noteEl.value='';
+  });
+  FUNNEL_IDS.forEach(id=>{const el=document.getElementById(id);if(el)el.value=0;});
+  updateFunnel();
+  buildDimGrid();
+  buildScorecard();
+  buildChecklist();
+  buildGlossary();
+  buildReportPaths();
+  buildIndicators();
+  buildDriveLinkUI();
+  buildEvalHistoryUI();
+  const mn=document.getElementById('meetingNotes');if(mn)mn.value='';
+  const en=document.getElementById('evalNotes');if(en)en.value='';
+}
+
+function gatherState() {
+  // 安全讀取 DOM 值
+  function val(id){ const el=document.getElementById(id); return el?el.value:''; }
+  // ★ 從 DOM 滑桿讀取分數（真實來源），SCORES 物件作為 fallback
+  var domScores = {};
+  DIMS.forEach(function(d){
+    var slider = document.querySelector('.dim-card[data-dim="'+d.id+'"] input[type="range"]');
+    var sliderVal = slider ? parseInt(slider.value) : 0;
+    var objVal = SCORES[d.id] || 0;
+    // 優先用 DOM 滑桿值（防止 SCORES 被歸零但 DOM 未更新的情況）
+    domScores[d.id] = sliderVal || objVal;
+    // 同步修正 SCORES 物件
+    if(sliderVal && !objVal) SCORES[d.id] = sliderVal;
+  });
+  // ★ 只保存修改過的清單（vs 預設值），大幅節省 localStorage 空間
+  var state = {
+    version: 2,
+    savedAt: new Date().toISOString(),
+    role: currentRole,
+    // 基本資訊
+    name: val('name'),
+    group: val('group'),
+    evaluator: val('evaluator'),
+    evaldate: val('evaldate'),
+    // 六大維度分數（從 DOM 滑桿讀取，確保不會歸零）
+    scores: domScores,
+    // 維度備註
+    dimNotes: DIMS.reduce((o, d) => {
+      const el = document.getElementById('dimNote'+d.id);
+      if (el) o[d.id] = el.value;
+      return o;
+    }, {}),
+    // 領先指標 - 漏斗（安全讀取）
+    funnel: FUNNEL_IDS.map(id => { const el=document.getElementById(id); return el?parseInt(el.value)||0:0; }),
+    // 基本盤成員
+    members: members,
+    // 每日清單
+    checks: {...checks},
+    // 會議筆記
+    meetingNotes: val('meetingNotes'),
+    // 評估筆記
+    evalNotes: val('evalNotes'),
+    // 評估歷史和檔案連結
+    evalHistory: evalHistory,
+    driveLinks: driveLinks,
+  };
+  // ★ 只有修改過才存（省空間）— 跟預設值相同就省略
+  if(JSON.stringify(DAILY_CHECKS) !== _DEFAULTS.dailyChecks) state.dailyChecks = DAILY_CHECKS;
+  if(JSON.stringify(WEEKLY_CHECKS) !== _DEFAULTS.weeklyChecks) state.weeklyChecks = WEEKLY_CHECKS;
+  if(JSON.stringify(MONTHLY_CHECKS) !== _DEFAULTS.monthlyChecks) state.monthlyChecks = MONTHLY_CHECKS;
+  if(JSON.stringify(GLOSSARY) !== _DEFAULTS.glossary) state.glossary = GLOSSARY;
+  if(JSON.stringify(REPORT_PATHS) !== _DEFAULTS.reportPaths) state.reportPaths = REPORT_PATHS;
+  if(JSON.stringify(INDICATORS) !== _DEFAULTS.indicators) state.indicators = INDICATORS;
+  if(JSON.stringify(MEETING_YESTERDAY) !== _DEFAULTS.meetingYesterday) state.meetingYesterday = MEETING_YESTERDAY;
+  if(JSON.stringify(MEETING_TODAY) !== _DEFAULTS.meetingToday) state.meetingToday = MEETING_TODAY;
+  if(JSON.stringify(MEETING_TOMORROW) !== _DEFAULTS.meetingTomorrow) state.meetingTomorrow = MEETING_TOMORROW;
+  if(JSON.stringify(customQuestions) !== _DEFAULTS.customQuestions) state.customQuestions = customQuestions;
+  if(JSON.stringify(customTips) !== _DEFAULTS.customTips) state.customTips = customTips;
+  return state;
+}
+
+function applyState(state) {
+  if (!state || (!state.version && state.version !== 0)) return false;
+
+  // 基本資訊（安全寫入）
+  function setVal(id, v){ const el=document.getElementById(id); if(el) el.value=v; }
+  if (state.name != null) setVal('name', state.name);
+  if (state.group != null) setVal('group', state.group);
+  if (state.evaluator != null) setVal('evaluator', state.evaluator);
+  if (state.evaldate != null) setVal('evaldate', state.evaldate);
+
+  // 自訂問題和建議（必須在恢復分數之前重建 DOM）
+  if (state.customQuestions) customQuestions = state.customQuestions;
+  if (state.customTips) customTips = state.customTips;
+  if (state.customQuestions || state.customTips) buildDimGrid();
+
+  // 六大維度分數（在 buildDimGrid 之後，確保滑桿 DOM 已就緒）
+  if (state.scores) {
+    Object.keys(state.scores).forEach(id => {
+      SCORES[id] = state.scores[id];
+      const slider = document.querySelector(`.dim-card[data-dim="${id}"] input[type="range"]`);
+      if (slider) {
+        slider.value = state.scores[id];
+        updateDim(parseInt(id), state.scores[id]);
+      }
+    });
+  }
+
+  // 維度備註（也在 buildDimGrid 之後）
+  if (state.dimNotes) {
+    Object.keys(state.dimNotes).forEach(id => {
+      const el = document.getElementById('dimNote'+id);
+      if (el) el.value = state.dimNotes[id];
+    });
+  }
+
+  // 漏斗
+  if (state.funnel) {
+    state.funnel.forEach((v, i) => {
+      const el = document.getElementById(FUNNEL_IDS[i]);
+      if (el) el.value = v;
+    });
+    updateFunnel();
+  }
+
+  // 成員
+  if (state.members && state.members.length > 0) {
+    members = state.members;
+    buildScorecard();
+  }
+
+  // 清單
+  if (state.checks) {
+    checks = state.checks;
+    buildChecklist();
+  }
+
+  // 可編輯的清單
+  if (state.dailyChecks) DAILY_CHECKS = state.dailyChecks;
+  if (state.weeklyChecks) WEEKLY_CHECKS = state.weeklyChecks;
+  if (state.monthlyChecks) MONTHLY_CHECKS = state.monthlyChecks;
+  if (state.dailyChecks || state.weeklyChecks || state.monthlyChecks) buildChecklist();
+
+  // 詞彙表
+  if (state.glossary) GLOSSARY = state.glossary;
+  if (state.glossary) buildGlossary();
+
+  // 報表路徑和指標
+  if (state.reportPaths) REPORT_PATHS = state.reportPaths;
+  if (state.indicators) INDICATORS = state.indicators;
+  if (state.reportPaths) buildReportPaths();
+  if (state.indicators) buildIndicators();
+
+  // 會議結構
+  if (state.meetingYesterday) MEETING_YESTERDAY = state.meetingYesterday;
+  if (state.meetingToday) MEETING_TODAY = state.meetingToday;
+  if (state.meetingTomorrow) MEETING_TOMORROW = state.meetingTomorrow;
+
+  // 筆記
+  if (state.meetingNotes != null && document.getElementById('meetingNotes')) document.getElementById('meetingNotes').value = state.meetingNotes;
+  if (state.evalNotes != null) { const el = document.getElementById('evalNotes'); if (el) el.value = state.evalNotes; }
+
+  // 評估歷史和檔案連結
+  if (state.evalHistory) evalHistory = state.evalHistory;
+  if (state.driveLinks) driveLinks = state.driveLinks;
+  if (state.evalHistory || state.driveLinks) {
+    buildEvalHistoryUI();
+    buildDriveLinkUI();
+  }
+
+  return true;
+}
+
+function showToast(msg, isError) {
+  const toast = document.getElementById('saveToast');
+  toast.textContent = msg;
+  toast.style.background = isError ? '#7f1d1d' : '#166534';
+  toast.style.color = isError ? '#fca5a5' : '#4ade80';
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+function updateAutosaveLabel(msg) {
+  const el = document.getElementById('autosaveStatus');
+  el.textContent = msg;
+  el.className = 'autosave-indicator saved';
+  setTimeout(() => { el.className = 'autosave-indicator'; }, 4000);
+}
+
+// 💾 儲存到瀏覽器
+function saveAll(silent) {
+  try {
+    var state = gatherState();
+    state.role = currentRole;
+    var json = JSON.stringify(state);
+    var key = getSK();
+    _safeSetItem(key, json);
+    // ★ 備份：空間夠才寫，不觸發清理（用原生 setItem）
+    try{ localStorage.setItem('_bak_' + key, json); }catch(be){}
+    var scoreTotal = 0;
+    Object.values(state.scores||{}).forEach(function(v){ scoreTotal += (parseInt(v)||0); });
+    console.log('[saveAll] saved', ROLE_LABELS[currentRole], 'key:', key,
+      'scoreTotal:', scoreTotal, 'bytes:', json.length);
+    if(!silent){
+      var timeStr = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'});
+      showToast('✓ 已儲存 [' + ROLE_LABELS[currentRole] + ']（' + timeStr + '）');
+      updateAutosaveLabel('上次儲存 [' + ROLE_LABELS[currentRole] + ']：' + timeStr);
+    }
+  } catch(e) {
+    if(!silent) showToast('⚠ 儲存失敗：' + e.message, true);
+    console.error('[saveAll] failed:', e);
+  }
+}
+
+// 📂 從瀏覽器載入
+function loadAll() {
+  try {
+    const raw = localStorage.getItem(getSK());
+    if (!raw) {
+      showToast('⚠ 沒有找到儲存的資料', true);
+      return;
+    }
+    const state = JSON.parse(raw);
+    const ok = applyState(state);
+    if (ok) {
+      const savedTime = state.savedAt ? new Date(state.savedAt).toLocaleString('zh-TW') : '未知';
+      showToast('✓ 已載入（' + savedTime + '）');
+      updateAutosaveLabel('已載入：' + savedTime);
+    } else {
+      showToast('⚠ 資料格式不正確', true);
+    }
+  } catch(e) {
+    showToast('⚠ 載入失敗：' + e.message, true);
+  }
+}
+
+// 📤 匯出 JSON 檔案（★ 一次打包全部 6 個角色）
+function exportJSON() {
+  try {
+    // 先存當前角色到 localStorage（確保最新）
+    saveAll(true);
+    var base = _cachedCharId!=null ? 'char_'+_cachedCharId+'_'+BASE_KEY : BASE_KEY;
+    var bundle = {
+      _format: 'appedu_leader_map_bundle_v2',
+      _exportedAt: new Date().toISOString(),
+      _characterId: _cachedCharId || '',
+      roles: {}
+    };
+    var roleCount = 0;
+    var charName = '';
+    Object.keys(ROLE_SUFFIXES).forEach(function(role){
+      var key = base + ROLE_SUFFIXES[role];
+      var raw = localStorage.getItem(key);
+      if(raw){
+        try{
+          var state = JSON.parse(raw);
+          // ★ 匯出時補回預設值，確保檔案自包含（可在其他裝置完整匯入）
+          if(!state.dailyChecks) state.dailyChecks = JSON.parse(_DEFAULTS.dailyChecks);
+          if(!state.weeklyChecks) state.weeklyChecks = JSON.parse(_DEFAULTS.weeklyChecks);
+          if(!state.monthlyChecks) state.monthlyChecks = JSON.parse(_DEFAULTS.monthlyChecks);
+          if(!state.glossary) state.glossary = JSON.parse(_DEFAULTS.glossary);
+          if(!state.reportPaths) state.reportPaths = JSON.parse(_DEFAULTS.reportPaths);
+          if(!state.indicators) state.indicators = JSON.parse(_DEFAULTS.indicators);
+          if(!state.meetingYesterday) state.meetingYesterday = JSON.parse(_DEFAULTS.meetingYesterday);
+          if(!state.meetingToday) state.meetingToday = JSON.parse(_DEFAULTS.meetingToday);
+          if(!state.meetingTomorrow) state.meetingTomorrow = JSON.parse(_DEFAULTS.meetingTomorrow);
+          if(!state.customQuestions) state.customQuestions = JSON.parse(_DEFAULTS.customQuestions);
+          if(!state.customTips) state.customTips = JSON.parse(_DEFAULTS.customTips);
+          bundle.roles[role] = state;
+          roleCount++;
+          if(state.name && !charName) charName = state.name;
+        }catch(e){ /* 跳過損壞的資料 */ }
+      }
+    });
+    if(roleCount === 0){
+      showToast('⚠ 沒有任何角色有資料可匯出', true);
+      return;
+    }
+    var name = charName || _cachedCharId || 'unnamed';
+    var date = new Date().toISOString().split('T')[0];
+    var filename = name + '-組長評估全角色備份-' + date + '.json';
+    var blob = new Blob([JSON.stringify(bundle, null, 2)], {type: 'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    var roleNames = Object.keys(bundle.roles).map(function(r){ return ROLE_LABELS[r]; });
+    showToast('✓ 已匯出 ' + roleCount + ' 個角色：' + roleNames.join('、'));
+  } catch(e) {
+    showToast('⚠ 匯出失敗：' + e.message, true);
+  }
+}
+
+// 📥 從 JSON 檔案匯入（★ 支援全角色打包格式 + 舊版單角色格式）
+function importJSON(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+
+      // ★ 新格式：全角色打包（_format === 'appedu_leader_map_bundle_v2'）
+      if(data._format === 'appedu_leader_map_bundle_v2' && data.roles){
+        var base = _cachedCharId!=null ? 'char_'+_cachedCharId+'_'+BASE_KEY : BASE_KEY;
+        var imported = 0;
+        Object.keys(data.roles).forEach(function(role){
+          if(!ROLE_SUFFIXES[role]) return; // 忽略未知角色
+          var state = data.roles[role];
+          if(!state || !state.version) return;
+          var key = base + ROLE_SUFFIXES[role];
+          try{
+            _safeSetItem(key, JSON.stringify(state));
+            imported++;
+          }catch(se){
+            console.error('[importJSON] 寫入失敗:', role, se);
+          }
+        });
+        // 重新載入當前角色到畫面
+        var currentRaw = localStorage.getItem(getSK());
+        if(currentRaw){
+          try{ applyState(JSON.parse(currentRaw)); }catch(ae){}
+        }
+        updateTotal(); updateBarChart(); updateRadar();
+        var roleNames = Object.keys(data.roles).filter(function(r){ return ROLE_SUFFIXES[r]; }).map(function(r){ return ROLE_LABELS[r]; });
+        showToast('✓ 已匯入 ' + imported + ' 個角色：' + roleNames.join('、'));
+        updateAutosaveLabel('已匯入：' + file.name + '（' + imported + ' 角色）');
+      }
+      // ★ 舊格式：單角色（直接 applyState）
+      else if(data.version){
+        var ok = applyState(data);
+        if (ok) {
+          // 存到 localStorage
+          try{ _safeSetItem(getSK(), JSON.stringify(data)); }catch(se){}
+          showToast('✓ 已從檔案匯入（單角色）');
+          updateAutosaveLabel('已匯入：' + file.name);
+        } else {
+          showToast('⚠ 資料格式不正確', true);
+        }
+      }
+      else {
+        showToast('⚠ 無法辨識的檔案格式', true);
+      }
+    } catch(err) {
+      showToast('⚠ 匯入失敗：' + err.message, true);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = ''; // reset for re-import
+}
+
+// 🗑️ 清除儲存
+function clearSave() {
+  if (confirm('確定要清除所有已儲存的資料嗎？這個動作無法復原。')) {
+    localStorage.removeItem(getSK());
+    showToast('✓ 已清除儲存資料');
+    updateAutosaveLabel('');
+  }
+}
+
+// ── 頁面載入時自動嘗試載入上次儲存 ──
+(function autoLoad() {
+  try {
+    var key = getSK();
+    var raw = localStorage.getItem(key);
+    var source = '正式存檔';
+    // ★ 正式 key 沒有？嘗試 _bak_ 備份
+    if(!raw){
+      raw = localStorage.getItem('_bak_' + key);
+      source = '_bak_ 備份';
+      if(raw) console.log('[autoLoad] 📦 正式存檔為空，從 _bak_ 備份恢復');
+    }
+    // ★ 還是沒有？嘗試從 sessionStorage 草稿恢復
+    if(!raw){
+      var draftRaw = sessionStorage.getItem('DRAFT_' + key);
+      if(draftRaw){
+        raw = draftRaw;
+        source = '草稿';
+        console.log('[autoLoad] 📦 從 sessionStorage 草稿恢復');
+      }
+    }
+    if (raw) {
+      var state = JSON.parse(raw);
+      applyState(state);
+      var savedTime = state.savedAt ? new Date(state.savedAt).toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'}) : '';
+      if (savedTime) {
+        updateAutosaveLabel('已自動載入（' + source + '：' + savedTime + '）');
+      }
+      // ★ 如果是從備份恢復的，立即存回正式 key
+      if(source !== '正式存檔'){
+        try{ _safeSetItem(key, raw); console.log('[autoLoad] ✅ 備份資料已回寫正式 key'); }catch(e){}
+      }
+    }
+  } catch(e) { console.error('[autoLoad] failed:', e); }
+})();
+
+// ── 全域自動儲存監聽：所有 input/textarea/select 變動時自動存 ──
+document.addEventListener('input', function(e){
+  if(e.target.matches('input,textarea,select')) scheduleAutoSave();
+});
+document.addEventListener('change', function(e){
+  if(e.target.matches('input,textarea,select')) scheduleAutoSave();
+});
+
+// ── 頁面離開時緊急儲存（防止備註遺失） ──
+function _emergencySave(){
+  if(_switchingRole) return; // 切換角色期間不存
+  try{
+    _draftSaveNow(); // 先存草稿（極快，一定成功）
+    var state = gatherState();
+    var json = JSON.stringify(state);
+    var key = getSK();
+    _safeSetItem(key, json);
+    // ★ 備份：空間夠才寫，不觸發清理
+    try{ localStorage.setItem('_bak_' + key, json); }catch(be){}
+    _clearDraft(); // localStorage 存成功才清草稿
+    console.log('[emergencySave] OK for', ROLE_LABELS[currentRole]);
+  }catch(e){
+    console.error('[emergencySave] failed:', e);
+  }
+}
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'hidden') _emergencySave();
+});
+window.addEventListener('beforeunload', _emergencySave);
+window.addEventListener('pagehide', _emergencySave);
+
+// ── 暴露 saveAll 給 parent iframe 呼叫 ──
+window.triggerSave = function(){ saveAll(true); };
+
+// ── ★ 主角切換偵測：偵測到 activeCharacterId 改變時，重新載入新主角資料 ──
+window.addEventListener('storage', function(e){
+  if(e.key !== 'activeCharacterId') return;
+  var newCharId = e.newValue;
+  if(newCharId === _cachedCharId) return; // 沒變
+  console.log('[360] 偵測到主角切換:', _cachedCharId, '→', newCharId);
+  // ★ 先用舊 key 存當前資料（保護舊主角的資料）
+  try{ saveAll(true); }catch(ex){ console.error('[360] 切角前儲存失敗', ex); }
+  // ★ 更新 _cachedCharId 到新主角
+  _cachedCharId = newCharId;
+  // ★ 載入新主角的資料
+  var newKey = getSK();
+  console.log('[360] 載入新主角資料, key:', newKey);
+  try{
+    var raw = localStorage.getItem(newKey);
+    if(raw){
+      var newState = JSON.parse(raw);
+      applyState(newState);
+      console.log('[360] ✅ 新主角資料已載入');
+    } else {
+      resetUI();
+      console.log('[360] 📭 新主角無資料 → resetUI');
+    }
+  }catch(ex){
+    console.error('[360] 載入新主角失敗', ex);
+    resetUI();
+  }
+  updateTotal();
+  updateBarChart();
+  updateRadar();
+});
+
+// ── ★ 也監聯 message 事件（file:// 模式下 storage 事件不會在 iframe 內觸發） ──
+window.addEventListener('message', function(e){
+  if(!e.data || e.data.action !== 'characterSwitched') return;
+  var newCharId = e.data.characterId || null;
+  if(newCharId === _cachedCharId) return;
+  console.log('[360] 收到 postMessage 主角切換:', _cachedCharId, '→', newCharId);
+  try{ saveAll(true); }catch(ex){}
+  _cachedCharId = newCharId;
+  var newKey = getSK();
+  try{
+    var raw = localStorage.getItem(newKey);
+    if(raw){ applyState(JSON.parse(raw)); }
+    else { resetUI(); }
+  }catch(ex){ resetUI(); }
+  updateTotal();
+  updateBarChart();
+  updateRadar();
+});
+</script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

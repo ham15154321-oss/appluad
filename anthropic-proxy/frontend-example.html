@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <title>Anthropic Proxy 前端串接範例</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+      textarea { width: 100%; min-height: 80px; }
+      pre { background: #f4f4f4; padding: 12px; white-space: pre-wrap; word-wrap: break-word; }
+      button { padding: 8px 16px; font-size: 14px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <h1>Anthropic Proxy 串接範例</h1>
+    <p>注意：把 <code>PROXY_BASE</code> 換成你部署完拿到的 Worker 網址。</p>
+
+    <textarea id="msg">用一句話介紹台灣。</textarea>
+    <p>
+      <button onclick="callOnce()">一次回</button>
+      <button onclick="callStream()">Streaming（打字機）</button>
+    </p>
+    <pre id="out"></pre>
+
+    <script>
+      // ⚠️ 改成你自己的 Worker 網址
+      const PROXY_BASE = 'https://anthropic-proxy.YOUR-SUBDOMAIN.workers.dev';
+      const MODEL = 'claude-sonnet-4-5';
+
+      const out = document.getElementById('out');
+      const msg = () => document.getElementById('msg').value;
+
+      // -------- 1) 一次回（非串流）--------
+      async function callOnce() {
+        out.textContent = '思考中…';
+        const res = await fetch(`${PROXY_BASE}/v1/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: MODEL,
+            max_tokens: 1024,
+            messages: [{ role: 'user', content: msg() }],
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          out.textContent = 'Error: ' + JSON.stringify(data, null, 2);
+          return;
+        }
+        out.textContent = data.content?.[0]?.text ?? JSON.stringify(data, null, 2);
+      }
+
+      // -------- 2) Streaming（SSE，打字機效果）--------
+      async function callStream() {
+        out.textContent = '';
+        const res = await fetch(`${PROXY_BASE}/v1/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: MODEL,
+            max_tokens: 1024,
+            stream: true,
+            messages: [{ role: 'user', content: msg() }],
+          }),
+        });
+
+        if (!res.ok) {
+          out.textContent = 'Error: ' + (await res.text());
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // SSE 是用「兩個換行」分隔事件
+          const events = buffer.split('\n\n');
+          buffer = events.pop(); // 留下不完整的最後一段
+
+          for (const evt of events) {
+            for (const line of evt.split('\n')) {
+              if (!line.startsWith('data: ')) continue;
+              const payload = line.slice(6).trim();
+              if (!payload || payload === '[DONE]') continue;
+              try {
+                const json = JSON.parse(payload);
+                if (json.type === 'content_block_delta' && json.delta?.type === 'text_delta') {
+                  out.textContent += json.delta.text;
+                }
+              } catch (_) {
+                /* ignore */
+              }
+            }
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

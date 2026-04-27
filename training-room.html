@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>🔮 練功坊</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Segoe UI','Microsoft JhengHei',sans-serif;
+  background:radial-gradient(ellipse at 50% 40%,#0d1b3e 0%,#070d1f 50%,#03060f 100%);
+  color:#e2e8f0;
+  min-height:100vh;
+  overflow:hidden;
+}
+
+/* ── 星空背景 ── */
+.stars{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+.star{position:absolute;background:#fff;border-radius:50%;animation:twinkle var(--dur) ease-in-out infinite alternate;}
+@keyframes twinkle{0%{opacity:0.2;transform:scale(0.8)}100%{opacity:1;transform:scale(1.2)}}
+
+/* ── 標題 ── */
+.room-title{
+  text-align:center;
+  padding:28px 20px 10px;
+  position:relative;z-index:2;
+}
+.room-title h1{
+  font-size:2rem;font-weight:900;
+  background:linear-gradient(135deg,#c084fc,#818cf8,#4aeaff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:3px;text-shadow:0 0 40px rgba(160,100,255,0.3);
+}
+.room-title p{
+  font-size:0.85rem;color:#6a7faa;margin-top:6px;letter-spacing:1px;
+}
+
+/* ── 房間透視 ── */
+.room-container{
+  position:relative;z-index:2;
+  width:100%;max-width:1100px;margin:0 auto;
+  height:calc(100vh - 120px);
+  perspective:1200px;
+  display:flex;align-items:center;justify-content:center;
+}
+.room-scene{
+  width:100%;height:85%;position:relative;
+  transform-style:preserve-3d;
+}
+
+/* 地板 */
+.floor{
+  position:absolute;bottom:0;left:5%;width:90%;height:35%;
+  background:linear-gradient(180deg,rgba(30,20,50,0.9),rgba(15,10,30,0.95));
+  border-radius:0 0 20px 20px;
+  transform:perspective(600px) rotateX(30deg);
+  transform-origin:bottom center;
+  box-shadow:0 0 60px rgba(100,60,200,0.15);
+}
+.floor::before{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:repeating-linear-gradient(90deg,rgba(100,180,255,0.03) 0px,rgba(100,180,255,0.03) 1px,transparent 1px,transparent 80px),
+              repeating-linear-gradient(0deg,rgba(100,180,255,0.02) 0px,rgba(100,180,255,0.02) 1px,transparent 1px,transparent 80px);
+  border-radius:0 0 20px 20px;
+}
+
+/* 牆壁 */
+.wall{
+  position:absolute;top:5%;left:3%;width:94%;height:65%;
+  background:linear-gradient(180deg,rgba(15,25,55,0.95) 0%,rgba(20,15,45,0.9) 60%,rgba(30,20,50,0.85) 100%);
+  border-radius:20px 20px 0 0;
+  border:1px solid rgba(100,180,255,0.08);
+  overflow:hidden;
+}
+.wall::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:60px;
+  background:linear-gradient(180deg,rgba(74,234,255,0.06),transparent);
+}
+.wall::after{
+  content:'🔮 營業核心';
+  position:absolute;top:18px;left:30px;
+  font-size:1.3rem;font-weight:900;letter-spacing:2px;
+  background:linear-gradient(135deg,#fbbf24,#f59e0b);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+
+/* ── 門 ── */
+.doors-row{
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  display:flex;gap:40px;
+  align-items:flex-end;
+  z-index:5;
+}
+.door-wrapper{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  cursor:pointer;transition:transform 0.3s;
+}
+.door-wrapper:hover{transform:translateY(-10px) scale(1.03);}
+
+.door-label{
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:20px;padding:6px 24px;
+  font-size:0.95rem;font-weight:700;letter-spacing:2px;
+  color:#e2e8f0;
+  backdrop-filter:blur(6px);
+  box-shadow:0 2px 12px rgba(0,0,0,0.3);
+  transition:all 0.3s;
+}
+.door-wrapper:hover .door-label{
+  background:rgba(255,255,255,0.18);
+  border-color:rgba(255,255,255,0.35);
+  box-shadow:0 4px 20px rgba(100,180,255,0.2);
+}
+
+/* 聚光燈 */
+.spotlight{
+  position:absolute;top:-50px;width:20px;height:20px;
+  background:radial-gradient(circle,#fbbf24,#78350f);
+  border-radius:50%;border:2px solid rgba(251,191,36,0.4);
+  box-shadow:0 0 15px rgba(251,191,36,0.5);
+  left:50%;transform:translateX(-50%);
+}
+.spotlight-beam{
+  position:absolute;top:8px;left:50%;
+  width:0;height:0;
+  border-left:60px solid transparent;
+  border-right:60px solid transparent;
+  border-top:160px solid rgba(251,191,36,0.06);
+  transform:translateX(-50%);
+  filter:blur(3px);
+  pointer-events:none;
+}
+
+.door-frame{
+  position:relative;
+  width:200px;height:280px;
+  border-radius:10px;overflow:hidden;
+  box-shadow:0 8px 40px rgba(0,0,0,0.5),0 0 30px var(--glow-color);
+  transition:box-shadow 0.3s;
+}
+.door-wrapper:hover .door-frame{
+  box-shadow:0 12px 50px rgba(0,0,0,0.6),0 0 50px var(--glow-color);
+}
+
+.door-surface{
+  width:100%;height:100%;
+  background:var(--door-bg);
+  position:relative;
+  display:flex;flex-direction:column;
+}
+.door-slat{
+  flex:1;
+  border-bottom:1px solid var(--slat-color);
+  background:linear-gradient(90deg,var(--door-highlight) 0%,transparent 30%,transparent 70%,var(--door-highlight) 100%);
+}
+.door-slat:last-child{border-bottom:none;}
+
+/* 門色系 */
+.door-blue{
+  --door-bg:linear-gradient(135deg,#93c5fd,#bfdbfe,#dbeafe);
+  --slat-color:rgba(147,197,253,0.5);
+  --door-highlight:rgba(255,255,255,0.15);
+  --glow-color:rgba(147,197,253,0.3);
+}
+.door-purple{
+  --door-bg:linear-gradient(135deg,#c084fc,#d8b4fe,#e9d5ff);
+  --slat-color:rgba(192,132,252,0.5);
+  --door-highlight:rgba(255,255,255,0.12);
+  --glow-color:rgba(192,132,252,0.3);
+}
+.door-yellow{
+  --door-bg:linear-gradient(135deg,#fbbf24,#fde68a,#fef3c7);
+  --slat-color:rgba(251,191,36,0.4);
+  --door-highlight:rgba(255,255,255,0.18);
+  --glow-color:rgba(251,191,36,0.3);
+}
+
+/* 門把 */
+.door-handle{
+  position:absolute;right:14px;top:50%;transform:translateY(-50%);
+  width:12px;height:12px;
+  background:radial-gradient(circle,#fef3c7,#f59e0b);
+  border-radius:50%;
+  border:2px solid rgba(245,158,11,0.5);
+  box-shadow:0 0 10px rgba(245,158,11,0.4);
+}
+
+/* 中間門的攝影機圖示 */
+.door-cam{
+  position:absolute;top:-5px;right:-5px;
+  font-size:1rem;
+  filter:drop-shadow(0 0 6px rgba(255,60,60,0.6));
+}
+
+/* 門上的自訂圖片 */
+.door-img{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  object-fit:cover;z-index:2;
+  border-radius:10px;
+  display:none;
+}
+.door-frame.has-img .door-surface{opacity:0;}
+.door-frame.has-img .door-img{display:block;}
+.door-frame.has-img .door-handle{z-index:3;}
+
+/* 更換照片按鈕 */
+.door-change-btn{
+  position:absolute;bottom:8px;right:8px;z-index:10;
+  width:32px;height:32px;
+  background:rgba(0,0,0,0.55);
+  border:1px solid rgba(255,255,255,0.25);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.85rem;
+  cursor:pointer;
+  opacity:0;
+  transition:opacity 0.25s,background 0.25s;
+  backdrop-filter:blur(4px);
+}
+.door-change-btn input[type="file"]{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  opacity:0;cursor:pointer;
+}
+.door-wrapper:hover .door-change-btn{opacity:1;}
+.door-change-btn:hover{background:rgba(74,234,255,0.3);border-color:rgba(74,234,255,0.5);}
+
+/* ── 底部提示 ── */
+.hint-bar{
+  position:fixed;bottom:40px;left:50%;transform:translateX(-50%);z-index:10;
+  background:rgba(10,18,45,0.85);border:1px solid rgba(100,180,255,0.12);
+  border-radius:30px;padding:8px 28px;
+  font-size:0.8rem;color:#5a7aaa;letter-spacing:1px;
+  backdrop-filter:blur(10px);
+}
+
+/* ── 響應式 ── */
+@media(max-width:768px){
+  .doors-row{gap:16px;}
+  .door-frame{width:140px;height:200px;}
+  .room-title h1{font-size:1.5rem;}
+  .wall::after{font-size:0.9rem;top:8px;left:16px;opacity:0.7;}
+}
+@media(max-width:480px){
+  .doors-row{gap:10px;}
+  .door-frame{width:100px;height:150px;}
+  .door-label{font-size:0.8rem;padding:4px 14px;}
+  .wall::after{font-size:0.85rem;top:6px;left:12px;opacity:0.6;}
+}
+
+@media(max-width:600px){
+  .door-frame{width:150px;height:210px;}
+  .door-label{font-size:0.85rem;padding:5px 16px;}
+  .room-title h1{font-size:1.4rem;}
+  .room-container{perspective:900px;}
+  .hint-bar{font-size:0.75rem;padding:6px 20px;}
+}
+
+@media(max-width:400px){
+  .door-frame{width:90px;height:130px;}
+  .door-label{font-size:0.75rem;padding:3px 10px;}
+  .room-title h1{font-size:1.2rem;}
+  .room-title p{font-size:0.75rem;}
+  .hint-bar{font-size:0.7rem;}
+}
+</style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<!-- 星空 -->
+<div class="stars" id="stars"></div>
+
+<!-- 標題 -->
+<div class="room-title">
+  <h1>🔮 練功坊</h1>
+  <p>選擇訓練區域，開始提升戰力</p>
+</div>
+
+<!-- 房間場景 -->
+<div class="room-container">
+  <div class="room-scene">
+    <!-- 牆壁 -->
+    <div class="wall"></div>
+    <!-- 地板 -->
+    <div class="floor"></div>
+
+    <!-- 三扇門 -->
+    <div class="doors-row">
+      <!-- 左門：業務 -->
+      <div class="door-wrapper" onclick="openDoor('sales')">
+        <div class="door-label">業務</div>
+        <div class="door-frame door-blue" id="doorFrame_sales" style="position:relative;">
+          <div class="spotlight"></div>
+          <div class="spotlight-beam"></div>
+          <img class="door-img" id="doorImg_sales">
+          <div class="door-surface">
+            <div class="door-slat"></div><div class="door-slat"></div><div class="door-slat"></div>
+            <div class="door-slat"></div><div class="door-slat"></div><div class="door-slat"></div>
+            <div class="door-slat"></div><div class="door-slat"></div><div class="door-slat"></div>
+          </div>
+          <div class="door-handle"></div>
+          <div class="door-change-btn" title="更換門面照片" onclick="event.stopPropagation()">📷<input type="file" accept="image/*" onchange="changeDoorImg('sales',this)"></div>
+        </div>
+      </div>
+
+      <!-- 中門：主管 -->
+      <div class="door-wrapper" onclick="openDoor('manager')">
+        <div class="door-label" style="display:flex;align-items:center;gap:6px;">主管 <span class="door-cam">📹</span></div>
+        <div class="door-frame door-purple" id="doorFrame_manager" style="width:220px;height:310px;position:relative;">
+          <div class="spotlight"></div>
+          <div class="spotlight-beam"></div>
+          <img class="door-img" id="doorImg_manager">
+          <div class="door-surface">
+            <div class="door-slat"></div><div class="door-slat"></div><div class="door-slat"></div>
+            <div class="door-slat"></div><div class="door-slat"></div><div class="door-slat"></div>
+            <div class="door-slat"></div><div class="door-slat"></div><div class="door-slat"></div>
+            <div class="door-slat"></div>
+          </div>
+          <div class="door-handle"></div>
+          <div class="door-change-btn" title="更換門面照片" onclick="event.stopPropagation()">📷<input type="file" accept="image/*" onchange="changeDoorImg('manager',this)"></div>
+        </div>
+      </div>
+
+      <!-- 右門：組長 -->
+      <div class="door-wrapper" onclick="openDoor('leader')">
+        <div class="door-label">組長</div>
+        <div class="door-frame door-yellow" id="doorFrame_leader" style="position:relative;">
+          <div class="spotlight"></div>
+          <div class="spotlight-beam"></div>
+          <img class="door-img" id="doorImg_leader">
+          <div class="door-surface">
+            <div class="door-slat"></div><div class="door-slat"></div><div class="door-slat"></div>
+            <div class="door-slat"></div><div class="door-slat"></div><div class="door-slat"></div>
+            <div class="door-slat"></div><div class="door-slat"></div><div class="door-slat"></div>
+          </div>
+          <div class="door-handle"></div>
+          <div class="door-change-btn" title="更換門面照片" onclick="event.stopPropagation()">📷<input type="file" accept="image/*" onchange="changeDoorImg('leader',this)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="hint-bar">點擊門進入訓練模組</div>
+
+<!-- ===== 子頁面覆蓋層 ===== -->
+<div id="subOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;display:none;background:rgba(3,6,15,0.92);backdrop-filter:blur(6px);">
+  <div style="width:100%;height:100%;display:flex;flex-direction:column;">
+    <div id="subHeader" style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 8px;height:50px;min-height:50px;background:linear-gradient(180deg,rgba(10,18,45,0.97),rgba(8,14,35,0.93));border-bottom:1px solid rgba(100,180,255,0.15);z-index:10;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="closeSub()" style="padding:5px 12px;border-radius:8px;font-size:13px;font-weight:700;background:rgba(74,234,255,0.08);border:1px solid rgba(74,234,255,0.25);color:#4aeaff;cursor:pointer;font-family:inherit;white-space:nowrap;">◀ 返回</button>
+        <span id="subTitle" style="font-size:15px;font-weight:700;background:linear-gradient(135deg,#4aeaff,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;"></span>
+      </div>
+      <button onclick="closeSub()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(100,180,255,0.2);color:#6a8fcc;font-size:1.1rem;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;" onmouseover="this.style.background='rgba(255,80,80,0.25)';this.style.color='#ff8a8a'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#6a8fcc'">✕</button>
+    </div>
+    <iframe id="subFrame" src="" style="flex:1;width:100%;border:none;background:transparent;"></iframe>
+  </div>
+</div>
+
+<script>
+// 星空生成
+(function(){
+  const c=document.getElementById('stars');
+  for(let i=0;i<120;i++){
+    const s=document.createElement('div');
+    s.className='star';
+    const size=Math.random()*2.5+0.5;
+    s.style.cssText=`width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${Math.random()*3+2}s;animation-delay:${Math.random()*3}s;opacity:${Math.random()*0.5+0.3};`;
+    c.appendChild(s);
+  }
+})();
+
+function openDoor(type){
+  const titles={
+    sales:'📘 業務訓練檢核表',
+    manager:'📋 主管（功能開發中）',
+    leader:'📸 組長學堂'
+  };
+  const files={
+    sales:'training-sales.html',
+    manager:'',
+    leader:'training-leader-academy.html'
+  };
+
+  if(type==='manager'){
+    // 暫未開放
+    alert('🚧 主管模組開發中，敬請期待！');
+    return;
+  }
+
+  document.getElementById('subTitle').textContent=titles[type]||'';
+  document.getElementById('subFrame').src=files[type]||'';
+  document.getElementById('subOverlay').style.display='block';
+}
+
+function closeSub(){
+  try{
+    const f=document.getElementById('subFrame');
+    if(f&&f.contentWindow&&typeof f.contentWindow.triggerSave==='function'){
+      f.contentWindow.triggerSave();
+    }
+  }catch(e){}
+  document.getElementById('subOverlay').style.display='none';
+  document.getElementById('subFrame').src='';
+}
+
+// ── 門面照片更換 ──
+const BASE_DOOR_KEY = 'training_room_door_imgs';
+const _cachedCharId=localStorage.getItem('activeCharacterId');
+function getDoorSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+BASE_DOOR_KEY:BASE_DOOR_KEY;}
+
+function changeDoorImg(doorKey, input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      // 壓縮後存入
+      const canvas = document.createElement('canvas');
+      const maxW=600, maxH=800;
+      let w=img.width, h=img.height;
+      if(w>maxW){h=h*maxW/w;w=maxW;}
+      if(h>maxH){w=w*maxH/h;h=maxH;}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const dataUrl = canvas.toDataURL('image/jpeg',0.82);
+      applyDoorImg(doorKey, dataUrl);
+      saveDoorImgs();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+function applyDoorImg(doorKey, dataUrl){
+  const frame = document.getElementById('doorFrame_'+doorKey);
+  const imgEl = document.getElementById('doorImg_'+doorKey);
+  if(!frame||!imgEl) return;
+  if(dataUrl){
+    imgEl.src = dataUrl;
+    frame.classList.add('has-img');
+  } else {
+    imgEl.src = '';
+    frame.classList.remove('has-img');
+  }
+}
+
+function saveDoorImgs(){
+  const data = {};
+  ['sales','manager','leader'].forEach(k=>{
+    const imgEl = document.getElementById('doorImg_'+k);
+    if(imgEl && imgEl.src && !imgEl.src.endsWith(location.pathname)) data[k] = imgEl.src;
+  });
+  try{ localStorage.setItem(getDoorSK(), JSON.stringify(data)); }catch(e){}
+}
+
+function loadDoorImgs(){
+  try{
+    let raw = localStorage.getItem(getDoorSK());
+    // 若角色專屬無資料，回退到預設(無角色) key
+    if(!raw){
+      raw = localStorage.getItem(BASE_DOOR_KEY);
+    }
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    Object.keys(data).forEach(k=>{ if(data[k]) applyDoorImg(k, data[k]); });
+  }catch(e){}
+}
+
+// 頁面載入時還原門面照片
+loadDoorImgs();
+
+// 暴露 triggerSave 給 parent
+window.triggerSave=function(){
+  saveDoorImgs();
+  try{
+    const f=document.getElementById('subFrame');
+    if(f&&f.contentWindow&&typeof f.contentWindow.triggerSave==='function'){
+      f.contentWindow.triggerSave();
+    }
+  }catch(e){}
+};
+// ★ 頁面離開緊急儲存
+function _emergencySave(){saveDoorImgs();try{const f=document.getElementById('subFrame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')_emergencySave();});
+window.addEventListener('beforeunload',_emergencySave);
+window.addEventListener('pagehide',_emergencySave);
+</script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

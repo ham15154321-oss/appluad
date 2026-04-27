@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赫綠設計學院 - 總覽</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    min-height:100vh;
+    background:linear-gradient(135deg,#050510 0%,#0d1033 40%,#1a0a2e 70%,#050510 100%);
+    color:#e8e8e8;font-family:'Segoe UI','Microsoft JhengHei',sans-serif;
+    display:flex;flex-direction:column;align-items:center;
+    padding:16px 20px 40px;
+    overflow-x:hidden;
+  }
+
+  /* ===== 背景星星 ===== */
+  .bg-stars{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+  .bg-star{
+    position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;
+    animation:starTwinkle 3s ease-in-out infinite;
+  }
+  @keyframes starTwinkle{0%,100%{opacity:.15;transform:scale(1)}50%{opacity:.8;transform:scale(1.4)}}
+
+  /* ===== 緊湊標題列 ===== */
+  .site-header{
+    position:relative;z-index:2;
+    display:flex;align-items:center;gap:10px;
+    padding:8px 0 10px;
+    width:100%;max-width:800px;
+  }
+  .site-logo{ font-size:32px; filter:drop-shadow(0 2px 8px rgba(255,215,0,.3)); }
+  .site-header-text{}
+  .site-title{
+    font-size:17px;font-weight:900;color:#ffd700;
+    letter-spacing:2px;
+    text-shadow:0 0 16px rgba(255,215,0,.2);
+  }
+  .site-subtitle{
+    font-size:11px;color:rgba(160,200,255,.45);
+    letter-spacing:1px;margin-top:1px;
+  }
+
+  /* ===== 使用者狀態列（登入後顯示，在標題右側）===== */
+  .user-bar{
+    margin-left:auto;
+    display:flex;align-items:center;gap:10px;
+  }
+  .user-badge{
+    padding:5px 12px;border-radius:8px;
+    background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.12);
+    color:rgba(255,215,0,.8);font-size:11px;font-weight:600;letter-spacing:1px;
+    white-space:nowrap;
+  }
+  .logout-btn{
+    padding:5px 12px;border-radius:8px;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,100,100,.2);
+    color:rgba(255,160,160,.8);font-size:11px;font-weight:600;
+    cursor:pointer;transition:all .2s;white-space:nowrap;
+  }
+  .logout-btn:hover{
+    background:rgba(255,80,80,.12);border-color:rgba(255,100,100,.4);color:#ff8888;
+  }
+
+  /* ===== 主容器（登入框+卡片全部在一起）===== */
+  .main-wrap{
+    position:relative;z-index:2;
+    width:100%;max-width:800px;
+    margin-top:4px;
+  }
+
+  /* ===== 登入區塊 — 嵌在卡片區上方 ===== */
+  .login-section{
+    width:100%;max-width:380px;
+    margin:0 auto 20px;
+    padding:24px 28px 22px;
+    background:rgba(15,20,50,.65);
+    border:1px solid rgba(255,215,0,.12);
+    border-radius:16px;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    box-shadow:0 12px 40px rgba(0,0,0,.4);
+  }
+  .login-section h2{
+    font-size:14px;color:rgba(200,220,255,.8);
+    font-weight:700;letter-spacing:2px;
+    margin-bottom:16px;text-align:center;
+  }
+  .login-field{margin-bottom:12px;text-align:left;}
+  .login-field label{
+    display:block;font-size:11px;font-weight:600;
+    color:rgba(160,200,255,.55);margin-bottom:4px;letter-spacing:1px;
+  }
+  .login-field input[type="text"],
+  .login-field input[type="password"]{
+    width:100%;padding:10px 14px;border-radius:10px;
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(100,160,255,.12);
+    color:#e8e8ff;font-size:14px;font-family:inherit;
+    outline:none;transition:all .3s;
+  }
+  .login-field input:focus{
+    border-color:rgba(255,215,0,.35);
+    background:rgba(255,255,255,.07);
+    box-shadow:0 0 14px rgba(255,215,0,.06);
+  }
+  .login-field input::placeholder{color:rgba(160,200,255,.25);}
+
+  .remember-row{
+    display:flex;align-items:center;gap:8px;
+    margin-bottom:14px;cursor:pointer;
+    -webkit-user-select:none;user-select:none;
+  }
+  .remember-row input[type="checkbox"]{
+    width:17px;height:17px;accent-color:#ffd700;cursor:pointer;
+  }
+  .remember-row span{font-size:12px;color:rgba(200,220,255,.6);}
+
+  .login-error{
+    color:#ff6b6b;font-size:12px;margin-bottom:8px;
+    min-height:16px;text-align:center;transition:all .3s;
+  }
+  .login-submit{
+    width:100%;padding:11px;border:none;border-radius:10px;
+    background:linear-gradient(135deg,#ffd700,#f59e0b);
+    color:#1a1a2e;font-size:14px;font-weight:800;
+    letter-spacing:2px;cursor:pointer;
+    transition:all .3s;position:relative;overflow:hidden;
+  }
+  .login-submit:hover{
+    transform:translateY(-1px);box-shadow:0 6px 24px rgba(255,215,0,.25);
+  }
+  .login-submit:active{transform:translateY(0);}
+  .login-submit::after{
+    content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);
+    transition:left .5s;
+  }
+  .login-submit:hover::after{left:120%;}
+
+  @keyframes shakeAnim{
+    0%,100%{transform:translateX(0)}
+    20%{transform:translateX(-8px)}40%{transform:translateX(8px)}
+    60%{transform:translateX(-5px)}80%{transform:translateX(5px)}
+  }
+
+  /* ===== 功能卡片區（始終可見）===== */
+  .grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+    gap:14px;width:100%;
+    transition:all .3s;
+  }
+  /* 未登入：卡片模糊+不可點擊 */
+  .grid.locked{
+    pointer-events:none;
+    filter:blur(4px) brightness(.5);
+    -webkit-user-select:none;user-select:none;
+  }
+  .grid.locked .card{
+    cursor:default;
+  }
+  /* 鎖定提示 */
+  .lock-hint{
+    text-align:center;color:rgba(255,215,0,.5);font-size:12px;
+    letter-spacing:1px;margin-top:-6px;margin-bottom:10px;
+  }
+
+  .card{
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,215,0,.15);
+    border-radius:12px;padding:18px 14px;text-align:center;
+    text-decoration:none;color:#e8e8e8;
+    transition:all .2s;cursor:pointer;
+  }
+  .card:hover{
+    background:rgba(255,215,0,.1);border-color:rgba(255,215,0,.4);
+    transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3);
+  }
+  .card .icon{font-size:1.8rem;margin-bottom:6px}
+  .card .name{font-size:.9rem;font-weight:600}
+
+  .footer{margin-top:36px;color:#555;font-size:.75rem;position:relative;z-index:2;}
+
+  /* ===== 歡迎動畫 ===== */
+  .welcome-overlay{
+    position:fixed;inset:0;z-index:100000;
+    background:rgba(5,5,16,.92);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    opacity:0;pointer-events:none;transition:opacity .4s;
+  }
+  .welcome-overlay.show{opacity:1;pointer-events:auto;}
+  .welcome-emoji{font-size:72px;margin-bottom:12px;animation:welcomeBounce .25s ease;}
+  @keyframes welcomeBounce{
+    0%{transform:scale(0) rotate(-20deg);opacity:0}
+    60%{transform:scale(1.2) rotate(5deg);opacity:1}
+    100%{transform:scale(1) rotate(0);opacity:1}
+  }
+  .welcome-text{
+    font-size:26px;font-weight:900;color:#ffd700;letter-spacing:4px;
+    text-shadow:0 0 30px rgba(255,215,0,.4);
+    animation:welcomeFadeUp .25s ease .05s both;
+  }
+  .welcome-sub{
+    font-size:14px;color:rgba(160,200,255,.7);margin-top:6px;letter-spacing:2px;
+    animation:welcomeFadeUp .25s ease .1s both;
+  }
+  @keyframes welcomeFadeUp{0%{opacity:0;transform:translateY(16px)}100%{opacity:1;transform:translateY(0)}}
+  .welcome-particle{position:absolute;border-radius:50%;pointer-events:none;}
+
+  /* ===== RWD ===== */
+  @media(max-width:480px){
+    body{padding:10px 12px 32px;}
+    .site-header{gap:8px;padding:6px 0 8px;}
+    .site-logo{font-size:26px;}
+    .site-title{font-size:14px;letter-spacing:1px;}
+    .site-subtitle{font-size:10px;}
+    .user-badge{font-size:10px;padding:4px 8px;}
+    .logout-btn{font-size:10px;padding:4px 8px;}
+    .login-section{padding:20px 18px 18px;margin-bottom:16px;}
+    .login-section h2{font-size:13px;margin-bottom:14px;}
+    .login-field input{padding:9px 12px;font-size:13px;}
+    .login-submit{padding:10px;font-size:13px;}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+    .card{padding:14px 10px;}
+    .card .icon{font-size:1.5rem;}
+    .card .name{font-size:.82rem;}
+    .welcome-emoji{font-size:56px;}
+    .welcome-text{font-size:20px;letter-spacing:2px;}
+  }
+</style>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<!-- 背景星星 -->
+<div class="bg-stars" id="bgStars"></div>
+
+<!-- ===== 標題列 + 使用者狀態（一行）===== -->
+<header class="site-header">
+  <div class="site-logo">🏰</div>
+  <div class="site-header-text">
+    <div class="site-title">赫綠設計學院</div>
+    <div class="site-subtitle">總覽</div>
+  </div>
+  <div class="user-bar" id="userBar" style="display:none;">
+    <div class="user-badge">👤 <span id="userBadgeName"></span></div>
+  </div>
+</header>
+
+<!-- ===== 主容器 ===== -->
+<div class="main-wrap">
+
+  <!-- 登入區塊 -->
+  <section class="login-section" id="loginSection">
+    <h2>🔐 請先登入</h2>
+    <form id="loginForm" onsubmit="return handleLogin(event)">
+      <div class="login-field">
+        <label>帳號</label>
+        <input type="text" id="loginUser" placeholder="請輸入帳號" autocomplete="username" autofocus>
+      </div>
+      <div class="login-field">
+        <label>密碼</label>
+        <input type="password" id="loginPass" placeholder="請輸入密碼" autocomplete="current-password">
+      </div>
+      <label class="remember-row">
+        <input type="checkbox" id="rememberMe">
+        <span>記住我</span>
+      </label>
+      <div class="login-error" id="loginError"></div>
+      <button type="submit" class="login-submit">登 入</button>
+    </form>
+  </section>
+
+  <!-- 鎖定提示 -->
+  <div class="lock-hint" id="lockHint">🔒 請登入後使用以下功能</div>
+
+  <!-- 功能卡片（始終可見，未登入時模糊鎖定）-->
+  <div class="grid locked" id="appGrid">
+    <a class="card" href="./%E4%BA%BA%E5%8A%9B%E7%99%BC%E5%B1%95.html">
+      <div class="icon">🎮</div><div class="name">人力發展</div>
+    </a>
+    <a class="card" href="./castle-cards.html">
+      <div class="icon">🏰</div><div class="name">指揮城堡</div>
+    </a>
+    <a class="card" href="./training-sales.html">
+      <div class="icon">⚔️</div><div class="name">練功坊（業務）</div>
+    </a>
+    <a class="card" href="./training-room.html">
+      <div class="icon">📚</div><div class="name">練功坊（訓練）</div>
+    </a>
+    <a class="card" href="./monthly-performance.html">
+      <div class="icon">📊</div><div class="name">業績數據中心</div>
+    </a>
+    <a class="card" href="./performance-compare.html">
+      <div class="icon">📈</div><div class="name">績效比較</div>
+    </a>
+    <a class="card" href="./training-leader-screenshots.html">
+      <div class="icon">📸</div><div class="name">組長截圖紀錄</div>
+    </a>
+    <a class="card" href="./waterfall-channel.html">
+      <div class="icon">🌊</div><div class="name">瀑布（通路研究）</div>
+    </a>
+    <a class="card" href="./achievement-unlock.html">
+      <div class="icon">🏆</div><div class="name">成就解鎖</div>
+    </a>
+    <a class="card" href="./fire-mandala.html">
+      <div class="icon">🔥</div><div class="name">火種（影響力）</div>
+    </a>
+    <a class="card" href="./committee-roles.html">
+      <div class="icon">⚖️</div><div class="name">法院（懲罰）</div>
+    </a>
+    <a class="card" href="./team-leader-map-assessment.html">
+      <div class="icon">🗺️</div><div class="name">360度能力檢核</div>
+    </a>
+  </div>
+
+  <div id="charBar" style="margin-top:20px;padding:10px 16px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:10px;width:100%;display:none;text-align:center;">
+    <span style="color:#34d399;font-size:13px;" id="charBarText">🎮 目前主角：—</span>
+  </div>
+</div>
+
+<!-- 歡迎動畫 -->
+<div class="welcome-overlay" id="welcomeOverlay">
+  <div class="welcome-emoji">🎉</div>
+  <div class="welcome-text">歡迎回來</div>
+  <div class="welcome-sub" id="welcomeName"></div>
+</div>
+
+<p class="footer">© 赫綠設計學院 Appedu</p>
+
+<script>
+/* ============================================================
+   帳號系統
+   ============================================================ */
+var ACCOUNTS = [
+  { user:'applaud', pass:'0000', displayName:'管理員' }
+  // 未來新增：{ user:'帳號', pass:'密碼', displayName:'顯示名稱' },
+];
+
+/* ---- 星星背景 ---- */
+(function(){
+  var c=document.getElementById('bgStars');
+  for(var i=0;i<60;i++){
+    var s=document.createElement('div');s.className='bg-star';
+    s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';
+    s.style.width=s.style.height=(1+Math.random()*2)+'px';
+    s.style.animationDelay=(Math.random()*3)+'s';
+    s.style.animationDuration=(2+Math.random()*3)+'s';
+    c.appendChild(s);
+  }
+})();
+
+/* ---- 登入狀態 ---- */
+function getSession(){
+  try{
+    var s=JSON.parse(sessionStorage.getItem('appedu_session'));
+    if(s&&s.user)return s;
+    var r=JSON.parse(localStorage.getItem('appedu_remembered_session'));
+    if(r&&r.user){sessionStorage.setItem('appedu_session',JSON.stringify(r));return r;}
+  }catch(e){}
+  return null;
+}
+
+/* 切換到「已登入」狀態 */
+function showApp(session, isAutoLogin){
+  var loginSection=document.getElementById('loginSection');
+  if(isAutoLogin){
+    // 記住我自動登入：替換登入框為提示文字，讓使用者知道為什麼沒看到登入頁面
+    loginSection.innerHTML='<div style="text-align:center;padding:8px 0;"><div style="color:#ffd700;font-size:13px;font-weight:600;letter-spacing:1px;">✅ 已自動登入（'+( session.displayName||session.user )+'）</div><div style="color:rgba(160,200,255,.4);font-size:11px;margin-top:4px;">已勾選「記住我」，如需重新登入請按登出</div></div>';
+  } else {
+    loginSection.style.display='none';
+  }
+  document.getElementById('lockHint').style.display='none';
+  document.getElementById('appGrid').classList.remove('locked');
+  document.getElementById('userBar').style.display='flex';
+  document.getElementById('userBadgeName').textContent=session.displayName||session.user;
+  updateCharBar();
+}
+
+/* 自動填入記住的帳密 */
+function loadRemembered(){
+  try{
+    var r=JSON.parse(localStorage.getItem('appedu_remember'));
+    if(r&&r.user){
+      document.getElementById('loginUser').value=r.user;
+      document.getElementById('loginPass').value=r.pass;
+      document.getElementById('rememberMe').checked=true;
+    }
+  }catch(e){}
+}
+
+/* ---- 頁面載入：檢查登入 ---- */
+var existingSession=getSession();
+if(existingSession){
+  showApp(existingSession, true); // true = 自動登入（記住我）
+} else {
+  loadRemembered();
+}
+
+/* ---- 登入處理 ---- */
+function handleLogin(e){
+  e.preventDefault();
+  var u=document.getElementById('loginUser').value.trim().toLowerCase();
+  var p=document.getElementById('loginPass').value;
+  var remember=document.getElementById('rememberMe').checked;
+  var errEl=document.getElementById('loginError');
+
+  if(!u||!p){errEl.textContent='請輸入帳號和密碼';shakeBox();return false;}
+
+  var matched=null;
+  for(var i=0;i<ACCOUNTS.length;i++){
+    if(ACCOUNTS[i].user.toLowerCase()===u&&ACCOUNTS[i].pass===p){matched=ACCOUNTS[i];break;}
+  }
+  if(!matched){errEl.textContent='帳號或密碼錯誤';shakeBox();return false;}
+
+  var sessionData={user:matched.user,displayName:matched.displayName,loginTime:Date.now()};
+  sessionStorage.setItem('appedu_session',JSON.stringify(sessionData));
+
+  if(remember){
+    localStorage.setItem('appedu_remember',JSON.stringify({user:matched.user,pass:matched.pass}));
+    localStorage.setItem('appedu_remembered_session',JSON.stringify(sessionData));
+  } else {
+    localStorage.removeItem('appedu_remember');
+    localStorage.removeItem('appedu_remembered_session');
+  }
+
+  localStorage.setItem('appedu_login_event',JSON.stringify({user:matched.user,time:Date.now()}));
+
+  // ★ 登入成功後啟動 Firebase 同步（同頁面 storage 事件不會觸發）
+  if(window._firebaseSyncStart){
+    try{ window._firebaseSyncStart(); }catch(e){ console.warn('[Login] _firebaseSyncStart error', e); }
+  }
+
+  showWelcome(matched,function(){showApp(sessionData, false);});
+  return false;
+}
+
+/* ---- 歡迎動畫 ---- */
+function showWelcome(account,cb){
+  var w=document.getElementById('welcomeOverlay');
+  document.getElementById('welcomeName').textContent=account.displayName||account.user;
+  w.classList.add('show');
+  for(var i=0;i<25;i++)spawnParticle(w);
+  setTimeout(function(){
+    w.style.transition='opacity .2s';w.style.opacity='0';
+    setTimeout(function(){w.classList.remove('show');w.style.opacity='';w.style.transition='';if(cb)cb();},200);
+  },350);
+}
+function spawnParticle(container){
+  var p=document.createElement('div');p.className='welcome-particle';
+  var sz=3+Math.random()*5;
+  var colors=['#ffd700','#ff6b6b','#4fc3f7','#81c784','#ba68c8','#ffab40'];
+  p.style.width=p.style.height=sz+'px';
+  p.style.background=colors[Math.floor(Math.random()*colors.length)];
+  p.style.left=(30+Math.random()*40)+'%';p.style.top=(30+Math.random()*40)+'%';p.style.opacity='1';
+  container.appendChild(p);
+  var a=Math.random()*Math.PI*2,d=80+Math.random()*180;
+  p.style.transition='all .3s cubic-bezier(.2,.8,.3,1)';
+  requestAnimationFrame(function(){
+    p.style.transform='translate('+Math.cos(a)*d+'px,'+Math.sin(a)*d+'px) scale(0)';p.style.opacity='0';
+  });
+  setTimeout(function(){p.remove();},350);
+}
+
+/* ---- 搖動 ---- */
+function shakeBox(){
+  var box=document.getElementById('loginSection');
+  box.style.animation='none';box.offsetHeight;box.style.animation='shakeAnim .4s ease';
+}
+
+/* ---- 登出 ---- */
+function handleLogout(){
+  sessionStorage.removeItem('appedu_session');
+  localStorage.removeItem('appedu_remembered_session');
+  localStorage.setItem('appedu_logout_event',Date.now().toString());
+  location.reload();
+}
+
+/* ---- 跨分頁 ---- */
+window.addEventListener('storage',function(e){
+  if(e.key==='appedu_logout_event'){sessionStorage.removeItem('appedu_session');location.reload();}
+  if(e.key==='activeCharacterId')updateCharBar();
+});
+
+/* ---- 角色列 ---- */
+function updateCharBar(){
+  var cid=localStorage.getItem('activeCharacterId');
+  var bar=document.getElementById('charBar');
+  var txt=document.getElementById('charBarText');
+  if(cid){bar.style.display='block';txt.textContent='🎮 目前主角：'+cid;}
+  else{bar.style.display='none';}
+}
+updateCharBar();
+</script>
+
+<script defer src="./firebase-sync.js"></script>
+<script src="./nav-home.js"></script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

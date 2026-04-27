@@ -1,0 +1,2256 @@
+/* ════════════════════════════════════════════════════════
+   ☀️ 白天模式 — 全站共用樣式 v3
+   當 body 或 html 有 .day-mode class 時生效
+   風格：粉紫 + 淺藍 + 暖白，參考夢幻浮島圖
+   ════════════════════════════════════════════════════════ */
+
+/* ╔══════════════════════════════════════╗
+   ║  1. CSS 自訂屬性覆蓋（最高優先級）   ║
+   ╚══════════════════════════════════════╝ */
+html.day-mode,
+body.day-mode {
+  --bg: #f0e8f8 !important;
+  --bg2: #ede4f5 !important;
+  --bg3: #e8ddf2 !important;
+  --bg-deep: #f0e8f8 !important;
+  --bg-mid: #ede4f5 !important;
+  --bg-panel: rgba(255,255,255,0.75) !important;
+  --card: rgba(255,255,255,0.65) !important;
+  --border: rgba(180,160,210,0.25) !important;
+  --border-hi: rgba(140,100,180,0.4) !important;
+  --text: #4a3a5c !important;
+  --text-dim: #8a7aaa !important;
+  --text-bright: #3a2a4c !important;
+  --dim: #8a7aaa !important;
+  --bright: #3a2a4c !important;
+  --accent: #7a5a9a !important;
+  --accent2: #9a70c0 !important;
+  --gold: #c8960a !important;
+  --red: #d94040 !important;
+  --red-strike: #d94040 !important;
+  --green: #2a8a4a !important;
+  --c1: #d94040 !important;
+  --c2: #c8960a !important;
+  --c3: #2a8a4a !important;
+  --c4: #4a70b0 !important;
+  --c5: #9a60d0 !important;
+  --c6: #c06090 !important;
+  --center-bg: linear-gradient(135deg, rgba(200,180,230,0.2), rgba(220,200,240,0.15)) !important;
+  --theme-bg: linear-gradient(135deg, rgba(180,160,220,0.12), rgba(200,180,240,0.08)) !important;
+  --cell-bg: rgba(255,255,255,0.6) !important;
+}
+
+/* ╔══════════════════════════════════════╗
+   ║  2. 基礎：背景和文字               ║
+   ╚══════════════════════════════════════╝ */
+body.day-mode,
+html.day-mode body {
+  background: linear-gradient(180deg, #c9e8ff 0%, #e8d8f4 30%, #fde8f0 60%, #fff5f0 100%) !important;
+  color: #4a3a5c !important;
+}
+
+/* ── 所有文字清除 text-shadow ── */
+body.day-mode *,
+body.day-mode *::before,
+body.day-mode *::after {
+  text-shadow: none !important;
+}
+
+/* ╔══════════════════════════════════════╗
+   ║  3. 通用面板/卡片/容器              ║
+   ╚══════════════════════════════════════╝ */
+body.day-mode .panel,
+body.day-mode [class*="card"],
+body.day-mode [class*="overlay"]:not(.active):not([class*="ceremony"]),
+body.day-mode [style*="rgba(10,18"],
+body.day-mode [style*="rgba(12,22"],
+body.day-mode [style*="rgba(15,20"],
+body.day-mode [style*="rgba(15,25"],
+body.day-mode [style*="rgba(30,20"],
+body.day-mode [style*="rgba(10,18,40"],
+body.day-mode [style*="rgba(10,18,45"] {
+  background: rgba(255,255,255,0.6) !important;
+  border-color: rgba(180,160,210,0.3) !important;
+  color: #4a3a5c !important;
+}
+
+/* ── 標題文字 ── */
+body.day-mode h1, body.day-mode h2, body.day-mode h3, body.day-mode h4 {
+  color: #5a3a7a !important;
+  text-shadow: none !important;
+  -webkit-text-fill-color: #5a3a7a !important;
+  background-clip: unset !important;
+  -webkit-background-clip: unset !important;
+  background-image: none !important;
+}
+
+/* ── 一般文字 ── */
+body.day-mode p,
+body.day-mode span,
+body.day-mode label,
+body.day-mode div,
+body.day-mode a,
+body.day-mode li {
+  color: inherit;
+}
+
+/* ── 按鈕 ── */
+body.day-mode button,
+body.day-mode .btn,
+body.day-mode [class*="btn"]:not(.tab-btn):not(.nav-tab) {
+  color: #4a3a5c !important;
+}
+body.day-mode button:not([style*="background"]):not([class*="active"]):not([class*="primary"]):not([class*="save"]):not([class*="danger"]) {
+  background: rgba(255,255,255,0.6) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+
+/* ── 輸入框 ── */
+body.day-mode input,
+body.day-mode textarea,
+body.day-mode select {
+  background: rgba(255,255,255,0.85) !important;
+  color: #3a2a4c !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+body.day-mode input::placeholder,
+body.day-mode textarea::placeholder {
+  color: #a090b8 !important;
+}
+
+/* ── 表格 ── */
+body.day-mode table { border-color: rgba(200,180,230,0.3) !important; }
+body.day-mode th {
+  background: rgba(200,180,230,0.3) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode td {
+  background: rgba(255,255,255,0.5) !important;
+  color: #4a3a5c !important;
+  border-color: rgba(200,180,230,0.2) !important;
+}
+body.day-mode tr:hover td {
+  background: rgba(220,200,245,0.3) !important;
+}
+
+/* ── 滾動條 ── */
+body.day-mode ::-webkit-scrollbar { background: rgba(240,230,248,0.5); }
+body.day-mode ::-webkit-scrollbar-thumb { background: rgba(180,160,220,0.5); border-radius: 4px; }
+
+/* ── 通用：圖表和 canvas ── */
+body.day-mode canvas { filter: brightness(1.05) saturate(0.9); }
+
+/* ── Toast 通知 ── */
+body.day-mode .toast {
+  background: rgba(140,100,180,0.92) !important;
+  color: #fff !important;
+}
+
+/* ── 星星背景隱藏 ── */
+body.day-mode .stars,
+body.day-mode .star,
+body.day-mode .glow1,
+body.day-mode .glow2 {
+  display: none !important;
+}
+
+/* ╔══════════════════════════════════════╗
+   ║  4. 返回按鈕 / 通用導航            ║
+   ╚══════════════════════════════════════╝ */
+body.day-mode .nav-back-btn,
+body.day-mode .back-btn {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  color: #6a5a8a !important;
+}
+body.day-mode .nav-back-btn:hover,
+body.day-mode .back-btn:hover {
+  background: rgba(220,200,240,0.6) !important;
+}
+
+/* ── 通用 nav 導航列 ── */
+body.day-mode .nav {
+  background: linear-gradient(180deg, rgba(220,210,240,0.95), rgba(240,230,248,0.9)) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .nav-title,
+body.day-mode .nav button {
+  color: #5a3a7a !important;
+}
+
+/* ╔══════════════════════════════════════════════════╗
+   ║  5. 頁面專屬 — training-room.html 練功坊       ║
+   ╚══════════════════════════════════════════════════╝ */
+body.day-mode .room-title h1 {
+  color: #5a3a7a !important;
+  -webkit-text-fill-color: #5a3a7a !important;
+  background: none !important;
+}
+body.day-mode .room-title p {
+  color: #8a7aaa !important;
+}
+body.day-mode .room-container {
+  background: transparent !important;
+}
+body.day-mode .room-scene {
+  background: transparent !important;
+}
+body.day-mode .floor {
+  background: linear-gradient(180deg, rgba(220,200,245,0.5), rgba(240,230,252,0.6)) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .wall {
+  background: linear-gradient(180deg, rgba(240,230,252,0.6), rgba(220,200,245,0.4)) !important;
+  border-color: rgba(180,160,220,0.15) !important;
+}
+body.day-mode .door-frame {
+  background: rgba(255,255,255,0.5) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .door-surface {
+  background: linear-gradient(180deg, #e0d0f0, #d0c0e5) !important;
+  border-color: rgba(160,140,200,0.3) !important;
+}
+body.day-mode .door-blue .door-surface {
+  background: linear-gradient(180deg, #c8d8f0, #b8c8e5) !important;
+}
+body.day-mode .door-purple .door-surface {
+  background: linear-gradient(180deg, #d8c8f0, #c8b8e5) !important;
+}
+body.day-mode .door-yellow .door-surface {
+  background: linear-gradient(180deg, #f0e8c8, #e5d8b0) !important;
+}
+body.day-mode .door-slat {
+  border-color: rgba(160,140,200,0.2) !important;
+}
+body.day-mode .door-label {
+  color: #5a3a7a !important;
+  text-shadow: none !important;
+}
+body.day-mode .door-handle {
+  background: #c0a880 !important;
+}
+body.day-mode .door-cam {
+  color: #7a5a9a !important;
+}
+body.day-mode .spotlight,
+body.day-mode .spotlight-beam {
+  opacity: 0.15 !important;
+}
+body.day-mode .hint-bar {
+  background: rgba(240,230,248,0.9) !important;
+  color: #7a6a9a !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .door-wrapper:hover .door-surface {
+  border-color: rgba(140,100,180,0.5) !important;
+}
+
+/* ╔══════════════════════════════════════════════════╗
+   ║  6. 頁面專屬 — performance-compare.html 業績數據 ║
+   ╚══════════════════════════════════════════════════╝ */
+body.day-mode .header,
+body.day-mode header {
+  background: linear-gradient(135deg, rgba(210,195,240,0.95), rgba(230,218,248,0.95), rgba(200,220,248,0.95)) !important;
+  border-bottom-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .header::before {
+  background: radial-gradient(ellipse at 50% 0%, rgba(220,200,240,0.25) 0%, transparent 70%) !important;
+}
+body.day-mode .header h1,
+body.day-mode .header-title {
+  color: #5a3a7a !important;
+  -webkit-text-fill-color: #5a3a7a !important;
+}
+body.day-mode .header p,
+body.day-mode .header .sub {
+  color: #8a7aaa !important;
+}
+body.day-mode .header-left {
+  color: #5a3a7a !important;
+}
+body.day-mode .tabs-container,
+body.day-mode .tabs {
+  background: rgba(240,230,248,0.7) !important;
+}
+body.day-mode .tab-btn {
+  color: #8a7aaa !important;
+  background: transparent !important;
+}
+body.day-mode .tab-btn.active,
+body.day-mode .tab-btn:hover {
+  background: #b090d0 !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(160,120,200,0.3) !important;
+}
+body.day-mode .content,
+body.day-mode .content-max {
+  color: #4a3a5c !important;
+}
+body.day-mode .data-panel {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .data-panel.left {
+  border-left-color: rgba(160,120,200,0.5) !important;
+}
+body.day-mode .data-panel.right {
+  border-left-color: rgba(120,160,200,0.5) !important;
+}
+body.day-mode .panel-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .panel-title input {
+  color: #5a3a7a !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .region {
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .region-name,
+body.day-mode .region-name input {
+  color: #6a5a8a !important;
+}
+body.day-mode .branch {
+  background: rgba(255,255,255,0.5) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .branch-name,
+body.day-mode .branch-name input {
+  color: #4a3a5c !important;
+}
+body.day-mode .branch-value,
+body.day-mode .branch-value input {
+  color: #3a2a4c !important;
+}
+body.day-mode .subtotal,
+body.day-mode .total-line {
+  color: #5a3a7a !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .vs-column {
+  background: rgba(240,230,248,0.5) !important;
+}
+body.day-mode .vs-header {
+  color: #7a5a9a !important;
+}
+body.day-mode .diff-card,
+body.day-mode .total-diff-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .diff-amount {
+  color: #7a5a9a !important;
+}
+body.day-mode .diff-percent {
+  color: #8a7aaa !important;
+}
+body.day-mode .diff-region-name {
+  color: #5a3a7a !important;
+}
+body.day-mode .archives-header {
+  color: #5a3a7a !important;
+}
+body.day-mode .archive-card {
+  background: rgba(255,255,255,0.65) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .archive-label,
+body.day-mode .archive-left-label,
+body.day-mode .archive-right-label {
+  color: #8a7aaa !important;
+}
+body.day-mode .archive-left-value,
+body.day-mode .archive-right-value {
+  color: #4a3a5c !important;
+}
+body.day-mode .archive-vs {
+  color: #7a5a9a !important;
+}
+/* ── 績效成績單 ── */
+body.day-mode .rc-card {
+  background: rgba(255,255,255,0.75) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .rc-header {
+  background: linear-gradient(135deg, rgba(200,180,230,0.3), rgba(180,200,240,0.3)) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .rc-header-title,
+body.day-mode .rc-header-sub,
+body.day-mode .rc-header-leader {
+  color: #5a3a7a !important;
+}
+body.day-mode .rc-section {
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .rc-section-title {
+  color: #6a5a8a !important;
+}
+body.day-mode .rc-stat-box {
+  background: rgba(240,230,248,0.5) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .rc-stat-label {
+  color: #8a7aaa !important;
+}
+body.day-mode .rc-label {
+  color: #6a5a8a !important;
+}
+body.day-mode .rc-select,
+body.day-mode .rc-input {
+  background: rgba(255,255,255,0.85) !important;
+  color: #3a2a4c !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+
+/* ── 各通路績效 月卡 ── */
+body.day-mode .ch-month-card,
+body.day-mode .ch-quarter-card {
+  background: rgba(255,255,255,0.75) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .ch-month-card:hover,
+body.day-mode .ch-quarter-card:hover {
+  border-color: rgba(160,120,200,0.5) !important;
+  box-shadow: 0 4px 16px rgba(160,120,200,0.15) !important;
+}
+body.day-mode .ch-month-card .lec-month-title,
+body.day-mode .ch-quarter-card .lec-month-title {
+  color: #7a5a9a !important;
+}
+body.day-mode .ch-quarter-card .lec-month-title {
+  color: #b8860b !important;
+}
+body.day-mode .ch-month-card .lec-month-region,
+body.day-mode .ch-quarter-card .lec-month-region {
+  color: #6a5a8a !important;
+}
+body.day-mode .ch-month-card .lec-month-val,
+body.day-mode .ch-quarter-card .lec-month-val {
+  color: #4a3a5c !important;
+}
+body.day-mode .ch-month-card .lec-hint,
+body.day-mode .ch-quarter-card .lec-hint {
+  color: #8a7aaa !important;
+}
+
+/* ── 季度 Modal 月份切換按鈕 ── */
+body.day-mode .ch-q-nav {
+  border-bottom-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .ch-q-nav-btn {
+  background: rgba(240,230,248,0.5) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+  color: #8a7aaa !important;
+}
+body.day-mode .ch-q-nav-btn:hover {
+  border-color: rgba(160,120,200,0.5) !important;
+  background: rgba(230,218,248,0.7) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .ch-q-nav-btn.active {
+  background: linear-gradient(135deg, rgba(180,140,220,0.2), rgba(140,160,220,0.2)) !important;
+  border-color: #7a5a9a !important;
+  color: #5a3a7a !important;
+}
+
+/* ── 各通路績效 Detail Modal ── */
+body.day-mode .ch-modal-overlay {
+  background: rgba(200,190,220,0.55) !important;
+}
+body.day-mode .ch-modal {
+  background: linear-gradient(135deg, rgba(255,255,255,0.97), rgba(245,240,252,0.97)) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  box-shadow: 0 20px 60px rgba(100,80,140,0.2) !important;
+}
+body.day-mode .ch-modal-header {
+  border-bottom-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .ch-modal-header h3 {
+  color: #7a5a9a !important;
+}
+body.day-mode .ch-modal-body {
+  color: #4a3a5c !important;
+}
+
+/* ── 通路表格卡片 ── */
+body.day-mode .ch-table-card {
+  background: rgba(255,255,255,0.8) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .ch-table-header.net {
+  background: rgba(66,165,245,0.12) !important;
+  color: #1976d2 !important;
+}
+body.day-mode .ch-table-header.purchase {
+  background: rgba(255,167,38,0.12) !important;
+  color: #e65100 !important;
+}
+body.day-mode .ch-table-header.event {
+  background: rgba(102,187,106,0.12) !important;
+  color: #2e7d32 !important;
+}
+body.day-mode .ch-table-header.referral {
+  background: rgba(171,71,188,0.12) !important;
+  color: #7b1fa2 !important;
+}
+body.day-mode .ch-table-header.cash {
+  background: rgba(239,83,80,0.12) !important;
+  color: #c62828 !important;
+}
+body.day-mode .ch-table-header.admin {
+  background: rgba(120,144,156,0.12) !important;
+  color: #546e7a !important;
+}
+body.day-mode .ch-row {
+  border-bottom-color: rgba(180,160,220,0.12) !important;
+}
+body.day-mode .ch-row.rank1 {
+  background: rgba(255,215,0,0.08) !important;
+}
+body.day-mode .ch-rank {
+  color: #8a7aaa !important;
+}
+body.day-mode .ch-name {
+  color: #4a3a5c !important;
+}
+body.day-mode .ch-val {
+  color: #3a2a4c !important;
+}
+
+/* ── 學院區塊 ── */
+body.day-mode .ch-academy-card {
+  background: rgba(255,255,255,0.8) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .ch-academy-header {
+  border-bottom-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .ch-academy-header.goal {
+  color: #b8860b !important;
+}
+body.day-mode .ch-academy-header.low {
+  color: #c62828 !important;
+}
+body.day-mode .ch-academy-row {
+  border-bottom-color: rgba(180,160,220,0.08) !important;
+}
+body.day-mode .ch-academy-row.rank1 {
+  background: rgba(255,215,0,0.1) !important;
+}
+body.day-mode .ch-academy-row.rank1 .ch-academy-name {
+  color: #b8860b !important;
+}
+body.day-mode .ch-academy-row.rank1 .ch-academy-val {
+  color: #b8860b !important;
+}
+body.day-mode .ch-academy-name {
+  color: #6a5a8a !important;
+}
+body.day-mode .ch-academy-val {
+  color: #4a3a5c !important;
+}
+body.day-mode .ch-academy-val.negative {
+  color: #c62828 !important;
+}
+
+/* ── 匯入 Modal ── */
+body.day-mode .ch-import-overlay {
+  background: rgba(200,190,220,0.6) !important;
+}
+body.day-mode .ch-import-box {
+  background: linear-gradient(135deg, rgba(255,255,255,0.97), rgba(248,244,255,0.97)) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  box-shadow: 0 20px 60px rgba(100,80,140,0.2) !important;
+}
+body.day-mode .ch-import-header {
+  border-bottom-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .ch-import-header h3 {
+  color: #6a5a8a !important;
+}
+body.day-mode .ch-import-body {
+  color: #4a3a5c !important;
+}
+body.day-mode .ch-import-ch-btn {
+  background: rgba(240,230,248,0.6) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+  color: #6a5a8a !important;
+}
+body.day-mode .ch-import-ch-btn.active {
+  border-color: #7a5a9a !important;
+  color: #7a5a9a !important;
+  background: rgba(160,120,200,0.15) !important;
+}
+
+/* ── 嘉許翻牌 Honor Cards ── */
+body.day-mode .honor-overlay {
+  background: linear-gradient(180deg, rgba(230,220,245,0.97), rgba(240,235,250,0.95), rgba(255,255,255,0.92)) !important;
+}
+body.day-mode .honor-modal {
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(248,244,255,0.96)) !important;
+  border-color: rgba(200,160,80,0.3) !important;
+  box-shadow: 0 0 60px rgba(200,160,80,0.1) !important;
+}
+body.day-mode .honor-header {
+  border-bottom-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .honor-header h3 {
+  color: #b8860b !important;
+}
+body.day-mode .honor-section-title {
+  color: #7a5a9a !important;
+}
+body.day-mode .honor-card-back {
+  background: linear-gradient(135deg, rgba(240,235,250,0.95), rgba(255,255,255,0.95)) !important;
+  border-color: rgba(200,160,80,0.35) !important;
+  box-shadow: inset 0 0 30px rgba(200,160,80,0.05) !important;
+}
+body.day-mode .honor-card-back .hcb-label {
+  color: rgba(180,130,40,0.7) !important;
+}
+body.day-mode .honor-card-front {
+  border-color: rgba(200,160,80,0.4) !important;
+  background: rgba(255,255,255,0.95) !important;
+}
+body.day-mode .hcf-header {
+  background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,180,0,0.05)) !important;
+}
+body.day-mode .hcf-channel {
+  color: #8a7aaa !important;
+}
+body.day-mode .hcf-title {
+  color: #b8860b !important;
+}
+body.day-mode .hcf-photo-area {
+  background: rgba(240,235,250,0.5) !important;
+}
+body.day-mode .hcf-no-photo {
+  background: rgba(240,235,250,0.6) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .hcf-crown-name {
+  color: #b8860b !important;
+}
+body.day-mode .hcf-crown-val {
+  color: #7a5a9a !important;
+}
+body.day-mode .hcf-runner-row {
+  color: #6a5a8a !important;
+  border-bottom-color: rgba(180,160,220,0.1) !important;
+}
+body.day-mode .hcf-runner-row .rank {
+  color: #7a5a9a !important;
+}
+body.day-mode .hcf-runner-row .val {
+  color: #4a3a5c !important;
+}
+
+/* ── Honor Admin Panel ── */
+body.day-mode .honor-admin-overlay {
+  background: rgba(200,190,220,0.65) !important;
+}
+body.day-mode .honor-admin-box {
+  background: rgba(255,255,255,0.97) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+
+/* ── 通用 modal 按鈕 (lec-edit-btn, archive-modal-close) ── */
+body.day-mode .lec-edit-btn {
+  background: rgba(240,230,248,0.7) !important;
+  border-color: rgba(180,160,220,0.35) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .lec-edit-btn:hover {
+  border-color: rgba(160,120,200,0.5) !important;
+  background: rgba(230,218,248,0.8) !important;
+}
+body.day-mode .lec-edit-btn.active {
+  background: rgba(160,120,200,0.25) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .archive-modal-close {
+  color: #8a7aaa !important;
+  border-color: rgba(180,160,220,0.3) !important;
+  background: rgba(240,230,248,0.5) !important;
+}
+body.day-mode .archive-modal-close:hover {
+  background: rgba(220,80,80,0.1) !important;
+  color: #c04040 !important;
+}
+
+/* ── Lecture Modal (同樣需要覆蓋) ── */
+body.day-mode .lec-modal-overlay {
+  background: rgba(200,190,220,0.55) !important;
+}
+body.day-mode .lec-modal {
+  background: linear-gradient(135deg, rgba(255,255,255,0.97), rgba(245,240,252,0.97)) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  box-shadow: 0 20px 60px rgba(100,80,140,0.2) !important;
+}
+body.day-mode .lec-modal-header {
+  border-bottom-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .lec-modal-header h3 {
+  color: #7a5a9a !important;
+}
+body.day-mode .lec-modal-body {
+  color: #4a3a5c !important;
+}
+
+/* ── 月卡共用 (lec-months-grid) ── */
+body.day-mode .lec-month-card {
+  background: rgba(255,255,255,0.75) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .lec-month-card:hover {
+  border-color: rgba(160,120,200,0.5) !important;
+  box-shadow: 0 4px 16px rgba(160,120,200,0.15) !important;
+}
+body.day-mode .lec-month-title {
+  color: #7a5a9a !important;
+}
+body.day-mode .lec-month-region {
+  color: #6a5a8a !important;
+}
+body.day-mode .lec-month-val {
+  color: #4a3a5c !important;
+}
+body.day-mode .lec-month-total {
+  color: #b8860b !important;
+  border-top-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .lec-hint {
+  color: #8a7aaa !important;
+}
+
+/* ── inline style 覆蓋 (各通路 modal 裡的 var(--dim), var(--text) 等) ── */
+body.day-mode .ch-modal [style*="color:var(--dim)"],
+body.day-mode .ch-modal [style*="color: var(--dim)"] {
+  color: #8a7aaa !important;
+}
+body.day-mode .ch-modal [style*="color:var(--text)"],
+body.day-mode .ch-modal [style*="color: var(--text)"] {
+  color: #4a3a5c !important;
+}
+body.day-mode .ch-modal [style*="color:#ffd700"],
+body.day-mode .ch-modal [style*="color: #ffd700"] {
+  color: #b8860b !important;
+}
+body.day-mode .ch-modal [style*="color:#ef5350"],
+body.day-mode .ch-modal [style*="color: #ef5350"] {
+  color: #c62828 !important;
+}
+body.day-mode .ch-modal [style*="background:rgba(255,255,255,.03)"],
+body.day-mode .ch-modal [style*="background: rgba(255,255,255,.03)"] {
+  background: rgba(240,230,248,0.4) !important;
+}
+
+/* ╔══════════════════════════════════════════════════╗
+   ║  7. 頁面專屬 — fire-mandala.html 火力九宮格    ║
+   ╚══════════════════════════════════════════════════╝ */
+body.day-mode .page-header {
+  background: linear-gradient(135deg, rgba(210,195,240,0.95), rgba(230,218,248,0.95)) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .title-area {
+  color: #5a3a7a !important;
+}
+body.day-mode .title-icon {
+  filter: none !important;
+}
+body.day-mode .title-text {
+  color: #5a3a7a !important;
+  -webkit-text-fill-color: #5a3a7a !important;
+  background: none !important;
+}
+body.day-mode .title-badge {
+  background: rgba(160,120,200,0.2) !important;
+  border-color: rgba(160,120,200,0.4) !important;
+  color: #7a5a9a !important;
+}
+body.day-mode .header-actions {
+  color: #5a3a7a !important;
+}
+body.day-mode .header-btn {
+  background: rgba(255,255,255,0.6) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .header-btn.save-btn {
+  background: rgba(160,120,200,0.3) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .nav-tabs {
+  background: rgba(240,230,248,0.7) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .nav-tab {
+  color: #8a7aaa !important;
+  background: transparent !important;
+}
+body.day-mode .nav-tab.active {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+body.day-mode .progress-bar-wrap {
+  background: rgba(240,230,248,0.5) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .progress-info {
+  color: #6a5a8a !important;
+}
+body.day-mode .progress-info .count {
+  color: #7a5a9a !important;
+}
+body.day-mode .progress-track {
+  background: rgba(220,200,240,0.3) !important;
+}
+body.day-mode .progress-fill {
+  background: linear-gradient(90deg, #b090d0, #c8a0e0) !important;
+}
+body.day-mode .mandala-wrap {
+  background: transparent !important;
+}
+body.day-mode .mandala-grid {
+  background: rgba(255,255,255,0.3) !important;
+}
+body.day-mode .m-cell {
+  background: rgba(255,255,255,0.65) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .m-cell.center-main {
+  background: linear-gradient(135deg, rgba(200,160,80,0.15), rgba(220,180,100,0.1)) !important;
+  border-color: rgba(200,160,80,0.4) !important;
+}
+body.day-mode .m-cell.theme-center {
+  background: linear-gradient(135deg, rgba(180,160,220,0.2), rgba(200,180,240,0.15)) !important;
+  border-color: rgba(140,100,180,0.35) !important;
+}
+body.day-mode .m-cell.center-ring {
+  background: rgba(245,238,252,0.7) !important;
+}
+body.day-mode .m-cell.done {
+  background: rgba(200,240,210,0.4) !important;
+}
+body.day-mode .cell-text {
+  color: #4a3a5c !important;
+  background: transparent !important;
+}
+body.day-mode .cell-text:focus {
+  background: rgba(255,255,255,0.8) !important;
+}
+body.day-mode .check-btn {
+  color: #8a7aaa !important;
+}
+body.day-mode .strike-line {
+  background: #d94040 !important;
+}
+body.day-mode .block-labels {
+  color: #6a5a8a !important;
+}
+body.day-mode .block-label {
+  background: rgba(240,230,248,0.6) !important;
+  color: #6a5a8a !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .modal-bg {
+  background: rgba(200,190,220,0.5) !important;
+}
+body.day-mode .modal-box {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .modal-btn {
+  background: rgba(180,160,220,0.3) !important;
+  color: #4a3a5c !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+body.day-mode .modal-btn.danger {
+  background: rgba(220,80,80,0.15) !important;
+  color: #c04040 !important;
+}
+
+/* ╔══════════════════════════════════════════════════╗
+   ║  8. 頁面專屬 — castle-cards.html 指揮城堡      ║
+   ╚══════════════════════════════════════════════════╝ */
+body.day-mode .pyramid {
+  background: transparent !important;
+}
+body.day-mode .card-front,
+body.day-mode .card-back {
+  color: #4a3a5c !important;
+}
+/* 各色卡片 — 白天用柔和版本 */
+body.day-mode .card-front.clr-gray {
+  background: linear-gradient(180deg, #e8e6ee, #d8d6de) !important;
+}
+body.day-mode .card-front.clr-red {
+  background: linear-gradient(180deg, #f8e0e0, #f0d0d0) !important;
+}
+body.day-mode .card-front.clr-yellow {
+  background: linear-gradient(180deg, #f8f0d8, #f0e8c8) !important;
+}
+body.day-mode .card-front.clr-purple {
+  background: linear-gradient(180deg, #e8d8f4, #dcc8ec) !important;
+}
+body.day-mode .card-front.clr-black {
+  background: linear-gradient(180deg, #d8d0e0, #c8c0d4) !important;
+}
+body.day-mode .card-front.clr-blue {
+  background: linear-gradient(180deg, #d8e4f4, #c8d8ec) !important;
+}
+body.day-mode .card-back {
+  background: linear-gradient(180deg, #e8d8f4, #d8c8e8) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+body.day-mode .cf-name {
+  color: #4a3a5c !important;
+  -webkit-text-fill-color: #4a3a5c !important;
+}
+body.day-mode .cf-title {
+  color: #5a4a6c !important;
+}
+body.day-mode .cf-ribbon {
+  color: #fff !important;
+}
+body.day-mode .cf-medal {
+  filter: none !important;
+}
+body.day-mode .cf-bottom,
+body.day-mode .cf-stat-row,
+body.day-mode .cf-stat-row .val,
+body.day-mode .cf-subtitle {
+  color: #4a3a5c !important;
+}
+body.day-mode .cf-photo {
+  filter: brightness(1.05) !important;
+}
+body.day-mode .cb-logo {
+  color: #7a5a9a !important;
+}
+body.day-mode .cb-text {
+  color: #5a4a6c !important;
+}
+/* 管理面板 */
+body.day-mode .admin-overlay.active {
+  background: rgba(200,190,220,0.6) !important;
+}
+body.day-mode .admin-panel {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .admin-panel h2 {
+  color: #5a3a7a !important;
+}
+body.day-mode .admin-card {
+  background: rgba(245,240,252,0.8) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .admin-card .ac-tag {
+  color: #6a5a8a !important;
+}
+body.day-mode .admin-card .ac-fields input,
+body.day-mode .admin-card .ac-fields select,
+body.day-mode .admin-card .ac-fields label {
+  color: #4a3a5c !important;
+}
+body.day-mode .ac-btn-row button,
+body.day-mode .ac-move-btn,
+body.day-mode .ac-action-btn {
+  background: rgba(220,210,240,0.5) !important;
+  color: #5a3a7a !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+body.day-mode .ac-sel-btn {
+  color: #5a3a7a !important;
+}
+body.day-mode .ac-del-btn {
+  color: #c04040 !important;
+}
+body.day-mode .admin-close {
+  color: #7a5a9a !important;
+}
+/* 翻牌展示 */
+body.day-mode .reveal-overlay.active {
+  background: rgba(200,190,220,0.7) !important;
+}
+body.day-mode .reveal-stage {
+  color: #4a3a5c !important;
+}
+body.day-mode .reveal-login-btn {
+  background: linear-gradient(135deg, #b090d0, #9a70c0) !important;
+  color: #fff !important;
+}
+body.day-mode .rlb-icon,
+body.day-mode .rlb-text,
+body.day-mode .rlb-sub {
+  color: #fff !important;
+}
+body.day-mode .reveal-close {
+  color: #7a5a9a !important;
+  background: rgba(255,255,255,0.8) !important;
+}
+/* 登入儀式 */
+body.day-mode .login-ceremony {
+  background: rgba(200,190,220,0.85) !important;
+}
+body.day-mode .login-ceremony .lc-name,
+body.day-mode .login-ceremony .lc-role,
+body.day-mode .login-ceremony .lc-msg {
+  color: #5a3a7a !important;
+}
+/* 儀表板 */
+body.day-mode .dashboard-overlay.active {
+  background: rgba(200,190,220,0.6) !important;
+}
+body.day-mode .dashboard-panel {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .dashboard-header {
+  color: #5a3a7a !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .dashboard-content label,
+body.day-mode .dashboard-row label {
+  color: #5a4a6c !important;
+}
+body.day-mode .dashboard-close {
+  color: #7a5a9a !important;
+}
+/* 設定 */
+body.day-mode .settings-box {
+  background: rgba(255,255,255,0.8) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .settings-box .sb-title {
+  color: #5a3a7a !important;
+}
+/* 特效減淡 */
+body.day-mode .planet,
+body.day-mode .lightning-flash,
+body.day-mode .lightning-bolt,
+body.day-mode .rain-overlay {
+  opacity: 0.3 !important;
+}
+
+/* ╔══════════════════════════════════════════════════╗
+   ║  9. 頁面專屬 — waterfall-channel.html 瀑布通路  ║
+   ╚══════════════════════════════════════════════════╝ */
+body.day-mode .month-bar {
+  background: rgba(240,230,248,0.8) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .month-bar button {
+  color: #5a3a7a !important;
+  background: rgba(255,255,255,0.5) !important;
+}
+body.day-mode .month-label {
+  color: #5a3a7a !important;
+}
+body.day-mode .container {
+  color: #4a3a5c !important;
+}
+body.day-mode .section {
+  color: #4a3a5c !important;
+}
+body.day-mode .section-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .section-title .icon {
+  background: rgba(160,120,200,0.2) !important;
+  color: #7a5a9a !important;
+}
+body.day-mode .rec-grid {
+  color: #4a3a5c !important;
+}
+body.day-mode .rec-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .rec-card.bad {
+  border-left-color: #d94040 !important;
+}
+body.day-mode .rec-card.good {
+  border-left-color: #2a8a4a !important;
+}
+body.day-mode .rec-card.best {
+  border-left-color: #c8960a !important;
+}
+body.day-mode .rec-card::before {
+  display: none !important;
+}
+body.day-mode .rec-label {
+  color: #fff !important;
+}
+body.day-mode .rec-label.good {
+  background: rgba(42,138,74,0.8) !important;
+}
+body.day-mode .rec-label.bad {
+  background: rgba(217,64,64,0.8) !important;
+}
+body.day-mode .rec-label.best {
+  background: rgba(200,150,10,0.85) !important;
+}
+body.day-mode .rec-person {
+  color: #4a3a5c !important;
+}
+body.day-mode .rec-avatar {
+  border-color: rgba(180,160,220,0.4) !important;
+  background: rgba(240,230,248,0.5) !important;
+}
+body.day-mode .rec-name {
+  color: #4a3a5c !important;
+}
+body.day-mode .rec-title {
+  color: #8a7aaa !important;
+}
+body.day-mode .rec-note {
+  color: #5a4a6c !important;
+}
+body.day-mode .rec-audio-wrap {
+  background: rgba(240,230,248,0.5) !important;
+}
+body.day-mode .rec-play-btn,
+body.day-mode .rec-skip-btn {
+  background: rgba(180,160,220,0.3) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .rec-play-btn.good-btn { background: rgba(42,138,74,0.2) !important; color: #2a8a4a !important; }
+body.day-mode .rec-play-btn.bad-btn { background: rgba(217,64,64,0.2) !important; color: #d94040 !important; }
+body.day-mode .rec-play-btn.best-btn { background: rgba(200,150,10,0.2) !important; color: #c8960a !important; }
+body.day-mode .rec-audio-bar {
+  background: rgba(220,200,240,0.3) !important;
+}
+body.day-mode .rec-audio-fill {
+  background: #b090d0 !important;
+}
+body.day-mode .rec-duration {
+  color: #8a7aaa !important;
+}
+body.day-mode .upload-zone {
+  background: rgba(245,240,252,0.6) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  color: #7a5a9a !important;
+}
+body.day-mode .upload-zone .uz-icon,
+body.day-mode .upload-zone .uz-text {
+  color: #8a7aaa !important;
+}
+body.day-mode .award-card {
+  background: rgba(255,255,255,0.75) !important;
+  border-color: rgba(200,160,80,0.3) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .award-card::before {
+  background: radial-gradient(ellipse at 50% 30%, rgba(200,160,80,0.1) 0%, transparent 70%) !important;
+}
+body.day-mode .award-name {
+  color: #5a3a7a !important;
+}
+body.day-mode .award-subtitle {
+  color: #8a7aaa !important;
+}
+body.day-mode .award-reason {
+  color: #5a4a6c !important;
+}
+body.day-mode .award-photo {
+  border-color: rgba(200,160,80,0.4) !important;
+}
+body.day-mode .script-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .script-preview {
+  background: rgba(245,240,252,0.6) !important;
+  color: #5a4a6c !important;
+}
+body.day-mode .script-preview::after {
+  background: linear-gradient(transparent, rgba(255,255,255,0.8)) !important;
+}
+body.day-mode .script-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .script-title .tag {
+  background: rgba(160,120,200,0.2) !important;
+  color: #7a5a9a !important;
+}
+body.day-mode .script-body {
+  color: #5a4a6c !important;
+}
+body.day-mode .script-footer {
+  color: #8a7aaa !important;
+}
+body.day-mode .script-expand {
+  color: #7a5a9a !important;
+}
+body.day-mode .file-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .file-thumb {
+  background: rgba(245,240,252,0.6) !important;
+}
+body.day-mode .file-info,
+body.day-mode .file-info .fname {
+  color: #4a3a5c !important;
+}
+body.day-mode .fs-overlay.active {
+  background: rgba(200,190,220,0.6) !important;
+}
+body.day-mode .fs-header {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .fs-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .fs-close {
+  color: #7a5a9a !important;
+}
+body.day-mode .fs-body {
+  background: rgba(250,245,255,0.95) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .edit-row label {
+  color: #5a4a6c !important;
+}
+body.day-mode .small-btn {
+  background: rgba(220,210,240,0.5) !important;
+  color: #5a3a7a !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+body.day-mode .small-btn.primary,
+body.day-mode .small-btn.purple {
+  background: rgba(160,120,200,0.3) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .small-btn.danger {
+  background: rgba(220,80,80,0.15) !important;
+  color: #c04040 !important;
+}
+body.day-mode .save-bar {
+  background: rgba(240,230,248,0.95) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .save-btn {
+  color: #5a3a7a !important;
+}
+body.day-mode .save-btn.primary {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+
+/* ╔══════════════════════════════════════════════════╗
+   ║  10. 頁面專屬 — achievement-unlock.html 成就系統 ║
+   ╚══════════════════════════════════════════════════╝ */
+body.day-mode .page {
+  color: #4a3a5c !important;
+}
+body.day-mode .level-bar {
+  background: rgba(240,230,248,0.7) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .level-badge {
+  background: rgba(200,180,230,0.4) !important;
+  border-color: rgba(160,120,200,0.4) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .level-badge .lbl {
+  color: #8a7aaa !important;
+}
+body.day-mode .radar-wrap,
+body.day-mode .radar-container {
+  background: rgba(255,255,255,0.5) !important;
+}
+body.day-mode .radar-photo {
+  border-color: rgba(180,160,220,0.4) !important;
+}
+body.day-mode .radar-stats {
+  color: #4a3a5c !important;
+}
+body.day-mode .stat-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .stat-label {
+  color: #6a5a8a !important;
+}
+body.day-mode .stat-bar-wrap,
+body.day-mode .stat-bar {
+  background: rgba(220,200,240,0.3) !important;
+}
+body.day-mode .stat-fill {
+  background: linear-gradient(90deg, #b090d0, #c8a0e0) !important;
+}
+body.day-mode .stat-pct {
+  color: #7a5a9a !important;
+}
+body.day-mode .stat-detail {
+  color: #8a7aaa !important;
+}
+body.day-mode .collect-tabs {
+  background: rgba(240,230,248,0.6) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .collect-tabs button {
+  background: transparent !important;
+  color: #8a7aaa !important;
+}
+body.day-mode .collect-tabs button.active {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+body.day-mode .hex-grid {
+  color: #4a3a5c !important;
+}
+body.day-mode .hex-item {
+  color: #4a3a5c !important;
+}
+body.day-mode .hex-shape {
+  background: rgba(245,240,252,0.7) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .hex-shape.has-img {
+  background: rgba(245,240,252,0.4) !important;
+}
+body.day-mode .hex-placeholder {
+  color: #b0a0c8 !important;
+}
+body.day-mode .hex-note {
+  color: #5a4a6c !important;
+}
+body.day-mode .achieve-grid {
+  color: #4a3a5c !important;
+}
+body.day-mode .achieve-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .achieve-card .a-info {
+  color: #4a3a5c !important;
+}
+body.day-mode .achieve-card .a-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .achieve-card .a-desc {
+  color: #8a7aaa !important;
+}
+body.day-mode .achieve-card .a-count {
+  color: #7a5a9a !important;
+}
+body.day-mode .achieve-sep {
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .level-ceremony.show {
+  background: rgba(200,190,220,0.85) !important;
+}
+body.day-mode .level-ceremony .lc-content {
+  background: rgba(255,255,255,0.95) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .level-ceremony .lc-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .level-ceremony .lc-sub {
+  color: #8a7aaa !important;
+}
+body.day-mode .level-ceremony .lc-close {
+  color: #7a5a9a !important;
+}
+body.day-mode .level-picker button {
+  background: rgba(220,210,240,0.5) !important;
+  color: #5a3a7a !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+body.day-mode .level-picker button.picked {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+/* YouTube 專區 */
+body.day-mode .yt-toolbar {
+  background: rgba(240,230,248,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .yt-manage-btn {
+  color: #7a5a9a !important;
+}
+body.day-mode .yt-cat-tabs {
+  background: rgba(240,230,248,0.5) !important;
+}
+body.day-mode .yt-cat-tab {
+  color: #8a7aaa !important;
+  background: transparent !important;
+}
+body.day-mode .yt-cat-tab.active {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+body.day-mode .yt-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .yt-card .yt-info {
+  color: #4a3a5c !important;
+}
+body.day-mode .yt-card .yt-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .yt-card .yt-channel {
+  color: #7a5a9a !important;
+}
+body.day-mode .yt-card .yt-desc {
+  color: #8a7aaa !important;
+}
+body.day-mode .yt-card .yt-live {
+  background: rgba(220,80,80,0.8) !important;
+  color: #fff !important;
+}
+body.day-mode .yt-card .yt-del {
+  color: #c04040 !important;
+}
+body.day-mode .yt-pagination button {
+  background: rgba(220,210,240,0.4) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .yt-pagination button.active {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+body.day-mode .yt-empty {
+  color: #8a7aaa !important;
+}
+body.day-mode .yt-mgr-overlay.active {
+  background: rgba(200,190,220,0.6) !important;
+}
+body.day-mode .yt-mgr-panel {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .yt-mgr-panel h3 {
+  color: #5a3a7a !important;
+}
+body.day-mode .yt-mgr-close {
+  color: #7a5a9a !important;
+}
+body.day-mode .yt-player-overlay.active {
+  background: rgba(200,190,220,0.7) !important;
+}
+body.day-mode .yt-player-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .yt-player-desc {
+  color: #5a4a6c !important;
+}
+body.day-mode .yt-play-btn {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+/* 留言板 */
+body.day-mode .msg-compose {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .msg-compose .mc-name {
+  color: #5a3a7a !important;
+}
+body.day-mode .msg-compose textarea {
+  color: #3a2a4c !important;
+}
+body.day-mode .msg-compose .mc-send {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+body.day-mode .msg-item {
+  background: rgba(255,255,255,0.6) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .msg-item .mi-name {
+  color: #5a3a7a !important;
+}
+body.day-mode .msg-item .mi-station {
+  color: #8a7aaa !important;
+}
+body.day-mode .msg-item .mi-text {
+  color: #4a3a5c !important;
+}
+body.day-mode .msg-item .mi-time {
+  color: #a090b8 !important;
+}
+body.day-mode .msg-item .mi-actions button {
+  color: #7a5a9a !important;
+}
+body.day-mode .msg-replies {
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .reply-box {
+  background: rgba(245,240,252,0.6) !important;
+}
+body.day-mode .msg-empty {
+  color: #a090b8 !important;
+}
+
+/* ╔══════════════════════════════════════════════════════╗
+   ║  11. 頁面專屬 — committee-roles.html 歷練各主委     ║
+   ╚══════════════════════════════════════════════════════╝ */
+body.day-mode .hdr {
+  background: linear-gradient(135deg, rgba(210,195,240,0.95), rgba(230,218,248,0.95)) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .hdr-inner {
+  color: #4a3a5c !important;
+}
+body.day-mode .hdr-title .icon {
+  background: rgba(200,180,230,0.3) !important;
+}
+body.day-mode .hdr-title h1 {
+  color: #5a3a7a !important;
+  -webkit-text-fill-color: #5a3a7a !important;
+  background: none !important;
+}
+body.day-mode .hdr-title .badge {
+  background: rgba(160,120,200,0.2) !important;
+  border-color: rgba(160,120,200,0.4) !important;
+  color: #7a5a9a !important;
+}
+body.day-mode .hdr-actions {
+  color: #4a3a5c !important;
+}
+body.day-mode .hdr-btn {
+  background: rgba(255,255,255,0.6) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .overview {
+  color: #4a3a5c !important;
+}
+body.day-mode .ov-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .ov-card::before {
+  opacity: 0.6 !important;
+}
+body.day-mode .ov-card .ov-icon {
+  color: #5a3a7a !important;
+}
+body.day-mode .ov-card .ov-name {
+  color: #4a3a5c !important;
+}
+body.day-mode .ov-card .ov-status {
+  color: #8a7aaa !important;
+}
+body.day-mode .ov-card .ov-check {
+  color: #2a8a4a !important;
+}
+body.day-mode .ov-card.done {
+  background: rgba(200,240,210,0.3) !important;
+}
+body.day-mode .total-progress {
+  background: rgba(255,255,255,0.6) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .tp-bar-wrap {
+  background: rgba(220,200,240,0.3) !important;
+}
+body.day-mode .tp-fill {
+  background: linear-gradient(90deg, #b090d0, #c8a0e0) !important;
+}
+body.day-mode .tp-label {
+  color: #8a7aaa !important;
+}
+body.day-mode .tp-big {
+  color: #5a3a7a !important;
+}
+body.day-mode .role-section {
+  background: rgba(255,255,255,0.65) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .rs-header {
+  color: #4a3a5c !important;
+  background: rgba(245,240,252,0.5) !important;
+}
+body.day-mode .rs-color {
+  opacity: 0.7 !important;
+}
+body.day-mode .rs-icon {
+  color: #5a3a7a !important;
+}
+body.day-mode .rs-info {
+  color: #4a3a5c !important;
+}
+body.day-mode .rs-name {
+  color: #4a3a5c !important;
+}
+body.day-mode .rs-sub {
+  color: #8a7aaa !important;
+}
+body.day-mode .rs-toggle {
+  color: #8a7aaa !important;
+}
+body.day-mode .rs-done-badge {
+  background: rgba(180,160,220,0.2) !important;
+  color: #8a7aaa !important;
+}
+body.day-mode .rs-done-badge.yes {
+  background: rgba(42,138,74,0.15) !important;
+  color: #2a8a4a !important;
+}
+body.day-mode .rs-done-badge.no {
+  background: rgba(217,64,64,0.1) !important;
+  color: #d94040 !important;
+}
+body.day-mode .rs-body {
+  background: rgba(250,245,255,0.5) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .comp-bar {
+  background: rgba(240,235,250,0.6) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .comp-check {
+  color: #4a3a5c !important;
+}
+body.day-mode .comp-dur input {
+  background: rgba(255,255,255,0.85) !important;
+  color: #3a2a4c !important;
+}
+body.day-mode .branch-grid {
+  color: #4a3a5c !important;
+}
+body.day-mode .branch {
+  background: rgba(255,255,255,0.55) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .branch-header {
+  color: #4a3a5c !important;
+}
+body.day-mode .branch-dot {
+  opacity: 0.7 !important;
+}
+body.day-mode .branch-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .branch-add {
+  color: #7a5a9a !important;
+}
+body.day-mode .branch-del {
+  color: #c04040 !important;
+}
+body.day-mode .b-item {
+  background: rgba(248,245,255,0.5) !important;
+  border-color: rgba(180,160,220,0.15) !important;
+}
+body.day-mode .b-bullet {
+  color: #7a5a9a !important;
+}
+body.day-mode .b-text {
+  color: #4a3a5c !important;
+}
+body.day-mode .b-del {
+  color: #c04040 !important;
+}
+
+/* ╔══════════════════════════════════════════════════════╗
+   ║  12. 頁面專屬 — training-sales.html 業務基礎訓練   ║
+   ╚══════════════════════════════════════════════════════╝ */
+body.day-mode .avatar-bar {
+  background: rgba(240,230,248,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .avatar-bar-label {
+  color: #5a3a7a !important;
+}
+body.day-mode .avatar-slot {
+  background: rgba(255,255,255,0.5) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .avatar-slot.active {
+  border-color: rgba(140,100,180,0.6) !important;
+  background: rgba(220,200,245,0.4) !important;
+}
+body.day-mode .avatar-slot.empty {
+  border-color: rgba(180,160,220,0.2) !important;
+  color: #b0a0c8 !important;
+}
+body.day-mode .avatar-circle {
+  border-color: rgba(180,160,220,0.4) !important;
+}
+body.day-mode .avatar-name {
+  color: #4a3a5c !important;
+}
+body.day-mode .avatar-progress {
+  color: #8a7aaa !important;
+}
+body.day-mode .name-edit-popup {
+  background: rgba(200,190,220,0.5) !important;
+}
+body.day-mode .name-edit-box {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(180,160,220,0.4) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .section-label {
+  background: rgba(160,120,200,0.2) !important;
+  color: #7a5a9a !important;
+}
+body.day-mode .score-table {
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .score-table thead th {
+  background: rgba(200,180,230,0.35) !important;
+  color: #5a3a7a !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .score-table thead .pts {
+  color: #c8960a !important;
+}
+body.day-mode .score-table tbody td {
+  background: rgba(255,255,255,0.5) !important;
+  color: #4a3a5c !important;
+  border-color: rgba(180,160,220,0.15) !important;
+}
+body.day-mode .score-table tbody tr:hover td {
+  background: rgba(220,200,245,0.3) !important;
+}
+body.day-mode .score-table tbody tr.chapter-row td {
+  background: rgba(200,180,230,0.2) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .editable:focus {
+  background: rgba(255,255,255,0.9) !important;
+  box-shadow: 0 0 0 2px rgba(140,100,180,0.3) !important;
+}
+body.day-mode .total-cell {
+  color: #5a3a7a !important;
+  font-weight: 600;
+}
+body.day-mode .toolbar {
+  background: rgba(240,230,248,0.9) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .toolbar button {
+  background: rgba(255,255,255,0.6) !important;
+  color: #5a3a7a !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+body.day-mode .toolbar .save-btn {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+body.day-mode .autosave-label {
+  color: #a090b8 !important;
+}
+body.day-mode .link-row {
+  background: rgba(245,240,252,0.6) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .link-row-label,
+body.day-mode .link-card-label {
+  color: #5a4a6c !important;
+}
+body.day-mode .link-display {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .link-display a {
+  color: #7a5a9a !important;
+}
+body.day-mode .link-card {
+  background: rgba(255,255,255,0.65) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .lc-btn {
+  background: rgba(220,210,240,0.5) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .lc-btn.confirm {
+  background: rgba(42,138,74,0.15) !important;
+  color: #2a8a4a !important;
+}
+body.day-mode .lc-btn.danger {
+  background: rgba(220,80,80,0.12) !important;
+  color: #c04040 !important;
+}
+body.day-mode .tlib-section {
+  background: rgba(255,255,255,0.5) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .tlib-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .tlib-item {
+  background: rgba(248,245,255,0.6) !important;
+  border-color: rgba(180,160,220,0.15) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .tlib-item-title {
+  color: #4a3a5c !important;
+}
+body.day-mode .tlib-item-link a {
+  color: #7a5a9a !important;
+}
+body.day-mode .tlib-del {
+  color: #c04040 !important;
+}
+body.day-mode .tlib-add-btn {
+  color: #7a5a9a !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .tlib-empty {
+  color: #a090b8 !important;
+}
+
+/* ╔══════════════════════════════════════════════════════╗
+   ║  13. 頁面專屬 — training-leader-academy.html 組長學堂║
+   ╚══════════════════════════════════════════════════════╝ */
+body.day-mode .app {
+  color: #4a3a5c !important;
+}
+body.day-mode .app-header {
+  background: linear-gradient(135deg, rgba(210,195,240,0.95), rgba(230,218,248,0.95)) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .app-header h1 {
+  color: #5a3a7a !important;
+  -webkit-text-fill-color: #5a3a7a !important;
+}
+body.day-mode .app-header .sub {
+  color: #8a7aaa !important;
+}
+body.day-mode .topic-tabs {
+  background: rgba(240,230,248,0.6) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .topic-tab {
+  background: rgba(255,255,255,0.4) !important;
+  color: #7a6a9a !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .topic-tab.active {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+body.day-mode .topic-tab.add-topic {
+  color: #7a5a9a !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .topic-info {
+  background: rgba(255,255,255,0.65) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .topic-name-input {
+  color: #4a3a5c !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .topic-status {
+  background: rgba(42,138,74,0.15) !important;
+  color: #2a8a4a !important;
+}
+body.day-mode .topic-status.archived {
+  background: rgba(180,160,220,0.2) !important;
+  color: #8a7aaa !important;
+}
+body.day-mode .session-tabs {
+  background: rgba(240,230,248,0.5) !important;
+}
+body.day-mode .session-tab {
+  background: rgba(255,255,255,0.4) !important;
+  color: #7a6a9a !important;
+}
+body.day-mode .session-tab.active {
+  background: rgba(176,144,208,0.5) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .session-tab.add-session {
+  color: #7a5a9a !important;
+}
+body.day-mode .session-content {
+  background: rgba(255,255,255,0.5) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .section-tabs {
+  background: rgba(240,230,248,0.4) !important;
+}
+body.day-mode .section-tab {
+  color: #8a7aaa !important;
+}
+body.day-mode .section-tab.active {
+  color: #5a3a7a !important;
+  border-color: #b090d0 !important;
+}
+body.day-mode .section-body {
+  color: #4a3a5c !important;
+}
+body.day-mode .blackboard {
+  background: rgba(245,245,240,0.7) !important;
+  border-color: rgba(180,170,140,0.3) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .blackboard-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .blackboard-preview {
+  color: #4a3a5c !important;
+}
+body.day-mode .blackboard-preview.empty {
+  color: #a090b8 !important;
+}
+body.day-mode .blackboard textarea {
+  color: #3a2a4c !important;
+  background: rgba(255,255,255,0.8) !important;
+}
+body.day-mode .bb-fullscreen {
+  background: rgba(250,248,255,0.98) !important;
+}
+body.day-mode .bb-fs-header {
+  background: rgba(240,235,248,0.95) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .bb-fs-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .bb-fs-close {
+  color: #7a5a9a !important;
+}
+body.day-mode .bb-fs-body textarea {
+  background: rgba(255,255,255,0.9) !important;
+  color: #3a2a4c !important;
+}
+body.day-mode .bb-fs-hint {
+  color: #a090b8 !important;
+}
+body.day-mode .link-input-row {
+  color: #4a3a5c !important;
+}
+body.day-mode .link-input {
+  background: rgba(255,255,255,0.8) !important;
+  color: #3a2a4c !important;
+  border-color: rgba(180,160,220,0.3) !important;
+}
+body.day-mode .sm-btn {
+  background: rgba(220,210,240,0.5) !important;
+  color: #5a3a7a !important;
+  border-color: rgba(180,160,220,0.4) !important;
+}
+body.day-mode .sm-btn.danger {
+  background: rgba(220,80,80,0.12) !important;
+  color: #c04040 !important;
+}
+body.day-mode .sm-btn.gold {
+  background: rgba(200,150,10,0.15) !important;
+  color: #a07a0a !important;
+}
+body.day-mode .homework-grid {
+  color: #4a3a5c !important;
+}
+body.day-mode .hw-card {
+  background: rgba(255,255,255,0.6) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .hw-group-name {
+  color: #5a3a7a !important;
+}
+body.day-mode .hw-comment {
+  background: rgba(255,255,255,0.8) !important;
+  color: #3a2a4c !important;
+}
+body.day-mode .story-card {
+  background: rgba(255,255,255,0.6) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .story-meta input {
+  color: #4a3a5c !important;
+}
+body.day-mode .story-text {
+  color: #3a2a4c !important;
+}
+body.day-mode .admin-bar {
+  background: rgba(240,230,248,0.8) !important;
+  border-color: rgba(180,160,220,0.3) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .save-hint {
+  color: #a090b8 !important;
+}
+body.day-mode .empty-state {
+  color: #a090b8 !important;
+}
+body.day-mode .empty-state .icon {
+  opacity: 0.6 !important;
+}
+
+/* ╔══════════════════════════════════════════════════════╗
+   ║  14. 頁面專屬 — training-leader-screenshots.html    ║
+   ╚══════════════════════════════════════════════════════╝ */
+body.day-mode .screenshot-grid {
+  color: #4a3a5c !important;
+}
+body.day-mode .screenshot-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .card-header {
+  color: #5a3a7a !important;
+}
+body.day-mode .card-title {
+  color: #5a3a7a !important;
+}
+body.day-mode .card-badge {
+  background: rgba(160,120,200,0.2) !important;
+  color: #7a5a9a !important;
+}
+body.day-mode .preview-area {
+  background: rgba(245,240,252,0.6) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .preview-placeholder {
+  color: #b0a0c8 !important;
+}
+body.day-mode .preview-placeholder .icon {
+  color: #c0b0d8 !important;
+}
+body.day-mode .preview-placeholder .text {
+  color: #a090b8 !important;
+}
+body.day-mode .preview-placeholder .hint {
+  color: #b0a0c8 !important;
+}
+body.day-mode .card-actions button {
+  background: rgba(220,210,240,0.5) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .card-actions button.remove-btn {
+  background: rgba(220,80,80,0.12) !important;
+  color: #c04040 !important;
+}
+body.day-mode .card-note textarea {
+  background: rgba(255,255,255,0.8) !important;
+  color: #3a2a4c !important;
+}
+
+/* ╔══════════════════════════════════════════════════════╗
+   ║  15. 頁面專屬 — monthly-performance.html 月績效     ║
+   ╚══════════════════════════════════════════════════════╝ */
+body.day-mode .month-nav {
+  background: rgba(240,230,248,0.7) !important;
+}
+body.day-mode .month-btn {
+  background: rgba(255,255,255,0.4) !important;
+  color: #7a6a9a !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .month-btn.active {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+body.day-mode .data-tabs,
+body.day-mode .data-tab {
+  color: #7a6a9a !important;
+}
+body.day-mode .data-tab.active {
+  color: #5a3a7a !important;
+  border-color: #b090d0 !important;
+}
+body.day-mode .analysis-tabs {
+  color: #7a6a9a !important;
+}
+body.day-mode .analysis-tab {
+  color: #8a7aaa !important;
+}
+body.day-mode .analysis-tab.active {
+  background: #b090d0 !important;
+  color: #fff !important;
+}
+body.day-mode .content-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(180,160,220,0.25) !important;
+}
+body.day-mode .table-wrapper {
+  color: #4a3a5c !important;
+}
+body.day-mode td.rank-1 {
+  background: rgba(200,150,10,0.12) !important;
+  color: #a07a0a !important;
+}
+body.day-mode td.rank-2 {
+  background: rgba(180,180,180,0.12) !important;
+  color: #6a6a6a !important;
+}
+body.day-mode td.rank-3 {
+  background: rgba(180,120,50,0.12) !important;
+  color: #8a6030 !important;
+}
+body.day-mode .highlight-high {
+  color: #2a8a4a !important;
+}
+body.day-mode .highlight-low {
+  color: #d94040 !important;
+}
+body.day-mode .analysis-view {
+  color: #4a3a5c !important;
+}
+body.day-mode .analysis-text {
+  color: #4a3a5c !important;
+}
+body.day-mode .analysis-item {
+  background: rgba(245,240,252,0.6) !important;
+  border-color: rgba(180,160,220,0.2) !important;
+}
+body.day-mode .analysis-label {
+  color: #8a7aaa !important;
+}
+body.day-mode .analysis-value {
+  color: #5a3a7a !important;
+}
+body.day-mode .distribution-bar {
+  background: rgba(176,144,208,0.5) !important;
+}
+body.day-mode .import-btn {
+  background: rgba(220,210,240,0.5) !important;
+  color: #5a3a7a !important;
+}
+body.day-mode .title {
+  color: #5a3a7a !important;
+}
+body.day-mode .status-message {
+  color: #4a3a5c !important;
+}
+body.day-mode .status-success {
+  color: #2a8a4a !important;
+}
+body.day-mode .status-error {
+  color: #d94040 !important;
+}
+body.day-mode .loading {
+  color: #8a7aaa !important;
+}
+
+/* ╔══════════════════════════════════════════════════════╗
+   ║  16. 頁面專屬 — team-leader-map-assessment.html     ║
+   ╚══════════════════════════════════════════════════════╝ */
+body.day-mode .badge {
+  background: rgba(160,120,200,0.25) !important;
+  border-color: rgba(160,120,200,0.4) !important;
+  color: #7a5a9a !important;
+}
+body.day-mode .dim-card {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(200,180,230,0.3) !important;
+  color: #4a3a5c !important;
+}
+body.day-mode .save-toast {
+  background: rgba(160,120,200,0.9) !important;
+  color: #fff !important;
+}
+
+/* ╔══════════════════════════════════════════════════════╗
+   ║  17. 頁面專屬 — index.html 登入頁                  ║
+   ╚══════════════════════════════════════════════════════╝ */
+body.day-mode .login-box,
+body.day-mode .login-panel {
+  background: rgba(255,255,255,0.8) !important;
+  border-color: rgba(200,180,230,0.4) !important;
+  color: #4a3a5c !important;
+}
+
+/* ╔══════════════════════════════════════════════════════╗
+   ║  18. 通用：深色內聯樣式強制覆蓋                    ║
+   ╚══════════════════════════════════════════════════════╝ */
+
+/* 覆蓋所有用 radial-gradient 做的深色背景 */
+body.day-mode [style*="radial-gradient(ellipse"][style*="#03060f"],
+body.day-mode [style*="radial-gradient(ellipse"][style*="#070d1f"],
+body.day-mode [style*="radial-gradient(ellipse"][style*="#0d1b3e"],
+body.day-mode [style*="linear-gradient"][style*="#03060f"],
+body.day-mode [style*="linear-gradient"][style*="#070d1f"],
+body.day-mode [style*="linear-gradient"][style*="#0a0e1a"],
+body.day-mode [style*="linear-gradient"][style*="#0a0e27"],
+body.day-mode [style*="linear-gradient"][style*="#1a1040"],
+body.day-mode [style*="background"][style*="#03060f"],
+body.day-mode [style*="background"][style*="#070d1f"],
+body.day-mode [style*="background"][style*="#0d1b3e"] {
+  background: linear-gradient(180deg, #c9e8ff 0%, #e8d8f4 30%, #fde8f0 60%, #fff5f0 100%) !important;
+}
+
+/* 覆蓋 color: 白色/淺色的 inline styles */
+body.day-mode [style*="color: #c0dcff"],
+body.day-mode [style*="color: #e2e8f0"],
+body.day-mode [style*="color: #e8f0ff"],
+body.day-mode [style*="color:#c0dcff"],
+body.day-mode [style*="color:#e2e8f0"],
+body.day-mode [style*="color:#e8f0ff"],
+body.day-mode [style*="color: rgb(192, 220, 255)"],
+body.day-mode [style*="color: rgb(226, 232, 240)"],
+body.day-mode [style*="color: rgb(232, 240, 255)"],
+body.day-mode [style*="color: white"],
+body.day-mode [style*="color: #fff"],
+body.day-mode [style*="color:#fff"] {
+  color: #4a3a5c !important;
+}
+
+/* 覆蓋 inline 白色半透明文字 */
+body.day-mode [style*="color: rgba(255,255,255"],
+body.day-mode [style*="color: rgba(255, 255, 255"],
+body.day-mode [style*="color:rgba(255,255,255"] {
+  color: #4a3a5c !important;
+}
+
+/* 覆蓋淺色文字做 dim 效果的 */
+body.day-mode [style*="color: #4a6a9a"],
+body.day-mode [style*="color:#4a6a9a"],
+body.day-mode [style*="color: #64748b"],
+body.day-mode [style*="color:#64748b"],
+body.day-mode [style*="color: #94a3b8"],
+body.day-mode [style*="color:#94a3b8"],
+body.day-mode [style*="color: #6a7faa"],
+body.day-mode [style*="color:#6a7faa"],
+body.day-mode [style*="color: #6a8fcc"],
+body.day-mode [style*="color:#6a8fcc"] {
+  color: #8a7aaa !important;
+}
+
+/* 覆蓋 accent 色 #4aeaff (在白天下不夠對比) */
+body.day-mode [style*="color: #4aeaff"],
+body.day-mode [style*="color:#4aeaff"],
+body.day-mode [style*="border-color: #4aeaff"],
+body.day-mode [style*="border-color:#4aeaff"] {
+  color: #7a5a9a !important;
+}
+
+/* ╔══════════════════════════════════════════════════════╗
+   ║  19. 最終安全網：確保所有文字可讀                   ║
+   ╚══════════════════════════════════════════════════════╝ */
+
+/* 任何直接子元素若因為繼承而變成 light text，強制 dark */
+body.day-mode [style*="color: #c0dcff"] *,
+body.day-mode [style*="color:#c0dcff"] *,
+body.day-mode [style*="color: #e2e8f0"] *,
+body.day-mode [style*="color: #e8f0ff"] * {
+  color: inherit !important;
+}

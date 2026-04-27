@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>組長學堂</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Segoe UI','Microsoft JhengHei',sans-serif;
+  background:radial-gradient(ellipse at 50% 30%,#0d1b3e 0%,#070d1f 50%,#03060f 100%);
+  color:#e2e8f0;min-height:100vh;
+}
+
+/* ── 星空 ── */
+.stars{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+.star{position:absolute;background:#fff;border-radius:50%;animation:twinkle var(--dur) ease-in-out infinite alternate;}
+@keyframes twinkle{0%{opacity:0.2;transform:scale(0.8)}100%{opacity:1;transform:scale(1.2)}}
+
+/* ── 主容器 ── */
+.app{position:relative;z-index:2;max-width:960px;margin:0 auto;padding:16px;}
+
+/* ── 頁首 ── */
+.app-header{text-align:center;padding:12px 0 20px;}
+.app-header h1{
+  font-size:1.5rem;font-weight:900;
+  background:linear-gradient(135deg,#fbbf24,#f59e0b,#fbbf24);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:3px;
+}
+.app-header .sub{font-size:0.8rem;color:#6a7faa;letter-spacing:1px;margin-top:4px;}
+
+/* ── 頂部 Tab 切換（主題列表） ── */
+.topic-tabs{
+  display:flex;gap:8px;overflow-x:auto;padding:0 0 12px;margin-bottom:16px;
+  border-bottom:1px solid rgba(100,180,255,0.1);
+  scrollbar-width:none;
+}
+.topic-tabs::-webkit-scrollbar{display:none;}
+.topic-tab{
+  flex-shrink:0;
+  padding:8px 18px;border-radius:20px;
+  background:rgba(100,180,255,0.06);
+  border:1px solid rgba(100,180,255,0.12);
+  color:#6a8fcc;font-size:0.85rem;font-weight:600;
+  cursor:pointer;transition:all 0.25s;font-family:inherit;
+  white-space:nowrap;
+}
+.topic-tab.active{
+  background:linear-gradient(135deg,rgba(251,191,36,0.2),rgba(245,158,11,0.12));
+  border-color:rgba(251,191,36,0.4);color:#fbbf24;
+}
+.topic-tab:hover:not(.active){background:rgba(100,180,255,0.12);color:#a5b4fc;}
+.topic-tab.add-topic{border-style:dashed;color:#4a6a9a;font-size:0.8rem;}
+
+/* ── 主題資訊卡 ── */
+.topic-info{
+  background:rgba(10,18,45,0.6);border:1px solid rgba(100,180,255,0.1);
+  border-radius:14px;padding:16px 20px;margin-bottom:16px;
+}
+.topic-info-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.topic-name-input{
+  background:transparent;border:none;border-bottom:1px solid rgba(100,180,255,0.2);
+  color:#fbbf24;font-size:1.1rem;font-weight:700;padding:4px 2px;
+  outline:none;flex:1;min-width:140px;font-family:inherit;
+}
+.topic-name-input:focus{border-bottom-color:rgba(251,191,36,0.5);}
+.topic-status{
+  font-size:0.72rem;padding:3px 12px;border-radius:20px;
+  background:rgba(74,234,255,0.08);border:1px solid rgba(74,234,255,0.2);color:#4aeaff;
+}
+.topic-status.archived{background:rgba(150,150,150,0.1);border-color:rgba(150,150,150,0.2);color:#888;}
+
+/* ── 堂次 Tab ── */
+.session-tabs{
+  display:flex;gap:6px;overflow-x:auto;padding:0 0 10px;margin-bottom:14px;
+  scrollbar-width:none;
+}
+.session-tabs::-webkit-scrollbar{display:none;}
+.session-tab{
+  flex-shrink:0;
+  padding:6px 16px;border-radius:8px;
+  background:rgba(100,180,255,0.05);
+  border:1px solid rgba(100,180,255,0.1);
+  color:#6a8fcc;font-size:0.82rem;font-weight:600;
+  cursor:pointer;transition:all 0.25s;font-family:inherit;
+  white-space:nowrap;
+}
+.session-tab.active{
+  background:rgba(74,234,255,0.12);border-color:rgba(74,234,255,0.3);color:#4aeaff;
+}
+.session-tab:hover:not(.active){background:rgba(100,180,255,0.1);}
+.session-tab.add-session{border-style:dashed;color:#4a6a9a;font-size:0.78rem;}
+
+/* ── 堂次內容區 ── */
+.session-content{
+  background:rgba(10,18,45,0.5);border:1px solid rgba(100,180,255,0.08);
+  border-radius:14px;overflow:hidden;
+}
+
+/* 內容分區 Tab */
+.section-tabs{
+  display:flex;border-bottom:1px solid rgba(100,180,255,0.1);
+  background:rgba(55,48,80,0.2);overflow-x:auto;
+  scrollbar-width:none;
+}
+.section-tabs::-webkit-scrollbar{display:none;}
+.section-tab{
+  flex-shrink:0;
+  padding:10px 16px;
+  color:#6a8fcc;font-size:0.8rem;font-weight:600;
+  cursor:pointer;transition:all 0.25s;font-family:inherit;
+  border-bottom:2px solid transparent;background:transparent;border-top:none;border-left:none;border-right:none;
+  white-space:nowrap;
+}
+.section-tab.active{color:#4aeaff;border-bottom-color:#4aeaff;}
+.section-tab:hover:not(.active){color:#a5b4fc;}
+
+.section-body{padding:16px 18px;min-height:200px;}
+
+/* ── 筆記黑板 ── */
+.blackboard{
+  background:rgba(0,40,20,0.3);border:1px solid rgba(100,220,100,0.15);
+  border-radius:12px;padding:16px;margin-bottom:12px;
+  cursor:pointer;transition:border-color 0.3s;
+}
+.blackboard:hover{border-color:rgba(100,220,100,0.35);}
+.blackboard-title{font-size:0.9rem;font-weight:700;color:#81c784;margin-bottom:10px;letter-spacing:1px;}
+.blackboard-preview{
+  color:#a5d6a7;font-size:0.85rem;line-height:1.7;
+  white-space:pre-wrap;word-break:break-word;
+  max-height:150px;overflow:hidden;position:relative;
+}
+.blackboard-preview.empty{color:#4a7a5a;font-style:italic;}
+.blackboard-preview::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:40px;
+  background:linear-gradient(transparent,rgba(0,40,20,0.8));
+  pointer-events:none;
+}
+.blackboard textarea{
+  width:100%;min-height:120px;
+  background:rgba(0,0,0,0.3);border:1px solid rgba(100,220,100,0.12);
+  border-radius:8px;padding:12px;color:#c8e6c9;font-size:0.85rem;
+  font-family:inherit;resize:vertical;outline:none;line-height:1.7;
+}
+.blackboard textarea:focus{border-color:rgba(100,220,100,0.35);}
+.blackboard textarea::placeholder{color:#4a7a5a;}
+
+/* ── 筆記全螢幕 ── */
+.bb-fullscreen{
+  position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;
+  background:radial-gradient(ellipse at 50% 30%,#0a2818 0%,#061510 50%,#030a08 100%);
+  display:flex;flex-direction:column;
+  animation:bbFadeIn 0.25s ease;
+}
+@keyframes bbFadeIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+.bb-fs-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;min-height:50px;
+  background:rgba(0,40,20,0.6);
+  border-bottom:1px solid rgba(100,220,100,0.15);
+  flex-shrink:0;
+}
+.bb-fs-title{font-size:1rem;font-weight:700;color:#81c784;letter-spacing:1px;}
+.bb-fs-close{
+  padding:6px 16px;border-radius:8px;font-size:0.85rem;font-weight:700;
+  background:rgba(74,234,255,0.08);border:1px solid rgba(74,234,255,0.25);
+  color:#4aeaff;cursor:pointer;font-family:inherit;transition:all 0.25s;
+}
+.bb-fs-close:hover{background:rgba(74,234,255,0.18);}
+.bb-fs-body{flex:1;display:flex;flex-direction:column;padding:12px 16px;overflow:hidden;}
+.bb-fs-body textarea{
+  flex:1;width:100%;
+  background:rgba(0,0,0,0.25);border:1px solid rgba(100,220,100,0.12);
+  border-radius:10px;padding:16px;color:#c8e6c9;font-size:1rem;
+  font-family:inherit;resize:none;outline:none;line-height:1.8;
+}
+.bb-fs-body textarea:focus{border-color:rgba(100,220,100,0.35);}
+.bb-fs-body textarea::placeholder{color:#4a7a5a;}
+.bb-fs-hint{
+  text-align:center;padding:8px;font-size:0.72rem;color:#3a6a4a;
+  flex-shrink:0;
+}
+
+.link-input-row{display:flex;gap:8px;margin-top:8px;align-items:center;}
+.link-input{
+  flex:1;background:rgba(0,0,0,0.2);border:1px solid rgba(100,180,255,0.12);
+  border-radius:8px;padding:8px 12px;color:#e2e8f0;font-size:0.8rem;
+  font-family:inherit;outline:none;
+}
+.link-input:focus{border-color:rgba(74,234,255,0.3);}
+.link-input::placeholder{color:#4a6a8a;}
+
+/* ── 連結卡片（標題+URL） ── */
+.link-card{
+  background:rgba(0,0,0,0.15);border:1px solid rgba(100,180,255,0.1);
+  border-radius:10px;padding:10px 14px;margin-bottom:8px;
+}
+.link-card-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.link-card-row:last-child{margin-bottom:0;}
+.link-card-label{font-size:0.72rem;color:#6a8fcc;width:60px;flex-shrink:0;text-align:right;}
+.link-card-input{
+  flex:1;background:rgba(0,0,0,0.2);border:1px solid rgba(100,180,255,0.12);
+  border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:0.8rem;
+  font-family:inherit;outline:none;
+}
+.link-card-input:focus{border-color:rgba(74,234,255,0.3);}
+.link-card-input::placeholder{color:#4a6a8a;}
+.link-card-actions{display:flex;gap:6px;align-items:center;padding-top:4px;border-top:1px solid rgba(100,180,255,0.06);margin-top:6px;}
+.link-card-actions a{color:#4aeaff;text-decoration:none;font-size:0.75rem;display:flex;align-items:center;gap:3px;}
+.link-card-actions a:hover{text-decoration:underline;}
+/* 已儲存連結的顯示模式 */
+.link-display{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(0,0,0,0.1);border:1px solid rgba(100,180,255,0.08);
+  border-radius:8px;padding:8px 12px;margin-bottom:6px;
+}
+.link-display a{color:#4aeaff;text-decoration:none;font-size:0.82rem;font-weight:600;flex:1;}
+.link-display a:hover{text-decoration:underline;}
+
+/* ── 通用小按鈕 ── */
+.sm-btn{
+  padding:6px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;
+  cursor:pointer;transition:all 0.25s;font-family:inherit;
+  background:rgba(74,234,255,0.08);border:1px solid rgba(74,234,255,0.2);color:#4aeaff;
+}
+.sm-btn:hover{background:rgba(74,234,255,0.18);}
+.sm-btn.danger{background:rgba(255,80,80,0.08);border-color:rgba(255,80,80,0.2);color:#ff8a8a;}
+.sm-btn.danger:hover{background:rgba(255,80,80,0.2);}
+.sm-btn.gold{background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.2);color:#fbbf24;}
+.sm-btn.gold:hover{background:rgba(251,191,36,0.2);}
+
+/* ── 作業繳交 ── */
+.homework-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:600px){.homework-grid{grid-template-columns:1fr;}}
+
+.hw-card{
+  background:rgba(55,48,80,0.2);border:1px solid rgba(160,100,255,0.12);
+  border-radius:10px;padding:14px;
+}
+.hw-group-name{
+  font-size:0.85rem;font-weight:700;color:#c084fc;margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.hw-group-name input{
+  background:transparent;border:none;border-bottom:1px solid rgba(160,100,255,0.2);
+  color:#c084fc;font-size:0.85rem;font-weight:700;
+  outline:none;width:80px;font-family:inherit;
+}
+.hw-links{display:flex;flex-direction:column;gap:6px;}
+.hw-link-item{
+  display:flex;align-items:center;gap:6px;
+  font-size:0.78rem;color:#a5b4fc;
+}
+.hw-link-item a{color:#4aeaff;text-decoration:none;word-break:break-all;}
+.hw-link-item a:hover{text-decoration:underline;}
+.hw-comment{
+  margin-top:6px;width:100%;
+  background:rgba(0,0,0,0.2);border:1px solid rgba(160,100,255,0.1);
+  border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:0.78rem;
+  font-family:inherit;resize:vertical;outline:none;min-height:40px;
+}
+.hw-comment::placeholder{color:#4a5a8a;}
+
+/* ── 成功見證 ── */
+.story-card{
+  background:rgba(55,48,30,0.2);border:1px solid rgba(251,191,36,0.12);
+  border-radius:10px;padding:14px;margin-bottom:10px;
+}
+.story-meta{font-size:0.72rem;color:#9a8a6a;margin-bottom:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.story-meta input{
+  background:transparent;border:none;border-bottom:1px solid rgba(251,191,36,0.2);
+  color:#fbbf24;font-size:0.78rem;font-weight:600;outline:none;width:80px;font-family:inherit;
+}
+.story-meta input[type="date"]{width:130px;color:#a5b4fc;}
+.story-text{
+  width:100%;min-height:60px;
+  background:rgba(0,0,0,0.2);border:1px solid rgba(251,191,36,0.1);
+  border-radius:6px;padding:8px 10px;color:#fde68a;font-size:0.82rem;
+  font-family:inherit;resize:vertical;outline:none;line-height:1.6;
+}
+.story-text::placeholder{color:#6a5a3a;}
+
+/* ── 課堂截圖 ── */
+.screenshot-list{display:flex;flex-direction:column;gap:8px;}
+.ss-item{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(0,0,0,0.15);border:1px solid rgba(100,180,255,0.08);
+  border-radius:8px;padding:8px 12px;
+}
+.ss-item a{color:#4aeaff;text-decoration:none;font-size:0.82rem;flex:1;word-break:break-all;}
+.ss-item a:hover{text-decoration:underline;}
+.ss-item .ss-note{
+  background:transparent;border:none;border-bottom:1px solid rgba(100,180,255,0.1);
+  color:#a5b4fc;font-size:0.78rem;outline:none;width:120px;font-family:inherit;
+}
+
+/* ── 管理工具列 ── */
+.admin-bar{
+  display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;
+}
+.save-hint{font-size:0.72rem;color:#4a6a8a;margin-left:auto;}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;bottom:50px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:rgba(10,18,45,0.95);border:1px solid rgba(74,234,255,0.3);
+  border-radius:12px;padding:10px 24px;
+  font-size:0.85rem;color:#4aeaff;
+  box-shadow:0 8px 30px rgba(0,0,0,0.5);
+  transition:transform 0.35s,opacity 0.35s;opacity:0;z-index:9999;pointer-events:none;
+}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+/* ── 空狀態 ── */
+.empty-state{
+  text-align:center;padding:40px 20px;color:#4a6a8a;
+}
+.empty-state .icon{font-size:2.5rem;margin-bottom:10px;opacity:0.5;}
+.empty-state .text{font-size:0.85rem;letter-spacing:1px;}
+
+/* ── 手機響應式 ── */
+@media(max-width:600px){
+  .app{padding:10px;}
+  .app-header h1{font-size:1.2rem;}
+  .topic-tab{padding:6px 14px;font-size:0.78rem;}
+  .session-tab{padding:5px 12px;font-size:0.78rem;}
+  .section-tab{padding:8px 10px;font-size:0.75rem;}
+  .section-body{padding:12px;}
+  .homework-grid{grid-template-columns:1fr;}
+  .blackboard textarea{min-height:80px;font-size:0.8rem;}
+  .admin-bar{gap:6px;}
+  .sm-btn{padding:5px 10px;font-size:0.72rem;}
+}
+@media(max-width:400px){
+  .app-header h1{font-size:1.05rem;letter-spacing:1px;}
+  .topic-tab{padding:5px 10px;font-size:0.72rem;}
+}
+</style>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js"></script>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<div class="app" id="app">
+  <div class="app-header">
+    <h1>📸 組長學堂</h1>
+    <div class="sub">課堂筆記 · 作業繳交 · 成功見證 · 六組交流</div>
+  </div>
+
+  <!-- 主題 Tab -->
+  <div class="topic-tabs" id="topicTabs"></div>
+
+  <!-- 主題資訊 -->
+  <div class="topic-info" id="topicInfo" style="display:none;"></div>
+
+  <!-- 堂次 Tab -->
+  <div class="session-tabs" id="sessionTabs" style="display:none;"></div>
+
+  <!-- 堂次內容 -->
+  <div class="session-content" id="sessionContent" style="display:none;">
+    <div class="section-tabs" id="sectionTabs">
+      <button class="section-tab active" data-sec="blackboard" onclick="switchSection('blackboard',this)">📝 筆記黑板</button>
+      <button class="section-tab" data-sec="homework" onclick="switchSection('homework',this)">📋 作業繳交</button>
+      <button class="section-tab" data-sec="stories" onclick="switchSection('stories',this)">🌟 成功見證</button>
+      <button class="section-tab" data-sec="screenshots" onclick="switchSection('screenshots',this)">📸 課堂截圖</button>
+    </div>
+    <div class="section-body" id="sectionBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 資料結構 =====
+// 全域資料存在 localStorage key: leader_academy_data
+// 結構: { topics: [ { id, name, status, groups: [{name}], sessions: [ { id, name, blackboard:{text,photoLinks[]}, homework: [{groupIdx, links:[], comment}], stories: [{date, who, text, photoLink}], screenshots: [{link, note}] } ] } ] }
+
+var DATA_KEY = 'leader_academy_data';
+var data = null;
+var curTopicIdx = 0;
+var curSessionIdx = 0;
+var curSection = 'blackboard';
+var autoSaveTimer = null;
+
+function loadData(){
+  try{
+    var raw = localStorage.getItem(DATA_KEY);
+    if(raw) data = JSON.parse(raw);
+  }catch(e){}
+  if(!data || !data.topics){
+    data = { topics: [createDefaultTopic()] };
+  }
+}
+
+function saveData(){
+  try{
+    localStorage.setItem(DATA_KEY, JSON.stringify(data));
+    schedulePush();
+    showToast('✅ 已儲存');
+  }catch(e){
+    showToast('❌ 儲存失敗：空間不足');
+  }
+}
+
+function schedulePush(){
+  try{if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push();}catch(e){}
+}
+
+function scheduleAutoSave(){
+  if(autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(function(){
+    collectCurrentData();
+    saveData();
+  }, 2000);
+}
+
+function createDefaultTopic(){
+  return {
+    id: 'topic_' + Date.now(),
+    name: '組長基礎訓練',
+    status: 'active',
+    groups: [
+      {name:'第一組'},{name:'第二組'},{name:'第三組'},
+      {name:'第四組'},{name:'第五組'},{name:'第六組'}
+    ],
+    sessions: [createDefaultSession(1)]
+  };
+}
+
+function createDefaultSession(num){
+  return {
+    id: 'sess_' + Date.now() + '_' + num,
+    name: '第' + num + '堂',
+    blackboard: { text:'', photoLinks:[] },
+    homework: [],
+    stories: [],
+    screenshots: []
+  };
+}
+
+// ===== 渲染 =====
+function render(){
+  renderTopicTabs();
+  renderTopicInfo();
+  renderSessionTabs();
+  renderSessionContent();
+}
+
+function renderTopicTabs(){
+  var el = document.getElementById('topicTabs');
+  var html = '';
+  data.topics.forEach(function(t,i){
+    var cls = i===curTopicIdx ? 'topic-tab active' : 'topic-tab';
+    if(t.status==='archived') cls += ' archived';
+    html += '<button class="'+cls+'" onclick="switchTopic('+i+')">'+(t.status==='archived'?'📦 ':'')+escH(t.name)+'</button>';
+  });
+  html += '<button class="topic-tab add-topic" onclick="addTopic()">＋ 新增主題</button>';
+  el.innerHTML = html;
+}
+
+function renderTopicInfo(){
+  var el = document.getElementById('topicInfo');
+  var t = data.topics[curTopicIdx];
+  if(!t){el.style.display='none';return;}
+  el.style.display='block';
+  var statusLabel = t.status==='archived' ? '<span class="topic-status archived">已封存</span>' : '<span class="topic-status">進行中</span>';
+  var html = '<div class="topic-info-row">';
+  html += '<input class="topic-name-input" value="'+escAttr(t.name)+'" onchange="updateTopicName(this.value)" placeholder="輸入主題名稱">';
+  html += statusLabel;
+  html += '<button class="sm-btn" onclick="toggleArchive()" style="font-size:0.72rem;">'+(t.status==='archived'?'🔓 重新啟用':'📦 封存主題')+'</button>';
+  html += '<button class="sm-btn danger" onclick="deleteTopic()" style="font-size:0.72rem;">🗑 刪除主題</button>';
+  html += '</div>';
+  // 組名管理
+  html += '<div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+  html += '<span style="font-size:0.75rem;color:#6a8fcc;">六組名稱：</span>';
+  t.groups.forEach(function(g,gi){
+    html += '<input style="background:transparent;border:1px solid rgba(160,100,255,0.15);border-radius:6px;padding:3px 8px;color:#c084fc;font-size:0.75rem;width:72px;outline:none;font-family:inherit;" value="'+escAttr(g.name)+'" onchange="updateGroupName('+gi+',this.value)">';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderSessionTabs(){
+  var el = document.getElementById('sessionTabs');
+  var t = data.topics[curTopicIdx];
+  if(!t){el.style.display='none';return;}
+  el.style.display='flex';
+  var html = '';
+  t.sessions.forEach(function(s,i){
+    var cls = i===curSessionIdx ? 'session-tab active' : 'session-tab';
+    html += '<button class="'+cls+'" onclick="switchSession('+i+')">'+escH(s.name)+'</button>';
+  });
+  html += '<button class="session-tab add-session" onclick="addSession()">＋ 新增堂次</button>';
+  el.innerHTML = html;
+}
+
+function renderSessionContent(){
+  var el = document.getElementById('sessionContent');
+  var t = data.topics[curTopicIdx];
+  if(!t || !t.sessions[curSessionIdx]){el.style.display='none';return;}
+  el.style.display='block';
+  renderSection();
+}
+
+function renderSection(){
+  // 更新 tab active 狀態
+  var tabs = document.querySelectorAll('.section-tab');
+  tabs.forEach(function(tb){
+    tb.classList.toggle('active', tb.getAttribute('data-sec')===curSection);
+  });
+  var body = document.getElementById('sectionBody');
+  var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+  var t = data.topics[curTopicIdx];
+  if(curSection==='blackboard') body.innerHTML = renderBlackboard(s);
+  else if(curSection==='homework') body.innerHTML = renderHomework(s, t);
+  else if(curSection==='stories') body.innerHTML = renderStories(s);
+  else if(curSection==='screenshots') body.innerHTML = renderScreenshots(s);
+}
+
+// ── 連結卡片渲染（通用） ──
+function renderLinkCard(prefix, idx, lnk){
+  // lnk 可以是字串（舊格式）或 {title,url} 物件
+  var title = '', url = '';
+  if(typeof lnk === 'string'){url = lnk;}
+  else if(lnk){title = lnk.title||''; url = lnk.url||'';}
+  var isEditing = lnk && typeof lnk === 'object' && lnk._editing;
+  // 如果有標題和URL且非編輯模式，顯示為精簡連結；否則顯示編輯表單
+  if(title && url && !isEditing){
+    var html = '<div class="link-display">';
+    html += '<a href="'+escAttr(url)+'" target="_blank">🔗 '+escH(title)+'</a>';
+    html += '<button class="sm-btn" onclick="editLink(\''+prefix+'\','+idx+')" style="font-size:0.68rem;padding:3px 8px;">✏️</button>';
+    html += '<button class="sm-btn danger" onclick="removeLink(\''+prefix+'\','+idx+')" style="font-size:0.68rem;padding:3px 8px;">✕</button>';
+    html += '</div>';
+    return html;
+  }
+  var html = '<div class="link-card" id="lc_'+prefix+'_'+idx+'">';
+  html += '<div class="link-card-row"><span class="link-card-label">連結標題</span>';
+  html += '<input class="link-card-input lc-title" data-prefix="'+prefix+'" data-idx="'+idx+'" value="'+escAttr(title)+'" placeholder="例如：第一堂黑板照片" oninput="scheduleAutoSave()"></div>';
+  html += '<div class="link-card-row"><span class="link-card-label">導向 URL</span>';
+  html += '<input class="link-card-input lc-url" data-prefix="'+prefix+'" data-idx="'+idx+'" value="'+escAttr(url)+'" placeholder="貼上 Google Drive 連結" oninput="scheduleAutoSave()"></div>';
+  html += '<div class="link-card-actions">';
+  if(url){html += '<a href="'+escAttr(url)+'" target="_blank">↗ 移動至URL</a>';}
+  html += '<span style="flex:1;"></span>';
+  html += '<button class="sm-btn" onclick="confirmLink(\''+prefix+'\','+idx+')" style="font-size:0.72rem;">確定</button>';
+  html += '<button class="sm-btn danger" onclick="removeLink(\''+prefix+'\','+idx+')" style="font-size:0.68rem;padding:3px 8px;">✕</button>';
+  html += '</div></div>';
+  return html;
+}
+
+// ── 筆記黑板 ──
+function renderBlackboard(s){
+  var bb = s.blackboard || {text:'', photoLinks:[]};
+  var previewText = bb.text || '';
+  var html = '<div class="blackboard" onclick="openBBFullscreen()">';
+  html += '<div class="blackboard-title">🖊️ 課堂共創筆記 <span style="font-size:0.72rem;color:#4a7a5a;font-weight:400;">（點擊展開全螢幕編輯）</span></div>';
+  if(previewText){
+    html += '<div class="blackboard-preview">'+escH(previewText)+'</div>';
+  } else {
+    html += '<div class="blackboard-preview empty">尚無筆記，點擊此處開始記錄...</div>';
+  }
+  html += '</div>';
+  // 黑板照片連結
+  html += '<div style="margin-top:10px;">';
+  html += '<div style="font-size:0.82rem;color:#81c784;margin-bottom:8px;font-weight:600;">📷 黑板照片</div>';
+  (bb.photoLinks||[]).forEach(function(lnk,li){
+    html += renderLinkCard('bb', li, lnk);
+  });
+  html += '<button class="sm-btn" onclick="addBBPhoto()" style="margin-top:6px;">＋ 新增照片連結</button>';
+  html += '</div>';
+  // 管理
+  html += '<div style="margin-top:14px;display:flex;gap:8px;">';
+  html += '<button class="sm-btn gold" onclick="collectCurrentData();saveData()">💾 儲存</button>';
+  html += '</div>';
+  return html;
+}
+
+// ── 作業繳交 ──
+function renderHomework(s, t){
+  var groups = t.groups || [];
+  var hw = s.homework || [];
+  var html = '<div class="admin-bar">';
+  html += '<span style="font-size:0.82rem;color:#c084fc;font-weight:600;">📋 各組作業</span>';
+  html += '<button class="sm-btn gold" onclick="collectCurrentData();saveData()" style="margin-left:auto;">💾 儲存</button>';
+  html += '</div>';
+  html += '<div class="homework-grid">';
+  groups.forEach(function(g,gi){
+    var ghw = null;
+    hw.forEach(function(h){if(h.groupIdx===gi)ghw=h;});
+    if(!ghw) ghw = {groupIdx:gi, links:[], comment:''};
+    html += '<div class="hw-card">';
+    html += '<div class="hw-group-name">📌 '+escH(g.name)+'</div>';
+    html += '<div class="hw-links">';
+    (ghw.links||[]).forEach(function(lnk,li){
+      html += renderLinkCard('hw'+gi, li, lnk);
+    });
+    html += '<button class="sm-btn" onclick="addHWLink('+gi+')" style="font-size:0.72rem;margin-top:4px;">＋ 新增連結</button>';
+    html += '</div>';
+    html += '<textarea class="hw-comment" data-group="'+gi+'" placeholder="老師評語 / 組別心得..." oninput="scheduleAutoSave()">'+escH(ghw.comment)+'</textarea>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// ── 成功見證 ──
+function renderStories(s){
+  var stories = s.stories || [];
+  var html = '<div class="admin-bar">';
+  html += '<span style="font-size:0.82rem;color:#fbbf24;font-weight:600;">🌟 成功見證記錄</span>';
+  html += '<button class="sm-btn" onclick="addStory()">＋ 新增見證</button>';
+  html += '<button class="sm-btn gold" onclick="collectCurrentData();saveData()" style="margin-left:auto;">💾 儲存</button>';
+  html += '</div>';
+  if(stories.length===0){
+    html += '<div class="empty-state"><div class="icon">🌟</div><div class="text">尚無成功見證，點擊上方按鈕新增</div></div>';
+  }
+  stories.forEach(function(st,si){
+    html += '<div class="story-card">';
+    html += '<div class="story-meta">';
+    html += '<input type="date" class="story-date" data-idx="'+si+'" value="'+escAttr(st.date||'')+'" oninput="scheduleAutoSave()">';
+    html += '<input class="story-who" data-idx="'+si+'" value="'+escAttr(st.who||'')+'" placeholder="主角姓名" oninput="scheduleAutoSave()" style="width:100px;">';
+    html += '<button class="sm-btn danger" onclick="removeStory('+si+')" style="font-size:0.68rem;padding:3px 8px;">🗑 刪除</button>';
+    html += '</div>';
+    html += '<textarea class="story-text story-body" data-idx="'+si+'" placeholder="描述成功案例的過程與成果..." oninput="scheduleAutoSave()">'+escH(st.text||'')+'</textarea>';
+    // 照片連結
+    var stPhoto = st.photoLink || '';
+    if(typeof stPhoto === 'string' && stPhoto) stPhoto = {title:'照片', url:stPhoto};
+    if(stPhoto && (stPhoto.title || stPhoto.url)){
+      html += renderLinkCard('story'+si, 0, stPhoto);
+    } else {
+      html += '<button class="sm-btn" onclick="addStoryPhoto('+si+')" style="font-size:0.72rem;margin-top:6px;">＋ 新增照片連結</button>';
+    }
+    html += '</div>';
+  });
+  return html;
+}
+
+// ── 課堂截圖 ──
+function renderScreenshots(s){
+  var ss = s.screenshots || [];
+  var html = '<div class="admin-bar">';
+  html += '<span style="font-size:0.82rem;color:#4aeaff;font-weight:600;">📸 課堂截圖（Google Drive 連結）</span>';
+  html += '<button class="sm-btn" onclick="addScreenshot()">＋ 新增截圖</button>';
+  html += '<button class="sm-btn gold" onclick="collectCurrentData();saveData()" style="margin-left:auto;">💾 儲存</button>';
+  html += '</div>';
+  if(ss.length===0){
+    html += '<div class="empty-state"><div class="icon">📸</div><div class="text">尚無截圖，點擊上方按鈕新增</div></div>';
+  }
+  ss.forEach(function(item,i){
+    // 相容舊格式（字串）和新格式（{title,url}）
+    var lnk = item;
+    if(typeof item === 'object' && item.link !== undefined){
+      lnk = {title: item.note || '截圖 '+(i+1), url: item.link || ''};
+    }
+    html += renderLinkCard('ss', i, lnk);
+  });
+  return html;
+}
+
+// ===== 收集連結卡片資料（通用） =====
+function collectLinkCards(prefix){
+  var links = [];
+  // 收集編輯中的卡片
+  document.querySelectorAll('.lc-title[data-prefix="'+prefix+'"]').forEach(function(titleEl){
+    var idx = parseInt(titleEl.getAttribute('data-idx'));
+    var urlEl = document.querySelector('.lc-url[data-prefix="'+prefix+'"][data-idx="'+idx+'"]');
+    links[idx] = {title: titleEl.value, url: urlEl ? urlEl.value : ''};
+  });
+  // 收集已確定的顯示連結（link-display 模式，資料保留在 data 中不需要重新收集）
+  return links;
+}
+
+// ===== 收集當前畫面資料 =====
+function collectCurrentData(){
+  var t = data.topics[curTopicIdx];
+  if(!t) return;
+  var s = t.sessions[curSessionIdx];
+  if(!s) return;
+
+  if(curSection==='blackboard'){
+    // 全螢幕模式下 textarea 在 #bbFsText，普通模式在 #bbText
+    var bbTextEl = document.getElementById('bbFsText') || document.getElementById('bbText');
+    if(!s.blackboard) s.blackboard = {text:'', photoLinks:[]};
+    if(!s.blackboard.photoLinks) s.blackboard.photoLinks = [];
+    if(bbTextEl) s.blackboard.text = bbTextEl.value;
+    // 收集黑板照片連結卡片（編輯模式 + 已確定模式都保留）
+    var editedBB = collectLinkCards('bb');
+    editedBB.forEach(function(lnk, i){
+      if(lnk){
+        while(s.blackboard.photoLinks.length <= i) s.blackboard.photoLinks.push({title:'', url:''});
+        s.blackboard.photoLinks[i] = lnk;
+      }
+    });
+  }
+  else if(curSection==='homework'){
+    var groups = t.groups || [];
+    // ★ 先保留舊資料再重建，避免丟失已確定的連結
+    var oldHW = s.homework || [];
+    s.homework = [];
+    groups.forEach(function(g,gi){
+      var editedHW = collectLinkCards('hw'+gi);
+      var existingHW = null;
+      oldHW.forEach(function(h){if(h.groupIdx===gi)existingHW=h;});
+      // 從已有資料合併
+      var prevLinks = [];
+      if(existingHW) prevLinks = (existingHW.links || []).slice();
+      editedHW.forEach(function(lnk,i){
+        if(lnk){
+          while(prevLinks.length <= i) prevLinks.push({title:'', url:''});
+          prevLinks[i] = lnk;
+        }
+      });
+      var commentEl = document.querySelector('.hw-comment[data-group="'+gi+'"]');
+      var prevComment = existingHW ? existingHW.comment || '' : '';
+      s.homework.push({groupIdx:gi, links:prevLinks, comment:commentEl?commentEl.value:prevComment});
+    });
+  }
+  else if(curSection==='stories'){
+    var newStories = [];
+    document.querySelectorAll('.story-card').forEach(function(card,i){
+      var dateEl = card.querySelector('.story-date');
+      var whoEl = card.querySelector('.story-who');
+      var textEl = card.querySelector('.story-body');
+      // 照片連結從 data 保留（link-display 模式不在 DOM 中）
+      var existing = (s.stories && s.stories[i]) ? s.stories[i] : {};
+      var editedPhoto = collectLinkCards('story'+i);
+      var photoLink = existing.photoLink || '';
+      if(editedPhoto[0]) photoLink = editedPhoto[0];
+      newStories.push({
+        date: dateEl ? dateEl.value : '',
+        who: whoEl ? whoEl.value : '',
+        text: textEl ? textEl.value : '',
+        photoLink: photoLink
+      });
+    });
+    s.stories = newStories;
+  }
+  else if(curSection==='screenshots'){
+    if(!s.screenshots) s.screenshots = [];
+    var editedSS = collectLinkCards('ss');
+    editedSS.forEach(function(lnk,i){
+      if(lnk){
+        while(s.screenshots.length <= i) s.screenshots.push({title:'', url:''});
+        s.screenshots[i] = lnk;
+      }
+    });
+  }
+}
+
+// ===== 操作函式 =====
+function switchTopic(idx){
+  collectCurrentData();
+  curTopicIdx = idx;
+  curSessionIdx = 0;
+  curSection = 'blackboard';
+  render();
+}
+
+function switchSession(idx){
+  collectCurrentData();
+  curSessionIdx = idx;
+  curSection = 'blackboard';
+  renderSessionTabs();
+  renderSessionContent();
+}
+
+function switchSection(sec, btn){
+  collectCurrentData();
+  curSection = sec;
+  renderSection();
+}
+
+function addTopic(){
+  collectCurrentData();
+  var t = {
+    id:'topic_'+Date.now(),
+    name:'新主題',
+    status:'active',
+    groups:[{name:'第一組'},{name:'第二組'},{name:'第三組'},{name:'第四組'},{name:'第五組'},{name:'第六組'}],
+    sessions:[createDefaultSession(1)]
+  };
+  // 新主題插在前面（舊的往後）
+  data.topics.unshift(t);
+  curTopicIdx = 0;
+  curSessionIdx = 0;
+  saveData();
+  render();
+}
+
+function addSession(){
+  collectCurrentData();
+  var t = data.topics[curTopicIdx];
+  if(!t) return;
+  var num = t.sessions.length + 1;
+  t.sessions.push(createDefaultSession(num));
+  curSessionIdx = t.sessions.length - 1;
+  saveData();
+  renderSessionTabs();
+  renderSessionContent();
+}
+
+function updateTopicName(val){
+  data.topics[curTopicIdx].name = val;
+  scheduleAutoSave();
+}
+
+function updateGroupName(gi, val){
+  data.topics[curTopicIdx].groups[gi].name = val;
+  scheduleAutoSave();
+}
+
+function toggleArchive(){
+  var t = data.topics[curTopicIdx];
+  t.status = t.status==='archived' ? 'active' : 'archived';
+  // 封存的主題移到最後
+  if(t.status==='archived'){
+    data.topics.splice(curTopicIdx, 1);
+    data.topics.push(t);
+    curTopicIdx = 0;
+  }
+  saveData();
+  render();
+}
+
+function deleteTopic(){
+  if(data.topics.length<=1){showToast('至少要保留一個主題');return;}
+  if(!confirm('確定要刪除「'+data.topics[curTopicIdx].name+'」？此操作無法復原。')) return;
+  data.topics.splice(curTopicIdx, 1);
+  curTopicIdx = 0;curSessionIdx = 0;
+  saveData();render();
+}
+
+// ===== 筆記全螢幕 =====
+function openBBFullscreen(){
+  var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+  var bb = s.blackboard || {text:'', photoLinks:[]};
+  var el = document.createElement('div');
+  el.className = 'bb-fullscreen';
+  el.id = 'bbFullscreen';
+  el.innerHTML = '<div class="bb-fs-header">'
+    + '<span class="bb-fs-title">🖊️ 課堂共創筆記</span>'
+    + '<button class="bb-fs-close" onclick="closeBBFullscreen()">◀ 返回</button>'
+    + '</div>'
+    + '<div class="bb-fs-body">'
+    + '<textarea id="bbFsText" placeholder="記錄課堂上大家一起想出來的重點筆記...">'+escH(bb.text)+'</textarea>'
+    + '</div>'
+    + '<div class="bb-fs-hint">內容會自動儲存</div>';
+  document.body.appendChild(el);
+  // 自動儲存
+  var ta = document.getElementById('bbFsText');
+  ta.focus();
+  ta.addEventListener('input', function(){
+    s.blackboard.text = ta.value;
+    scheduleAutoSave();
+  });
+}
+
+function closeBBFullscreen(){
+  var ta = document.getElementById('bbFsText');
+  if(ta){
+    var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+    s.blackboard.text = ta.value;
+    saveData();
+  }
+  var el = document.getElementById('bbFullscreen');
+  if(el) el.remove();
+  renderSection();
+}
+
+// ===== 連結卡片操作（通用） =====
+function confirmLink(prefix, idx){
+  collectCurrentData();
+  saveData();
+  renderSection();
+}
+
+function editLink(prefix, idx){
+  // 把已確定的連結切回編輯模式（清掉 title 讓它顯示表單）
+  var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+  var lnk = _getLinkByPrefix(prefix, idx, s);
+  // 不做任何修改，只重新渲染（link-card 表單會因為 title+url 存在而顯示為表單）
+  // 實際上我們要暫時清空 title 讓表單出現
+  if(lnk && typeof lnk === 'object'){
+    lnk._editing = true;
+  }
+  renderSection();
+}
+
+function removeLink(prefix, idx){
+  collectCurrentData();
+  var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+  if(prefix==='bb'){
+    s.blackboard.photoLinks.splice(idx, 1);
+  } else if(prefix.indexOf('hw')===0){
+    var gi = parseInt(prefix.replace('hw',''));
+    (s.homework||[]).forEach(function(h){if(h.groupIdx===gi) h.links.splice(idx,1);});
+  } else if(prefix==='ss'){
+    s.screenshots.splice(idx, 1);
+  } else if(prefix.indexOf('story')===0){
+    var si = parseInt(prefix.replace('story',''));
+    if(s.stories[si]) s.stories[si].photoLink = '';
+  }
+  saveData();renderSection();
+}
+
+function _getLinkByPrefix(prefix, idx, s){
+  if(prefix==='bb') return (s.blackboard.photoLinks||[])[idx];
+  if(prefix.indexOf('hw')===0){
+    var gi=parseInt(prefix.replace('hw',''));
+    var found=null;(s.homework||[]).forEach(function(h){if(h.groupIdx===gi)found=h;});
+    return found ? (found.links||[])[idx] : null;
+  }
+  if(prefix==='ss') return (s.screenshots||[])[idx];
+  if(prefix.indexOf('story')===0){
+    var si=parseInt(prefix.replace('story',''));
+    return s.stories[si] ? s.stories[si].photoLink : null;
+  }
+  return null;
+}
+
+function addBBPhoto(){
+  collectCurrentData();
+  var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+  if(!s.blackboard.photoLinks) s.blackboard.photoLinks = [];
+  s.blackboard.photoLinks.push({title:'', url:''});
+  renderSection();
+}
+
+function addStoryPhoto(si){
+  collectCurrentData();
+  var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+  if(s.stories[si]) s.stories[si].photoLink = {title:'', url:''};
+  renderSection();
+}
+
+function addHWLink(gi){
+  collectCurrentData();
+  var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+  if(!s.homework) s.homework = [];
+  var found = false;
+  s.homework.forEach(function(h){
+    if(h.groupIdx===gi){h.links.push({title:'', url:''});found=true;}
+  });
+  if(!found) s.homework.push({groupIdx:gi, links:[{title:'', url:''}], comment:''});
+  renderSection();
+}
+
+function addStory(){
+  collectCurrentData();
+  var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+  if(!s.stories) s.stories = [];
+  s.stories.push({date:new Date().toISOString().slice(0,10), who:'', text:'', photoLink:''});
+  saveData();renderSection();
+}
+
+function removeStory(idx){
+  collectCurrentData();
+  var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+  s.stories.splice(idx, 1);
+  saveData();renderSection();
+}
+
+function addScreenshot(){
+  collectCurrentData();
+  var s = data.topics[curTopicIdx].sessions[curSessionIdx];
+  if(!s.screenshots) s.screenshots = [];
+  s.screenshots.push({title:'', url:''});
+  renderSection();
+}
+
+// ===== 工具 =====
+function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function escAttr(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function showToast(msg){
+  var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2000);
+}
+
+// ===== 星空 =====
+(function(){
+  var c=document.getElementById('stars');
+  for(var i=0;i<80;i++){
+    var s=document.createElement('div');s.className='star';
+    s.style.cssText='width:'+(.5+Math.random()*2)+'px;height:'+s.style.width+';top:'+Math.random()*100+'%;left:'+Math.random()*100+'%;--dur:'+(2+Math.random()*4)+'s;animation-delay:'+(Math.random()*3)+'s;';
+    var sz=.5+Math.random()*2; s.style.width=sz+'px'; s.style.height=sz+'px';
+    c.appendChild(s);
+  }
+})();
+
+// ===== firebase-sync-ready =====
+window.addEventListener('firebase-sync-ready', function(){
+  loadData(); render();
+});
+
+// ===== 頁面離開時自動儲存（手機切換 App / 關閉分頁） =====
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'hidden'){
+    try{ collectCurrentData(); saveData(); }catch(e){}
+  }
+});
+window.addEventListener('beforeunload', function(){
+  try{ collectCurrentData(); saveData(); }catch(e){}
+});
+window.addEventListener('pagehide', function(){
+  try{ collectCurrentData(); saveData(); }catch(e){}
+});
+
+// ===== 初始化 =====
+loadData();
+render();
+</script>
+<script src="day-mode-init.js"></script>
+</body>
+</html>

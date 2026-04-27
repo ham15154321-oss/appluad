@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  width: 340px; font-family: -apple-system, 'Microsoft JhengHei', sans-serif;
+  background: linear-gradient(180deg, #0d1b3e, #03060f); color: #c0dcff; padding: 16px;
+}
+h1 { font-size: 1.1rem; text-align: center; margin-bottom: 12px; color: #ffd700; }
+h1 span { font-size: 1.3rem; }
+.row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+.row label { font-size: .82rem; color: #8aa0c8; white-space: nowrap; }
+.row select {
+  flex: 1; padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(74,234,255,.25);
+  background: rgba(255,255,255,.08); color: #c0dcff; font-size: .88rem;
+}
+.sync-btn {
+  width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 1rem;
+  font-weight: 700; cursor: pointer; transition: all .2s;
+  background: linear-gradient(135deg, #4aeaff, #a78bfa); color: #03060f;
+}
+.sync-btn:hover { filter: brightness(1.1); }
+.sync-btn:disabled { opacity: .5; cursor: not-allowed; }
+.status {
+  margin-top: 12px; font-size: .82rem; color: #8aa0c8; text-align: center;
+  min-height: 20px; line-height: 1.4;
+}
+.status.ok { color: #4ade80; }
+.status.err { color: #ff6b6b; }
+.result { margin-top: 10px; }
+.result-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 10px; border-radius: 6px; margin-bottom: 4px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+}
+.result-item .label { font-size: .82rem; color: #c0dcff; }
+.result-item .count { font-size: .88rem; font-weight: 700; color: #ffd700; }
+.hint {
+  margin-top: 10px; font-size: .72rem; color: #4a6a9a; text-align: center; line-height: 1.5;
+}
+</style>
+</head>
+<body>
+  <h1><span>🏆</span> EIP 激勵同步</h1>
+
+  <div class="row">
+    <label>年度</label>
+    <select id="selYear"></select>
+    <label>月份</label>
+    <select id="selMonth"></select>
+  </div>
+
+  <button class="sync-btn" id="btnSync">🔄 同步資料</button>
+
+  <div class="status" id="status"></div>
+  <div class="result" id="result"></div>
+  <div class="hint">請先在瀏覽器登入 EIP 系統，再點擊同步<br>資料會自動寫入目前開啟的激勵頁面</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
