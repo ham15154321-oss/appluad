@@ -22,19 +22,38 @@ const ALLOWED_ORIGINS = [
   'null', // 用 file:// 直接打開 HTML 時 Origin 會是 'null'
 ];
 
-// 從 client 收到的這些 header 一律不轉發（避免被夾帶 key、cookie、或假造 IP）
+// 從 client 收到的這些 header 一律不轉發給 Anthropic
+// （避免被夾帶 key、cookie、假造 IP、或讓 Anthropic 誤判成瀏覽器直連）
 const STRIP_REQ_HEADERS = new Set([
+  // 連線相關
   'host',
   'cf-connecting-ip',
   'cf-ipcountry',
   'cf-ray',
   'cf-visitor',
+  'cf-worker',
   'x-forwarded-for',
   'x-forwarded-proto',
   'x-real-ip',
+  // 認證相關（key 由 Worker 注入，不接受前端傳）
   'authorization',
-  'x-api-key', // 絕對不接受前端送來的 key
+  'x-api-key',
   'cookie',
+  // 瀏覽器專屬 — 必須剔除，否則 Anthropic 會把 Worker 誤判為瀏覽器直連
+  // 並要求 anthropic-dangerous-direct-browser-access header
+  'origin',
+  'referer',
+  'user-agent',
+  'sec-fetch-mode',
+  'sec-fetch-site',
+  'sec-fetch-dest',
+  'sec-ch-ua',
+  'sec-ch-ua-mobile',
+  'sec-ch-ua-platform',
+  'accept-language',
+  'accept-encoding',
+  'pragma',
+  'cache-control',
 ]);
 
 function buildCors(origin) {

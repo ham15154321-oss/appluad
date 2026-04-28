@@ -1,11 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Appedu EIP 激勵同步",
-  "version": "1.0",
-  "description": "從赫綵 EIP 系統同步業績數據到激勵排行榜",
+  "version": "4.0",
+  "description": "從赫綵 EIP 系統同步業績數據到激勵排行榜（頁面按鈕直接同步）",
   "permissions": ["activeTab", "scripting"],
   "host_permissions": [
     "*://eip.appedu.com.tw/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>", "file:///*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
   ],
   "action": {
     "default_popup": "popup.html",

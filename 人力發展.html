@@ -158,6 +158,8 @@
   .hex-building.plaza .hex-glow { background:rgba(80,255,180,0.3); }
   .hex-building.perf .hex-shape { background:linear-gradient(180deg,#0d47a1,#1565c0); }
   .hex-building.perf .hex-glow { background:rgba(50,160,255,0.3); }
+  .hex-building.ai .hex-shape { background:linear-gradient(180deg,#4a148c,#7b1fa2); }
+  .hex-building.ai .hex-glow { background:rgba(167,139,250,0.3); }
   .hex-icon { font-size:52px; z-index:2; filter:drop-shadow(0 0 10px rgba(255,255,255,0.3)); }
   .hex-label { margin-top:10px; font-size:16px; font-weight:700; letter-spacing:3px; text-shadow:0 0 10px rgba(100,180,255,0.5); }
   .hex-change-btn {
@@ -522,6 +524,8 @@
   body.day-mode .hex-building.plaza .hex-glow { background:rgba(160,220,200,0.3); }
   body.day-mode .hex-building.perf .hex-shape { background:linear-gradient(180deg,#c0d8f0,#d8e8f8); }
   body.day-mode .hex-building.perf .hex-glow { background:rgba(160,200,240,0.3); }
+  body.day-mode .hex-building.ai .hex-shape { background:linear-gradient(180deg,#d8c0f0,#e8d4f8); }
+  body.day-mode .hex-building.ai .hex-glow { background:rgba(200,170,240,0.3); }
   body.day-mode .hex-label { color:#6a5a8a; text-shadow:0 1px 3px rgba(180,160,220,0.3); }
   body.day-mode .hex-icon { filter:drop-shadow(0 2px 4px rgba(120,100,160,0.2)); }
   body.day-mode .connector { background:linear-gradient(90deg,transparent,rgba(200,180,230,0.5),transparent); box-shadow:0 0 6px rgba(200,180,230,0.2); }
@@ -1087,16 +1091,37 @@
       <div class="hex-change-btn" title="更換圖片">📷<input type="file" accept="image/*" onchange="changeHexImg('plaza',this)"></div>
     </div>
   </div>
-  <!-- 第二排：業績數據中心 -->
-  <div style="display:flex;justify-content:center;margin-top:16px;">
+  <!-- 第二排：業績數據中心 + AI 顧問 -->
+  <div style="display:flex;justify-content:center;gap:24px;margin-top:16px;flex-wrap:wrap;">
     <div class="hex-building perf" onclick="openPerformance()">
       <div class="hex-glow"></div>
       <div class="hex-shape" id="perfHex"><img id="perfImg"><span class="hex-icon" id="perfIcon">📊</span></div>
       <div class="hex-label">業績數據中心</div>
       <div class="hex-change-btn" title="更換圖片">📷<input type="file" accept="image/*" onchange="changeHexImg('perf',this)"></div>
     </div>
+    <div class="connector"></div>
+    <div class="hex-building ai" onclick="openAiAdvisor()">
+      <div class="hex-glow"></div>
+      <div class="hex-shape" id="aiHex"><img id="aiImg"><span class="hex-icon" id="aiIcon">🤖</span></div>
+      <div class="hex-label">AI 顧問</div>
+      <div class="hex-change-btn" title="更換圖片">📷<input type="file" accept="image/*" onchange="changeHexImg('ai',this)"></div>
+    </div>
   </div>
   <div class="add-zone" title="新增區域">＋</div>
+</div>
+<!-- ========== AI 顧問 ========== -->
+<div class="page-overlay" id="aiOverlay" style="z-index:999999;">
+  <div class="page-backdrop" onclick="closeAiAdvisor()"></div>
+  <div class="page-panel" style="background:linear-gradient(180deg,#03060f,#0a1628,#0d1b3e);width:100%;height:100%;max-width:100%;border-radius:0;padding:0;position:relative;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;min-height:52px;background:linear-gradient(180deg,rgba(10,18,45,.97),rgba(8,14,35,.93));border-bottom:1px solid rgba(50,160,255,.15);z-index:10;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:22px;">🤖</span>
+        <span style="font-size:15px;font-weight:700;background:linear-gradient(135deg,#4aeaff,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;">AI 顧問中心</span>
+      </div>
+      <button onclick="closeAiAdvisor()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#ff8a8a;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <iframe id="aiFrame" src="" style="flex:1;width:100%;border:none;background:transparent;" allow="clipboard-write"></iframe>
+  </div>
 </div>
 <!-- ========== 業績數據中心（密碼保護） ========== -->
 <div class="page-overlay" id="perfOverlay" style="z-index:9999;">
@@ -1281,7 +1306,7 @@
       </div>
       <button onclick="closeAchievement()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(100,180,255,0.2);color:#6a8fcc;font-size:1.1rem;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;" onmouseover="this.style.background='rgba(255,80,80,0.25)';this.style.color='#ff8a8a'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#6a8fcc'">✕</button>
     </div>
-    <iframe id="achieveFrame" src="" style="flex:1;width:100%;border:none;background:transparent;" allow="fullscreen;autoplay;encrypted-media" allowfullscreen></iframe>
+    <iframe id="achieveFrame" src="" style="flex:1;width:100%;border:none;background:transparent;" allow="fullscreen;autoplay;encrypted-media"></iframe>
   </div>
 </div>
 
@@ -1446,6 +1471,26 @@
           還原時會覆蓋現有資料，請先確認。
         </div>
       </div>
+      <div class="admin-section" style="margin-top:24px;border:2px solid rgba(0,200,150,0.25);background:rgba(0,200,150,0.03);">
+        <h3>🔄 自動定期備份</h3>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
+          <label style="font-size:13px;color:#94a3b8;">備份週期</label>
+          <select id="autoBackupInterval" style="padding:8px 12px;border:1px solid rgba(100,180,255,0.25);background:rgba(15,20,60,0.85);color:#4aeaff;border-radius:8px;font-size:13px;cursor:pointer;" onchange="saveAutoBackupSetting()">
+            <option value="0">關閉</option>
+            <option value="7">每 7 天</option>
+            <option value="10" selected>每 10 天</option>
+            <option value="14">每 14 天</option>
+            <option value="30">每 30 天</option>
+          </select>
+          <button class="admin-save-btn" style="width:auto;padding:10px 16px;font-size:13px;background:linear-gradient(135deg,#00695c,#00897b);" onclick="doAutoBackupNow()">📦 立即備份</button>
+        </div>
+        <div id="autoBackupStatus" style="font-size:12px;color:#94a3b8;line-height:1.8;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid rgba(100,180,255,.08);"></div>
+        <div style="font-size:11px;color:#6a8fcc;line-height:1.6;margin-top:8px;">
+          💡 開啟後每次進入首頁會自動檢查，到期自動下載備份檔。<br>
+          備份檔名帶時間戳，不會覆蓋舊的備份。<br>
+          建議在「下載」資料夾中建立「備份」子資料夾集中管理。
+        </div>
+      </div>
       <!-- ===== 管理者匯入區 ===== -->
       <div class="admin-section" style="margin-top:24px;border:2px solid rgba(255,215,0,0.25);background:rgba(255,215,0,0.03);">
         <h3>👑 管理者匯入（個別主角備份）</h3>
@@ -1566,17 +1611,18 @@ document.getElementById('profileLabel').addEventListener('blur',function(){local
 
 // ★ 六角形換圖 — 完全比照吉祥物模式：只用 IndexedDB
 async function changeHexImg(k,inp){
-  const f=inp.files[0];if(!f)return;const d=await fileToDataURL(f);
-  // ★ 根據白天/黑夜模式存到不同的 key，互不影響
+  const f=inp.files[0];if(!f)return;
+  // ★ 壓縮圖片（確保不超過 localStorage 限制）
+  var d=await fileToDataURL(f);
+  var compressed = await compressToThumb(d, 200); // 200px 縮圖
+  // ★ 根據白天/黑夜模式存到不同的 key
   var _curDay = (typeof isDayMode === 'function') ? isDayMode() : false;
   var dbKey = _curDay ? ('hex_' + k + '_day') : ('hex_' + k);
-  console.log('[changeHexImg] 儲存圖片:', dbKey, '模式:', _curDay ? '白天' : '黑夜', '大小:', d.length);
-  applyHexImg(k,d);
-  await dbPut('images',dbKey,d);
-  // ★ 驗證寫入成功
-  var verify = await dbGet('images', dbKey);
-  console.log('[changeHexImg] 驗證:', dbKey, verify ? ('✅ ' + verify.length + '字元') : '❌ 未找到');
-  // ★ 立即推送到雲端（確保不遺失）
+  applyHexImg(k, d);
+  // ★ 雙重儲存：IndexedDB（原圖）+ localStorage（壓縮備份）
+  await dbPut('images', dbKey, d);
+  try{ localStorage.setItem('_hexbk_' + dbKey, compressed); }catch(e){ console.warn('[hexImg] localStorage備份失敗(空間不足)'); }
+  // ★ 推送雲端
   try{if(window.firebaseSync&&window.firebaseSync.push) await window.firebaseSync.push();}catch(e){}
   var modeLabel = _curDay ? '（白天版）' : '（黑夜版）';
   showToast('✅ 圖片已儲存！' + modeLabel);
@@ -1598,6 +1644,40 @@ function applyHexImg(k,d){
   var icon=document.getElementById(k+'Icon');
   if(icon)icon.style.display='none';
   return true;
+}
+// ★ 載入預設建築圖片（從 images/ 資料夾）— 當 IndexedDB 和 localStorage 都沒有自訂圖時使用
+function loadDefaultHexImg(k){
+  var imgEl=document.getElementById(k+'Img');
+  if(!imgEl)return;
+  // 已經有圖片在顯示中就不覆蓋
+  if(imgEl.style.display==='block'&&imgEl.src&&imgEl.src.indexOf('data:')===0)return;
+  // 嘗試載入 images/hex_[key].png（黑夜版）或 images/hex_[key]_day.png（白天版）
+  var _day = (typeof isDayMode === 'function') ? isDayMode() : false;
+  var suffix = _day ? '_day' : '';
+  var url = 'images/hex_' + k + suffix + '.png';
+  var testImg = new Image();
+  testImg.onload = function(){
+    imgEl.src = url;
+    imgEl.style.display = 'block';
+    var iconEl = document.getElementById(k+'Icon');
+    if(iconEl) iconEl.style.display = 'none';
+  };
+  // 白天版不存在就試黑夜版
+  testImg.onerror = function(){
+    if(suffix){
+      var url2 = 'images/hex_' + k + '.png';
+      var testImg2 = new Image();
+      testImg2.onload = function(){
+        imgEl.src = url2;
+        imgEl.style.display = 'block';
+        var iconEl = document.getElementById(k+'Icon');
+        if(iconEl) iconEl.style.display = 'none';
+      };
+      testImg2.onerror = function(){}; // 真的沒有就保持 emoji
+      testImg2.src = url2;
+    }
+  };
+  testImg.src = url;
 }
 
 // ★ 廣場建築換圖 — 完全比照吉祥物模式
@@ -1801,6 +1881,7 @@ function openAdmin(){
   updateAdminCharInfo();
   updateStorageInfo();
   refreshMergeCharList();
+  updateAutoBackupStatus();
 }
 async function updateStorageInfo(){
   const el=document.getElementById('storageInfo');if(!el)return;
@@ -1914,27 +1995,97 @@ function extIdbPutAll(dbName,storeName,map){
   });
 }
 
-async function downloadBackup(){
-  showToast('📦 正在打包備份檔...');
+// ★ 打包備份資料（共用邏輯）
+async function buildBackupData(){
   const backup={version:3,timestamp:Date.now(),localStorage:{},images:{},scores:[],waterfallBlobs:{},castleSfxBlobs:{}};
-  // localStorage (所有 key)
   for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);backup.localStorage[k]=localStorage.getItem(k)}
-  // images from IndexedDB (SpaceBaseDB)
-  const imgKeys=['mascot','profile','hex_training','hex_castle','hex_plaza','hex_perf','hex_training_day','hex_castle_day','hex_plaza_day','hex_perf_day','plaza_ocean','plaza_court','plaza_waterfall','plaza_vault','plaza_fire','bgm_audio'];
+  const imgKeys=['mascot','profile','hex_training','hex_castle','hex_plaza','hex_perf','hex_ai','hex_training_day','hex_castle_day','hex_plaza_day','hex_perf_day','hex_ai_day','plaza_ocean','plaza_court','plaza_waterfall','plaza_vault','plaza_fire','bgm_audio'];
   for(const k of imgKeys){const v=await dbGet('images',k);if(v)backup.images[k]=v}
-  // scores
   backup.scores=await dbGetAll('scores');
-  // waterfall IndexedDB (audio + files)
   try{backup.waterfallBlobs=await extIdbGetAll('waterfall_blob_store','blobs');}catch(e){console.warn('waterfall backup skip',e);}
-  // castle SFX IndexedDB
   try{backup.castleSfxBlobs=await extIdbGetAll('castle_cards_sfx_db','blobs');}catch(e){console.warn('castle sfx backup skip',e);}
-  // download
+  return backup;
+}
+
+// ★ 下載備份檔（帶完整時間戳）
+function triggerBackupDownload(backup, prefix){
+  prefix = prefix || '太空基地備份';
+  const now = new Date();
+  const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0')
+    + '_' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0');
   const blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download=`太空基地備份_${new Date().toISOString().slice(0,10)}.json`;
+  a.href=url;a.download=prefix + '_' + ts + '.json';
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+async function downloadBackup(){
+  showToast('📦 正在打包備份檔...');
+  const backup = await buildBackupData();
+  triggerBackupDownload(backup, '太空基地備份');
   showToast('✅ 備份檔已下載！');
+}
+
+// ========== 🔄 自動定期備份 ==========
+function getAutoBackupInterval(){
+  return parseInt(localStorage.getItem('autoBackupInterval') || '10') || 10;
+}
+function saveAutoBackupSetting(){
+  var val = document.getElementById('autoBackupInterval').value;
+  localStorage.setItem('autoBackupInterval', val);
+  updateAutoBackupStatus();
+}
+function updateAutoBackupStatus(){
+  var el = document.getElementById('autoBackupStatus');
+  if(!el) return;
+  var interval = getAutoBackupInterval();
+  var lastTime = localStorage.getItem('autoBackupLastTime');
+  var lastStr = lastTime ? new Date(parseInt(lastTime)).toLocaleString('zh-TW') : '尚未備份';
+  var totalCount = parseInt(localStorage.getItem('autoBackupCount') || '0');
+  if(interval === 0){
+    el.innerHTML = '⏸️ 自動備份已關閉<br>📋 累計備份次數：' + totalCount + ' 次<br>📅 上次備份：' + lastStr;
+  } else {
+    var nextTime = lastTime ? new Date(parseInt(lastTime) + interval * 86400000).toLocaleString('zh-TW') : '下次開啟首頁時';
+    el.innerHTML = '✅ 每 ' + interval + ' 天自動備份<br>📅 上次備份：' + lastStr + '<br>⏰ 下次備份：' + nextTime + '<br>📋 累計備份次數：' + totalCount + ' 次';
+  }
+  // 同步 select
+  var sel = document.getElementById('autoBackupInterval');
+  if(sel) sel.value = String(interval);
+}
+async function doAutoBackupNow(){
+  showToast('📦 正在自動備份...');
+  try{
+    var backup = await buildBackupData();
+    triggerBackupDownload(backup, '太空基地自動備份');
+    localStorage.setItem('autoBackupLastTime', String(Date.now()));
+    var count = parseInt(localStorage.getItem('autoBackupCount') || '0') + 1;
+    localStorage.setItem('autoBackupCount', String(count));
+    updateAutoBackupStatus();
+    showToast('✅ 自動備份完成！（第 ' + count + ' 次）');
+  }catch(e){
+    console.error('[autoBackup] 備份失敗:', e);
+    showToast('❌ 自動備份失敗：' + e.message, true);
+  }
+}
+// ★ 頁面載入時檢查是否該自動備份
+async function checkAutoBackup(){
+  var interval = getAutoBackupInterval();
+  if(interval === 0) return;
+  var lastTime = parseInt(localStorage.getItem('autoBackupLastTime') || '0');
+  var now = Date.now();
+  var elapsed = now - lastTime;
+  var threshold = interval * 86400000; // 天 → 毫秒
+  if(elapsed >= threshold){
+    console.log('[autoBackup] 已過 ' + interval + ' 天，自動備份...');
+    // 延遲 3 秒，等頁面完全載入
+    setTimeout(async function(){
+      await doAutoBackupNow();
+    }, 3000);
+  } else {
+    var remaining = Math.ceil((threshold - elapsed) / 86400000);
+    console.log('[autoBackup] 距離下次備份還有 ' + remaining + ' 天');
+  }
 }
 
 // ========== 上傳還原 ==========
@@ -2125,7 +2276,7 @@ document.getElementById('mergeRestoreInput').addEventListener('change',async fun
     // 圖片：只合併屬於此角色的（用 targetChar 作為 prefix 標記）
     if(backup.images){
       const imgKeys=['mascot','profile','hex_training','hex_castle','hex_plaza','hex_perf',
-        'hex_training_day','hex_castle_day','hex_plaza_day','hex_perf_day',
+        'hex_training_day','hex_castle_day','hex_plaza_day','hex_perf_day','hex_ai','hex_ai_day',
         'plaza_ocean','plaza_court','plaza_waterfall','plaza_vault','plaza_fire'];
       for(const ik of imgKeys){
         if(backup.images[ik]){
@@ -2235,7 +2386,7 @@ function closeFireMandala(){
 
 // ========== 360度能力檢核 ==========
 function open360Assessment(){
-  stopBgm();
+  stopBgm(); hideFloatingUI();
   var _f360 = document.getElementById('assess360Frame');
   _f360.src = 'team-leader-map-assessment.html';
   document.getElementById('assess360Overlay').classList.add('active');
@@ -2248,13 +2399,11 @@ function open360Assessment(){
   };
 }
 function close360Assessment(){
-  // ★ 先觸發儲存（確保分數和備註都寫入 localStorage）
   try{const f=document.getElementById('assess360Frame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}
-  // ★ 等待儲存完成後再銷毀 iframe（防止分數遺失）
   setTimeout(function(){
     document.getElementById('assess360Overlay').classList.remove('active');
     document.getElementById('assess360Frame').src='';
-    // 關閉後刷新左下角六大維度分數
+    showFloatingUI();
     setTimeout(update360DimScores, 200);
   }, 100);
 }
@@ -2456,28 +2605,30 @@ function isDayMode(){ return document.body.classList.contains('day-mode'); }
 // ★ 取得正確的 IndexedDB 圖片 key（白天加 _day 後綴，黑夜用原本的）
 function getHexImgKey(k){ return 'hex_' + k + (isDayMode() ? '_day' : ''); }
 
-// ★ 切換白天/黑夜時，更換四個建築縮圖（互不影響）
+// ★ 切換白天/黑夜時，更換建築縮圖（IndexedDB + localStorage 雙備份）
 async function swapHexImgsForMode(){
   var _curDay = isDayMode();
-  console.log('[swapHexImgs] 切換模式:', _curDay ? '白天' : '黑夜');
-  var keys = ['training','castle','plaza','perf'];
+  var keys = ['training','castle','plaza','perf','ai'];
   for(var i = 0; i < keys.length; i++){
     var k = keys[i];
     var dbKey = _curDay ? ('hex_' + k + '_day') : ('hex_' + k);
+    var loaded = false;
     try {
       var img = await dbGet('images', dbKey);
+      if(img && isValidImageData(img)){ applyHexImg(k, img); loaded = true; }
+    }catch(e){}
+    // IndexedDB 沒有 → 嘗試 localStorage 備份
+    if(!loaded){
+      var backup = localStorage.getItem('_hexbk_' + dbKey);
+      if(backup && isValidImageData(backup)){ applyHexImg(k, backup); loaded = true; }
+    }
+    // 都沒有 → 顯示預設 icon
+    if(!loaded){
       var imgEl = document.getElementById(k + 'Img');
       var iconEl = document.getElementById(k + 'Icon');
-      if(img && isValidImageData(img)){
-        console.log('[swapHexImgs] ✅ 載入:', dbKey);
-        applyHexImg(k, img);
-      } else {
-        console.log('[swapHexImgs] ⚠️ 無圖片:', dbKey, '→ 顯示預設 icon');
-        // 此模式沒有設定圖片 → 顯示預設 icon
-        if(imgEl){ imgEl.src = ''; imgEl.style.display = 'none'; }
-        if(iconEl){ iconEl.style.display = ''; }
-      }
-    }catch(e){ console.warn('[swapHexImgs] 載入失敗:', k, e); }
+      if(imgEl){ imgEl.src = ''; imgEl.style.display = 'none'; }
+      if(iconEl){ iconEl.style.display = ''; }
+    }
   }
 }
 
@@ -2663,20 +2814,36 @@ async function init(){
   await openDB();
   const mascot=await dbGet('images','mascot');if(mascot)applyMascot(mascot);
   const profile=await dbGet('images','profile');if(profile)applyProfile(profile);
-  // ★ 六角形圖片：根據白天/黑夜模式載入對應的獨立圖片
+  // ★ 六角形圖片：IndexedDB 優先，localStorage 備份兜底
   var _isDay = isDayMode();
-  console.log('[init] 載入建築縮圖，目前模式:', _isDay ? '白天' : '黑夜');
-  for(const k of['training','castle','plaza','perf']){
+  for(const k of['training','castle','plaza','perf','ai']){
     try{
       var hexKey = _isDay ? ('hex_' + k + '_day') : ('hex_' + k);
       var img = await dbGet('images', hexKey);
       if(img && isValidImageData(img)){
-        console.log('[init] ✅ 載入:', hexKey);
         applyHexImg(k, img);
       } else {
-        console.log('[init] ⚠️ 找不到:', hexKey);
+        // ★ IndexedDB 沒有 → 嘗試 localStorage 備份
+        var backup = localStorage.getItem('_hexbk_' + hexKey);
+        if(backup && isValidImageData(backup)){
+          applyHexImg(k, backup);
+          // 回寫到 IndexedDB 修復
+          try{ await dbPut('images', hexKey, backup); }catch(e2){}
+        }
       }
-    }catch(e){ console.warn('[init] 載入失敗:', k, e); }
+    }catch(e){
+      // IndexedDB 完全失敗 → 用 localStorage
+      try{
+        var hexKey2 = _isDay ? ('hex_' + k + '_day') : ('hex_' + k);
+        var backup2 = localStorage.getItem('_hexbk_' + hexKey2);
+        if(backup2 && isValidImageData(backup2)) applyHexImg(k, backup2);
+      }catch(e2){}
+    }
+    // ★ 都沒有自訂圖 → 嘗試從 images/ 資料夾載入預設圖
+    var _chkImg = document.getElementById(k+'Img');
+    if(!_chkImg || _chkImg.style.display !== 'block'){
+      loadDefaultHexImg(k);
+    }
   }
   // ★ 廣場建築圖片：同上
   for(const k of['ocean','court','waterfall','vault','fire']){
@@ -2689,6 +2856,8 @@ async function init(){
   await syncFromCastleCards();
   await initBgm();
   loadTrainReminders();
+  // ★ 檢查自動定期備份
+  checkAutoBackup();
 }
 init();
 
@@ -2704,7 +2873,7 @@ window.addEventListener('firebase-sync-ready', async function(){
     const profile=await dbGet('images','profile');if(profile)applyProfile(profile);
     // ★ 六角形圖片：保護已顯示的好圖 + 驗證雲端拉取的資料（支援白天/黑夜獨立圖片）
     var _needCleanPush=false;
-    for(const k of['training','castle','plaza','perf']){
+    for(const k of['training','castle','plaza','perf','ai']){
       var hexKey = (typeof getHexImgKey === 'function') ? getHexImgKey(k) : ('hex_' + k);
       var _img=document.getElementById(k+'Img');
       if(_img&&_img.style.display==='block'&&_img.src&&_img.src.indexOf('data:')===0){
@@ -2807,6 +2976,7 @@ function openPerformance(){
   }
 }
 function perfOpen(){
+  hideFloatingUI();
   const ov=document.getElementById('perfOverlay');
   ov.classList.add('active');
   const frame=document.getElementById('perfFrame');
@@ -2814,15 +2984,36 @@ function perfOpen(){
     frame.src='performance-compare.html';
 }
 function closePerformance(){
-  // 關閉不用密碼
   const ov=document.getElementById('perfOverlay');
   ov.classList.remove('active');
-  // 嘗試觸發儲存
+  showFloatingUI();
   try{
     const frame=document.getElementById('perfFrame');
     if(frame&&frame.contentWindow&&typeof frame.contentWindow.triggerSave==='function')
       frame.contentWindow.triggerSave();
   }catch(e){}
+}
+// ========== 全螢幕 overlay 時隱藏浮動元素 ==========
+function hideFloatingUI(){
+  var badge=document.getElementById('firebase-sync-badge');if(badge)badge.style.display='none';
+  var nav=document.getElementById('navFloatBar');if(nav)nav.style.display='none';
+}
+function showFloatingUI(){
+  var badge=document.getElementById('firebase-sync-badge');if(badge)badge.style.display='';
+  var nav=document.getElementById('navFloatBar');if(nav)nav.style.display='';
+}
+
+// ========== AI 顧問 ==========
+function openAiAdvisor(){
+  stopBgm();
+  document.getElementById('aiFrame').src='ai-advisor.html';
+  document.getElementById('aiOverlay').classList.add('active');
+  hideFloatingUI();
+}
+function closeAiAdvisor(){
+  document.getElementById('aiOverlay').classList.remove('active');
+  document.getElementById('aiFrame').src='';
+  showFloatingUI();
 }
 function perfPwNext(inp,idx){
   // 只保留數字

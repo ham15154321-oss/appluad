@@ -1603,7 +1603,7 @@
       <div class="tab-content" id="tab-4">
         <div class="motiv-import-bar">
           <span class="motiv-update-info" id="motivUpdateInfo"></span>
-          <button class="motiv-import-btn" onclick="motivTriggerEipSync()" title="需安裝 Chrome 擴充功能">🔄 同步資料</button>
+          <button class="motiv-import-btn" onclick="motivTriggerEipSync()" title="直接從 EIP 同步當月資料">🔄 同步資料</button>
           <label class="motiv-import-btn" style="font-size:.75rem;opacity:.7;">📥 匯入檔案
             <input type="file" accept=".xlsx,.xls,.numbers,.csv" style="display:none" onchange="motivImportFile(event)">
           </label>
@@ -4411,7 +4411,72 @@
     }
 
     function motivTriggerEipSync(){
-      alert('請點擊瀏覽器右上角的「🏆 EIP 激勵同步」擴充功能圖示，\n選擇年月後按「從 EIP 同步資料」。\n\n如尚未安裝，請到 chrome://extensions 載入 appedu-eip-sync 資料夾。');
+      var btn = document.querySelector('.motiv-import-btn');
+      var info = document.getElementById('motivUpdateInfo');
+      if (btn){ btn.disabled = true; btn.textContent = '⏳ 偵測中...'; }
+
+      // ★ 先 ping 偵測 content script 是否可用（2秒超時）
+      var pingOk = false;
+      function onPong(e){
+        if (e.data && e.data.channel === 'appedu-eip-sync' && e.data.action === 'pong'){
+          pingOk = true;
+          window.removeEventListener('message', onPong);
+          _motivStartSync(btn, info);
+        }
+      }
+      window.addEventListener('message', onPong);
+      window.postMessage({ channel: 'appedu-eip-sync', action: 'ping' }, '*');
+
+      setTimeout(function(){
+        if (!pingOk){
+          window.removeEventListener('message', onPong);
+          if (btn){ btn.disabled = false; btn.textContent = '🔄 同步資料'; }
+          if (info){
+            info.innerHTML = '💡 請點右上角功能圖示';
+            info.style.color = '#e6a817';
+          }
+        }
+      }, 2000);
+    }
+
+    function _motivStartSync(btn, info){
+      if (btn){ btn.textContent = '⏳ 同步中...'; }
+      if (info){ info.textContent = '⏳ 正在同步中...'; info.style.color = '#e6a817'; }
+
+      function onMsg(e){
+        if (!e.data || e.data.channel !== 'appedu-eip-sync' || e.data.action !== 'result') return;
+        var d = e.data;
+        if (d.type === 'done'){
+          window.removeEventListener('message', onMsg);
+          motivLoadData(); motivRenderAll();
+          if (info){ info.textContent = '✅ ' + d.msg; info.style.color = '#4ade80'; }
+          if (btn){ btn.disabled = false; btn.textContent = '🔄 同步資料'; }
+        } else if (d.type === 'error'){
+          window.removeEventListener('message', onMsg);
+          if (info){ info.textContent = '❌ ' + d.msg; info.style.color = '#ff6b6b'; }
+          if (btn){ btn.disabled = false; btn.textContent = '🔄 同步資料'; }
+        } else if (d.type === 'status'){
+          if (info){ info.textContent = '⏳ ' + d.msg; info.style.color = '#e6a817'; }
+        }
+      }
+      window.addEventListener('message', onMsg);
+
+      var now = new Date();
+      window.postMessage({
+        channel: 'appedu-eip-sync', action: 'request',
+        year: now.getFullYear(),
+        month: String(now.getMonth() + 1).padStart(2, '0')
+      }, '*');
+
+      setTimeout(function(){
+        if (btn && btn.disabled){
+          window.removeEventListener('message', onMsg);
+          btn.disabled = false; btn.textContent = '🔄 同步資料';
+          if (info && info.textContent.indexOf('⏳') >= 0){
+            info.textContent = '⚠️ 同步逾時，請確認已登入 EIP'; info.style.color = '#ff6b6b';
+          }
+        }
+      }, 20000);
     }
 
     // Initialize on load

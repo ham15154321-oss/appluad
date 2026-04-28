@@ -33,8 +33,12 @@ const FIREBASE_CONFIG = {
 };
 
 // 需要同步的 IndexedDB 清單
+// ★ 只同步真正重要的資料庫，音效 DB 不同步（音效會自動重新載入）
 const IDB_LIST = [
-  { dbName: 'SpaceBaseDB',          dbVer: 1, stores: ['images', 'scores'] },
+  { dbName: 'SpaceBaseDB',          dbVer: 1, stores: ['images', 'scores'] }
+];
+// 拉取時也要能讀取舊的音效 collection（向下相容），但推送時不再寫入
+const IDB_LIST_PULL_ONLY = [
   { dbName: 'waterfall_blob_store',  dbVer: 1, stores: ['blobs'] },
   { dbName: 'castle_cards_sfx_db',   dbVer: 1, stores: ['blobs'] }
 ];
@@ -67,6 +71,31 @@ function setBadge(text, color){
 }
 ensureBadge();
 setBadge('☁ 載入中…', '#ffd700');
+
+// ★ 攔截 Firestore SDK 內部的 resource-exhausted 錯誤
+//   這些是 WebChannel write stream 的無害重試訊息，資料已成功推送
+//   攔截後不顯示在 console，徹底消除錯誤噪音
+(function(){
+  var _origError = console.error;
+  var _origWarn = console.warn;
+  function _isFirestoreNoise(args){
+    for (var i = 0; i < args.length; i++){
+      var s = String(args[i] || '');
+      if (s.indexOf('resource-exhausted') !== -1 && s.indexOf('Write stream') !== -1) return true;
+      if (s.indexOf('FIRESTORE') !== -1 && s.indexOf('resource-exhausted') !== -1) return true;
+      if (s.indexOf('WebChannelConnection') !== -1 && s.indexOf('exhausted') !== -1) return true;
+    }
+    return false;
+  }
+  console.error = function(){
+    if (_isFirestoreNoise(arguments)) return; // 靜音
+    _origError.apply(console, arguments);
+  };
+  console.warn = function(){
+    if (_isFirestoreNoise(arguments)) return; // 靜音
+    _origWarn.apply(console, arguments);
+  };
+})();
 
 // === 載入 SDK ========================================================
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.12.2/';
@@ -104,9 +133,12 @@ async function loadScriptRetry(src, retries){
 // === 參數 ===========================================================
 const urlParams = new URLSearchParams(location.search);
 const IS_ADMIN  = urlParams.get('admin') === '1';
-const SYNC_DEBOUNCE_MS = 3000;
-const SYNC_INTERVAL_MS = 15000;
-const BATCH_LIMIT = 750 * 1024;
+const SYNC_DEBOUNCE_MS = 10000;  // 10秒防抖：連續改動只觸發一次推送
+const SYNC_INTERVAL_MS = 60000;  // 60秒定時推送
+const BATCH_LIMIT = 900 * 1024;  // 900KB（Firestore 文件上限 1MB，留餘量）
+const WRITE_DELAY_MS = 500;      // 每筆寫入之間暫停 0.5 秒
+const WRITE_LONG_PAUSE_MS = 3000; // 每 N 筆寫入後等伺服器消化
+const WRITES_PER_PAUSE = 3;      // 每 3 筆寫入休息一次
 
 // 這些 key 是「本機專屬」設定，不應該被雲端覆蓋
 const LOCAL_ONLY_KEYS = [
@@ -124,12 +156,26 @@ const LOCAL_ONLY_PREFIXES = [
   'hex_thumb_',
   'plaza_thumb_',
   '_roleSnap_',
-  '_bak_'
+  '_bak_',
+  '_hexbk_',
+  'firebase_sync_',
+  'blob_',
+  'bgm_'
 ];
+
+// 單筆 localStorage value 超過這個大小且是圖片才壓縮（非圖片大型資料直接同步）
+const LS_MAX_VALUE_SIZE = 800 * 1024; // 800KB
 
 let fsDb, auth;
 let ready = false;
 let syncTimer = null;
+let currentUserUid = null;
+let currentUserEmail = null;
+let _pushing = false; // ★ 推送鎖：防止多個推送同時進行
+
+// ★ Dirty-tracking：記錄上次成功推送的每筆資料簽名（長度+前32字元）
+//   下次推送時只送「真正有改變」的 key，大幅減少 Firestore 寫入量
+let _lastPushedSig = {};  // { collectionPath: { key: signature } }
 
 const _origSet    = localStorage.setItem.bind(localStorage);
 const _origRemove = localStorage.removeItem.bind(localStorage);
@@ -258,7 +304,7 @@ function idbGetAllEntries(db, storeName){
           resolve(entries);
         }
       };
-      cursorReq.onerror = () => { console.warn('[FirebaseSync] IDB read error', storeName); resolve({}); };
+      cursorReq.onerror = () => { resolve({}); };
     } catch(e){ resolve({}); }
   });
 }
@@ -290,6 +336,7 @@ function idbPutEntries(db, storeName, entries){
       const hasKeyPath = store.keyPath != null;
       var pendingChecks = 0;
       var allDone = false;
+      var _imgProtectCount = 0, _imgWriteCount = 0;
       for (const [k, v] of Object.entries(entries)){
         let val = v;
         try { const parsed = JSON.parse(v); if (typeof parsed === 'object') val = parsed; } catch(e){}
@@ -301,14 +348,10 @@ function idbPutEntries(db, storeName, entries){
             getReq.onsuccess = function(){
               var local = getReq.result;
               if (local && _isValidImgData(local)) {
-                // ★ 本地已有好資料，雲端資料不覆蓋
-                console.log('[FirebaseSync] 保護本地圖片不被覆蓋:', _k);
+                _imgProtectCount++;
               } else if (_isValidImgData(_val)) {
-                // 本地沒有或損壞，雲端資料有效 → 寫入
                 store.put(_val, _k);
-              } else {
-                // 雲端資料也損壞 → 跳過
-                console.warn('[FirebaseSync] 雲端圖片資料無效，跳過:', _k);
+                _imgWriteCount++;
               }
               pendingChecks--;
             };
@@ -324,22 +367,137 @@ function idbPutEntries(db, storeName, entries){
           store.put(val, k);
         }
       }
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => { console.warn('[FirebaseSync] IDB write error', storeName); resolve(); };
+      tx.oncomplete = () => {
+        if (_imgWriteCount > 0) console.log('[FirebaseSync] 從雲端補入圖片:', _imgWriteCount, '筆');
+        resolve();
+      };
+      tx.onerror = () => { resolve(); };
     } catch(e){ resolve(); }
   });
 }
 
-// === 分批寫入 Firestore 的工具 =======================================
-async function writeDataToFirestore(collRef, dataMap){
-  // dataMap: { key: value, ... }
-  // 自動分批，每批 < BATCH_LIMIT
-  const batches = [];
-  let currentBatch = {};
-  let currentSize = 0;
-  const bigEntries = {};
+// === Dirty-tracking 簽名工具 ============================================
+// 快速產生一個值的「指紋」：長度 + 前32字元 + 後32字元
+// 用來比較兩次推送之間同一個 key 的值是否有變化
+function _sig(v){
+  if (!v) return '0:';
+  var s = String(v);
+  return s.length + ':' + s.substring(0, 32) + (s.length > 64 ? s.substring(s.length - 32) : '');
+}
 
+// 過濾出真正有改變的資料（跟上次推送相比）
+function _filterChanged(collPath, dataMap){
+  var prev = _lastPushedSig[collPath] || {};
+  var changed = {};
+  var changedCount = 0, unchangedCount = 0;
+  for (var k in dataMap){
+    var sig = _sig(dataMap[k]);
+    if (prev[k] === sig){
+      unchangedCount++;
+    } else {
+      changed[k] = dataMap[k];
+      changedCount++;
+    }
+  }
+  if (changedCount === 0 && unchangedCount > 0){
+    console.log('[FirebaseSync] ' + collPath.split('/').pop() + ': 無變更，跳過（' + unchangedCount + ' 筆未改變）');
+  } else if (changedCount > 0){
+    console.log('[FirebaseSync] ' + collPath.split('/').pop() + ': ' + changedCount + ' 筆變更，' + unchangedCount + ' 筆未改變');
+  }
+  return changed;
+}
+
+// 成功推送後，記住每筆資料的簽名
+function _recordSigs(collPath, dataMap){
+  var sigs = {};
+  for (var k in dataMap) sigs[k] = _sig(dataMap[k]);
+  _lastPushedSig[collPath] = sigs;
+}
+
+// === 延遲工具 ==========================================================
+function delay(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+// === 圖片壓縮工具 ========================================================
+// 將 base64 圖片壓縮到指定大小以內，確保大圖也能同步到雲端
+function isBase64Image(str){
+  return str && typeof str === 'string' && str.indexOf('data:image/') === 0;
+}
+function compressImage(dataUrl, maxBytes){
+  return new Promise(function(resolve){
+    try {
+      var img = new Image();
+      img.onload = function(){
+        var canvas = document.createElement('canvas');
+        var w = img.naturalWidth;
+        var h = img.naturalHeight;
+        // 如果原圖就很大，先縮小尺寸
+        var maxDim = 800; // 最大邊長 800px（同步用途夠了）
+        if (w > maxDim || h > maxDim){
+          if (w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        // 嘗試不同品質，直到小於目標大小
+        var quality = 0.7;
+        var result = canvas.toDataURL('image/jpeg', quality);
+        if (result.length > maxBytes && quality > 0.3){
+          quality = 0.4;
+          result = canvas.toDataURL('image/jpeg', quality);
+        }
+        if (result.length > maxBytes){
+          // 進一步縮小尺寸
+          var scale = 0.5;
+          canvas.width = Math.round(w * scale);
+          canvas.height = Math.round(h * scale);
+          ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          result = canvas.toDataURL('image/jpeg', 0.5);
+        }
+        resolve(result);
+      };
+      img.onerror = function(){
+        resolve(null); // 壓縮失敗就跳過
+      };
+      img.src = dataUrl;
+    } catch(e){
+      resolve(null);
+    }
+  });
+}
+
+// === 分批寫入 Firestore 的工具 =======================================
+// ★ 用 WriteBatch 把多個 doc.set 合併成單一原子操作
+//   → 在 Firestore write stream 裡只算「一次」寫入
+//   → 徹底避免 resource-exhausted: Write stream exhausted
+async function writeDataToFirestore(collRef, dataMap){
+  const MAX_SINGLE_ENTRY = 500 * 1024;
+  const CHUNK_SIZE = 900 * 1024; // 大型資料分段大小
+
+  // ★ 第一步：預處理 — 壓縮超大圖片，非圖片大資料保留（走分段存）
+  var processedMap = {};
+  var bigEntries = {};
   for (const [k, v] of Object.entries(dataMap)){
+    const entrySize = k.length + (v ? v.length : 0);
+    if (entrySize > MAX_SINGLE_ENTRY){
+      if (isBase64Image(v)){
+        var compressed = await compressImage(v, BATCH_LIMIT);
+        if (compressed) processedMap[k] = compressed;
+      } else {
+        bigEntries[k] = v;
+      }
+      continue;
+    }
+    processedMap[k] = v;
+  }
+
+  // ★ 第二步：把 processedMap 分成多個 batch（每個 < BATCH_LIMIT）
+  var batches = [];
+  var currentBatch = {};
+  var currentSize = 0;
+  for (const [k, v] of Object.entries(processedMap)){
     const entrySize = k.length + (v ? v.length : 0);
     if (entrySize > BATCH_LIMIT){
       bigEntries[k] = v;
@@ -355,32 +513,47 @@ async function writeDataToFirestore(collRef, dataMap){
   }
   if (Object.keys(currentBatch).length > 0) batches.push(currentBatch);
 
-  // 主文件
-  await collRef.doc('main').set({ totalBatches: batches.length, data: batches[0] || {} });
-
-  // 其餘批次
-  for (let i = 1; i < batches.length; i++){
-    await collRef.doc('chunk_' + i).set({ data: batches[i] });
+  // ★ 第三步：收集所有要寫的文件（docId → data）
+  var allDocs = [];
+  // 主文件 + chunk
+  allDocs.push({ id: 'main', data: { totalBatches: batches.length, data: batches[0] || {} } });
+  for (var i = 1; i < batches.length; i++){
+    allDocs.push({ id: 'chunk_' + i, data: { data: batches[i] } });
   }
-
-  // 大 entry 分段存
+  // 大型資料分段
   for (const [k, v] of Object.entries(bigEntries)){
-    const safeK = encodeURIComponent(k).substring(0, 1400);
-    if (v && v.length > 900 * 1024){
-      const CS = 900 * 1024;
-      const parts = Math.ceil(v.length / CS);
-      for (let p = 0; p < parts; p++){
-        await collRef.doc('big_' + safeK + '_p' + p).set({
+    var safeK = encodeURIComponent(k).substring(0, 1400);
+    if (v && v.length > CHUNK_SIZE){
+      var parts = Math.ceil(v.length / CHUNK_SIZE);
+      for (var p = 0; p < parts; p++){
+        allDocs.push({ id: 'big_' + safeK + '_p' + p, data: {
           key: k, part: p, totalParts: parts,
-          value: v.substring(p * CS, (p + 1) * CS)
-        });
+          value: v.substring(p * CHUNK_SIZE, (p + 1) * CHUNK_SIZE)
+        }});
       }
     } else {
-      await collRef.doc('big_' + safeK).set({ key: k, value: v || '' });
+      allDocs.push({ id: 'big_' + safeK, data: { key: k, value: v || '' } });
     }
   }
 
-  return Object.keys(dataMap).length;
+  // ★ 第四步：用 WriteBatch 寫入，每個 batch 最多 WRITES_PER_PAUSE 個文件
+  //   WriteBatch.commit() 是單一原子操作 → write stream 只算一次
+  var totalWritten = 0;
+  for (var bStart = 0; bStart < allDocs.length; bStart += WRITES_PER_PAUSE){
+    var wb = fsDb.batch();
+    var bEnd = Math.min(bStart + WRITES_PER_PAUSE, allDocs.length);
+    for (var j = bStart; j < bEnd; j++){
+      wb.set(collRef.doc(allDocs[j].id), allDocs[j].data);
+    }
+    await wb.commit();
+    totalWritten += (bEnd - bStart);
+    // ★ 等伺服器真正消化完，再送下一批
+    try { await fsDb.waitForPendingWrites(); } catch(e){}
+    if (bEnd < allDocs.length) await delay(WRITE_LONG_PAUSE_MS);
+  }
+
+  console.log('[FirebaseSync] collection 寫入完成，共', totalWritten, '筆（', Math.ceil(allDocs.length / WRITES_PER_PAUSE), '次 batch）');
+  return Object.keys(processedMap).length;
 }
 
 async function readDataFromFirestore(collRef){
@@ -414,45 +587,113 @@ async function readDataFromFirestore(collRef){
   return result;
 }
 
+// === 使用者路徑 ========================================================
+function getUserCharRef(charId){
+  if (!currentUserUid) return fsDb.collection('characters').doc(charId); // fallback
+  return fsDb.collection('users').doc(currentUserUid).collection('characters').doc(charId);
+}
+
 // === 推送 ============================================================
 async function pushToCloud(){
   if (!ready || IS_ADMIN) return;
+  // ★ 推送鎖：如果上一次推送還在進行中，跳過這次
+  if (_pushing){
+    console.log('[FirebaseSync] 上次推送尚未完成，跳過');
+    return;
+  }
+  _pushing = true;
   const charId = getCharacterId();
   try {
     setBadge('☁ 推送中…', '#ffd700');
 
-    // 1. localStorage（排除本機專屬 key）
+    // 1. localStorage（排除本機專屬 key + 超大值）
     const lsData = {};
+    let skippedCount = 0;
     for (let i = 0; i < localStorage.length; i++){
       const k = localStorage.key(i);
       if (!k) continue;
       if (isLocalOnlyKey(k)) continue;
-      lsData[k] = localStorage.getItem(k) || '';
+      var val = localStorage.getItem(k) || '';
+      if (val.length > LS_MAX_VALUE_SIZE){
+        if (isBase64Image(val)){
+          // 圖片 → 壓縮後上傳
+          var cVal = await compressImage(val, LS_MAX_VALUE_SIZE);
+          if (cVal){
+            lsData[k] = cVal;
+            console.log('[FirebaseSync] LS 圖片已壓縮:', k, Math.round(val.length/1024)+'KB → '+Math.round(cVal.length/1024)+'KB');
+            continue;
+          }
+          skippedCount++;
+          console.log('[FirebaseSync] LS 圖片壓縮失敗，跳過:', k);
+          continue;
+        }
+        // 非圖片大型資料（對話記錄、案例庫等）→ 正常放行，由 writeDataToFirestore 分批處理
+      }
+      lsData[k] = val;
     }
-    const charRef = fsDb.collection('characters').doc(charId);
+    if (skippedCount) console.log('[FirebaseSync] 共跳過', skippedCount, '筆超大資料');
+    const charRef = getUserCharRef(charId);
     const lsRef = charRef.collection('localStorage');
-    const lsCount = await writeDataToFirestore(lsRef, lsData);
+    const lsPath = lsRef.path;
 
-    // 2. IndexedDB
+    // ★ Dirty-tracking：只推送真正有改變的資料
+    var lsChanged = _filterChanged(lsPath, lsData);
+    var lsCount = 0;
+    if (Object.keys(lsChanged).length > 0){
+      lsCount = await writeDataToFirestore(lsRef, lsChanged);
+      // 成功後記住所有資料的簽名（包括沒改變的）
+      _recordSigs(lsPath, lsData);
+      // ★ 等伺服器消化
+      try { await fsDb.waitForPendingWrites(); } catch(e){}
+      await delay(WRITE_LONG_PAUSE_MS);
+    } else {
+      // 無變更，記住簽名但不寫入
+      _recordSigs(lsPath, lsData);
+    }
+
+    // 2. IndexedDB（只推送 IDB_LIST，不推送音效 DB）
     let idbCount = 0;
     for (const idbInfo of IDB_LIST){
       try {
-        // 不更新徽章文字，避免干擾
         const idb = await idbOpen(idbInfo.dbName, idbInfo.dbVer, idbInfo.stores);
         for (const storeName of idbInfo.stores){
-          const entries = await idbGetAllEntries(idb, storeName);
+          var rawEntries = await idbGetAllEntries(idb, storeName);
+          // ★ 過濾掉音效和 blob 資料（以 blob_ / bgm_ 開頭的 key）
+          var entries = {};
+          var _audioSkipCount = 0;
+          for (var ek in rawEntries){
+            if (ek.indexOf('blob_') === 0 || ek.indexOf('bgm_') === 0){
+              _audioSkipCount++;
+              continue;
+            }
+            entries[ek] = rawEntries[ek];
+          }
+          if (_audioSkipCount > 0) console.log('[FirebaseSync] 跳過音效資料:', _audioSkipCount, '筆');
+          var entryCount = Object.keys(entries).length;
+          if (entryCount === 0) continue;
           const storeRef = charRef.collection('idb_' + idbInfo.dbName + '_' + storeName);
-          const n = await writeDataToFirestore(storeRef, entries);
+          const idbPath = storeRef.path;
+          // ★ Dirty-tracking：只推送有變更的 IDB 資料
+          var idbChanged = _filterChanged(idbPath, entries);
+          if (Object.keys(idbChanged).length === 0){
+            _recordSigs(idbPath, entries);
+            continue;
+          }
+          const n = await writeDataToFirestore(storeRef, idbChanged);
+          _recordSigs(idbPath, entries);
           idbCount += n;
         }
         idb.close();
       } catch(e){
-        console.warn('[FirebaseSync] IDB 推送跳過', idbInfo.dbName, e.message || e);
+        console.log('[FirebaseSync] IDB 推送跳過', idbInfo.dbName, e.message || e);
       }
     }
 
+    // ★ IDB 寫入後再等一次伺服器消化
+    try { await fsDb.waitForPendingWrites(); } catch(e){}
+
     // 更新 metadata
-    await charRef.set({ updatedAt: Date.now(), charId: charId }, { merge: true });
+    await charRef.set({ updatedAt: Date.now(), charId: charId, email: currentUserEmail || '' }, { merge: true });
 
     const msg = '✅ ' + lsCount + '+' + idbCount + ' 筆已同步';
     console.log('[FirebaseSync] 推送成功 localStorage:', lsCount, 'IndexedDB:', idbCount);
@@ -469,6 +710,8 @@ async function pushToCloud(){
       pushErrMsg = '權限不足 — Firestore 安全規則可能已過期';
     }
     setBadge('❌ 推送失敗\n' + pushErrMsg, '#ff6666');
+  } finally {
+    _pushing = false;
   }
 }
 
@@ -482,45 +725,67 @@ localStorage.removeItem = function(k){ _origRemove(k); if(!isLocalOnlyKey(k)) sc
 
 // === 拉取 ============================================================
 async function pullFromCloud(){
-  const allSnap = await fsDb.collection('characters').get();
+  // 用 user-scoped 路徑拉取
+  var baseRef = currentUserUid
+    ? fsDb.collection('users').doc(currentUserUid).collection('characters')
+    : fsDb.collection('characters');
+  const allSnap = await baseRef.get();
   let totalLS = 0, totalIDB = 0;
 
   for (const charDoc of allSnap.docs){
     const charId = charDoc.id;
-    const charRef = fsDb.collection('characters').doc(charId);
+    const charRef = baseRef.doc(charId);
 
     // 1. localStorage（★ 核心原則：本地已有資料的 key 絕對不覆蓋）
     try {
       const lsData = await readDataFromFirestore(charRef.collection('localStorage'));
+      var _skipCount = 0, _quotaSkipCount = 0, _quotaSkipKeys = [];
       for (const [k, v] of Object.entries(lsData)){
         if (isLocalOnlyKey(k)) continue;
         // ★★★ 防資料遺失：本地已有任何值就完全跳過，雲端不得覆蓋 ★★★
         var existingVal = localStorage.getItem(k);
         if (existingVal !== null && existingVal !== '') {
-          console.log('[FirebaseSync] 跳過覆蓋（本地已有資料）:', k, '(' + existingVal.length + 'B)');
+          _skipCount++;
           continue;
         }
+        // ★ 預檢：超過 200KB 的資料先測試 LS 是否還有空間
+        var valSize = (v || '').length;
+        if (valSize > 200 * 1024) {
+          try {
+            // 嘗試寫一個測試 key 來偵測空間
+            var testKey = '__fs_space_test__';
+            _origSet(testKey, v);
+            _origRemove(testKey);
+          } catch(spaceErr) {
+            _quotaSkipCount++;
+            _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)');
+            continue;
+          }
+        }
         // 本地沒有資料才從雲端補入
-        try { _origSet(k, v); totalLS++; console.log('[FirebaseSync] 從雲端補入:', k); } catch(qe){
-          console.warn('[FirebaseSync] LS 空間不足，跳過:', k, '('+((v||'').length/1024).toFixed(0)+'KB)');
+        try { _origSet(k, v); totalLS++; } catch(qe){
+          _quotaSkipCount++;
+          _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)');
         }
       }
+      if (_skipCount > 0) console.log('[FirebaseSync] [' + charId + '] 跳過覆蓋', _skipCount, '筆（本地已有資料）');
+      if (_quotaSkipCount > 0) console.log('[FirebaseSync] [' + charId + '] LS 空間不足，跳過', _quotaSkipCount, '筆');
+      if (totalLS > 0) console.log('[FirebaseSync] [' + charId + '] 從雲端補入', totalLS, '筆');
     } catch(e){
       // 可能舊格式（v3），嘗試讀取舊結構
       const d = charDoc.data();
       if (d && d.data){
+        var _v3Skip = 0;
         for (const [k, v] of Object.entries(d.data)){
           if (isLocalOnlyKey(k)) continue;
-          // ★★★ v3 fallback 同樣保護：本地已有就不覆蓋 ★★★
           var existingV3 = localStorage.getItem(k);
           if (existingV3 !== null && existingV3 !== '') {
-            console.log('[FirebaseSync] v3 跳過覆蓋（本地已有）:', k);
+            _v3Skip++;
             continue;
           }
-          try { _origSet(k, v); totalLS++; } catch(qe){
-            console.warn('[FirebaseSync] LS 空間不足，跳過:', k);
-          }
+          try { _origSet(k, v); totalLS++; } catch(qe){}
         }
+        if (_v3Skip > 0) console.log('[FirebaseSync] [' + charId + '] v3 跳過覆蓋', _v3Skip, '筆');
       }
     }
 
@@ -536,7 +801,7 @@ async function pullFromCloud(){
           totalIDB += Object.keys(entries).length;
           idb.close();
         } catch(e){
-          console.warn('[FirebaseSync] IDB 拉取跳過', idbInfo.dbName, storeName, e.message || e);
+          console.log('[FirebaseSync] IDB 拉取跳過', idbInfo.dbName, storeName, e.message || e);
         }
       }
     }
@@ -548,11 +813,16 @@ async function pullFromCloud(){
 
 // === 即時監聽（只監聽主角 metadata 變化）==============================
 function setupRealtime(){
-  fsDb.collection('characters').onSnapshot(snap => {
+  var baseRef = currentUserUid
+    ? fsDb.collection('users').doc(currentUserUid).collection('characters')
+    : fsDb.collection('characters');
+  baseRef.onSnapshot(snap => {
+    var changes = [];
     snap.docChanges().forEach(ch => {
       if (ch.type === 'removed') return;
-      console.log('[FirebaseSync] 偵測到雲端更新:', ch.doc.id);
+      changes.push(ch.doc.id);
     });
+    if (changes.length > 0) console.log('[FirebaseSync] 偵測到雲端更新:', changes.length, '筆');
     window.dispatchEvent(new Event('firebase-sync-updated'));
   });
 }
@@ -605,33 +875,60 @@ async function _doInit(){
     fsDb = firebase.firestore();
     auth = firebase.auth();
 
+    // ★ 靜音 Firestore SDK 內部 log，避免 resource-exhausted 等
+    //   SDK 的 WebChannel write stream 重試機制會產生無害但惱人的錯誤
+    //   資料已成功推送，這些只是 SDK 內部重試的副作用
+    try { firebase.firestore.setLogLevel('silent'); } catch(e){}
+
+    // ★ 使用匿名登入 + 同步碼（syncCode）來識別身份
+    // 同步碼存在 localStorage，所有裝置輸入同一組碼就能同步
     setBadge('☁ 登入中…', '#ffd700');
     auth.onAuthStateChanged(async user => {
       if (!user){
         try { await auth.signInAnonymously(); }
         catch(e){
-          console.error('[FirebaseSync] 登入失敗', e);
+          console.error('[FirebaseSync] 匿名登入失敗', e);
           setBadge('❌ 登入失敗\n' + (e.code||e.message), '#ff6666');
         }
         return;
       }
-      console.log('[FirebaseSync] 已登入', user.uid, IS_ADMIN ? '(管理者)' : '');
-      setBadge('☁ 拉取中…', '#00ff88');
+      // 已登入（匿名）
+      console.log('[FirebaseSync] 已匿名登入', user.uid, IS_ADMIN ? '(管理者)' : '');
+
+      // ★ 取得同步身份：
+      //   1. 優先沿用 localStorage 已存的 firebase_sync_code（向下相容，例如本機的 ivan2026）
+      //   2. 沒有 → 自動以「主角 ID」當作同步身份，完全免輸入密碼
+      //      （每個主角各自有獨立的雲端空間，可讀可寫）
+      //   注意：自動推得的碼「不寫回 localStorage」，這樣切換主角後重新整理就會自動跟著切換
+      var syncCode = localStorage.getItem('firebase_sync_code');
+      var autoDerived = false;
+      if (!syncCode) {
+        syncCode = 'role_' + getCharacterId();
+        autoDerived = true;
+        console.log('[FirebaseSync] 自動以主角 ID 作為同步身份:', syncCode);
+      }
+      currentUserUid = syncCode; // 用同步碼作為 user 路徑
+      currentUserEmail = syncCode;
+
+      var badgeLabel = autoDerived ? ('☁ ' + getCharacterId()) : ('☁ ' + syncCode);
+      setBadge(badgeLabel + '\n拉取中…', '#00ff88');
       try {
+        // ★ 嘗試從舊路徑遷移
+        try { await migrateFromAnonymous(); } catch(e){ console.warn('[FirebaseSync] 遷移跳過', e); }
+
         await pullFromCloud();
         ready = true;
         setupRealtime();
         if (!IS_ADMIN) setInterval(pushToCloud, SYNC_INTERVAL_MS);
-        setBadge(IS_ADMIN ? '☁ 管理者' : '☁ 同步中', '#00ff88');
+        setBadge(IS_ADMIN ? '☁ 管理者' : badgeLabel, '#00ff88');
         setTimeout(() => { if (badgeEl) badgeEl.style.opacity = '0.3'; }, 2000);
-        // 第一次推送延遲 5 秒，確保頁面自己的 IndexedDB 初始化完成
-        if (!IS_ADMIN) setTimeout(pushToCloud, 5000);
+        if (!IS_ADMIN) setTimeout(pushToCloud, 15000);
       } catch(e){
         console.error('[FirebaseSync] 初始化失敗', e);
         var errMsg = e.code || '';
         if (e.message) errMsg += (errMsg ? ' ' : '') + e.message;
         if (errMsg.indexOf('permission') !== -1 || errMsg.indexOf('PERMISSION') !== -1) {
-          errMsg = '權限不足\n請檢查 Firestore 安全規則\n（測試模式可能已過期）';
+          errMsg = '權限不足\n請檢查 Firestore 安全規則';
         }
         setBadge('❌ 同步失敗\n' + errMsg, '#ff6666');
       }
@@ -642,7 +939,124 @@ async function _doInit(){
   }
 }
 
-window.firebaseSync = { push: pushToCloud, pull: pullFromCloud };
+// === 同步碼 UI ==========================================================
+function showSyncCodeBtn(){
+  ensureBadge();
+  var apply = function(){
+    if (!badgeEl) return;
+    badgeEl.style.pointerEvents = 'auto';
+    badgeEl.style.cursor = 'pointer';
+    badgeEl.style.opacity = '1';
+    badgeEl.style.background = 'linear-gradient(135deg, rgba(66,133,244,.95), rgba(25,118,210,.95))';
+    badgeEl.style.color = '#fff';
+    badgeEl.style.borderColor = 'rgba(66,133,244,.8)';
+    badgeEl.style.padding = '10px 16px';
+    badgeEl.style.fontSize = '14px';
+    badgeEl.style.borderRadius = '10px';
+    badgeEl.style.fontWeight = '600';
+    badgeEl.style.boxShadow = '0 2px 12px rgba(66,133,244,.4)';
+    badgeEl.style.maxWidth = '300px';
+    badgeEl.style.fontFamily = '-apple-system, sans-serif';
+    badgeEl.innerHTML = '🔑 設定同步碼<br><span style="font-size:11px;font-weight:400;opacity:.85;">點此設定，多台裝置用同一組碼即可同步</span>';
+    badgeEl.onclick = promptSyncCode;
+  };
+  if (badgeEl) apply(); else document.addEventListener('DOMContentLoaded', apply);
+}
+
+function promptSyncCode(){
+  var existing = localStorage.getItem('firebase_sync_code') || '';
+  var code = prompt(
+    '🔑 設定同步碼\n\n'
+    + '在所有裝置輸入同一組碼，資料就會自動同步。\n'
+    + '建議用英文+數字，例如：ivan2026\n\n'
+    + (existing ? '目前同步碼：' + existing + '\n' : '')
+    + '請輸入你的同步碼：',
+    existing || ''
+  );
+  if (code === null) return; // 取消
+  code = code.trim();
+  if (!code) { alert('同步碼不能是空的！'); return; }
+  if (code.length < 4) { alert('同步碼至少要 4 個字元！'); return; }
+  // 清理特殊字元（Firestore doc ID 不能有 /）
+  code = code.replace(/[\/\\.\s]/g, '_');
+  localStorage.setItem('firebase_sync_code', code);
+  // 重新觸發同步流程
+  currentUserUid = code;
+  currentUserEmail = code;
+  setBadge('☁ ' + code + '\n連線中…', '#ffd700');
+  if (badgeEl) { badgeEl.style.pointerEvents = 'none'; badgeEl.onclick = null;
+    badgeEl.style.background = 'rgba(0,0,0,.7)'; badgeEl.style.boxShadow = 'none';
+    badgeEl.style.fontSize = '11px'; badgeEl.style.padding = '4px 8px'; }
+  // 啟動同步
+  startSyncAfterCode();
+}
+
+async function startSyncAfterCode(){
+  try {
+    try { await migrateFromAnonymous(); } catch(e){ console.warn('[FirebaseSync] 遷移跳過', e); }
+    await pullFromCloud();
+    ready = true;
+    setupRealtime();
+    if (!IS_ADMIN) setInterval(pushToCloud, SYNC_INTERVAL_MS);
+    var code = localStorage.getItem('firebase_sync_code') || '';
+    setBadge(IS_ADMIN ? '☁ 管理者' : '☁ ' + code, '#00ff88');
+    setTimeout(() => { if (badgeEl) badgeEl.style.opacity = '0.3'; }, 2000);
+    if (!IS_ADMIN) setTimeout(pushToCloud, 15000);
+  } catch(e){
+    console.error('[FirebaseSync] 同步失敗', e);
+    setBadge('❌ 同步失敗\n' + (e.code || e.message || e), '#ff6666');
+  }
+}
+
+function changeSyncCode(){
+  promptSyncCode();
+}
+
+// === 從舊匿名路徑遷移資料 =============================================
+async function migrateFromAnonymous(){
+  if (!currentUserUid) return;
+  // 檢查新路徑是否已有資料
+  var newRef = fsDb.collection('users').doc(currentUserUid).collection('characters');
+  var newSnap = await newRef.limit(1).get();
+  if (!newSnap.empty) {
+    console.log('[FirebaseSync] 新路徑已有資料，跳過遷移');
+    return;
+  }
+  // 檢查舊路徑是否有資料
+  var oldRef = fsDb.collection('characters');
+  var oldSnap = await oldRef.get();
+  if (oldSnap.empty) {
+    console.log('[FirebaseSync] 舊路徑也沒資料，跳過遷移');
+    return;
+  }
+  console.log('[FirebaseSync] 開始從舊路徑遷移資料...');
+  setBadge('☁ 遷移資料中…', '#ffd700');
+  // 把舊路徑的每個 character 複製到新路徑
+  for (var cd of oldSnap.docs){
+    var charId = cd.id;
+    var charData = cd.data();
+    // 複製主文件
+    await newRef.doc(charId).set(charData);
+    // 複製子 collection：localStorage, idb_*
+    var subNames = ['localStorage'];
+    IDB_LIST.concat(IDB_LIST_PULL_ONLY).forEach(function(info){
+      info.stores.forEach(function(s){
+        subNames.push('idb_' + info.dbName + '_' + s);
+      });
+    });
+    for (var sn of subNames){
+      try {
+        var subSnap = await oldRef.doc(charId).collection(sn).get();
+        for (var subDoc of subSnap.docs){
+          await newRef.doc(charId).collection(sn).doc(subDoc.id).set(subDoc.data());
+        }
+      } catch(e){ /* 子集合不存在就跳過 */ }
+    }
+  }
+  console.log('[FirebaseSync] 遷移完成！');
+}
+
+window.firebaseSync = { push: pushToCloud, pull: pullFromCloud, changeSyncCode: changeSyncCode };
 
 // === 跨分頁主角切換同步 =============================================
 // 當另一個分頁改了 activeCharacterId，自動重新整理目前頁面

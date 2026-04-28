@@ -1,12 +1,20 @@
 /* ═══════════════════════════════════════════════
    Appedu EIP 激勵同步 — Chrome Extension Popup
-   Manifest V3：所有事件用 addEventListener 綁定
-   v2: 修正 rowspan 偏移問題
+   v4: 直接索引法（不用虛擬格線）
+
+   EIP 學院績效總表結構：
+   Header 有 17 欄，但「小組個人業績Ⓐ」(col15) 在資料行完全沒有 td
+
+   型態 A（區域首列，有 rowspan）→ 實際 16~17 個 td
+     td[0]=區域(rowspan=N), td[1]=學院, td[2..14]=數值欄, ...
+     → 學院=td[1], 業績=td[12]
+
+   型態 B（同區域後續列，無區域 td）→ 實際 15~16 個 td
+     td[0]=學院, td[1..13]=數值欄, ...
+     → 學院=td[0], 業績=td[11]
    ═══════════════════════════════════════════════ */
 
 document.addEventListener('DOMContentLoaded', function(){
-
-  // ── 初始化年月選單 ──
   var now = new Date();
   var curY = now.getFullYear();
   var curM = now.getMonth() + 1;
@@ -27,11 +35,9 @@ document.addEventListener('DOMContentLoaded', function(){
     selM.appendChild(o);
   }
 
-  // ── 綁定同步按鈕 ──
   document.getElementById('btnSync').addEventListener('click', doSync);
 });
 
-// ── 狀態顯示 ──
 function setStatus(msg, type){
   var el = document.getElementById('status');
   el.textContent = msg;
@@ -47,177 +53,232 @@ function showResult(academy, sales){
 
 // ── 抓取 EIP 頁面 HTML ──
 async function fetchEipPage(url){
-  console.log('[EIP Sync] 抓取:', url);
+  console.log('[EIP] 抓取:', url);
   var resp = await fetch(url, { credentials: 'include' });
   if (!resp.ok) throw new Error('HTTP ' + resp.status + ' — 可能未登入 EIP');
   var buf = await resp.arrayBuffer();
 
-  // EIP 系統可能用 Big5 或 UTF-8，兩者都試
   var textBig5 = '', textUtf8 = '';
   try { textBig5 = new TextDecoder('big5').decode(buf); } catch(e){}
   try { textUtf8 = new TextDecoder('utf-8').decode(buf); } catch(e){}
 
-  // 用能找到中文關鍵字的那個
   if (textUtf8.indexOf('學院') >= 0 || textUtf8.indexOf('姓名') >= 0 || textUtf8.indexOf('業績') >= 0){
-    console.log('[EIP Sync] 使用 UTF-8 解碼');
     return textUtf8;
   }
   if (textBig5.indexOf('學院') >= 0 || textBig5.indexOf('姓名') >= 0 || textBig5.indexOf('業績') >= 0){
-    console.log('[EIP Sync] 使用 Big5 解碼');
     return textBig5;
   }
-  console.warn('[EIP Sync] 無法偵測編碼，回傳 UTF-8');
   return textUtf8 || textBig5;
 }
 
-// ── 解析 HTML 表格（v2: 處理 rowspan 偏移） ──
-function parseTable(html){
-  var doc = new DOMParser().parseFromString(html, 'text/html');
-  var tables = doc.querySelectorAll('table');
-  console.log('[EIP Sync] 找到 ' + tables.length + ' 個 table');
-
-  // 找最大的 table（通常是資料表）
-  var bestTable = null;
-  var bestRows = 0;
-  tables.forEach(function(t){
-    var rc = t.querySelectorAll('tr').length;
-    if (rc > bestRows){ bestRows = rc; bestTable = t; }
-  });
-  if (!bestTable){
-    console.warn('[EIP Sync] 未找到任何 table');
-    return { headers: [], rows: [] };
+// ══════════════════════════════════════════════
+//  ★ 取得直接子元素（避免巢狀 table 干擾）
+// ══════════════════════════════════════════════
+function getDirectChildren(parent, tagName){
+  var result = [];
+  var kids = parent.children;
+  for (var i = 0; i < kids.length; i++){
+    if (kids[i].tagName === tagName) result.push(kids[i]);
   }
-
-  var allRows = bestTable.querySelectorAll('tr');
-  var headers = [];
-  var dataRows = [];
-
-  // 找表頭（第一列的 th 或 td）
-  var headerRow = allRows[0];
-  if (headerRow){
-    headerRow.querySelectorAll('th, td').forEach(function(cell){
-      headers.push(cell.textContent.trim());
-    });
-  }
-  var headerCount = headers.length;
-  console.log('[EIP Sync] 表頭(' + headerCount + '欄):', headers.join(' | '));
-
-  // ★ 資料列：處理 rowspan 造成的欄位偏移
-  // 如果某列的 td 數量比表頭少，代表左側有 rowspan 合併欄位
-  // → 在前面補空字串，讓所有列的欄位索引與表頭對齊
-  for (var i = 1; i < allRows.length; i++){
-    var cells = [];
-    allRows[i].querySelectorAll('td').forEach(function(cell){
-      cells.push(cell.textContent.trim());
-    });
-    if (cells.length === 0) continue;
-
-    // 補齊缺少的左側欄位
-    var missing = headerCount - cells.length;
-    if (missing > 0){
-      var padded = [];
-      for (var p = 0; p < missing; p++) padded.push('');
-      cells = padded.concat(cells);
-    }
-    dataRows.push(cells);
-  }
-  console.log('[EIP Sync] 資料列數:', dataRows.length);
-
-  return { headers: headers, rows: dataRows };
+  return result;
 }
 
-// ── 從表格提取學院排名資料（v2: 更精確的欄位偵測） ──
-function extractAcademyData(parsed){
-  var h = parsed.headers;
-  var colName = -1, colVal = -1;
+function getDirectRows(table){
+  // 先找直屬 tbody/thead 的 tr
+  var rows = [];
+  var bodies = getDirectChildren(table, 'TBODY');
+  var heads = getDirectChildren(table, 'THEAD');
+  heads.forEach(function(h){ rows = rows.concat(getDirectChildren(h, 'TR')); });
+  bodies.forEach(function(b){ rows = rows.concat(getDirectChildren(b, 'TR')); });
+  // 若沒有 tbody/thead，直接取 table 的 tr
+  if (rows.length === 0) rows = getDirectChildren(table, 'TR');
+  return rows;
+}
 
-  // 精確比對：找「學院」欄和獨立的「業績」欄（非Ⓐ非Ⓑ非小組）
-  for (var i = 0; i < h.length; i++){
-    var hText = h[i];
-    if (hText === '學院' && colName < 0) colName = i;
-    if (hText === '業績' && colVal < 0) colVal = i;
+function getDirectCells(tr){
+  var cells = [];
+  var kids = tr.children;
+  for (var i = 0; i < kids.length; i++){
+    if (kids[i].tagName === 'TD' || kids[i].tagName === 'TH') cells.push(kids[i]);
   }
-  // fallback: 學院欄模糊比對
-  if (colName < 0){
-    for (var i = 0; i < h.length; i++){
-      if (h[i].indexOf('學院') >= 0 && colName < 0) colName = i;
+  return cells;
+}
+
+// ══════════════════════════════════════════════
+//  ★ 找到含「學院」的主資料表格
+// ══════════════════════════════════════════════
+function findDataTable(doc){
+  var tables = doc.querySelectorAll('table');
+  for (var t = 0; t < tables.length; t++){
+    var rows = getDirectRows(tables[t]);
+    if (rows.length < 2) continue;
+    var headerText = rows[0].textContent;
+    if (headerText.indexOf('學院') >= 0 && headerText.indexOf('業績') >= 0){
+      console.log('[EIP] 找到學院資料表，共 ' + rows.length + ' 列');
+      return tables[t];
     }
   }
-  // fallback: 業績欄模糊比對（排除 Ⓐ Ⓑ 小組）
-  if (colVal < 0){
-    for (var i = 0; i < h.length; i++){
-      if (h[i].indexOf('業績') >= 0
-          && h[i].indexOf('Ⓐ') < 0 && h[i].indexOf('Ⓑ') < 0
-          && h[i].indexOf('小組') < 0 && h[i].indexOf('個人') < 0){
-        colVal = i;
-      }
-    }
+  // fallback: 找最大 table
+  var best = null, bestCount = 0;
+  for (var t = 0; t < tables.length; t++){
+    var c = getDirectRows(tables[t]).length;
+    if (c > bestCount){ bestCount = c; best = tables[t]; }
   }
-  console.log('[EIP Sync] 學院欄=' + colName + '(' + (h[colName]||'?') + ')' +
-              ' 業績欄=' + colVal + '(' + (h[colVal]||'?') + ')');
-  if (colName < 0 || colVal < 0) return [];
+  if (best) console.log('[EIP] 用最大 table（' + bestCount + ' 列）');
+  return best;
+}
 
+// ══════════════════════════════════════════════
+//  ★ 學院排名提取（v4 直接索引法）
+// ══════════════════════════════════════════════
+function extractAcademyDirect(html){
+  var doc = new DOMParser().parseFromString(html, 'text/html');
+  var table = findDataTable(doc);
+  if (!table) return [];
+
+  var rows = getDirectRows(table);
   var data = [];
   var seenNames = {};
-  parsed.rows.forEach(function(row){
-    if (row.length <= Math.max(colName, colVal)) return;
-    var name = row[colName];
-    var valStr = row[colVal].replace(/,/g, '').replace(/\$/g, '').replace(/\s/g, '');
+
+  console.log('[EIP] 開始解析學院資料，共 ' + rows.length + ' 列');
+
+  for (var i = 1; i < rows.length; i++){
+    var tds = getDirectCells(rows[i]);
+    // 只取 td，不取 th
+    var tdOnly = [];
+    for (var c = 0; c < tds.length; c++){
+      if (tds[c].tagName === 'TD') tdOnly.push(tds[c]);
+    }
+    if (tdOnly.length < 5) continue;
+
+    var firstTd = tdOnly[0];
+    var firstText = firstTd.textContent.trim();
+
+    // 跳過合計列
+    if (firstText.indexOf('合計') >= 0 || firstText.indexOf('總計') >= 0 || firstText.indexOf('小計') >= 0) continue;
+    // 跳過 colspan 列（通常是合計/小計）
+    if (firstTd.getAttribute('colspan')) continue;
+
+    var name, valStr;
+
+    if (firstTd.getAttribute('rowspan')){
+      // ★ 型態 A：有區域欄（rowspan）
+      // td[0]=區域, td[1]=學院, td[2]=面談, ..., td[12]=業績
+      if (tdOnly.length < 13) continue;
+      name = tdOnly[1].textContent.trim();
+      valStr = tdOnly[12].textContent.trim();
+      if (i <= 3) console.log('[EIP] 型態A 列' + i + ': 區域=' + firstText + ' 學院=' + name + ' 業績=' + valStr + ' (td數=' + tdOnly.length + ')');
+    } else {
+      // ★ 型態 B：無區域欄（被 rowspan 合併）
+      // td[0]=學院, td[1]=面談, ..., td[11]=業績
+      if (tdOnly.length < 12) continue;
+      name = tdOnly[0].textContent.trim();
+      valStr = tdOnly[11].textContent.trim();
+      if (i <= 5) console.log('[EIP] 型態B 列' + i + ': 學院=' + name + ' 業績=' + valStr + ' (td數=' + tdOnly.length + ')');
+    }
+
+    // 清理數值
+    valStr = valStr.replace(/,/g, '').replace(/\$/g, '').replace(/\s/g, '');
     var val = parseFloat(valStr) || 0;
-    // 跳過空名、合計列、區域名（沒有「學院」「部」字樣且值為 0 的）
-    if (!name || name === '') return;
-    if (name.indexOf('合計') >= 0 || name.indexOf('總計') >= 0 || name.indexOf('小計') >= 0) return;
-    if (seenNames[name]) return;
+
+    // 過濾無效資料
+    if (!name) continue;
+    if (/^[\d.,\s]+$/.test(name)) continue;
+    if (name.indexOf('合計') >= 0 || name.indexOf('總計') >= 0 || name.indexOf('小計') >= 0) continue;
+    if (seenNames[name]) continue;
     seenNames[name] = true;
+
     data.push({ name: name, value: val });
-  });
-  // ★ 由業績高到低排序
-  data.sort(function(a,b){ return b.value - a.value; });
-  console.log('[EIP Sync] 學院資料筆數:', data.length);
+  }
+
+  data.sort(function(a, b){ return b.value - a.value; });
+  console.log('[EIP] 學院資料: ' + data.length + ' 筆');
   if (data.length > 0){
-    console.log('[EIP Sync] 前3名:', data.slice(0,3).map(function(d){ return d.name + '=' + d.value; }).join(', '));
+    console.log('[EIP] 前5名: ' + data.slice(0, 5).map(function(d){ return d.name + '=$' + d.value; }).join(', '));
   }
   return data;
 }
 
-// ── 從表格提取業務排名資料 ──
-function extractSalesData(parsed){
-  var h = parsed.headers;
-  var colName = -1, colVal = -1;
+// ══════════════════════════════════════════════
+//  ★ 業務排名提取（同樣用直接索引法）
+// ══════════════════════════════════════════════
+function extractSalesDirect(html){
+  var doc = new DOMParser().parseFromString(html, 'text/html');
+  var tables = doc.querySelectorAll('table');
 
-  for (var i = 0; i < h.length; i++){
-    if (h[i].indexOf('姓名') >= 0 && colName < 0) colName = i;
-    if (h[i].indexOf('合計業績') >= 0) colVal = i;
-    if (h[i] === '合計' && colVal < 0) colVal = i;
+  // 找含「姓名」的表格
+  var table = null;
+  for (var t = 0; t < tables.length; t++){
+    var rows = getDirectRows(tables[t]);
+    if (rows.length < 2) continue;
+    var headerText = rows[0].textContent;
+    if (headerText.indexOf('姓名') >= 0){
+      table = tables[t];
+      break;
+    }
   }
-  // fallback: 找獨立的「業績」
+  if (!table){
+    // fallback: 最大表格
+    var best = null, bestCount = 0;
+    for (var t = 0; t < tables.length; t++){
+      var c = getDirectRows(tables[t]).length;
+      if (c > bestCount){ bestCount = c; best = tables[t]; }
+    }
+    table = best;
+  }
+  if (!table) return [];
+
+  var rows = getDirectRows(table);
+  // 找表頭中「姓名」和「業績」的欄位索引
+  var headerCells = getDirectCells(rows[0]);
+  var colName = -1, colVal = -1;
+  for (var c = 0; c < headerCells.length; c++){
+    var txt = headerCells[c].textContent.trim();
+    if (txt.indexOf('姓名') >= 0 && colName < 0) colName = c;
+    if (txt.indexOf('合計業績') >= 0) colVal = c;
+    if (txt === '合計' && colVal < 0) colVal = c;
+  }
   if (colVal < 0){
-    for (var i = 0; i < h.length; i++){
-      if (h[i] === '業績' || (h[i].indexOf('業績') >= 0 && h[i].indexOf('Ⓐ') < 0 && h[i].indexOf('Ⓑ') < 0)){
-        colVal = i;
+    for (var c = 0; c < headerCells.length; c++){
+      var txt = headerCells[c].textContent.trim();
+      if (txt === '業績' || (txt.indexOf('業績') >= 0 && txt.indexOf('Ⓐ') < 0 && txt.indexOf('Ⓑ') < 0)){
+        colVal = c;
       }
     }
   }
-  console.log('[EIP Sync] 姓名欄=' + colName + '(' + (h[colName]||'?') + ')' +
-              ' 合計業績欄=' + colVal + '(' + (h[colVal]||'?') + ')');
+  console.log('[EIP] 業務表：姓名欄=' + colName + ' 業績欄=' + colVal);
   if (colName < 0 || colVal < 0) return [];
 
   var data = [];
-  parsed.rows.forEach(function(row){
-    if (row.length <= Math.max(colName, colVal)) return;
-    var name = row[colName];
-    var valStr = row[colVal].replace(/,/g, '').replace(/\$/g, '').replace(/\s/g, '');
+  for (var i = 1; i < rows.length; i++){
+    var tds = getDirectCells(rows[i]);
+    var tdOnly = [];
+    for (var c = 0; c < tds.length; c++){
+      if (tds[c].tagName === 'TD') tdOnly.push(tds[c]);
+    }
+    if (tdOnly.length <= Math.max(colName, colVal)) continue;
+
+    // 業務表的 rowspan 處理：同學院績效表
+    var offset = 0;
+    if (tdOnly[0].getAttribute('rowspan')) offset = 0;
+    else if (tdOnly[0].getAttribute('colspan')) continue; // 合計列
+    else if (tdOnly.length < headerCells.length) offset = -1;
+
+    var nameIdx = colName + offset;
+    var valIdx = colVal + offset;
+    if (nameIdx < 0 || valIdx < 0 || nameIdx >= tdOnly.length || valIdx >= tdOnly.length) continue;
+
+    var name = tdOnly[nameIdx].textContent.trim();
+    var valStr = tdOnly[valIdx].textContent.trim().replace(/,/g, '').replace(/\$/g, '').replace(/\s/g, '');
     var val = parseFloat(valStr) || 0;
-    if (!name || name === '') return;
-    if (name.indexOf('合計') >= 0 || name.indexOf('總計') >= 0 || name.indexOf('小計') >= 0) return;
+
+    if (!name) continue;
+    if (name.indexOf('合計') >= 0 || name.indexOf('總計') >= 0 || name.indexOf('小計') >= 0) continue;
     data.push({ name: name, value: val });
-  });
-  // ★ 由業績高到低排序
-  data.sort(function(a,b){ return b.value - a.value; });
-  console.log('[EIP Sync] 業務資料筆數:', data.length);
-  if (data.length > 0){
-    console.log('[EIP Sync] 前3名:', data.slice(0,3).map(function(d){ return d.name + '=' + d.value; }).join(', '));
   }
+
+  data.sort(function(a, b){ return b.value - a.value; });
+  console.log('[EIP] 業務資料: ' + data.length + ' 筆');
   return data;
 }
 
@@ -234,10 +295,7 @@ async function injectData(academyData, salesData){
     target: { tabId: tabs[0].id },
     func: function(academy, sales, updateTime){
       var cid = '';
-      try {
-        var aid = localStorage.getItem('activeCharacterId');
-        if (aid) cid = 'char_' + aid + '_';
-      } catch(e){}
+      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
 
       localStorage.setItem(cid + 'motiv_academy_v1', JSON.stringify(academy));
       localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(sales));
@@ -262,55 +320,43 @@ async function doSync(){
   var month = document.getElementById('selMonth').value;
 
   try {
-    // 1. 抓學院排名（q3= 空 = 請選擇組織 = 全省）
-    setStatus('⏳ 正在抓取學院排名...');
-    var academyUrl = 'http://eip.appedu.com.tw/class/report/performance/performance_at.php?q1=' + year + '&q2=' + month + '&q3=';
-    var academyHtml = await fetchEipPage(academyUrl);
-    var academyParsed = parseTable(academyHtml);
-    var academyData = extractAcademyData(academyParsed);
+    // 1. 學院排名
+    setStatus('⏳ 正在同步學院排名...');
+    var aUrl = 'http://eip.appedu.com.tw/class/report/performance/performance_at.php?q1=' + year + '&q2=' + month + '&q3=';
+    var aHtml = await fetchEipPage(aUrl);
+    var academyData = extractAcademyDirect(aHtml);
 
-    // 如果抓不到或只有一筆，試 q3=0
     if (academyData.length <= 1){
-      console.log('[EIP Sync] 學院資料太少，嘗試 q3=0');
-      academyUrl = 'http://eip.appedu.com.tw/class/report/performance/performance_at.php?q1=' + year + '&q2=' + month + '&q3=0';
-      academyHtml = await fetchEipPage(academyUrl);
-      academyParsed = parseTable(academyHtml);
-      academyData = extractAcademyData(academyParsed);
+      aUrl += '0';
+      aHtml = await fetchEipPage(aUrl);
+      academyData = extractAcademyDirect(aHtml);
     }
 
-    // 2. 抓業務排名
-    setStatus('⏳ 正在抓取業務排名...');
-    var salesUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_p.php?q1=' + year + '&q2=' + month + '&q3=&q4=&q5=&btnq=%E6%9F%A5%E8%A9%A2';
-    var salesHtml = await fetchEipPage(salesUrl);
-    var salesParsed = parseTable(salesHtml);
-    var salesData = extractSalesData(salesParsed);
+    // 2. 業務排名
+    setStatus('⏳ 正在同步業務排名...');
+    var sUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_p.php?q1=' + year + '&q2=' + month + '&q3=&q4=&q5=&btnq=%E6%9F%A5%E8%A9%A2';
+    var sHtml = await fetchEipPage(sUrl);
+    var salesData = extractSalesDirect(sHtml);
 
     if (salesData.length <= 1){
-      console.log('[EIP Sync] 業務資料太少，嘗試 q3=0');
-      salesUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_p.php?q1=' + year + '&q2=' + month + '&q3=0&q4=&q5=&btnq=%E6%9F%A5%E8%A9%A2';
-      salesHtml = await fetchEipPage(salesUrl);
-      salesParsed = parseTable(salesHtml);
-      salesData = extractSalesData(salesParsed);
+      sUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_p.php?q1=' + year + '&q2=' + month + '&q3=0&q4=&q5=&btnq=%E6%9F%A5%E8%A9%A2';
+      sHtml = await fetchEipPage(sUrl);
+      salesData = extractSalesDirect(sHtml);
     }
 
-    // 3. 注入到目前頁面
+    // 3. 注入
     setStatus('⏳ 正在寫入激勵排行榜...');
     await injectData(academyData, salesData);
 
-    // 4. 完成
     setStatus('✅ 同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆', 'ok');
     showResult(academyData, salesData);
 
   } catch(err){
-    console.error('[EIP Sync] 同步失敗:', err);
+    console.error('[EIP] 同步失敗:', err);
     var msg = err.message || String(err);
-    if (msg.indexOf('Failed to fetch') >= 0){
-      setStatus('❌ 無法連線 EIP — 請確認已登入且網路正常', 'err');
-    } else if (msg.indexOf('401') >= 0 || msg.indexOf('403') >= 0){
-      setStatus('❌ 請先登入 EIP 系統再試', 'err');
-    } else {
-      setStatus('❌ ' + msg, 'err');
-    }
+    if (msg.indexOf('Failed to fetch') >= 0) setStatus('❌ 無法連線 EIP — 請確認已登入且網路正常', 'err');
+    else if (msg.indexOf('401') >= 0 || msg.indexOf('403') >= 0) setStatus('❌ 請先登入 EIP 系統再試', 'err');
+    else setStatus('❌ ' + msg, 'err');
   } finally {
     btn.disabled = false;
     btn.textContent = '🔄 同步資料';
