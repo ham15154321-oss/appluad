@@ -733,6 +733,8 @@ async function pullFromCloud(){
   let totalLS = 0, totalIDB = 0;
 
   for (const charDoc of allSnap.docs){
+           // 跳過「default」命名空間（舊資料殘留的空樣板，會污染真主角資料）
+           if (charDoc.id === 'default') { console.log('[FirebaseSync] 跳過 default 空樣板'); continue; }
     const charId = charDoc.id;
     const charRef = baseRef.doc(charId);
 
