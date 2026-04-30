@@ -644,7 +644,65 @@ function saveSelected(){
 }
 
 // ═══════ RENDER PYRAMID ═══════
+
+// === 從 SpaceBaseDB.images 補回卡牌照片/吉祥物 (commit 4ccca8a 改存 IndexedDB 後缺少的讀取端) ===
+let __photoHydrated = false;
+function hydrateCardPhotos(){
+  if(__photoHydrated) return Promise.resolve(false);
+  __photoHydrated = true; // 只跑一次
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.open('SpaceBaseDB');
+      req.onsuccess = () => {
+        const db = req.result;
+        if(!db.objectStoreNames.contains('images')){ db.close(); resolve(false); return; }
+        const tx = db.transaction('images', 'readonly');
+        const os = tx.objectStore('images');
+        const tasks = [];
+        let any = false;
+        cards.forEach((c) => {
+          // photo
+          if(!c.photo){
+            tasks.push(new Promise(r => {
+              const g = os.get('castle_card_photo_' + c.id);
+              g.onsuccess = () => {
+                const v = g.result;
+                if(typeof v === 'string' && v.startsWith('data:')){
+                  c.photo = v; any = true;
+                }
+                r();
+              };
+              g.onerror = () => r();
+            }));
+          }
+          // mascot（不存在就跳過，不報錯）
+          if(!c.mascot){
+            tasks.push(new Promise(r => {
+              const g = os.get('castle_card_mascot_' + c.id);
+              g.onsuccess = () => {
+                const v = g.result;
+                if(typeof v === 'string'){
+                  c.mascot = v; any = true;
+                }
+                r();
+              };
+              g.onerror = () => r();
+            }));
+          }
+        });
+        Promise.all(tasks).then(() => { db.close(); resolve(any); });
+      };
+      req.onerror = () => resolve(false);
+    } catch(e){ resolve(false); }
+  });
+}
+
 function renderPyramid(){
+  // 第一次進入時，先把 IndexedDB 的卡牌照片/吉祥物補回 card.photo / card.mascot，補完後重 render 一次
+  if(!__photoHydrated){
+    hydrateCardPhotos().then((changed) => { if(changed) renderPyramid(); });
+  }
+
   const el=document.getElementById('pyramid');
   el.innerHTML='';
   // Separate visible and hidden cards
