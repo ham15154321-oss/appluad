@@ -631,7 +631,12 @@ function loadCards(){
   }catch(e){}
   return getDefaultCards();
 }
-function saveCards(){localStorage.setItem(SK,JSON.stringify(cards));}
+function saveCards(){
+  // photo/mascot 存在 IndexedDB（commit 4ccca8a），localStorage 只存 metadata
+  const slim = cards.map(c => { const { photo, mascot, ...rest } = c; return rest; });
+  try { localStorage.setItem(SK, JSON.stringify(slim)); }
+  catch(e){ console.warn("[castle] saveCards quota exceeded:", e.message); }
+}
 
 function loadSelected(key){
   try{const r=localStorage.getItem(key);if(r)return JSON.parse(r);}catch(e){}
