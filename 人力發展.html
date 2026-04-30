@@ -4,6 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>人力發展 - 太空基地</title>
+  <script>
+    // === activeCharacterId fallback (避免進頁面時 ID 為 null 導致分數面板顯示 0) ===
+    (function () {
+        try {
+              var KEY = 'activeCharacterId';
+              var BACKUP = 'lastActiveCharacterId';
+              var cur = localStorage.getItem(KEY);
+              if (!cur) {
+                      var last = localStorage.getItem(BACKUP);
+                      if (last) {
+                                localStorage.setItem(KEY, last);
+                                console.warn('[activeCharId-fallback] restored from backup:', last);
+                      } else {
+                                console.warn('[activeCharId-fallback] no current id and no backup; please pick a character from the overview page');
+                      }
+              } else {
+                      localStorage.setItem(BACKUP, cur);
+              }
+        } catch (e) {
+              console.error('[activeCharId-fallback] error:', e);
+        }
+    })();
+  </script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
   * { margin:0; padding:0; box-sizing:border-box; }
