@@ -593,6 +593,31 @@ function getUserCharRef(charId){
   return fsDb.collection('users').doc(currentUserUid).collection('characters').doc(charId);
 }
 
+// === Audit Log ========================================================
+// 寫入 audit_logs collection，每次成功推送一筆紀錄
+// 失敗不影響同步（只 console.warn）
+async function _writeAuditLog(charId, lsCount, idbCount, changedKeys){
+  try {
+    var ua = navigator.userAgent || '';
+    var browser = (ua.match(/Edg\/|Chrome\/|Safari\/|Firefox\/|OPR\//) || ['unknown'])[0].replace(/\/$/,'');
+    var os = (ua.match(/Mac OS X|Windows NT|iPhone|iPad|Android|Linux/) || ['unknown'])[0];
+    await fsDb.collection('audit_logs').add({
+      ts: Date.now(),
+      tsServer: firebase.firestore.FieldValue.serverTimestamp(),
+      charId: charId || '',
+      syncCode: currentUserUid || '',
+      device: os + ' / ' + browser,
+      page: (decodeURIComponent(location.pathname).split('/').pop() || 'index.html').replace(/\.html$/,''),
+      action: 'sync_push',
+      lsCount: lsCount || 0,
+      idbCount: idbCount || 0,
+      changedKeys: (changedKeys || []).slice(0, 50)  // 最多 50 個避免 doc 過大
+    });
+  } catch(e){
+    console.warn('[FirebaseSync] audit log 寫入失敗（不影響同步）', e && (e.code || e.message));
+  }
+}
+
 // === 推送 ============================================================
 async function pushToCloud(){
   if (!ready || IS_ADMIN) return;
@@ -603,6 +628,7 @@ async function pushToCloud(){
   }
   _pushing = true;
   const charId = getCharacterId();
+  var _changedKeysForLog = [];  // ★ 收集本次推送有變更的 key（給 audit log 用）
   try {
     setBadge('☁ 推送中…', '#ffd700');
 
@@ -640,6 +666,7 @@ async function pushToCloud(){
     var lsChanged = _filterChanged(lsPath, lsData);
     var lsCount = 0;
     if (Object.keys(lsChanged).length > 0){
+      _changedKeysForLog = _changedKeysForLog.concat(Object.keys(lsChanged));  // ★ for audit
       lsCount = await writeDataToFirestore(lsRef, lsChanged);
       // 成功後記住所有資料的簽名（包括沒改變的）
       _recordSigs(lsPath, lsData);
@@ -679,6 +706,10 @@ async function pushToCloud(){
             _recordSigs(idbPath, entries);
             continue;
           }
+          // ★ for audit：把 IDB 變更的 key 也記下來（前綴避免和 LS key 撞名）
+          _changedKeysForLog = _changedKeysForLog.concat(
+            Object.keys(idbChanged).map(function(k){ return 'idb:' + idbInfo.dbName + '/' + storeName + '/' + k; })
+          );
           const n = await writeDataToFirestore(storeRef, idbChanged);
           _recordSigs(idbPath, entries);
           idbCount += n;
@@ -694,6 +725,11 @@ async function pushToCloud(){
 
     // 更新 metadata
     await charRef.set({ updatedAt: Date.now(), charId: charId, email: currentUserEmail || '' }, { merge: true });
+
+    // ★ 寫 audit log（只在有實際變更時）
+    if (lsCount > 0 || idbCount > 0) {
+      _writeAuditLog(charId, lsCount, idbCount, _changedKeysForLog).catch(function(){});
+    }
 
     const msg = '✅ ' + lsCount + '+' + idbCount + ' 筆已同步';
     console.log('[FirebaseSync] 推送成功 localStorage:', lsCount, 'IndexedDB:', idbCount);
@@ -733,8 +769,6 @@ async function pullFromCloud(){
   let totalLS = 0, totalIDB = 0;
 
   for (const charDoc of allSnap.docs){
-           // 跳過「default」命名空間（舊資料殘留的空樣板，會污染真主角資料）
-           if (charDoc.id === 'default') { console.log('[FirebaseSync] 跳過 default 空樣板'); continue; }
     const charId = charDoc.id;
     const charRef = baseRef.doc(charId);
 
@@ -1058,7 +1092,27 @@ async function migrateFromAnonymous(){
   console.log('[FirebaseSync] 遷移完成！');
 }
 
-window.firebaseSync = { push: pushToCloud, pull: pullFromCloud, changeSyncCode: changeSyncCode };
+// ★ 給 iframe 內的頁面（例如 ai-advisor.html）寫 AI 對話紀錄用
+//   每次 user 發訊 / AI 回覆都呼叫一次，寫一筆到 ai_chats collection
+async function logAiChat(data){
+  try {
+    if (!fsDb || !ready) return;
+    await fsDb.collection('ai_chats').add(Object.assign({
+      ts: Date.now(),
+      tsServer: firebase.firestore.FieldValue.serverTimestamp(),
+      syncCode: currentUserUid || ''
+    }, data || {}));
+  } catch(e){
+    console.warn('[FirebaseSync] AI chat log 寫入失敗（不影響聊天）', e && (e.code || e.message));
+  }
+}
+
+window.firebaseSync = {
+  push: pushToCloud,
+  pull: pullFromCloud,
+  changeSyncCode: changeSyncCode,
+  logAiChat: logAiChat
+};
 
 // === 跨分頁主角切換同步 =============================================
 // 當另一個分頁改了 activeCharacterId，自動重新整理目前頁面

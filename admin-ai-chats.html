@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 顧問中心 — 對話紀錄</title>
+<script src="auth-check.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  min-height:100vh;
+  background:linear-gradient(135deg,#050510 0%,#0d1033 40%,#1a0a2e 70%,#050510 100%);
+  color:#e8e8e8;
+  font-family:'Segoe UI','Microsoft JhengHei',-apple-system,sans-serif;
+  padding:20px 24px 60px;
+}
+.head{max-width:1500px;margin:0 auto 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.title{font-size:20px;font-weight:900;color:#a78bfa;letter-spacing:2px;text-shadow:0 0 16px rgba(167,139,250,.3);}
+.sub{font-size:11px;color:rgba(160,200,255,.45);letter-spacing:1px;}
+/* 工具列 */
+.toolbar{
+  max-width:1500px;margin:0 auto 16px;
+  display:flex;gap:10px;flex-wrap:wrap;align-items:end;
+  padding:14px 16px;
+  background:rgba(15,20,50,.55);
+  border:1px solid rgba(167,139,250,.15);
+  border-radius:12px;
+}
+.toolbar label{font-size:11px;color:rgba(160,200,255,.55);letter-spacing:1px;display:flex;flex-direction:column;gap:4px;}
+.toolbar select,.toolbar input{padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(100,160,255,.15);color:#e8e8ff;font-size:13px;font-family:inherit;outline:none;min-width:130px;}
+.toolbar select:focus,.toolbar input:focus{border-color:#a78bfa;}
+.toolbar .btn{padding:8px 14px;border-radius:8px;cursor:pointer;background:linear-gradient(135deg,#a78bfa,#4aeaff);color:#03060f;font-weight:700;font-size:13px;border:none;}
+.toolbar .btn-export{background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.25);color:#ffd700;}
+.toolbar .view-toggle{display:flex;gap:4px;}
+.toolbar .view-toggle button{padding:6px 12px;border-radius:6px;background:rgba(74,234,255,.06);border:1px solid rgba(74,234,255,.15);color:rgba(180,230,255,.7);font-size:12px;cursor:pointer;}
+.toolbar .view-toggle button.active{background:rgba(167,139,250,.2);border-color:#a78bfa;color:#fff;}
+
+.stats{max-width:1500px;margin:0 auto 14px;display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:rgba(180,200,240,.7);}
+.stat{padding:6px 12px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(167,139,250,.12);}
+.stat strong{color:#a78bfa;font-size:14px;margin-right:6px;}
+
+#errorBox{max-width:1500px;margin:0 auto;}
+.error{padding:18px;background:rgba(255,80,80,.08);border:1px solid rgba(255,100,100,.2);border-radius:10px;color:#ff8888;font-size:13px;line-height:1.7;margin:0 0 16px;}
+.error code{display:block;background:rgba(0,0,0,.3);padding:10px 14px;border-radius:6px;margin-top:10px;font-family:monospace;color:#ffaaaa;font-size:11px;white-space:pre-wrap;}
+
+/* 對話檢視 */
+.list{max-width:1500px;margin:0 auto;}
+.thread{
+  background:rgba(15,20,50,.55);
+  border:1px solid rgba(167,139,250,.15);
+  border-radius:12px;
+  margin-bottom:14px;
+  overflow:hidden;
+}
+.thread-head{
+  padding:10px 16px;
+  background:linear-gradient(90deg,rgba(167,139,250,.08),rgba(74,234,255,.04));
+  border-bottom:1px solid rgba(167,139,250,.15);
+  display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12px;
+}
+.t-feature{font-weight:700;color:#a78bfa;}
+.t-char{font-weight:700;color:#ffd700;}
+.t-time{color:rgba(180,200,240,.6);font-variant-numeric:tabular-nums;}
+.t-count{margin-left:auto;font-size:11px;color:rgba(180,200,240,.5);}
+.thread-body{padding:14px 16px;display:flex;flex-direction:column;gap:8px;}
+.msg{max-width:85%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-word;}
+.msg.user{align-self:flex-end;background:linear-gradient(135deg,rgba(74,234,255,.12),rgba(74,234,255,.06));border:1px solid rgba(74,234,255,.18);color:#d0eaff;}
+.msg.ai{align-self:flex-start;background:rgba(255,255,255,.04);border:1px solid rgba(167,139,250,.15);color:#e8e8ff;}
+.msg-meta{font-size:10px;opacity:.5;margin-top:4px;font-variant-numeric:tabular-nums;}
+
+/* 表格檢視 */
+.tbl-wrap{max-width:1500px;margin:0 auto;background:rgba(15,20,50,.55);border:1px solid rgba(167,139,250,.15);border-radius:12px;overflow:hidden;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{background:rgba(167,139,250,.08);color:rgba(220,200,255,.85);font-weight:700;text-align:left;letter-spacing:1px;padding:11px 12px;font-size:11px;border-bottom:1px solid rgba(167,139,250,.18);position:sticky;top:0;}
+td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top;}
+tr:hover td{background:rgba(167,139,250,.04);}
+.tt-time{white-space:nowrap;color:rgba(180,200,240,.85);font-variant-numeric:tabular-nums;}
+.tt-char{color:#ffd700;font-weight:700;white-space:nowrap;}
+.tt-feat{color:#a78bfa;white-space:nowrap;}
+.tt-role{font-weight:700;}
+.tt-role.user{color:#4aeaff;}
+.tt-role.ai{color:#a78bfa;}
+.tt-text{max-width:600px;line-height:1.5;color:#e0e8ff;}
+
+.empty{padding:60px 20px;text-align:center;color:rgba(180,200,240,.45);font-size:13px;}
+.loading{padding:40px;text-align:center;color:#a78bfa;}
+.page-bar{max-width:1500px;margin:14px auto 0;display:flex;justify-content:center;gap:8px;}
+.page-bar button{padding:7px 14px;border-radius:6px;cursor:pointer;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2);color:rgba(220,200,255,.85);font-size:12px;}
+.page-bar button:hover{background:rgba(167,139,250,.16);}
+.page-bar button:disabled{opacity:.3;cursor:not-allowed;}
+
+@media (max-width:768px){
+  table{font-size:11px;}
+  th,td{padding:8px 6px;}
+  .toolbar select,.toolbar input{min-width:100px;}
+}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div>
+    <div class="title">🤖 AI 顧問中心 — 對話紀錄</div>
+    <div class="sub">收集所有主角跟 AI 的對話，未來分類納入資料庫</div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <label>主角
+    <select id="filterChar"><option value="">全部</option></select>
+  </label>
+  <label>AI 工具
+    <select id="filterFeature">
+      <option value="">全部</option>
+      <option value="coach">🎯 AI 教練</option>
+      <option value="data">📊 AI 數據通</option>
+      <option value="task">✅ AI 小任務</option>
+      <option value="team">📣 AI 團隊宣言</option>
+      <option value="mentor">🧠 AI 陪跑師</option>
+      <option value="cases">📚 AI 案例庫</option>
+    </select>
+  </label>
+  <label>角色
+    <select id="filterRole">
+      <option value="">全部</option>
+      <option value="user">👤 使用者</option>
+      <option value="ai">🤖 AI</option>
+    </select>
+  </label>
+  <label>關鍵字
+    <input type="search" id="filterKw" placeholder="搜尋對話內容...">
+  </label>
+  <label>從
+    <input type="date" id="filterFrom">
+  </label>
+  <label>到
+    <input type="date" id="filterTo">
+  </label>
+  <div class="view-toggle">
+    <button id="viewThread" class="active">對話檢視</button>
+    <button id="viewTable">表格檢視</button>
+  </div>
+  <button class="btn" id="btnReload">重新載入</button>
+  <button class="btn btn-export" id="btnExport">匯出 CSV</button>
+</div>
+
+<div class="stats" id="stats"></div>
+<div id="errorBox"></div>
+
+<div id="container">
+  <div class="loading">☁ 載入中…</div>
+</div>
+
+<div class="page-bar">
+  <button id="loadMore" style="display:none;">載入更多</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDIJldvnAC50z4rNUO8I6tTNvXOKBwayx4",
+  authDomain: "talent-map-e0c36.firebaseapp.com",
+  projectId: "talent-map-e0c36",
+  storageBucket: "talent-map-e0c36.firebasestorage.app",
+  messagingSenderId: "784909396524",
+  appId: "1:784909396524:web:c90bffd14fe7f2add8bf89",
+  measurementId: "G-VTK71BX7YN"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+try { firebase.firestore.setLogLevel('silent'); } catch(e){}
+
+const PAGE_SIZE = 200;
+let allMsgs = [];
+let lastDoc = null;
+let viewMode = 'thread';   // 'thread' | 'table'
+
+const FEATURE_NAMES = {
+  coach:'🎯 AI 教練', data:'📊 AI 數據通', task:'✅ AI 小任務',
+  team:'📣 AI 團隊宣言', mentor:'🧠 AI 陪跑師', cases:'📚 AI 案例庫'
+};
+
+// ─── 工具 ─────────────────────────────────────────────
+function fmtTime(ts){
+  if(!ts) return '–';
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2,'0');
+  return d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+function fmtTimeShort(ts){
+  if(!ts) return '–';
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2,'0');
+  return pad(d.getMonth()+1)+'/'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function getQuery(name){
+  const m = location.search.match(new RegExp('[?&]'+name+'=([^&]+)'));
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+// ─── 載入 ─────────────────────────────────────────────
+async function loadMsgs(append){
+  const container = document.getElementById('container');
+  const errBox = document.getElementById('errorBox');
+  errBox.innerHTML = '';
+  if(!append){
+    container.innerHTML = '<div class="loading">☁ 載入中…</div>';
+    allMsgs = []; lastDoc = null;
+  }
+
+  try {
+    let q = db.collection('ai_chats').orderBy('ts', 'desc').limit(PAGE_SIZE);
+    if(append && lastDoc) q = q.startAfter(lastDoc);
+    const snap = await q.get();
+    if(snap.empty && !append){
+      container.innerHTML = '<div class="empty">沒有任何對話紀錄。<br>等使用者跟 AI 顧問聊天後就會出現在這裡。</div>';
+      document.getElementById('loadMore').style.display = 'none';
+      renderStats([]);
+      return;
+    }
+    snap.forEach(doc => { allMsgs.push({id: doc.id, ...doc.data()}); lastDoc = doc; });
+    document.getElementById('loadMore').style.display = snap.size === PAGE_SIZE ? 'inline-block' : 'none';
+    populateFilters();
+    render();
+  } catch(e){
+    console.error(e);
+    let hint = '';
+    if(/permission/i.test(e.message || e.code || '')){
+      hint = '<br><br>看起來是 Firestore 安全規則沒開通。請到 Firebase Console → Firestore → Rules，加入：' +
+             '<code>match /ai_chats/{chatId} {\n  allow read, write: if request.auth != null;\n}</code>';
+    }
+    errBox.innerHTML = '<div class="error">❌ 載入失敗：' + escapeHtml(e.message || e.code) + hint + '</div>';
+    container.innerHTML = '';
+  }
+}
+
+// ─── 過濾 ─────────────────────────────────────────────
+function getFiltered(){
+  const fc = document.getElementById('filterChar').value;
+  const ff = document.getElementById('filterFeature').value;
+  const fr = document.getElementById('filterRole').value;
+  const fk = (document.getElementById('filterKw').value || '').toLowerCase();
+  const ffrom = document.getElementById('filterFrom').value;
+  const fto = document.getElementById('filterTo').value;
+  const fromTs = ffrom ? new Date(ffrom+'T00:00:00').getTime() : 0;
+  const toTs = fto ? new Date(fto+'T23:59:59.999').getTime() : Infinity;
+
+  return allMsgs.filter(m => {
+    if(fc && (m.charName || m.charId) !== fc) return false;
+    if(ff && m.feature !== ff) return false;
+    if(fr && m.role !== fr) return false;
+    if(fk && (m.text || '').toLowerCase().indexOf(fk) === -1) return false;
+    if(m.ts < fromTs || m.ts > toTs) return false;
+    return true;
+  });
+}
+
+function populateFilters(){
+  const chars = new Set();
+  allMsgs.forEach(m => {
+    const n = m.charName || m.charId;
+    if(n) chars.add(n);
+  });
+  const sel = document.getElementById('filterChar');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部</option>' + [...chars].sort().map(v => `<option>${escapeHtml(v)}</option>`).join('');
+  if(cur) sel.value = cur;
+}
+
+// ─── 渲染：對話 / 表格 ────────────────────────────────
+function render(){
+  const list = getFiltered();
+  const container = document.getElementById('container');
+  if(list.length === 0){
+    container.innerHTML = '<div class="empty">符合條件的對話為 0。試著放寬過濾條件。</div>';
+    renderStats(list);
+    return;
+  }
+  container.innerHTML = (viewMode === 'thread') ? renderThreadView(list) : renderTableView(list);
+  renderStats(list);
+}
+
+function renderThreadView(list){
+  // 按 topicId 分組（每個 topic 是一輪對話）
+  const groups = {};
+  list.forEach(m => {
+    const k = m.topicId || ('_lone_'+m.id);
+    if(!groups[k]) groups[k] = {meta: m, msgs: []};
+    groups[k].msgs.push(m);
+  });
+  // 依「該 topic 最早訊息的時間」排序（最新對話在上）
+  const sorted = Object.values(groups).sort((a,b) => {
+    const ta = Math.min(...a.msgs.map(x=>x.ts));
+    const tb = Math.min(...b.msgs.map(x=>x.ts));
+    return tb - ta;
+  });
+  return '<div class="list">' + sorted.map(g => {
+    const meta = g.meta;
+    const sortedMsgs = g.msgs.slice().sort((a,b) => a.ts - b.ts);
+    return `
+      <div class="thread">
+        <div class="thread-head">
+          <span class="t-feature">${escapeHtml((meta.featureIcon||'')+' '+(meta.featureTitle||meta.feature||''))}</span>
+          <span class="t-char">👤 ${escapeHtml(meta.charName || meta.charId || '?')}</span>
+          <span class="t-time">${fmtTime(sortedMsgs[0].ts)}</span>
+          <span class="t-count">${g.msgs.length} 則訊息</span>
+        </div>
+        <div class="thread-body">
+          ${sortedMsgs.map(m => `
+            <div class="msg ${m.role}">${escapeHtml(m.text)}<div class="msg-meta">${fmtTimeShort(m.ts)}</div></div>
+          `).join('')}
+        </div>
+      </div>`;
+  }).join('') + '</div>';
+}
+
+function renderTableView(list){
+  return `
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+        <th style="width:140px;">時間</th>
+        <th style="width:90px;">主角</th>
+        <th style="width:130px;">AI 工具</th>
+        <th style="width:50px;">角色</th>
+        <th>內容</th>
+      </tr></thead>
+      <tbody>
+        ${list.map(m => `
+          <tr>
+            <td class="tt-time">${fmtTimeShort(m.ts)}</td>
+            <td class="tt-char">${escapeHtml(m.charName || m.charId || '–')}</td>
+            <td class="tt-feat">${escapeHtml((m.featureIcon||'')+' '+(m.featureTitle||m.feature||''))}</td>
+            <td class="tt-role ${m.role}">${m.role==='user'?'👤':'🤖'}</td>
+            <td class="tt-text">${escapeHtml(m.text || '')}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function renderStats(list){
+  list = list || getFiltered();
+  const chars = new Set(list.map(m => m.charName || m.charId)).size;
+  const features = new Set(list.map(m => m.feature)).size;
+  const userCount = list.filter(m => m.role === 'user').length;
+  const aiCount = list.filter(m => m.role === 'ai').length;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><strong>${list.length}</strong>則 / 共${allMsgs.length}則</div>
+    <div class="stat"><strong>${chars}</strong>位主角</div>
+    <div class="stat"><strong>${features}</strong>個工具</div>
+    <div class="stat"><strong>${userCount}</strong>則使用者 / <strong>${aiCount}</strong>則 AI</div>
+  `;
+}
+
+// ─── CSV 匯出 ─────────────────────────────────────────
+function exportCSV(){
+  const list = getFiltered();
+  if(!list.length){ alert('沒有資料可匯出'); return; }
+  const headers = ['時間','主角','AI工具','topicId','角色','內容','裝置','syncCode'];
+  const rows = list.map(m => [
+    fmtTime(m.ts),
+    m.charName || m.charId || '',
+    m.featureTitle || m.feature || '',
+    m.topicId || '',
+    m.role || '',
+    m.text || '',
+    m.device || '',
+    m.syncCode || ''
+  ]);
+  const escape = v => '"' + String(v).replace(/"/g,'""') + '"';
+  const csv = '\uFEFF' + [headers, ...rows].map(r => r.map(escape).join(',')).join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ai-chats-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ─── 初始化 ───────────────────────────────────────────
+firebase.auth().onAuthStateChanged(async user => {
+  if(!user){
+    try { await firebase.auth().signInAnonymously(); }
+    catch(e){ document.getElementById('errorBox').innerHTML = '<div class="error">❌ 匿名登入失敗：' + escapeHtml(e.message) + '</div>'; }
+    return;
+  }
+  // ★ 從網址讀取預設過濾條件 (?feature=coach 等)
+  const f = getQuery('feature');
+  if(f) document.getElementById('filterFeature').value = f;
+  loadMsgs();
+});
+
+// ★ ESC 鍵：在 iframe 中執行時，呼叫 parent 的 adminBackToMenu 回到後台主選單
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Escape') return;
+  try {
+    if(window.parent && window.parent !== window && window.parent.adminBackToMenu){
+      window.parent.adminBackToMenu();
+      e.preventDefault();
+    }
+  } catch(err){}
+});
+document.getElementById('btnReload').addEventListener('click', () => loadMsgs());
+document.getElementById('btnExport').addEventListener('click', exportCSV);
+document.getElementById('loadMore').addEventListener('click', () => loadMsgs(true));
+['filterChar','filterFeature','filterRole','filterKw','filterFrom','filterTo'].forEach(id => {
+  document.getElementById(id).addEventListener('input', render);
+});
+document.getElementById('viewThread').addEventListener('click', () => {
+  viewMode = 'thread';
+  document.getElementById('viewThread').classList.add('active');
+  document.getElementById('viewTable').classList.remove('active');
+  render();
+});
+document.getElementById('viewTable').addEventListener('click', () => {
+  viewMode = 'table';
+  document.getElementById('viewTable').classList.add('active');
+  document.getElementById('viewThread').classList.remove('active');
+  render();
+});
+</script>
+
+</body>
+</html>

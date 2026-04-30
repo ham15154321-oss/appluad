@@ -758,6 +758,43 @@ function addMsg(type,text){
     d.textContent=text;
   }
   el.appendChild(d);el.scrollTop=el.scrollHeight;
+
+  // ★ 寫 AI 對話紀錄到 Firestore（給管理員「黃柏翰」之後檢視/分類用）
+  //   不阻塞、失敗也不影響聊天
+  _logAiChatRemote(type,text);
+}
+
+// ★ 把每則訊息寫進 Firestore 的 ai_chats collection
+//   透過 parent 頁面（人力發展.html）的 firebaseSync.logAiChat
+function _logAiChatRemote(type,text){
+  try {
+    if(type!=='user' && type!=='ai') return;  // error 訊息不記
+    if(!text || !curFeature) return;
+    var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
+    if(!fs || !fs.logAiChat) return;
+    var charId = '', charName = '';
+    try {
+      var pls = (window.parent && window.parent.localStorage) || localStorage;
+      charId = pls.getItem('activeCharacterId') || '';
+      charName = pls.getItem('activeCharacterName') || charId || '';
+    } catch(e){}
+    var ua = navigator.userAgent || '';
+    var browser = (ua.match(/Edg\/|Chrome\/|Safari\/|Firefox\//) || ['unknown'])[0].replace(/\/$/,'');
+    var os = (ua.match(/Mac OS X|Windows NT|iPhone|iPad|Android|Linux/) || ['unknown'])[0];
+    var f = FEATURES[curFeature] || {};
+    fs.logAiChat({
+      charId: charId,
+      charName: charName,
+      feature: curFeature,
+      featureTitle: f.title || '',
+      featureIcon: f.icon || '',
+      topicId: curTopicId || '',
+      role: type === 'user' ? 'user' : 'ai',
+      text: String(text).substring(0, 5000),  // 上限 5KB 避免 Firestore 文件過大
+      device: os + '/' + browser,
+      page: 'ai-advisor'
+    });
+  } catch(e){}
 }
 function saveMsgToCase(text,btn){
   var preview=text.substring(0,40).replace(/\n/g,' ')+'...';

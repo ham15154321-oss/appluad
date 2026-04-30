@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>審計記錄 — 赫綠設計學院</title>
+<script src="auth-check.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  min-height:100vh;
+  background:linear-gradient(135deg,#050510 0%,#0d1033 40%,#1a0a2e 70%,#050510 100%);
+  color:#e8e8e8;
+  font-family:'Segoe UI','Microsoft JhengHei',-apple-system,sans-serif;
+  padding:20px 24px 60px;
+}
+.head{
+  max-width:1400px;margin:0 auto 20px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.title{
+  font-size:20px;font-weight:900;color:#ffd700;
+  letter-spacing:2px;
+  text-shadow:0 0 16px rgba(255,215,0,.2);
+}
+.sub{font-size:11px;color:rgba(160,200,255,.45);letter-spacing:1px;}
+
+/* 過濾列 */
+.filters{
+  max-width:1400px;margin:0 auto 16px;
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  padding:14px 16px;
+  background:rgba(15,20,50,.55);
+  border:1px solid rgba(74,234,255,.12);
+  border-radius:12px;
+  backdrop-filter:blur(12px);
+}
+.filters label{font-size:11px;color:rgba(160,200,255,.55);letter-spacing:1px;display:flex;flex-direction:column;gap:4px;}
+.filters select,.filters input{
+  padding:6px 10px;border-radius:8px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(100,160,255,.15);
+  color:#e8e8ff;font-size:13px;font-family:inherit;
+  outline:none;min-width:120px;
+}
+.filters select:focus,.filters input:focus{border-color:#4aeaff;}
+.filters .btn{
+  padding:8px 14px;border-radius:8px;cursor:pointer;
+  background:linear-gradient(135deg,#4aeaff,#a78bfa);
+  color:#03060f;font-weight:700;font-size:13px;border:none;
+  align-self:end;
+}
+.filters .btn-export{
+  background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.25);
+  color:#ffd700;
+}
+
+/* 統計列 */
+.stats{
+  max-width:1400px;margin:0 auto 16px;
+  display:flex;gap:10px;flex-wrap:wrap;font-size:12px;
+  color:rgba(180,200,240,.7);
+}
+.stat{
+  padding:6px 12px;border-radius:8px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(100,160,255,.12);
+}
+.stat strong{color:#ffd700;font-size:14px;margin-right:6px;}
+
+/* 表格 */
+.tbl-wrap{
+  max-width:1400px;margin:0 auto;
+  background:rgba(15,20,50,.55);
+  border:1px solid rgba(74,234,255,.12);
+  border-radius:12px;overflow:hidden;
+}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{
+  background:rgba(74,234,255,.06);
+  color:rgba(180,230,255,.85);
+  font-weight:700;text-align:left;letter-spacing:1px;
+  padding:12px 14px;font-size:11px;
+  border-bottom:1px solid rgba(74,234,255,.18);
+  position:sticky;top:0;backdrop-filter:blur(8px);
+}
+td{
+  padding:10px 14px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+  vertical-align:top;
+}
+tr:hover td{background:rgba(74,234,255,.03);}
+.col-time{white-space:nowrap;color:rgba(180,200,240,.85);font-variant-numeric:tabular-nums;}
+.col-char{color:#ffd700;font-weight:700;}
+.col-page{color:rgba(140,180,255,.8);}
+.col-count{color:#4aeaff;font-weight:700;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.col-keys{font-size:11px;color:rgba(180,200,240,.6);font-family:monospace;}
+.key-tag{
+  display:inline-block;
+  padding:1px 6px;margin:1px 2px;border-radius:4px;
+  background:rgba(74,234,255,.06);border:1px solid rgba(74,234,255,.12);
+  font-size:10px;
+}
+.key-tag.idb{background:rgba(255,215,0,.06);border-color:rgba(255,215,0,.18);color:#ffd700;}
+.col-device{font-size:11px;color:rgba(160,180,220,.55);white-space:nowrap;}
+
+.empty{
+  padding:60px 20px;text-align:center;color:rgba(180,200,240,.45);
+  font-size:13px;
+}
+.loading{padding:40px;text-align:center;color:#4aeaff;}
+.error{
+  padding:20px;background:rgba(255,80,80,.08);
+  border:1px solid rgba(255,100,100,.2);border-radius:8px;
+  color:#ff8888;font-size:13px;margin:16px 0;line-height:1.6;
+}
+.error code{display:block;background:rgba(0,0,0,.3);padding:8px 12px;border-radius:6px;margin-top:8px;font-family:monospace;color:#ffaaaa;font-size:11px;}
+
+.page-bar{
+  max-width:1400px;margin:16px auto 0;
+  display:flex;justify-content:center;gap:6px;
+}
+.page-bar button{
+  padding:6px 12px;border-radius:6px;cursor:pointer;
+  background:rgba(74,234,255,.06);border:1px solid rgba(74,234,255,.15);
+  color:rgba(180,230,255,.85);font-size:12px;
+}
+.page-bar button:hover{background:rgba(74,234,255,.12);}
+.page-bar button:disabled{opacity:.4;cursor:not-allowed;}
+
+@media (max-width:768px){
+  table{font-size:11px;}
+  th,td{padding:8px 6px;}
+  .col-keys,.col-device{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div>
+    <div class="title">📋 審計記錄</div>
+    <div class="sub">AUDIT LOGS · 每次同步推送的紀錄</div>
+  </div>
+</div>
+
+<div class="filters" id="filters">
+  <label>主角
+    <select id="filterChar"><option value="">全部</option></select>
+  </label>
+  <label>頁面
+    <select id="filterPage"><option value="">全部</option></select>
+  </label>
+  <label>動作
+    <select id="filterAction">
+      <option value="">全部</option>
+      <option value="sync_push">sync_push</option>
+    </select>
+  </label>
+  <label>從
+    <input type="date" id="filterFrom">
+  </label>
+  <label>到
+    <input type="date" id="filterTo">
+  </label>
+  <button class="btn" id="btnReload">重新載入</button>
+  <button class="btn btn-export" id="btnExport">匯出 CSV</button>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div id="errorBox"></div>
+
+<div class="tbl-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:160px;">時間</th>
+        <th style="width:120px;">主角</th>
+        <th style="width:140px;">頁面</th>
+        <th style="width:80px;text-align:right;">變更</th>
+        <th>變更的 key（前 50 個）</th>
+        <th style="width:160px;">裝置</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td colspan="6" class="loading">☁ 載入中…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="page-bar">
+  <button id="loadMore" style="display:none;">載入更多</button>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDIJldvnAC50z4rNUO8I6tTNvXOKBwayx4",
+  authDomain: "talent-map-e0c36.firebaseapp.com",
+  projectId: "talent-map-e0c36",
+  storageBucket: "talent-map-e0c36.firebasestorage.app",
+  messagingSenderId: "784909396524",
+  appId: "1:784909396524:web:c90bffd14fe7f2add8bf89",
+  measurementId: "G-VTK71BX7YN"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+try { firebase.firestore.setLogLevel('silent'); } catch(e){}
+
+const PAGE_SIZE = 100;
+let allLogs = [];     // 全部已載入的 logs
+let lastDoc = null;   // pagination cursor
+
+// ─── 工具 ─────────────────────────────────────────────
+function fmtTime(ts){
+  if(!ts) return '–';
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2,'0');
+  return d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ─── 載入 logs ────────────────────────────────────────
+async function loadLogs(append){
+  const tbody = document.getElementById('tbody');
+  const errBox = document.getElementById('errorBox');
+  errBox.innerHTML = '';
+
+  if(!append){
+    tbody.innerHTML = '<tr><td colspan="6" class="loading">☁ 載入中…</td></tr>';
+    allLogs = [];
+    lastDoc = null;
+  }
+
+  try {
+    let q = db.collection('audit_logs').orderBy('ts', 'desc').limit(PAGE_SIZE);
+    if(append && lastDoc) q = q.startAfter(lastDoc);
+
+    const snap = await q.get();
+    if(snap.empty && !append){
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">沒有任何紀錄。<br>記得確認 firebase-sync.js 裡的 _writeAuditLog 有正常運作，並且 Firestore 安全規則允許讀寫 audit_logs。</td></tr>';
+      document.getElementById('loadMore').style.display = 'none';
+      renderStats();
+      return;
+    }
+
+    snap.forEach(doc => {
+      allLogs.push({ id: doc.id, ...doc.data() });
+      lastDoc = doc;
+    });
+
+    // 還有沒有更多
+    document.getElementById('loadMore').style.display = snap.size === PAGE_SIZE ? 'inline-block' : 'none';
+
+    populateFilters();
+    render();
+  } catch(e){
+    console.error(e);
+    let hint = '';
+    if(/permission/i.test(e.message || e.code || '')){
+      hint = `<br><br>看起來是 Firestore 安全規則沒開通。請到 Firebase Console → Firestore → Rules，加入：
+        <code>match /audit_logs/{logId} {
+  allow read, write: if request.auth != null;
+}</code>`;
+    }
+    errBox.innerHTML = '<div class="error">❌ 載入失敗：' + escapeHtml(e.message || e.code) + hint + '</div>';
+    tbody.innerHTML = '';
+  }
+}
+
+// ─── 過濾 + 渲染 ──────────────────────────────────────
+function getFiltered(){
+  const fc = document.getElementById('filterChar').value;
+  const fp = document.getElementById('filterPage').value;
+  const fa = document.getElementById('filterAction').value;
+  const ffr = document.getElementById('filterFrom').value;
+  const fto = document.getElementById('filterTo').value;
+  const fromTs = ffr ? new Date(ffr+'T00:00:00').getTime() : 0;
+  const toTs = fto ? new Date(fto+'T23:59:59.999').getTime() : Infinity;
+
+  return allLogs.filter(l => {
+    if(fc && l.charId !== fc) return false;
+    if(fp && l.page !== fp) return false;
+    if(fa && l.action !== fa) return false;
+    if(l.ts < fromTs || l.ts > toTs) return false;
+    return true;
+  });
+}
+
+function populateFilters(){
+  const chars = new Set(), pages = new Set();
+  allLogs.forEach(l => {
+    if(l.charId) chars.add(l.charId);
+    if(l.page) pages.add(l.page);
+  });
+  const fillSelect = (id, items) => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">全部</option>' + [...items].sort().map(v => `<option>${escapeHtml(v)}</option>`).join('');
+    if(cur) sel.value = cur;
+  };
+  fillSelect('filterChar', chars);
+  fillSelect('filterPage', pages);
+}
+
+function render(){
+  const list = getFiltered();
+  const tbody = document.getElementById('tbody');
+  if(list.length === 0){
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">符合條件的紀錄為 0。試著放寬過濾條件。</td></tr>';
+  } else {
+    tbody.innerHTML = list.map(l => {
+      const keys = (l.changedKeys || []).map(k => {
+        const isIdb = k.indexOf('idb:') === 0;
+        return `<span class="key-tag ${isIdb?'idb':''}">${escapeHtml(isIdb?k.slice(4):k)}</span>`;
+      }).join('');
+      const total = (l.lsCount||0) + (l.idbCount||0);
+      return `
+        <tr>
+          <td class="col-time">${fmtTime(l.ts)}</td>
+          <td class="col-char">${escapeHtml(l.charId || '–')}</td>
+          <td class="col-page">${escapeHtml(l.page || '–')}</td>
+          <td class="col-count">${total}<br><span style="font-size:10px;font-weight:400;opacity:.6;">LS ${l.lsCount||0} · IDB ${l.idbCount||0}</span></td>
+          <td class="col-keys">${keys || '<span style="opacity:.4">（無）</span>'}</td>
+          <td class="col-device">${escapeHtml(l.device || '–')}</td>
+        </tr>`;
+    }).join('');
+  }
+  renderStats(list);
+}
+
+function renderStats(list){
+  list = list || getFiltered();
+  const total = allLogs.length;
+  const filtered = list.length;
+  const chars = new Set(list.map(l => l.charId)).size;
+  const totalChanges = list.reduce((sum,l)=>sum + (l.lsCount||0) + (l.idbCount||0), 0);
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><strong>${filtered}</strong>筆 / 共${total}筆</div>
+    <div class="stat"><strong>${chars}</strong>位主角</div>
+    <div class="stat"><strong>${totalChanges}</strong>筆累計變更</div>
+  `;
+}
+
+// ─── CSV 匯出 ─────────────────────────────────────────
+function exportCSV(){
+  const list = getFiltered();
+  if(list.length === 0){ alert('沒有資料可匯出'); return; }
+  const headers = ['時間','主角','syncCode','頁面','動作','LS筆數','IDB筆數','變更keys','裝置'];
+  const rows = list.map(l => [
+    fmtTime(l.ts),
+    l.charId || '',
+    l.syncCode || '',
+    l.page || '',
+    l.action || '',
+    l.lsCount || 0,
+    l.idbCount || 0,
+    (l.changedKeys||[]).join(' | '),
+    l.device || ''
+  ]);
+  const escape = v => '"' + String(v).replace(/"/g,'""') + '"';
+  const csv = '\uFEFF' + [headers, ...rows].map(r => r.map(escape).join(',')).join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'audit-logs-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ─── 初始化 ───────────────────────────────────────────
+firebase.auth().onAuthStateChanged(async user => {
+  if(!user){
+    try { await firebase.auth().signInAnonymously(); } catch(e){
+      document.getElementById('errorBox').innerHTML = '<div class="error">❌ 匿名登入失敗：' + escapeHtml(e.message) + '</div>';
+    }
+    return;
+  }
+  loadLogs();
+});
+
+// ★ ESC 鍵：在 iframe 中執行時，呼叫 parent 的 adminBackToMenu 回到後台主選單
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Escape') return;
+  try {
+    if(window.parent && window.parent !== window && window.parent.adminBackToMenu){
+      window.parent.adminBackToMenu();
+      e.preventDefault();
+    }
+  } catch(err){}
+});
+document.getElementById('btnReload').addEventListener('click', () => loadLogs());
+document.getElementById('btnExport').addEventListener('click', exportCSV);
+document.getElementById('loadMore').addEventListener('click', () => loadLogs(true));
+['filterChar','filterPage','filterAction','filterFrom','filterTo'].forEach(id => {
+  document.getElementById(id).addEventListener('change', render);
+});
+</script>
+
+</body>
+</html>

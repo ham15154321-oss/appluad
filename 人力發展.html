@@ -419,7 +419,9 @@
   }
   .admin-overlay.active { display:flex; }
   .admin-panel {
-    width:90%; max-width:700px; max-height:85vh;
+    /* ★ 全螢幕級面板：留 4% 邊距讓背景模糊還看得到，給未來擴充足夠空間 */
+    width:96vw; max-width:1400px;
+    height:92vh; max-height:92vh;
     background:rgba(10,18,50,0.97); border:1px solid rgba(100,180,255,0.3);
     border-radius:20px; overflow:hidden; display:flex; flex-direction:column;
     box-shadow:0 0 60px rgba(80,140,255,0.15);
@@ -428,7 +430,21 @@
     padding:24px 30px; display:flex; align-items:center; justify-content:space-between;
     border-bottom:1px solid rgba(100,180,255,0.2); background:rgba(100,180,255,0.05);
   }
-  .admin-header h2 { font-family:'Orbitron',monospace; color:#a0ccff; font-size:18px; letter-spacing:2px; }
+  .admin-header h2 { font-family:'Orbitron',monospace; color:#a0ccff; font-size:18px; letter-spacing:2px; flex:1; }
+  /* 後台返回按鈕（從子頁面返回主選單） */
+  .admin-back-btn {
+    padding:6px 14px; border-radius:8px;
+    background:rgba(74,234,255,0.1); border:1px solid rgba(74,234,255,0.3);
+    color:#4aeaff; font-size:13px; font-weight:600; cursor:pointer;
+    margin-right:14px; transition:all 0.2s;
+  }
+  .admin-back-btn:hover { background:rgba(74,234,255,0.2); }
+  body.day-mode .admin-back-btn {
+    background:rgba(80,140,200,0.18) !important;
+    border-color:rgba(60,120,180,0.55) !important;
+    color:#0a4080 !important;
+  }
+  body.day-mode .admin-back-btn:hover { background:rgba(80,140,200,0.32) !important; }
   .admin-body { flex:1; overflow-y:auto; padding:30px; }
   .admin-body::-webkit-scrollbar { width:6px; }
   .admin-body::-webkit-scrollbar-thumb { background:rgba(100,180,255,0.3); border-radius:3px; }
@@ -569,6 +585,160 @@
   }
   body.day-mode .page-panel > div:first-child span { color:#6a5a8a !important; -webkit-text-fill-color:#6a5a8a !important; }
   body.day-mode .page-panel > div:first-child button { color:#8a7aaa !important; background:rgba(220,210,240,0.3) !important; border-color:rgba(200,180,230,0.3) !important; }
+
+  /* ===== 後台面板（白天模式）===== */
+  body.day-mode .admin-overlay { background:rgba(200,190,220,0.55); backdrop-filter:blur(10px); }
+  body.day-mode .admin-panel {
+    background:linear-gradient(135deg,rgba(255,250,255,0.97),rgba(248,240,252,0.97));
+    border-color:rgba(200,180,230,0.4);
+    box-shadow:0 12px 60px rgba(180,160,200,0.25);
+  }
+  body.day-mode .admin-header {
+    background:linear-gradient(180deg,rgba(220,210,240,0.5),rgba(240,230,250,0.4));
+    border-bottom-color:rgba(200,180,230,0.4);
+  }
+  body.day-mode .admin-header h2 { color:#6a4a8a; }
+  body.day-mode .admin-header .sv-close {
+    background:rgba(200,60,80,0.18) !important;
+    border-color:rgba(180,40,60,0.55) !important;
+    color:#8a1030 !important;
+    font-weight:700;
+  }
+  body.day-mode .admin-header .sv-close:hover {
+    background:rgba(200,60,80,0.32) !important;
+    color:#600015 !important;
+  }
+  body.day-mode .admin-body::-webkit-scrollbar-thumb { background:rgba(180,160,220,0.35); }
+  body.day-mode .admin-section h3 {
+    color:#8a4faa;
+    border-bottom-color:rgba(200,160,220,0.35);
+  }
+  body.day-mode .admin-row label { color:#8070a0; }
+  body.day-mode .admin-row input[type="text"],
+  body.day-mode .admin-row input[type="password"],
+  body.day-mode .admin-row input[type="number"],
+  body.day-mode .admin-row select,
+  body.day-mode .admin-row textarea {
+    background:rgba(255,255,255,0.85);
+    border-color:rgba(200,180,230,0.45);
+    color:#3a2a4c;
+  }
+  body.day-mode .admin-row input:focus,
+  body.day-mode .admin-row select:focus,
+  body.day-mode .admin-row textarea:focus { border-color:rgba(160,100,200,0.6); }
+  body.day-mode .admin-img-preview {
+    background:rgba(220,210,240,0.4);
+    border:1px solid rgba(200,180,230,0.3);
+  }
+  body.day-mode .admin-file-btn {
+    background:rgba(180,140,220,0.18);
+    border-color:rgba(180,140,220,0.35);
+    color:#8a4faa;
+  }
+  body.day-mode .admin-file-btn:hover { background:rgba(180,140,220,0.28); }
+  /* 主要按鈕（藍色漸層）→ 紫色漸層 */
+  body.day-mode .admin-save-btn {
+    background:linear-gradient(135deg,#b090d0,#8a5ab0) !important;
+    border-color:rgba(180,140,220,0.4);
+    color:#fff !important;
+    box-shadow:0 2px 8px rgba(140,80,180,0.18);
+  }
+  body.day-mode .admin-save-btn:hover { box-shadow:0 4px 18px rgba(140,80,180,0.35); }
+  /* 危險按鈕（紅色）→ 較柔和的粉紅 */
+  body.day-mode .admin-danger-btn {
+    background:rgba(220,100,140,0.12);
+    border-color:rgba(220,100,140,0.35);
+    color:#c04070;
+  }
+  body.day-mode .admin-danger-btn:hover { background:rgba(220,100,140,0.22); }
+  /* 提示文字（後台裡常見的 #6a8fcc 提示色）改成紫色 */
+  body.day-mode .admin-section div[style*="color:#6a8fcc"],
+  body.day-mode .admin-section div[style*="color:#94a3b8"],
+  body.day-mode .admin-section span[style*="color:#94a3b8"] { color:#8070a0 !important; }
+  body.day-mode .admin-section span[style*="color:#ffd54f"] { color:#a060c0 !important; }
+  /* 審計記錄區塊（管理員專屬）— 白天模式深色配色 */
+  body.day-mode #auditAdminSection {
+    border-color:rgba(60,140,200,0.55) !important;
+    background:linear-gradient(135deg,rgba(220,235,250,0.85),rgba(225,220,250,0.75)) !important;
+  }
+  body.day-mode #auditAdminSection h3 { color:#0a4080 !important; }
+  body.day-mode #auditAdminSection h3 span {
+    background:rgba(220,150,30,0.22) !important;
+    color:#704000 !important;
+    border-color:rgba(180,120,20,0.55) !important;
+  }
+  body.day-mode #auditAdminSection > div[style*="color:#7fa8d8"] { color:#3a5a8a !important; }
+  /* ===== AI 顧問中心區塊（管理員專屬）— 白天模式深色配色 ===== */
+  body.day-mode #adminAiCenterSection {
+    border-color:rgba(120,60,180,0.55) !important;
+    background:linear-gradient(135deg,rgba(235,225,250,0.85),rgba(245,235,255,0.75)) !important;
+  }
+  /* 標題「🤖 AI 顧問中心」— 深紫，覆蓋 inline */
+  body.day-mode #adminAiCenterSection h3 { color:#5a2a8a !important; }
+  /* 「管理員專屬」金色標籤 — 加深背景跟文字 */
+  body.day-mode #adminAiCenterSection h3 span {
+    background:rgba(220,150,30,0.22) !important;
+    color:#704000 !important;
+    border-color:rgba(180,120,20,0.55) !important;
+  }
+  /* 提示說明文字 — 深紫 */
+  body.day-mode #adminAiCenterSection > div[style*="color:#bda8e8"] {
+    color:#5a4080 !important;
+  }
+  /* 大「總覽」按鈕 — 深紫漸層 + 白字（從淡藍紫變成飽和深紫） */
+  body.day-mode #adminAiCenterSection > button {
+    background:linear-gradient(135deg,#7a3aa0,#3a6ab0) !important;
+    color:#ffffff !important;
+    box-shadow:0 4px 18px rgba(122,58,160,0.4) !important;
+  }
+  body.day-mode #adminAiCenterSection > button:hover {
+    background:linear-gradient(135deg,#8a4ab0,#4a7ac0) !important;
+    box-shadow:0 6px 22px rgba(122,58,160,0.55) !important;
+  }
+  /* 6 個分類按鈕 — 用 nth-child 個別覆蓋為深色文字 + 較飽和的淺底 */
+  body.day-mode #adminAiCenterSection > div[style*="grid"] > button {
+    cursor:pointer;
+  }
+  /* 🎯 AI 教練 — 金 → 深棕橘 */
+  body.day-mode #adminAiCenterSection > div[style*="grid"] > button:nth-child(1) {
+    background:rgba(255,200,50,0.22) !important;
+    border-color:rgba(180,130,0,0.6) !important;
+    color:#7a4d00 !important;
+  }
+  /* 📊 AI 數據通 — 青 → 深藍 */
+  body.day-mode #adminAiCenterSection > div[style*="grid"] > button:nth-child(2) {
+    background:rgba(80,180,210,0.22) !important;
+    border-color:rgba(40,120,160,0.6) !important;
+    color:#0a4a70 !important;
+  }
+  /* ✅ AI 小任務 — 亮綠 → 深綠 */
+  body.day-mode #adminAiCenterSection > div[style*="grid"] > button:nth-child(3) {
+    background:rgba(80,200,110,0.22) !important;
+    border-color:rgba(40,140,60,0.6) !important;
+    color:#1a6a30 !important;
+  }
+  /* 📣 AI 團隊宣言 — 淡紫 → 深紫 */
+  body.day-mode #adminAiCenterSection > div[style*="grid"] > button:nth-child(4) {
+    background:rgba(170,110,230,0.22) !important;
+    border-color:rgba(120,60,180,0.6) !important;
+    color:#5a1a90 !important;
+  }
+  /* 🧠 AI 陪跑師 — 淡紅 → 深紅 */
+  body.day-mode #adminAiCenterSection > div[style*="grid"] > button:nth-child(5) {
+    background:rgba(220,100,100,0.22) !important;
+    border-color:rgba(180,50,50,0.6) !important;
+    color:#9a1a1a !important;
+  }
+  /* 📚 AI 案例庫 — 橙 → 深棕 */
+  body.day-mode #adminAiCenterSection > div[style*="grid"] > button:nth-child(6) {
+    background:rgba(220,140,50,0.22) !important;
+    border-color:rgba(180,100,30,0.6) !important;
+    color:#7a3a00 !important;
+  }
+  body.day-mode #adminAiCenterSection > div[style*="grid"] > button:hover {
+    filter:brightness(0.95) saturate(1.2);
+  }
+
   /* 白天雲朵動畫 */
   body.day-mode::after {
     content:''; position:fixed; top:15%; left:-300px; width:400px; height:120px;
@@ -1400,11 +1570,49 @@
 <div class="admin-overlay" id="adminOverlay">
   <div class="admin-panel">
     <div class="admin-header">
-      <h2>⚙️ 後台管理</h2>
+      <button class="admin-back-btn" id="adminBackBtn" style="display:none;" onclick="adminBackToMenu()">← 返回</button>
+      <h2 id="adminTitle">⚙️ 後台管理</h2>
       <button class="sv-close" onclick="closeAdmin()">✕</button>
     </div>
-    <div class="admin-body">
-      <button class="admin-save-btn" id="saveAllBtn" style="margin-bottom:18px;font-size:15px;padding:14px;background:linear-gradient(135deg,#1565c0,#0d47a1);letter-spacing:1px;" onclick="saveAll()">💾 儲存所有資料</button>
+    <!-- 主檢視：所有設定區塊 -->
+    <div class="admin-body" id="adminMainView">
+      <!-- ★ AI 顧問中心入口（僅管理員「黃柏翰」可見）— 對話總覽 + 6 個分類 -->
+      <div class="admin-section" id="adminAiCenterSection" style="display:none;margin-bottom:18px;border:2px solid rgba(167,139,250,0.35);background:linear-gradient(135deg,rgba(167,139,250,0.08),rgba(74,234,255,0.04));">
+        <h3 style="color:#a78bfa;display:flex;align-items:center;gap:8px;">
+          🤖 AI 顧問中心
+          <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:rgba(255,215,0,.15);color:#ffd700;border:1px solid rgba(255,215,0,.3);">管理員專屬</span>
+        </h3>
+        <div style="font-size:11px;color:#bda8e8;line-height:1.7;margin:8px 0 14px;">
+          收集所有主角跟 6 個 AI 顧問的對話紀錄。先大量蒐集，未來再分類納入資料庫課程。
+        </div>
+        <!-- 大按鈕：總覽 -->
+        <button onclick="adminNav('admin-ai-chats.html')" style="width:100%;padding:18px;font-size:16px;font-weight:800;letter-spacing:2px;border:none;border-radius:12px;background:linear-gradient(135deg,#a78bfa,#4aeaff);color:#03060f;cursor:pointer;box-shadow:0 4px 18px rgba(167,139,250,0.35);margin-bottom:12px;">
+          📊 總覽 — 看所有對話
+        </button>
+        <!-- 6 個分類按鈕 grid -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+          <button onclick="adminNav('admin-ai-chats.html?feature=coach')" style="padding:12px;font-size:13px;font-weight:700;border:1px solid rgba(255,215,0,0.35);border-radius:10px;background:rgba(255,215,0,0.06);color:#ffd700;cursor:pointer;text-align:left;">🎯 AI 教練</button>
+          <button onclick="adminNav('admin-ai-chats.html?feature=data')" style="padding:12px;font-size:13px;font-weight:700;border:1px solid rgba(74,234,255,0.35);border-radius:10px;background:rgba(74,234,255,0.06);color:#4aeaff;cursor:pointer;text-align:left;">📊 AI 數據通</button>
+          <button onclick="adminNav('admin-ai-chats.html?feature=task')" style="padding:12px;font-size:13px;font-weight:700;border:1px solid rgba(0,232,104,0.35);border-radius:10px;background:rgba(0,232,104,0.06);color:#00e868;cursor:pointer;text-align:left;">✅ AI 小任務</button>
+          <button onclick="adminNav('admin-ai-chats.html?feature=team')" style="padding:12px;font-size:13px;font-weight:700;border:1px solid rgba(192,132,252,0.35);border-radius:10px;background:rgba(192,132,252,0.06);color:#c084fc;cursor:pointer;text-align:left;">📣 AI 團隊宣言</button>
+          <button onclick="adminNav('admin-ai-chats.html?feature=mentor')" style="padding:12px;font-size:13px;font-weight:700;border:1px solid rgba(255,107,107,0.35);border-radius:10px;background:rgba(255,107,107,0.06);color:#ff6b6b;cursor:pointer;text-align:left;">🧠 AI 陪跑師</button>
+          <button onclick="adminNav('admin-ai-chats.html?feature=cases')" style="padding:12px;font-size:13px;font-weight:700;border:1px solid rgba(255,167,38,0.35);border-radius:10px;background:rgba(255,167,38,0.06);color:#ffa726;cursor:pointer;text-align:left;">📚 AI 案例庫</button>
+        </div>
+      </div>
+      <!-- ★ 審計記錄入口（僅管理員「黃柏翰」可見） -->
+      <div class="admin-section" id="auditAdminSection" style="display:none;margin-bottom:18px;border:2px solid rgba(74,234,255,0.3);background:linear-gradient(135deg,rgba(74,234,255,0.06),rgba(167,139,250,0.06));">
+        <h3 style="color:#4aeaff;display:flex;align-items:center;gap:8px;">
+          📋 審計記錄
+          <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:rgba(255,215,0,.15);color:#ffd700;border:1px solid rgba(255,215,0,.3);">管理員專屬</span>
+        </h3>
+        <div style="font-size:11px;color:#7fa8d8;line-height:1.7;margin:8px 0 12px;">
+          查看所有主角的雲端同步紀錄：誰、什麼時候、從哪個頁面、改了哪些資料。<br>
+          支援按主角／頁面／日期過濾，可一鍵匯出 CSV。
+        </div>
+        <button class="admin-save-btn" style="width:100%;padding:14px;font-size:15px;background:linear-gradient(135deg,#4aeaff,#a78bfa);color:#03060f;letter-spacing:2px;font-weight:800;" onclick="adminNav('admin-logs.html')">
+          🔍 查看完整審計記錄
+        </button>
+      </div>
       <div class="admin-section" id="adminCharSection">
         <h3>🎮 當前角色</h3>
         <div id="adminCharInfo" style="display:flex;align-items:center;gap:10px;padding:8px 0;flex-wrap:wrap;">
@@ -1512,6 +1720,10 @@
         <div id="mergeCharList" style="font-size:11px;color:#94a3b8;line-height:1.8;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid rgba(100,180,255,.08);max-height:200px;overflow-y:auto;"></div>
       </div>
       <button class="admin-danger-btn" onclick="clearAllData()">🗑️ 清除所有資料（重置）</button>
+    </div>
+    <!-- ★ 子檢視：點 AI 顧問中心 / 審計按鈕後在這裡載入對應頁面（iframe），不離開人力發展.html -->
+    <div class="admin-sub-view" id="adminSubView" style="display:none;flex:1;overflow:hidden;background:transparent;">
+      <iframe id="adminSubFrame" src="" style="width:100%;height:100%;border:none;background:transparent;"></iframe>
     </div>
   </div>
 </div>
@@ -1855,20 +2067,6 @@ function saveAllBeforeCharSwitch(){
   console.log('[saveAllBeforeCharSwitch] done — all iframes saved with current character key');
 }
 
-function saveAll(){
-  localStorage.setItem('profileName',document.getElementById('profileLabel').textContent);
-  const iframeIds=['assess360Frame','fireFrame','achieveFrame','trainingFrame','castleFrame','waterfallFrame','perfFrame'];
-  iframeIds.forEach(id=>{
-    try{
-      const frame=document.getElementById(id);
-      if(frame&&frame.contentWindow&&typeof frame.contentWindow.triggerSave==='function'){
-        frame.contentWindow.triggerSave();
-      }
-    }catch(e){}
-  });
-  if(typeof prSave==='function') prSave();
-  showToast('✅ 所有資料已儲存！');
-}
 document.getElementById('settingsBtn').addEventListener('click',openAdmin);
 function openAdmin(){
   document.getElementById('adminOverlay').classList.add('active');
@@ -1882,6 +2080,18 @@ function openAdmin(){
   updateStorageInfo();
   refreshMergeCharList();
   updateAutoBackupStatus();
+  // ★ 審計入口僅管理員可見
+  updateAuditAdminVisibility();
+}
+// ★ 控制「審計記錄」「AI 顧問中心」等管理員區塊是否顯示
+function updateAuditAdminVisibility(){
+  const ADMINS = ['黃柏翰'];  // 想加更多管理員就加進這個 array
+  const cn = localStorage.getItem('activeCharacterName') || '';
+  const isAdmin = ADMINS.indexOf(cn) >= 0;
+  ['adminAiCenterSection','auditAdminSection'].forEach(function(id){
+    const sec = document.getElementById(id);
+    if(sec) sec.style.display = isAdmin ? 'block' : 'none';
+  });
 }
 async function updateStorageInfo(){
   const el=document.getElementById('storageInfo');if(!el)return;
@@ -1918,7 +2128,69 @@ function updateAdminCharInfo(){
     el.innerHTML='<span style="color:var(--mu);">未登入角色（預設模式）</span>';
   }
 }
-function closeAdmin(){document.getElementById('adminOverlay').classList.remove('active')}
+function closeAdmin(){
+  // 如果在子檢視，先回主檢視再關閉，避免下次打開時還停在子頁面
+  if (document.getElementById('adminSubView').style.display === 'block') {
+    adminBackToMenu(true); // true = 不要 history.back（直接關掉就好）
+  }
+  document.getElementById('adminOverlay').classList.remove('active');
+}
+
+// ★ 點 AI 顧問中心 / 審計按鈕後呼叫：切到子檢視，把 admin 頁面用 iframe 載入後台面板裡
+//   這樣使用者完全不離開人力發展.html，瀏覽器上一頁也能完美 work
+function adminNav(url){
+  var main = document.getElementById('adminMainView');
+  var sub  = document.getElementById('adminSubView');
+  var frame = document.getElementById('adminSubFrame');
+  var back = document.getElementById('adminBackBtn');
+  var title = document.getElementById('adminTitle');
+  if(!main || !sub || !frame) { location.href = url; return; }  // 防呆
+
+  var alreadyInSub = (sub.style.display === 'block');
+  main.style.display = 'none';
+  sub.style.display = 'block';
+  frame.src = url;
+  back.style.display = '';
+  title.textContent = '⚙️ 後台管理';
+
+  // 第一次進子檢視才 push history，後續切換 iframe 不再多 push
+  if(!alreadyInSub){
+    try {
+      history.pushState({adminSub: true}, '', '#admin');
+    } catch(e){}
+  }
+}
+
+// 從子檢視返回主選單（按上方「← 返回」按鈕、或瀏覽器上一頁觸發）
+function adminBackToMenu(viaPopstate){
+  var main = document.getElementById('adminMainView');
+  var sub  = document.getElementById('adminSubView');
+  var frame = document.getElementById('adminSubFrame');
+  var back = document.getElementById('adminBackBtn');
+  var title = document.getElementById('adminTitle');
+  if(!main || !sub) return;
+
+  main.style.display = '';
+  sub.style.display = 'none';
+  if(frame) frame.src = '';  // 卸載 iframe，釋放記憶體
+  if(back) back.style.display = 'none';
+  if(title) title.textContent = '⚙️ 後台管理';
+
+  // 如果不是 popstate 觸發（也就是使用者點頁內的「← 返回」），需要把 history 也 pop 一下
+  if(!viaPopstate){
+    try {
+      if(history.state && history.state.adminSub) history.back();
+    } catch(e){}
+  }
+}
+
+// 監聽瀏覽器上一頁：如果目前在子檢視，攔截退回主選單；不再讓使用者離開人力發展.html
+window.addEventListener('popstate', function(e){
+  var sub = document.getElementById('adminSubView');
+  if(sub && sub.style.display === 'block'){
+    adminBackToMenu(true);
+  }
+});
 ['Profile','Mascot','Training','Castle','Plaza','Perf'].forEach(k=>{
   const el=document.getElementById('admin'+k+'File');if(!el)return;
   el.addEventListener('change',async function(e){
@@ -2582,6 +2854,19 @@ function openModal(k){const d=modalData[k];if(!d)return;document.getElementById(
 function closeModal(){document.getElementById('modalOverlay').classList.remove('active')}
 document.getElementById('modalOverlay').addEventListener('click',function(e){if(e.target===this)closeModal()});
 document.getElementById('adminOverlay').addEventListener('click',function(e){if(e.target===this)closeAdmin()});
+
+// ESC 鍵：在子檢視按 → 回主選單；在主選單按 → 關閉後台
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Escape') return;
+  var overlay = document.getElementById('adminOverlay');
+  if(!overlay || !overlay.classList.contains('active')) return;
+  var sub = document.getElementById('adminSubView');
+  if(sub && sub.style.display === 'block'){
+    adminBackToMenu();
+  } else {
+    closeAdmin();
+  }
+});
 document.getElementById('bellBtn').addEventListener('click',function(){
   // 鈴鐺按鈕：播放/暫停背景音樂
   if(!bgmReady){showToast('⚠ 尚未設定背景音樂，請到 ⚙️ 後台上傳音檔');return;}
