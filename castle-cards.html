@@ -2163,6 +2163,85 @@ window.addEventListener('pagehide',_emergencySave);
 // backward compat: old playThunder calls (e.g. from other code)
 async function playThunder(){ await playThunderGroup(1); }
 
+  // ═══════ 照片/吉祥物 IDB 化改造（2026-04 補丁）═══════
+  // 目的：把 photo / mascot 從 castle_cards_v1 (localStorage) 抽出，改放 SpaceBaseDB.images (IndexedDB)
+  // 好處：不再受 localStorage 10MB 限制；換電腦也能透過 firebase-sync 自動拿回照片
+  const CC_IDB_NAME='SpaceBaseDB';
+  const CC_IDB_VER=1;
+  const CC_IDB_STORE='images';
+  function _ccIdbOpen(){
+      return new Promise((res,rej)=>{
+            const req=indexedDB.open(CC_IDB_NAME,CC_IDB_VER);
+            req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains('images'))d.createObjectStore('images');if(!d.objectStoreNames.contains('scores'))d.createObjectStore('scores',{keyPath:'id',autoIncrement:true});};
+            req.onsuccess=()=>res(req.result);
+            req.onerror=()=>rej(req.error);
+      });
+  }
+  function _ccIdbPut(key,val){return _ccIdbOpen().then(db=>new Promise((res,rej)=>{const tx=db.transaction('images','readwrite');tx.objectStore('images').put(val,key);tx.oncomplete=()=>{db.close();res();};tx.onerror=()=>{db.close();rej(tx.error);};}));}
+  function _ccIdbGet(key){return _ccIdbOpen().then(db=>new Promise((res,rej)=>{const tx=db.transaction('images','readonly');const r=tx.objectStore('images').get(key);r.onsuccess=()=>{db.close();res(r.result);};r.onerror=()=>{db.close();rej(r.error);};}));}
+  function _ccPhotoKey(idx){return 'castle_card_photo_'+idx;}
+  function _ccMascotKey(idx){return 'castle_card_mascot_'+idx;}
+
+  // 從 IDB 讀回所有照片，填到 in-memory cards
+  async function loadPhotosFromIDB(){
+      let restored=0;
+      for(let i=0;i<cards.length;i++){
+            try{
+                    if(!cards[i].photo){
+                              const p=await _ccIdbGet(_ccPhotoKey(i));
+                              if(p&&typeof p==='string'&&p.indexOf('data:image/')===0){cards[i].photo=p;restored++;}
+                    }
+                    if(!cards[i].mascot){
+                              const m=await _ccIdbGet(_ccMascotKey(i));
+                              if(m&&typeof m==='string'&&m.indexOf('data:image/')===0){cards[i].mascot=m;}
+                    }
+            }catch(e){}
+      }
+      if(restored>0)console.log('[CC-IDB] 從 IDB 還原',restored,'張照片');
+      return restored;
+  }
+
+  // 一次性遷移：cards 內若有 photo dataURL，搬到 IDB，再清空 localStorage 那份
+  async function migratePhotosToIDB(){
+      if(localStorage.getItem('castle_photos_idb_migrated_v1'))return;
+      let moved=0;
+      for(let i=0;i<cards.length;i++){
+            try{
+                    if(cards[i].photo&&cards[i].photo.indexOf('data:image/')===0){await _ccIdbPut(_ccPhotoKey(i),cards[i].photo);moved++;}
+                    if(cards[i].mascot&&cards[i].mascot.indexOf('data:image/')===0){await _ccIdbPut(_ccMascotKey(i),cards[i].mascot);}
+            }catch(e){console.warn('[CC-IDB] 遷移失敗 idx',i,e);}
+      }
+      try{localStorage.setItem('castle_photos_idb_migrated_v1','1');}catch(e){}
+      if(moved>0)console.log('[CC-IDB] 已把',moved,'張照片從 localStorage 搬到 IDB');
+  }
+
+  // 覆寫 saveCards：先把 photo/mascot 寫進 IDB，存 LS 時剝掉 photo/mascot
+  const _origSaveCards=saveCards;
+  saveCards=function(){
+      // 1) 把每張卡當前的 photo/mascot 同步寫進 IDB（fire-and-forget）
+      for(let i=0;i<cards.length;i++){
+            try{
+                    if(cards[i].photo&&cards[i].photo.indexOf('data:image/')===0){_ccIdbPut(_ccPhotoKey(i),cards[i].photo).catch(()=>{});}
+                    if(cards[i].mascot&&cards[i].mascot.indexOf('data:image/')===0){_ccIdbPut(_ccMascotKey(i),cards[i].mascot).catch(()=>{});}
+            }catch(e){}
+      }
+      // 2) 暫時剝掉 photo/mascot 後寫 LS，避免 localStorage 撐爆
+      const bk=cards.map(c=>({photo:c.photo,mascot:c.mascot}));
+      for(let i=0;i<cards.length;i++){cards[i].photo='';cards[i].mascot='';}
+      try{localStorage.setItem(SK,JSON.stringify(cards));}catch(e){console.warn('[CC-IDB] saveCards LS 寫入失敗',e);}
+      // 3) 還原 in-memory 的 photo/mascot（保持畫面正常）
+      for(let i=0;i<cards.length;i++){cards[i].photo=bk[i].photo;cards[i].mascot=bk[i].mascot;}
+  };
+
+  // 啟動：先 migrate，再 load，最後重畫 pyramid（以防遷移後畫面缺照片）
+  (async function _ccBootIDB(){
+      try{
+            await migratePhotosToIDB();
+            await loadPhotosFromIDB();
+            if(typeof renderPyramid==='function')renderPyramid();
+      }catch(e){console.warn('[CC-IDB] 啟動失敗',e);}
+  })();
+  
 // INIT
 migrateSfxToIDB().catch(()=>{});
 renderPyramid();
