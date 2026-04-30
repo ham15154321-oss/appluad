@@ -186,6 +186,17 @@ function isLocalOnlyKey(k){
   for (var i=0; i<LOCAL_ONLY_PREFIXES.length; i++){
     if (k.indexOf(LOCAL_ONLY_PREFIXES[i]) === 0) return true;
   }
+     // ★ 保護：castle_cards_v1 內容異常時禁止同步（避免闹割版覆蓋雲端）
+     if (k === 'castle_cards_v1') {
+            try {
+                     var _ccVal = localStorage.getItem('castle_cards_v1');
+                     if (!_ccVal || _ccVal.length < 50) return true;
+                     var _ccArr = JSON.parse(_ccVal);
+                     if (!Array.isArray(_ccArr) || _ccArr.length < 5) return true;
+                     var _ccAllDefault = _ccArr.every(function(_c){ return !_c || !_c.name || /^角色\s*\d+$/.test(_c.name); });
+                     if (_ccAllDefault) { console.log('[FirebaseSync] castle_cards_v1 為空樣板，禁止推送'); return true; }
+            } catch(_e) { console.log('[FirebaseSync] castle_cards_v1 解析失敗，禁止推送'); return true; }
+     }
   return false;
 }
 
