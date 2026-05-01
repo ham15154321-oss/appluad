@@ -457,7 +457,16 @@ function _sig(v){
 }
 
 // 過濾出真正有改變的資料（跟上次推送相比）
-function _filterChanged(collPath, dataMap){
+function _filterChanged(collPath, dataMap, force){
+  // ★ force escape hatch：繞過 dirty-tracking，所有 key 都當作變更
+  //   仍由 pushToCloud 那邊呼叫 _recordSigs 更新簽名，下次正常 push 不會重複
+  if (force === true){
+    var forceCount = Object.keys(dataMap).length;
+    if (forceCount > 0){
+      console.log('[FirebaseSync] ' + collPath.split('/').pop() + ': ' + forceCount + ' 筆變更（force=true，全部推送）');
+    }
+    return Object.assign({}, dataMap);
+  }
   var prev = _lastPushedSig[collPath] || {};
   var changed = {};
   var changedCount = 0, unchangedCount = 0;
@@ -690,13 +699,15 @@ async function _writeAuditLog(charId, lsCount, idbCount, changedKeys){
 }
 
 // === 推送 ============================================================
-async function pushToCloud(){
+async function pushToCloud(opts){
   if (!ready || IS_ADMIN) return;
   // ★ 推送鎖：如果上一次推送還在進行中，跳過這次
   if (_pushing){
     console.log('[FirebaseSync] 上次推送尚未完成，跳過');
     return;
   }
+  const force = !!(opts && opts.force);
+  if (force) console.log('[FirebaseSync] ★ force=true：繞過 dirty-tracking 強制推送（_isEmptyCardsTemplate 等 isLocalOnlyKey 保護仍生效）');
   _pushing = true;
   const charId = getCharacterId();
   var _changedKeysForLog = [];  // ★ 收集本次推送有變更的 key（給 audit log 用）
@@ -733,8 +744,8 @@ async function pushToCloud(){
     const lsRef = charRef.collection('localStorage');
     const lsPath = lsRef.path;
 
-    // ★ Dirty-tracking：只推送真正有改變的資料
-    var lsChanged = _filterChanged(lsPath, lsData);
+    // ★ Dirty-tracking：只推送真正有改變的資料（force=true 時繞過）
+    var lsChanged = _filterChanged(lsPath, lsData, force);
     var lsCount = 0;
     if (Object.keys(lsChanged).length > 0){
       _changedKeysForLog = _changedKeysForLog.concat(Object.keys(lsChanged));  // ★ for audit
@@ -771,8 +782,8 @@ async function pushToCloud(){
           if (entryCount === 0) continue;
           const storeRef = charRef.collection('idb_' + idbInfo.dbName + '_' + storeName);
           const idbPath = storeRef.path;
-          // ★ Dirty-tracking：只推送有變更的 IDB 資料
-          var idbChanged = _filterChanged(idbPath, entries);
+          // ★ Dirty-tracking：只推送有變更的 IDB 資料（force=true 時繞過）
+          var idbChanged = _filterChanged(idbPath, entries, force);
           if (Object.keys(idbChanged).length === 0){
             _recordSigs(idbPath, entries);
             continue;
