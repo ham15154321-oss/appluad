@@ -195,23 +195,40 @@ const _origRemove = localStorage.removeItem.bind(localStorage);
   } catch(e){ /* 私密模式可能擋 LS，忽略 */ }
 })();
 
+// ★ 判斷 castle_cards_v1 的 raw value 是否為「空樣板」
+//   定義：null / 太短 / 不是陣列 / 卡片數 < 5 / 全部都是 "角色N" 預設名
+//   解析失敗也視為空樣板（保守側 — 寧可不推也別覆蓋雲端）
+function _isEmptyCardsTemplate(val){
+  if (!val || val.length < 50) return true;
+  try {
+    var arr = JSON.parse(val);
+    if (!Array.isArray(arr) || arr.length < 5) return true;
+    return arr.every(function(c){ return !c || !c.name || /^角色\s*\d+$/.test(c.name); });
+  } catch(e){ return true; }
+}
+// ★ 判斷 castle_cards_v1 的 raw value 是否為「真實資料」
+//   定義：可解析 + 至少有一個非「角色N」預設名的卡片
+//   注意這不是 _isEmptyCardsTemplate 的反義 — 解析失敗在兩邊都視為「不安全」（false）
+function _isRealCardsData(val){
+  if (!val || val.length < 50) return false;
+  try {
+    var arr = JSON.parse(val);
+    if (!Array.isArray(arr) || arr.length < 5) return false;
+    return arr.some(function(c){ return c && c.name && !/^角色\s*\d+$/.test(c.name); });
+  } catch(e){ return false; }
+}
+
 // 判斷 key 是否為本機專屬（不同步到雲端）
 function isLocalOnlyKey(k){
   if (LOCAL_ONLY_KEYS.includes(k)) return true;
   for (var i=0; i<LOCAL_ONLY_PREFIXES.length; i++){
     if (k.indexOf(LOCAL_ONLY_PREFIXES[i]) === 0) return true;
   }
-     // ★ 保護：castle_cards_v1 內容異常時禁止同步（避免闹割版覆蓋雲端）
-     if (k === 'castle_cards_v1') {
-            try {
-                     var _ccVal = localStorage.getItem('castle_cards_v1');
-                     if (!_ccVal || _ccVal.length < 50) return true;
-                     var _ccArr = JSON.parse(_ccVal);
-                     if (!Array.isArray(_ccArr) || _ccArr.length < 5) return true;
-                     var _ccAllDefault = _ccArr.every(function(_c){ return !_c || !_c.name || /^角色\s*\d+$/.test(_c.name); });
-                     if (_ccAllDefault) { console.log('[FirebaseSync] castle_cards_v1 為空樣板，禁止推送'); return true; }
-            } catch(_e) { console.log('[FirebaseSync] castle_cards_v1 解析失敗，禁止推送'); return true; }
-     }
+  // ★ 保護：castle_cards_v1 為空樣板時禁止推送（避免覆蓋雲端真實資料）
+  if (k === 'castle_cards_v1' && _isEmptyCardsTemplate(localStorage.getItem('castle_cards_v1'))) {
+    console.log('[FirebaseSync] castle_cards_v1 為空樣板，禁止推送');
+    return true;
+  }
   return false;
 }
 
@@ -830,10 +847,31 @@ async function pullFromCloud(){
     try {
       const lsData = await readDataFromFirestore(charRef.collection('localStorage'));
       var _skipCount = 0, _quotaSkipCount = 0, _quotaSkipKeys = [];
+      var _cardsRescueCount = 0;
       for (const [k, v] of Object.entries(lsData)){
+        var existingVal = localStorage.getItem(k);
+
+        // ★ castle_cards_v1 特例：本地是空樣板 + 雲端是真實資料 → 用雲端覆蓋
+        //   注意：必須在 isLocalOnlyKey 之前處理 — 因為 isLocalOnlyKey 在本地空樣板時回 true
+        //   （那是 push 端的「禁推」語意），會讓這條雲端救援路徑永遠到不了。
+        //   這也是 commit a294876 推送保護網的「拉取端對應修復」。
+        if (k === 'castle_cards_v1'
+            && _isEmptyCardsTemplate(existingVal)
+            && _isRealCardsData(v)){
+          try {
+            _origSet(k, v);
+            totalLS++;
+            _cardsRescueCount++;
+            continue;
+          } catch(qe){
+            _quotaSkipCount++;
+            _quotaSkipKeys.push(k + '(' + Math.round((v||'').length/1024) + 'KB)');
+            continue;
+          }
+        }
+
         if (isLocalOnlyKey(k)) continue;
         // ★★★ 防資料遺失：本地已有任何值就完全跳過，雲端不得覆蓋 ★★★
-        var existingVal = localStorage.getItem(k);
         if (existingVal !== null && existingVal !== '') {
           _skipCount++;
           continue;
@@ -860,6 +898,7 @@ async function pullFromCloud(){
       }
       if (_skipCount > 0) console.log('[FirebaseSync] [' + charId + '] 跳過覆蓋', _skipCount, '筆（本地已有資料）');
       if (_quotaSkipCount > 0) console.log('[FirebaseSync] [' + charId + '] LS 空間不足，跳過', _quotaSkipCount, '筆');
+      if (_cardsRescueCount > 0) console.log('[FirebaseSync] [' + charId + '] castle_cards_v1 從雲端覆蓋本地空樣板');
       if (totalLS > 0) console.log('[FirebaseSync] [' + charId + '] 從雲端補入', totalLS, '筆');
     } catch(e){
       // 可能舊格式（v3），嘗試讀取舊結構
