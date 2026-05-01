@@ -146,7 +146,8 @@ const LOCAL_ONLY_KEYS = [
   'activeCharacterName',
   'profileName',
   'profileImgData',
-  'castle_flip_mode'
+  'castle_flip_mode',
+  '_fs_lastModified'  // ★ LWW: 本地時間戳 shadow map，純本地不同步
 ];
 
 // 前綴型排除：以這些字串開頭的 localStorage key 不同步（避免大圖拖垮推送）
@@ -230,6 +231,28 @@ function isLocalOnlyKey(k){
     return true;
   }
   return false;
+}
+
+// === Last-write-wins (LWW) timestamp tracking =========================
+// 每個 LS key 配一個本地「上次寫入時間」shadow map（_LS_TS_KEY），
+// 雲端對應位置在 <charRef>/_meta/lsTs.ts 的 nested map。
+// pull 時：cloudTs[k] > localTs[k] → 用雲端覆蓋本地；否則跳過。
+//
+// 關鍵：firebase-sync 還沒 ready（page init 階段）的寫入一律記 ts=0。
+//   代表「不是真的編輯，只是頁面預設值」。新裝置 init 預設不會擋掉雲端真實資料。
+//   ready=true 之後（pull 完成）的寫入才記 Date.now()，視為真的編輯。
+const _LS_TS_KEY = '_fs_lastModified';
+var _localTsMap = {};
+try { _localTsMap = JSON.parse(localStorage.getItem(_LS_TS_KEY) || '{}') || {}; } catch(e) { _localTsMap = {}; }
+var _tsSaveTimer = null;
+function _saveLocalTsMap(){
+  try { _origSet(_LS_TS_KEY, JSON.stringify(_localTsMap)); } catch(e){}
+}
+function _recordLocalTs(k){
+  if (isLocalOnlyKey(k) || k === _LS_TS_KEY) return;
+  _localTsMap[k] = ready ? Date.now() : 0;
+  if (_tsSaveTimer) clearTimeout(_tsSaveTimer);
+  _tsSaveTimer = setTimeout(_saveLocalTsMap, 500);
 }
 
 function getCharacterId(){
@@ -752,6 +775,24 @@ async function pushToCloud(opts){
       lsCount = await writeDataToFirestore(lsRef, lsChanged);
       // 成功後記住所有資料的簽名（包括沒改變的）
       _recordSigs(lsPath, lsData);
+      // ★ LWW: 把這批 changed keys 的時間戳推到 <charRef>/_meta/lsTs.ts
+      try {
+        var _tsUpdates = {};
+        for (var _ck in lsChanged) {
+          // dot-path 寫入 nested map（key 不含「.」才安全；本專案的 LS keys 沒在用點號）
+          _tsUpdates['ts.' + _ck] = _localTsMap[_ck] || Date.now();
+        }
+        var _tsDocRef = charRef.collection('_meta').doc('lsTs');
+        try {
+          await _tsDocRef.update(_tsUpdates);
+        } catch(_updErr) {
+          // 文件不存在 → 用整個 _localTsMap seed（含本機所有已知 ts，避免後續 update 又找不到 field）
+          // 注意：set merge 對 nested map 不會 deep-merge，會整個 replace ts；所以一定要 seed 完整。
+          await _tsDocRef.set({ ts: Object.assign({}, _localTsMap) }, { merge: true });
+        }
+      } catch(_tsErr) {
+        console.warn('[FirebaseSync] LWW ts 寫入失敗', _tsErr.message || _tsErr);
+      }
       // ★ 等伺服器消化
       try { await fsDb.waitForPendingWrites(); } catch(e){}
       await delay(WRITE_LONG_PAUSE_MS);
@@ -838,7 +879,13 @@ function schedulePush(){
   syncTimer = setTimeout(pushToCloud, SYNC_DEBOUNCE_MS);
 }
 
-localStorage.setItem = function(k, v){ _origSet(k, v); if(!isLocalOnlyKey(k)) schedulePush(); };
+localStorage.setItem = function(k, v){
+  _origSet(k, v);
+  if (!isLocalOnlyKey(k)) {
+    _recordLocalTs(k);
+    schedulePush();
+  }
+};
 localStorage.removeItem = function(k){ _origRemove(k); if(!isLocalOnlyKey(k)) schedulePush(); };
 
 // === 拉取 ============================================================
@@ -875,23 +922,31 @@ async function pullFromCloud(){
     const charId = charDoc.id;
     const charRef = baseRef.doc(charId);
 
-    // 1. localStorage（★ 核心原則：本地已有資料的 key 絕對不覆蓋）
+    // 1. localStorage（LWW：cloudTs > localTs 才覆蓋；C 段空樣板救援保留作為 fallback）
     try {
       const lsData = await readDataFromFirestore(charRef.collection('localStorage'));
+      // ★ LWW: 抓雲端時間戳 map（沒有就視為空，每個 key 的雲端 ts=0）
+      var cloudTs = {};
+      try {
+        var _tsSnap = await charRef.collection('_meta').doc('lsTs').get();
+        if (_tsSnap.exists) cloudTs = (_tsSnap.data() && _tsSnap.data().ts) || {};
+      } catch(_tsReadErr) { /* 沒 ts doc 就用空 map */ }
+
       var _skipCount = 0, _quotaSkipCount = 0, _quotaSkipKeys = [];
-      var _cardsRescueCount = 0;
+      var _cardsRescueCount = 0, _overwriteCount = 0;
       for (const [k, v] of Object.entries(lsData)){
         var existingVal = localStorage.getItem(k);
 
-        // ★ castle_cards_v1 特例：本地是空樣板 + 雲端是真實資料 → 用雲端覆蓋
-        //   注意：必須在 isLocalOnlyKey 之前處理 — 因為 isLocalOnlyKey 在本地空樣板時回 true
+        // ★ castle_cards_v1 特例（C 段救援，backwards compat fallback）：
+        //   本地是空樣板 + 雲端是真實資料 → 用雲端覆蓋。
+        //   必須在 isLocalOnlyKey 之前處理 — 因為 isLocalOnlyKey 在本地空樣板時回 true
         //   （那是 push 端的「禁推」語意），會讓這條雲端救援路徑永遠到不了。
-        //   這也是 commit a294876 推送保護網的「拉取端對應修復」。
         if (k === 'castle_cards_v1'
             && _isEmptyCardsTemplate(existingVal)
             && _isRealCardsData(v)){
           try {
             _origSet(k, v);
+            _localTsMap[k] = cloudTs[k] || Date.now();
             totalLS++;
             _cardsRescueCount++;
             continue;
@@ -903,32 +958,65 @@ async function pullFromCloud(){
         }
 
         if (isLocalOnlyKey(k)) continue;
-        // ★★★ 防資料遺失：本地已有任何值就完全跳過，雲端不得覆蓋 ★★★
+
+        var cTs = cloudTs[k] || 0;
+        var lTs = _localTsMap[k] || 0;
+        var valSize = (v || '').length;
+
+        // 本地有值 → LWW 比較
         if (existingVal !== null && existingVal !== '') {
-          _skipCount++;
+          if (cTs > lTs) {
+            // 雲端較新 → 覆蓋本地（保留原本的容量預檢）
+            if (valSize > 200 * 1024) {
+              try {
+                var testKeyA = '__fs_space_test__';
+                _origSet(testKeyA, v);
+                _origRemove(testKeyA);
+              } catch(spaceErr) {
+                _quotaSkipCount++;
+                _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)');
+                continue;
+              }
+            }
+            try {
+              _origSet(k, v);
+              _localTsMap[k] = cTs;
+              totalLS++;
+              _overwriteCount++;
+            } catch(qe){
+              _quotaSkipCount++;
+              _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)');
+            }
+          } else {
+            // 本地較新或同時 → 跳過
+            _skipCount++;
+          }
           continue;
         }
-        // ★ 預檢：超過 200KB 的資料先測試 LS 是否還有空間
-        var valSize = (v || '').length;
+
+        // 本地空 → 從雲端補入（保留原本的容量預檢）
         if (valSize > 200 * 1024) {
           try {
-            // 嘗試寫一個測試 key 來偵測空間
-            var testKey = '__fs_space_test__';
-            _origSet(testKey, v);
-            _origRemove(testKey);
+            var testKeyB = '__fs_space_test__';
+            _origSet(testKeyB, v);
+            _origRemove(testKeyB);
           } catch(spaceErr) {
             _quotaSkipCount++;
             _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)');
             continue;
           }
         }
-        // 本地沒有資料才從雲端補入
-        try { _origSet(k, v); totalLS++; } catch(qe){
+        try {
+          _origSet(k, v);
+          _localTsMap[k] = cTs || Date.now();
+          totalLS++;
+        } catch(qe){
           _quotaSkipCount++;
           _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)');
         }
       }
-      if (_skipCount > 0) console.log('[FirebaseSync] [' + charId + '] 跳過覆蓋', _skipCount, '筆（本地已有資料）');
+      if (_skipCount > 0) console.log('[FirebaseSync] [' + charId + '] 跳過覆蓋', _skipCount, '筆（本地較新）');
+      if (_overwriteCount > 0) console.log('[FirebaseSync] [' + charId + '] LWW 雲端覆蓋本地', _overwriteCount, '筆（雲端較新）');
       if (_quotaSkipCount > 0) console.log('[FirebaseSync] [' + charId + '] LS 空間不足，跳過', _quotaSkipCount, '筆');
       if (_cardsRescueCount > 0) console.log('[FirebaseSync] [' + charId + '] castle_cards_v1 從雲端覆蓋本地空樣板');
       if (totalLS > 0) console.log('[FirebaseSync] [' + charId + '] 從雲端補入', totalLS, '筆');
@@ -972,6 +1060,10 @@ async function pullFromCloud(){
   for (const _db of _idbCache.values()) {
     try { _db.close(); } catch(_e){}
   }
+
+  // ★ LWW: 把這輪 pull 中更新過的 _localTsMap 持久化到 LS（debounce 不適用，pull 結束直接寫）
+  if (_tsSaveTimer) { clearTimeout(_tsSaveTimer); _tsSaveTimer = null; }
+  _saveLocalTsMap();
 
   console.log('[FirebaseSync] 雲端載入 localStorage:', totalLS, ' IndexedDB:', totalIDB);
   window.dispatchEvent(new Event('firebase-sync-ready'));
