@@ -850,6 +850,27 @@ async function pullFromCloud(){
   const allSnap = await baseRef.get();
   let totalLS = 0, totalIDB = 0;
 
+  // ★ 一次 pull 內 cache IDB 連線：避免每個 character × store 都重開 + 被擋升版反覆重試
+  //   先成功一次就重複用同一個連線；一旦升版被擋就標記失敗、後續 fail-fast 不再重試
+  //   （否則 blocked 的 IDBOpenDBRequest 會卡住後續 open，導致整個 pull for-loop hang）
+  const _idbCache = new Map();
+  const _idbFailed = new Set();
+  async function _getIDB(idbInfo){
+    if (_idbFailed.has(idbInfo.dbName)) {
+      throw new Error('IDB ' + idbInfo.dbName + ' 本輪已標記失敗（升版被擋），跳過');
+    }
+    var cached = _idbCache.get(idbInfo.dbName);
+    if (cached) return cached;
+    try {
+      var db = await idbOpenOrCreate(idbInfo.dbName, idbInfo.dbVer, idbInfo.stores);
+      _idbCache.set(idbInfo.dbName, db);
+      return db;
+    } catch(e) {
+      _idbFailed.add(idbInfo.dbName);
+      throw e;
+    }
+  }
+
   for (const charDoc of allSnap.docs){
     const charId = charDoc.id;
     const charRef = baseRef.doc(charId);
@@ -929,22 +950,27 @@ async function pullFromCloud(){
       }
     }
 
-    // 2. IndexedDB — 用 idbOpenOrCreate 確保 DB 一定存在
+    // 2. IndexedDB — 透過 _getIDB 取得（本輪 cache + fail-fast）
     for (const idbInfo of IDB_LIST){
       for (const storeName of idbInfo.stores){
         try {
           const collName = 'idb_' + idbInfo.dbName + '_' + storeName;
           const entries = await readDataFromFirestore(charRef.collection(collName));
           if (Object.keys(entries).length === 0) continue;
-          const idb = await idbOpenOrCreate(idbInfo.dbName, idbInfo.dbVer, idbInfo.stores);
+          const idb = await _getIDB(idbInfo);
           await idbPutEntries(idb, storeName, entries);
           totalIDB += Object.keys(entries).length;
-          idb.close();
+          // ★ 不在這 close — 連線是本輪共用，pull 結束後統一關閉
         } catch(e){
           console.log('[FirebaseSync] IDB 拉取跳過', idbInfo.dbName, storeName, e.message || e);
         }
       }
     }
+  }
+
+  // ★ 關閉本輪 cache 起來的所有 IDB 連線
+  for (const _db of _idbCache.values()) {
+    try { _db.close(); } catch(_e){}
   }
 
   console.log('[FirebaseSync] 雲端載入 localStorage:', totalLS, ' IndexedDB:', totalIDB);

@@ -1764,18 +1764,38 @@
 
 <script>
 // ========== IndexedDB ==========
-const DB_NAME='SpaceBaseDB', DB_VER=1;
+const DB_NAME='SpaceBaseDB';
 let db=null;
+// ★ probe-then-upgrade：先不指定版本看 DB 現況，缺 store 才升一版補建。
+//   避免 hardcode 版本號跟 firebase-sync 的 idbOpenOrCreate 互相擋升版。
 function openDB(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open(DB_NAME,DB_VER);
-    r.onupgradeneeded=(e)=>{
+    const probe=indexedDB.open(DB_NAME);
+    let wasCreated=false;
+    probe.onupgradeneeded=(e)=>{
       const d=e.target.result;
+      wasCreated=true;
       if(!d.objectStoreNames.contains('images')) d.createObjectStore('images');
       if(!d.objectStoreNames.contains('scores')) d.createObjectStore('scores',{keyPath:'id',autoIncrement:true});
     };
-    r.onsuccess=(e)=>{db=e.target.result;res(db)};
-    r.onerror=rej;
+    probe.onsuccess=(e)=>{
+      const d=e.target.result;
+      const missing=['images','scores'].filter(s=>!d.objectStoreNames.contains(s));
+      if(wasCreated||missing.length===0){db=d;res(db);return;}
+      // DB 存在但缺 store → 升版補建
+      const cur=d.version;
+      d.close();
+      const up=indexedDB.open(DB_NAME,cur+1);
+      up.onupgradeneeded=(e2)=>{
+        const d2=e2.target.result;
+        if(!d2.objectStoreNames.contains('images')) d2.createObjectStore('images');
+        if(!d2.objectStoreNames.contains('scores')) d2.createObjectStore('scores',{keyPath:'id',autoIncrement:true});
+      };
+      up.onsuccess=(e2)=>{db=e2.target.result;res(db);};
+      up.onerror=rej;
+      up.onblocked=()=>rej(new Error('DB upgrade blocked'));
+    };
+    probe.onerror=rej;
   });
 }
 function dbPut(s,k,v){return new Promise((res,rej)=>{const t=db.transaction(s,'readwrite');t.objectStore(s).put(v,k);t.oncomplete=res;t.onerror=rej})}
