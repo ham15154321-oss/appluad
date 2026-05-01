@@ -180,6 +180,21 @@ let _lastPushedSig = {};  // { collectionPath: { key: signature } }
 const _origSet    = localStorage.setItem.bind(localStorage);
 const _origRemove = localStorage.removeItem.bind(localStorage);
 
+// ★ 新裝置/無痕視窗初始化：完全空白時預設身份為「楊雅筑」（主帳號）
+// 條件：沒有 activeCharacterId、沒有 castle_cards_v1、沒有 firebase_sync_code
+// 這樣首次同步會直接以楊雅筑身份從雲端拉完整資料，不需要手動腳本
+(function _initNewDevice(){
+  try {
+    if (localStorage.getItem('activeCharacterId')) return;
+    if (localStorage.getItem('castle_cards_v1')) return;
+    if (localStorage.getItem('firebase_sync_code')) return;
+    console.log('[FirebaseSync] 偵測到新裝置/全新環境，預設身份：楊雅筑');
+    _origSet('activeCharacterId', '楊雅筑');
+    _origSet('activeCharacterName', '楊雅筑');
+    _origSet('profileName', '楊雅筑');
+  } catch(e){ /* 私密模式可能擋 LS，忽略 */ }
+})();
+
 // 判斷 key 是否為本機專屬（不同步到雲端）
 function isLocalOnlyKey(k){
   if (LOCAL_ONLY_KEYS.includes(k)) return true;
