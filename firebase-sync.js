@@ -265,40 +265,68 @@ function idbOpen(dbName, dbVer, storeNames){
 
 // pullFromCloud 用：如果 DB 不存在就主動建立（含正確 schema）
 // 這樣雲端的圖片/資料一定能寫入，不會因為 DB 還沒初始化就跳過
+//
+// ★ 保守策略（避免無端升級用戶現有 DB 版本）：
+//   1. 先 probe 開啟（不指定版本）→ 看 DB 現況
+//   2. 缺 store → 用 currentVersion+1 重開觸發 onupgradeneeded 補建
+//   3. 全部 store 都在 → 直接回傳，不動版本號
+//   這樣已正常的用戶不會被升級；只有真的缺 store 的裝置才升一版補建。
 function idbOpenOrCreate(dbName, dbVer, storeNames){
+  // 已知各 DB 的 store schema（建立或補建時用同一份）
+  var SCHEMAS = {
+    'SpaceBaseDB': function(d){
+      if(!d.objectStoreNames.contains('images')) d.createObjectStore('images');
+      if(!d.objectStoreNames.contains('scores')) d.createObjectStore('scores',{keyPath:'id',autoIncrement:true});
+    },
+    'waterfall_blob_store': function(d){
+      if(!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs');
+    },
+    'castle_cards_sfx_db': function(d){
+      if(!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs');
+    }
+  };
+  function _applySchema(d){
+    if (SCHEMAS[dbName]) { SCHEMAS[dbName](d); return; }
+    if (storeNames) {
+      for (var i=0; i<storeNames.length; i++){
+        if (!d.objectStoreNames.contains(storeNames[i])) d.createObjectStore(storeNames[i]);
+      }
+    }
+  }
   return new Promise((resolve, reject) => {
     try {
-      // 已知各 DB 的 store schema
-      var SCHEMAS = {
-        'SpaceBaseDB': function(d){
-          if(!d.objectStoreNames.contains('images')) d.createObjectStore('images');
-          if(!d.objectStoreNames.contains('scores')) d.createObjectStore('scores',{keyPath:'id',autoIncrement:true});
-        },
-        'waterfall_blob_store': function(d){
-          if(!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs');
-        },
-        'castle_cards_sfx_db': function(d){
-          if(!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs');
-        }
-      };
-      var req = indexedDB.open(dbName, dbVer);
-      req.onupgradeneeded = function(e){
-        var d = e.target.result;
+      // 第一步：probe — 不指定版本開啟，看 DB 是否存在、是否有缺 store
+      var probe = indexedDB.open(dbName);
+      var wasCreated = false;
+      probe.onupgradeneeded = function(e){
+        // DB 不存在 → 建立並補完整 schema
+        wasCreated = true;
         console.log('[FirebaseSync] 為雲端拉取建立 DB:', dbName);
-        if (SCHEMAS[dbName]) {
-          SCHEMAS[dbName](d);
-        } else {
-          // 未知 DB，嘗試建立 storeNames 中的 store
-          if (storeNames) {
-            for(var i=0;i<storeNames.length;i++){
-              if(!d.objectStoreNames.contains(storeNames[i]))
-                d.createObjectStore(storeNames[i]);
-            }
-          }
-        }
+        _applySchema(e.target.result);
       };
-      req.onsuccess = function(){ resolve(req.result); };
-      req.onerror = function(){ reject(req.error); };
+      probe.onsuccess = function(){
+        var db = probe.result;
+        var currentVer = db.version;
+        var missing = (storeNames || []).filter(function(s){ return !db.objectStoreNames.contains(s); });
+        if (wasCreated || missing.length === 0){
+          // 剛建立 / 已有全部 store → 直接用
+          resolve(db);
+          return;
+        }
+        // DB 存在但缺 store → 升一個版本補建（保守做法，不撞固定版本號）
+        console.log('[FirebaseSync] DB 缺 store，升版補建:', dbName, 'v' + currentVer + '→v' + (currentVer+1), missing);
+        db.close();
+        var upReq = indexedDB.open(dbName, currentVer + 1);
+        upReq.onupgradeneeded = function(e){ _applySchema(e.target.result); };
+        upReq.onsuccess = function(){ resolve(upReq.result); };
+        upReq.onerror = function(){ reject(upReq.error); };
+        upReq.onblocked = function(){
+          // 其他分頁開著舊版本 → 沒辦法升級
+          console.warn('[FirebaseSync] DB 升版被阻擋（其他分頁仍開啟舊版）:', dbName);
+          reject(new Error('DB upgrade blocked: ' + dbName));
+        };
+      };
+      probe.onerror = function(){ reject(probe.error); };
     } catch(e){ reject(e); }
   });
 }
