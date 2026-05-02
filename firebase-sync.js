@@ -1116,6 +1116,17 @@ function _hasAppSession(){
   }catch(e){}
   return false;
 }
+function _getLoginUser(){
+  try{
+    var s = JSON.parse(sessionStorage.getItem('appedu_session'));
+    if(s && s.user) return String(s.user).trim().toLowerCase();
+  }catch(e){}
+  try{
+    var r = JSON.parse(localStorage.getItem('appedu_remembered_session'));
+    if(r && r.user) return String(r.user).trim().toLowerCase();
+  }catch(e){}
+  return null;
+}
 
 (async function init(){
   // ★ 登入頁 + 尚未登入 → 延遲到使用者登入後再啟動 Firebase 同步
@@ -1169,17 +1180,24 @@ async function _doInit(){
       // 已登入（匿名）
       console.log('[FirebaseSync] 已匿名登入', user.uid, IS_ADMIN ? '(管理者)' : '');
 
-      // ★ 取得同步身份：
-      //   1. 優先沿用 localStorage 已存的 firebase_sync_code（向下相容，例如本機的 ivan2026）
-      //   2. 沒有 → 自動以「主角 ID」當作同步身份，完全免輸入密碼
-      //      （每個主角各自有獨立的雲端空間，可讀可寫）
-      //   注意：自動推得的碼「不寫回 localStorage」，這樣切換主角後重新整理就會自動跟著切換
-      var syncCode = localStorage.getItem('firebase_sync_code');
+      // ★ 取得同步身份（優先序）：
+      //   1. 登入帳號（appedu_session.user，例如 applaud）— 任何裝置登入同帳號就同步
+      //   2. localStorage 已存的 firebase_sync_code（向下相容，例如本機的 ivan2026）
+      //   3. 都沒有 → 自動以「主角 ID」當作同步身份
+      //   注意：自動推得的碼「不寫回 localStorage」，避免覆蓋使用者手動設定
+      var syncCode;
       var autoDerived = false;
-      if (!syncCode) {
-        syncCode = 'role_' + getCharacterId();
-        autoDerived = true;
-        console.log('[FirebaseSync] 自動以主角 ID 作為同步身份:', syncCode);
+      var loginUser = _getLoginUser();
+      if (loginUser) {
+        syncCode = loginUser;
+        console.log('[FirebaseSync] 以登入帳號作為同步身份:', syncCode);
+      } else {
+        syncCode = localStorage.getItem('firebase_sync_code');
+        if (!syncCode) {
+          syncCode = 'role_' + getCharacterId();
+          autoDerived = true;
+          console.log('[FirebaseSync] 自動以主角 ID 作為同步身份:', syncCode);
+        }
       }
       currentUserUid = syncCode; // 用同步碼作為 user 路徑
       currentUserEmail = syncCode;
