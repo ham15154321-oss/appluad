@@ -926,15 +926,14 @@ async function pullFromCloud(){
     try {
       const lsData = await readDataFromFirestore(charRef.collection('localStorage'));
       // ★ LWW: 抓雲端時間戳 map（沒有就視為空，每個 key 的雲端 ts=0）
+      //   ★★ 必須 source:'server'：Firestore SDK 預設會吃 cache，會讓 pull 讀到舊版的
+      //       _meta/lsTs（缺最近 push 進去的 keys），導致 LWW 比較時以為「雲端沒 ts =
+      //       cTs=0」→ 全部走「本地較新」跳過。強制走 server 才能拿到真實時間戳。
       var cloudTs = {};
       try {
-        var _tsSnap = await charRef.collection('_meta').doc('lsTs').get();
+        var _tsSnap = await charRef.collection('_meta').doc('lsTs').get({ source: 'server' });
         if (_tsSnap.exists) cloudTs = (_tsSnap.data() && _tsSnap.data().ts) || {};
-        // ★ 暫時診斷：每個 character 印一次 cloudTs 狀況
-        console.log('[FirebaseSync-DIAG] [' + charId + '] _meta/lsTs exists=' + _tsSnap.exists + ' tsKeys=' + Object.keys(cloudTs).length + ' sampleKey=' + (cloudTs['char_楊雅筑_training_sales_v2'] || 'N/A'));
-      } catch(_tsReadErr) {
-        console.warn('[FirebaseSync-DIAG] [' + charId + '] _meta/lsTs read ERR:', _tsReadErr.code, _tsReadErr.message);
-      }
+      } catch(_tsReadErr) { /* 沒 ts doc 或網路問題就用空 map */ }
 
       var _skipCount = 0, _quotaSkipCount = 0, _quotaSkipKeys = [];
       var _cardsRescueCount = 0, _overwriteCount = 0;
