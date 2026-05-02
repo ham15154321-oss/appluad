@@ -930,7 +930,11 @@ async function pullFromCloud(){
       try {
         var _tsSnap = await charRef.collection('_meta').doc('lsTs').get();
         if (_tsSnap.exists) cloudTs = (_tsSnap.data() && _tsSnap.data().ts) || {};
-      } catch(_tsReadErr) { /* 沒 ts doc 就用空 map */ }
+        // ★ 暫時診斷：每個 character 印一次 cloudTs 狀況
+        console.log('[FirebaseSync-DIAG] [' + charId + '] _meta/lsTs exists=' + _tsSnap.exists + ' tsKeys=' + Object.keys(cloudTs).length + ' sampleKey=' + (cloudTs['char_楊雅筑_training_sales_v2'] || 'N/A'));
+      } catch(_tsReadErr) {
+        console.warn('[FirebaseSync-DIAG] [' + charId + '] _meta/lsTs read ERR:', _tsReadErr.code, _tsReadErr.message);
+      }
 
       var _skipCount = 0, _quotaSkipCount = 0, _quotaSkipKeys = [];
       var _cardsRescueCount = 0, _overwriteCount = 0;
