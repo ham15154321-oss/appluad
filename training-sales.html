@@ -525,6 +525,8 @@ function init(){
   chapters = store.people[store.currentIdx].chapters;
   renderAvatars();
   render();
+  // ★ 抓 baseline：emergencySave 用這個比對是否真的有改動
+  _captureEmergencyBaseline();
 }
 
 // ===== 頭像列渲染 =====
@@ -916,9 +918,19 @@ function _storeToJSON(){
   return JSON.stringify(copy);
 }
 
+// ★ baseline 用來判斷 store 自從上次存進 LS 以來有沒有真的變動。
+//   emergencySave 用這個避免把「沒被使用者改過」的記憶體 store
+//   寫回 LS（會蓋掉同步從雲端拉下來的資料）。
+let _emergencyBaseline = null;
+function _captureEmergencyBaseline(){
+  try { _emergencyBaseline = _storeToJSON(); } catch(e){ _emergencyBaseline = null; }
+}
+
 function saveAll(){
   try{
-    localStorage.setItem(getSK(), _storeToJSON());
+    var _json = _storeToJSON();
+    localStorage.setItem(getSK(), _json);
+    _emergencyBaseline = _json;
     const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
     document.getElementById('autosaveLabel').textContent = '已儲存：' + t;
     showToast('💾 已儲存');
@@ -934,7 +946,9 @@ function scheduleAutoSave(){
   document.getElementById('autosaveLabel').textContent = '✏️ 編輯中…';
   _ast = setTimeout(()=>{
     try{
-      localStorage.setItem(getSK(), _storeToJSON());
+      var _json = _storeToJSON();
+      localStorage.setItem(getSK(), _json);
+      _emergencyBaseline = _json;
       const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
       document.getElementById('autosaveLabel').textContent = '✅ 自動儲存：' + t;
       try{ if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
@@ -967,8 +981,16 @@ function cleanEditingFlags(){
 }
 
 // ── 頁面離開自動儲存 ──
+// ★ 只在 store 跟初始載入/最近一次儲存「不一樣」時才寫 LS
+//   防止 iframe 載入時 store=預設「新人1」，使用者沒改過就因為 visibilitychange/beforeunload
+//   觸發 emergencySave，把預設覆蓋到雲端剛同步下來的真實資料。
 function _emergencySave(){
-  try{ localStorage.setItem(getSK(), _storeToJSON()); }catch(e){}
+  try{
+    var current = _storeToJSON();
+    if (_emergencyBaseline !== null && current === _emergencyBaseline) return;
+    localStorage.setItem(getSK(), current);
+    _emergencyBaseline = current;
+  }catch(e){}
 }
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState === 'hidden') _emergencySave();

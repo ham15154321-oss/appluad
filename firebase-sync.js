@@ -13,6 +13,19 @@
 try {
   if (window.parent !== window) {
     console.log('[FirebaseSync] iframe 內，跳過同步（由 parent 處理）');
+    // ★ 把 iframe 的 setItem proxy 到 parent.localStorage.setItem
+    //   讓 parent 的 override（_recordLocalTs + schedulePush）能跑到 iframe 寫入
+    //   不然 iframe 編輯只會等 parent 60s interval 才同步，且 LWW ts shadow 永遠是空的
+    try {
+      var _parentLS = window.parent.localStorage;
+      if (_parentLS && typeof _parentLS.setItem === 'function') {
+        var _origIframeSet = localStorage.setItem.bind(localStorage);
+        localStorage.setItem = function(k, v) {
+          try { _parentLS.setItem(k, v); }
+          catch(_pe) { _origIframeSet(k, v); }
+        };
+      }
+    } catch(_e) { /* cross-origin parent — fall back to native setItem */ }
     window.firebaseSync = { push: function(){}, pull: function(){} };
     return;
   }
