@@ -232,8 +232,14 @@ function _isRealCardsData(val){
   } catch(e){ return false; }
 }
 
+// ★ 白名單：即使前綴命中排除，這些 key 也要同步（共享資料，被前綴規則誤擋）
+const LOCAL_ONLY_ALLOWLIST = [
+  'appedu_training_library'  // 訓練教材庫（全域共用，不分主角）
+];
+
 // 判斷 key 是否為本機專屬（不同步到雲端）
 function isLocalOnlyKey(k){
+  if (LOCAL_ONLY_ALLOWLIST.indexOf(k) !== -1) return false;
   if (LOCAL_ONLY_KEYS.includes(k)) return true;
   for (var i=0; i<LOCAL_ONLY_PREFIXES.length; i++){
     if (k.indexOf(LOCAL_ONLY_PREFIXES[i]) === 0) return true;
