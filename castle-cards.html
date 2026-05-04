@@ -631,7 +631,31 @@ function loadCards(){
   }catch(e){}
   return getDefaultCards();
 }
-function saveCards(){localStorage.setItem(SK,JSON.stringify(cards));}
+function saveCards(){
+  try{
+    localStorage.setItem(SK, JSON.stringify(cards));
+  }catch(e){
+    if(e && e.name === 'QuotaExceededError'){
+      console.warn('[castle] localStorage quota 滿了，移除照片重試（照片在 IDB，下次 hydrate 補回）');
+      var stripped = cards.map(function(c){
+        if(!c) return c;
+        var copy = Object.assign({}, c);
+        if(copy.photo && copy.photo.length > 200) copy.photo = '';
+        if(copy.mascot && copy.mascot.length > 200) copy.mascot = '';
+        return copy;
+      });
+      try{
+        localStorage.setItem(SK, JSON.stringify(stripped));
+        console.log('[castle] saveCards 重試成功（已移除照片）');
+      }catch(e2){
+        console.error('[castle] saveCards 仍失敗:', e2 && e2.message);
+        throw e2;
+      }
+    } else {
+      throw e;
+    }
+  }
+}
 
 function loadSelected(key){
   try{const r=localStorage.getItem(key);if(r)return JSON.parse(r);}catch(e){}
