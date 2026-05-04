@@ -742,6 +742,12 @@ async function _writeAuditLog(charId, lsCount, idbCount, changedKeys){
 
 // === 推送 ============================================================
 async function pushToCloud(opts){
+  // ★ localhost 防衛：開發環境不推送雲端，避免污染正式資料
+  if (typeof location !== 'undefined' &&
+      (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    console.log('[FirebaseSync] 🛡 localhost 環境，跳過推送（避免污染雲端）');
+    return;
+  }
   if (!ready || IS_ADMIN) return;
   // ★ 推送鎖：如果上一次推送還在進行中，跳過這次
   if (_pushing){
