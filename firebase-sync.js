@@ -1169,22 +1169,26 @@ async function _doInit(){
       // 已登入（匿名）
       console.log('[FirebaseSync] 已匿名登入', user.uid, IS_ADMIN ? '(管理者)' : '');
 
-      // ★ 取得同步身份：
-      //   1. 優先沿用 localStorage 已存的 firebase_sync_code（向下相容，例如本機的 ivan2026）
-      //   2. 沒有 → 自動以「主角 ID」當作同步身份，完全免輸入密碼
-      //      （每個主角各自有獨立的雲端空間，可讀可寫）
-      //   注意：自動推得的碼「不寫回 localStorage」，這樣切換主角後重新整理就會自動跟著切換
-      var syncCode = localStorage.getItem('firebase_sync_code');
-      var autoDerived = false;
-      if (!syncCode) {
-        syncCode = 'role_' + getCharacterId();
-        autoDerived = true;
-        console.log('[FirebaseSync] 自動以主角 ID 作為同步身份:', syncCode);
-      }
-      currentUserUid = syncCode; // 用同步碼作為 user 路徑
+      // ★ 取得同步身份（重構後 v2 — 統一 tenant 模式）：
+      //   全公司用同一個 tenant，所有人共用同一份雲端空間
+      //   不同主角的資料在 character 層級分開（不在 tenant 層級）
+      //
+      //   優先順序：
+      //   1. 已手動設過 firebase_sync_code → 沿用（向下相容老用戶）
+      //   2. 否則 → 用 DEFAULT_TENANT
+      //
+      //   舊版的「auto-derive 'role_<charId>'」已移除，因為它造成
+      //   「同主角不同瀏覽器看到不同資料」的問題（無痕視窗等）。
+      //   現在不論在哪個瀏覽器、哪台裝置登入同一個主角，都會看到同一份資料。
+      var DEFAULT_TENANT = 'ivan2026';  // 沿用既有的 ivan2026 路徑，避免資料遷移
+      var syncCode = localStorage.getItem('firebase_sync_code') || DEFAULT_TENANT;
+      var fromManual = !!localStorage.getItem('firebase_sync_code');
+      console.log('[FirebaseSync] 使用 tenant:', syncCode, fromManual ? '(手動設定)' : '(預設)');
+      currentUserUid = syncCode;
       currentUserEmail = syncCode;
 
-      var badgeLabel = autoDerived ? ('☁ ' + getCharacterId()) : ('☁ ' + syncCode);
+      // 徽章用主角名顯示（更直覺，使用者只需要知道「我是誰」，不需要看到 tenant 內部識別碼）
+      var badgeLabel = '☁ ' + (getCharacterId() || syncCode);
       setBadge(badgeLabel + '\n拉取中…', '#00ff88');
       try {
         // ★ 嘗試從舊路徑遷移
