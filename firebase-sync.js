@@ -232,14 +232,8 @@ function _isRealCardsData(val){
   } catch(e){ return false; }
 }
 
-// ★ 白名單：即使前綴命中排除，這些 key 也要同步（共享資料，被前綴規則誤擋）
-const LOCAL_ONLY_ALLOWLIST = [
-  'appedu_training_library'  // 訓練教材庫（全域共用，不分主角）
-];
-
 // 判斷 key 是否為本機專屬（不同步到雲端）
 function isLocalOnlyKey(k){
-  if (LOCAL_ONLY_ALLOWLIST.indexOf(k) !== -1) return false;
   if (LOCAL_ONLY_KEYS.includes(k)) return true;
   for (var i=0; i<LOCAL_ONLY_PREFIXES.length; i++){
     if (k.indexOf(LOCAL_ONLY_PREFIXES[i]) === 0) return true;
@@ -742,12 +736,6 @@ async function _writeAuditLog(charId, lsCount, idbCount, changedKeys){
 
 // === 推送 ============================================================
 async function pushToCloud(opts){
-  // ★ localhost 防衛：開發環境不推送雲端，避免污染正式資料
-  if (typeof location !== 'undefined' &&
-      (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-    console.log('[FirebaseSync] 🛡 localhost 環境，跳過推送（避免污染雲端）');
-    return;
-  }
   if (!ready || IS_ADMIN) return;
   // ★ 推送鎖：如果上一次推送還在進行中，跳過這次
   if (_pushing){
@@ -1128,17 +1116,6 @@ function _hasAppSession(){
   }catch(e){}
   return false;
 }
-function _getLoginUser(){
-  try{
-    var s = JSON.parse(sessionStorage.getItem('appedu_session'));
-    if(s && s.user) return String(s.user).trim().toLowerCase();
-  }catch(e){}
-  try{
-    var r = JSON.parse(localStorage.getItem('appedu_remembered_session'));
-    if(r && r.user) return String(r.user).trim().toLowerCase();
-  }catch(e){}
-  return null;
-}
 
 (async function init(){
   // ★ 登入頁 + 尚未登入 → 延遲到使用者登入後再啟動 Firebase 同步
@@ -1192,24 +1169,17 @@ async function _doInit(){
       // 已登入（匿名）
       console.log('[FirebaseSync] 已匿名登入', user.uid, IS_ADMIN ? '(管理者)' : '');
 
-      // ★ 取得同步身份（優先序）：
-      //   1. 登入帳號（appedu_session.user，例如 applaud）— 任何裝置登入同帳號就同步
-      //   2. localStorage 已存的 firebase_sync_code（向下相容，例如本機的 ivan2026）
-      //   3. 都沒有 → 自動以「主角 ID」當作同步身份
-      //   注意：自動推得的碼「不寫回 localStorage」，避免覆蓋使用者手動設定
-      var syncCode;
+      // ★ 取得同步身份：
+      //   1. 優先沿用 localStorage 已存的 firebase_sync_code（向下相容，例如本機的 ivan2026）
+      //   2. 沒有 → 自動以「主角 ID」當作同步身份，完全免輸入密碼
+      //      （每個主角各自有獨立的雲端空間，可讀可寫）
+      //   注意：自動推得的碼「不寫回 localStorage」，這樣切換主角後重新整理就會自動跟著切換
+      var syncCode = localStorage.getItem('firebase_sync_code');
       var autoDerived = false;
-      var loginUser = _getLoginUser();
-      if (loginUser) {
-        syncCode = loginUser;
-        console.log('[FirebaseSync] 以登入帳號作為同步身份:', syncCode);
-      } else {
-        syncCode = localStorage.getItem('firebase_sync_code');
-        if (!syncCode) {
-          syncCode = 'role_' + getCharacterId();
-          autoDerived = true;
-          console.log('[FirebaseSync] 自動以主角 ID 作為同步身份:', syncCode);
-        }
+      if (!syncCode) {
+        syncCode = 'role_' + getCharacterId();
+        autoDerived = true;
+        console.log('[FirebaseSync] 自動以主角 ID 作為同步身份:', syncCode);
       }
       currentUserUid = syncCode; // 用同步碼作為 user 路徑
       currentUserEmail = syncCode;

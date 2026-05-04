@@ -631,12 +631,7 @@ function loadCards(){
   }catch(e){}
   return getDefaultCards();
 }
-function saveCards(){
-  // photo/mascot 存在 IndexedDB（commit 4ccca8a），localStorage 只存 metadata
-  const slim = cards.map(c => { const { photo, mascot, ...rest } = c; return rest; });
-  try { localStorage.setItem(SK, JSON.stringify(slim)); }
-  catch(e){ console.warn("[castle] saveCards quota exceeded:", e.message); }
-}
+function saveCards(){localStorage.setItem(SK,JSON.stringify(cards));}
 
 function loadSelected(key){
   try{const r=localStorage.getItem(key);if(r)return JSON.parse(r);}catch(e){}
@@ -649,65 +644,7 @@ function saveSelected(){
 }
 
 // ═══════ RENDER PYRAMID ═══════
-
-// === 從 SpaceBaseDB.images 補回卡牌照片/吉祥物 (commit 4ccca8a 改存 IndexedDB 後缺少的讀取端) ===
-let __photoHydrated = false;
-function hydrateCardPhotos(){
-  if(__photoHydrated) return Promise.resolve(false);
-  __photoHydrated = true; // 只跑一次
-  return new Promise((resolve) => {
-    try {
-      const req = indexedDB.open('SpaceBaseDB');
-      req.onsuccess = () => {
-        const db = req.result;
-        if(!db.objectStoreNames.contains('images')){ db.close(); resolve(false); return; }
-        const tx = db.transaction('images', 'readonly');
-        const os = tx.objectStore('images');
-        const tasks = [];
-        let any = false;
-        cards.forEach((c) => {
-          // photo
-          if(!c.photo){
-            tasks.push(new Promise(r => {
-              const g = os.get('castle_card_photo_' + c.id);
-              g.onsuccess = () => {
-                const v = g.result;
-                if(typeof v === 'string' && v.startsWith('data:')){
-                  c.photo = v; any = true;
-                }
-                r();
-              };
-              g.onerror = () => r();
-            }));
-          }
-          // mascot（不存在就跳過，不報錯）
-          if(!c.mascot){
-            tasks.push(new Promise(r => {
-              const g = os.get('castle_card_mascot_' + c.id);
-              g.onsuccess = () => {
-                const v = g.result;
-                if(typeof v === 'string'){
-                  c.mascot = v; any = true;
-                }
-                r();
-              };
-              g.onerror = () => r();
-            }));
-          }
-        });
-        Promise.all(tasks).then(() => { db.close(); resolve(any); });
-      };
-      req.onerror = () => resolve(false);
-    } catch(e){ resolve(false); }
-  });
-}
-
 function renderPyramid(){
-  // 第一次進入時，先把 IndexedDB 的卡牌照片/吉祥物補回 card.photo / card.mascot，補完後重 render 一次
-  if(!__photoHydrated){
-    hydrateCardPhotos().then((changed) => { if(changed) renderPyramid(); });
-  }
-
   const el=document.getElementById('pyramid');
   el.innerHTML='';
   // Separate visible and hidden cards
@@ -2226,11 +2163,82 @@ window.addEventListener('pagehide',_emergencySave);
 // backward compat: old playThunder calls (e.g. from other code)
 async function playThunder(){ await playThunderGroup(1); }
 
+// ★ 從 SpaceBaseDB/images 補讀照片（修復「緊急清理函式清空 castle_cards_v1.photo 後照片永久消失」的 bug）
+// - 只在 card.photo / card.mascot 為空時補入
+// - 補入只更新記憶體 cards 變數，不寫回 localStorage（避免再次踩到 5MB quota）
+// - 完成後重新渲染金字塔；後台面板若已開啟也重繪
+async function loadPhotosFromSpaceBase(){
+  try{
+    if(!Array.isArray(cards) || cards.length===0) return;
+    var needsLoad = cards.some(function(c){
+      return c && ((!c.photo || c.photo.length<200) || (!c.mascot || c.mascot.length<200));
+    });
+    if(!needsLoad) return;
+    var db = await new Promise(function(res,rej){
+      var req = indexedDB.open('SpaceBaseDB');
+      req.onsuccess = function(){ res(req.result); };
+      req.onerror = function(){ rej(req.error); };
+    });
+    if(!db.objectStoreNames.contains('images')){ db.close(); return; }
+    var tx = db.transaction(['images'],'readonly');
+    var store = tx.objectStore('images');
+    var toDataUrl = function(v){
+      if(typeof v === 'string') return Promise.resolve(v);
+      if(v instanceof Blob){
+        return new Promise(function(res){
+          var r = new FileReader();
+          r.onloadend = function(){ res(r.result); };
+          r.readAsDataURL(v);
+        });
+      }
+      return Promise.resolve(null);
+    };
+    var get = function(key){
+      return new Promise(function(res){
+        var req = store.get(key);
+        req.onsuccess = function(){ res(req.result || null); };
+        req.onerror = function(){ res(null); };
+      });
+    };
+    var photoLoaded = 0, mascotLoaded = 0;
+    for(var i=0;i<cards.length;i++){
+      var card = cards[i];
+      if(!card) continue;
+      if(!card.photo || card.photo.length<200){
+        var p = await get('castle_card_photo_'+card.id);
+        if(p){
+          var url = await toDataUrl(p);
+          if(url){ card.photo = url; photoLoaded++; }
+        }
+      }
+      if(!card.mascot || card.mascot.length<200){
+        var m = await get('castle_card_mascot_'+card.id);
+        if(m){
+          var murl = await toDataUrl(m);
+          if(murl){ card.mascot = murl; mascotLoaded++; }
+        }
+      }
+    }
+    try{ db.close(); }catch(e){}
+    if(photoLoaded>0 || mascotLoaded>0){
+      console.log('[castle] 從 SpaceBaseDB 補入：照片', photoLoaded, '筆、吉祥物', mascotLoaded, '筆（僅記憶體）');
+      try{ renderPyramid(); }catch(e){ console.warn('[castle] renderPyramid 失敗', e); }
+      try{ if(typeof renderAdminGrid==='function') renderAdminGrid(); }catch(e){}
+    } else {
+      console.log('[castle] SpaceBaseDB 中沒有可補入的照片');
+    }
+  }catch(e){
+    console.warn('[castle] 從 SpaceBaseDB 讀照片失敗:', e && e.message);
+  }
+}
+
 // INIT
 migrateSfxToIDB().catch(()=>{});
 renderPyramid();
 updateLoginStatus();
 updateFlipBanner(localStorage.getItem('castle_flip_mode')==='on');
+// ★ NEW: 補讀 SpaceBaseDB 裡的照片（不會 await，背景跑、完成後自動重繪）
+loadPhotosFromSpaceBase();
 </script>
 <script src="./nav-home.js"></script>
 <script src="day-mode-init.js"></script>
