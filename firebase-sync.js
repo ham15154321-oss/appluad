@@ -1180,7 +1180,7 @@ async function _doInit(){
       //   舊版的「auto-derive 'role_<charId>'」已移除，因為它造成
       //   「同主角不同瀏覽器看到不同資料」的問題（無痕視窗等）。
       //   現在不論在哪個瀏覽器、哪台裝置登入同一個主角，都會看到同一份資料。
-      var DEFAULT_TENANT = 'ivan2026';  // 沿用既有的 ivan2026 路徑，避免資料遷移
+      var DEFAULT_TENANT = 'applaud';  // 改用 applaud（所有最新資料都在這）
       var syncCode = localStorage.getItem('firebase_sync_code') || DEFAULT_TENANT;
       var fromManual = !!localStorage.getItem('firebase_sync_code');
       console.log('[FirebaseSync] 使用 tenant:', syncCode, fromManual ? '(手動設定)' : '(預設)');
