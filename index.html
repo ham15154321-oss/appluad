@@ -573,6 +573,8 @@ updateCharBar();
       localStorage.setItem('activeCharacterName', name);
       localStorage.setItem('profileName', name);
       sessionStorage.removeItem('_appedu_pending_picker');
+      // ★ 標記「剛剛切換到 X」，下次載入後同步穩定再補照片
+      sessionStorage.setItem('_appedu_just_switched_to', name);
     }catch(e){}
     console.log('[CharPicker] 選定:', name);
     applyCharPhotoToProfile(name).finally(function(){ location.reload(); });
@@ -633,6 +635,31 @@ updateCharBar();
       }
     }, 500);
   }
+  // ★ 處理「剛切換角色」後 firebase-sync 把 profileImgData 蓋回去的問題
+  async function fixPhotoAfterSwitch(){
+    try{
+      var justSwitched = sessionStorage.getItem('_appedu_just_switched_to');
+      if(!justSwitched) return;
+      sessionStorage.removeItem('_appedu_just_switched_to');
+      console.log('[CharPicker] 偵測到剛切換到', justSwitched, '，等同步穩定後補照片...');
+      // 等 5 秒讓 firebase-sync 完成 cloud→local 拉取
+      await new Promise(function(r){ setTimeout(r, 5000); });
+      await applyCharPhotoToProfile(justSwitched);
+      // 強制更新 DOM 上 profileImg / mascotImg
+      var newPhoto = localStorage.getItem('profileImgData');
+      if(newPhoto){
+        var profileImg = document.getElementById('profileImg');
+        var mascotImg = document.getElementById('mascotImg');
+        if(profileImg) profileImg.src = newPhoto;
+        if(mascotImg) mascotImg.src = newPhoto;
+        console.log('[CharPicker] 已將首頁照片更新為', justSwitched, '的（DOM 直接寫入）');
+      }
+    }catch(e){
+      console.warn('[CharPicker] fixPhotoAfterSwitch 失敗:', e && e.message);
+    }
+  }
+  // 頁面載入完成後 5 秒觸發（在 sync 之後）
+  window.addEventListener('load', fixPhotoAfterSwitch);
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', checkAndShow);
   } else {
