@@ -4211,5 +4211,61 @@ function tiDelScreenshot(idx){
 }
 </script>
 <script src="./nav-home.js"></script>
+
+<!-- ★ 確保首頁照片符合 activeCharacterId（同 index.html 的 ensurePhotoMatchesIdentity）★ -->
+<script>
+(function(){
+  async function ensurePhotoMatchesIdentity(){
+    try{
+      await new Promise(function(r){ setTimeout(r, 5000); });
+      var activeCharId = localStorage.getItem('activeCharacterId');
+      if(!activeCharId) return;
+      var raw = localStorage.getItem('castle_cards_v1');
+      if(!raw) return;
+      var cards = JSON.parse(raw);
+      var card = cards.find(function(c){return c && c.name === activeCharId;});
+      if(!card || card.id == null) return;
+      var db = await new Promise(function(res,rej){
+        var req = indexedDB.open('SpaceBaseDB');
+        req.onsuccess = function(){ res(req.result); };
+        req.onerror = function(){ rej(req.error); };
+      });
+      if(!db.objectStoreNames.contains('images')){ db.close(); return; }
+      var tx = db.transaction(['images'],'readonly');
+      var store = tx.objectStore('images');
+      var photo = await new Promise(function(res){
+        var r = store.get('castle_card_photo_'+card.id);
+        r.onsuccess = function(){ res(r.result); };
+        r.onerror = function(){ res(null); };
+      });
+      try{ db.close(); }catch(e){}
+      if(!photo) return;
+      var dataUrl;
+      if(typeof photo === 'string') dataUrl = photo;
+      else if(photo instanceof Blob){
+        dataUrl = await new Promise(function(res){
+          var fr = new FileReader();
+          fr.onloadend = function(){ res(fr.result); };
+          fr.readAsDataURL(photo);
+        });
+      }
+      if(!dataUrl) return;
+      var current = localStorage.getItem('profileImgData') || '';
+      if(current === dataUrl) return;
+      console.log('[人力發展 PhotoFix] 偵測到首頁照片不匹配身份('+activeCharId+')，正在修正...');
+      try{ localStorage.setItem('profileImgData', dataUrl); }catch(e){}
+      document.querySelectorAll('img').forEach(function(img){
+        if(img.id === 'profileImg' || img.id === 'mascotImg'){
+          img.src = dataUrl;
+        }
+      });
+      console.log('[人力發展 PhotoFix] ✓ 照片已修正為', activeCharId, '（length:', dataUrl.length, '）');
+    }catch(e){
+      console.warn('[人力發展 PhotoFix] 失敗:', e && e.message);
+    }
+  }
+  window.addEventListener('load', ensurePhotoMatchesIdentity);
+})();
+</script>
 </body>
 </html>
