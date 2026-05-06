@@ -618,22 +618,16 @@ updateCharBar();
       loginAttempts++;
       if(sessionStorage.getItem('appedu_session')){
         clearInterval(loginPoll);
-        console.log('[CharPicker] 登入完成，等待卡片載入...');
-        var cardAttempts = 0;
-        var cardPoll = setInterval(function(){
-          cardAttempts++;
-          if(localStorage.getItem('castle_cards_v1') || cardAttempts >= 16){
-            clearInterval(cardPoll);
-            if(sessionStorage.getItem('_appedu_pending_picker') === '1'){
-              showPicker();
-            }
-          }
-        }, 500);
-      } else if(loginAttempts >= 240){
+        console.log('[CharPicker] 登入完成，立刻顯示 picker（不等卡片）');
+        // 不等 castle_cards_v1 — 用 FALLBACK_CHARS 就能顯示
+        if(sessionStorage.getItem('_appedu_pending_picker') === '1'){
+          showPicker();
+        }
+      } else if(loginAttempts >= 600){  // 100ms × 600 = 60 秒
         clearInterval(loginPoll);
-        console.warn('[CharPicker] 登入逾時（2 分鐘），放棄顯示 picker');
+        console.warn('[CharPicker] 登入逾時（60 秒），放棄顯示 picker');
       }
-    }, 500);
+    }, 100);  // 從 500ms 改成 100ms，反應更快
   }
   // ★ 每次頁面載入都檢查首頁照片是否匹配 activeCharacterId
   // 等 5 秒讓 firebase-sync 同步穩定，即使 sync 把 profileImgData 蓋成別人的，這個也會再蓋回正確的
