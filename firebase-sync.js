@@ -202,11 +202,34 @@ const _origRemove = localStorage.removeItem.bind(localStorage);
     if (localStorage.getItem('activeCharacterId')) return;
     if (localStorage.getItem('castle_cards_v1')) return;
     if (localStorage.getItem('firebase_sync_code')) return;
-    console.log('[FirebaseSync] 偵測到新裝置/全新環境，預設身份：楊雅筑');
-    _origSet('activeCharacterId', '楊雅筑');
-    _origSet('activeCharacterName', '楊雅筑');
-    _origSet('profileName', '楊雅筑');
-  } catch(e){ /* 私密模式可能擋 LS，忽略 */ }
+
+    // ★ URL 參數優先：?as=<name> 直接設定身份
+    try {
+      var urlAs = new URLSearchParams(location.search).get('as');
+      if (urlAs) {
+        console.log('[FirebaseSync] URL ?as=' + urlAs + '，直接設定身份');
+        _origSet('activeCharacterId', urlAs);
+        _origSet('activeCharacterName', urlAs);
+        _origSet('profileName', urlAs);
+        return;
+      }
+    } catch(e2){}
+
+    // ★ 設旗標，由 index.html 顯示 picker
+    console.log('[FirebaseSync] 偵測到新裝置，等待 picker 選擇身份');
+    sessionStorage.setItem('_appedu_pending_picker', '1');
+
+    // ★ Failsafe：60 秒沒選 → fallback 預設楊雅筑（避免卡死）
+    window._appedu_picker_failsafe_timer = setTimeout(function(){
+      if (!localStorage.getItem('activeCharacterId')) {
+        console.warn('[FirebaseSync] picker 未在時限內完成，fallback 楊雅筑');
+        _origSet('activeCharacterId', '楊雅筑');
+        _origSet('activeCharacterName', '楊雅筑');
+        _origSet('profileName', '楊雅筑');
+      }
+      window._appedu_picker_failsafe_timer = null;
+    }, 60000);
+  } catch(e){}
 })();
 
 // ★ 判斷 castle_cards_v1 的 raw value 是否為「空樣板」
