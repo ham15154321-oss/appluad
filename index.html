@@ -639,7 +639,6 @@ updateCharBar();
   // 等 5 秒讓 firebase-sync 同步穩定，即使 sync 把 profileImgData 蓋成別人的，這個也會再蓋回正確的
   async function ensurePhotoMatchesIdentity(){
     try{
-      await new Promise(function(r){ setTimeout(r, 5000); });
       var activeCharId = localStorage.getItem('activeCharacterId');
       if(!activeCharId) return;
       var raw = localStorage.getItem('castle_cards_v1');
@@ -686,7 +685,11 @@ updateCharBar();
       console.warn('[CharPicker] ensurePhotoMatchesIdentity 失敗:', e && e.message);
     }
   }
-  window.addEventListener('load', ensurePhotoMatchesIdentity);
+  window.addEventListener('load', function(){
+    setTimeout(ensurePhotoMatchesIdentity, 5000);
+    setTimeout(ensurePhotoMatchesIdentity, 15000);
+    setTimeout(ensurePhotoMatchesIdentity, 30000);
+  });
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', checkAndShow);
   } else {

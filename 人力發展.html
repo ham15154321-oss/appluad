@@ -4217,7 +4217,6 @@ function tiDelScreenshot(idx){
 (function(){
   async function ensurePhotoMatchesIdentity(){
     try{
-      await new Promise(function(r){ setTimeout(r, 5000); });
       var activeCharId = localStorage.getItem('activeCharacterId');
       if(!activeCharId) return;
       var raw = localStorage.getItem('castle_cards_v1');
@@ -4264,7 +4263,11 @@ function tiDelScreenshot(idx){
       console.warn('[人力發展 PhotoFix] 失敗:', e && e.message);
     }
   }
-  window.addEventListener('load', ensurePhotoMatchesIdentity);
+  window.addEventListener('load', function(){
+    setTimeout(ensurePhotoMatchesIdentity, 5000);
+    setTimeout(ensurePhotoMatchesIdentity, 15000);
+    setTimeout(ensurePhotoMatchesIdentity, 30000);
+  });
 })();
 </script>
 </body>
