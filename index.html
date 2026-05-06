@@ -589,6 +589,17 @@ updateCharBar();
     console.log('[CharPicker] 取消，預設楊雅筑');
     location.reload();
   }
+  // 把按鈕渲染抽出來，方便重複呼叫
+  function renderPickerButtons(grid){
+    var chars = getCharList();
+    grid.innerHTML = chars.map(function(n){return '<button class="char-pick-btn" data-name="'+n+'" style="padding:14px 8px;background:linear-gradient(135deg,rgba(74,234,255,0.1),rgba(100,150,255,0.1));border:2px solid rgba(74,234,255,0.3);border-radius:12px;color:#4aeaff;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;">👤 '+n+'</button>';}).join('');
+    Array.prototype.forEach.call(grid.querySelectorAll('.char-pick-btn'), function(btn){
+      btn.addEventListener('click', function(){ selectChar(btn.getAttribute('data-name')); });
+      btn.addEventListener('mouseenter', function(){ btn.style.borderColor='rgba(74,234,255,0.7)'; btn.style.transform='translateY(-2px)'; });
+      btn.addEventListener('mouseleave', function(){ btn.style.borderColor='rgba(74,234,255,0.3)'; btn.style.transform='none'; });
+    });
+    return chars.length;
+  }
   function showPicker(){
     try{
       if(window._appedu_picker_failsafe_timer){
@@ -599,16 +610,23 @@ updateCharBar();
     var modal = document.getElementById('charPickerModal');
     var grid = document.getElementById('charPickerGrid');
     if(!modal||!grid) return;
-    var chars = getCharList();
-    grid.innerHTML = chars.map(function(n){return '<button class="char-pick-btn" data-name="'+n+'" style="padding:14px 8px;background:linear-gradient(135deg,rgba(74,234,255,0.1),rgba(100,150,255,0.1));border:2px solid rgba(74,234,255,0.3);border-radius:12px;color:#4aeaff;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;">👤 '+n+'</button>';}).join('');
-    Array.prototype.forEach.call(grid.querySelectorAll('.char-pick-btn'), function(btn){
-      btn.addEventListener('click', function(){ selectChar(btn.getAttribute('data-name')); });
-      btn.addEventListener('mouseenter', function(){ btn.style.borderColor='rgba(74,234,255,0.7)'; btn.style.transform='translateY(-2px)'; });
-      btn.addEventListener('mouseleave', function(){ btn.style.borderColor='rgba(74,234,255,0.3)'; btn.style.transform='none'; });
-    });
+    var initialCount = renderPickerButtons(grid);
     document.getElementById('charPickerCancelBtn').addEventListener('click', cancelPicker);
     modal.style.display = 'flex';
-    console.log('[CharPicker] Modal 顯示中');
+    console.log('[CharPicker] Modal 顯示中（初始', initialCount, '個角色）');
+    // ★ 每 500ms 檢查 castle_cards_v1 是否有更多名字（最多檢查 20 次 = 10 秒）
+    var refreshAttempts = 0;
+    var refreshTimer = setInterval(function(){
+      refreshAttempts++;
+      if(refreshAttempts >= 20){ clearInterval(refreshTimer); return; }
+      if(modal.style.display === 'none'){ clearInterval(refreshTimer); return; }
+      var currentBtnCount = grid.querySelectorAll('.char-pick-btn').length;
+      var newCount = getCharList().length;
+      if(newCount > currentBtnCount){
+        console.log('[CharPicker] 角色清單更新（'+currentBtnCount+' → '+newCount+'）');
+        renderPickerButtons(grid);
+      }
+    }, 500);
   }
   function checkAndShow(){
     if(sessionStorage.getItem('_appedu_pending_picker') !== '1') return;
