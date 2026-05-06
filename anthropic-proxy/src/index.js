@@ -15,10 +15,23 @@ const ANTHROPIC_HOST = 'https://api.anthropic.com';
 // 部署完之後務必把 'https://your-site.example.com' 換掉。
 const ALLOWED_ORIGINS = [
   'https://ham15154321-oss.github.io', // ← 你的 GitHub Pages（user/org 頁與 project 頁同 origin）
-  'http://localhost:5173',
+  // 本機開發伺服器（涵蓋常見 port，避免每次新工具又要回來加白名單）
   'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:4000',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5500',
+  'http://localhost:8000',
+  'http://localhost:8001',
   'http://localhost:8080',
-  'http://127.0.0.1:5500', // VSCode Live Server
+  'http://localhost:8081',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5500',
+  'http://127.0.0.1:8000',
+  'http://127.0.0.1:8001',
+  'http://127.0.0.1:8080',
   'null', // 用 file:// 直接打開 HTML 時 Origin 會是 'null'
 ];
 

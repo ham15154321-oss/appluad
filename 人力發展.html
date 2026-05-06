@@ -1901,38 +1901,40 @@ function applyHexImg(k,d){
   return true;
 }
 // ★ 載入預設建築圖片（從 images/ 資料夾）— 當 IndexedDB 和 localStorage 都沒有自訂圖時使用
+//   嘗試順序：當前模式的 .jpg → 當前模式的 .png → 另一模式的 .jpg → 另一模式的 .png
+//   .jpg 優先（壓縮後檔案小很多），找不到才退回 .png；白天版找不到就退回黑夜版
 function loadDefaultHexImg(k){
   var imgEl=document.getElementById(k+'Img');
   if(!imgEl)return;
   // 已經有圖片在顯示中就不覆蓋
   if(imgEl.style.display==='block'&&imgEl.src&&imgEl.src.indexOf('data:')===0)return;
-  // 嘗試載入 images/hex_[key].png（黑夜版）或 images/hex_[key]_day.png（白天版）
+
   var _day = (typeof isDayMode === 'function') ? isDayMode() : false;
   var suffix = _day ? '_day' : '';
-  var url = 'images/hex_' + k + suffix + '.png';
-  var testImg = new Image();
-  testImg.onload = function(){
-    imgEl.src = url;
-    imgEl.style.display = 'block';
-    var iconEl = document.getElementById(k+'Icon');
-    if(iconEl) iconEl.style.display = 'none';
-  };
-  // 白天版不存在就試黑夜版
-  testImg.onerror = function(){
-    if(suffix){
-      var url2 = 'images/hex_' + k + '.png';
-      var testImg2 = new Image();
-      testImg2.onload = function(){
-        imgEl.src = url2;
-        imgEl.style.display = 'block';
-        var iconEl = document.getElementById(k+'Icon');
-        if(iconEl) iconEl.style.display = 'none';
-      };
-      testImg2.onerror = function(){}; // 真的沒有就保持 emoji
-      testImg2.src = url2;
-    }
-  };
-  testImg.src = url;
+
+  // 候選清單：依優先順序排
+  var candidates = [];
+  candidates.push('images/hex_' + k + suffix + '.jpg');
+  candidates.push('images/hex_' + k + suffix + '.png');
+  if (suffix) {
+    candidates.push('images/hex_' + k + '.jpg');
+    candidates.push('images/hex_' + k + '.png');
+  }
+
+  function tryNext(idx){
+    if (idx >= candidates.length) return;  // 全部都沒有 → 保持 emoji
+    var url = candidates[idx];
+    var testImg = new Image();
+    testImg.onload = function(){
+      imgEl.src = url;
+      imgEl.style.display = 'block';
+      var iconEl = document.getElementById(k+'Icon');
+      if(iconEl) iconEl.style.display = 'none';
+    };
+    testImg.onerror = function(){ tryNext(idx + 1); };
+    testImg.src = url;
+  }
+  tryNext(0);
 }
 
 // ★ 廣場建築換圖 — 完全比照吉祥物模式
