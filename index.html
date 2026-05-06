@@ -635,31 +635,58 @@ updateCharBar();
       }
     }, 500);
   }
-  // ★ 處理「剛切換角色」後 firebase-sync 把 profileImgData 蓋回去的問題
-  async function fixPhotoAfterSwitch(){
+  // ★ 每次頁面載入都檢查首頁照片是否匹配 activeCharacterId
+  // 等 5 秒讓 firebase-sync 同步穩定，即使 sync 把 profileImgData 蓋成別人的，這個也會再蓋回正確的
+  async function ensurePhotoMatchesIdentity(){
     try{
-      var justSwitched = sessionStorage.getItem('_appedu_just_switched_to');
-      if(!justSwitched) return;
-      sessionStorage.removeItem('_appedu_just_switched_to');
-      console.log('[CharPicker] 偵測到剛切換到', justSwitched, '，等同步穩定後補照片...');
-      // 等 5 秒讓 firebase-sync 完成 cloud→local 拉取
       await new Promise(function(r){ setTimeout(r, 5000); });
-      await applyCharPhotoToProfile(justSwitched);
-      // 強制更新 DOM 上 profileImg / mascotImg
-      var newPhoto = localStorage.getItem('profileImgData');
-      if(newPhoto){
-        var profileImg = document.getElementById('profileImg');
-        var mascotImg = document.getElementById('mascotImg');
-        if(profileImg) profileImg.src = newPhoto;
-        if(mascotImg) mascotImg.src = newPhoto;
-        console.log('[CharPicker] 已將首頁照片更新為', justSwitched, '的（DOM 直接寫入）');
+      var activeCharId = localStorage.getItem('activeCharacterId');
+      if(!activeCharId) return;
+      var raw = localStorage.getItem('castle_cards_v1');
+      if(!raw) return;
+      var cards = JSON.parse(raw);
+      var card = cards.find(function(c){return c && c.name === activeCharId;});
+      if(!card || card.id == null) return;
+      var db = await new Promise(function(res,rej){
+        var req = indexedDB.open('SpaceBaseDB');
+        req.onsuccess = function(){ res(req.result); };
+        req.onerror = function(){ rej(req.error); };
+      });
+      if(!db.objectStoreNames.contains('images')){ db.close(); return; }
+      var tx = db.transaction(['images'],'readonly');
+      var store = tx.objectStore('images');
+      var photo = await new Promise(function(res){
+        var r = store.get('castle_card_photo_'+card.id);
+        r.onsuccess = function(){ res(r.result); };
+        r.onerror = function(){ res(null); };
+      });
+      try{ db.close(); }catch(e){}
+      if(!photo) return;
+      var dataUrl;
+      if(typeof photo === 'string') dataUrl = photo;
+      else if(photo instanceof Blob){
+        dataUrl = await new Promise(function(res){
+          var fr = new FileReader();
+          fr.onloadend = function(){ res(fr.result); };
+          fr.readAsDataURL(photo);
+        });
       }
+      if(!dataUrl) return;
+      var current = localStorage.getItem('profileImgData') || '';
+      if(current === dataUrl) return; // 已經對了，沒事做
+      console.log('[CharPicker] 偵測到首頁照片不匹配身份('+activeCharId+')，正在修正...');
+      try{ localStorage.setItem('profileImgData', dataUrl); }catch(e){}
+      document.querySelectorAll('img').forEach(function(img){
+        if(img.id === 'profileImg' || img.id === 'mascotImg'){
+          img.src = dataUrl;
+        }
+      });
+      console.log('[CharPicker] ✓ 照片已修正為', activeCharId, '（length:', dataUrl.length, '）');
     }catch(e){
-      console.warn('[CharPicker] fixPhotoAfterSwitch 失敗:', e && e.message);
+      console.warn('[CharPicker] ensurePhotoMatchesIdentity 失敗:', e && e.message);
     }
   }
-  // 頁面載入完成後 5 秒觸發（在 sync 之後）
-  window.addEventListener('load', fixPhotoAfterSwitch);
+  window.addEventListener('load', ensurePhotoMatchesIdentity);
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', checkAndShow);
   } else {
