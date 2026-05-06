@@ -679,10 +679,16 @@ updateCharBar();
       console.warn('[CharPicker] ensurePhotoMatchesIdentity 失敗:', e && e.message);
     }
   }
+  // ★ 立刻修一次（DOM 準備好就跑，避免閃爍）+ 多輪 retry 防 sync 覆蓋
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', ensurePhotoMatchesIdentity);
+  } else {
+    ensurePhotoMatchesIdentity();
+  }
   window.addEventListener('load', function(){
-    setTimeout(ensurePhotoMatchesIdentity, 5000);
-    setTimeout(ensurePhotoMatchesIdentity, 15000);
-    setTimeout(ensurePhotoMatchesIdentity, 30000);
+    setTimeout(ensurePhotoMatchesIdentity, 1000);   // 1 秒補一次（sync 通常此時動作）
+    setTimeout(ensurePhotoMatchesIdentity, 5000);   // 5 秒安全網
+    setTimeout(ensurePhotoMatchesIdentity, 15000);  // 15 秒最後保險
   });
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', checkAndShow);
