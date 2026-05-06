@@ -515,7 +515,7 @@ updateCharBar();
 </div>
 <script>
 (function(){
-  var FALLBACK_CHARS = ['唐瑄成','林昭宏','楊雅晴','楊雅筑','游密純','石韋頡','范淯維','許傑森','鄭蕎萱','黃士驊','黎禹歆'];
+  var FALLBACK_CHARS = ['黃柏翰','唐瑄成','林昭宏','楊雅晴','楊雅筑','游密純','石韋頡','范淯維','許傑森','鄭蕎萱','黃士驊','黎禹歆'];
   function getCharList(){
     try{
       var raw = localStorage.getItem('castle_cards_v1');
@@ -618,7 +618,7 @@ updateCharBar();
     var refreshAttempts = 0;
     var refreshTimer = setInterval(function(){
       refreshAttempts++;
-      if(refreshAttempts >= 20){ clearInterval(refreshTimer); return; }
+      if(refreshAttempts >= 50){ clearInterval(refreshTimer); return; }
       if(modal.style.display === 'none'){ clearInterval(refreshTimer); return; }
       var currentBtnCount = grid.querySelectorAll('.char-pick-btn').length;
       var newCount = getCharList().length;
@@ -626,7 +626,7 @@ updateCharBar();
         console.log('[CharPicker] 角色清單更新（'+currentBtnCount+' → '+newCount+'）');
         renderPickerButtons(grid);
       }
-    }, 500);
+    }, 100);
   }
   function checkAndShow(){
     if(sessionStorage.getItem('_appedu_pending_picker') !== '1') return;
