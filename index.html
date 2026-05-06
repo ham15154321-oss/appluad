@@ -503,5 +503,142 @@ updateCharBar();
 <script defer src="./firebase-sync.js"></script>
 <script src="./nav-home.js"></script>
 <script src="day-mode-init.js"></script>
+
+<!-- ★ 角色身份選擇 Modal ★ -->
+<div id="charPickerModal" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:20px;font-family:'Noto Sans TC',sans-serif;">
+  <div style="background:linear-gradient(135deg,#0d1b3e,#0a1628);border:2px solid rgba(74,234,255,0.4);border-radius:24px;padding:32px;max-width:560px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+    <h2 style="color:#4aeaff;text-align:center;margin:0 0 8px;font-size:22px;font-weight:700;">👥 請選擇您的身份</h2>
+    <p style="color:#94a3b8;text-align:center;margin:0 0 24px;font-size:13px;">從清單中選擇您的角色，系統將同步您的個人資料</p>
+    <div id="charPickerGrid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:20px;"></div>
+    <button id="charPickerCancelBtn" style="width:100%;padding:11px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#94a3b8;border-radius:10px;cursor:pointer;font-size:13px;">暫不選擇（以楊雅筑進入）</button>
+  </div>
+</div>
+<script>
+(function(){
+  var FALLBACK_CHARS = ['唐瑄成','林昭宏','楊雅晴','楊雅筑','游密純','石韋頡','范淯維','許傑森','鄭蕎萱','黃士驊','黎禹歆'];
+  function getCharList(){
+    try{
+      var raw = localStorage.getItem('castle_cards_v1');
+      if(raw){
+        var cards = JSON.parse(raw);
+        var names = cards.filter(function(c){return c&&c.name&&!/^角色\s*\d+$/.test(c.name)&&c.hidden!==true;}).map(function(c){return c.name;});
+        if(names.length >= 5) return names;
+      }
+    }catch(e){}
+    return FALLBACK_CHARS;
+  }
+  async function applyCharPhotoToProfile(name){
+    try{
+      var raw = localStorage.getItem('castle_cards_v1');
+      if(!raw) return;
+      var cards = JSON.parse(raw);
+      var card = cards.find(function(c){return c && c.name === name;});
+      if(!card) return;
+      if(card.photo && card.photo.length > 200){
+        try{ localStorage.setItem('profileImgData', card.photo); }catch(e){}
+        return;
+      }
+      var db = await new Promise(function(res,rej){
+        var req = indexedDB.open('SpaceBaseDB');
+        req.onsuccess = function(){ res(req.result); };
+        req.onerror = function(){ rej(req.error); };
+      });
+      if(!db.objectStoreNames.contains('images')){ db.close(); return; }
+      var tx = db.transaction(['images'],'readonly');
+      var store = tx.objectStore('images');
+      var photo = await new Promise(function(res){
+        var r = store.get('castle_card_photo_'+card.id);
+        r.onsuccess = function(){ res(r.result); };
+        r.onerror = function(){ res(null); };
+      });
+      try{ db.close(); }catch(e){}
+      if(!photo) return;
+      var dataUrl;
+      if(typeof photo === 'string') dataUrl = photo;
+      else if(photo instanceof Blob){
+        dataUrl = await new Promise(function(res){
+          var fr = new FileReader();
+          fr.onloadend = function(){ res(fr.result); };
+          fr.readAsDataURL(photo);
+        });
+      }
+      if(dataUrl){
+        try{ localStorage.setItem('profileImgData', dataUrl); }catch(e){}
+      }
+    }catch(e){}
+  }
+  function selectChar(name){
+    try{
+      localStorage.setItem('activeCharacterId', name);
+      localStorage.setItem('activeCharacterName', name);
+      localStorage.setItem('profileName', name);
+      sessionStorage.removeItem('_appedu_pending_picker');
+    }catch(e){}
+    console.log('[CharPicker] 選定:', name);
+    applyCharPhotoToProfile(name).finally(function(){ location.reload(); });
+  }
+  function cancelPicker(){
+    try{
+      localStorage.setItem('activeCharacterId','楊雅筑');
+      localStorage.setItem('activeCharacterName','楊雅筑');
+      localStorage.setItem('profileName','楊雅筑');
+      sessionStorage.removeItem('_appedu_pending_picker');
+    }catch(e){}
+    console.log('[CharPicker] 取消，預設楊雅筑');
+    location.reload();
+  }
+  function showPicker(){
+    try{
+      if(window._appedu_picker_failsafe_timer){
+        clearTimeout(window._appedu_picker_failsafe_timer);
+        window._appedu_picker_failsafe_timer = null;
+      }
+    }catch(e){}
+    var modal = document.getElementById('charPickerModal');
+    var grid = document.getElementById('charPickerGrid');
+    if(!modal||!grid) return;
+    var chars = getCharList();
+    grid.innerHTML = chars.map(function(n){return '<button class="char-pick-btn" data-name="'+n+'" style="padding:14px 8px;background:linear-gradient(135deg,rgba(74,234,255,0.1),rgba(100,150,255,0.1));border:2px solid rgba(74,234,255,0.3);border-radius:12px;color:#4aeaff;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;">👤 '+n+'</button>';}).join('');
+    Array.prototype.forEach.call(grid.querySelectorAll('.char-pick-btn'), function(btn){
+      btn.addEventListener('click', function(){ selectChar(btn.getAttribute('data-name')); });
+      btn.addEventListener('mouseenter', function(){ btn.style.borderColor='rgba(74,234,255,0.7)'; btn.style.transform='translateY(-2px)'; });
+      btn.addEventListener('mouseleave', function(){ btn.style.borderColor='rgba(74,234,255,0.3)'; btn.style.transform='none'; });
+    });
+    document.getElementById('charPickerCancelBtn').addEventListener('click', cancelPicker);
+    modal.style.display = 'flex';
+    console.log('[CharPicker] Modal 顯示中');
+  }
+  function checkAndShow(){
+    if(sessionStorage.getItem('_appedu_pending_picker') !== '1') return;
+    console.log('[CharPicker] 偵測到 picker 旗標，等待登入完成...');
+    var loginAttempts = 0;
+    var loginPoll = setInterval(function(){
+      loginAttempts++;
+      if(sessionStorage.getItem('appedu_session')){
+        clearInterval(loginPoll);
+        console.log('[CharPicker] 登入完成，等待卡片載入...');
+        var cardAttempts = 0;
+        var cardPoll = setInterval(function(){
+          cardAttempts++;
+          if(localStorage.getItem('castle_cards_v1') || cardAttempts >= 16){
+            clearInterval(cardPoll);
+            if(sessionStorage.getItem('_appedu_pending_picker') === '1'){
+              showPicker();
+            }
+          }
+        }, 500);
+      } else if(loginAttempts >= 240){
+        clearInterval(loginPoll);
+        console.warn('[CharPicker] 登入逾時（2 分鐘），放棄顯示 picker');
+      }
+    }, 500);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', checkAndShow);
+  } else {
+    checkAndShow();
+  }
+})();
+</script>
 </body>
 </html>
