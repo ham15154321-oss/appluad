@@ -416,14 +416,22 @@ function handleLogin(e){
   sessionStorage.setItem('appedu_session',JSON.stringify(sessionData));
 
   if(remember){
-    localStorage.setItem('appedu_remember',JSON.stringify({user:matched.user,pass:matched.pass}));
-    localStorage.setItem('appedu_remembered_session',JSON.stringify(sessionData));
+    try{
+      localStorage.setItem('appedu_remember',JSON.stringify({user:matched.user,pass:matched.pass}));
+    }catch(e){ console.warn('[Login] appedu_remember 寫入失敗（quota 滿，忽略）:', e.message); }
+    try{
+      localStorage.setItem('appedu_remembered_session',JSON.stringify(sessionData));
+    }catch(e){ console.warn('[Login] appedu_remembered_session 寫入失敗（quota 滿，忽略）:', e.message); }
   } else {
     localStorage.removeItem('appedu_remember');
     localStorage.removeItem('appedu_remembered_session');
   }
 
-  localStorage.setItem('appedu_login_event',JSON.stringify({user:matched.user,time:Date.now()}));
+  try{
+    localStorage.setItem('appedu_login_event',JSON.stringify({user:matched.user,time:Date.now()}));
+  }catch(e){
+    console.warn('[Login] appedu_login_event 寫入失敗（quota 滿，忽略）:', e.message);
+  }
 
   // ★ 登入成功後啟動 Firebase 同步（同頁面 storage 事件不會觸發）
   if(window._firebaseSyncStart){
