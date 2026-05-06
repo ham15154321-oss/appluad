@@ -2935,7 +2935,7 @@ function isDayMode(){ return document.body.classList.contains('day-mode'); }
 // ★ 取得正確的 IndexedDB 圖片 key（白天加 _day 後綴，黑夜用原本的）
 function getHexImgKey(k){ return 'hex_' + k + (isDayMode() ? '_day' : ''); }
 
-// ★ 切換白天/黑夜時，更換建築縮圖（IndexedDB + localStorage 雙備份）
+// ★ 切換白天/黑夜時，更換建築縮圖（IndexedDB + localStorage + images/ 三層 fallback）
 async function swapHexImgsForMode(){
   var _curDay = isDayMode();
   var keys = ['training','castle','plaza','perf','ai'];
@@ -2952,12 +2952,15 @@ async function swapHexImgsForMode(){
       var backup = localStorage.getItem('_hexbk_' + dbKey);
       if(backup && isValidImageData(backup)){ applyHexImg(k, backup); loaded = true; }
     }
-    // 都沒有 → 顯示預設 icon
+    // 都沒有 → 先清掉舊圖避免殘影/破圖閃一下，再呼叫 loadDefaultHexImg 試 images/ 資料夾
     if(!loaded){
       var imgEl = document.getElementById(k + 'Img');
       var iconEl = document.getElementById(k + 'Icon');
       if(imgEl){ imgEl.src = ''; imgEl.style.display = 'none'; }
       if(iconEl){ iconEl.style.display = ''; }
+      // ★ 重要：再去試 images/hex_<k>_day.jpg → .png → 黑夜版.jpg → .png（loadDefaultHexImg 內部會自己處理）
+      //   找到的話會把 imgEl.style.display 設回 block、icon 隱藏；找不到就保持 emoji
+      loadDefaultHexImg(k);
     }
   }
 }
