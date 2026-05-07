@@ -245,6 +245,12 @@ const DEFAULT_RULES = [
     triggerCondition:'所有 6 個 AI 功能對話時',
     output:'知識庫全文' },
 
+  { id:'data_monthly_perf_8sheets', category:'data', name:'業績數據中心 — 月績效中心 8 大報表', enabled:true,
+    description:'AI 對話時自動帶入業績數據中心 → 每月績效的 8 個報表 row 級資料：❶ 通路名單來源分析、❷ 通路業績、❸ 業務個人績效、❹ 正式小組業績總表、❺ 學院績效總表、❻ 繳費項目分析、❼ 收支分析、❽ 課程銷售分析。所有月份的可用性會以摘要形式呈現；最近 3 個有資料的月份會展開到 row 級資料（每個 sheet 最多 50 筆，全欄位非空者帶入）。\n\n用例：問「4 月業務個人績效面談率前 5 名」、「2 月各通路業績比較」、「Q1 學院績效總表前 3 名」這類具體問題時，AI 才能算得出來。\n\n資料來源是 localStorage.mp_data_v1（全主角共享），結構為 { "1": { sheet1: [...], ..., sheet8: [...] }, ..., "12": {...} }。',
+    sourceFunction:'ai-advisor.html → getMonthlyPerfCtx()',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'月份摘要列（哪些月份哪些 sheet 有幾筆）+ 最近 3 個月每報表前 50 筆 row 的所有非空欄位' },
+
   // ━━ 🎭 角色提示詞 ━━
   { id:'prompt_coach', category:'prompt', name:'AI 教練 system prompt', enabled:true,
     description:'六大維度精準分析與教練指導。專長是能力分析，但會調動業績、案例、鐵律等資料。',
@@ -350,6 +356,12 @@ const DEFAULT_RULES = [
     sourceFunction:'performance-compare.html → renderReportCard() 的 Section 0',
     triggerCondition:'每次切換到成績單 tab 或選月份時',
     output:'4 個排行榜（學院/業務/正式/儲備）依序展開' },
+
+  { id:'ui_ask_examples_banner', category:'ui', name:'AI 顧問首頁「💡 提問教學 — 50 個範例」大按鈕', enabled:true,
+    description:'AI 顧問中心首頁（卡片頁）最上方有一個跨欄大按鈕，金紫漸層，比下方 6 個 AI 卡片大一倍。點擊進入提問教學頁，列出 50 個分類範例問題（業績查詢/跨月趨勢/個人分析/組員指導/案例經驗/行動規劃 共 6 大類）。每個問題可一鍵送到對應 AI 顧問並自動回答。',
+    sourceFunction:'ai-advisor.html → .ask-examples-banner DOM + showView(\'askexamples\') + renderAskExamples() + askAi()',
+    triggerCondition:'進入 AI 顧問中心首頁時自動顯示；點擊大按鈕進入教學頁',
+    output:'50 個問題分 6 類顯示，每題標註 target AI 顧問 + 「🚀 問」一鍵直送' },
 
   { id:'ui_rc_filter_100k', category:'ui', name:'成績單過濾 < 10 萬不顯示', enabled:true,
     description:'成績單 EIP 排行榜快照 Section 中：學院/業務 value<10 萬整列隱藏；小組 total<10 萬整組隱藏；組內個別成員 value<10 萬個別隱藏。',
