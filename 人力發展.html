@@ -1625,6 +1625,22 @@
           <button onclick="adminNav('admin-ai-chats.html?feature=cases')" style="padding:12px;font-size:13px;font-weight:700;border:1px solid rgba(255,167,38,0.35);border-radius:10px;background:rgba(255,167,38,0.06);color:#ffa726;cursor:pointer;text-align:left;">📚 AI 案例庫</button>
         </div>
       </div>
+      <!-- ★ AI 顧問中心 調動規則（僅管理員「黃柏翰」可見）— 所有規則的目錄與管理 -->
+      <div class="admin-section" id="aiRulesAdminSection" style="display:none;margin-bottom:18px;border:2px solid rgba(167,139,250,0.3);background:linear-gradient(135deg,rgba(167,139,250,0.06),rgba(255,215,0,0.04));">
+        <h3 style="color:#a78bfa;display:flex;align-items:center;gap:8px;">
+          🤖 AI 顧問中心 調動規則
+          <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:rgba(255,215,0,.15);color:#ffd700;border:1px solid rgba(255,215,0,.3);">管理員專屬</span>
+        </h3>
+        <div style="font-size:11px;color:#bda8e8;line-height:1.7;margin:8px 0 12px;">
+          歷史至今所有 AI 顧問中心會調動的資料、提示詞、權限、UI 規則一覽。<br>
+          可分類瀏覽（資料調動 / 角色提示詞 / 儲存與紀錄 / 權限規則 / UI 規則 / 自訂）、停用、刪除、新增。<br>
+          <span style="color:#ffd700;">以後每次跟 Claude 說新增 AI 顧問中心的規則，都會自動存進這裡，方便你回頭檢視合不合理。</span>
+        </div>
+        <button class="admin-save-btn" style="width:100%;padding:14px;font-size:15px;background:linear-gradient(135deg,#a78bfa,#ffd700);color:#03060f;letter-spacing:2px;font-weight:800;" onclick="adminNav('admin-ai-rules.html')">
+          📋 開啟規則管理頁
+        </button>
+      </div>
+
       <!-- ★ 審計記錄入口（僅管理員「黃柏翰」可見） -->
       <div class="admin-section" id="auditAdminSection" style="display:none;margin-bottom:18px;border:2px solid rgba(74,234,255,0.3);background:linear-gradient(135deg,rgba(74,234,255,0.06),rgba(167,139,250,0.06));">
         <h3 style="color:#4aeaff;display:flex;align-items:center;gap:8px;">
@@ -2136,7 +2152,7 @@ function updateAuditAdminVisibility(){
   const ADMINS = ['黃柏翰'];  // 想加更多管理員就加進這個 array
   const cn = localStorage.getItem('activeCharacterName') || '';
   const isAdmin = ADMINS.indexOf(cn) >= 0;
-  ['adminAiCenterSection','auditAdminSection'].forEach(function(id){
+  ['adminAiCenterSection','aiRulesAdminSection','auditAdminSection'].forEach(function(id){
     const sec = document.getElementById(id);
     if(sec) sec.style.display = isAdmin ? 'block' : 'none';
   });

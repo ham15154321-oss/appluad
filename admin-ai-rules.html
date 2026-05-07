@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🤖 AI 顧問中心 調動規則 — 赫綠設計學院</title>
+<script src="auth-check.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  min-height:100vh;
+  background:linear-gradient(135deg,#050510 0%,#0d1033 40%,#1a0a2e 70%,#050510 100%);
+  color:#e8e8e8;
+  font-family:'Segoe UI','Microsoft JhengHei',-apple-system,sans-serif;
+  padding:20px 24px 60px;
+}
+.wrap{max-width:1280px;margin:0 auto;}
+.head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
+.title{font-size:22px;font-weight:900;color:#a78bfa;letter-spacing:2px;text-shadow:0 0 16px rgba(167,139,250,.25);}
+.sub{font-size:11px;color:rgba(180,200,240,.5);letter-spacing:1px;}
+.btn{padding:8px 14px;border-radius:8px;cursor:pointer;border:none;font-weight:700;font-size:13px;font-family:inherit;}
+.btn-primary{background:linear-gradient(135deg,#a78bfa,#4aeaff);color:#03060f;}
+.btn-add{background:rgba(0,232,104,.12);border:1px solid rgba(0,232,104,.3);color:#00e868;}
+.btn-back{background:rgba(255,255,255,.04);border:1px solid rgba(160,160,200,.2);color:#bda8e8;}
+.btn-danger{background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.3);color:#ff8a8a;}
+.btn-ghost{background:rgba(255,255,255,.04);border:1px solid rgba(160,160,200,.18);color:#bda8e8;}
+.btn:hover{filter:brightness(1.1);}
+
+/* layout */
+.body{display:grid;grid-template-columns:240px 1fr;gap:18px;}
+@media (max-width:780px){.body{grid-template-columns:1fr;}}
+
+/* TOC */
+.toc{
+  background:rgba(15,20,50,.55);border:1px solid rgba(167,139,250,.18);
+  border-radius:12px;padding:14px 10px;backdrop-filter:blur(12px);
+  position:sticky;top:14px;align-self:start;max-height:calc(100vh - 30px);overflow-y:auto;
+}
+.toc-title{font-size:12px;font-weight:700;color:#a78bfa;letter-spacing:2px;padding:0 8px 10px;border-bottom:1px solid rgba(167,139,250,.15);margin-bottom:8px;}
+.toc-item{
+  padding:8px 10px;border-radius:8px;font-size:13px;cursor:pointer;color:#bda8e8;
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;
+}
+.toc-item:hover{background:rgba(167,139,250,.08);color:#e2d4ff;}
+.toc-item.active{background:rgba(167,139,250,.18);color:#fff;font-weight:700;}
+.toc-item .cnt{font-size:11px;background:rgba(255,215,0,.15);color:#ffd700;padding:1px 7px;border-radius:6px;}
+
+/* main */
+.main{
+  background:rgba(15,20,50,.55);border:1px solid rgba(74,234,255,.12);
+  border-radius:12px;padding:18px;backdrop-filter:blur(12px);min-height:300px;
+}
+.cat-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(74,234,255,.12);}
+.cat-name{font-size:18px;font-weight:800;color:#4aeaff;}
+.cat-desc{font-size:12px;color:rgba(180,200,240,.6);margin-top:4px;}
+
+/* rule card */
+.rule{
+  border:1px solid rgba(160,160,200,.15);border-radius:10px;padding:12px 14px;margin-bottom:10px;
+  background:rgba(255,255,255,.02);transition:all .2s;
+}
+.rule.disabled{opacity:.45;border-style:dashed;}
+.rule:hover{border-color:rgba(74,234,255,.35);background:rgba(74,234,255,.03);}
+.rule-row1{display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.rule-name{font-weight:700;font-size:14px;color:#e8e8ff;flex:1;}
+.rule-id{font-size:10px;color:rgba(160,180,220,.4);font-family:'Courier New',monospace;margin-left:8px;}
+.rule-meta{font-size:11px;color:rgba(180,200,240,.5);margin-top:4px;}
+.rule-actions{display:flex;gap:6px;align-items:center;margin-left:8px;}
+.rule-actions .btn{padding:4px 10px;font-size:11px;}
+.rule-detail{
+  margin-top:10px;padding:10px 12px;background:rgba(0,0,0,.18);border-radius:8px;
+  font-size:12.5px;line-height:1.7;color:#dde6f0;display:none;
+}
+.rule.expanded .rule-detail{display:block;}
+.rule-field{margin-bottom:6px;}
+.rule-field strong{color:#a78bfa;display:inline-block;min-width:80px;}
+.rule-field code{background:rgba(74,234,255,.08);padding:1px 6px;border-radius:4px;font-size:11px;color:#4aeaff;font-family:'Courier New',monospace;}
+
+/* modal (新增規則) */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;justify-content:center;align-items:center;backdrop-filter:blur(8px);}
+.modal-bg.open{display:flex;}
+.modal{
+  background:linear-gradient(135deg,#0d1033,#1a0a2e);border:1px solid rgba(167,139,250,.3);
+  border-radius:14px;padding:24px;max-width:580px;width:90%;max-height:80vh;overflow-y:auto;
+}
+.modal h3{color:#a78bfa;font-size:18px;margin-bottom:14px;}
+.modal label{display:block;font-size:12px;color:rgba(180,200,240,.7);margin:10px 0 4px;font-weight:700;}
+.modal input,.modal textarea,.modal select{
+  width:100%;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.04);
+  border:1px solid rgba(100,160,255,.15);color:#e8e8ff;font-size:13px;font-family:inherit;outline:none;
+}
+.modal textarea{min-height:70px;resize:vertical;}
+.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:#a78bfa;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+
+/* empty */
+.empty{padding:40px 20px;text-align:center;color:rgba(180,200,240,.5);font-size:13px;line-height:1.7;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="head">
+    <div class="title">🤖 AI 顧問中心 調動規則</div>
+    <div class="sub">管理員專屬 · 所有 AI 顧問中心會調用的資料來源、提示詞、權限規則一覽</div>
+    <div style="flex:1;"></div>
+    <button class="btn btn-back" onclick="history.back()">← 回後台</button>
+    <button class="btn btn-add" onclick="openAddModal()">＋ 新增規則</button>
+  </div>
+
+  <div class="body">
+    <!-- TOC -->
+    <div class="toc" id="toc"></div>
+    <!-- Main -->
+    <div class="main" id="main"></div>
+  </div>
+</div>
+
+<!-- 新增/編輯規則 Modal -->
+<div class="modal-bg" id="ruleModal">
+  <div class="modal">
+    <h3 id="ruleModalTitle">＋ 新增規則</h3>
+    <label>📂 類別</label>
+    <select id="rmCategory">
+      <option value="data">📚 資料調動</option>
+      <option value="prompt">🎭 角色提示詞</option>
+      <option value="storage">💾 儲存與紀錄</option>
+      <option value="permission">🔒 權限規則</option>
+      <option value="ui">🎨 UI 規則</option>
+      <option value="custom">📝 使用者自訂</option>
+    </select>
+    <label>🏷️ 規則名稱</label>
+    <input id="rmName" placeholder="例：每次對話自動帶入面談率資料">
+    <label>📝 描述</label>
+    <textarea id="rmDescription" placeholder="這條規則的目的、為什麼需要..."></textarea>
+    <label>📍 程式來源（選填，例如 ai-advisor.html → getXxxCtx()）</label>
+    <input id="rmSource" placeholder="ai-advisor.html → getXxxCtx()">
+    <label>⚡ 觸發條件（選填）</label>
+    <input id="rmTrigger" placeholder="例：所有 6 個 AI 功能對話時 / 只有 AI 教練對話時">
+    <label>📤 輸出格式（選填）</label>
+    <textarea id="rmOutput" placeholder="例：主角名 + 各維度分數 + 總分"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAddModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveRule()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  ★ AI 顧問中心 調動規則 — 註冊表
+//  存放於 localStorage 'ai_advisor_rules_v1'
+//  首次開啟時自動以下方 DEFAULT_RULES 初始化（pre-populate）
+//  使用者可新增、刪除（軟刪除：enabled=false）、編輯
+// ════════════════════════════════════════════════════════════════
+const SK_RULES = 'ai_advisor_rules_v1';
+
+const CATEGORIES = {
+  data:       { label: '📚 資料調動', desc: 'AI 對話時自動塞入 system prompt 的資料來源（getFullContext 一次組裝）' },
+  prompt:     { label: '🎭 角色提示詞', desc: '6 個 AI 功能各自的角色設定 + 共用 GOLDEN_CIRCLE 結尾' },
+  storage:    { label: '💾 儲存與紀錄', desc: '對話、操作、業績快照的儲存與同步邏輯' },
+  permission: { label: '🔒 權限規則', desc: '哪些功能只有特定主角（黃柏翰）能看' },
+  ui:         { label: '🎨 UI 規則', desc: '排版、過濾、顯示順序等介面慣例' },
+  custom:     { label: '📝 使用者自訂', desc: '黃柏翰自己加的規則' }
+};
+
+// 預設規則（首次載入時寫入 localStorage）— 反映目前程式碼真實狀態
+const DEFAULT_RULES = [
+  // ━━ 📚 資料調動 ━━
+  { id:'data_360',      category:'data', name:'360 度評估資料', enabled:true,
+    description:'每次 AI 對話自動帶入該主角的六大維度評分（會議、績效管理、人員管理、日常輔導、小組發展、宣誓），含主管/自評/區主管/總經理/同儕/部屬六種角色。',
+    sourceFunction:'ai-advisor.html → getScoreCtx() / get360FullCtx()',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'主角名 + 6 維度分數 + 總分 + 360 完整備註' },
+
+  { id:'data_perf_latest', category:'data', name:'業績排名（最近一次同步）', enabled:true,
+    description:'帶入學院排名、業務排名、正式小組績效、儲備小組績效（從 EIP 同步的最新版）。各取前 N 名。',
+    sourceFunction:'ai-advisor.html → getPerfCtx()',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'學院 Top10、業務 Top10、正式組 Top15、儲備組 Top15' },
+
+  { id:'data_perf_archive', category:'data', name:'業績歷史檔案（成績單存檔）', enabled:true,
+    description:'從業績數據中心 → 激勵 →「📥 匯入成績單」存檔的歷史月份資料。AI 可跨月比較、回溯查詢。',
+    sourceFunction:'ai-advisor.html → getPerfCtx() 內部讀 motiv_archive',
+    triggerCondition:'所有 AI 功能對話時，且使用者已匯入過至少一個月份成績單',
+    output:'已匯入月份清單 + 每月各排行榜筆數' },
+
+  { id:'data_perf_topgroup_compare', category:'data', name:'跨月正式小組 Top 5 比較', enabled:true,
+    description:'從多月份成績單存檔抽出每月正式小組前 5 名，做橫向比較，方便 AI 回答「某組這個月跟上個月差多少」這類問題。',
+    sourceFunction:'ai-advisor.html → getPerfCtx() 內部讀 motiv_archive',
+    triggerCondition:'有 ≥ 2 個月份成績單時',
+    output:'每月 Top 5 組別 + 總業績' },
+
+  { id:'data_channel', category:'data', name:'通路績效資料', enabled:true,
+    description:'帶入各通路（網路、招生、續報等）的當期績效，含目標達成率。',
+    sourceFunction:'ai-advisor.html → getChannelCtx()',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'通路名稱 + 目前業績 + 目標 + 達成率' },
+
+  { id:'data_fire', category:'data', name:'火種九宮格', enabled:true,
+    description:'帶入該主角的火種九宮格設定（9 個個人成長/小組發展面向的目標與現況）。',
+    sourceFunction:'ai-advisor.html → getFireCtx()',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'9 格主題 + 各格內容' },
+
+  { id:'data_achieve', category:'data', name:'成就紀錄', enabled:true,
+    description:'帶入主角已解鎖的成就（火種、季度勳章、組長獎等）。',
+    sourceFunction:'ai-advisor.html → getAchieveCtx()',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'已解鎖成就清單 + 取得時間' },
+
+  { id:'data_rules', category:'data', name:'團隊鐵律', enabled:true,
+    description:'從 AI 顧問中心 → 📜 鐵律 設定的團隊行事準則，AI 每次回答都會優先參考。',
+    sourceFunction:'ai-advisor.html → getRulesCtx() (key: ai_rules_v1)',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'每條鐵律全文（無字數上限）' },
+
+  { id:'data_casedb', category:'data', name:'案例資料庫（好/壞/數據查詢）', enabled:true,
+    description:'從 AI 顧問中心 → 📂 資料庫 加入的案例。AI 案例庫對話時尤其依賴，但所有功能都會看。',
+    sourceFunction:'ai-advisor.html → getCaseDbCtx() (key: ai_casedb_v1)',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'每筆案例的類型標籤（📗好/📕壞/📊數據查詢）+ 全文' },
+
+  { id:'data_pmemory', category:'data', name:'個人私聊記憶（per character）', enabled:true,
+    description:'從 AI 顧問中心 → 🔐 私聊 加入的個人記憶，只有該主角自己看得到，AI 對話時優先參考。各主角隔離。',
+    sourceFunction:'ai-advisor.html → getPmemoryCtx() (key: char_<id>_ai_pmemory_v1)',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'該主角的所有記憶（feature 標籤 + 日期 + 全文）' },
+
+  { id:'data_timeline', category:'data', name:'時間軸任務', enabled:true,
+    description:'從 AI 顧問中心 → 📅 時間軸 設定的待辦/進行中/已完成任務。',
+    sourceFunction:'ai-advisor.html → getTimelineCtx() (key: ai_timeline_v1)',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'每個任務的狀態 + 描述 + 截止日' },
+
+  { id:'data_otherchars', category:'data', name:'其他主角數據', enabled:true,
+    description:'掃描所有主角的關鍵指標（業績、評分、成就），讓 AI 能做主角間比較與挑戰建議。',
+    sourceFunction:'ai-advisor.html → getOtherCharsCtx()',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'其他主角名 + 關鍵指標摘要' },
+
+  { id:'data_teamkb', category:'data', name:'團隊知識庫（appedu_team_knowledge_base）', enabled:true,
+    description:'從 AI 團隊宣言累積的公司知識庫，越餵越聰明。',
+    sourceFunction:'ai-advisor.html → 直接讀 SK.teamkb',
+    triggerCondition:'所有 6 個 AI 功能對話時',
+    output:'知識庫全文' },
+
+  // ━━ 🎭 角色提示詞 ━━
+  { id:'prompt_coach', category:'prompt', name:'AI 教練 system prompt', enabled:true,
+    description:'六大維度精準分析與教練指導。專長是能力分析，但會調動業績、案例、鐵律等資料。',
+    sourceFunction:'ai-advisor.html → FEATURES.cards.system',
+    triggerCondition:'進入 AI 教練對話時',
+    output:'設定 AI 為赫綵教練，回答後會加「📋 建議行動」區塊（2-3 個具體行動）' },
+
+  { id:'prompt_data', category:'prompt', name:'AI 數據通 system prompt', enabled:true,
+    description:'業績通路排名深度分析。',
+    sourceFunction:'ai-advisor.html → FEATURES.data.system',
+    triggerCondition:'進入 AI 數據通對話時',
+    output:'設定 AI 為業績分析專家' },
+
+  { id:'prompt_task', category:'prompt', name:'AI 小任務 system prompt', enabled:true,
+    description:'自動指派可執行的小任務。',
+    sourceFunction:'ai-advisor.html → FEATURES.tasks.system',
+    triggerCondition:'進入 AI 小任務對話時',
+    output:'設定 AI 為任務拆解專家' },
+
+  { id:'prompt_team', category:'prompt', name:'AI 團隊宣言 system prompt', enabled:true,
+    description:'公司知識庫越餵越聰明。',
+    sourceFunction:'ai-advisor.html → FEATURES.declaration.system',
+    triggerCondition:'進入 AI 團隊宣言對話時',
+    output:'設定 AI 持續學習公司知識' },
+
+  { id:'prompt_mentor', category:'prompt', name:'AI 陪跑師 system prompt（芒格巴菲特，不灌雞湯）', enabled:true,
+    description:'用芒格、巴菲特的思維模型陪跑，避免空泛雞湯。',
+    sourceFunction:'ai-advisor.html → FEATURES.mentor.system',
+    triggerCondition:'進入 AI 陪跑師對話時',
+    output:'設定 AI 為理性陪跑師' },
+
+  { id:'prompt_cases', category:'prompt', name:'AI 案例庫 system prompt', enabled:true,
+    description:'好壞案例批判性分析（📗做對什麼、📕根因、🔍反思）。應該參考案例資料庫並連結到真實數據。',
+    sourceFunction:'ai-advisor.html → FEATURES.cases.system',
+    triggerCondition:'進入 AI 案例庫對話時',
+    output:'設定 AI 為案例分析專家' },
+
+  { id:'prompt_golden_circle', category:'prompt', name:'GOLDEN_CIRCLE 共用結尾', enabled:true,
+    description:'附加在所有 AI 功能 system prompt 結尾的共用價值觀與行事準則。',
+    sourceFunction:'ai-advisor.html → 變數 GOLDEN_CIRCLE',
+    triggerCondition:'每個 AI 功能 system prompt 結尾',
+    output:'共用準則文字' },
+
+  // ━━ 💾 儲存與紀錄 ━━
+  { id:'storage_chat_firestore', category:'storage', name:'AI 對話寫入 Firestore', enabled:true,
+    description:'每次 AI 對話（user msg + AI reply）會透過 firebaseSync.logAiChat() 寫入雲端，給黃柏翰之後檢視/分類。',
+    sourceFunction:'ai-advisor.html → _logAiChatRemote() / firebase-sync.js logAiChat',
+    triggerCondition:'每次 AI 回應完成後',
+    output:'寫入 Firestore：主角、功能、user 內容、AI 內容、時間戳' },
+
+  { id:'storage_pmemory_isolated', category:'storage', name:'個人私聊記憶 per-character 隔離', enabled:true,
+    description:'每位主角的私聊記憶用 char_<id>_ai_pmemory_v1 隔離儲存，主角間互不可見（黃柏翰除外）。',
+    sourceFunction:'ai-advisor.html → _pmemoryKey()',
+    triggerCondition:'新增/讀取/刪除個人記憶時',
+    output:'localStorage key 前綴：char_<activeCharacterId>_' },
+
+  { id:'storage_motiv_archive', category:'storage', name:'業績匯入成績單（多月累積）', enabled:true,
+    description:'點「📥 匯入成績單」會凍結 4 個排行榜當前資料，存到 motiv_archive[年-月]，AI 顧問可跨月查詢。',
+    sourceFunction:'performance-compare.html → motivImportToReportCard()',
+    triggerCondition:'手動點「📥 匯入成績單」按鈕',
+    output:'localStorage key：char_<id>_motiv_archive，結構 { "2026-05": {...}, "2026-04": {...} }' },
+
+  { id:'storage_audit_log', category:'storage', name:'操作審計日誌（Firestore 同步紀錄）', enabled:true,
+    description:'firebaseSync push 後會寫一筆審計記錄：誰、何時、從哪頁、改了哪些 key。黃柏翰可從審計記錄頁查詢/匯出 CSV。',
+    sourceFunction:'firebase-sync.js → _writeAuditLog()',
+    triggerCondition:'每次 firebaseSync.push() 完成後',
+    output:'Firestore audit_logs：tenant、charId、charName、page、timestamp、changedKeys' },
+
+  // ━━ 🔒 權限規則 ━━
+  { id:'perm_admin_chats', category:'permission', name:'黃柏翰專屬：AI 顧問中心對話總覽', enabled:true,
+    description:'⚙️ 後台管理 → 「🤖 AI 顧問中心」區塊只有黃柏翰看得到，可進入 admin-ai-chats.html 看所有主角的對話紀錄。',
+    sourceFunction:'人力發展.html → updateAuditAdminVisibility() 控制 #adminAiCenterSection 顯隱',
+    triggerCondition:'每次後台管理開啟時檢查',
+    output:'非黃柏翰時 display:none' },
+
+  { id:'perm_admin_audit', category:'permission', name:'黃柏翰專屬：審計記錄', enabled:true,
+    description:'⚙️ 後台管理 → 「📋 審計記錄」區塊只有黃柏翰看得到，可進入 admin-logs.html。',
+    sourceFunction:'人力發展.html → updateAuditAdminVisibility() 控制 #auditAdminSection',
+    triggerCondition:'每次後台管理開啟時檢查',
+    output:'非黃柏翰時 display:none' },
+
+  { id:'perm_pmemory_admin_view', category:'permission', name:'黃柏翰專屬：查看所有主角的私聊資料庫', enabled:true,
+    description:'AI 顧問中心 → 🔐 私聊 tab 內，只有黃柏翰會看到「👀 查看所有主角」按鈕，可瀏覽所有主角的個人記憶。',
+    sourceFunction:'ai-advisor.html → renderPmemory() 內判斷 activeCharacterName === "黃柏翰"',
+    triggerCondition:'每次進入 🔐 私聊 tab 時',
+    output:'非黃柏翰時 #pmemoryAdminBtn display:none' },
+
+  { id:'perm_admins_array', category:'permission', name:'管理員清單（ADMINS array）', enabled:true,
+    description:'目前管理員清單為 ["黃柏翰"]。要加入其他管理員，在人力發展.html 的 updateAuditAdminVisibility 內修改 ADMINS。',
+    sourceFunction:'人力發展.html → const ADMINS = [\'黃柏翰\']',
+    triggerCondition:'頁面載入時',
+    output:'判斷當前 activeCharacterName 是否在 ADMINS 內' },
+
+  // ━━ 🎨 UI 規則 ━━
+  { id:'ui_casedb_filter_order', category:'ui', name:'案例資料庫篩選順序', enabled:true,
+    description:'AI 顧問中心 → 📂 資料庫 篩選列從左到右為：全部 / 📗 好案例 / 📕 壞案例 / 📊 數據查詢案例 / 📢 跑馬燈',
+    sourceFunction:'ai-advisor.html → renderCaseDb() 的 filterHtml',
+    triggerCondition:'每次渲染案例資料庫時',
+    output:'5 個篩選按鈕，藍色為數據查詢案例' },
+
+  { id:'ui_rc_archive_top', category:'ui', name:'成績單 EIP 排行榜快照置頂', enabled:true,
+    description:'業績數據中心 → 📝 成績單，匯入過的 EIP 排行榜快照顯示在最頂端（Header 之後），其他 Section 接在後面。',
+    sourceFunction:'performance-compare.html → renderReportCard() 的 Section 0',
+    triggerCondition:'每次切換到成績單 tab 或選月份時',
+    output:'4 個排行榜（學院/業務/正式/儲備）依序展開' },
+
+  { id:'ui_rc_filter_100k', category:'ui', name:'成績單過濾 < 10 萬不顯示', enabled:true,
+    description:'成績單 EIP 排行榜快照 Section 中：學院/業務 value<10 萬整列隱藏；小組 total<10 萬整組隱藏；組內個別成員 value<10 萬個別隱藏。',
+    sourceFunction:'performance-compare.html → renderReportCard() Section 0 _MIN_DISPLAY = 100000',
+    triggerCondition:'每次渲染成績單時',
+    output:'每個小區塊標題顯示「顯示 X / 共 Y 筆（隱藏 Z 筆 < 10 萬）」' }
+];
+
+// ════════════════════════════════════════════════════════════════
+//  載入 / 儲存
+// ════════════════════════════════════════════════════════════════
+function loadRules(){
+  try{
+    var raw = localStorage.getItem(SK_RULES);
+    if(!raw){
+      // 首次：寫入預設
+      var initial = DEFAULT_RULES.map(function(r){
+        return Object.assign({}, r, { addedBy:'初始系統規則', addedAt: Date.now() });
+      });
+      localStorage.setItem(SK_RULES, JSON.stringify(initial));
+      return initial;
+    }
+    var arr = JSON.parse(raw) || [];
+    // 補進新加入的預設規則（id 不在現有清單中的）
+    var existingIds = arr.map(function(r){ return r.id; });
+    var added = false;
+    DEFAULT_RULES.forEach(function(d){
+      if(existingIds.indexOf(d.id) < 0){
+        arr.push(Object.assign({}, d, { addedBy:'系統補登', addedAt: Date.now() }));
+        added = true;
+      }
+    });
+    if(added) localStorage.setItem(SK_RULES, JSON.stringify(arr));
+    return arr;
+  }catch(e){ return DEFAULT_RULES.slice(); }
+}
+function saveRules(arr){
+  try{ localStorage.setItem(SK_RULES, JSON.stringify(arr || [])); }catch(e){ alert('❌ 儲存失敗：'+e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  渲染
+// ════════════════════════════════════════════════════════════════
+var currentCategory = 'data'; // 預設打開「資料調動」
+
+function renderTOC(){
+  var rules = loadRules();
+  var counts = {};
+  Object.keys(CATEGORIES).forEach(function(k){ counts[k] = 0; });
+  rules.forEach(function(r){ counts[r.category] = (counts[r.category]||0) + 1; });
+
+  var html = '<div class="toc-title">📋 目錄</div>';
+  Object.keys(CATEGORIES).forEach(function(k){
+    var c = counts[k] || 0;
+    html += '<div class="toc-item'+(currentCategory===k?' active':'')+'" onclick="switchCategory(\''+k+'\')">'
+      + '<span>'+CATEGORIES[k].label+'</span>'
+      + '<span class="cnt">'+c+'</span>'
+      + '</div>';
+  });
+  // ★ 教育 AI 顧問規則（範例集）— 在目錄下方
+  html += '<div style="margin-top:14px;padding-top:12px;border-top:1px dashed rgba(167,139,250,.25);"></div>';
+  html += '<div class="toc-item'+(currentCategory==='examples'?' active':'')+'" onclick="switchCategory(\'examples\')" style="background:'+(currentCategory==='examples'?'rgba(255,215,0,.18)':'rgba(255,215,0,.06)')+';color:'+(currentCategory==='examples'?'#ffd700':'#ffd76b')+';border:1px solid rgba(255,215,0,.3);">'
+    + '<span>💡 教育 AI 顧問規則</span>'
+    + '<span class="cnt" style="background:rgba(255,215,0,.25);color:#ffd700;">30 例</span>'
+    + '</div>';
+  html += '<div style="font-size:10px;color:rgba(255,215,0,.6);padding:6px 8px;line-height:1.5;">學會怎麼跟 Claude 說，讓 AI 顧問越來越聰明</div>';
+  document.getElementById('toc').innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  💡 教育 AI 顧問規則 — 30 個範例
+// ════════════════════════════════════════════════════════════════
+const EDU_EXAMPLES = [
+  // ━━ 📊 資料調動 (10 條) ━━
+  { cat:'📊 資料調動', title:'每次教練回答先講面談率',
+    prompt:'AI 教練每次回答都先講該主角這個月的面談率，再進入主題。' },
+  { cat:'📊 資料調動', title:'數據通帶 3 個月業績走勢',
+    prompt:'AI 數據通對話時自動帶入該主角過去 3 個月的業績走勢，例如「3月 45 萬 → 4月 38 萬 → 5月 52 萬」。' },
+  { cat:'📊 資料調動', title:'教練列同學院 Top 3 對標',
+    prompt:'AI 教練回答時自動列出該主角同學院的前 3 名業績組長作為對標標竿。' },
+  { cat:'📊 資料調動', title:'案例自帶時空背景',
+    prompt:'AI 案例庫分析任何案例時，自動帶入該案例的時空背景：哪個月份、哪個學院、當時整體環境如何。' },
+  { cat:'📊 資料調動', title:'陪跑師看最新私聊記憶優先',
+    prompt:'AI 陪跑師對話時，最近 1 個月新增的私聊記憶權重 ×3，超過 3 個月的權重 ×0.3。' },
+  { cat:'📊 資料調動', title:'教練看最近嘉許避免重複',
+    prompt:'AI 教練每次回答自動參考該主角最近 5 條嘉許紀錄，避免重複稱讚同一件事。' },
+  { cat:'📊 資料調動', title:'數據通報昨日新名單',
+    prompt:'AI 數據通對話開場自動報告該主角昨日的新進名單數與當週累計面談率。' },
+  { cat:'📊 資料調動', title:'小任務避開時間軸已有任務',
+    prompt:'AI 小任務生成新任務前，先掃描 📅 時間軸，避免跟未完成任務內容重複。' },
+  { cat:'📊 資料調動', title:'案例庫關聯私聊記憶',
+    prompt:'AI 案例庫分析時，如果該主角有相關的私聊記憶（關鍵字相同），優先以該記憶為分析角度。' },
+  { cat:'📊 資料調動', title:'宣言帶當月通路目標',
+    prompt:'AI 團隊宣言對話自動帶入該主角當月各通路（網路、招生、續報）的目標達成率。' },
+
+  // ━━ 🎤 風格與口吻 (8 條) ━━
+  { cat:'🎤 風格與口吻', title:'教練回答字數壓 300',
+    prompt:'AI 教練回答字數壓在 300 字內，建議行動不超過 3 點。' },
+  { cat:'🎤 風格與口吻', title:'數據通開場報亮點與隱憂',
+    prompt:'AI 數據通每次對話開場用一句話講該主角這個月的「最大亮點」與「最大隱憂」，再展開細節。' },
+  { cat:'🎤 風格與口吻', title:'陪跑師禁用雞湯詞',
+    prompt:'AI 陪跑師禁止使用「加油」「努力」「相信自己」「你可以的」這類雞湯詞，改用具體事實或行動建議。' },
+  { cat:'🎤 風格與口吻', title:'小任務統一截止日',
+    prompt:'AI 小任務生成的任務截止日預設都是「下週五前」，除非使用者特別指定。' },
+  { cat:'🎤 風格與口吻', title:'教練固定收尾格式',
+    prompt:'AI 教練回答結尾固定加「🎯 三個動作 / 一個放下」格式：列出 3 個本週要做的具體動作 + 1 件可以放下的事。' },
+  { cat:'🎤 風格與口吻', title:'案例庫用 SCQA 結構',
+    prompt:'AI 案例庫分析每個案例都用 SCQA 結構：Situation（情境）→ Complication（衝突）→ Question（提問）→ Answer（解方）。' },
+  { cat:'🎤 風格與口吻', title:'宣言要引用真實業績',
+    prompt:'AI 團隊宣言每次回答都引用最近一週的某位真實組員的具體業績數字作為佐證，不要只是空談理念。' },
+  { cat:'🎤 風格與口吻', title:'統一第二人稱「你」',
+    prompt:'所有 AI 顧問對話一律用第二人稱「你」稱呼主角，不要用「該主角」「他/她」這種第三人稱。' },
+
+  // ━━ ⚡ 觸發條件 (5 條) ━━
+  { cat:'⚡ 觸發條件', title:'達成率 < 50% → 危機模式',
+    prompt:'當主角本月業績達成率低於 50%，AI 教練自動切換成「危機模式」：語氣加重、行動建議優先級提高、字數可放寬到 500 字。' },
+  { cat:'⚡ 觸發條件', title:'連續下滑 → 提結構檢視',
+    prompt:'當主角連續 2 個月業績下滑，AI 陪跑師主動提出「是否需要重新檢視小組組員結構」。' },
+  { cat:'⚡ 觸發條件', title:'記憶累積里程碑感謝',
+    prompt:'當主角私聊記憶累積到 5、10、20、50 條時，AI 對話自動在開場感謝主角的記錄行為。' },
+  { cat:'⚡ 觸發條件', title:'黃柏翰 → 總經理視角',
+    prompt:'當主角是「黃柏翰」進入 AI 教練，自動切換成「總經理視角」回答：跨組分析、戰略思考、組長盤點。' },
+  { cat:'⚡ 觸發條件', title:'數據案例累積 → 建議月報',
+    prompt:'當案例庫的「📊 數據查詢案例」超過 10 筆，AI 數據通主動建議「要不要把這些案例做成月報？」' },
+
+  // ━━ 🚫 過濾規則 (4 條) ━━
+  { cat:'🚫 過濾規則', title:'排除低分主角的案例',
+    prompt:'AI 案例庫對話要排除六大維度評分總分低於 60 的主角的案例。' },
+  { cat:'🚫 過濾規則', title:'數據通不顯示 0 業績',
+    prompt:'AI 數據通對話永遠不顯示業績為 0 的組員，避免訊號雜訊。' },
+  { cat:'🚫 過濾規則', title:'不參考停用鐵律',
+    prompt:'AI 顧問所有功能都不參考被使用者標記為「停用」的鐵律。' },
+  { cat:'🚫 過濾規則', title:'私聊記憶 90 天保鮮期',
+    prompt:'AI 顧問所有功能不參考超過 90 天前的私聊記憶（顯示在 🔐 私聊 tab 但不塞給 AI）。' },
+
+  // ━━ 🔗 跨功能整合 (3 條) ━━
+  { cat:'🔗 跨功能整合', title:'小任務一鍵加時間軸',
+    prompt:'AI 小任務生成的任務，每個都附「➕ 加進時間軸」按鈕，點下立刻新增到 📅 時間軸。' },
+  { cat:'🔗 跨功能整合', title:'面談建議自動連結客訴',
+    prompt:'AI 教練建議「需要面談某某組員」時，自動跳出按鈕「直接記錄這次面談」，點下開啟客訴紀錄表單。' },
+  { cat:'🔗 跨功能整合', title:'陪跑師結尾問記憶',
+    prompt:'AI 陪跑師對話結尾自動問「這次對話有什麼想加進私聊記憶的嗎？」並提供一鍵儲存按鈕。' }
+];
+
+// 渲染教育範例頁
+function renderExamples(){
+  // 依類別分組
+  var grouped = {};
+  EDU_EXAMPLES.forEach(function(ex){
+    if(!grouped[ex.cat]) grouped[ex.cat] = [];
+    grouped[ex.cat].push(ex);
+  });
+
+  var html = '<div class="cat-header"><div>';
+  html += '<div class="cat-name" style="color:#ffd700;">💡 教育 AI 顧問規則 — 30 個範例</div>';
+  html += '<div class="cat-desc">學會怎麼跟 Claude 說話，讓 AI 顧問越來越聰明。每個範例都可以一鍵複製，直接貼給 Claude。</div>';
+  html += '</div>';
+  html += '<div style="font-size:11px;color:rgba(180,200,240,.5);">共 '+EDU_EXAMPLES.length+' 例</div></div>';
+
+  // 操作說明
+  html += '<div style="padding:12px 14px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:10px;margin-bottom:16px;font-size:12.5px;line-height:1.7;color:#ffd76b;">';
+  html += '<b style="color:#ffd700;">📖 怎麼用：</b><br>';
+  html += '1. 看完範例，選你想試的那條 → 點「📋 複製」<br>';
+  html += '2. 切到 Claude 對話框 → 貼上 → 送出<br>';
+  html += '3. Claude 改完程式 + 把規則自動寫進「📚 資料調動」「🎭 角色提示詞」等對應分類<br>';
+  html += '4. 你打「部署」上線 → AI 顧問立刻變聰明<br>';
+  html += '<br>';
+  html += '<b style="color:#ffd700;">💪 練習建議：</b>每天試 1 條，1 個月就能把整個 AI 顧問訓練成你的私人助理。';
+  html += '</div>';
+
+  // 各類別
+  var catColors = {
+    '📊 資料調動':'#4aeaff',
+    '🎤 風格與口吻':'#a78bfa',
+    '⚡ 觸發條件':'#ffa726',
+    '🚫 過濾規則':'#ff8a8a',
+    '🔗 跨功能整合':'#00e868'
+  };
+  Object.keys(grouped).forEach(function(catName){
+    var color = catColors[catName] || '#bda8e8';
+    html += '<div style="margin-bottom:18px;">';
+    html += '<div style="font-size:14px;font-weight:800;color:'+color+';margin-bottom:8px;padding:6px 10px;border-left:3px solid '+color+';background:rgba(255,255,255,.02);">'+catName+' ('+grouped[catName].length+' 條)</div>';
+    grouped[catName].forEach(function(ex, i){
+      // 整體 idx（在 30 條裡的位置）
+      var globalIdx = EDU_EXAMPLES.indexOf(ex) + 1;
+      html += '<div class="rule" style="border-left:3px solid '+color+';">';
+      html += '<div class="rule-row1" style="cursor:default;align-items:flex-start;">';
+      html += '<div style="flex:1;">';
+      html += '<div class="rule-name"><span style="color:'+color+';margin-right:6px;">#'+globalIdx+'</span>'+esc(ex.title)+'</div>';
+      html += '<div style="margin-top:8px;padding:10px 12px;background:rgba(0,0,0,.25);border-radius:6px;font-family:\'Segoe UI\',sans-serif;font-size:13px;line-height:1.7;color:#e8e8ff;border-left:2px solid '+color+';">';
+      html += '<span style="font-size:10px;color:rgba(180,200,240,.5);display:block;margin-bottom:4px;">👤 你跟 Claude 說：</span>';
+      html += esc(ex.prompt);
+      html += '</div>';
+      html += '</div>';
+      html += '<div class="rule-actions" style="flex-direction:column;align-items:stretch;">';
+      html += '<button class="btn btn-primary" style="padding:6px 12px;font-size:11px;" onclick="copyExample('+globalIdx+', this)">📋 複製</button>';
+      html += '</div>';
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  // 結尾鼓勵
+  html += '<div style="margin-top:20px;padding:14px 16px;background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(74,234,255,.05));border:1px solid rgba(167,139,250,.25);border-radius:10px;font-size:12.5px;line-height:1.7;color:#bda8e8;text-align:center;">';
+  html += '🎓 <b style="color:#a78bfa;">這 30 條是起點，不是終點。</b><br>';
+  html += '你跟 Claude 共事越多次，你會越知道怎麼描述你想要的 AI 行為。<br>';
+  html += '想到任何「AI 應該這樣回答」「AI 應該知道這件事」「AI 不該說這種話」，<br>';
+  html += '都可以直接跟 Claude 說，不必拘泥於這 30 條範例。';
+  html += '</div>';
+
+  document.getElementById('main').innerHTML = html;
+}
+
+// 一鍵複製範例 prompt
+function copyExample(idx, btnEl){
+  var ex = EDU_EXAMPLES[idx - 1];
+  if(!ex) return;
+  var text = ex.prompt;
+  // 嘗試現代 API
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){
+      _flashCopied(btnEl);
+    }).catch(function(){
+      _fallbackCopy(text, btnEl);
+    });
+  } else {
+    _fallbackCopy(text, btnEl);
+  }
+}
+function _flashCopied(btnEl){
+  if(!btnEl) return;
+  var orig = btnEl.textContent;
+  btnEl.textContent = '✅ 已複製';
+  btnEl.style.background = 'linear-gradient(135deg,#00e868,#4aeaff)';
+  setTimeout(function(){
+    btnEl.textContent = orig;
+    btnEl.style.background = '';
+  }, 1500);
+}
+function _fallbackCopy(text, btnEl){
+  // 老瀏覽器 fallback
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try{ document.execCommand('copy'); _flashCopied(btnEl); }catch(e){ alert('複製失敗，請手動框選文字'); }
+  document.body.removeChild(ta);
+}
+
+function switchCategory(k){ currentCategory = k; renderTOC(); renderMain(); }
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderMain(){
+  // ★ 分流：點到「教育 AI 顧問規則」時，渲染 30 個範例頁面
+  if(currentCategory === 'examples'){ renderExamples(); return; }
+
+  var rules = loadRules();
+  var cat = CATEGORIES[currentCategory];
+  var inCat = rules.filter(function(r){ return r.category === currentCategory; });
+
+  var html = '<div class="cat-header"><div>';
+  html += '<div class="cat-name">'+cat.label+'</div>';
+  html += '<div class="cat-desc">'+cat.desc+'</div>';
+  html += '</div>';
+  html += '<div style="font-size:11px;color:rgba(180,200,240,.5);">共 '+inCat.length+' 條</div></div>';
+
+  if(!inCat.length){
+    html += '<div class="empty">這個類別還沒有規則。<br><br>點右上角「＋ 新增規則」建立。</div>';
+  } else {
+    inCat.forEach(function(r){
+      html += '<div class="rule'+(r.enabled===false?' disabled':'')+'" id="rule_'+r.id+'">';
+      html += '<div class="rule-row1" onclick="toggleRule(\''+r.id+'\')">';
+      html += '<div style="flex:1;">';
+      html += '<div class="rule-name">'+esc(r.name)+(r.enabled===false?' <span style="color:#ff8a8a;font-size:10px;font-weight:600;">[已停用]</span>':'')+'<span class="rule-id">'+r.id+'</span></div>';
+      html += '<div class="rule-meta">'+esc(r.description||'').slice(0,80)+(r.description&&r.description.length>80?'…':'')+'</div>';
+      html += '</div>';
+      html += '<div class="rule-actions" onclick="event.stopPropagation();">';
+      if(r.enabled===false){
+        html += '<button class="btn btn-add" onclick="toggleEnabled(\''+r.id+'\')">啟用</button>';
+      } else {
+        html += '<button class="btn btn-ghost" onclick="toggleEnabled(\''+r.id+'\')">停用</button>';
+      }
+      html += '<button class="btn btn-danger" onclick="deleteRule(\''+r.id+'\')">🗑 刪除</button>';
+      html += '</div>';
+      html += '</div>';
+      // 詳細
+      html += '<div class="rule-detail">';
+      html += '<div class="rule-field"><strong>📝 描述</strong>'+esc(r.description||'(無)')+'</div>';
+      if(r.sourceFunction) html += '<div class="rule-field"><strong>📍 程式來源</strong><code>'+esc(r.sourceFunction)+'</code></div>';
+      if(r.triggerCondition) html += '<div class="rule-field"><strong>⚡ 觸發條件</strong>'+esc(r.triggerCondition)+'</div>';
+      if(r.output) html += '<div class="rule-field"><strong>📤 輸出格式</strong>'+esc(r.output)+'</div>';
+      var addedDate = r.addedAt ? new Date(r.addedAt).toLocaleString('zh-TW') : '未記錄';
+      html += '<div class="rule-field"><strong>🕒 加入時間</strong>'+addedDate+(r.addedBy?' · '+esc(r.addedBy):'')+'</div>';
+      html += '</div>';
+      html += '</div>';
+    });
+  }
+
+  document.getElementById('main').innerHTML = html;
+}
+
+function toggleRule(id){
+  var el = document.getElementById('rule_'+id);
+  if(el) el.classList.toggle('expanded');
+}
+
+function toggleEnabled(id){
+  var arr = loadRules();
+  var r = arr.find(function(x){ return x.id===id; });
+  if(!r) return;
+  r.enabled = (r.enabled===false);
+  saveRules(arr);
+  renderMain(); renderTOC();
+}
+
+function deleteRule(id){
+  if(!confirm('確定刪除這條規則？\n\n（提醒：刪除後僅從清單移除，但程式碼裡的真實邏輯仍會執行。要真正關閉某條規則，請改為「停用」並通知 Claude 修改程式。）'))return;
+  var arr = loadRules().filter(function(x){ return x.id!==id; });
+  saveRules(arr);
+  renderMain(); renderTOC();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  新增規則
+// ════════════════════════════════════════════════════════════════
+function openAddModal(){
+  document.getElementById('rmCategory').value = currentCategory==='custom' ? 'custom' : currentCategory;
+  document.getElementById('rmName').value = '';
+  document.getElementById('rmDescription').value = '';
+  document.getElementById('rmSource').value = '';
+  document.getElementById('rmTrigger').value = '';
+  document.getElementById('rmOutput').value = '';
+  document.getElementById('ruleModal').classList.add('open');
+}
+function closeAddModal(){ document.getElementById('ruleModal').classList.remove('open'); }
+function saveRule(){
+  var name = document.getElementById('rmName').value.trim();
+  if(!name){ alert('請填寫規則名稱'); return; }
+  var newRule = {
+    id: 'rule_user_' + Date.now(),
+    category: document.getElementById('rmCategory').value,
+    name: name,
+    description: document.getElementById('rmDescription').value.trim(),
+    sourceFunction: document.getElementById('rmSource').value.trim(),
+    triggerCondition: document.getElementById('rmTrigger').value.trim(),
+    output: document.getElementById('rmOutput').value.trim(),
+    enabled: true,
+    addedBy: '黃柏翰手動新增',
+    addedAt: Date.now()
+  };
+  var arr = loadRules();
+  arr.push(newRule);
+  saveRules(arr);
+  closeAddModal();
+  currentCategory = newRule.category;
+  renderTOC(); renderMain();
+}
+
+// ESC 關閉 modal
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    if(document.getElementById('ruleModal').classList.contains('open')) closeAddModal();
+  }
+});
+
+// 初始化
+renderTOC();
+renderMain();
+</script>
+</body>
+</html>

@@ -2388,6 +2388,120 @@
         ${leader ? `<div class="rc-header-leader">👤 ${leader}</div>` : ''}
       </div>`;
 
+      // === Section 0: 📚 EIP 排行榜快照（從「📥 匯入成績單」存檔讀取，最頂部）===
+      // 過濾規則：value < 100,000 不顯示（學院/業務整列隱藏；小組總業績<10萬整組隱藏；組內業績<10萬個別隱藏）
+      var _MIN_DISPLAY = 100000;
+      try {
+        var _rcCid = '';
+        try { var _aid = localStorage.getItem('activeCharacterId'); if(_aid) _rcCid = 'char_' + _aid + '_'; } catch(e){}
+        var _archRaw = localStorage.getItem(_rcCid + 'motiv_archive');
+        var _archive = {};
+        if (_archRaw) { try { _archive = JSON.parse(_archRaw) || {}; } catch(e){ _archive = {}; } }
+        var _archKey = year + '-' + String(m).padStart(2, '0');
+        var _snap = _archive[_archKey];
+
+        html += '<div class="rc-section">';
+        html += '<div class="rc-section-title">📚 EIP 排行榜快照（' + _archKey + '）<span style="font-size:.7rem;font-weight:400;color:var(--dim);margin-left:8px;">業績低於 10 萬不顯示</span></div>';
+
+        if (!_snap){
+          var _avail = Object.keys(_archive).sort().reverse();
+          html += '<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:14px;line-height:1.7;">';
+          html += '尚未匯入 <b style="color:var(--accent);">' + _archKey + '</b> 的成績單。<br>';
+          html += '<span style="font-size:.75rem;opacity:.85;">請到「🏆 激勵」tab，選好年/月，先按「🔄 同步資料」抓取 EIP，再按「📥 匯入成績單」存檔。</span>';
+          if (_avail.length){
+            html += '<br><br><span style="font-size:.78rem;color:var(--accent);">已匯入過的月份：' + _avail.join('、') + '</span>';
+          }
+          html += '</div>';
+        } else {
+          html += '<div style="font-size:.72rem;color:var(--dim);margin-bottom:10px;">📥 匯入時間：' + (_snap.archivedAt || '?') + '</div>';
+
+          // ★ 過濾學院/業務 排名：只留 value >= 100000
+          var _academyFiltered = (_snap.academy || []).filter(function(x){ return (x.value || 0) >= _MIN_DISPLAY; });
+          var _salesFiltered = (_snap.sales || []).filter(function(x){ return (x.value || 0) >= _MIN_DISPLAY; });
+          // ★ 過濾小組：只留 total >= 100000，組內個別人也篩
+          var _groupFiltered = (_snap.groupPerformance || []).filter(function(g){ return (g.total || 0) >= _MIN_DISPLAY; });
+          var _reserveFiltered = (_snap.reservePerformance || []).filter(function(g){ return (g.total || 0) >= _MIN_DISPLAY; });
+
+          var _sections = [
+            { title: '🏫 學院排名', data: _academyFiltered, totalCount: (_snap.academy||[]).length, topN: 20, type: 'simple' },
+            { title: '👤 業務排名', data: _salesFiltered, totalCount: (_snap.sales||[]).length, topN: 50, type: 'simple' },
+            { title: '🎖️ 正式小組績效', data: _groupFiltered, totalCount: (_snap.groupPerformance||[]).length, topN: 999, type: 'group' },
+            { title: '🌱 儲備小組績效', data: _reserveFiltered, totalCount: (_snap.reservePerformance||[]).length, topN: 999, type: 'group' }
+          ];
+
+          _sections.forEach(function(sec){
+            html += '<div class="rc-ch-card">';
+            html += '<div class="rc-ch-title" style="display:flex;justify-content:space-between;align-items:center;">';
+            html += '<span>' + sec.title + '</span>';
+            var _hidden = sec.totalCount - sec.data.length;
+            html += '<span style="font-weight:400;font-size:.75rem;color:var(--dim);">顯示 ' + sec.data.length + ' / 共 ' + sec.totalCount + ' 筆' + (_hidden > 0 ? '（隱藏 ' + _hidden + ' 筆 < 10 萬）' : '') + '</span>';
+            html += '</div>';
+
+            if (sec.data.length === 0){
+              html += '<div style="color:var(--dim);font-size:.78rem;padding:8px;text-align:center;">（無業績達 10 萬以上的資料）</div>';
+            } else if (sec.type === 'simple'){
+              // 學院 / 業務排名
+              sec.data.slice(0, sec.topN).forEach(function(x, i){
+                var _isLeader = leader && x.name === leader;
+                html += '<div class="rc-rank-row' + (_isLeader ? ' highlight' : '') + '">';
+                html += '<span class="rc-rank">' + (i === 0 ? '👑' : (i + 1)) + '</span>';
+                html += '<span class="rc-rank-name">' + (x.name || '') + '</span>';
+                html += '<span class="rc-rank-val">' + ((x.value || 0).toLocaleString('zh-TW')) + '</span>';
+                html += '</div>';
+              });
+              if (sec.data.length > sec.topN){
+                html += '<div style="text-align:center;font-size:.7rem;color:var(--dim);padding:4px;">（僅顯示前 ' + sec.topN + ' 名）</div>';
+              }
+            } else if (sec.type === 'group'){
+              // 正式 / 儲備小組（顯示組別 + 組長 + 組員，組長/組員業績<10萬個別隱藏）
+              sec.data.forEach(function(g, i){
+                var members = g.members || [];
+                var lead = g.leader || {};
+                var _isLeaderRow = leader && (lead.name === leader || (members.some(function(mm){ return mm.name === leader; })));
+                html += '<div style="border-bottom:1px solid var(--border);padding:8px 4px;' + (_isLeaderRow ? 'background:rgba(255,215,0,.06);' : '') + '">';
+                // 第一行：名次 + 學院 + 組別 + 總業績
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+                html += '<span style="font-weight:700;">';
+                html += '<span style="color:#ffd700;">' + (i === 0 ? '👑' : (g.rank || (i + 1))) + '</span> ';
+                html += '<span style="color:var(--dim);font-weight:400;font-size:.78rem;">' + (g.academy || '') + '</span> ';
+                html += '<span style="color:var(--accent);">' + (g.groupName || '') + '</span>';
+                html += '</span>';
+                html += '<span style="color:#ffd700;font-weight:800;">' + ((g.total || 0).toLocaleString('zh-TW')) + '</span>';
+                html += '</div>';
+                // 第二行：組長 + 組員（個別 < 10 萬隱藏，但組總業績 >= 10 萬已通過）
+                html += '<div style="font-size:.76rem;color:var(--text);margin-top:3px;padding-left:18px;line-height:1.5;">';
+                var _parts = [];
+                // 組長：只有 lead.value >= 100k 才顯示
+                if (lead.name && (lead.value || 0) >= _MIN_DISPLAY){
+                  var _ldHl = (leader && lead.name === leader) ? 'background:rgba(255,215,0,.15);padding:0 4px;border-radius:3px;' : '';
+                  _parts.push('<span style="' + _ldHl + '">組長 <b>' + lead.name + '</b> ' + (lead.value || 0).toLocaleString('zh-TW') + '</span>');
+                }
+                // 組員：個別過濾
+                var _filteredMembers = members.filter(function(mm){ return (mm.value || 0) >= _MIN_DISPLAY; });
+                if (_filteredMembers.length){
+                  var _memberStr = '組員 ' + _filteredMembers.map(function(mm){
+                    var _mHl = (leader && mm.name === leader) ? 'background:rgba(255,215,0,.15);padding:0 4px;border-radius:3px;' : '';
+                    return '<span style="' + _mHl + '"><b>' + (mm.name || '') + '</b> ' + ((mm.value || 0).toLocaleString('zh-TW')) + '</span>';
+                  }).join('、');
+                  _parts.push(_memberStr);
+                }
+                if (_parts.length === 0){
+                  html += '<span style="color:var(--dim);opacity:.6;">（個別業績皆 < 10 萬）</span>';
+                } else {
+                  html += _parts.join(' ｜ ');
+                }
+                html += '</div>';
+                html += '</div>';
+              });
+            }
+            html += '</div>'; // .rc-ch-card
+          });
+        }
+        html += '</div>'; // .rc-section
+      } catch(_rcArchErr) {
+        console.warn('[rc] archive section render failed', _rcArchErr);
+      }
+
       // === Section 1: 年度月/季比較 ===
       html += '<div class="rc-section">';
       html += '<div class="rc-section-title">📈 年度業績比較</div>';
@@ -2565,99 +2679,6 @@
         html += `<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:8px;">尚無 ${m}月 通路資料</div>`;
       }
       html += '</div>';
-
-      // === Section 4: 📚 EIP 排行榜快照（從「📥 匯入成績單」存檔的 4 個排行榜讀取）===
-      try {
-        var _rcCid = '';
-        try { var _aid = localStorage.getItem('activeCharacterId'); if(_aid) _rcCid = 'char_' + _aid + '_'; } catch(e){}
-        var _archRaw = localStorage.getItem(_rcCid + 'motiv_archive');
-        var _archive = {};
-        if (_archRaw) { try { _archive = JSON.parse(_archRaw) || {}; } catch(e){ _archive = {}; } }
-        var _archKey = year + '-' + String(m).padStart(2, '0');
-        var _snap = _archive[_archKey];
-
-        html += '<div class="rc-section">';
-        html += '<div class="rc-section-title">📚 EIP 排行榜快照（' + _archKey + '）</div>';
-
-        if (!_snap){
-          var _avail = Object.keys(_archive).sort().reverse();
-          html += '<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:14px;line-height:1.7;">';
-          html += '尚未匯入 <b style="color:var(--accent);">' + _archKey + '</b> 的成績單。<br>';
-          html += '<span style="font-size:.75rem;opacity:.85;">請到「🏆 激勵」tab，選好年/月，先按「🔄 同步資料」抓取 EIP，再按「📥 匯入成績單」存檔。</span>';
-          if (_avail.length){
-            html += '<br><br><span style="font-size:.78rem;color:var(--accent);">已匯入過的月份：' + _avail.join('、') + '</span>';
-          }
-          html += '</div>';
-        } else {
-          html += '<div style="font-size:.72rem;color:var(--dim);margin-bottom:10px;">📥 匯入時間：' + (_snap.archivedAt || '?') + '</div>';
-
-          var _sections = [
-            { title: '🏫 學院排名', data: _snap.academy || [], topN: 20, type: 'simple' },
-            { title: '👤 業務排名', data: _snap.sales || [], topN: 30, type: 'simple' },
-            { title: '🎖️ 正式小組績效', data: _snap.groupPerformance || [], topN: 999, type: 'group' },
-            { title: '🌱 儲備小組績效', data: _snap.reservePerformance || [], topN: 999, type: 'group' }
-          ];
-
-          _sections.forEach(function(sec){
-            html += '<div class="rc-ch-card">';
-            html += '<div class="rc-ch-title" style="display:flex;justify-content:space-between;align-items:center;">';
-            html += '<span>' + sec.title + '</span>';
-            html += '<span style="font-weight:400;font-size:.75rem;color:var(--dim);">共 ' + sec.data.length + ' 筆</span>';
-            html += '</div>';
-
-            if (sec.data.length === 0){
-              html += '<div style="color:var(--dim);font-size:.78rem;padding:8px;text-align:center;">（無資料）</div>';
-            } else if (sec.type === 'simple'){
-              // 學院 / 業務排名
-              sec.data.slice(0, sec.topN).forEach(function(x, i){
-                var _isLeader = leader && x.name === leader;
-                html += '<div class="rc-rank-row' + (_isLeader ? ' highlight' : '') + '">';
-                html += '<span class="rc-rank">' + (i === 0 ? '👑' : (i + 1)) + '</span>';
-                html += '<span class="rc-rank-name">' + (x.name || '') + '</span>';
-                html += '<span class="rc-rank-val">' + ((x.value || 0).toLocaleString('zh-TW')) + '</span>';
-                html += '</div>';
-              });
-              if (sec.data.length > sec.topN){
-                html += '<div style="text-align:center;font-size:.7rem;color:var(--dim);padding:4px;">（僅顯示前 ' + sec.topN + ' 名）</div>';
-              }
-            } else if (sec.type === 'group'){
-              // 正式 / 儲備小組（顯示組別 + 組長 + 組員）
-              sec.data.forEach(function(g, i){
-                var members = g.members || [];
-                var lead = g.leader || {};
-                var _isLeaderRow = leader && (lead.name === leader || (members.some(function(mm){ return mm.name === leader; })));
-                html += '<div style="border-bottom:1px solid var(--border);padding:8px 4px;' + (_isLeaderRow ? 'background:rgba(255,215,0,.06);' : '') + '">';
-                // 第一行：名次 + 學院 + 組別 + 總業績
-                html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-                html += '<span style="font-weight:700;">';
-                html += '<span style="color:#ffd700;">' + (i === 0 ? '👑' : (g.rank || (i + 1))) + '</span> ';
-                html += '<span style="color:var(--dim);font-weight:400;font-size:.78rem;">' + (g.academy || '') + '</span> ';
-                html += '<span style="color:var(--accent);">' + (g.groupName || '') + '</span>';
-                html += '</span>';
-                html += '<span style="color:#ffd700;font-weight:800;">' + ((g.total || 0).toLocaleString('zh-TW')) + '</span>';
-                html += '</div>';
-                // 第二行：組長 + 組員
-                html += '<div style="font-size:.76rem;color:var(--text);margin-top:3px;padding-left:18px;line-height:1.5;">';
-                var _ldHl = (leader && lead.name === leader) ? 'background:rgba(255,215,0,.15);padding:0 4px;border-radius:3px;' : '';
-                html += '<span style="' + _ldHl + '">組長 <b>' + (lead.name || '-') + '</b> ' + ((lead.value || 0).toLocaleString('zh-TW')) + '</span>';
-                if (members.length){
-                  html += ' ｜ 組員 ';
-                  html += members.map(function(m){
-                    var _mHl = (leader && m.name === leader) ? 'background:rgba(255,215,0,.15);padding:0 4px;border-radius:3px;' : '';
-                    return '<span style="' + _mHl + '"><b>' + (m.name || '') + '</b> ' + ((m.value || 0).toLocaleString('zh-TW')) + '</span>';
-                  }).join('、');
-                }
-                html += '</div>';
-                html += '</div>';
-              });
-            }
-            html += '</div>'; // .rc-ch-card
-          });
-        }
-        html += '</div>'; // .rc-section
-      } catch(_rcArchErr) {
-        console.warn('[rc] archive section render failed', _rcArchErr);
-      }
 
       // === Footer ===
       html += `<div class="rc-footer">

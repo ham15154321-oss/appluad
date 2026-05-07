@@ -142,10 +142,12 @@ body.day-mode .chat-view.fullscreen{background:#f0ebe8;}
 .case-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:8px;}
 .case-item.good{border:1px solid rgba(0,200,100,.15);background:rgba(0,200,100,.03);}
 .case-item.bad{border:1px solid rgba(255,80,80,.15);background:rgba(255,80,80,.03);}
+.case-item.data{border:1px solid rgba(74,234,255,.18);background:rgba(74,234,255,.04);}
 .case-check{margin-top:2px;accent-color:#ffd700;cursor:pointer;}
 .case-tag{font-size:.72rem;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;}
 .case-tag.good{background:rgba(0,200,100,.15);color:#00e868;}
 .case-tag.bad{background:rgba(255,80,80,.15);color:#ff8a8a;}
+.case-tag.data{background:rgba(74,234,255,.15);color:#4aeaff;}
 .case-text{flex:1;font-size:.82rem;color:#d0e8ff;line-height:1.5;}
 .case-del{font-size:.75rem;color:#ff8a8a;cursor:pointer;padding:4px 8px;opacity:.7;border:1px solid rgba(255,100,100,.25);border-radius:6px;white-space:nowrap;flex-shrink:0;transition:all .2s;}
 .case-del:hover{opacity:1;background:rgba(255,80,80,.12);border-color:rgba(255,80,80,.5);}
@@ -262,8 +264,10 @@ body.day-mode .rule-del{color:#c04040;}
 
 body.day-mode .case-item.good{border-color:rgba(40,160,80,.2);background:rgba(220,245,230,.5);}
 body.day-mode .case-item.bad{border-color:rgba(200,60,60,.2);background:rgba(255,230,230,.4);}
+body.day-mode .case-item.data{border-color:rgba(60,140,200,.22);background:rgba(220,235,250,.5);}
 body.day-mode .case-tag.good{background:rgba(40,160,80,.12);color:#2a8a4a;}
 body.day-mode .case-tag.bad{background:rgba(200,60,60,.12);color:#c04040;}
+body.day-mode .case-tag.data{background:rgba(60,140,200,.12);color:#2a6a9a;}
 body.day-mode .case-text{color:#4a3a5c;}
 body.day-mode .case-del{color:#c04040;border-color:rgba(200,60,60,.25);}
 body.day-mode .case-del:hover{background:rgba(200,60,60,.1);border-color:rgba(200,60,60,.5);}
@@ -310,6 +314,7 @@ body.day-mode .file-status{color:#8070a0;}
     <button class="top-tab" onclick="showView('timeline')">📅 時間軸</button>
     <button class="top-tab" onclick="showView('rules')">📜 鐵律</button>
     <button class="top-tab" onclick="showView('casedb')">📂 資料庫</button>
+    <button class="top-tab" onclick="showView('pmemory')">🔐 私聊<span class="badge" id="pmemoryBadge">0</span></button>
     <button class="top-tab" onclick="showView('closed')">📋 結案<span class="badge" id="closedBadge">0</span></button>
   </div>
 </div>
@@ -374,6 +379,18 @@ body.day-mode .file-status{color:#8070a0;}
   <div class="panel-body" id="casedbBody"></div>
 </div>
 
+<!-- ===== 5b. 私聊資料庫（個人記憶；只有自己看得到，黃柏翰可看所有人）===== -->
+<div class="view panel-view" id="v_pmemory">
+  <div class="panel-header">
+    <h2>🔐 個人私聊資料庫 <span id="pmemoryOwnerHint" style="font-size:.78rem;font-weight:400;color:rgba(180,200,240,.6);margin-left:8px;"></span></h2>
+    <div style="display:flex;gap:6px;">
+      <button class="panel-add-btn" id="pmemoryAdminBtn" onclick="openPmemoryAdmin()" style="display:none;background:rgba(255,215,0,.1);border-color:rgba(255,215,0,.3);color:#ffd700;">👀 查看所有主角</button>
+      <button class="panel-add-btn" onclick="openAddPmemory()">＋ 新增記憶</button>
+    </div>
+  </div>
+  <div class="panel-body" id="pmemoryBody"></div>
+</div>
+
 <!-- ===== 6. 結案 ===== -->
 <div class="view panel-view" id="v_closed">
   <div class="panel-header"><h2>📋 結案紀錄</h2></div>
@@ -400,9 +417,37 @@ body.day-mode .file-status{color:#8070a0;}
 
 <div class="add-modal-bg" id="caseModal"><div class="add-modal">
   <h3>＋ 新增案例</h3>
-  <select id="caseType"><option value="good">📗 好案例</option><option value="bad">📕 壞案例</option></select>
+  <select id="caseType"><option value="good">📗 好案例</option><option value="bad">📕 壞案例</option><option value="data">📊 數據查詢案例</option></select>
   <textarea id="caseText" placeholder="描述案例內容..."></textarea>
   <div class="btn-row"><button class="btn-cancel" onclick="closeModal('caseModal')">取消</button><button class="btn-save" onclick="addCase()">新增</button></div>
+</div></div>
+
+<!-- ＋ 新增私聊記憶 Modal -->
+<div class="add-modal-bg" id="pmemoryModal"><div class="add-modal add-modal--lg">
+  <h3>＋ 新增個人記憶（只有你自己看得到）</h3>
+  <div class="meta">
+    <span class="hint">這條記憶會自動帶入所有 AI 功能（教練/數據通/小任務/團隊宣言/陪跑師/案例庫）的對話。寫越具體 AI 越懂你。</span>
+    <span class="count" id="pmemoryCount">0 字</span>
+  </div>
+  <select id="pmemoryFeature" style="margin-bottom:8px;">
+    <option value="manual">📝 一般記憶</option>
+    <option value="cards">🎯 AI 教練</option>
+    <option value="data">📊 AI 數據通</option>
+    <option value="tasks">✅ AI 小任務</option>
+    <option value="declaration">📣 AI 團隊宣言</option>
+    <option value="mentor">🧠 AI 陪跑師</option>
+    <option value="cases">📚 AI 案例庫</option>
+  </select>
+  <textarea id="pmemoryText" placeholder="例：我這組目前最大的痛點是面談率只有 35%，主要卡在 ... 我希望 AI 之後的建議都圍繞「先把面談率拉到 60%」展開。" oninput="document.getElementById('pmemoryCount').textContent=this.value.length+' 字'"></textarea>
+  <div class="btn-row"><button class="btn-cancel" onclick="closeModal('pmemoryModal')">取消</button><button class="btn-save" onclick="addPmemory()">＋ 儲存記憶</button></div>
+</div></div>
+
+<!-- 黃柏翰專屬：查看所有主角的私聊資料庫 Modal -->
+<div class="add-modal-bg" id="pmemoryAdminModal"><div class="add-modal" style="max-width:760px;max-height:85vh;display:flex;flex-direction:column;">
+  <h3>👀 所有主角的私聊資料庫（管理員視圖）</h3>
+  <div style="font-size:.75rem;color:rgba(180,200,240,.7);margin-bottom:10px;">這個視圖只有黃柏翰看得到。其他主角無法瀏覽彼此的記憶。</div>
+  <div id="pmemoryAdminBody" style="flex:1;overflow-y:auto;padding:4px;"></div>
+  <div class="btn-row"><button class="btn-cancel" onclick="closeModal('pmemoryAdminModal')">關閉</button></div>
 </div></div>
 
 <!-- 結案詳情 Modal -->
@@ -473,7 +518,11 @@ var FEATURES={
 };
 
 var curView='cards', curFeature=null, curTopicId=null, pinPage=0;
-var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base'};
+var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base',pmemory:'ai_pmemory_v1'};
+// ★ 私聊記憶是「per character」儲存：localStorage key = 'char_<id>_ai_pmemory_v1'
+function _pmemoryKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.pmemory; }
+function _loadPmemory(charId){ try{ var raw=localStorage.getItem(_pmemoryKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
+function _savePmemory(arr,charId){ try{ localStorage.setItem(_pmemoryKey(charId), JSON.stringify(arr||[])); }catch(e){} }
 
 // ★ Anthropic API Proxy（部署在 Cloudflare Workers，後端帶 key）
 var PROXY_BASE = 'https://anthropic-proxy.ivanapplaud.workers.dev';
@@ -507,11 +556,12 @@ function showView(id){
   if(el)el.classList.add('active');
   // 更新 tab
   document.querySelectorAll('.top-tab').forEach(function(t,i){
-    t.classList.toggle('active',['cards','timeline','rules','casedb','closed'][i]===id);
+    t.classList.toggle('active',['cards','timeline','rules','casedb','pmemory','closed'][i]===id);
   });
   if(id==='timeline')renderTimeline();
   if(id==='rules')renderRules();
   if(id==='casedb')renderCaseDb();
+  if(id==='pmemory')renderPmemory();
   if(id==='closed')renderClosed();
 }
 
@@ -596,7 +646,23 @@ function getPerfCtx(){
   return l.length?l.join('\n'):'（無數據）';}catch(e){return '';}
 }
 function getRulesCtx(){var r=LS(SK.rules);if(!r.length)return '';return '團隊鐵律 — 來自 AI 團隊宣言】\n'+r.map(function(x,i){return(i+1)+'. '+x.text;}).join('\n');}
-function getCaseDbCtx(){var c=LS(SK.casedb);if(!c.length)return '';var l=['案例資料庫 — 來自 AI 案例庫】'];c.forEach(function(x){l.push((x.type==='good'?'📗好案例':'📕壞案例')+' '+x.text);});return l.join('\n');}
+function getCaseDbCtx(){var c=LS(SK.casedb);if(!c.length)return '';var l=['案例資料庫 — 來自 AI 案例庫】'];c.forEach(function(x){var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕壞案例':'📊數據查詢案例');l.push(lbl+' '+x.text);});return l.join('\n');}
+// ★ 個人私聊記憶（per character）— 只塞給該主角的 AI 對話用
+function getPmemoryCtx(){
+  try{
+    var arr=_loadPmemory();
+    if(!arr.length) return '';
+    var name=localStorage.getItem('activeCharacterName')||'主角';
+    var l=['🔐 個人私聊記憶 — 主角【'+name+'】專屬，請以此為對話的優先參考依據】'];
+    var FEAT={manual:'📝一般',cards:'🎯教練',data:'📊數據通',tasks:'✅小任務',declaration:'📣宣言',mentor:'🧠陪跑師',cases:'📚案例庫'};
+    arr.slice().sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);}).forEach(function(x){
+      var f=FEAT[x.feature]||'📝';
+      var d=x.createdAt?new Date(x.createdAt).toLocaleDateString('zh-TW'):'';
+      l.push('  '+f+(d?' ('+d+')':'')+'：'+x.text);
+    });
+    return l.join('\n');
+  }catch(e){return '';}
+}
 function getTimelineCtx(){var t=LS(SK.timeline);if(!t.length)return '';var labels={pending:'待執行',doing:'進行中',done:'已完成'};var l=['時間軸任務 — 來自 AI 小任務】'];t.forEach(function(x){l.push('• ['+labels[x.status]+'] '+x.task+(x.deadline?' (期限:'+x.deadline+')':''));});return l.join('\n');}
 
 // ══════ 全站數據讀取（360評估備註、火種、成就、其他主角挑戰） ══════
@@ -767,6 +833,7 @@ function getFullContext(){
   var achieve=getAchieveCtx();if(achieve)parts.push(achieve);
   var rules=getRulesCtx();if(rules)parts.push(rules);
   var cases=getCaseDbCtx();if(cases)parts.push(cases);
+  var pmem=getPmemoryCtx();if(pmem)parts.push(pmem);
   var tl=getTimelineCtx();if(tl)parts.push(tl);
   var others=getOtherCharsCtx();if(others)parts.push(others);
   var kb=localStorage.getItem(SK.teamkb);if(kb)parts.push('📣 團隊知識庫\n'+kb);
@@ -1067,10 +1134,14 @@ function renderRules(){
 // ══════ 案例資料庫 ══════
 var caseFilter='all';
 function openAddCase(){
-  var type=prompt('案例類型（輸入 1=好案例 或 2=壞案例）：');
+  var type=prompt('案例類型（輸入 1=好案例、2=壞案例、3=數據查詢案例）：');
   if(!type)return;
-  var caseType=(type.trim()==='2'||type.indexOf('壞')>=0)?'bad':'good';
-  var text=prompt((caseType==='good'?'📗 好案例':'📕 壞案例')+'，請描述內容：');
+  var t=type.trim();
+  var caseType='good';
+  if(t==='2'||type.indexOf('壞')>=0) caseType='bad';
+  else if(t==='3'||type.indexOf('數據')>=0) caseType='data';
+  var label=caseType==='good'?'📗 好案例':(caseType==='bad'?'📕 壞案例':'📊 數據查詢案例');
+  var text=prompt(label+'，請描述內容：');
   if(!text||!text.trim())return;
   var items=LS(SK.casedb);
   items.push({id:'c_'+Date.now(),type:caseType,text:text.trim(),marquee:false,createdAt:Date.now()});
@@ -1091,6 +1162,7 @@ function renderCaseDb(){
     +'<button class="case-filter'+(caseFilter==='all'?' active':'')+'" onclick="setCaseFilter(\'all\')">全部 ('+items.length+')</button>'
     +'<button class="case-filter'+(caseFilter==='good'?' active':'')+'" onclick="setCaseFilter(\'good\')">📗 好案例 ('+items.filter(function(x){return x.type==='good';}).length+')</button>'
     +'<button class="case-filter'+(caseFilter==='bad'?' active':'')+'" onclick="setCaseFilter(\'bad\')">📕 壞案例 ('+items.filter(function(x){return x.type==='bad';}).length+')</button>'
+    +'<button class="case-filter'+(caseFilter==='data'?' active':'')+'" onclick="setCaseFilter(\'data\')" style="'+(caseFilter==='data'?'background:rgba(74,234,255,.12);border-color:#4aeaff;color:#4aeaff;':'')+'">📊 數據查詢案例 ('+items.filter(function(x){return x.type==='data';}).length+')</button>'
     +'<button class="case-filter" onclick="setCaseFilter(\'marquee\')" style="'+(caseFilter==='marquee'?'background:rgba(255,215,0,.12);border-color:#ffd700;color:#ffd700;':'')+'">📢 跑馬燈 ('+items.filter(function(x){return x.marquee;}).length+')</button>'
     +'</div>';
   if(caseFilter==='marquee')filtered=items.filter(function(x){return x.marquee;});
@@ -1102,7 +1174,7 @@ function renderCaseDb(){
     if(firstLine.length<(c.text||'').length&&!preview.endsWith('…'))preview+='…'; // 有多行也加省略號
     return '<div class="case-item '+c.type+'" style="cursor:pointer;" onclick="openCaseDetail(\''+c.id+'\')" title="點擊看全文">'
       +'<input type="checkbox" class="case-check" '+(c.marquee?'checked':'')+' onchange="event.stopPropagation();toggleMarquee(\''+c.id+'\')" onclick="event.stopPropagation()" title="勾選後顯示在首頁跑馬燈">'
-      +'<span class="case-tag '+c.type+'">'+(c.type==='good'?'📗 好':'📕 壞')+'</span>'
+      +'<span class="case-tag '+c.type+'">'+(c.type==='good'?'📗 好':(c.type==='bad'?'📕 壞':'📊 數據'))+'</span>'
       +'<span class="case-text">'+esc(preview||'(空白)')+'</span>'
       +'<span class="case-del" onclick="event.stopPropagation();delCase(\''+c.id+'\')">🗑 刪除</span></div>';
   }).join('');
@@ -1111,21 +1183,136 @@ function renderCaseDb(){
 function openCaseDetail(id){
   var items=LS(SK.casedb),c=items.find(function(x){return x.id===id;});
   if(!c)return;
-  var typeLabel=c.type==='good'?'📗 好案例':'📕 壞案例';
+  var typeLabel=c.type==='good'?'📗 好案例':(c.type==='bad'?'📕 壞案例':'📊 數據查詢案例');
   var date=c.createdAt?new Date(c.createdAt).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
   document.getElementById('caseDetailTitle').textContent=typeLabel+(date?' · '+date:'');
   document.getElementById('caseDetailBody').textContent=c.text||'(空白)';
   document.getElementById('caseDetailModal').classList.add('open');
 }
+// ══════ 🔐 個人私聊資料庫 ══════
+var FEAT_LABEL={manual:'📝 一般',cards:'🎯 教練',data:'📊 數據通',tasks:'✅ 小任務',declaration:'📣 宣言',mentor:'🧠 陪跑師',cases:'📚 案例庫'};
+
+function openAddPmemory(){
+  document.getElementById('pmemoryText').value='';
+  document.getElementById('pmemoryFeature').value='manual';
+  document.getElementById('pmemoryCount').textContent='0 字';
+  document.getElementById('pmemoryModal').classList.add('open');
+}
+function addPmemory(){
+  var feat=document.getElementById('pmemoryFeature').value||'manual';
+  var text=document.getElementById('pmemoryText').value.trim();
+  if(!text)return;
+  var arr=_loadPmemory();
+  arr.push({id:'pm_'+Date.now(),feature:feat,text:text,createdAt:Date.now()});
+  _savePmemory(arr);
+  closeModal('pmemoryModal');
+  renderPmemory();
+  // 同步到雲端
+  try{ if(window.parent&&window.parent.firebaseSync&&window.parent.firebaseSync.push) window.parent.firebaseSync.push(); }catch(e){}
+}
+function delPmemory(id){
+  if(!confirm('確定刪除這條記憶？AI 將不再參考。'))return;
+  _savePmemory(_loadPmemory().filter(function(x){return x.id!==id;}));
+  renderPmemory();
+  try{ if(window.parent&&window.parent.firebaseSync&&window.parent.firebaseSync.push) window.parent.firebaseSync.push(); }catch(e){}
+}
+
+function renderPmemory(){
+  var arr=_loadPmemory();
+  var name=localStorage.getItem('activeCharacterName')||'?';
+  var hint=document.getElementById('pmemoryOwnerHint');
+  if(hint) hint.textContent='主角：'+name+'（共 '+arr.length+' 條，只有你看得到）';
+  // badge
+  var badge=document.getElementById('pmemoryBadge');
+  if(badge) badge.textContent=arr.length;
+  // 黃柏翰才看得到「查看所有主角」按鈕
+  var adminBtn=document.getElementById('pmemoryAdminBtn');
+  if(adminBtn) adminBtn.style.display = (name==='黃柏翰') ? 'inline-block' : 'none';
+
+  var el=document.getElementById('pmemoryBody');
+  if(!arr.length){
+    el.innerHTML='<div class="panel-empty">🔐 尚無記憶<br>新增記憶後，所有 AI 功能（教練/數據通/小任務/團隊宣言/陪跑師/案例庫）都會自動參考你的記憶來回答。<br><br><span style="font-size:.78rem;opacity:.7;">你可以記錄：個人風格偏好、目前痛點、組員特性、想聚焦的目標、AI 之前說過的金句等等。</span></div>';
+    return;
+  }
+  // 排序：最新在前
+  var sorted=arr.slice().sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+  el.innerHTML=sorted.map(function(x){
+    var feat=FEAT_LABEL[x.feature]||'📝';
+    var d=x.createdAt?new Date(x.createdAt).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+    var preview=(x.text||'').split('\n')[0].trim();
+    if(preview.length>80) preview=preview.substring(0,80)+'…';
+    return '<div class="case-item data" style="cursor:pointer;" onclick="openPmemoryDetail(\''+x.id+'\')" title="點擊看全文">'
+      +'<span class="case-tag data" style="white-space:nowrap;">'+feat+'</span>'
+      +'<span class="case-text"><div style="font-size:.7rem;color:rgba(180,200,240,.55);margin-bottom:2px;">'+d+'</div>'+esc(preview||'(空白)')+'</span>'
+      +'<span class="case-del" onclick="event.stopPropagation();delPmemory(\''+x.id+'\')">🗑 刪除</span></div>';
+  }).join('');
+}
+
+function openPmemoryDetail(id){
+  var arr=_loadPmemory();
+  var c=arr.find(function(x){return x.id===id;});
+  if(!c)return;
+  var feat=FEAT_LABEL[c.feature]||'📝';
+  var d=c.createdAt?new Date(c.createdAt).toLocaleString('zh-TW'):'';
+  document.getElementById('caseDetailTitle').textContent='🔐 '+feat+(d?' · '+d:'');
+  document.getElementById('caseDetailBody').textContent=c.text||'(空白)';
+  document.getElementById('caseDetailModal').classList.add('open');
+}
+
+// ★ 黃柏翰專屬：查看所有主角的私聊資料庫
+function openPmemoryAdmin(){
+  var name=localStorage.getItem('activeCharacterName')||'';
+  if(name!=='黃柏翰'){ alert('只有黃柏翰可以查看所有主角的私聊資料庫。'); return; }
+
+  var body=document.getElementById('pmemoryAdminBody');
+  // 掃 localStorage 找所有 char_*_ai_pmemory_v1 的 key
+  var charBuckets={}; // {charId: [memories]}
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    var m=k && k.match(/^char_(.+?)_ai_pmemory_v1$/);
+    if(m){
+      try{
+        var arr=JSON.parse(localStorage.getItem(k))||[];
+        if(arr.length) charBuckets[m[1]]=arr;
+      }catch(e){}
+    }
+  }
+  var charIds=Object.keys(charBuckets).sort();
+  if(!charIds.length){
+    body.innerHTML='<div class="panel-empty" style="padding:30px;">尚無任何主角建立過私聊記憶。</div>';
+  } else {
+    var html='';
+    charIds.forEach(function(cid){
+      var memArr=charBuckets[cid];
+      html+='<div style="margin-bottom:18px;border:1px solid rgba(74,234,255,.2);border-radius:10px;padding:12px;background:rgba(74,234,255,.04);">';
+      html+='<div style="font-weight:700;color:#4aeaff;font-size:.95rem;margin-bottom:8px;">👤 '+esc(cid)+' <span style="font-size:.72rem;font-weight:400;color:rgba(180,200,240,.6);margin-left:6px;">'+memArr.length+' 條記憶</span></div>';
+      memArr.slice().sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);}).forEach(function(x){
+        var feat=FEAT_LABEL[x.feature]||'📝';
+        var d=x.createdAt?new Date(x.createdAt).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+        html+='<div style="padding:8px;margin:4px 0;border-radius:6px;background:rgba(255,255,255,.03);font-size:.82rem;">';
+        html+='<div style="font-size:.7rem;color:rgba(180,200,240,.55);margin-bottom:3px;">'+feat+' · '+d+'</div>';
+        html+='<div style="white-space:pre-wrap;color:#dde6f0;line-height:1.5;">'+esc(x.text||'(空白)')+'</div>';
+        html+='</div>';
+      });
+      html+='</div>';
+    });
+    // 提示：問什麼問題請去 admin-ai-chats.html
+    html+='<div style="margin-top:8px;padding:10px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:8px;font-size:.78rem;color:#ffd700;">💡 想看每個主角「問了什麼問題」的完整對話紀錄？請從首頁 ⚙️ → 「📜 AI 顧問中心 對話紀錄」進入查看。</div>';
+    body.innerHTML=html;
+  }
+  document.getElementById('pmemoryAdminModal').classList.add('open');
+}
+
 // 同步跑馬燈到首頁
 function syncMarquee(){
   var items=LS(SK.casedb).filter(function(x){return x.marquee;});
-  var texts=items.map(function(x){return(x.type==='good'?'📗':'📕')+' '+x.text;});
+  var texts=items.map(function(x){var ic=x.type==='good'?'📗':(x.type==='bad'?'📕':'📊');return ic+' '+x.text;});
   try{localStorage.setItem('ai_marquee_items',JSON.stringify(texts));}catch(e){}
 }
 
 // ══════ 結案 ══════
-function updateClosedBadge(){var n=LS(SK.closed).length;document.getElementById('closedBadge').textContent=n;}
+function updateClosedBadge(){var n=LS(SK.closed).length;document.getElementById('closedBadge').textContent=n;updatePmemoryBadge();}
+function updatePmemoryBadge(){try{var n=_loadPmemory().length;var b=document.getElementById('pmemoryBadge');if(b)b.textContent=n;}catch(e){}}
 function openClosedDetail(id){
   var items=LS(SK.closed),c=items.find(function(x){return x.id===id;});if(!c)return;
   var f=FEATURES[c.feature]||{title:'?',icon:'?'};
