@@ -44,13 +44,16 @@ function setStatus(msg, type){
   el.className = 'status' + (type ? ' ' + type : '');
 }
 
-function showResult(academy, sales, groupPerf){
+function showResult(academy, sales, groupPerf, reservePerf){
   var el = document.getElementById('result');
   var html =
     '<div class="result-item"><span class="label">🏫 學院排名</span><span class="count">' + academy.length + ' 筆</span></div>' +
     '<div class="result-item"><span class="label">👤 業務排名</span><span class="count">' + sales.length + ' 筆</span></div>';
   if (groupPerf){
     html += '<div class="result-item"><span class="label">🎖️ 正式小組</span><span class="count">' + groupPerf.length + ' 組</span></div>';
+  }
+  if (reservePerf){
+    html += '<div class="result-item"><span class="label">🌱 儲備小組</span><span class="count">' + reservePerf.length + ' 組</span></div>';
   }
   el.innerHTML = html;
 }
@@ -350,7 +353,7 @@ function extractSalesDirect(html){
 }
 
 // ── 注入資料到目前開啟的頁面 ──
-async function injectData(academyData, salesData, groupData, year, month){
+async function injectData(academyData, salesData, groupData, reserveData, year, month){
   var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tabs || tabs.length === 0) throw new Error('找不到目前頁面');
 
@@ -360,22 +363,25 @@ async function injectData(academyData, salesData, groupData, year, month){
 
   await chrome.scripting.executeScript({
     target: { tabId: tabs[0].id },
-    func: function(academy, sales, groupPerf, groupMeta, updateTime){
+    func: function(academy, sales, groupPerf, reservePerf, periodMeta, updateTime){
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
 
       localStorage.setItem(cid + 'motiv_academy_v1', JSON.stringify(academy));
       localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(sales));
       localStorage.setItem(cid + 'motiv_group_performance_v1', JSON.stringify(groupPerf || []));
-      localStorage.setItem(cid + 'motiv_group_performance_meta', JSON.stringify(groupMeta || {}));
+      localStorage.setItem(cid + 'motiv_group_performance_meta', JSON.stringify(periodMeta || {}));
+      localStorage.setItem(cid + 'motiv_reserve_performance_v1', JSON.stringify(reservePerf || []));
+      localStorage.setItem(cid + 'motiv_reserve_performance_meta', JSON.stringify(periodMeta || {}));
       localStorage.setItem(cid + 'motiv_updated_at', updateTime);
 
       if (window._motivAcademy !== undefined) window._motivAcademy = academy;
       if (window._motivSales !== undefined) window._motivSales = sales;
       if (window._motivGroupPerf !== undefined) window._motivGroupPerf = groupPerf || [];
+      if (window._motivReservePerf !== undefined) window._motivReservePerf = reservePerf || [];
       if (typeof window.motivRenderAll === 'function') window.motivRenderAll();
     },
-    args: [academyData, salesData, groupData || [], { year: year, month: month }, timeStr]
+    args: [academyData, salesData, groupData || [], reserveData || [], { year: year, month: month }, timeStr]
   });
 }
 
@@ -420,12 +426,18 @@ async function doSync(){
     var gHtml = await fetchEipPage(gUrl);
     var groupData = extractGroupPerformance(gHtml);
 
-    // 4. 注入
-    setStatus('⏳ 正在寫入激勵排行榜...');
-    await injectData(academyData, salesData, groupData, year, month);
+    // 4. 儲備小組績效表（performance_d2.php，結構同上，重用 parser）
+    setStatus('⏳ 正在同步儲備小組績效表...');
+    var rUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_d2.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
+    var rHtml = await fetchEipPage(rUrl);
+    var reserveData = extractGroupPerformance(rHtml);
 
-    setStatus('✅ 同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆、正式小組 ' + groupData.length + ' 組', 'ok');
-    showResult(academyData, salesData, groupData);
+    // 5. 注入
+    setStatus('⏳ 正在寫入激勵排行榜...');
+    await injectData(academyData, salesData, groupData, reserveData, year, month);
+
+    setStatus('✅ 同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆、正式小組 ' + groupData.length + ' 組、儲備小組 ' + reserveData.length + ' 組', 'ok');
+    showResult(academyData, salesData, groupData, reserveData);
 
   } catch(err){
     console.error('[EIP] 同步失敗:', err);

@@ -333,6 +333,12 @@
       var gHtml = await fetchViaBackground(gUrl);
       var groupData = extractGroupPerformance(gHtml);
 
+      // ★ 新增：儲備小組績效表（performance_d2.php，結構同 performance_d.php，重用 parser）
+      notify('status', { msg: '正在同步儲備小組績效表...' });
+      var rUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_d2.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
+      var rHtml = await fetchViaBackground(rUrl);
+      var reserveData = extractGroupPerformance(rHtml);
+
       // 寫入 localStorage
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if (aid) cid = 'char_' + aid + '_'; } catch(e){}
@@ -345,6 +351,8 @@
       localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(salesData));
       localStorage.setItem(cid + 'motiv_group_performance_v1', JSON.stringify(groupData));
       localStorage.setItem(cid + 'motiv_group_performance_meta', JSON.stringify({ year: year, month: month }));
+      localStorage.setItem(cid + 'motiv_reserve_performance_v1', JSON.stringify(reserveData));
+      localStorage.setItem(cid + 'motiv_reserve_performance_meta', JSON.stringify({ year: year, month: month }));
       localStorage.setItem(cid + 'motiv_updated_at', timeStr);
 
       notify('done', {
@@ -352,8 +360,10 @@
         sales: salesData,
         groupPerformance: groupData,
         groupMeta: { year: year, month: month },
+        reservePerformance: reserveData,
+        reserveMeta: { year: year, month: month },
         updateTime: timeStr,
-        msg: '同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆、正式小組 ' + groupData.length + ' 組'
+        msg: '同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆、正式小組 ' + groupData.length + ' 組、儲備小組 ' + reserveData.length + ' 組'
       });
 
     } catch(err){

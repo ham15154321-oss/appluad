@@ -528,8 +528,71 @@ function getScoreCtx(){
 function getPerfCtx(){
   try{var c=localStorage.getItem('activeCharacterId'),p=c?'char_'+c+'_':'';
   var a=localStorage.getItem(p+'motiv_academy_v1'),s=localStorage.getItem(p+'motiv_sales_v1'),l=[];
-  if(a){var arr=JSON.parse(a);l.push('【學院排名】');arr.slice(0,10).forEach(function(x,i){l.push((i+1)+'. '+x.name+'：'+x.value.toLocaleString());});}
-  if(s){var arr2=JSON.parse(s);l.push('【業務排名】');arr2.slice(0,10).forEach(function(x,i){l.push((i+1)+'. '+x.name+'：'+x.value.toLocaleString());});}
+  if(a){var arr=JSON.parse(a);l.push('【學院排名（最近一次同步）】');arr.slice(0,10).forEach(function(x,i){l.push((i+1)+'. '+x.name+'：'+x.value.toLocaleString());});}
+  if(s){var arr2=JSON.parse(s);l.push('【業務排名（最近一次同步）】');arr2.slice(0,10).forEach(function(x,i){l.push((i+1)+'. '+x.name+'：'+x.value.toLocaleString());});}
+  // 正式小組（最近一次同步）
+  var g=localStorage.getItem(p+'motiv_group_performance_v1');
+  var gMeta=localStorage.getItem(p+'motiv_group_performance_meta');
+  if(g){
+    try{
+      var ga=JSON.parse(g)||[]; var gm=gMeta?JSON.parse(gMeta):{};
+      var gymTxt = (gm.year&&gm.month)?(' '+gm.year+'/'+gm.month):'';
+      l.push('【正式小組績效（最近一次同步'+gymTxt+'）】');
+      ga.slice(0,15).forEach(function(x,i){
+        var ms=(x.members||[]).map(function(m){return m.name+'='+(m.value||0).toLocaleString();}).join(', ');
+        l.push((i+1)+'. '+(x.academy||'')+'/'+(x.groupName||'')+' 總'+(x.total||0).toLocaleString()+
+          ' · 組長:'+((x.leader&&x.leader.name)||'-')+'='+((x.leader&&x.leader.value)||0).toLocaleString()+
+          (ms?' · 組員:'+ms:''));
+      });
+    }catch(e){}
+  }
+  // 儲備小組（最近一次同步）
+  var r=localStorage.getItem(p+'motiv_reserve_performance_v1');
+  var rMeta=localStorage.getItem(p+'motiv_reserve_performance_meta');
+  if(r){
+    try{
+      var ra=JSON.parse(r)||[]; var rm=rMeta?JSON.parse(rMeta):{};
+      var rymTxt = (rm.year&&rm.month)?(' '+rm.year+'/'+rm.month):'';
+      l.push('【儲備小組績效（最近一次同步'+rymTxt+'）】');
+      ra.slice(0,15).forEach(function(x,i){
+        var ms=(x.members||[]).map(function(m){return m.name+'='+(m.value||0).toLocaleString();}).join(', ');
+        l.push((i+1)+'. '+(x.academy||'')+'/'+(x.groupName||'')+' 總'+(x.total||0).toLocaleString()+
+          ' · 組長:'+((x.leader&&x.leader.name)||'-')+'='+((x.leader&&x.leader.value)||0).toLocaleString()+
+          (ms?' · 組員:'+ms:''));
+      });
+    }catch(e){}
+  }
+  // ★ 成績單歷史檔案（archive） — 多月份累積
+  var archRaw=localStorage.getItem(p+'motiv_archive');
+  if(archRaw){
+    try{
+      var arch=JSON.parse(archRaw)||{};
+      var keys=Object.keys(arch).sort().reverse(); // 最新月份在前
+      if(keys.length>0){
+        l.push('');
+        l.push('【📚 成績單歷史檔案 — 共 '+keys.length+' 個月份】');
+        l.push('（使用者已將以下月份的全部排行榜凍結為成績單，可比較或回溯查詢）');
+        keys.forEach(function(k){
+          var snap=arch[k]||{};
+          l.push('  📅 '+k+'（'+(snap.archivedAt||'?')+' 匯入）：學院 '+(snap.academy||[]).length+
+            ' / 業務 '+(snap.sales||[]).length+
+            ' / 正式組 '+(snap.groupPerformance||[]).length+
+            ' / 儲備組 '+(snap.reservePerformance||[]).length);
+        });
+        // 把每個月的「正式組前 5 名」摘要塞給 AI（不會過量，但讓 AI 有跨月比較能力）
+        l.push('');
+        l.push('【跨月正式小組 Top 5 比較】');
+        keys.forEach(function(k){
+          var snap=arch[k]||{};
+          var top5=(snap.groupPerformance||[]).slice(0,5);
+          if(top5.length){
+            var line=top5.map(function(g,i){return (i+1)+'.'+(g.groupName||'')+' '+(g.total||0).toLocaleString();}).join(' | ');
+            l.push('  📅 '+k+'：'+line);
+          }
+        });
+      }
+    }catch(e){}
+  }
   return l.length?l.join('\n'):'（無數據）';}catch(e){return '';}
 }
 function getRulesCtx(){var r=LS(SK.rules);if(!r.length)return '';return '團隊鐵律 — 來自 AI 團隊宣言】\n'+r.map(function(x,i){return(i+1)+'. '+x.text;}).join('\n');}

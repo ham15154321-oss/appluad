@@ -1659,7 +1659,8 @@
           <span class="motiv-period-label">年</span>
           <select id="motivMonthSelect" class="motiv-period-select" title="同步的月份"></select>
           <span class="motiv-period-label">月</span>
-          <button class="motiv-import-btn" onclick="motivTriggerEipSync()" title="從 EIP 同步指定年月的資料（學院、業務、正式小組）">🔄 同步資料</button>
+          <button class="motiv-import-btn" onclick="motivImportToReportCard()" title="把目前 4 個排行榜（學院、業務、正式組、儲備組）凍結成「該月份成績單」存檔。AI 顧問可調閱歷史資料。" style="background:linear-gradient(135deg,rgba(255,200,80,.15),rgba(255,160,40,.08));border-color:rgba(255,200,80,.4);color:#ffc850;">📥 匯入成績單</button>
+          <button class="motiv-import-btn" onclick="motivTriggerEipSync()" title="從 EIP 同步指定年月的資料（學院、業務、正式小組、儲備小組）">🔄 同步資料</button>
           <label class="motiv-import-btn" style="font-size:.75rem;opacity:.7;">📥 匯入檔案
             <input type="file" accept=".xlsx,.xls,.numbers,.csv" style="display:none" onchange="motivImportFile(event)">
           </label>
@@ -1678,12 +1679,32 @@
           <div class="motiv-podium" id="motivPodium1"></div>
           <div class="motiv-list" id="motivList1"></div>
         </div>
-        <!-- ★ 儲備小組績效表（先佔位，等資料來源確定後填） -->
+        <!-- ★ 儲備小組績效表（從 EIP performance_d2.php 同步，結構同正式組） -->
         <div class="motiv-board" id="motivBoard2">
-          <div style="padding:40px 20px;text-align:center;color:rgba(180,200,240,.5);font-size:13px;line-height:1.8;">
+          <div class="motiv-group-header" id="motivReserveHeader" style="display:none;"></div>
+          <div style="overflow-x:auto;">
+            <table class="motiv-group-table" id="motivReserveTable" style="display:none;">
+              <thead>
+                <tr>
+                  <th>名次</th>
+                  <th>學院</th>
+                  <th>儲備組別</th>
+                  <th>總業績</th>
+                  <th>組長</th>
+                  <th>業績</th>
+                  <th>組員</th><th>業績</th>
+                  <th>組員</th><th>業績</th>
+                  <th>組員</th><th>業績</th>
+                  <th>組員</th><th>業績</th>
+                </tr>
+              </thead>
+              <tbody id="motivReserveTbody"></tbody>
+            </table>
+          </div>
+          <div class="motiv-group-empty" id="motivReserveEmpty">
             🌱 <b>儲備小組績效表</b><br>
-            （尚未設定資料來源）<br>
-            <span style="font-size:11px;opacity:.7;">告訴 Claude 要顯示哪些組員、看哪段業績欄位，就能填上來。</span>
+            （尚未同步資料）<br>
+            <span style="font-size:11px;opacity:.7;">選好上方年/月後，按「🔄 同步資料」即可從 EIP 抓取本月儲備小組績效表。</span>
           </div>
         </div>
         <!-- ★ 正式小組績效表（從 EIP performance_d.php 同步） -->
@@ -2544,6 +2565,99 @@
         html += `<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:8px;">尚無 ${m}月 通路資料</div>`;
       }
       html += '</div>';
+
+      // === Section 4: 📚 EIP 排行榜快照（從「📥 匯入成績單」存檔的 4 個排行榜讀取）===
+      try {
+        var _rcCid = '';
+        try { var _aid = localStorage.getItem('activeCharacterId'); if(_aid) _rcCid = 'char_' + _aid + '_'; } catch(e){}
+        var _archRaw = localStorage.getItem(_rcCid + 'motiv_archive');
+        var _archive = {};
+        if (_archRaw) { try { _archive = JSON.parse(_archRaw) || {}; } catch(e){ _archive = {}; } }
+        var _archKey = year + '-' + String(m).padStart(2, '0');
+        var _snap = _archive[_archKey];
+
+        html += '<div class="rc-section">';
+        html += '<div class="rc-section-title">📚 EIP 排行榜快照（' + _archKey + '）</div>';
+
+        if (!_snap){
+          var _avail = Object.keys(_archive).sort().reverse();
+          html += '<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:14px;line-height:1.7;">';
+          html += '尚未匯入 <b style="color:var(--accent);">' + _archKey + '</b> 的成績單。<br>';
+          html += '<span style="font-size:.75rem;opacity:.85;">請到「🏆 激勵」tab，選好年/月，先按「🔄 同步資料」抓取 EIP，再按「📥 匯入成績單」存檔。</span>';
+          if (_avail.length){
+            html += '<br><br><span style="font-size:.78rem;color:var(--accent);">已匯入過的月份：' + _avail.join('、') + '</span>';
+          }
+          html += '</div>';
+        } else {
+          html += '<div style="font-size:.72rem;color:var(--dim);margin-bottom:10px;">📥 匯入時間：' + (_snap.archivedAt || '?') + '</div>';
+
+          var _sections = [
+            { title: '🏫 學院排名', data: _snap.academy || [], topN: 20, type: 'simple' },
+            { title: '👤 業務排名', data: _snap.sales || [], topN: 30, type: 'simple' },
+            { title: '🎖️ 正式小組績效', data: _snap.groupPerformance || [], topN: 999, type: 'group' },
+            { title: '🌱 儲備小組績效', data: _snap.reservePerformance || [], topN: 999, type: 'group' }
+          ];
+
+          _sections.forEach(function(sec){
+            html += '<div class="rc-ch-card">';
+            html += '<div class="rc-ch-title" style="display:flex;justify-content:space-between;align-items:center;">';
+            html += '<span>' + sec.title + '</span>';
+            html += '<span style="font-weight:400;font-size:.75rem;color:var(--dim);">共 ' + sec.data.length + ' 筆</span>';
+            html += '</div>';
+
+            if (sec.data.length === 0){
+              html += '<div style="color:var(--dim);font-size:.78rem;padding:8px;text-align:center;">（無資料）</div>';
+            } else if (sec.type === 'simple'){
+              // 學院 / 業務排名
+              sec.data.slice(0, sec.topN).forEach(function(x, i){
+                var _isLeader = leader && x.name === leader;
+                html += '<div class="rc-rank-row' + (_isLeader ? ' highlight' : '') + '">';
+                html += '<span class="rc-rank">' + (i === 0 ? '👑' : (i + 1)) + '</span>';
+                html += '<span class="rc-rank-name">' + (x.name || '') + '</span>';
+                html += '<span class="rc-rank-val">' + ((x.value || 0).toLocaleString('zh-TW')) + '</span>';
+                html += '</div>';
+              });
+              if (sec.data.length > sec.topN){
+                html += '<div style="text-align:center;font-size:.7rem;color:var(--dim);padding:4px;">（僅顯示前 ' + sec.topN + ' 名）</div>';
+              }
+            } else if (sec.type === 'group'){
+              // 正式 / 儲備小組（顯示組別 + 組長 + 組員）
+              sec.data.forEach(function(g, i){
+                var members = g.members || [];
+                var lead = g.leader || {};
+                var _isLeaderRow = leader && (lead.name === leader || (members.some(function(mm){ return mm.name === leader; })));
+                html += '<div style="border-bottom:1px solid var(--border);padding:8px 4px;' + (_isLeaderRow ? 'background:rgba(255,215,0,.06);' : '') + '">';
+                // 第一行：名次 + 學院 + 組別 + 總業績
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+                html += '<span style="font-weight:700;">';
+                html += '<span style="color:#ffd700;">' + (i === 0 ? '👑' : (g.rank || (i + 1))) + '</span> ';
+                html += '<span style="color:var(--dim);font-weight:400;font-size:.78rem;">' + (g.academy || '') + '</span> ';
+                html += '<span style="color:var(--accent);">' + (g.groupName || '') + '</span>';
+                html += '</span>';
+                html += '<span style="color:#ffd700;font-weight:800;">' + ((g.total || 0).toLocaleString('zh-TW')) + '</span>';
+                html += '</div>';
+                // 第二行：組長 + 組員
+                html += '<div style="font-size:.76rem;color:var(--text);margin-top:3px;padding-left:18px;line-height:1.5;">';
+                var _ldHl = (leader && lead.name === leader) ? 'background:rgba(255,215,0,.15);padding:0 4px;border-radius:3px;' : '';
+                html += '<span style="' + _ldHl + '">組長 <b>' + (lead.name || '-') + '</b> ' + ((lead.value || 0).toLocaleString('zh-TW')) + '</span>';
+                if (members.length){
+                  html += ' ｜ 組員 ';
+                  html += members.map(function(m){
+                    var _mHl = (leader && m.name === leader) ? 'background:rgba(255,215,0,.15);padding:0 4px;border-radius:3px;' : '';
+                    return '<span style="' + _mHl + '"><b>' + (m.name || '') + '</b> ' + ((m.value || 0).toLocaleString('zh-TW')) + '</span>';
+                  }).join('、');
+                }
+                html += '</div>';
+                html += '</div>';
+              });
+            }
+            html += '</div>'; // .rc-ch-card
+          });
+        }
+        html += '</div>'; // .rc-section
+      } catch(_rcArchErr) {
+        console.warn('[rc] archive section render failed', _rcArchErr);
+      }
 
       // === Footer ===
       html += `<div class="rc-footer">
@@ -4314,6 +4428,8 @@
     var _motivCurrentBoard = 0;
     var _motivGroupPerf = [];        // 正式小組績效表（從 EIP performance_d.php 同步）
     var _motivGroupPerfMeta = {};    // { year, month }
+    var _motivReservePerf = [];      // 儲備小組績效表（從 EIP performance_d2.php 同步）
+    var _motivReservePerfMeta = {};  // { year, month }
 
     // Load from localStorage if available
     (function(){
@@ -4328,6 +4444,10 @@
         if (saved3) _motivGroupPerf = JSON.parse(saved3) || [];
         var saved4 = localStorage.getItem(cid + 'motiv_group_performance_meta');
         if (saved4) _motivGroupPerfMeta = JSON.parse(saved4) || {};
+        var saved5 = localStorage.getItem(cid + 'motiv_reserve_performance_v1');
+        if (saved5) _motivReservePerf = JSON.parse(saved5) || [];
+        var saved6 = localStorage.getItem(cid + 'motiv_reserve_performance_meta');
+        if (saved6) _motivReservePerfMeta = JSON.parse(saved6) || {};
       } catch(e){}
     })();
 
@@ -4339,6 +4459,8 @@
         localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(_motivSales));
         localStorage.setItem(cid + 'motiv_group_performance_v1', JSON.stringify(_motivGroupPerf));
         localStorage.setItem(cid + 'motiv_group_performance_meta', JSON.stringify(_motivGroupPerfMeta));
+        localStorage.setItem(cid + 'motiv_reserve_performance_v1', JSON.stringify(_motivReservePerf));
+        localStorage.setItem(cid + 'motiv_reserve_performance_meta', JSON.stringify(_motivReservePerfMeta));
       } catch(e){}
     }
 
@@ -4355,6 +4477,10 @@
         if (s3) _motivGroupPerf = JSON.parse(s3) || [];
         var s4 = localStorage.getItem(cid + 'motiv_group_performance_meta');
         if (s4) _motivGroupPerfMeta = JSON.parse(s4) || {};
+        var s5 = localStorage.getItem(cid + 'motiv_reserve_performance_v1');
+        if (s5) _motivReservePerf = JSON.parse(s5) || [];
+        var s6 = localStorage.getItem(cid + 'motiv_reserve_performance_meta');
+        if (s6) _motivReservePerfMeta = JSON.parse(s6) || {};
       } catch(e){}
     }
 
@@ -4406,6 +4532,7 @@
       motivRenderBoard(_motivAcademy, 'motivPodium0', 'motivList0');
       motivRenderBoard(_motivSales, 'motivPodium1', 'motivList1');
       motivRenderGroupPerformance();
+      motivRenderReservePerformance();
       // Show update time
       var info = document.getElementById('motivUpdateInfo');
       if (info) {
@@ -4476,6 +4603,155 @@
         html += '</tr>';
       }
       tbody.innerHTML = html;
+    }
+
+    // ========== 儲備小組績效表 render（與正式組共用 _mgEscape） ==========
+    function motivRenderReservePerformance(){
+      var tbody = document.getElementById('motivReserveTbody');
+      var table = document.getElementById('motivReserveTable');
+      var header = document.getElementById('motivReserveHeader');
+      var emptyMsg = document.getElementById('motivReserveEmpty');
+      if (!tbody || !table || !header || !emptyMsg) return;
+
+      var data = Array.isArray(_motivReservePerf) ? _motivReservePerf : [];
+      if (data.length === 0){
+        table.style.display = 'none';
+        header.style.display = 'none';
+        tbody.innerHTML = '';
+        emptyMsg.style.display = 'block';
+        return;
+      }
+
+      var ymTxt = '';
+      if (_motivReservePerfMeta && _motivReservePerfMeta.year && _motivReservePerfMeta.month){
+        ymTxt = _motivReservePerfMeta.year + '年 ' + _motivReservePerfMeta.month + '月 · ';
+      }
+      header.textContent = '🌱 儲備小組績效表（' + ymTxt + '共 ' + data.length + ' 組）';
+      header.style.display = 'block';
+      emptyMsg.style.display = 'none';
+      table.style.display = 'table';
+
+      var html = '';
+      for (var i = 0; i < data.length; i++){
+        var g = data[i];
+        var members = g.members || [];
+        html += '<tr>';
+        html += '<td class="mg-rank">' + (g.rank || (i + 1)) + '</td>';
+        html += '<td class="mg-academy">' + _mgEscape(g.academy) + '</td>';
+        html += '<td class="mg-group">' + _mgEscape(g.groupName) + '</td>';
+        html += '<td class="mg-total">' + motivFmt(g.total) + '</td>';
+        var ldName = g.leader && g.leader.name ? g.leader.name : '';
+        var ldVal = g.leader && g.leader.value ? g.leader.value : 0;
+        html += '<td class="mg-leader">' + _mgEscape(ldName) + '</td>';
+        html += '<td class="mg-val">' + motivFmt(ldVal) + '</td>';
+        for (var k = 0; k < 4; k++){
+          var m = members[k];
+          if (m){
+            html += '<td class="mg-member">' + _mgEscape(m.name) + '</td>';
+            html += '<td class="mg-val">' + motivFmt(m.value) + '</td>';
+          } else {
+            html += '<td class="mg-empty">—</td><td class="mg-empty">—</td>';
+          }
+        }
+        html += '</tr>';
+      }
+      tbody.innerHTML = html;
+    }
+
+    // ========== 📥 匯入成績單（凍結當前 4 個排行榜為該月份成績單） ==========
+    // 存放於 localStorage 的 char_<id>_motiv_archive，結構為：
+    //   { "2026-05": {year, month, archivedAt, academy, sales, groupPerformance, reservePerformance}, ... }
+    // AI 顧問可從此檔案調閱歷史月份的全部資料。
+    function motivImportToReportCard(){
+      // ★ 優先用「最後同步的 meta」決定年/月（確保資料和月份一致）
+      var year, month;
+      if (_motivGroupPerfMeta && _motivGroupPerfMeta.year && _motivGroupPerfMeta.month){
+        year = _motivGroupPerfMeta.year;
+        month = _motivGroupPerfMeta.month;
+      } else if (_motivReservePerfMeta && _motivReservePerfMeta.year && _motivReservePerfMeta.month){
+        year = _motivReservePerfMeta.year;
+        month = _motivReservePerfMeta.month;
+      } else {
+        // fallback：用目前選單值
+        var ys = document.getElementById('motivYearSelect');
+        var ms = document.getElementById('motivMonthSelect');
+        var now = new Date();
+        year = (ys && ys.value) ? parseInt(ys.value, 10) : now.getFullYear();
+        month = (ms && ms.value) ? ms.value : String(now.getMonth() + 1).padStart(2, '0');
+      }
+      var key = year + '-' + month;
+
+      // 檢查是否有資料可匯入
+      var aLen = (_motivAcademy || []).length;
+      var sLen = (_motivSales || []).length;
+      var gLen = (_motivGroupPerf || []).length;
+      var rLen = (_motivReservePerf || []).length;
+      if (aLen + sLen + gLen + rLen === 0){
+        alert('⚠️ 目前 4 個排行榜都是空的，請先按「🔄 同步資料」抓取 EIP 資料再匯入成績單。');
+        return;
+      }
+
+      // 讀現有 archive
+      var cid = '';
+      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+      var archiveKey = cid + 'motiv_archive';
+      var archive = {};
+      try {
+        var raw = localStorage.getItem(archiveKey);
+        if (raw) archive = JSON.parse(raw) || {};
+      } catch(e){ archive = {}; }
+
+      // 同月份已存在 → 確認覆蓋
+      if (archive[key]){
+        var existing = archive[key];
+        if (!confirm('⚠️ ' + key + ' 的成績單已存在\n（於 ' + (existing.archivedAt || '?') + ' 匯入）\n\n要覆蓋成新的資料嗎？')) {
+          return;
+        }
+      }
+
+      // 組裝快照
+      var now = new Date();
+      var stamp = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate()
+        + ' ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+
+      archive[key] = {
+        year: year,
+        month: month,
+        archivedAt: stamp,
+        academy: _motivAcademy || [],
+        sales: _motivSales || [],
+        groupPerformance: _motivGroupPerf || [],
+        reservePerformance: _motivReservePerf || []
+      };
+
+      // 寫入
+      try {
+        localStorage.setItem(archiveKey, JSON.stringify(archive));
+        var months = Object.keys(archive).sort().reverse();
+        var monthList = months.slice(0, 6).join('、') + (months.length > 6 ? '...' : '');
+        alert(
+          '✅ 已匯入成績單：' + year + '年 ' + month + '月\n' +
+          '─────────────\n' +
+          '🏫 學院排名：' + aLen + ' 筆\n' +
+          '👤 業務排名：' + sLen + ' 筆\n' +
+          '🎖️ 正式小組：' + gLen + ' 組\n' +
+          '🌱 儲備小組：' + rLen + ' 組\n' +
+          '─────────────\n' +
+          '📚 目前共有 ' + months.length + ' 個月份的成績單：\n' +
+          '   ' + monthList + '\n\n' +
+          'AI 顧問下次對話時可調閱所有歷史月份。'
+        );
+        // 同步到雲端（如果 firebase-sync 可用）
+        try {
+          if (window.parent && window.parent.firebaseSync && typeof window.parent.firebaseSync.push === 'function'){
+            window.parent.firebaseSync.push();
+          } else if (window.firebaseSync && typeof window.firebaseSync.push === 'function'){
+            window.firebaseSync.push();
+          }
+        } catch(e){}
+      } catch(e) {
+        alert('❌ 匯入失敗：' + e.message + '\n\n（可能 localStorage 空間不足，請刪除舊月份成績單再試）');
+      }
     }
 
     // ========== 年/月 選單初始化 ==========
