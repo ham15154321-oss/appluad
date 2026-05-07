@@ -245,11 +245,11 @@ const DEFAULT_RULES = [
     triggerCondition:'所有 6 個 AI 功能對話時',
     output:'知識庫全文' },
 
-  { id:'data_monthly_perf_8sheets', category:'data', name:'業績數據中心 — 月績效中心 8 大報表', enabled:true,
-    description:'AI 對話時自動帶入業績數據中心 → 每月績效的 8 個報表 row 級資料：❶ 通路名單來源分析、❷ 通路業績、❸ 業務個人績效、❹ 正式小組業績總表、❺ 學院績效總表、❻ 繳費項目分析、❼ 收支分析、❽ 課程銷售分析。所有月份的可用性會以摘要形式呈現；最近 3 個有資料的月份會展開到 row 級資料（每個 sheet 最多 50 筆，全欄位非空者帶入）。\n\n用例：問「4 月業務個人績效面談率前 5 名」、「2 月各通路業績比較」、「Q1 學院績效總表前 3 名」這類具體問題時，AI 才能算得出來。\n\n資料來源是 localStorage.mp_data_v1（全主角共享），結構為 { "1": { sheet1: [...], ..., sheet8: [...] }, ..., "12": {...} }。',
-    sourceFunction:'ai-advisor.html → getMonthlyPerfCtx()',
+  { id:'data_monthly_perf_8sheets', category:'data', name:'業績數據中心 — 月績效中心 8 大報表（全月份展開）', enabled:true,
+    description:'AI 對話時自動帶入業績數據中心 → 每月績效的 8 個報表 row 級資料：❶ 通路名單來源分析、❷ 通路業績、❸ 業務個人績效、❹ 正式小組業績總表、❺ 學院績效總表、❻ 繳費項目分析、❼ 收支分析、❽ 課程銷售分析。\n\n★ 修正紀錄：原本只展開「最近 3 個月份」的 row 級資料，導致 AI 看不到較舊月份（例如 1 月）的細節（退費金額等）→ AI 會誤答「我看不到 1 月資料」。\n\n★ 現在：所有有資料的月份都全部展開到 row 級（每 sheet 最多 50 筆，所有非空欄位包含退費金額、面談率等都帶入）。\n\nsystem prompt 結尾還會明確提醒 AI「資料都在上面，不要說看不到」。\n\n資料來源：IndexedDB SpaceBaseDB.images[\'mp_data_v1\']（透過 _mpDataCache 預載）→ fallback localStorage \'mp_data_v1\'。',
+    sourceFunction:'ai-advisor.html → getMonthlyPerfCtx() / _refreshMpDataCache()',
     triggerCondition:'所有 6 個 AI 功能對話時',
-    output:'月份摘要列（哪些月份哪些 sheet 有幾筆）+ 最近 3 個月每報表前 50 筆 row 的所有非空欄位' },
+    output:'月份摘要列 + 所有月份 8 個 sheet 各前 50 筆 row 的所有非空欄位 + 防誤答提醒' },
 
   // ━━ 🎭 角色提示詞 ━━
   { id:'prompt_coach', category:'prompt', name:'AI 教練 system prompt', enabled:true,
@@ -288,6 +288,12 @@ const DEFAULT_RULES = [
     triggerCondition:'進入 AI 案例庫對話時',
     output:'設定 AI 為案例分析專家' },
 
+  { id:'prompt_clarify_first', category:'prompt', name:'★ 對話行為準則 — 像 Claude 一樣先反問再回答', enabled:true,
+    description:'附加在所有 6 個 AI 顧問 system prompt 結尾的「先確認再回答」行為準則。\n\n3 步驟流程：\n1️⃣ 檢查模糊點（時間/對象/標準/範圍）→ 有模糊就用 ❓ 反問 1~3 題\n2️⃣ 主動察覺主角沒想到的盲點 → 例如使用者問「怎麼提升面談率」但他已 90% → 反問是否要拉到 95% 或在意品質\n3️⃣ 確認後才用力思考並生成最終答案，跨資料源整合\n\n平衡原則：\n- 寧可多問也不瞎猜\n- 但簡單明確查詢（如「5月學院 Top 3」）直接答\n- 反問用 ❓ 開頭，最終答案用 💡 或 📋 開頭，視覺區分\n- 一次最多 3 題反問\n\n讓 AI 顧問行為更接近 Claude — 不會只生成表面答案，而是先理解使用者真正想要什麼。',
+    sourceFunction:'ai-advisor.html → 變數 CLARIFY_FIRST_BEHAVIOR',
+    triggerCondition:'每個 AI 功能 system prompt 結尾（接在 GOLDEN_CIRCLE 之後）',
+    output:'AI 收到問題時：模糊就反問、有盲點就提醒、確認後才深度回答' },
+
   { id:'prompt_golden_circle', category:'prompt', name:'GOLDEN_CIRCLE 共用結尾', enabled:true,
     description:'附加在所有 AI 功能 system prompt 結尾的共用價值觀與行事準則。',
     sourceFunction:'ai-advisor.html → 變數 GOLDEN_CIRCLE',
@@ -295,6 +301,18 @@ const DEFAULT_RULES = [
     output:'共用準則文字' },
 
   // ━━ 💾 儲存與紀錄 ━━
+  { id:'storage_ai_error_reports', category:'storage', name:'★ 我要挑戰AI的論點（任一主角挑戰 → 黃柏翰後台收通知）', enabled:true,
+    description:'AI 顧問中心頂端 tab 多一個紅色「💪 我要挑戰AI的論點」按鈕（icon 從 ❌ 改為 💪 — 強調這是「批判性思考」而非單純的錯誤通報）。任何主角不認同 AI 顧問的判斷、發現論點漏洞、或覺得它的回答站不住腳時，可送出挑戰，內容包括：哪個 AI 顧問、原始問題、AI 答案、你的挑戰、你認為正確的論點。\n\n儲存：localStorage ai_error_reports_v1（全主角共享）。\n\n黃柏翰特權：\n- 後台管理開啟時，若有未處理挑戰 → 頂端顯示大紅色發光橫幅「💪 有 N 筆主角挑戰 AI 的論點待處理」\n- 點橫幅進入 admin-ai-errors.html → 看所有主角的挑戰、按 AI 顧問/狀態過濾、標記已處理、刪除\n- 一般主角：只看到自己的挑戰，看不到別人的\n\n設計理念：將「使用者覺得 AI 錯了」重新框架為「主角挑戰 AI 論點」— 鼓勵批判性思考而非被動接受 AI 答案。',
+    sourceFunction:'ai-advisor.html → openAddAiError() / submitAiError() / renderAiError() + admin-ai-errors.html + 人力發展.html → updateAiErrorAdminBanner()',
+    triggerCondition:'每位主角點 💪 我要挑戰AI的論點 tab；黃柏翰開啟後台時自動檢查未處理數',
+    output:'reports 陣列，badge 顯示未處理數，黃柏翰收到大紅色橫幅通知' },
+
+  { id:'storage_chat_persist_local', category:'storage', name:'★ AI 對話歷史本地持久化（per character × per feature）', enabled:true,
+    description:'每位主角 × 每個 AI 顧問（教練/數據通/小任務/宣言/陪跑師/案例庫）的對話歷史都儲存在 localStorage：char_<id>_ai_chat_<feature>_v1。\n\n行為：\n- 切換頁面、關閉 iframe、瀏覽器重啟都不會清除\n- 重新打開 AI 顧問會自動載入歷史（看到之前的對話），可直接延續話題\n- 各主角隔離（楊雅筑看不到黃柏翰的）\n- 各顧問隔離（教練的對話跟數據通分開）\n- 只有點 chat-header 的「🗑 清除」按鈕並確認後才會清\n\n清除按鈕只清「目前這個顧問」的歷史，其他 5 個顧問的對話不受影響。\n\n釘選歷史（SK.pins）和結案紀錄（SK.closed）是另外的儲存層，不受此規則影響。',
+    sourceFunction:'ai-advisor.html → _chatHistKey() / _loadChatHist() / _saveChatHist() / _clearChatHist() + addMsg(...,{skipSave}) + clearChatHistory()',
+    triggerCondition:'每次 addMsg、openChat 都會讀寫；只有手動點🗑才清除',
+    output:'localStorage key：char_<id>_ai_chat_<feature>_v1，結構 [{type, text, time, topicId}]' },
+
   { id:'storage_chat_firestore', category:'storage', name:'AI 對話寫入 Firestore', enabled:true,
     description:'每次 AI 對話（user msg + AI reply）會透過 firebaseSync.logAiChat() 寫入雲端，給黃柏翰之後檢視/分類。',
     sourceFunction:'ai-advisor.html → _logAiChatRemote() / firebase-sync.js logAiChat',

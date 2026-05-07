@@ -1639,6 +1639,24 @@
     </div>
     <!-- 主檢視：所有設定區塊 -->
     <div class="admin-body" id="adminMainView">
+      <!-- ★★★ 主角挑戰 AI 論點通知（僅黃柏翰、僅有未處理時顯示）— 大紅色橫幅 ★★★ -->
+      <div id="aiErrorAdminBanner" style="display:none;margin-bottom:18px;padding:18px 22px;border-radius:14px;border:3px solid #ff6b6b;background:linear-gradient(135deg,rgba(255,107,107,0.18),rgba(255,167,38,0.10));box-shadow:0 0 28px rgba(255,107,107,0.35);cursor:pointer;animation:aiErrPulse 2s ease-in-out infinite;" onclick="adminNav('admin-ai-errors.html')">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="font-size:42px;line-height:1;">💪</div>
+          <div style="flex:1;">
+            <div id="aiErrorAdminTitle" style="font-size:20px;font-weight:900;color:#ff6b6b;letter-spacing:1px;margin-bottom:4px;">有 N 筆主角挑戰 AI 的論點待處理</div>
+            <div style="font-size:13px;color:#ffb0b0;line-height:1.55;">主角不認同 AI 的判斷，提出了質疑或挑戰，需要你重新檢視 AI 的論點。<br>點擊查看 → 標記已處理 → 通知會消失</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;padding:10px 18px;border-radius:10px;background:rgba(255,107,107,0.25);color:#ff6b6b;border:1px solid rgba(255,107,107,0.45);white-space:nowrap;">📋 立即查看 →</div>
+        </div>
+      </div>
+      <style>
+        @keyframes aiErrPulse {
+          0%,100% { box-shadow:0 0 28px rgba(255,107,107,0.35); }
+          50%     { box-shadow:0 0 38px rgba(255,107,107,0.55); }
+        }
+      </style>
+
       <!-- ★ AI 顧問中心入口（僅管理員「黃柏翰」可見）— 對話總覽 + 6 個分類 -->
       <div class="admin-section" id="adminAiCenterSection" style="display:none;margin-bottom:18px;border:2px solid rgba(167,139,250,0.35);background:linear-gradient(135deg,rgba(167,139,250,0.08),rgba(74,234,255,0.04));">
         <h3 style="color:#a78bfa;display:flex;align-items:center;gap:8px;">
@@ -2193,6 +2211,27 @@ function updateAuditAdminVisibility(){
     const sec = document.getElementById(id);
     if(sec) sec.style.display = isAdmin ? 'block' : 'none';
   });
+  // ★ 主角挑戰 AI 論點通知（黃柏翰專屬，僅有未處理時顯示）
+  updateAiErrorAdminBanner(isAdmin);
+}
+function updateAiErrorAdminBanner(isAdmin){
+  const banner = document.getElementById('aiErrorAdminBanner');
+  if (!banner) return;
+  if (!isAdmin) { banner.style.display = 'none'; return; }
+  try {
+    const raw = localStorage.getItem('ai_error_reports_v1');
+    const reports = raw ? (JSON.parse(raw) || []) : [];
+    const openCount = reports.filter(r => r.status === 'open').length;
+    if (openCount > 0) {
+      banner.style.display = 'block';
+      const titleEl = document.getElementById('aiErrorAdminTitle');
+      if (titleEl) titleEl.textContent = '有 ' + openCount + ' 筆主角挑戰 AI 的論點待處理';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch(e) {
+    banner.style.display = 'none';
+  }
 }
 async function updateStorageInfo(){
   const el=document.getElementById('storageInfo');if(!el)return;

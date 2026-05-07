@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💪 挑戰 AI 論點 — 赫綠設計學院</title>
+<script src="auth-check.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  min-height:100vh;
+  background:linear-gradient(135deg,#050510 0%,#1f0a1a 35%,#1a0a2e 70%,#050510 100%);
+  color:#e8e8e8;
+  font-family:'Segoe UI','Microsoft JhengHei',-apple-system,sans-serif;
+  padding:20px 24px 60px;
+}
+.wrap{max-width:1280px;margin:0 auto;}
+.head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
+.title{font-size:22px;font-weight:900;color:#ff6b6b;letter-spacing:2px;text-shadow:0 0 16px rgba(255,107,107,.3);}
+.sub{font-size:11px;color:rgba(180,200,240,.5);letter-spacing:1px;}
+.btn{padding:8px 14px;border-radius:8px;cursor:pointer;border:none;font-weight:700;font-size:13px;font-family:inherit;transition:all .2s;}
+.btn-back{background:rgba(255,255,255,.04);border:1px solid rgba(160,160,200,.2);color:#bda8e8;}
+.btn-back:hover{background:rgba(255,255,255,.08);}
+.btn-action{padding:5px 12px;font-size:11px;border-radius:6px;cursor:pointer;border:1px solid;font-family:inherit;}
+.btn-fix{border-color:rgba(74,222,128,.4);background:rgba(74,222,128,.1);color:#4ade80;}
+.btn-reopen{border-color:rgba(255,138,138,.4);background:rgba(255,138,138,.1);color:#ff8a8a;}
+.btn-del{border-color:rgba(255,80,80,.4);background:rgba(255,80,80,.08);color:#ff6b6b;}
+.btn-action:hover{filter:brightness(1.15);}
+
+/* 統計列 */
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.stat-card{
+  flex:1;min-width:140px;padding:14px 18px;border-radius:12px;
+  background:rgba(15,20,50,.55);border:1px solid rgba(160,160,200,.2);
+  backdrop-filter:blur(8px);
+}
+.stat-card.warn{border-color:rgba(255,107,107,.4);background:linear-gradient(135deg,rgba(255,107,107,.1),rgba(255,167,38,.05));}
+.stat-card.ok{border-color:rgba(74,222,128,.4);background:linear-gradient(135deg,rgba(74,222,128,.08),rgba(60,200,200,.04));}
+.stat-num{font-size:28px;font-weight:900;line-height:1;}
+.stat-num.warn{color:#ff6b6b;}
+.stat-num.ok{color:#4ade80;}
+.stat-num.info{color:#4aeaff;}
+.stat-label{font-size:11px;color:rgba(180,200,240,.65);margin-top:4px;letter-spacing:1px;}
+
+/* 過濾列 */
+.filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.filter-btn{
+  padding:6px 14px;border-radius:8px;cursor:pointer;
+  border:1px solid rgba(160,160,200,.2);background:rgba(255,255,255,.03);
+  color:#bda8e8;font-size:12px;font-family:inherit;
+}
+.filter-btn.active{background:rgba(255,107,107,.15);border-color:#ff6b6b;color:#ff8a8a;}
+.filter-btn:hover{filter:brightness(1.2);}
+
+/* 主清單 */
+.list{display:flex;flex-direction:column;gap:10px;}
+.report{
+  border:1px solid;border-left-width:4px;border-radius:10px;padding:14px 16px;
+  background:rgba(255,255,255,.02);
+}
+.report.open{border-color:rgba(255,138,138,.4);border-left-color:#ff6b6b;}
+.report.fixed{border-color:rgba(74,222,128,.3);border-left-color:#4ade80;opacity:.7;}
+.report-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
+.status{font-size:13px;font-weight:800;}
+.status.open{color:#ff6b6b;}
+.status.fixed{color:#4ade80;}
+.meta{font-size:11px;color:rgba(180,200,240,.55);}
+.field{margin:6px 0;font-size:13px;line-height:1.55;}
+.field b{margin-right:6px;}
+.field.user b{color:#a78bfa;}
+.field.ai b{color:#4aeaff;}
+.field.wrong b{color:#ff6b6b;}
+.field.expect b{color:#ffd700;}
+.field-text{color:#dde6f0;white-space:pre-wrap;}
+.actions{display:flex;gap:6px;margin-top:10px;}
+
+.empty{padding:40px;text-align:center;color:rgba(180,200,240,.5);font-size:13px;line-height:1.7;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="head">
+    <div>
+      <div class="title">💪 挑戰 AI 論點 — 管理視圖</div>
+      <div class="sub">所有主角對 AI 顧問提出的挑戰 — 黃柏翰專屬視圖</div>
+    </div>
+    <div style="flex:1;"></div>
+    <button class="btn btn-back" onclick="history.back()">← 回後台</button>
+  </div>
+
+  <div class="stats" id="statsBar"></div>
+  <div class="filters" id="filters"></div>
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+const SK_AIERR = 'ai_error_reports_v1';
+let currentFilter = 'all';
+
+const FEAT_NAMES = {
+  coach:'🎯 AI 教練', data:'📊 AI 數據通', task:'✅ AI 小任務',
+  team:'📣 AI 團隊宣言', mentor:'🧠 AI 陪跑師', cases:'📚 AI 案例庫',
+  other:'🤷 其他'
+};
+
+function loadReports(){
+  try{ var r=localStorage.getItem(SK_AIERR); return r?(JSON.parse(r)||[]):[]; }
+  catch(e){ return []; }
+}
+function saveReports(arr){
+  try{ localStorage.setItem(SK_AIERR, JSON.stringify(arr||[])); }
+  catch(e){ alert('❌ 儲存失敗：'+e.message); }
+}
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function markFixed(id){
+  var arr=loadReports();
+  var r=arr.find(x=>x.id===id);
+  if(!r)return;
+  r.status='fixed';
+  r.fixedAt=Date.now();
+  saveReports(arr);
+  render();
+  try{ if(window.firebaseSync&&window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+}
+function reopen(id){
+  var arr=loadReports();
+  var r=arr.find(x=>x.id===id);
+  if(!r)return;
+  r.status='open';
+  delete r.fixedAt;
+  saveReports(arr);
+  render();
+  try{ if(window.firebaseSync&&window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+}
+function del(id){
+  if(!confirm('確定刪除這筆挑戰？此動作無法還原。'))return;
+  saveReports(loadReports().filter(x=>x.id!==id));
+  render();
+  try{ if(window.firebaseSync&&window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+}
+function setFilter(f){ currentFilter=f; render(); }
+
+function render(){
+  var all = loadReports();
+  var openCount = all.filter(r=>r.status==='open').length;
+  var fixedCount = all.filter(r=>r.status==='fixed').length;
+  var charCount = new Set(all.map(r=>r.charName||'')).size;
+
+  // 統計列
+  document.getElementById('statsBar').innerHTML =
+    '<div class="stat-card warn"><div class="stat-num warn">'+openCount+'</div><div class="stat-label">🔴 待處理</div></div>'
+    +'<div class="stat-card ok"><div class="stat-num ok">'+fixedCount+'</div><div class="stat-label">✅ 已處理</div></div>'
+    +'<div class="stat-card"><div class="stat-num info">'+all.length+'</div><div class="stat-label">📋 總挑戰數</div></div>'
+    +'<div class="stat-card"><div class="stat-num info">'+charCount+'</div><div class="stat-label">👥 挑戰主角數</div></div>';
+
+  // 過濾按鈕
+  var featCounts = {};
+  all.forEach(r=>{ featCounts[r.feature]=(featCounts[r.feature]||0)+1; });
+  var filterButtons = [
+    {k:'all', l:'全部 ('+all.length+')'},
+    {k:'open', l:'🔴 待處理 ('+openCount+')'},
+    {k:'fixed', l:'✅ 已處理 ('+fixedCount+')'}
+  ];
+  Object.keys(FEAT_NAMES).forEach(fk=>{
+    if(featCounts[fk]) filterButtons.push({k:'feat:'+fk, l:FEAT_NAMES[fk]+' ('+featCounts[fk]+')'});
+  });
+  document.getElementById('filters').innerHTML = filterButtons.map(f=>
+    '<button class="filter-btn'+(currentFilter===f.k?' active':'')+'" onclick="setFilter(\''+f.k+'\')">'+f.l+'</button>'
+  ).join('');
+
+  // 過濾資料
+  var visible = all.slice();
+  if(currentFilter==='open') visible = visible.filter(r=>r.status==='open');
+  else if(currentFilter==='fixed') visible = visible.filter(r=>r.status==='fixed');
+  else if(currentFilter.startsWith('feat:')){
+    var fk = currentFilter.split(':')[1];
+    visible = visible.filter(r=>r.feature===fk);
+  }
+
+  // 排序
+  visible.sort((a,b)=>{
+    if(a.status!==b.status) return a.status==='open'?-1:1;
+    return (b.reportedAt||0)-(a.reportedAt||0);
+  });
+
+  if(!visible.length){
+    document.getElementById('list').innerHTML = '<div class="empty">'+(all.length?'此分類下沒有挑戰。':'目前沒有任何主角挑戰 AI 的論點。<br><br>當主角們點 🤖 AI 顧問中心 → 💪 我要挑戰AI的論點 並送出挑戰時，會出現在這裡。')+'</div>';
+    return;
+  }
+
+  document.getElementById('list').innerHTML = visible.map(r=>{
+    var date = r.reportedAt ? new Date(r.reportedAt).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+    var fixedDate = r.fixedAt ? new Date(r.fixedAt).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'}) : '';
+    var statusTxt = r.status==='fixed' ? '✅ 已處理' : '🔴 待處理';
+    var statusCls = r.status==='fixed' ? 'fixed' : 'open';
+    var html = '<div class="report '+statusCls+'">';
+    html += '<div class="report-head">';
+    html += '<div><span class="status '+statusCls+'">'+statusTxt+'</span> · <span style="font-size:13px;font-weight:600;color:#bda8e8;">'+esc(FEAT_NAMES[r.feature]||r.feature)+'</span></div>';
+    html += '<div class="meta">👤 <b style="color:#dde6f0;">'+esc(r.charName||'?')+'</b> · '+date+(fixedDate?' · 處理於 '+fixedDate:'')+'</div>';
+    html += '</div>';
+    if(r.userMsg)    html += '<div class="field user"><b>👤 問：</b><span class="field-text">'+esc(r.userMsg)+'</span></div>';
+    if(r.aiMsg)      html += '<div class="field ai"><b>🤖 答：</b><span class="field-text">'+esc(r.aiMsg)+'</span></div>';
+    if(r.whatWrong)  html += '<div class="field wrong"><b>💪 挑戰：</b><span class="field-text">'+esc(r.whatWrong)+'</span></div>';
+    if(r.expected)   html += '<div class="field expect"><b>💡 正確論點：</b><span class="field-text">'+esc(r.expected)+'</span></div>';
+    html += '<div class="actions">';
+    if(r.status==='open') html += '<button class="btn-action btn-fix" onclick="markFixed(\''+r.id+'\')">✅ 標記已處理</button>';
+    else                  html += '<button class="btn-action btn-reopen" onclick="reopen(\''+r.id+'\')">↩ 重新開啟</button>';
+    html += '<button class="btn-action btn-del" onclick="del(\''+r.id+'\')">🗑 刪除</button>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+  }).join('');
+}
+
+render();
+</script>
+</body>
+</html>
