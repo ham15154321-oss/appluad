@@ -1734,6 +1734,82 @@ async function loginAsCharacter(idx){
     console.warn('profileImgData 寫入失敗（空間不足），改用 IndexedDB');
   }
 
+  // ★★★ 根治主角切換 bug：把照片/吉祥物寫入 IDB.images.profile / images.mascot
+  // 因為首頁 人力發展.html init() 是從 IDB.images.profile 讀照片的，
+  // 不是從 castle_cards_v1 讀。saveCards 會把 photo 從 cards 陣列的 localStorage 版本剝掉，
+  // 所以 card.photo 多半是空的，要先從 IDB.images.castle_card_photo_<id> hydrate。
+  try{
+    var _photoForProfile = card.photo;
+    if(!_photoForProfile){
+      _photoForProfile = await new Promise(function(resolve){
+        var r = indexedDB.open('SpaceBaseDB');
+        r.onsuccess = function(){
+          try{
+            var tx = r.result.transaction('images','readonly');
+            var g = tx.objectStore('images').get('castle_card_photo_' + card.id);
+            g.onsuccess = function(){ resolve(g.result); };
+            g.onerror = function(){ resolve(null); };
+          }catch(e){ resolve(null); }
+        };
+        r.onerror = function(){ resolve(null); };
+      });
+    }
+    if(_photoForProfile){
+      await new Promise(function(resolve){
+        var r = indexedDB.open('SpaceBaseDB');
+        r.onsuccess = function(){
+          try{
+            var tx = r.result.transaction('images','readwrite');
+            tx.objectStore('images').put(_photoForProfile, 'profile');
+            tx.oncomplete = function(){ resolve(); };
+            tx.onerror = function(){ resolve(); };
+          }catch(e){ resolve(); }
+        };
+        r.onerror = function(){ resolve(); };
+      });
+      card.photo = _photoForProfile;  // 補回 card 物件，給後續 Method A/B/C 使用
+      try{ localStorage.setItem('profileImgData', _photoForProfile); }catch(e){}
+      console.log('[loginAsCharacter] ✅ IDB.images.profile 已更新為 '+card.name);
+    } else {
+      console.warn('[loginAsCharacter] ⚠ 找不到 '+card.name+' 的照片（IDB castle_card_photo_'+card.id+' 不存在）');
+    }
+  }catch(e){ console.warn('[loginAsCharacter] IDB profile write failed', e); }
+
+  // 吉祥物同樣處理
+  try{
+    var _mascotForApply = card.mascot;
+    if(!_mascotForApply){
+      _mascotForApply = await new Promise(function(resolve){
+        var r = indexedDB.open('SpaceBaseDB');
+        r.onsuccess = function(){
+          try{
+            var tx = r.result.transaction('images','readonly');
+            var g = tx.objectStore('images').get('castle_card_mascot_' + card.id);
+            g.onsuccess = function(){ resolve(g.result); };
+            g.onerror = function(){ resolve(null); };
+          }catch(e){ resolve(null); }
+        };
+        r.onerror = function(){ resolve(null); };
+      });
+    }
+    if(_mascotForApply){
+      await new Promise(function(resolve){
+        var r = indexedDB.open('SpaceBaseDB');
+        r.onsuccess = function(){
+          try{
+            var tx = r.result.transaction('images','readwrite');
+            tx.objectStore('images').put(_mascotForApply, 'mascot');
+            tx.oncomplete = function(){ resolve(); };
+            tx.onerror = function(){ resolve(); };
+          }catch(e){ resolve(); }
+        };
+        r.onerror = function(){ resolve(); };
+      });
+      card.mascot = _mascotForApply;
+      console.log('[loginAsCharacter] ✅ IDB.images.mascot 已更新');
+    }
+  }catch(e){ console.warn('[loginAsCharacter] IDB mascot write failed', e); }
+
   showToast('🎮 已登入：'+card.name);
 
   // 更新本頁登入狀態列
