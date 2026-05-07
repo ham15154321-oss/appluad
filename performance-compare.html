@@ -4763,14 +4763,7 @@
           '   ' + monthList + '\n\n' +
           'AI 顧問下次對話時可調閱所有歷史月份。'
         );
-        // 同步到雲端（如果 firebase-sync 可用）
-        try {
-          if (window.parent && window.parent.firebaseSync && typeof window.parent.firebaseSync.push === 'function'){
-            window.parent.firebaseSync.push();
-          } else if (window.firebaseSync && typeof window.firebaseSync.push === 'function'){
-            window.firebaseSync.push();
-          }
-        } catch(e){}
+        // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
       } catch(e) {
         alert('❌ 匯入失敗：' + e.message + '\n\n（可能 localStorage 空間不足，請刪除舊月份成績單再試）');
       }

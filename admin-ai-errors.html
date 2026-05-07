@@ -122,7 +122,7 @@ function markFixed(id){
   r.fixedAt=Date.now();
   saveReports(arr);
   render();
-  try{ if(window.firebaseSync&&window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+  // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
 }
 function reopen(id){
   var arr=loadReports();
@@ -132,13 +132,13 @@ function reopen(id){
   delete r.fixedAt;
   saveReports(arr);
   render();
-  try{ if(window.firebaseSync&&window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+  // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
 }
 function del(id){
   if(!confirm('確定刪除這筆挑戰？此動作無法還原。'))return;
   saveReports(loadReports().filter(x=>x.id!==id));
   render();
-  try{ if(window.firebaseSync&&window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+  // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
 }
 function setFilter(f){ currentFilter=f; render(); }
 

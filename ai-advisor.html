@@ -1055,6 +1055,13 @@ function getMonthlyPerfCtx(){
         if(!rows.length) return;
         lines.push('');
         lines.push('━━ '+m+'月 '+SHEETS[sk]+' (共 '+rows.length+' 筆) ━━');
+        // ★ 明確列出此 sheet 的所有欄位（schema）— 避免 AI 因為某筆 row 某欄位=0/空 而誤判「沒這欄位」
+        try{
+          var colsSet={};
+          rows.forEach(function(r){ Object.keys(r||{}).forEach(function(k){ if(k) colsSet[k]=true; }); });
+          var allCols=Object.keys(colsSet);
+          if(allCols.length) lines.push('  📋 欄位（schema）：'+allCols.join(' | '));
+        }catch(e){}
         var showN=Math.min(rows.length, 50);
         for(var i=0;i<showN;i++){
           var r=rows[i]||{};
@@ -1078,8 +1085,12 @@ function getMonthlyPerfCtx(){
     // ★ 加一個明確提醒給 AI：所有月份都已展開，請不要說「看不到 X 月資料」
     lines.push('');
     lines.push('【⚠️ 重要】上方所有 '+monthsWithData.length+' 個月份的所有 8 個 sheet 的 row 級資料都已展開包含在此 system prompt 中。');
-    lines.push('如果使用者問某月某 sheet 的具體欄位（例如 1月 退費金額、3月 面談率），請從上方相應段落直接讀取與計算。');
-    lines.push('不要說「我看不到 X 月的資料」或「請補資料」，因為資料就在上面。');
+    lines.push('每個 sheet 開頭有「📋 欄位（schema）」列出所有欄位 — 即使某筆 row 在某欄位是 0 或空值（會在 row 內被省略），但只要 schema 有列出，這個欄位就「存在」。');
+    lines.push('如果使用者問某月某 sheet 的具體欄位（例如 1月 退費金額、3月 面談率），請：');
+    lines.push('1. 先看該月該 sheet 的 schema 確認欄位存在');
+    lines.push('2. 從上方 row 級資料中讀取每筆的該欄位值（沒列出 = 0 或空）');
+    lines.push('3. 計算後給出答案');
+    lines.push('★ 絕對不要說「我看不到 X 月的資料」「沒有此欄位」「請補資料」— 資料就在上面，schema 也明確列出了。');
 
     return lines.join('\n');
   }catch(e){ console.warn('[getMonthlyPerfCtx]', e); return ''; }
@@ -1476,7 +1487,10 @@ async function sendMsg(){
   addMsg('user',text);
   document.getElementById('suggestBar').innerHTML='';
   var f=FEATURES[curFeature];
-  // ★ 全站數據上下文 — 360評估+備註+火種+業績+通路+成就+其他主角+鐵律+案例庫
+  // ★ 必須等 mp_data 從 IDB 載入完成（否則 AI 看不到使用者剛剛在「業績數據中心」匯入的資料）
+  //   _refreshMpDataCache 是 async；之前是 fire-and-forget，會用到舊的 cache → AI 誤答「看不到」
+  try{ await _refreshMpDataCache(); }catch(e){}
+  // ★ 全站數據上下文 — 360評估+備註+火種+業績+通路+成就+其他主角+鐵律+案例庫+月績效
   var ctx=getFullContext();
 
   var history=collectHistory();
@@ -1715,13 +1729,13 @@ function addPmemory(){
   closeModal('pmemoryModal');
   renderPmemory();
   // 同步到雲端
-  try{ if(window.parent&&window.parent.firebaseSync&&window.parent.firebaseSync.push) window.parent.firebaseSync.push(); }catch(e){}
+  // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
 }
 function delPmemory(id){
   if(!confirm('確定刪除這條記憶？AI 將不再參考。'))return;
   _savePmemory(_loadPmemory().filter(function(x){return x.id!==id;}));
   renderPmemory();
-  try{ if(window.parent&&window.parent.firebaseSync&&window.parent.firebaseSync.push) window.parent.firebaseSync.push(); }catch(e){}
+  // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
 }
 
 function renderPmemory(){
@@ -1853,7 +1867,7 @@ function submitAiError(){
   closeModal('aiErrorModal');
   renderAiError();
   // 同步到雲端讓黃柏翰能看到
-  try{ if(window.parent&&window.parent.firebaseSync&&window.parent.firebaseSync.push) window.parent.firebaseSync.push(); }catch(e){}
+  // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
   alert('📨 已送出挑戰！黃柏翰會在後台看到通知並重新檢視 AI 的論點。謝謝你的批判性思考。');
 }
 
@@ -1861,7 +1875,7 @@ function _aiErrDelete(id){
   if (!confirm('刪除這筆挑戰？')) return;
   _aiErrSave(_aiErrLoad().filter(function(x){ return x.id !== id; }));
   renderAiError();
-  try{ if(window.parent&&window.parent.firebaseSync&&window.parent.firebaseSync.push) window.parent.firebaseSync.push(); }catch(e){}
+  // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
 }
 
 function renderAiError(){
@@ -1957,7 +1971,7 @@ function _aiErrMarkFixed(id){
   r.fixedAt = Date.now();
   _aiErrSave(arr);
   renderAiError();
-  try{ if(window.parent&&window.parent.firebaseSync&&window.parent.firebaseSync.push) window.parent.firebaseSync.push(); }catch(e){}
+  // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
 }
 function _aiErrReopen(id){
   var arr = _aiErrLoad();
@@ -1967,7 +1981,7 @@ function _aiErrReopen(id){
   delete r.fixedAt;
   _aiErrSave(arr);
   renderAiError();
-  try{ if(window.parent&&window.parent.firebaseSync&&window.parent.firebaseSync.push) window.parent.firebaseSync.push(); }catch(e){}
+  // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
 }
 
 // 同步跑馬燈到首頁
