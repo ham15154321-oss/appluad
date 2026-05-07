@@ -559,23 +559,298 @@
         let selectedAcademy = '';
         let data = {};
 
-        function loadData() {
-            const stored = localStorage.getItem('mp_data_v1');
-            data = stored ? JSON.parse(stored) : {};
+        // ════════════════════════════════════════════════════════════
+        //  ★ mp_data 儲存層：IndexedDB 為主 + localStorage 備份
+        //  - DB: SpaceBaseDB（共用既有 DB），store: images
+        //  - key: 'mp_data_v1'（整包 JSON 字串放一起）
+        //  - 連線 cache 避免重複 open
+        //  - 寫入後讀回驗證
+        //  - localStorage 也保留一份備份（如果大小允許），不主動刪
+        // ════════════════════════════════════════════════════════════
+        const _MP_DB_NAME = 'SpaceBaseDB';
+        const _MP_KEY = 'mp_data_v1';
+        let _mpDbCache = null;  // ★ 連線快取，避免重複開啟
+
+        function _mpOpenDB(){
+            if (_mpDbCache) {
+                try {
+                    // 健康檢查：能 access objectStoreNames 表示連線還活著
+                    if (_mpDbCache.objectStoreNames.contains('images')) {
+                        return Promise.resolve(_mpDbCache);
+                    }
+                    _mpDbCache = null;
+                } catch(e) {
+                    _mpDbCache = null;
+                }
+            }
+            return new Promise(function(resolve, reject){
+                const req = indexedDB.open(_MP_DB_NAME);
+                req.onsuccess = function(){
+                    const db = req.result;
+                    if (!db.objectStoreNames.contains('images')){
+                        db.close();
+                        const v = db.version + 1;
+                        const upReq = indexedDB.open(_MP_DB_NAME, v);
+                        upReq.onupgradeneeded = function(){
+                            const udb = upReq.result;
+                            if (!udb.objectStoreNames.contains('images')) udb.createObjectStore('images');
+                        };
+                        upReq.onsuccess = function(){
+                            _mpDbCache = upReq.result;
+                            // 處理外部升版（其他 tab 升版時主動釋放）
+                            _mpDbCache.onversionchange = function(){ try{ _mpDbCache.close(); }catch(e){} _mpDbCache = null; };
+                            resolve(_mpDbCache);
+                        };
+                        upReq.onerror = function(){ reject(upReq.error); };
+                        upReq.onblocked = function(){ console.warn('[mp_data] DB upgrade blocked'); };
+                        return;
+                    }
+                    _mpDbCache = db;
+                    _mpDbCache.onversionchange = function(){ try{ _mpDbCache.close(); }catch(e){} _mpDbCache = null; };
+                    resolve(db);
+                };
+                req.onerror = function(){ reject(req.error); };
+                req.onblocked = function(){ console.warn('[mp_data] DB open blocked'); };
+            });
         }
 
-        function saveData() {
-            localStorage.setItem('mp_data_v1', JSON.stringify(data));
+        function _mpGetFromIDB(){
+            return _mpOpenDB().then(function(db){
+                return new Promise(function(resolve){
+                    try{
+                        const tx = db.transaction('images', 'readonly');
+                        const req = tx.objectStore('images').get(_MP_KEY);
+                        req.onsuccess = function(){ resolve(req.result || null); };
+                        req.onerror = function(){ resolve(null); };
+                    }catch(e){ console.warn('[mp_data] get tx failed', e); resolve(null); }
+                });
+            }).catch(function(e){ console.warn('[mp_data] _mpGetFromIDB failed', e); return null; });
+        }
+
+        function _mpPutToIDB(value){
+            return _mpOpenDB().then(function(db){
+                return new Promise(function(resolve, reject){
+                    try{
+                        const tx = db.transaction('images', 'readwrite');
+                        const store = tx.objectStore('images');
+                        const putReq = store.put(value, _MP_KEY);
+                        let succeeded = false;
+                        putReq.onsuccess = function(){ succeeded = true; };
+                        putReq.onerror = function(){ reject(putReq.error); };
+                        tx.oncomplete = function(){
+                            if (succeeded) resolve();
+                            else reject(new Error('Transaction completed but put didn\'t succeed'));
+                        };
+                        tx.onerror = function(){ reject(tx.error || new Error('Transaction error')); };
+                        tx.onabort = function(){ reject(tx.error || new Error('Transaction aborted')); };
+                    }catch(e){ reject(e); }
+                });
+            });
+        }
+
+        // ★ async loadData：IDB → fallback localStorage（不刪 localStorage，當作備援）
+        async function loadData() {
+            try {
+                const idbVal = await _mpGetFromIDB();
+                if (idbVal){
+                    data = (typeof idbVal === 'string') ? JSON.parse(idbVal) : idbVal;
+                    console.log('[mp_data] ✅ 從 IndexedDB 讀取，' + Object.keys(data).length + ' 個月份:', Object.keys(data));
+                    return;
+                }
+                // IDB 空 → 嘗試 localStorage（之前可能因為 quota 失敗只能小幅備份，或舊版資料）
+                const stored = localStorage.getItem(_MP_KEY);
+                if (stored){
+                    data = JSON.parse(stored);
+                    console.log('[mp_data] 從 localStorage 讀取（IDB 是空的），' + Object.keys(data).length + ' 個月份');
+                    // 嘗試補寫到 IDB（不刪 localStorage 留備份）
+                    try {
+                        await _mpPutToIDB(JSON.stringify(data));
+                        console.log('[mp_data] 已將 localStorage 資料補寫到 IDB');
+                    } catch(e) {
+                        console.warn('[mp_data] 補寫 IDB 失敗，但 localStorage 還在', e);
+                    }
+                    return;
+                }
+                data = {};
+                console.log('[mp_data] 全新狀態（IDB 與 localStorage 都沒有資料）');
+            } catch(e) {
+                console.error('[mp_data] loadData 失敗，fallback localStorage', e);
+                const stored = localStorage.getItem(_MP_KEY);
+                data = stored ? JSON.parse(stored) : {};
+            }
+        }
+
+        // ★ async saveData：寫 IDB + 讀回驗證 + 嘗試 localStorage 雙寫備份
+        async function saveData() {
+            const json = JSON.stringify(data);
+            // 主要：IDB（最大數百 MB）
+            try {
+                await _mpPutToIDB(json);
+                // ★ 寫入後立刻讀回驗證
+                const verify = await _mpGetFromIDB();
+                if (!verify) {
+                    throw new Error('IDB 寫入後讀回是空的（可能 transaction 沒真正 commit）');
+                }
+                console.log('[mp_data] ✅ saveData 寫入 IDB 並驗證成功，size=' + json.length + ' bytes，月份=' + Object.keys(data));
+            } catch(e) {
+                console.error('[mp_data] saveData IDB 失敗', e);
+                throw e;
+            }
+            // 次要：localStorage 摘要（給 AI ctx 同步使用，不再寫整包）
+            // 之前嘗試雙寫整包 mp_data_v1 到 localStorage 會頻繁爆 quota（其他模組已經塞滿了）
+            // IDB 已經有完整資料 + 驗證成功，不需要再 localStorage 雙寫
+            try {
+                // 主動移除 localStorage 內舊的整包 mp_data_v1（釋放空間）
+                try { localStorage.removeItem(_MP_KEY); } catch(e){}
+                // 只寫摘要（很小）：哪些月份哪些 sheet 有幾筆
+                const summary = {};
+                Object.keys(data).forEach(function(m){
+                    const md = data[m] || {};
+                    summary[m] = {};
+                    Object.keys(md).forEach(function(sk){
+                        summary[m][sk] = Array.isArray(md[sk]) ? md[sk].length : 0;
+                    });
+                });
+                localStorage.setItem(_MP_KEY + '_summary', JSON.stringify(summary));
+            } catch(lsErr) {
+                // 連摘要都寫不下 → 沒關係，IDB 是 source of truth
+            }
+            return true;
         }
 
         function getMonthData(month) {
+            if (month === 'total') return getYearTotalData();
             return data[month] || {};
         }
 
-        function setMonthData(month, sheetId, rows) {
+        // ★ 全年合計：把 12 個月的同一個 sheet 依「第一欄為 key」加總
+        // 規則：
+        //   - 數值欄位 → SUM
+        //   - 百分比欄位（PERCENTAGE_COLUMNS） → 顯示「—」（因為不能直接相加）
+        //   - 字串欄位 → 取第一個非空值
+        //   - 跳過原本的「合計／總計／小計」列
+        function getYearTotalData() {
+            const result = {};
+            const sheetKeys = ['sheet1','sheet2','sheet3','sheet4','sheet5','sheet6','sheet7','sheet8'];
+            sheetKeys.forEach(function(sk){
+                result[sk] = aggregateSheetByKey(sk);
+            });
+            return result;
+        }
+
+        // ★ 每個 sheet 的「真正身份欄」偏好（不是無腦取第一欄）
+        // 因為某些 sheet 第一欄是「名次／區域」之類的群組欄，會把多筆合併成 1 筆
+        const SHEET_KEY_PREFER = {
+            sheet1: ['通路名稱', '通路', '名單來源', '學院'],
+            sheet2: ['學院', '通路'],
+            sheet3: ['姓名', '業務員', '業務', '人員'],          // ❸ 業務個人績效 → 姓名
+            sheet4: ['組別', '正式組別', '組長', '小組'],        // ❹ 正式小組
+            sheet5: ['學院'],                                    // ❺ 學院績效總表 → 學院（不是區域！）
+            sheet6: ['項目', '繳費項目', '學院'],
+            sheet7: ['學院', '項目'],
+            sheet8: ['課程', '課程名稱', '學院']
+        };
+
+        function _detectKeyCol(headers, sheetKey){
+            const wanted = SHEET_KEY_PREFER[sheetKey] || [];
+            for (const w of wanted) {
+                // 精確：完全等於
+                let found = headers.find(h => h === w);
+                if (found) return found;
+                // 模糊：包含關鍵字（避免「名次」誤入因為 sheet5 第一欄常是「區域」）
+                found = headers.find(h => h.includes(w));
+                if (found) return found;
+            }
+            // fallback：找第一個「非數值、非百分比、非區域／名次」的欄位
+            const skipKeywords = ['名次', '排名', '序號', 'No.', '#', '區域'];
+            const candidate = headers.find(h => {
+                if (skipKeywords.some(k => h.includes(k))) return false;
+                if (PERCENTAGE_COLUMNS.some(p => h.includes(p))) return false;
+                return true;
+            });
+            return candidate || headers[0];
+        }
+
+        function aggregateSheetByKey(sheetKey) {
+            // 收集所有月份的這個 sheet
+            const allRows = [];
+            for (let m = 1; m <= 12; m++) {
+                const md = data[m];
+                if (md && Array.isArray(md[sheetKey])) {
+                    md[sheetKey].forEach(function(r){ allRows.push(r); });
+                }
+            }
+            if (!allRows.length) return [];
+
+            // 取第一個非空 row 的所有 header 當欄位
+            const headerRow = allRows.find(function(r){ return r && Object.keys(r).length; });
+            if (!headerRow) return [];
+            const headers = Object.keys(headerRow);
+            // ★ 用 sheet-specific 偏好偵測身份欄（而不是無腦取 headers[0]）
+            const keyCol = _detectKeyCol(headers, sheetKey);
+            console.log('[aggregateSheetByKey]', sheetKey, '→ keyCol =', keyCol, '（從', headers, '中選出）');
+
+            const grouped = {};
+            allRows.forEach(function(r){
+                const kRaw = r[keyCol];
+                const k = String(kRaw == null ? '' : kRaw).trim();
+                if (!k) return;
+                if (k === '合計' || k === '總計' || k === '小計') return;
+
+                if (!grouped[k]) {
+                    grouped[k] = {};
+                    headers.forEach(function(h){ grouped[k][h] = ''; });
+                    grouped[k][keyCol] = kRaw;
+                }
+
+                headers.forEach(function(h){
+                    if (h === keyCol) return;
+                    const v = r[h];
+                    // 百分比欄位（面談率/註冊率/成功率/達成率） → 合計沒意義
+                    const isPct = PERCENTAGE_COLUMNS.some(function(p){ return h.indexOf(p) >= 0; });
+                    if (isPct) {
+                        grouped[k][h] = '—';
+                        return;
+                    }
+                    // 名次／排名／序號欄位 → 合計沒意義（不要 SUM）
+                    const isRank = ['名次','排名','序號','No.','#'].some(function(p){ return h.indexOf(p) >= 0; });
+                    if (isRank) {
+                        grouped[k][h] = '—';
+                        return;
+                    }
+                    // 數值 → SUM
+                    if (isNumeric(v) && v !== '' && v !== null) {
+                        const cur = grouped[k][h];
+                        grouped[k][h] = (Number(cur) || 0) + Number(v);
+                    } else if ((grouped[k][h] === '' || grouped[k][h] === null || grouped[k][h] === undefined) && v) {
+                        // 字串 → 保留第一個非空值
+                        grouped[k][h] = v;
+                    }
+                });
+            });
+
+            // 依「第一個數值欄位」由大到小排序（通常是業績/總業績）
+            const arr = Object.keys(grouped).map(function(k){ return grouped[k]; });
+            const numHeader = headers.find(function(h){
+                if (h === keyCol) return false;
+                if (PERCENTAGE_COLUMNS.some(function(p){ return h.indexOf(p) >= 0; })) return false;
+                return arr.some(function(r){ return isNumeric(r[h]); });
+            });
+            if (numHeader) {
+                arr.sort(function(a,b){ return (Number(b[numHeader])||0) - (Number(a[numHeader])||0); });
+            }
+            return arr;
+        }
+
+        async function setMonthData(month, sheetId, rows) {
             if (!data[month]) data[month] = {};
             data[month][`sheet${sheetId}`] = rows;
-            saveData();
+            try {
+                await saveData();
+            } catch(e) {
+                // 主動拋出讓呼叫者顯示錯誤
+                throw new Error('儲存失敗：' + (e.message || e));
+            }
         }
 
         // ==========================================
@@ -592,6 +867,25 @@
                 btn.onclick = () => selectMonth(m);
                 nav.appendChild(btn);
             }
+            // ★ 合計按鈕（全年）— 把 12 個月的相同 sheet 依「第一欄為 key」加總呈現
+            const isTotal = currentMonth === 'total';
+            const totalBtn = document.createElement('button');
+            let monthsWithData = 0;
+            for (let m = 1; m <= 12; m++) {
+                if (data[m] && Object.keys(data[m]).length > 0) monthsWithData++;
+            }
+            totalBtn.className = `month-btn ${isTotal ? 'active' : ''}`;
+            totalBtn.style.fontWeight = '800';
+            totalBtn.style.marginLeft = '4px';
+            if (!isTotal) {
+                totalBtn.style.background = 'linear-gradient(135deg, rgba(255,215,0,.14), rgba(167,139,250,.10))';
+                totalBtn.style.borderColor = 'rgba(255,215,0,.45)';
+                totalBtn.style.color = '#ffd700';
+            }
+            totalBtn.innerHTML = `📊 合計${monthsWithData > 0 ? ' <span style="color:#ffd700;font-size:8px;vertical-align:super;">●</span>' : ''}`;
+            totalBtn.title = monthsWithData > 0 ? `合計 ${monthsWithData} 個月份的資料（依第一欄為 key 加總，百分比欄位顯示「—」因為不能直接相加）` : '尚無任何月份資料';
+            totalBtn.onclick = () => selectMonth('total');
+            nav.appendChild(totalBtn);
         }
 
         function initDataTabs() {
@@ -635,6 +929,9 @@
         function selectMonth(month) {
             currentMonth = month;
             currentAnalysisView = 0;
+            sortCol = '';
+            sortAsc = true;
+            _yearTotalSortCache = null;  // ★ 切換月份/合計時清快取
             initMonthNav();
             initDataTabs();
             initAnalysisTabs();
@@ -646,6 +943,7 @@
             currentAnalysisView = 0;
             sortCol = '';
             sortAsc = true;
+            _yearTotalSortCache = null;  // ★ 切換 sheet 時清快取
             initDataTabs();
             initAnalysisTabs();
             renderContent();
@@ -663,10 +961,53 @@
         // ==========================================
         // Content Rendering
         // ==========================================
+        // ★ 自動找出該 sheet 的「主要業績欄」（給預設排序用）
+        function _findPrimarySortCol(rows){
+            if(!rows || !rows.length) return null;
+            const headers = Object.keys(rows[0] || {});
+            // 優先級：總業績 > 合計業績 > 總計 > 業績Ⓐ > 業績 > 組業績 > 收入 > 達成數
+            const priority = ['總業績','合計業績','總計','業績Ⓐ','業績(Ⓐ)','業績','組業績','收入','銷售額','繳費'];
+            for(const p of priority){
+                const found = headers.find(h => h.includes(p));
+                if(found) return found;
+            }
+            // 退回：找第一個多數為數值的欄位（跳過第一欄 key 與百分比欄）
+            return headers.find(h => {
+                if(h === headers[0]) return false;
+                if(PERCENTAGE_COLUMNS.some(pc => h.includes(pc))) return false;
+                let numCount = 0;
+                rows.slice(0, 5).forEach(r => { if(isNumeric(r[h])) numCount++; });
+                return numCount >= 3;
+            }) || null;
+        }
+        // ★ 套用預設「由大到小」排序（不寫回儲存，只影響顯示）
+        function _applyDefaultDescSort(rows){
+            if(!rows || rows.length < 2) return rows;
+            const headers = Object.keys(rows[0] || {});
+            const sortKey = _findPrimarySortCol(rows);
+            if(!sortKey) return rows;
+            // 拆出「合計／總計」列釘在最後
+            const isTotalRow = r => { const f=String(r[headers[0]]||''); return f==='合計' || f==='總計' || f==='小計'; };
+            const totalRows = rows.filter(isTotalRow);
+            const dataRows = rows.filter(r => !isTotalRow(r));
+            dataRows.sort((a,b) => (Number(b[sortKey])||0) - (Number(a[sortKey])||0));
+            return [...dataRows, ...totalRows];
+        }
+
         function renderContent() {
             const monthData = getMonthData(currentMonth);
             const sheetKey = `sheet${currentSheet}`;
-            const rows = monthData[sheetKey] || [];
+            // ★ 合計模式優先用排序快取（避免每次重算覆蓋排序）
+            let rows;
+            if (currentMonth === 'total' && _yearTotalSortCache && _yearTotalSortCache.sheetKey === currentSheet) {
+                rows = _yearTotalSortCache.rows;
+            } else {
+                rows = monthData[sheetKey] || [];
+                // ★ 使用者還沒手動點欄位排序時，套用預設「主要業績欄由大到小」
+                if(!sortCol && rows.length > 1){
+                    rows = _applyDefaultDescSort(rows);
+                }
+            }
 
             const card = document.getElementById('contentCard');
 
@@ -751,13 +1092,89 @@
 
             const headers = Object.keys(rows[0] || {});
             // Pick best ranking column based on sheet type
-            const rankPriority = ['總業績', '合計業績', '總計', '業績Ⓐ', '業績'];
+            // ★ 合計業績優先（業務個人績效尤其需要）；其次才是 業績Ⓐ 等單月欄位
+            const rankPriority = ['合計業績', '總業績', '總計', '業績Ⓐ', '業績(Ⓐ)', '業績'];
             let rankKey = null;
+            // Pass 1: 精確相等
             for (const p of rankPriority) {
                 rankKey = headers.find(h => h === p);
                 if (rankKey) break;
             }
+            // Pass 2: 去除前後空白後相等（容忍 Excel 多餘空白）
+            if (!rankKey) {
+                for (const p of rankPriority) {
+                    rankKey = headers.find(h => String(h).trim() === p);
+                    if (rankKey) break;
+                }
+            }
+            // Pass 3: 包含關鍵字（依優先級，這樣「合計業績」一定贏「業績Ⓐ」）
+            if (!rankKey) {
+                for (const p of rankPriority) {
+                    rankKey = headers.find(h => h.includes(p));
+                    if (rankKey) break;
+                }
+            }
+            // 最後 fallback
             if (!rankKey) rankKey = headers.find(h => h.includes('業績') || h.includes('總計')) || headers[headers.length - 1];
+            console.log('[排行分析] sheet=', currentSheet, ' rankKey=', rankKey, ' headers=', headers);
+
+            // ★ 找出「身份欄」（姓名/學院/組別/通路/課程等）
+            const nameCol = headers.find(h =>
+                h === '姓名' || h === '業務員' || h === '業務' || h === '人員' ||
+                h === '學院' || h === '組別' || h === '正式組別' || h === '組長' ||
+                h === '通路' || h === '通路名稱' || h === '課程' || h === '課程名稱' || h === '項目'
+            ) || headers.find(h =>
+                h.includes('姓名') || h.includes('業務員') || h.includes('學院') || h.includes('組別') ||
+                h.includes('通路') || h.includes('課程') || h.includes('項目')
+            ) || headers[0];
+
+            // ★ 重排顯示順序
+            let displayHeaders = [...headers];
+
+            if (currentSheet === 3) {
+                // ❸ 業務個人績效 排行分析 — 使用者指定的明確順序
+                // 結果：1=排名 | 2=學院 | 3=姓名 | 4=合計業績 | 5=面談 | 6+ 其餘
+                const sheet3Order = ['學院', '姓名', '合計業績', '面談'];
+                const front = [];
+                sheet3Order.forEach(target => {
+                    // 1) 完全相等優先
+                    let found = headers.find(h => h === target);
+                    // 2) 包含關鍵字（「面談」特別排除「面談率」這種尾綴）
+                    if (!found) {
+                        if (target === '面談') {
+                            found = headers.find(h => h.includes('面談') && !h.includes('率') && !h.includes('日期'));
+                        } else {
+                            found = headers.find(h => h.includes(target));
+                        }
+                    }
+                    if (found && !front.includes(found)) front.push(found);
+                });
+                const rest = headers.filter(h => !front.includes(h));
+                displayHeaders = [...front, ...rest];
+            } else if (rankKey && nameCol && rankKey !== nameCol) {
+                // 其他 sheet：身份欄 → (1 個原始欄位) → 排行欄 → 其他
+                displayHeaders = displayHeaders.filter(h => h !== rankKey);
+                const nameIdx = displayHeaders.indexOf(nameCol);
+                if (nameIdx >= 0) {
+                    displayHeaders.splice(nameIdx + 2, 0, rankKey);
+                } else {
+                    displayHeaders.unshift(rankKey);
+                }
+            }
+
+            // ★ 額外重排：部門 → 移到「個人目標」的右邊（適用 sheet3 業務個人績效）
+            //   例：「個人目標 | ... | 部門 | ...」變成「個人目標 | 部門 | ...」
+            const goalCol = displayHeaders.find(h => h === '個人目標' || h.includes('個人目標'));
+            const deptCol = displayHeaders.find(h => h === '部門' || h.includes('部門'));
+            if (goalCol && deptCol && goalCol !== deptCol) {
+                displayHeaders = displayHeaders.filter(h => h !== deptCol);
+                const goalIdx = displayHeaders.indexOf(goalCol);
+                if (goalIdx >= 0) {
+                    displayHeaders.splice(goalIdx + 1, 0, deptCol);
+                } else {
+                    displayHeaders.push(deptCol);
+                }
+            }
 
             const sorted = [...rows].sort((a, b) => {
                 const aVal = Number(a[rankKey]) || 0;
@@ -768,8 +1185,13 @@
             let html = '<div class="table-wrapper"><table><thead><tr>';
             html += '<th style="width: 50px;">排名</th>';
 
-            headers.forEach(header => {
-                html += `<th>${header}</th>`;
+            displayHeaders.forEach(header => {
+                // 排行欄表頭金色加粗，視覺上強調
+                if (header === rankKey) {
+                    html += `<th style="color:#ffd700;font-weight:800;background:rgba(255,215,0,.06);">${header}</th>`;
+                } else {
+                    html += `<th>${header}</th>`;
+                }
             });
 
             html += '</tr></thead><tbody>';
@@ -784,7 +1206,7 @@
 
                 html += `<tr style="${rowStyle}"><td style="font-weight:700;text-align:center;font-size:1.1em;">${medal}</td>`;
 
-                headers.forEach(header => {
+                displayHeaders.forEach(header => {
                     const val = row[header];
                     let formatted = val === '' || val === undefined || val === null ? '' : val;
 
@@ -798,7 +1220,9 @@
                         }
                     }
 
-                    html += `<td>${formatted}</td>`;
+                    // 排行欄資料儲存格也加金色
+                    const cellStyle = header === rankKey ? ' style="color:#ffd700;font-weight:800;"' : '';
+                    html += `<td${cellStyle}>${formatted}</td>`;
                 });
                 html += '</tr>';
             });
@@ -1660,12 +2084,12 @@
         let sortCol = '';
         let sortAsc = true;
 
-        function sortTable(columnName) {
+        async function sortTable(columnName) {
             if (sortCol === columnName) {
                 sortAsc = !sortAsc;
             } else {
                 sortCol = columnName;
-                sortAsc = true;
+                sortAsc = false;  // ★ 第一次點欄位 → 由大到小（大的在上）
             }
 
             const monthData = getMonthData(currentMonth);
@@ -1691,9 +2115,23 @@
                 return sortAsc ? cmp : -cmp;
             });
 
-            setMonthData(currentMonth, currentSheet, [...dataRows, ...totalRows]);
+            // ★ 合計模式不寫回（避免污染真實月份資料）— 改用記憶體排序
+            if (currentMonth === 'total') {
+                // 直接 mutate 計算結果（這份是 getYearTotalData 算出來的副本）
+                // 排序後再 renderContent 會重算 → 所以改寫到 _yearTotalCache
+                _yearTotalSortCache = { sheetKey: currentSheet, rows: [...dataRows, ...totalRows] };
+                renderContent();
+                return;
+            }
+            try {
+                await setMonthData(currentMonth, currentSheet, [...dataRows, ...totalRows]);
+            } catch(e) {
+                showStatus('排序儲存失敗：' + (e.message || e), 'error');
+            }
             renderContent();
         }
+        // 合計模式排序快取（避免每次 renderContent 重新算覆蓋排序）
+        let _yearTotalSortCache = null;
 
         // ==========================================
         // Excel Import
@@ -1701,9 +2139,15 @@
         function handleFileImport(event) {
             const file = event.target.files[0];
             if (!file) return;
+            // ★ 合計模式不能匯入（會寫到錯的地方）
+            if (currentMonth === 'total') {
+                alert('⚠️ 目前在「📊 合計」模式，無法直接匯入 Excel。\n\n請先點 1-12 月任一個月份按鈕，再匯入該月的 Excel。');
+                event.target.value = '';
+                return;
+            }
 
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 try {
                     const rawData = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(rawData, { type: 'array' });
@@ -1711,8 +2155,10 @@
                     let importedCount = 0;
                     const skipped = [];
 
+                    // ★ 直接 mutate data[currentMonth]，最後一次性寫入 IDB
+                    if (!data[currentMonth]) data[currentMonth] = {};
+
                     SHEET_NAMES.forEach(sheet => {
-                        // Find matching sheet by matchKeys (partial match)
                         const matchedName = workbook.SheetNames.find(wsName => {
                             return sheet.matchKeys.some(key => wsName.includes(key));
                         });
@@ -1723,14 +2169,12 @@
                         let rows = XLSX.utils.sheet_to_json(sheetObj, { defval: '' });
                         if (rows.length === 0) return;
 
-                        // Remove columns with empty/meaningless headers (e.g., '__EMPTY', '')
                         const validHeaders = Object.keys(rows[0]).filter(k => k && !k.startsWith('__EMPTY') && k.trim() !== '');
 
                         rows = rows.map(row => {
                             const clean = {};
                             validHeaders.forEach(k => {
                                 let v = row[k];
-                                // Clean NaN, undefined, 'None' etc.
                                 if (v === undefined || v === null) { clean[k] = ''; return; }
                                 const sv = String(v).trim();
                                 if (sv === 'nan' || sv === 'NaN' || sv === 'None' || sv === 'none') { clean[k] = ''; return; }
@@ -1739,7 +2183,6 @@
                             return clean;
                         });
 
-                        // ❺ 學院績效總表: forward-fill 區域 column (merged cells cause empty values)
                         if (sheet.id === 5) {
                             const regionKey = validHeaders.find(h => h.includes('區域'));
                             if (regionKey) {
@@ -1755,16 +2198,24 @@
                             }
                         }
 
-                        // Remove fully empty rows
                         rows = rows.filter(row => Object.values(row).some(v => v !== '' && v !== 0));
 
                         if (rows.length > 0) {
-                            setMonthData(currentMonth, sheet.id, rows);
+                            data[currentMonth][`sheet${sheet.id}`] = rows;
                             importedCount++;
                         }
                     });
 
-                    let msg = `成功匯入 ${importedCount} 個表格至 ${currentMonth} 月`;
+                    // ★ 一次性寫入 IDB（容量 ~hundreds of MB，不會 quota 爆）
+                    try {
+                        await saveData();
+                    } catch(saveErr) {
+                        showStatus('匯入失敗（儲存到 IndexedDB 失敗）：' + (saveErr.message || saveErr), 'error');
+                        console.error('[mp_data] saveData failed', saveErr);
+                        return;
+                    }
+
+                    let msg = `✅ 成功匯入 ${importedCount} 個表格至 ${currentMonth} 月`;
                     if (skipped.length) msg += `（未找到：${skipped.join(' ')}）`;
                     showStatus(msg, importedCount > 0 ? 'success' : 'error');
                     initMonthNav();
@@ -1782,8 +2233,8 @@
         // ==========================================
         // Initialization
         // ==========================================
-        function init() {
-            loadData();
+        async function init() {
+            await loadData();
             initMonthNav();
             initDataTabs();
             initAnalysisTabs();

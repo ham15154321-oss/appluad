@@ -148,7 +148,13 @@ const urlParams = new URLSearchParams(location.search);
 const IS_ADMIN  = urlParams.get('admin') === '1';
 const SYNC_DEBOUNCE_MS = 10000;  // 10秒防抖：連續改動只觸發一次推送
 const SYNC_INTERVAL_MS = 60000;  // 60秒定時推送
-const BATCH_LIMIT = 900 * 1024;  // 900KB（Firestore 文件上限 1MB，留餘量）
+const BATCH_LIMIT = 700 * 1024;  // 700KB（Firestore 文件上限 1MB；中文 UTF-8 約 3x string.length，需更多餘量）
+// ★ 用 UTF-8 實際 byte 量測（中文字 1 char = 3 bytes），避免低估 batch size 導致超過 Firestore 1 MB 上限
+function _utf8Bytes(s){
+  if (s == null) return 0;
+  try { return new TextEncoder().encode(String(s)).length; }
+  catch(e){ return String(s).length * 2; /* fallback：保守估高 */ }
+}
 const WRITE_DELAY_MS = 500;      // 每筆寫入之間暫停 0.5 秒
 const WRITE_LONG_PAUSE_MS = 3000; // 每 N 筆寫入後等伺服器消化
 const WRITES_PER_PAUSE = 3;      // 每 3 筆寫入休息一次
@@ -444,9 +450,39 @@ function idbPutEntries(db, storeName, entries){
       var pendingChecks = 0;
       var allDone = false;
       var _imgProtectCount = 0, _imgWriteCount = 0;
+      var _mpProtectCount = 0, _mpWriteCount = 0;
       for (const [k, v] of Object.entries(entries)){
         let val = v;
         try { const parsed = JSON.parse(v); if (typeof parsed === 'object') val = parsed; } catch(e){}
+        // ★ 保護 mp_data_v1（業績數據中心月績效）：本地有資料就不讓雲端覆蓋
+        //   原因：使用者匯入 1 月後，雲端可能還是舊版（沒有 1 月）；如果讓雲端覆蓋會把 1 月吃掉
+        //   策略：本地有任何月份資料 → 跳過覆蓋；本地完全空才用雲端版本
+        if (storeName === 'images' && k === 'mp_data_v1') {
+          pendingChecks++;
+          (function(_k, _val){
+            var getReq = store.get(_k);
+            getReq.onsuccess = function(){
+              var local = getReq.result;
+              var localHasMonths = false;
+              try {
+                var localObj = (typeof local === 'string') ? JSON.parse(local) : local;
+                if (localObj && typeof localObj === 'object' && Object.keys(localObj).length > 0) {
+                  localHasMonths = true;
+                }
+              } catch(e){}
+              if (localHasMonths) {
+                _mpProtectCount++;
+              } else {
+                // 本地空 → 用雲端版本補入（fresh device 第一次 pull 用）
+                store.put(_val, _k);
+                _mpWriteCount++;
+              }
+              pendingChecks--;
+            };
+            getReq.onerror = function(){ pendingChecks--; };
+          })(k, val);
+          continue;
+        }
         // ★ 保護圖片 key：如果本地已有有效資料，不讓雲端覆蓋
         if (_isProtectedImgKey(storeName, k)) {
           pendingChecks++;
@@ -476,6 +512,8 @@ function idbPutEntries(db, storeName, entries){
       }
       tx.oncomplete = () => {
         if (_imgWriteCount > 0) console.log('[FirebaseSync] 從雲端補入圖片:', _imgWriteCount, '筆');
+        if (_mpProtectCount > 0) console.log('[FirebaseSync] 保護 mp_data_v1（本地較新），跳過雲端覆蓋');
+        if (_mpWriteCount > 0) console.log('[FirebaseSync] mp_data_v1 本地空，從雲端補入');
         resolve();
       };
       tx.onerror = () => { resolve(); };
@@ -593,10 +631,11 @@ async function writeDataToFirestore(collRef, dataMap){
   const CHUNK_SIZE = 900 * 1024; // 大型資料分段大小
 
   // ★ 第一步：預處理 — 壓縮超大圖片，非圖片大資料保留（走分段存）
+  // ★ 用 UTF-8 實際 byte 量測（中文 1 char = 3 bytes，不是 1）
   var processedMap = {};
   var bigEntries = {};
   for (const [k, v] of Object.entries(dataMap)){
-    const entrySize = k.length + (v ? v.length : 0);
+    const entrySize = _utf8Bytes(k) + _utf8Bytes(v);
     if (entrySize > MAX_SINGLE_ENTRY){
       if (isBase64Image(v)){
         var compressed = await compressImage(v, BATCH_LIMIT);
@@ -609,12 +648,12 @@ async function writeDataToFirestore(collRef, dataMap){
     processedMap[k] = v;
   }
 
-  // ★ 第二步：把 processedMap 分成多個 batch（每個 < BATCH_LIMIT）
+  // ★ 第二步：把 processedMap 分成多個 batch（每個 < BATCH_LIMIT，按 UTF-8 byte 算）
   var batches = [];
   var currentBatch = {};
   var currentSize = 0;
   for (const [k, v] of Object.entries(processedMap)){
-    const entrySize = k.length + (v ? v.length : 0);
+    const entrySize = _utf8Bytes(k) + _utf8Bytes(v);
     if (entrySize > BATCH_LIMIT){
       bigEntries[k] = v;
       continue;

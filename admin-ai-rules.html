@@ -363,6 +363,18 @@ const DEFAULT_RULES = [
     triggerCondition:'進入 AI 顧問中心首頁時自動顯示；點擊大按鈕進入教學頁',
     output:'50 個問題分 6 類顯示，每題標註 target AI 顧問 + 「🚀 問」一鍵帶題（不自動送出）' },
 
+  { id:'ui_monthly_perf_default_desc_sort', category:'ui', name:'每月績效中心 — 預設排序「由大到小」', enabled:true,
+    description:'業績數據中心 → 📅 每月績效 8 個 sheet 的資料表：\n1. 進入任一 sheet 時，自動依「主要業績欄」（總業績/合計業績/總計/業績Ⓐ/業績/組業績/收入/銷售額/繳費，按優先級偵測）由大到小排序，大的在最上方\n2. 點任何欄位時，第一次點為「由大到小（descending）」，再點同欄位才切換為「由小到大」\n3. 「合計／總計／小計」列固定釘在表格最下方（不會被排序打亂）\n4. 預設排序只影響顯示，不寫回 IDB；使用者手動點欄位排序時才寫回',
+    sourceFunction:'monthly-performance.html → renderContent() + _findPrimarySortCol() + _applyDefaultDescSort() + sortTable()',
+    triggerCondition:'每次切換月份/sheet 或頁面重整',
+    output:'資料一進來就是降序，使用者不必再手動點' },
+
+  { id:'ui_monthly_perf_total_btn', category:'ui', name:'每月績效中心 「📊 合計」按鈕（全年合計）', enabled:true,
+    description:'業績數據中心 → 📅 每月績效 月份列最右邊新增「📊 合計」按鈕（金紫漸層、加粗）。點擊後展示 12 個月份的合計：每個 sheet 會依「第一欄為 key」（學院/姓名/通路/組別/課程）把 12 個月的數值欄位 SUM 起來，百分比欄位（面談率/註冊率/成功率/達成率）會顯示「—」（因為跨月百分比不能直接相加）。\n\n設計細節：\n- 排序快取（_yearTotalSortCache）：合計模式下排序不寫回 mp_data_v1，避免污染真實月份資料\n- 切換月份/sheet 自動清除排序快取\n- 合計模式禁止匯入 Excel（避免寫到 data["total"] 這種無效 key）\n- title 提示：「合計 N 個月份的資料」',
+    sourceFunction:'monthly-performance.html → initMonthNav() + getYearTotalData() + aggregateSheetByKey()',
+    triggerCondition:'每次切換月份或進入頁面時渲染；點擊合計按鈕進入合計模式',
+    output:'每個 sheet 顯示「跨 12 個月份的彙總表」，依第一個數值欄位由大到小排序' },
+
   { id:'ui_rc_filter_100k', category:'ui', name:'成績單過濾 < 10 萬不顯示', enabled:true,
     description:'成績單 EIP 排行榜快照 Section 中：學院/業務 value<10 萬整列隱藏；小組 total<10 萬整組隱藏；組內個別成員 value<10 萬個別隱藏。',
     sourceFunction:'performance-compare.html → renderReportCard() Section 0 _MIN_DISPLAY = 100000',
