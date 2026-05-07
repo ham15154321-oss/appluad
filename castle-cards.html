@@ -631,7 +631,53 @@ function loadCards(){
   }catch(e){}
   return getDefaultCards();
 }
-function saveCards(){localStorage.setItem(SK,JSON.stringify(cards));}
+// 寫入 SpaceBaseDB.images（castle 自己的 idbPut 是另一個 db，照片要存在 SpaceBaseDB 才能跟 firebase-sync / 人力發展.html 共用）
+function _saveCardsBackupToSpaceBase(key, value){
+  return new Promise(function(resolve){
+    try{
+      var req = indexedDB.open('SpaceBaseDB');
+      req.onsuccess = function(){
+        var db = req.result;
+        if(!db.objectStoreNames.contains('images')){ db.close(); resolve(); return; }
+        var tx = db.transaction('images','readwrite');
+        tx.objectStore('images').put(value, key);
+        tx.oncomplete = function(){ db.close(); resolve(); };
+        tx.onerror = function(){ db.close(); resolve(); };
+      };
+      req.onerror = function(){ resolve(); };
+    }catch(e){ resolve(); }
+  });
+}
+
+// ★ saveCards：永遠拿掉 photo/mascot 再存
+//   照片永遠在 SpaceBaseDB.images，castle_cards_v1 只存 metadata（id/name/title/業績/位置等）
+//   這樣 localStorage 永遠不會爆 quota、firebase-sync 推到雲端的 castle_cards_v1 也很小
+//   render 時 line 2166 的 hydration 會自動從 SpaceBaseDB 補回照片
+function saveCards(){
+  // 1. 把每張卡裡的照片/吉祥物備份到 SpaceBaseDB（背景，fire-and-forget）
+  cards.forEach(function(c){
+    if(c && c.photo && typeof c.photo === 'string' && c.photo.length > 200){
+      _saveCardsBackupToSpaceBase('castle_card_photo_' + c.id, c.photo);
+    }
+    if(c && c.mascot && typeof c.mascot === 'string' && c.mascot.length > 200){
+      _saveCardsBackupToSpaceBase('castle_card_mascot_' + c.id, c.mascot);
+    }
+  });
+  // 2. 存一份「沒照片」的精簡版到 localStorage
+  var slim = cards.map(function(c){
+    var copy = Object.assign({}, c);
+    delete copy.photo;
+    delete copy.mascot;
+    return copy;
+  });
+  try{
+    localStorage.setItem(SK, JSON.stringify(slim));
+  }catch(e){
+    // 連 slim 版都裝不下 → 其他 localStorage 太擠，不是 castle 的問題
+    console.error('[castle] 連 slim 版 castle_cards_v1 都裝不下！其他 localStorage 太擠了:', e);
+    throw e;
+  }
+}
 
 function loadSelected(key){
   try{const r=localStorage.getItem(key);if(r)return JSON.parse(r);}catch(e){}

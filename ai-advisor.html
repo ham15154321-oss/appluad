@@ -412,6 +412,13 @@ body.day-mode .file-status{color:#8070a0;}
   <div class="btn-row" style="margin-top:12px;"><button class="btn-cancel" onclick="closeModal('closedDetailModal')">關閉</button></div>
 </div></div>
 
+<!-- ★ 案例詳情 modal（點 case row 才會打開） -->
+<div class="add-modal-bg" id="caseDetailModal"><div class="add-modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;">
+  <h3 id="caseDetailTitle">案例詳情</h3>
+  <div id="caseDetailBody" style="flex:1;overflow-y:auto;font-size:.95rem;line-height:1.75;white-space:pre-wrap;padding:14px;background:rgba(255,255,255,.04);border:1px solid rgba(74,234,255,.12);border-radius:10px;"></div>
+  <div class="btn-row" style="margin-top:12px;"><button class="btn-cancel" onclick="closeModal('caseDetailModal')">關閉</button></div>
+</div></div>
+
 <script>
 // ═══════════════════════════════════════
 // AI 顧問中心 v3
@@ -1026,12 +1033,26 @@ function renderCaseDb(){
   if(caseFilter==='marquee')filtered=items.filter(function(x){return x.marquee;});
   if(!items.length){el.innerHTML='<div class="panel-empty">📂 尚無案例<br>新增好壞案例後，AI 案例庫的問答都會參考這些資料</div>';return;}
   el.innerHTML=filterHtml+filtered.map(function(c){
-    return '<div class="case-item '+c.type+'">'
-      +'<input type="checkbox" class="case-check" '+(c.marquee?'checked':'')+' onchange="toggleMarquee(\''+c.id+'\')" title="勾選後顯示在首頁跑馬燈">'
+    // ★ 只取第一行（去 \n）+ 截斷 50 字當預覽，點擊整個案例 row 開模態看全文
+    var firstLine=(c.text||'').split('\n')[0].trim();
+    var preview=firstLine.length>50?firstLine.substring(0,50)+'…':firstLine;
+    if(firstLine.length<(c.text||'').length&&!preview.endsWith('…'))preview+='…'; // 有多行也加省略號
+    return '<div class="case-item '+c.type+'" style="cursor:pointer;" onclick="openCaseDetail(\''+c.id+'\')" title="點擊看全文">'
+      +'<input type="checkbox" class="case-check" '+(c.marquee?'checked':'')+' onchange="event.stopPropagation();toggleMarquee(\''+c.id+'\')" onclick="event.stopPropagation()" title="勾選後顯示在首頁跑馬燈">'
       +'<span class="case-tag '+c.type+'">'+(c.type==='good'?'📗 好':'📕 壞')+'</span>'
-      +'<span class="case-text">'+esc(c.text)+'</span>'
-      +'<span class="case-del" onclick="delCase(\''+c.id+'\')">🗑 刪除</span></div>';
+      +'<span class="case-text">'+esc(preview||'(空白)')+'</span>'
+      +'<span class="case-del" onclick="event.stopPropagation();delCase(\''+c.id+'\')">🗑 刪除</span></div>';
   }).join('');
+}
+// ★ 點案例 row 打開全文模態
+function openCaseDetail(id){
+  var items=LS(SK.casedb),c=items.find(function(x){return x.id===id;});
+  if(!c)return;
+  var typeLabel=c.type==='good'?'📗 好案例':'📕 壞案例';
+  var date=c.createdAt?new Date(c.createdAt).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+  document.getElementById('caseDetailTitle').textContent=typeLabel+(date?' · '+date:'');
+  document.getElementById('caseDetailBody').textContent=c.text||'(空白)';
+  document.getElementById('caseDetailModal').classList.add('open');
 }
 // 同步跑馬燈到首頁
 function syncMarquee(){
