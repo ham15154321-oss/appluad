@@ -48,6 +48,33 @@ body.day-mode .aeb-desc{color:#5a4080;}
 body.day-mode .aeb-cta{color:#7a4a00;border-color:rgba(180,120,20,.6);background:rgba(255,215,0,.18);}
 
 /* 提問教學頁的問題卡 */
+/* ★ 紅色大提示「文字可以修改」 */
+.ae-edit-tip{
+  padding:16px 20px;margin-bottom:14px;
+  background:linear-gradient(135deg,rgba(255,107,107,.18),rgba(255,167,38,.10));
+  border:2px solid rgba(255,107,107,.5);border-radius:14px;
+  color:#ff8a8a;line-height:1.6;text-align:center;
+  box-shadow:0 4px 18px rgba(255,107,107,.18);
+}
+body.day-mode .ae-edit-tip{
+  background:linear-gradient(135deg,rgba(220,40,40,.10),rgba(220,140,40,.08));
+  border-color:rgba(180,30,30,.55);
+  color:#a0102a !important;
+  box-shadow:0 4px 18px rgba(180,30,30,.15);
+}
+/* ★ 操作說明（之前白天看不清楚） */
+.ae-howto{
+  padding:12px 14px;margin-bottom:16px;
+  background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:10px;
+  font-size:13px;line-height:1.7;color:rgba(230,230,250,.92);
+}
+.ae-howto b{color:#ffd700;}
+body.day-mode .ae-howto{
+  background:rgba(255,235,180,.55);border-color:rgba(200,140,30,.45);
+  color:#000 !important;font-weight:500;
+}
+body.day-mode .ae-howto b{color:#7a4a00 !important;}
+
 .ae-cat-header{font-size:15px;font-weight:800;padding:10px 14px;margin:18px 0 10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;}
 /* 類別 header 後方的描述 + 計數 */
 .ae-cat-desc{font-size:11px;font-weight:400;margin-left:6px;color:rgba(220,225,240,.85);}
@@ -725,9 +752,14 @@ function renderAskExamples(){
   });
 
   var html = '';
+  // ★ 大紅色提示：文字可以修改
+  html += '<div class="ae-edit-tip">';
+  html += '<div style="font-size:18px;font-weight:900;margin-bottom:4px;">✏️ 文字可以修改後再發送哦！</div>';
+  html += '<div style="font-size:13px;font-weight:500;line-height:1.6;">例如題目寫「4 月」，但你想問「5 月」→ 點「🚀 問」帶到對話框後，把「4」改成「5」再按發送。AI 才能精準回答你想要的月份／姓名／組別。</div>';
+  html += '</div>';
   // 操作說明
-  html += '<div style="padding:12px 14px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:10px;margin-bottom:16px;font-size:13px;line-height:1.7;color:rgba(220,210,255,.85);">';
-  html += '<b style="color:#ffd700;">📖 怎麼用：</b>看完範例 → 點「🚀 問」→ 自動帶你到對應的 AI 顧問並立刻送出問題。共 <b style="color:#ffd700;">'+ASK_EXAMPLES.length+' 個</b> 範例分 6 大類。';
+  html += '<div class="ae-howto">';
+  html += '<b>📖 怎麼用：</b>看完範例 → 點「🚀 問」→ 自動帶你到對應的 AI 顧問 → <b style="color:inherit;">先檢查/修改文字</b> → 按「發送」。共 <b>'+ASK_EXAMPLES.length+' 個</b> 範例分 6 大類。';
   html += '</div>';
 
   Object.keys(ASK_CAT_INFO).forEach(function(catKey){
@@ -754,19 +786,32 @@ function renderAskExamples(){
   document.getElementById('askExamplesBody').innerHTML = html;
 }
 
-// ★ 一鍵把問題送到對應的 AI 顧問
+// ★ 把問題帶到對應的 AI 顧問對話框（讓使用者可以修改後再發送，例如改月份）
 function askAi(idx){
   var ex = ASK_EXAMPLES[idx];
   if(!ex) return;
   // 切到對應 AI 功能
   openChat(ex.target);
-  // 等 view 切換完成（openChat 內部已 showView('chat')）
+  // 等 view 切換完成（openChat 內部已 showView('chat')）→ 填入但不自動送
   setTimeout(function(){
     var input = document.getElementById('chatInput');
     if(input){
       input.value = ex.q;
-      // 直接送出
-      sendMsg();
+      input.focus();
+      // 游標移到末尾，方便使用者立刻插入或修改
+      try{ input.setSelectionRange(input.value.length, input.value.length); }catch(e){}
+      // 撐高 textarea，讓長題目一眼看清楚
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+      // 視覺提示：閃爍邊框 0.6 秒，提醒使用者「這裡可以改」
+      var origBorder = input.style.border;
+      var origShadow = input.style.boxShadow;
+      input.style.border = '2px solid #ff6b6b';
+      input.style.boxShadow = '0 0 0 4px rgba(255,107,107,.18)';
+      setTimeout(function(){
+        input.style.border = origBorder;
+        input.style.boxShadow = origShadow;
+      }, 1200);
     }
   }, 80);
 }
