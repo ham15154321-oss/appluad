@@ -44,11 +44,78 @@ function setStatus(msg, type){
   el.className = 'status' + (type ? ' ' + type : '');
 }
 
-function showResult(academy, sales){
+function showResult(academy, sales, groupPerf){
   var el = document.getElementById('result');
-  el.innerHTML =
+  var html =
     '<div class="result-item"><span class="label">🏫 學院排名</span><span class="count">' + academy.length + ' 筆</span></div>' +
     '<div class="result-item"><span class="label">👤 業務排名</span><span class="count">' + sales.length + ' 筆</span></div>';
+  if (groupPerf){
+    html += '<div class="result-item"><span class="label">🎖️ 正式小組</span><span class="count">' + groupPerf.length + ' 組</span></div>';
+  }
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════
+//  ★ 正式小組績效表（performance_d.php）
+//  和 content.js 同步，邏輯一致
+// ══════════════════════════════════════════════
+function extractGroupPerformance(html){
+  var doc = new DOMParser().parseFromString(html, 'text/html');
+  var table = doc.getElementById('performances');
+  if (!table){
+    var tables = doc.querySelectorAll('table');
+    for (var t = 0; t < tables.length; t++){
+      var rs = getDirectRows(tables[t]);
+      if (rs.length < 2) continue;
+      if (rs[0].textContent.indexOf('正式組別') >= 0){ table = tables[t]; break; }
+    }
+  }
+  if (!table) return [];
+
+  var rows = getDirectRows(table);
+  var data = [];
+
+  function clean(s){ return String(s || '').trim(); }
+  function num(s){
+    var x = clean(s).replace(/,/g,'').replace(/\$/g,'').replace(/\s/g,'');
+    return parseFloat(x) || 0;
+  }
+
+  for (var i = 1; i < rows.length; i++){
+    var cells = getDirectCells(rows[i]);
+    var tds = [];
+    for (var c = 0; c < cells.length; c++){
+      if (cells[c].tagName === 'TD') tds.push(cells[c]);
+    }
+    if (tds.length < 6) continue;
+
+    var rank = parseInt(clean(tds[0].textContent), 10) || 0;
+    var academy = clean(tds[1].textContent);
+    var groupName = clean(tds[2].textContent);
+    if (!groupName || groupName.indexOf('合計') >= 0 || groupName.indexOf('總計') >= 0) continue;
+
+    var total = num(tds[3].textContent);
+    var leader = {
+      name: clean(tds[4] ? tds[4].textContent : ''),
+      value: tds[5] ? num(tds[5].textContent) : 0
+    };
+
+    var members = [];
+    for (var m = 6; m + 1 < tds.length; m += 2){
+      var nm = clean(tds[m].textContent);
+      var v = num(tds[m+1].textContent);
+      if (nm) members.push({ name: nm, value: v });
+    }
+
+    data.push({
+      rank: rank, academy: academy, groupName: groupName,
+      total: total, leader: leader, members: members
+    });
+  }
+
+  data.sort(function(a, b){ return (b.total||0) - (a.total||0); });
+  console.log('[EIP] 正式小組: ' + data.length + ' 組');
+  return data;
 }
 
 // ── 抓取 EIP 頁面 HTML ──
@@ -283,7 +350,7 @@ function extractSalesDirect(html){
 }
 
 // ── 注入資料到目前開啟的頁面 ──
-async function injectData(academyData, salesData){
+async function injectData(academyData, salesData, groupData, year, month){
   var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tabs || tabs.length === 0) throw new Error('找不到目前頁面');
 
@@ -293,19 +360,22 @@ async function injectData(academyData, salesData){
 
   await chrome.scripting.executeScript({
     target: { tabId: tabs[0].id },
-    func: function(academy, sales, updateTime){
+    func: function(academy, sales, groupPerf, groupMeta, updateTime){
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
 
       localStorage.setItem(cid + 'motiv_academy_v1', JSON.stringify(academy));
       localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(sales));
+      localStorage.setItem(cid + 'motiv_group_performance_v1', JSON.stringify(groupPerf || []));
+      localStorage.setItem(cid + 'motiv_group_performance_meta', JSON.stringify(groupMeta || {}));
       localStorage.setItem(cid + 'motiv_updated_at', updateTime);
 
       if (window._motivAcademy !== undefined) window._motivAcademy = academy;
       if (window._motivSales !== undefined) window._motivSales = sales;
+      if (window._motivGroupPerf !== undefined) window._motivGroupPerf = groupPerf || [];
       if (typeof window.motivRenderAll === 'function') window.motivRenderAll();
     },
-    args: [academyData, salesData, timeStr]
+    args: [academyData, salesData, groupData || [], { year: year, month: month }, timeStr]
   });
 }
 
@@ -344,12 +414,18 @@ async function doSync(){
       salesData = extractSalesDirect(sHtml);
     }
 
-    // 3. 注入
-    setStatus('⏳ 正在寫入激勵排行榜...');
-    await injectData(academyData, salesData);
+    // 3. 正式小組績效表（performance_d.php）
+    setStatus('⏳ 正在同步正式小組績效表...');
+    var gUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_d.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
+    var gHtml = await fetchEipPage(gUrl);
+    var groupData = extractGroupPerformance(gHtml);
 
-    setStatus('✅ 同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆', 'ok');
-    showResult(academyData, salesData);
+    // 4. 注入
+    setStatus('⏳ 正在寫入激勵排行榜...');
+    await injectData(academyData, salesData, groupData, year, month);
+
+    setStatus('✅ 同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆、正式小組 ' + groupData.length + ' 組', 'ok');
+    showResult(academyData, salesData, groupData);
 
   } catch(err){
     console.error('[EIP] 同步失敗:', err);

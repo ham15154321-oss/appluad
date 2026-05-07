@@ -221,6 +221,85 @@
   }
 
   // ══════════════════════════════════════
+  //  ★ 正式小組績效表（performance_d.php）
+  //  表格結構：<table id="performances">
+  //  每列 14 個 td：
+  //    td[0]=名次, td[1]=學院, td[2]=正式組別, td[3]=總業績,
+  //    td[4]=組長, td[5]=組長業績,
+  //    td[6]=組員1, td[7]=組員1業績,
+  //    td[8]=組員2, td[9]=組員2業績,
+  //    td[10]=組員3, td[11]=組員3業績,
+  //    td[12]=組員4, td[13]=組員4業績
+  // ══════════════════════════════════════
+  function extractGroupPerformance(html){
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var table = doc.getElementById('performances');
+    if (!table){
+      // fallback：找含「正式組別」標頭的 table
+      var tables = doc.querySelectorAll('table');
+      for (var t = 0; t < tables.length; t++){
+        var rs = getDirectRows(tables[t]);
+        if (rs.length < 2) continue;
+        if (rs[0].textContent.indexOf('正式組別') >= 0){ table = tables[t]; break; }
+      }
+    }
+    if (!table) return [];
+
+    var rows = getDirectRows(table);
+    var data = [];
+
+    function clean(s){
+      return String(s || '').trim();
+    }
+    function num(s){
+      var x = clean(s).replace(/,/g, '').replace(/\$/g, '').replace(/\s/g, '');
+      return parseFloat(x) || 0;
+    }
+
+    for (var i = 1; i < rows.length; i++){
+      var cells = getDirectCells(rows[i]);
+      var tds = [];
+      for (var c = 0; c < cells.length; c++){
+        if (cells[c].tagName === 'TD') tds.push(cells[c]);
+      }
+      if (tds.length < 6) continue;
+
+      var rank = parseInt(clean(tds[0].textContent), 10) || 0;
+      var academy = clean(tds[1].textContent);
+      var groupName = clean(tds[2].textContent);
+      if (!groupName || groupName.indexOf('合計') >= 0 || groupName.indexOf('總計') >= 0) continue;
+
+      var total = num(tds[3].textContent);
+      var leader = {
+        name: clean(tds[4] ? tds[4].textContent : ''),
+        value: tds[5] ? num(tds[5].textContent) : 0
+      };
+
+      // 組員：tds[6..13]，每兩個一組
+      var members = [];
+      for (var m = 6; m + 1 < tds.length; m += 2){
+        var nm = clean(tds[m].textContent);
+        var v = num(tds[m+1].textContent);
+        if (nm) members.push({ name: nm, value: v });
+      }
+
+      data.push({
+        rank: rank,
+        academy: academy,
+        groupName: groupName,
+        total: total,
+        leader: leader,
+        members: members
+      });
+    }
+
+    // EIP 已按總業績排序，但保險再排一次
+    data.sort(function(a, b){ return (b.total || 0) - (a.total || 0); });
+    console.log('[EIP Content] 正式小組: ' + data.length + ' 組');
+    return data;
+  }
+
+  // ══════════════════════════════════════
   //  主要同步流程
   // ══════════════════════════════════════
   async function doSync(year, month){
@@ -248,6 +327,12 @@
         salesData = extractSalesDirect(sHtml);
       }
 
+      // ★ 新增：正式小組績效表（performance_d.php）
+      notify('status', { msg: '正在同步正式小組績效表...' });
+      var gUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_d.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
+      var gHtml = await fetchViaBackground(gUrl);
+      var groupData = extractGroupPerformance(gHtml);
+
       // 寫入 localStorage
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if (aid) cid = 'char_' + aid + '_'; } catch(e){}
@@ -258,13 +343,17 @@
 
       localStorage.setItem(cid + 'motiv_academy_v1', JSON.stringify(academyData));
       localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(salesData));
+      localStorage.setItem(cid + 'motiv_group_performance_v1', JSON.stringify(groupData));
+      localStorage.setItem(cid + 'motiv_group_performance_meta', JSON.stringify({ year: year, month: month }));
       localStorage.setItem(cid + 'motiv_updated_at', timeStr);
 
       notify('done', {
         academy: academyData,
         sales: salesData,
+        groupPerformance: groupData,
+        groupMeta: { year: year, month: month },
         updateTime: timeStr,
-        msg: '同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆'
+        msg: '同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆、正式小組 ' + groupData.length + ' 組'
       });
 
     } catch(err){

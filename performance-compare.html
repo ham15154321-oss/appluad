@@ -543,6 +543,58 @@
     body.day-mode .motiv-update-info { color: #a090b8; }
     body.day-mode .motiv-sub-tabs { border-color: rgba(180,160,220,.3); }
 
+    /* ===== 正式小組績效表（仿 EIP 樣式）===== */
+    .motiv-period-select {
+      background: var(--bg3); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 4px 8px; font-size: .82rem; cursor: pointer;
+    }
+    body.day-mode .motiv-period-select { background: rgba(255,255,255,.7); color: #4a3a5c; border-color: rgba(180,160,220,.4); }
+    .motiv-period-label { font-size: .75rem; color: var(--dim); margin-left: 2px; }
+    .motiv-group-header {
+      font-size: .95rem; font-weight: 700; color: var(--accent);
+      margin-bottom: 12px; padding: 8px 12px;
+      background: linear-gradient(135deg, rgba(74,234,255,.1), rgba(167,139,250,.06));
+      border-radius: 8px; border-left: 3px solid var(--accent);
+    }
+    body.day-mode .motiv-group-header { color: #7a5a9a; background: linear-gradient(135deg, rgba(176,144,208,.15), rgba(200,180,230,.08)); border-left-color: #b090d0; }
+    .motiv-group-table {
+      width: 100%; border-collapse: collapse; background: var(--bg3); border-radius: 10px;
+      overflow: hidden; font-size: .85rem;
+    }
+    .motiv-group-table th, .motiv-group-table td {
+      padding: 8px 6px; text-align: center; border: 1px solid var(--border);
+    }
+    .motiv-group-table thead th {
+      background: rgba(74,234,255,.12); color: var(--accent); font-weight: 700;
+      font-size: .8rem; white-space: nowrap;
+    }
+    .motiv-group-table tbody tr:nth-child(odd) { background: rgba(255,255,255,.015); }
+    .motiv-group-table tbody tr:hover { background: rgba(74,234,255,.05); }
+    .motiv-group-table .mg-rank { font-weight: 800; font-size: 1rem; color: var(--gold); width: 50px; }
+    .motiv-group-table .mg-academy { font-size: .82rem; color: var(--dim); white-space: nowrap; }
+    .motiv-group-table .mg-group { font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .motiv-group-table .mg-total { font-weight: 800; color: var(--gold); white-space: nowrap; }
+    .motiv-group-table .mg-leader { font-weight: 700; color: var(--text); white-space: nowrap; background: rgba(74,234,255,.04); }
+    .motiv-group-table .mg-member { color: var(--text); white-space: nowrap; background: rgba(167,139,250,.04); }
+    .motiv-group-table .mg-val { color: var(--text); white-space: nowrap; }
+    .motiv-group-table .mg-empty { color: rgba(180,200,240,.2); }
+    .motiv-group-empty {
+      padding: 40px 20px; text-align: center; color: rgba(180,200,240,.5);
+      font-size: 13px; line-height: 1.8;
+    }
+    body.day-mode .motiv-group-table { background: rgba(255,255,255,.7); }
+    body.day-mode .motiv-group-table th, body.day-mode .motiv-group-table td { border-color: rgba(180,160,220,.25); }
+    body.day-mode .motiv-group-table thead th { background: rgba(176,144,208,.15); color: #7a5a9a; }
+    body.day-mode .motiv-group-table tbody tr:nth-child(odd) { background: rgba(255,255,255,.4); }
+    body.day-mode .motiv-group-table tbody tr:hover { background: rgba(220,200,245,.3); }
+    body.day-mode .motiv-group-table .mg-rank { color: #a07a0a; }
+    body.day-mode .motiv-group-table .mg-academy { color: #8a7aaa; }
+    body.day-mode .motiv-group-table .mg-group { color: #7a5a9a; }
+    body.day-mode .motiv-group-table .mg-total { color: #a07a0a; }
+    body.day-mode .motiv-group-table .mg-leader { color: #4a3a5c; background: rgba(176,144,208,.08); }
+    body.day-mode .motiv-group-table .mg-member { color: #4a3a5c; background: rgba(200,180,230,.06); }
+    body.day-mode .motiv-group-table .mg-val { color: #4a3a5c; }
+
     /* ===== 成績單 Report Card ===== */
     .rc-controls {
       display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
@@ -1603,7 +1655,11 @@
       <div class="tab-content" id="tab-4">
         <div class="motiv-import-bar">
           <span class="motiv-update-info" id="motivUpdateInfo"></span>
-          <button class="motiv-import-btn" onclick="motivTriggerEipSync()" title="直接從 EIP 同步當月資料">🔄 同步資料</button>
+          <select id="motivYearSelect" class="motiv-period-select" title="同步的年份"></select>
+          <span class="motiv-period-label">年</span>
+          <select id="motivMonthSelect" class="motiv-period-select" title="同步的月份"></select>
+          <span class="motiv-period-label">月</span>
+          <button class="motiv-import-btn" onclick="motivTriggerEipSync()" title="從 EIP 同步指定年月的資料（學院、業務、正式小組）">🔄 同步資料</button>
           <label class="motiv-import-btn" style="font-size:.75rem;opacity:.7;">📥 匯入檔案
             <input type="file" accept=".xlsx,.xls,.numbers,.csv" style="display:none" onchange="motivImportFile(event)">
           </label>
@@ -1630,12 +1686,32 @@
             <span style="font-size:11px;opacity:.7;">告訴 Claude 要顯示哪些組員、看哪段業績欄位，就能填上來。</span>
           </div>
         </div>
-        <!-- ★ 正式小組績效表（先佔位，等資料來源確定後填） -->
+        <!-- ★ 正式小組績效表（從 EIP performance_d.php 同步） -->
         <div class="motiv-board" id="motivBoard3">
-          <div style="padding:40px 20px;text-align:center;color:rgba(180,200,240,.5);font-size:13px;line-height:1.8;">
+          <div class="motiv-group-header" id="motivGroupHeader" style="display:none;"></div>
+          <div style="overflow-x:auto;">
+            <table class="motiv-group-table" id="motivGroupTable" style="display:none;">
+              <thead>
+                <tr>
+                  <th>名次</th>
+                  <th>學院</th>
+                  <th>正式組別</th>
+                  <th>總業績</th>
+                  <th>組長</th>
+                  <th>業績</th>
+                  <th>組員</th><th>業績</th>
+                  <th>組員</th><th>業績</th>
+                  <th>組員</th><th>業績</th>
+                  <th>組員</th><th>業績</th>
+                </tr>
+              </thead>
+              <tbody id="motivGroupTbody"></tbody>
+            </table>
+          </div>
+          <div class="motiv-group-empty" id="motivGroupEmpty">
             🎖️ <b>正式小組績效表</b><br>
-            （尚未設定資料來源）<br>
-            <span style="font-size:11px;opacity:.7;">告訴 Claude 要顯示哪些組員、看哪段業績欄位，就能填上來。</span>
+            （尚未同步資料）<br>
+            <span style="font-size:11px;opacity:.7;">選好上方年/月後，按「🔄 同步資料」即可從 EIP 抓取本月正式小組績效表。</span>
           </div>
         </div>
       </div>
@@ -4236,6 +4312,8 @@
     var _motivAcademy = [{"name":"中壢二部","value":2881646},{"name":"東區二部","value":2648288},{"name":"台中三部","value":2515480},{"name":"中壢學院","value":2396300},{"name":"台中學院","value":2369151},{"name":"高雄建國","value":2322056},{"name":"台中二部","value":2037363},{"name":"站二學院","value":1962163},{"name":"館前學院","value":1909139},{"name":"站前二部","value":1753781},{"name":"站前學院","value":1705653},{"name":"中壢三部","value":1659212},{"name":"板橋學院","value":1570025},{"name":"OBO個別指導","value":65335},{"name":"赫綵設計學院","value":1},{"name":"東區學院","value":0},{"name":"高雄學院","value":0}];
     var _motivSales = [{"name":"陳怡雯","value":599203},{"name":"凃敏薰","value":599067},{"name":"易子莫","value":586986},{"name":"陳昕妮","value":549727},{"name":"楊雅晴","value":523069},{"name":"石韋頡","value":505011},{"name":"洪思婷","value":478401},{"name":"吳昀璇","value":468566},{"name":"林詩婕","value":449794},{"name":"吳郁瑾","value":436141},{"name":"盧嘉豪","value":418301},{"name":"宋和樹","value":403671},{"name":"邱屹芊","value":381940},{"name":"李念庭","value":379910},{"name":"陳千茹","value":361703},{"name":"何泳禛","value":358647},{"name":"黃筱涵","value":347076},{"name":"邱國龍","value":346003},{"name":"李幼綾","value":345984},{"name":"張承鈞","value":338916},{"name":"黃翰傑","value":322420},{"name":"游密純","value":301075},{"name":"陳煒翔","value":280309},{"name":"王奕期","value":276042},{"name":"鄭蕎萱","value":275587},{"name":"楊晏穎","value":274705},{"name":"黃士驊","value":262239},{"name":"范淯維","value":262006},{"name":"胡榮芳","value":259929},{"name":"吳淏芸","value":245509},{"name":"唐瑄成","value":245456},{"name":"李婉琳","value":242998},{"name":"楊雅筑","value":237991},{"name":"林栢舟","value":235225},{"name":"陳韻伃","value":234690},{"name":"蔡青倚","value":234338},{"name":"劉曉函","value":228213},{"name":"劉樺玲","value":226395},{"name":"黃翊","value":226157},{"name":"何紫寧","value":222394},{"name":"吳詠琪","value":215424},{"name":"陳品禎","value":210479},{"name":"曾亞芸","value":202053},{"name":"董慈娟","value":188273},{"name":"王楷翔","value":161638},{"name":"蔡宛凌","value":141884},{"name":"江安琪","value":134475},{"name":"吳盈緯","value":134207},{"name":"江佩蓮","value":130690},{"name":"柯珈安","value":120243},{"name":"陳思羽","value":109280},{"name":"繆秉岑","value":107234},{"name":"李翔威","value":60042},{"name":"蔡蕎安","value":59377},{"name":"林昭宏","value":58693},{"name":"張之薰","value":49002},{"name":"李岱謙","value":43465},{"name":"劉尚哲","value":22663},{"name":"凃佩妤","value":6779},{"name":"蔣慈","value":1083},{"name":"俞佳均","value":500},{"name":"陳玉淳","value":500},{"name":"張媛","value":200},{"name":"楊琇雯","value":0},{"name":"劉哲彣","value":0},{"name":"石宇皓","value":0},{"name":"王志軒","value":0},{"name":"姜惠馨","value":0},{"name":"杜唯熙","value":0},{"name":"黃雅慧","value":0},{"name":"唐鈺棋","value":0},{"name":"許文珊","value":0},{"name":"林季醇","value":0},{"name":"伍依儒","value":0},{"name":"廖世承","value":0},{"name":"蔡旻諭","value":0},{"name":"全歆玥","value":0},{"name":"林姿妤","value":0},{"name":"施品瑜","value":0},{"name":"曾雍盛","value":0}];
     var _motivCurrentBoard = 0;
+    var _motivGroupPerf = [];        // 正式小組績效表（從 EIP performance_d.php 同步）
+    var _motivGroupPerfMeta = {};    // { year, month }
 
     // Load from localStorage if available
     (function(){
@@ -4246,6 +4324,10 @@
         if (saved) _motivAcademy = JSON.parse(saved);
         var saved2 = localStorage.getItem(cid + 'motiv_sales_v1');
         if (saved2) _motivSales = JSON.parse(saved2);
+        var saved3 = localStorage.getItem(cid + 'motiv_group_performance_v1');
+        if (saved3) _motivGroupPerf = JSON.parse(saved3) || [];
+        var saved4 = localStorage.getItem(cid + 'motiv_group_performance_meta');
+        if (saved4) _motivGroupPerfMeta = JSON.parse(saved4) || {};
       } catch(e){}
     })();
 
@@ -4255,6 +4337,24 @@
         try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
         localStorage.setItem(cid + 'motiv_academy_v1', JSON.stringify(_motivAcademy));
         localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(_motivSales));
+        localStorage.setItem(cid + 'motiv_group_performance_v1', JSON.stringify(_motivGroupPerf));
+        localStorage.setItem(cid + 'motiv_group_performance_meta', JSON.stringify(_motivGroupPerfMeta));
+      } catch(e){}
+    }
+
+    // ★ 重新從 localStorage 載入（同步完成後呼叫）
+    function motivLoadData(){
+      try {
+        var cid = '';
+        try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+        var s1 = localStorage.getItem(cid + 'motiv_academy_v1');
+        if (s1) _motivAcademy = JSON.parse(s1);
+        var s2 = localStorage.getItem(cid + 'motiv_sales_v1');
+        if (s2) _motivSales = JSON.parse(s2);
+        var s3 = localStorage.getItem(cid + 'motiv_group_performance_v1');
+        if (s3) _motivGroupPerf = JSON.parse(s3) || [];
+        var s4 = localStorage.getItem(cid + 'motiv_group_performance_meta');
+        if (s4) _motivGroupPerfMeta = JSON.parse(s4) || {};
       } catch(e){}
     }
 
@@ -4305,6 +4405,7 @@
     function motivRenderAll(){
       motivRenderBoard(_motivAcademy, 'motivPodium0', 'motivList0');
       motivRenderBoard(_motivSales, 'motivPodium1', 'motivList1');
+      motivRenderGroupPerformance();
       // Show update time
       var info = document.getElementById('motivUpdateInfo');
       if (info) {
@@ -4315,6 +4416,110 @@
           if (t) info.textContent = '上次更新: ' + t;
         } catch(e){}
       }
+    }
+
+    // ========== 正式小組績效表 render ==========
+    function _mgEscape(s){
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function motivRenderGroupPerformance(){
+      var tbody = document.getElementById('motivGroupTbody');
+      var table = document.getElementById('motivGroupTable');
+      var header = document.getElementById('motivGroupHeader');
+      var emptyMsg = document.getElementById('motivGroupEmpty');
+      if (!tbody || !table || !header || !emptyMsg) return;
+
+      var data = Array.isArray(_motivGroupPerf) ? _motivGroupPerf : [];
+      if (data.length === 0){
+        table.style.display = 'none';
+        header.style.display = 'none';
+        tbody.innerHTML = '';
+        emptyMsg.style.display = 'block';
+        return;
+      }
+
+      // 顯示表頭資訊（年/月 + 組數）
+      var ymTxt = '';
+      if (_motivGroupPerfMeta && _motivGroupPerfMeta.year && _motivGroupPerfMeta.month){
+        ymTxt = _motivGroupPerfMeta.year + '年 ' + _motivGroupPerfMeta.month + '月 · ';
+      }
+      header.textContent = '🎖️ 正式小組績效表（' + ymTxt + '共 ' + data.length + ' 組）';
+      header.style.display = 'block';
+      emptyMsg.style.display = 'none';
+      table.style.display = 'table';
+
+      // 渲染每一列（依 EIP 表格欄位順序：名次、學院、組別、總業績、組長+業績、組員1~4+業績）
+      var html = '';
+      for (var i = 0; i < data.length; i++){
+        var g = data[i];
+        var members = g.members || [];
+        html += '<tr>';
+        html += '<td class="mg-rank">' + (g.rank || (i + 1)) + '</td>';
+        html += '<td class="mg-academy">' + _mgEscape(g.academy) + '</td>';
+        html += '<td class="mg-group">' + _mgEscape(g.groupName) + '</td>';
+        html += '<td class="mg-total">' + motivFmt(g.total) + '</td>';
+        var ldName = g.leader && g.leader.name ? g.leader.name : '';
+        var ldVal = g.leader && g.leader.value ? g.leader.value : 0;
+        html += '<td class="mg-leader">' + _mgEscape(ldName) + '</td>';
+        html += '<td class="mg-val">' + motivFmt(ldVal) + '</td>';
+        // 組員 1~4
+        for (var k = 0; k < 4; k++){
+          var m = members[k];
+          if (m){
+            html += '<td class="mg-member">' + _mgEscape(m.name) + '</td>';
+            html += '<td class="mg-val">' + motivFmt(m.value) + '</td>';
+          } else {
+            html += '<td class="mg-empty">—</td><td class="mg-empty">—</td>';
+          }
+        }
+        html += '</tr>';
+      }
+      tbody.innerHTML = html;
+    }
+
+    // ========== 年/月 選單初始化 ==========
+    function _initMotivPeriodSelectors(){
+      var ys = document.getElementById('motivYearSelect');
+      var ms = document.getElementById('motivMonthSelect');
+      if (!ys || !ms) return;
+      var now = new Date();
+      var curY = now.getFullYear();
+      var curM = now.getMonth() + 1;
+
+      ys.innerHTML = '';
+      for (var y = curY + 1; y >= curY - 5; y--){
+        var oy = document.createElement('option');
+        oy.value = String(y);
+        oy.textContent = y;
+        if (y === curY) oy.selected = true;
+        ys.appendChild(oy);
+      }
+      ms.innerHTML = '';
+      for (var mm = 1; mm <= 12; mm++){
+        var om = document.createElement('option');
+        om.value = String(mm).padStart(2, '0');
+        om.textContent = mm;
+        if (mm === curM) om.selected = true;
+        ms.appendChild(om);
+      }
+
+      // 還原上次選擇
+      try {
+        var sy = localStorage.getItem('motiv_sel_year');
+        var sm = localStorage.getItem('motiv_sel_month');
+        if (sy) ys.value = sy;
+        if (sm) ms.value = sm;
+      } catch(e){}
+
+      ys.addEventListener('change', function(){ try{ localStorage.setItem('motiv_sel_year', ys.value); }catch(e){} });
+      ms.addEventListener('change', function(){ try{ localStorage.setItem('motiv_sel_month', ms.value); }catch(e){} });
+    }
+    // 頁面載入後初始化
+    if (document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', _initMotivPeriodSelectors);
+    } else {
+      _initMotivPeriodSelectors();
     }
 
     function motivImportFile(evt){
@@ -4479,11 +4684,17 @@
       }
       window.addEventListener('message', onMsg);
 
+      // ★ 從年/月選單取值（預設當月）
+      var ys = document.getElementById('motivYearSelect');
+      var ms = document.getElementById('motivMonthSelect');
       var now = new Date();
+      var year = (ys && ys.value) ? parseInt(ys.value, 10) : now.getFullYear();
+      var month = (ms && ms.value) ? ms.value : String(now.getMonth() + 1).padStart(2, '0');
+
       window.postMessage({
         channel: 'appedu-eip-sync', action: 'request',
-        year: now.getFullYear(),
-        month: String(now.getMonth() + 1).padStart(2, '0')
+        year: year,
+        month: month
       }, '*');
 
       setTimeout(function(){
