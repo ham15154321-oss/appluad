@@ -3410,6 +3410,8 @@ function perfOpen(){
   const frame=document.getElementById('perfFrame');
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes('performance-compare'))
     frame.src='performance-compare.html';
+  // ★ 用 sessionStorage 記住「業績數據中心曾開啟過」（重整後自動還原）
+  try{ sessionStorage.setItem('perf_was_open','1'); }catch(e){}
 }
 function closePerformance(){
   const ov=document.getElementById('perfOverlay');
@@ -3420,7 +3422,18 @@ function closePerformance(){
     if(frame&&frame.contentWindow&&typeof frame.contentWindow.triggerSave==='function')
       frame.contentWindow.triggerSave();
   }catch(e){}
+  // ★ 使用者主動關閉 → 清除還原旗標
+  try{ sessionStorage.removeItem('perf_was_open'); }catch(e){}
 }
+
+// ★ 頁面載入後若 sessionStorage 還記得是開啟狀態 → 自動還原（跳過密碼，因為同一個 session 內）
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    if (sessionStorage.getItem('perf_was_open') === '1'){
+      try{ perfOpen(); }catch(e){}
+    }
+  }, 600);  // 等其他 init（firebase-sync、IDB 等）跑完再開
+});
 // ========== 全螢幕 overlay 時隱藏浮動元素 ==========
 function hideFloatingUI(){
   var badge=document.getElementById('firebase-sync-badge');if(badge)badge.style.display='none';

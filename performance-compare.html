@@ -2726,7 +2726,23 @@
         populateRcAcademies();
         renderReportCard();
       }
+
+      // ★ 持久化當前 tab，重整後可自動還原（不用每次重點業績數據中心 → 激勵）
+      try{ localStorage.setItem('perf_last_tab', String(tabIndex)); }catch(e){}
     }
+
+    // ★ 頁面載入後自動還原上次的 tab（取代預設 Tab 0）
+    window.addEventListener('load', function(){
+      setTimeout(function(){
+        try{
+          var lastTab = parseInt(localStorage.getItem('perf_last_tab'));
+          if (!isNaN(lastTab) && lastTab >= 0 && lastTab < 6 && lastTab !== 0){
+            // Tab 0 是預設值，不用切；其他 tab 才需要切
+            if (typeof switchTab === 'function') switchTab(lastTab);
+          }
+        }catch(e){}
+      }, 100);
+    });
 
     // Go back function
     function goBack() {
