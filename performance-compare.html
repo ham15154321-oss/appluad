@@ -2399,9 +2399,8 @@
       // 過濾規則：value < 100,000 不顯示（學院/業務整列隱藏；小組總業績<10萬整組隱藏；組內業績<10萬個別隱藏）
       var _MIN_DISPLAY = 100000;
       try {
-        var _rcCid = '';
-        try { var _aid = localStorage.getItem('activeCharacterId'); if(_aid) _rcCid = 'char_' + _aid + '_'; } catch(e){}
-        var _archRaw = localStorage.getItem(_rcCid + 'motiv_archive');
+        // ★ 全公司共享 archive（不再用 cid 前綴）
+        var _archRaw = localStorage.getItem('motiv_archive');
         var _archive = {};
         if (_archRaw) { try { _archive = JSON.parse(_archRaw) || {}; } catch(e){ _archive = {}; } }
         var _archKey = year + '-' + String(m).padStart(2, '0');
@@ -4741,6 +4740,59 @@
       }, 200);
     }
 
+    // ★ 自動遷移：把舊版 char_<id>_motiv_archive 合併到新版全局 motiv_archive
+    //   v2 之前每個主角各自儲存，v2 起改為全公司共享 → 開頁時自動合併歷史資料
+    (function _migrateMotivArchiveToGlobal(){
+      try {
+        var globalKey = 'motiv_archive';
+        var globalRaw = localStorage.getItem(globalKey);
+        var global = {};
+        try { if (globalRaw) global = JSON.parse(globalRaw) || {}; } catch(e){}
+
+        var foundCharKeys = [];
+        var mergedCount = 0;
+        for (var i = 0; i < localStorage.length; i++){
+          var k = localStorage.key(i);
+          if (!k) continue;
+          var match = k.match(/^char_(.+?)_motiv_archive$/);
+          if (!match) continue;
+          foundCharKeys.push(k);
+          try {
+            var charArch = JSON.parse(localStorage.getItem(k)) || {};
+            // 合併：以「archivedAt 較新」為準
+            Object.keys(charArch).forEach(function(mk){
+              if (!global[mk]) {
+                global[mk] = charArch[mk];
+                mergedCount++;
+              } else {
+                // 兩邊都有 → 取 archivedAt 較新的
+                var oldAt = global[mk].archivedAt || '';
+                var newAt = charArch[mk].archivedAt || '';
+                if (newAt > oldAt){
+                  global[mk] = charArch[mk];
+                  mergedCount++;
+                }
+              }
+            });
+          } catch(e){}
+        }
+        if (foundCharKeys.length > 0){
+          // 寫入合併版本
+          try {
+            localStorage.setItem(globalKey, JSON.stringify(global));
+            console.log('[motiv_archive] 遷移完成：合併 ' + foundCharKeys.length + ' 個主角的 archive，' + mergedCount + ' 個月份匯入全局 motiv_archive');
+            // 清掉舊的 per-character keys 釋放空間
+            foundCharKeys.forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+            console.log('[motiv_archive] 已清除 ' + foundCharKeys.length + ' 個舊版 per-character archive');
+          } catch(e){
+            console.warn('[motiv_archive] 遷移寫入失敗（quota?）', e.message);
+          }
+        }
+      } catch(e){
+        console.warn('[motiv_archive] 遷移失敗', e);
+      }
+    })();
+
     // ★ localStorage 滿了的救急工具：清掉「不是當前主角」的 motiv_archive，釋放空間
     //   其他主角的資料在雲端還在，下次切換主角時會重新從雲端拉
     function _purgeOtherCharsMotivArchive(keepKey){
@@ -4806,7 +4858,7 @@
 
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var archiveKey = cid + 'motiv_archive';
+      var archiveKey = 'motiv_archive';  // ★ 全公司共享（不再用 cid 前綴）
       var archive = {};
       try { var raw = localStorage.getItem(archiveKey); if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
 
@@ -4867,7 +4919,7 @@
 
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var archiveKey = cid + 'motiv_archive';
+      var archiveKey = 'motiv_archive';  // ★ 全公司共享（不再用 cid 前綴）
       var archive = {};
       try { var raw = localStorage.getItem(archiveKey); if (raw) archive = JSON.parse(raw) || {}; } catch(e){ archive = {}; }
 
@@ -4917,7 +4969,7 @@
     function motivRenderArchiveChips(){
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var raw = localStorage.getItem(cid + 'motiv_archive');
+      var raw = localStorage.getItem('motiv_archive');  // ★ 全公司共享
       var archive = {};
       try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
       var keys = Object.keys(archive).sort().reverse(); // 最新月份在前
@@ -4959,7 +5011,7 @@
       // 看 archive 有沒有
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var raw = localStorage.getItem(cid + 'motiv_archive');
+      var raw = localStorage.getItem('motiv_archive');  // ★ 全公司共享
       var archive = {};
       try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
 
@@ -4969,13 +5021,13 @@
       } else {
         // 沒存檔 → 列出有的月份 + 詢問是否同步
         var available = Object.keys(archive).sort().reverse();
-        var msg = '⚠️ ' + key + ' 還沒儲存過。\n\n';
+        var msg = '⚠️ 找不到 ' + key + ' 的資料。\n\n';
         if (available.length){
-          msg += '已儲存的月份：' + available.join('、') + '\n\n';
+          msg += '目前可查的月份：' + available.join('、') + '\n\n';
         }
-        msg += '要從 EIP 同步 ' + key + ' 嗎？\n\n（同步完記得按「💾 儲存」永久保存）';
+        msg += '要從 EIP 同步 ' + key + ' 嗎？（同步完成會自動存檔，不需要手動儲存）';
         if (confirm(msg)){
-          // 觸發同步（同步完成會自動更新畫面）
+          // 觸發同步（同步完成會自動更新畫面 + 自動存檔）
           motivTriggerEipSync();
         }
       }
@@ -4985,7 +5037,7 @@
     function motivLoadFromArchive(key){
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var raw = localStorage.getItem(cid + 'motiv_archive');
+      var raw = localStorage.getItem('motiv_archive');  // ★ 全公司共享
       var archive = {};
       try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
       var snap = archive[key];
@@ -5041,7 +5093,7 @@
       // 讀現有 archive
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var archiveKey = cid + 'motiv_archive';
+      var archiveKey = 'motiv_archive';  // ★ 全公司共享（不再用 cid 前綴）
       var archive = {};
       try {
         var raw = localStorage.getItem(archiveKey);

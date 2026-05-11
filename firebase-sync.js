@@ -1019,7 +1019,8 @@ async function pullFromCloud(){
 
         // ★★★ motiv_archive 特殊保護：MERGE 而非覆蓋（避免雲端舊版把本地新存的月份吃掉）
         //     雲端永遠只能「新增本地沒有的月份」，絕對不能刪除或覆蓋本地已有的月份
-        if (/^char_.+_motiv_archive$/.test(k)){
+        //     涵蓋：新版全局 'motiv_archive' + 舊版 'char_<id>_motiv_archive'
+        if (k === 'motiv_archive' || /^char_.+_motiv_archive$/.test(k)){
           try {
             var localObj = {};
             try { if (existingVal) localObj = JSON.parse(existingVal) || {}; } catch(e1){}
