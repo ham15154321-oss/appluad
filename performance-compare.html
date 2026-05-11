@@ -1653,15 +1653,6 @@
 
       <!-- Tab 4: 激勵排行榜 -->
       <div class="tab-content" id="tab-4">
-        <!-- ★ 流程提示（新手友善）-->
-        <div style="margin-bottom:12px;padding:10px 14px;background:linear-gradient(135deg,rgba(74,234,255,.06),rgba(74,222,128,.05));border:1px solid rgba(74,234,255,.25);border-radius:10px;font-size:12px;line-height:1.7;color:#a8d8e8;">
-          <b style="color:#4aeaff;">📖 同步流程（最簡單）：</b>
-          <span style="margin:0 6px;">①</span>選好下方 <b>年/月</b>
-          <span style="margin:0 6px;">→</span>②點 <b style="color:#4aeaff;">🔄 同步資料</b>
-          <span style="margin:0 6px;">→</span>③系統自動從 EIP 抓取並<b style="color:#4ade80;">永久儲存到該月份</b>（不用按💾）
-          <br>
-          <span style="font-size:11px;opacity:.7;">💡 想看舊月份直接點下方 <b style="color:#4ade80;">📂 已儲存月份 chip</b>，或選好年月點 <b style="color:#4aeaff;">🔍 查詢</b>。整個流程不需要打開擴充包 popup。</span>
-        </div>
         <div class="motiv-import-bar">
           <span class="motiv-update-info" id="motivUpdateInfo"></span>
           <select id="motivYearSelect" class="motiv-period-select" title="同步的年份"></select>
@@ -2421,9 +2412,14 @@
 
         if (!_snap){
           var _avail = Object.keys(_archive).sort().reverse();
-          html += '<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:14px;line-height:1.7;">';
-          html += '尚未匯入 <b style="color:var(--accent);">' + _archKey + '</b> 的成績單。<br>';
-          html += '<span style="font-size:.75rem;opacity:.85;">請到「🏆 激勵」tab，選好年/月，先按「🔄 同步資料」抓取 EIP，再按「📥 匯入成績單」存檔。</span>';
+          var _padM = String(m).padStart(2, '0');
+          html += '<div style="color:var(--dim);font-size:.82rem;text-align:center;padding:18px;line-height:1.7;">';
+          html += '尚未匯入 <b style="color:var(--accent);font-size:.95rem;">' + _archKey + '</b> 的激勵數據。<br>';
+          html += '<span style="font-size:.75rem;opacity:.85;">點下方按鈕，會自動切到激勵 tab 並把年/月填好 → 你只需按 🔄 同步資料</span><br><br>';
+          // ★ 一鍵跳到激勵 tab 並把年月填好
+          html += '<button onclick="_rcJumpToMotivSync(' + year + ',\'' + _padM + '\')" '
+                +'style="padding:10px 22px;border-radius:10px;border:1px solid rgba(74,234,255,.5);background:linear-gradient(135deg,rgba(74,234,255,.18),rgba(167,139,250,.10));color:#4aeaff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">'
+                +'👉 跳到激勵 tab 同步 ' + year + '年' + _padM + '月</button>';
           if (_avail.length){
             html += '<br><br><span style="font-size:.78rem;color:var(--accent);">已匯入過的月份：' + _avail.join('、') + '</span>';
           }
@@ -4714,6 +4710,37 @@
       tbody.innerHTML = html;
     }
 
+    // ★ 從成績單 tab 一鍵跳到激勵 tab，並預先填好年/月（給使用者按 🔄 同步資料）
+    function _rcJumpToMotivSync(year, month){
+      // 切到 Tab 4 (激勵)
+      if (typeof switchTab === 'function') switchTab(4);
+      // 等切換完成後設定年/月選單
+      setTimeout(function(){
+        var ys = document.getElementById('motivYearSelect');
+        var ms = document.getElementById('motivMonthSelect');
+        if (ys) {
+          ys.value = String(year);
+          try { localStorage.setItem('motiv_sel_year', ys.value); } catch(e){}
+        }
+        if (ms) {
+          ms.value = String(month);
+          try { localStorage.setItem('motiv_sel_month', ms.value); } catch(e){}
+        }
+        // 把同步資料按鈕高亮閃爍 1.5 秒，提示使用者按它
+        var btn = document.getElementById('motivSyncBtn');
+        if (btn) {
+          var origBox = btn.style.boxShadow;
+          var origBg = btn.style.background;
+          btn.style.boxShadow = '0 0 0 3px rgba(74,234,255,.45)';
+          btn.style.background = 'linear-gradient(135deg,rgba(74,234,255,.35),rgba(167,139,250,.25))';
+          setTimeout(function(){
+            btn.style.boxShadow = origBox;
+            btn.style.background = origBg;
+          }, 1800);
+        }
+      }, 200);
+    }
+
     // ★ localStorage 滿了的救急工具：清掉「不是當前主角」的 motiv_archive，釋放空間
     //   其他主角的資料在雲端還在，下次切換主角時會重新從雲端拉
     function _purgeOtherCharsMotivArchive(keepKey){
@@ -4761,7 +4788,7 @@
       }
     }
 
-    // ★ 同步成功後自動儲存到 archive（無 confirm，直接覆蓋；保證資料不會丟）
+    // ★ 同步成功後自動儲存到 archive — 但已有月份要先問是否覆蓋（解決使用者「不問就覆蓋」的痛點）
     function _motivAutoSaveAfterSync(){
       var year, month;
       if (_motivGroupPerfMeta && _motivGroupPerfMeta.year && _motivGroupPerfMeta.month){
@@ -4782,6 +4809,20 @@
       var archiveKey = cid + 'motiv_archive';
       var archive = {};
       try { var raw = localStorage.getItem(archiveKey); if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+
+      // ★ 該月份已有存檔 → 問使用者是否覆蓋（不要默默蓋掉）
+      if (archive[key]){
+        var oldStamp = archive[key].archivedAt || '?';
+        var confirmMsg = '⚠️ ' + key + ' 已經有儲存過的資料\n'
+                      + '（儲存於 ' + oldStamp + '）\n\n'
+                      + '要用剛剛同步的新資料覆蓋舊資料嗎？\n\n'
+                      + '✅ 確定 = 覆蓋（新資料蓋掉舊的）\n'
+                      + '❌ 取消 = 保留舊資料（剛剛同步的新資料會被丟掉）';
+        if (!confirm(confirmMsg)){
+          console.log('[motiv] 使用者選擇不覆蓋 ' + key + '，新同步資料未存入 archive');
+          return;
+        }
+      }
 
       var now = new Date();
       var stamp = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate()

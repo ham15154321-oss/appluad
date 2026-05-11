@@ -399,7 +399,7 @@
   // 顯示真實 manifest 版本，方便驗證有沒有正確 reload 擴充包
   try{
     var ver = chrome.runtime.getManifest().version;
-    console.log('[EIP Content] ✅ 已載入 v' + ver + '（正常顯示 4.6 才有最新修法）');
+    console.log('[EIP Content] ✅ 已載入 v' + ver);
   }catch(e){
     console.log('[EIP Content] ✅ 已載入');
   }

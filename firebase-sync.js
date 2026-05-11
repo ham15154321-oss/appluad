@@ -1017,6 +1017,48 @@ async function pullFromCloud(){
           }
         }
 
+        // ★★★ motiv_archive 特殊保護：MERGE 而非覆蓋（避免雲端舊版把本地新存的月份吃掉）
+        //     雲端永遠只能「新增本地沒有的月份」，絕對不能刪除或覆蓋本地已有的月份
+        if (/^char_.+_motiv_archive$/.test(k)){
+          try {
+            var localObj = {};
+            try { if (existingVal) localObj = JSON.parse(existingVal) || {}; } catch(e1){}
+            var cloudObj = {};
+            try { cloudObj = (typeof v === 'string') ? (JSON.parse(v) || {}) : (v || {}); } catch(e2){}
+            // Merge：本地優先（本地有的月份保留），雲端只補本地沒有的
+            var merged = {};
+            // 先複製雲端的（補進可能缺的月份）
+            Object.keys(cloudObj).forEach(function(mk){ merged[mk] = cloudObj[mk]; });
+            // 再複製本地的（覆蓋雲端，本地永遠優先）
+            var addedFromCloud = 0;
+            Object.keys(localObj).forEach(function(mk){ merged[mk] = localObj[mk]; });
+            // 計算雲端補了幾個本地沒有的月份
+            Object.keys(cloudObj).forEach(function(mk){ if (!localObj[mk]) addedFromCloud++; });
+
+            var localKeys = Object.keys(localObj).length;
+            var mergedKeys = Object.keys(merged).length;
+
+            if (mergedKeys > localKeys) {
+              // 雲端有本地沒有的月份 → 寫回 merged 版本
+              try {
+                _origSet(k, JSON.stringify(merged));
+                _localTsMap[k] = Date.now();
+                console.log('[FirebaseSync] motiv_archive 合併：本地 '+localKeys+' 個月，雲端補 '+addedFromCloud+' 個月，合計 '+mergedKeys+' 個月');
+                totalLS++;
+              } catch(qe2){
+                _quotaSkipCount++;
+                _quotaSkipKeys.push(k + '(merge)');
+              }
+            } else {
+              console.log('[FirebaseSync] motiv_archive 保護：本地已有全部 '+localKeys+' 個月份，跳過雲端覆蓋');
+            }
+            continue;
+          } catch(eMerge){
+            console.warn('[FirebaseSync] motiv_archive merge 失敗，跳過', eMerge);
+            continue;
+          }
+        }
+
         if (isLocalOnlyKey(k)) continue;
 
         var cTs = cloudTs[k] || 0;
