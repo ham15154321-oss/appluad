@@ -4740,6 +4740,27 @@
       }, 200);
     }
 
+    // ★ 監聽 parent 的 firebase 同步完成事件 → 雲端拉資料完才能看到 chips
+    //   原因：iframe 載入時 firebase pull 可能還沒完成，第一次 motivRenderAll 讀不到 motiv_archive
+    //   解法：parent firebase 完成後 dispatch event，iframe 收到再 render 一次
+    (function _hookFirebaseSyncEvents(){
+      try {
+        var p = window.parent;
+        if (!p || p === window) return;
+        var refresh = function(){
+          try{
+            if (typeof motivRenderAll === 'function') motivRenderAll();
+            if (typeof motivRenderArchiveChips === 'function') motivRenderArchiveChips();
+          }catch(e){}
+        };
+        p.addEventListener('firebase-sync-ready', refresh);
+        p.addEventListener('firebase-sync-updated', refresh);
+        console.log('[motiv_archive] 已掛載 parent firebase 事件監聽（拉資料完會自動重新 render chips）');
+      } catch(e){
+        console.warn('[motiv_archive] 掛載 parent firebase 事件失敗', e);
+      }
+    })();
+
     // ★ 自動遷移：把舊版 char_<id>_motiv_archive 合併到新版全局 motiv_archive
     //   v2 之前每個主角各自儲存，v2 起改為全公司共享 → 開頁時自動合併歷史資料
     (function _migrateMotivArchiveToGlobal(){
@@ -4784,6 +4805,15 @@
             // 清掉舊的 per-character keys 釋放空間
             foundCharKeys.forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
             console.log('[motiv_archive] 已清除 ' + foundCharKeys.length + ' 個舊版 per-character archive');
+            // ★ 立即推到雲端（不等 10 秒 debounce，避免使用者切換電腦時雲端還沒更新）
+            setTimeout(function(){
+              try {
+                if (window.parent && window.parent.firebaseSync && window.parent.firebaseSync.push){
+                  window.parent.firebaseSync.push();
+                  console.log('[motiv_archive] 已觸發 firebase push（遷移後立即推送，不等 debounce）');
+                }
+              } catch(e){}
+            }, 1500);
           } catch(e){
             console.warn('[motiv_archive] 遷移寫入失敗（quota?）', e.message);
           }
