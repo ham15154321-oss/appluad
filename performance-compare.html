@@ -1653,17 +1653,33 @@
 
       <!-- Tab 4: 激勵排行榜 -->
       <div class="tab-content" id="tab-4">
+        <!-- ★ 流程提示（新手友善）-->
+        <div style="margin-bottom:12px;padding:10px 14px;background:linear-gradient(135deg,rgba(74,234,255,.06),rgba(74,222,128,.05));border:1px solid rgba(74,234,255,.25);border-radius:10px;font-size:12px;line-height:1.7;color:#a8d8e8;">
+          <b style="color:#4aeaff;">📖 同步流程（最簡單）：</b>
+          <span style="margin:0 6px;">①</span>選好下方 <b>年/月</b>
+          <span style="margin:0 6px;">→</span>②點 <b style="color:#4aeaff;">🔄 同步資料</b>
+          <span style="margin:0 6px;">→</span>③系統自動從 EIP 抓取並<b style="color:#4ade80;">永久儲存到該月份</b>（不用按💾）
+          <br>
+          <span style="font-size:11px;opacity:.7;">💡 想看舊月份直接點下方 <b style="color:#4ade80;">📂 已儲存月份 chip</b>，或選好年月點 <b style="color:#4aeaff;">🔍 查詢</b>。整個流程不需要打開擴充包 popup。</span>
+        </div>
         <div class="motiv-import-bar">
           <span class="motiv-update-info" id="motivUpdateInfo"></span>
           <select id="motivYearSelect" class="motiv-period-select" title="同步的年份"></select>
           <span class="motiv-period-label">年</span>
           <select id="motivMonthSelect" class="motiv-period-select" title="同步的月份"></select>
           <span class="motiv-period-label">月</span>
+          <button class="motiv-import-btn" onclick="motivQueryByYearMonth()" title="把年/月選單對應的已儲存資料載入到 4 個排行榜。沒存過就提示要先同步。" style="background:linear-gradient(135deg,rgba(74,234,255,.20),rgba(167,139,250,.10));border-color:rgba(74,234,255,.5);color:#4aeaff;font-weight:800;">🔍 查詢</button>
+          <button class="motiv-import-btn" onclick="motivSaveCurrentToArchive()" title="一鍵把目前畫面 4 個排行榜永久儲存。重整、同步其他月份都不會丟。" style="background:linear-gradient(135deg,rgba(74,222,128,.18),rgba(74,234,255,.08));border-color:rgba(74,222,128,.5);color:#4ade80;font-weight:800;">💾 儲存</button>
           <button class="motiv-import-btn" onclick="motivImportToReportCard()" title="把目前 4 個排行榜（學院、業務、正式組、儲備組）凍結成「該月份成績單」存檔。AI 顧問可調閱歷史資料。" style="background:linear-gradient(135deg,rgba(255,200,80,.15),rgba(255,160,40,.08));border-color:rgba(255,200,80,.4);color:#ffc850;">📥 匯入成績單</button>
-          <button class="motiv-import-btn" onclick="motivTriggerEipSync()" title="從 EIP 同步指定年月的資料（學院、業務、正式小組、儲備小組）">🔄 同步資料</button>
+          <button id="motivSyncBtn" class="motiv-import-btn" onclick="motivTriggerEipSync()" title="從 EIP 同步指定年月的資料（學院、業務、正式小組、儲備小組）">🔄 同步資料</button>
           <label class="motiv-import-btn" style="font-size:.75rem;opacity:.7;">📥 匯入檔案
             <input type="file" accept=".xlsx,.xls,.numbers,.csv" style="display:none" onchange="motivImportFile(event)">
           </label>
+        </div>
+        <!-- ★ 已儲存月份 chips：點任一 chip 直接載入該月資料到 4 個排行榜（不用重新同步）-->
+        <div id="motivArchiveChips" style="display:none;margin-bottom:10px;padding:10px 14px;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.25);border-radius:10px;">
+          <div style="font-size:11px;color:rgba(180,255,200,.65);margin-bottom:6px;font-weight:600;">📂 已儲存月份（點擊載入到下方畫面）：</div>
+          <div id="motivArchiveChipList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
         <div class="motiv-sub-tabs">
           <button class="motiv-sub-tab active" onclick="motivSwitchBoard(0)">🏫 學院排名</button>
@@ -4571,6 +4587,8 @@
       motivRenderBoard(_motivSales, 'motivPodium1', 'motivList1');
       motivRenderGroupPerformance();
       motivRenderReservePerformance();
+      // ★ 渲染已儲存月份 chips
+      try{ motivRenderArchiveChips(); }catch(e){}
       // Show update time
       var info = document.getElementById('motivUpdateInfo');
       if (info) {
@@ -4696,6 +4714,256 @@
       tbody.innerHTML = html;
     }
 
+    // ★ localStorage 滿了的救急工具：清掉「不是當前主角」的 motiv_archive，釋放空間
+    //   其他主角的資料在雲端還在，下次切換主角時會重新從雲端拉
+    function _purgeOtherCharsMotivArchive(keepKey){
+      var purged = 0;
+      var purgedNames = [];
+      for (var i = localStorage.length - 1; i >= 0; i--) {
+        var k = localStorage.key(i);
+        if (!k) continue;
+        // 清掉其他主角的 motiv_archive（不是自己的）
+        if (k.endsWith('_motiv_archive') && k !== keepKey) {
+          try {
+            localStorage.removeItem(k);
+            purged++;
+            // 抽出主角名給 log 用
+            var m = k.match(/^char_(.+?)_motiv_archive$/);
+            if (m) purgedNames.push(m[1]);
+          } catch(e){}
+        }
+      }
+      if (purged > 0){
+        console.log('[motiv_archive] 釋放空間：清了 ' + purged + ' 個其他主角的 archive：' + purgedNames.join(', '));
+      }
+      return purged;
+    }
+
+    // ★ 安全寫入 motiv_archive：失敗時嘗試清其他主角的 archive 後重試
+    function _safeSaveMotivArchive(key, json){
+      try {
+        localStorage.setItem(key, json);
+        return true;
+      } catch(e1) {
+        // localStorage 滿了 → 試圖釋放空間
+        var freed = _purgeOtherCharsMotivArchive(key);
+        if (freed > 0){
+          try {
+            localStorage.setItem(key, json);
+            console.log('[motiv_archive] 清理後成功儲存');
+            return true;
+          } catch(e2){
+            console.error('[motiv_archive] 清理後還是存不下', e2);
+          }
+        }
+        // 還是不行 → throw
+        throw e1;
+      }
+    }
+
+    // ★ 同步成功後自動儲存到 archive（無 confirm，直接覆蓋；保證資料不會丟）
+    function _motivAutoSaveAfterSync(){
+      var year, month;
+      if (_motivGroupPerfMeta && _motivGroupPerfMeta.year && _motivGroupPerfMeta.month){
+        year = _motivGroupPerfMeta.year; month = _motivGroupPerfMeta.month;
+      } else if (_motivReservePerfMeta && _motivReservePerfMeta.year && _motivReservePerfMeta.month){
+        year = _motivReservePerfMeta.year; month = _motivReservePerfMeta.month;
+      } else { return; }
+      var key = year + '-' + month;
+
+      var aLen = (_motivAcademy || []).length;
+      var sLen = (_motivSales || []).length;
+      var gLen = (_motivGroupPerf || []).length;
+      var rLen = (_motivReservePerf || []).length;
+      if (aLen + sLen + gLen + rLen === 0) return;
+
+      var cid = '';
+      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+      var archiveKey = cid + 'motiv_archive';
+      var archive = {};
+      try { var raw = localStorage.getItem(archiveKey); if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+
+      var now = new Date();
+      var stamp = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate()
+        + ' ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+      archive[key] = {
+        year: year, month: month, archivedAt: stamp,
+        academy: _motivAcademy || [],
+        sales: _motivSales || [],
+        groupPerformance: _motivGroupPerf || [],
+        reservePerformance: _motivReservePerf || []
+      };
+      _safeSaveMotivArchive(archiveKey, JSON.stringify(archive));
+      try{ motivRenderArchiveChips(); }catch(e){}
+    }
+
+    // ========== 💾 儲存當前畫面為永久檔（簡化版，避免使用者忘了點匯入成績單導致月份覆蓋）==========
+    // 跟 motivImportToReportCard 共用同一個 motiv_archive 後端，但 UX 更簡潔（toast 取代長 alert）
+    function motivSaveCurrentToArchive(){
+      // 用 last-sync meta 推算年月（使用者剛同步什麼，就存什麼）
+      var year, month;
+      if (_motivGroupPerfMeta && _motivGroupPerfMeta.year && _motivGroupPerfMeta.month){
+        year = _motivGroupPerfMeta.year; month = _motivGroupPerfMeta.month;
+      } else if (_motivReservePerfMeta && _motivReservePerfMeta.year && _motivReservePerfMeta.month){
+        year = _motivReservePerfMeta.year; month = _motivReservePerfMeta.month;
+      } else {
+        var ys = document.getElementById('motivYearSelect');
+        var ms = document.getElementById('motivMonthSelect');
+        var now = new Date();
+        year = (ys && ys.value) ? parseInt(ys.value, 10) : now.getFullYear();
+        month = (ms && ms.value) ? ms.value : String(now.getMonth() + 1).padStart(2, '0');
+      }
+      var key = year + '-' + month;
+
+      var aLen = (_motivAcademy || []).length;
+      var sLen = (_motivSales || []).length;
+      var gLen = (_motivGroupPerf || []).length;
+      var rLen = (_motivReservePerf || []).length;
+      if (aLen + sLen + gLen + rLen === 0){
+        alert('⚠️ 目前 4 個排行榜都是空的，請先按「🔄 同步資料」抓取 EIP 資料再儲存。');
+        return;
+      }
+
+      var cid = '';
+      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+      var archiveKey = cid + 'motiv_archive';
+      var archive = {};
+      try { var raw = localStorage.getItem(archiveKey); if (raw) archive = JSON.parse(raw) || {}; } catch(e){ archive = {}; }
+
+      var existed = !!archive[key];
+      if (existed){
+        if (!confirm('⚠️ ' + key + ' 已儲存過。\n\n要用目前畫面的資料覆蓋嗎？')) return;
+      }
+
+      var now2 = new Date();
+      var stamp = now2.getFullYear() + '/' + (now2.getMonth()+1) + '/' + now2.getDate()
+        + ' ' + now2.getHours() + ':' + String(now2.getMinutes()).padStart(2,'0');
+      archive[key] = {
+        year: year, month: month, archivedAt: stamp,
+        academy: _motivAcademy || [],
+        sales: _motivSales || [],
+        groupPerformance: _motivGroupPerf || [],
+        reservePerformance: _motivReservePerf || []
+      };
+      try {
+        _safeSaveMotivArchive(archiveKey, JSON.stringify(archive));
+        // 簡短 toast 取代長 alert
+        var msg = (existed ? '🔄 已覆蓋 ' : '✅ 已儲存 ') + year + '年' + month + '月（學院 ' + aLen + ' / 業務 ' + sLen + ' / 正式 ' + gLen + ' / 儲備 ' + rLen + '）';
+        showStatusToast(msg);
+        // 重新渲染 chips
+        motivRenderArchiveChips();
+      } catch(e){
+        alert('❌ 儲存失敗：' + e.message + '\n\n（localStorage 空間可能不足）');
+      }
+    }
+
+    // 簡短的 toast 訊息（不需要按 OK，2.5 秒自動消失）
+    function showStatusToast(msg){
+      var el = document.getElementById('_motivToast');
+      if (!el){
+        el = document.createElement('div');
+        el.id = '_motivToast';
+        el.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:99999;padding:14px 22px;border-radius:12px;font-weight:700;font-size:14px;box-shadow:0 6px 28px rgba(0,0,0,.4);background:linear-gradient(135deg,#4ade80,#22d3ee);color:#003020;transition:all .3s;pointer-events:none;opacity:0;';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+      el.style.opacity = '1';
+      clearTimeout(el._timer);
+      el._timer = setTimeout(function(){ el.style.opacity = '0'; }, 2500);
+    }
+
+    // ★ 渲染「已儲存月份」chips — 點任一 chip 直接載入該月到 4 個排行榜
+    function motivRenderArchiveChips(){
+      var cid = '';
+      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+      var raw = localStorage.getItem(cid + 'motiv_archive');
+      var archive = {};
+      try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+      var keys = Object.keys(archive).sort().reverse(); // 最新月份在前
+
+      var bar = document.getElementById('motivArchiveChips');
+      var list = document.getElementById('motivArchiveChipList');
+      if (!bar || !list) return;
+
+      if (!keys.length){
+        bar.style.display = 'none';
+        return;
+      }
+      bar.style.display = 'block';
+      var html = '';
+      keys.forEach(function(k){
+        var snap = archive[k] || {};
+        var aL = (snap.academy||[]).length;
+        var sL = (snap.sales||[]).length;
+        var gL = (snap.groupPerformance||[]).length;
+        var rL = (snap.reservePerformance||[]).length;
+        var title = '已儲存於 ' + (snap.archivedAt || '?') + '\n學院 ' + aL + ' / 業務 ' + sL + ' / 正式 ' + gL + ' / 儲備 ' + rL + '\n點擊載入到 4 個排行榜';
+        html += '<button onclick="motivLoadFromArchive(\'' + k + '\')" title="' + esc(title) + '" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(74,222,128,.4);background:rgba(74,222,128,.10);color:#86efac;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" onmouseover="this.style.background=\'rgba(74,222,128,.25)\';" onmouseout="this.style.background=\'rgba(74,222,128,.10)\';">📅 ' + k + '</button>';
+      });
+      list.innerHTML = html;
+    }
+
+    // helper: HTML escape
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    // ★ 用年/月選單查詢已儲存的月份（如果沒存過就提示）
+    function motivQueryByYearMonth(){
+      var ys = document.getElementById('motivYearSelect');
+      var ms = document.getElementById('motivMonthSelect');
+      if (!ys || !ms){ alert('找不到年/月選單'); return; }
+      var year = ys.value || new Date().getFullYear();
+      var month = ms.value || String(new Date().getMonth()+1).padStart(2,'0');
+      var key = year + '-' + month;
+
+      // 看 archive 有沒有
+      var cid = '';
+      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+      var raw = localStorage.getItem(cid + 'motiv_archive');
+      var archive = {};
+      try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+
+      if (archive[key]){
+        // 有存檔 → 直接載入
+        motivLoadFromArchive(key);
+      } else {
+        // 沒存檔 → 列出有的月份 + 詢問是否同步
+        var available = Object.keys(archive).sort().reverse();
+        var msg = '⚠️ ' + key + ' 還沒儲存過。\n\n';
+        if (available.length){
+          msg += '已儲存的月份：' + available.join('、') + '\n\n';
+        }
+        msg += '要從 EIP 同步 ' + key + ' 嗎？\n\n（同步完記得按「💾 儲存」永久保存）';
+        if (confirm(msg)){
+          // 觸發同步（同步完成會自動更新畫面）
+          motivTriggerEipSync();
+        }
+      }
+    }
+
+    // ★ 從 archive 載入指定月份到目前畫面（不需要重新同步 EIP）
+    function motivLoadFromArchive(key){
+      var cid = '';
+      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+      var raw = localStorage.getItem(cid + 'motiv_archive');
+      var archive = {};
+      try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+      var snap = archive[key];
+      if (!snap){
+        alert('❌ 找不到 ' + key + ' 的資料');
+        return;
+      }
+      // 把 archive 載入到 in-memory + 同步到目前的「最近一次同步」localStorage（讓重整後也能看到）
+      _motivAcademy = snap.academy || [];
+      _motivSales = snap.sales || [];
+      _motivGroupPerf = snap.groupPerformance || [];
+      _motivGroupPerfMeta = { year: snap.year, month: snap.month };
+      _motivReservePerf = snap.reservePerformance || [];
+      _motivReservePerfMeta = { year: snap.year, month: snap.month };
+      motivSaveData();
+      motivRenderAll();
+      showStatusToast('📂 已載入 ' + key + ' 的資料');
+    }
+
     // ========== 📥 匯入成績單（凍結當前 4 個排行榜為該月份成績單） ==========
     // 存放於 localStorage 的 char_<id>_motiv_archive，結構為：
     //   { "2026-05": {year, month, archivedAt, academy, sales, groupPerformance, reservePerformance}, ... }
@@ -4764,7 +5032,7 @@
 
       // 寫入
       try {
-        localStorage.setItem(archiveKey, JSON.stringify(archive));
+        _safeSaveMotivArchive(archiveKey, JSON.stringify(archive));
         var months = Object.keys(archive).sort().reverse();
         var monthList = months.slice(0, 6).join('、') + (months.length > 6 ? '...' : '');
         alert(
@@ -4780,6 +5048,8 @@
           'AI 顧問下次對話時可調閱所有歷史月份。'
         );
         // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
+        // ★ 立刻重渲染已儲存月份 chips（讓使用者看到剛存的月份馬上出現）
+        try{ motivRenderArchiveChips(); }catch(e){}
       } catch(e) {
         alert('❌ 匯入失敗：' + e.message + '\n\n（可能 localStorage 空間不足，請刪除舊月份成績單再試）');
       }
@@ -4941,8 +5211,10 @@
     }
 
     function motivTriggerEipSync(){
-      var btn = document.querySelector('.motiv-import-btn');
+      // ★ 用明確 ID 抓「同步資料」按鈕（不要用 querySelector 抓第一個 .motiv-import-btn — 那個現在是 🔍 查詢按鈕了）
+      var btn = document.getElementById('motivSyncBtn');
       var info = document.getElementById('motivUpdateInfo');
+      console.log('[motiv] motivTriggerEipSync 觸發, btn=', btn ? '✓ 找到' : '✗ 找不到');
       if (btn){ btn.disabled = true; btn.textContent = '⏳ 偵測中...'; }
 
       // ★ 先 ping 偵測 content script 是否可用（2秒超時）
@@ -4962,9 +5234,10 @@
           window.removeEventListener('message', onPong);
           if (btn){ btn.disabled = false; btn.textContent = '🔄 同步資料'; }
           if (info){
-            info.innerHTML = '💡 請點右上角功能圖示';
-            info.style.color = '#e6a817';
+            info.innerHTML = '⚠️ 擴充包沒回應 — 確認 chrome://extensions 已啟用「Appedu EIP 激勵同步」並重新載入';
+            info.style.color = '#ff6b6b';
           }
+          console.warn('[motiv] ⚠️ ping 2 秒沒收到 pong — content.js 沒在這個 frame 載入');
         }
       }, 2000);
     }
@@ -4979,7 +5252,13 @@
         if (d.type === 'done'){
           window.removeEventListener('message', onMsg);
           motivLoadData(); motivRenderAll();
-          if (info){ info.textContent = '✅ ' + d.msg; info.style.color = '#4ade80'; }
+          // ★ 同步完成自動儲存到 archive — 解決「忘了按💾儲存導致下次同步覆蓋」的痛點
+          try{
+            _motivAutoSaveAfterSync();
+            if (info){ info.textContent = '✅ ' + d.msg + ' · 已自動儲存'; info.style.color = '#4ade80'; }
+          }catch(e2){
+            if (info){ info.textContent = '✅ ' + d.msg + ' · ⚠️ 自動儲存失敗（請手動點 💾）'; info.style.color = '#e6a817'; }
+          }
           if (btn){ btn.disabled = false; btn.textContent = '🔄 同步資料'; }
         } else if (d.type === 'error'){
           window.removeEventListener('message', onMsg);

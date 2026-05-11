@@ -304,25 +304,32 @@
   // ══════════════════════════════════════
   async function doSync(year, month){
     try {
+      console.log('[EIP Content] ★ doSync 開始 year=' + year + ' month=' + month);
       notify('status', { msg: '正在同步學院排名...' });
 
-      var aUrl = 'http://eip.appedu.com.tw/class/report/performance/performance_at.php?q1=' + year + '&q2=' + month + '&q3=';
+      // ★ 學院 URL 加 btnq=查詢，強制 EIP 用我們傳的月份（避免它用 session 的最後瀏覽月份）
+      var aUrl = 'http://eip.appedu.com.tw/class/report/performance/performance_at.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
+      console.log('[EIP Content] 學院 URL:', aUrl);
       var aHtml = await fetchViaBackground(aUrl);
       var academyData = extractAcademyDirect(aHtml);
 
       if (academyData.length <= 1){
-        aUrl += '0';
+        // 第一次失敗時 fallback：q3 從空字串改為 0（代表「全部學院」）
+        aUrl = aUrl.replace('q3=&', 'q3=0&');
+        console.log('[EIP Content] 學院 fallback URL:', aUrl);
         aHtml = await fetchViaBackground(aUrl);
         academyData = extractAcademyDirect(aHtml);
       }
 
       notify('status', { msg: '正在同步業務排名...' });
       var sUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_p.php?q1=' + year + '&q2=' + month + '&q3=&q4=&q5=&btnq=%E6%9F%A5%E8%A9%A2';
+      console.log('[EIP Content] 業務 URL:', sUrl);
       var sHtml = await fetchViaBackground(sUrl);
       var salesData = extractSalesDirect(sHtml);
 
       if (salesData.length <= 1){
         sUrl = sUrl.replace('q3=&', 'q3=0&');
+        console.log('[EIP Content] 業務 fallback URL:', sUrl);
         sHtml = await fetchViaBackground(sUrl);
         salesData = extractSalesDirect(sHtml);
       }
@@ -330,14 +337,17 @@
       // ★ 新增：正式小組績效表（performance_d.php）
       notify('status', { msg: '正在同步正式小組績效表...' });
       var gUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_d.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
+      console.log('[EIP Content] 正式組 URL:', gUrl);
       var gHtml = await fetchViaBackground(gUrl);
       var groupData = extractGroupPerformance(gHtml);
 
       // ★ 新增：儲備小組績效表（performance_d2.php，結構同 performance_d.php，重用 parser）
       notify('status', { msg: '正在同步儲備小組績效表...' });
       var rUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_d2.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
+      console.log('[EIP Content] 儲備組 URL:', rUrl);
       var rHtml = await fetchViaBackground(rUrl);
       var reserveData = extractGroupPerformance(rHtml);
+      console.log('[EIP Content] ★ 抓到資料：學院=' + academyData.length + ' 業務=' + salesData.length + ' 正式組=' + groupData.length + ' 儲備組=' + reserveData.length);
 
       // 寫入 localStorage
       var cid = '';
@@ -347,13 +357,25 @@
       var timeStr = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate()
         + ' ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
 
-      localStorage.setItem(cid + 'motiv_academy_v1', JSON.stringify(academyData));
-      localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(salesData));
-      localStorage.setItem(cid + 'motiv_group_performance_v1', JSON.stringify(groupData));
-      localStorage.setItem(cid + 'motiv_group_performance_meta', JSON.stringify({ year: year, month: month }));
-      localStorage.setItem(cid + 'motiv_reserve_performance_v1', JSON.stringify(reserveData));
-      localStorage.setItem(cid + 'motiv_reserve_performance_meta', JSON.stringify({ year: year, month: month }));
-      localStorage.setItem(cid + 'motiv_updated_at', timeStr);
+      // ★ 每筆獨立 try/catch，避免 quota 失敗時後面的全部沒寫到（之前是無 catch 全失敗）
+      function _safeSet(k, v){
+        try { localStorage.setItem(k, v); return true; }
+        catch(e){
+          console.error('[EIP Content] localStorage 寫入失敗 (quota?):', k, e.message);
+          return false;
+        }
+      }
+      var ok = 0, fail = 0;
+      [
+        [cid + 'motiv_academy_v1', JSON.stringify(academyData)],
+        [cid + 'motiv_sales_v1', JSON.stringify(salesData)],
+        [cid + 'motiv_group_performance_v1', JSON.stringify(groupData)],
+        [cid + 'motiv_group_performance_meta', JSON.stringify({ year: year, month: month })],
+        [cid + 'motiv_reserve_performance_v1', JSON.stringify(reserveData)],
+        [cid + 'motiv_reserve_performance_meta', JSON.stringify({ year: year, month: month })],
+        [cid + 'motiv_updated_at', timeStr]
+      ].forEach(function(p){ if (_safeSet(p[0], p[1])) ok++; else fail++; });
+      console.log('[EIP Content] ★ localStorage 寫入：成功 ' + ok + ' / 失敗 ' + fail + (fail > 0 ? ' ⚠️ 有資料沒存進去！' : ''));
 
       notify('done', {
         academy: academyData,
@@ -374,5 +396,11 @@
     }
   }
 
-  console.log('[EIP Content] ✅ v4 已載入');
+  // 顯示真實 manifest 版本，方便驗證有沒有正確 reload 擴充包
+  try{
+    var ver = chrome.runtime.getManifest().version;
+    console.log('[EIP Content] ✅ 已載入 v' + ver + '（正常顯示 4.6 才有最新修法）');
+  }catch(e){
+    console.log('[EIP Content] ✅ 已載入');
+  }
 })();

@@ -325,6 +325,12 @@ const DEFAULT_RULES = [
     triggerCondition:'新增/讀取/刪除個人記憶時',
     output:'localStorage key 前綴：char_<activeCharacterId>_' },
 
+  { id:'storage_motiv_save_chips', category:'storage', name:'★ 激勵 4 排行榜「🔍 查詢 / 💾 儲存」+ 已儲存月份 chips', enabled:true,
+    description:'解決「同步 4 月後 1-3 月資料消失」的痛點，三件套：\n\n1. 「🔍 查詢」按鈕（年/月選單右側）\n   - 讀取年/月選單值對應的 motiv_archive\n   - 有存檔 → 立刻載入到 4 排行榜\n   - 沒存檔 → 列出已存月份 + 詢問要不要 EIP 同步\n\n2. 「💾 儲存」按鈕（在 📥 匯入成績單 左邊）\n   - 一鍵把目前畫面 4 個排行榜（學院/業務/正式組/儲備組）凍結為永久檔\n   - 用 toast 取代長 alert，UX 更俐落\n   - 已存在的月份會問是否覆蓋\n\n3. 「📂 已儲存月份 chips」（在 sub-tabs 上方）\n   - 顯示所有已存月份按鈕，例如「📅 2026-05」「📅 2026-04」\n   - 點任一 chip 直接載入該月資料到 4 排行榜\n   - hover 顯示存檔時間 + 各表筆數\n\n後端共用：三個動作都對 motiv_archive[year-month] 操作。\n重整不會丟：localStorage motiv_archive 持久化。',
+    sourceFunction:'performance-compare.html → motivQueryByYearMonth() / motivSaveCurrentToArchive() / motivLoadFromArchive() / motivRenderArchiveChips() / showStatusToast()',
+    triggerCondition:'點擊 🔍 查詢 / 💾 儲存 / 切換月份 chip / 進入激勵 tab 自動渲染 chips',
+    output:'localStorage char_<id>_motiv_archive 結構：{ "2026-05": {...}, "2026-04": {...}, ... }' },
+
   { id:'storage_motiv_archive', category:'storage', name:'業績匯入成績單（多月累積）', enabled:true,
     description:'點「📥 匯入成績單」會凍結 4 個排行榜當前資料，存到 motiv_archive[年-月]，AI 顧問可跨月查詢。',
     sourceFunction:'performance-compare.html → motivImportToReportCard()',

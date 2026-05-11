@@ -367,6 +367,7 @@ async function injectData(academyData, salesData, groupData, reserveData, year, 
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
 
+      // 1) 寫入 localStorage（資料 + meta）
       localStorage.setItem(cid + 'motiv_academy_v1', JSON.stringify(academy));
       localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(sales));
       localStorage.setItem(cid + 'motiv_group_performance_v1', JSON.stringify(groupPerf || []));
@@ -375,11 +376,27 @@ async function injectData(academyData, salesData, groupData, reserveData, year, 
       localStorage.setItem(cid + 'motiv_reserve_performance_meta', JSON.stringify(periodMeta || {}));
       localStorage.setItem(cid + 'motiv_updated_at', updateTime);
 
-      if (window._motivAcademy !== undefined) window._motivAcademy = academy;
-      if (window._motivSales !== undefined) window._motivSales = sales;
-      if (window._motivGroupPerf !== undefined) window._motivGroupPerf = groupPerf || [];
-      if (window._motivReservePerf !== undefined) window._motivReservePerf = reservePerf || [];
+      // 2) ★ 改呼叫 motivLoadData()（會把 meta 也載入到 window 變數）
+      //    之前只手動賦值資料 globals，漏掉 meta globals → 標題顯示舊月份
+      if (typeof window.motivLoadData === 'function'){
+        window.motivLoadData();
+      } else {
+        // fallback：頁面沒有 motivLoadData → 至少更新資料 globals
+        if (window._motivAcademy !== undefined) window._motivAcademy = academy;
+        if (window._motivSales !== undefined) window._motivSales = sales;
+        if (window._motivGroupPerf !== undefined) window._motivGroupPerf = groupPerf || [];
+        if (window._motivReservePerf !== undefined) window._motivReservePerf = reservePerf || [];
+        if (window._motivGroupPerfMeta !== undefined) window._motivGroupPerfMeta = periodMeta || {};
+        if (window._motivReservePerfMeta !== undefined) window._motivReservePerfMeta = periodMeta || {};
+      }
+
+      // 3) 重新渲染
       if (typeof window.motivRenderAll === 'function') window.motivRenderAll();
+
+      // 4) ★ 自動儲存到 archive（解決「忘了存」的痛點）
+      if (typeof window._motivAutoSaveAfterSync === 'function') {
+        try{ window._motivAutoSaveAfterSync(); }catch(e){}
+      }
     },
     args: [academyData, salesData, groupData || [], reserveData || [], { year: year, month: month }, timeStr]
   });
@@ -396,14 +413,17 @@ async function doSync(){
   var month = document.getElementById('selMonth').value;
 
   try {
-    // 1. 學院排名
+    console.log('[EIP popup] ★ 同步開始 year=' + year + ' month=' + month);
+    // 1. 學院排名（★ 加 btnq=查詢，強制 EIP 用我們傳的月份）
     setStatus('⏳ 正在同步學院排名...');
-    var aUrl = 'http://eip.appedu.com.tw/class/report/performance/performance_at.php?q1=' + year + '&q2=' + month + '&q3=';
+    var aUrl = 'http://eip.appedu.com.tw/class/report/performance/performance_at.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
+    console.log('[EIP popup] 學院 URL:', aUrl);
     var aHtml = await fetchEipPage(aUrl);
     var academyData = extractAcademyDirect(aHtml);
 
     if (academyData.length <= 1){
-      aUrl += '0';
+      aUrl = aUrl.replace('q3=&', 'q3=0&');
+      console.log('[EIP popup] 學院 fallback URL:', aUrl);
       aHtml = await fetchEipPage(aUrl);
       academyData = extractAcademyDirect(aHtml);
     }
