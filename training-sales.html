@@ -998,6 +998,60 @@ document.addEventListener('visibilitychange', function(){
 window.addEventListener('beforeunload', _emergencySave);
 window.addEventListener('pagehide', _emergencySave);
 
+// ★ 監聽 firebase 同步事件：雲端 pull 完成後，重新從 LS 載入 store
+//   這個 iframe 套到 training-room.html 再到 人力發展.html — firebase-sync 跑在最頂層
+//   不重新載入 → 記憶體裡的 store 永遠是 init 時的版本 → 使用者一旦編輯就會把
+//   舊 store 覆蓋回 LS（並推到雲端）→ 其他裝置最新的編輯就消失了
+function _reloadFromLS(){
+  try{
+    const raw = localStorage.getItem(getSK());
+    if(!raw) return;
+    const parsed = JSON.parse(raw);
+    if(!parsed || !parsed.people || !Array.isArray(parsed.people) || parsed.people.length === 0) return;
+    // 檢查當前是否正在編輯（避免吃掉使用者的編輯）
+    if(_ast){
+      console.log('[training-sales] 雲端同步完成但本機正在編輯中（_ast pending），跳過 reload 以保留使用者輸入');
+      return;
+    }
+    var oldJson = _storeToJSON();
+    var newJson = JSON.stringify(parsed);
+    if(oldJson === newJson) return; // 沒變化
+    store = parsed;
+    if(store.currentIdx >= store.people.length) store.currentIdx = 0;
+    chapters = store.people[store.currentIdx].chapters;
+    renderAvatars();
+    render();
+    _captureEmergencyBaseline(); // 重設 baseline 才不會被 emergencySave 覆蓋
+    console.log('[training-sales] 雲端同步完成，已重新載入 store（' + parsed.people.length + ' 位新人）');
+  }catch(e){
+    console.warn('[training-sales] 重新載入 LS 失敗', e);
+  }
+}
+
+// 監聽最頂層 window 的 firebase-sync 事件（這個 iframe 套兩層，事件 dispatch 在最頂）
+(function _hookFirebaseEvents(){
+  try{
+    var targets = [];
+    var w = window;
+    var seen = new Set();
+    while (w && !seen.has(w)){
+      targets.push(w);
+      seen.add(w);
+      if (w.parent === w) break;
+      w = w.parent;
+    }
+    targets.forEach(function(t){
+      try{
+        t.addEventListener('firebase-sync-ready', _reloadFromLS);
+        t.addEventListener('firebase-sync-updated', _reloadFromLS);
+      }catch(e){}
+    });
+    console.log('[training-sales] 已掛載 firebase-sync 監聽（' + targets.length + ' 層 window）');
+  }catch(e){
+    console.warn('[training-sales] firebase-sync 監聽掛載失敗', e);
+  }
+})();
+
 // 星空
 (function(){
   const c=document.getElementById('stars');
