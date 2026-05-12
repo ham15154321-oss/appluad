@@ -191,6 +191,21 @@ const LOCAL_ONLY_PREFIXES = [
   'bgm_'
 ];
 
+// ★ 全公司共享的 LS keys（不按主角存）：
+//   業績數據中心、各通路績效、每月講座成績、年度月/季比較 等
+//   路徑：users/<tenant>/_global/localStorage/<key>
+//   不再依主角分開儲存。任一裝置/主角更新後，所有人下次 pull 都拿到同一份。
+const GLOBAL_LS_KEY_PATTERNS = [
+  /^perf_compare_v1/,   // 業績數據中心（含 _channel_v1, _archives, _lec_v1, _channel_v1_archives 等所有子集）
+];
+function isGlobalLsKey(k){
+  if (!k) return false;
+  for (var i = 0; i < GLOBAL_LS_KEY_PATTERNS.length; i++){
+    if (GLOBAL_LS_KEY_PATTERNS[i].test(k)) return true;
+  }
+  return false;
+}
+
 // 單筆 localStorage value 超過這個大小且是圖片才壓縮（非圖片大型資料直接同步）
 const LS_MAX_VALUE_SIZE = 800 * 1024; // 800KB
 
@@ -843,18 +858,27 @@ async function pushToCloud(opts){
       lsData[k] = val;
     }
     if (skippedCount) console.log('[FirebaseSync] 共跳過', skippedCount, '筆超大資料');
+
+    // ★ 把 lsData 拆成兩份：global keys 走 _global 路徑，其餘走 character 路徑
+    var lsDataChar = {};
+    var lsDataGlobal = {};
+    for (var _lk in lsData){
+      if (isGlobalLsKey(_lk)) lsDataGlobal[_lk] = lsData[_lk];
+      else lsDataChar[_lk] = lsData[_lk];
+    }
+
     const charRef = getUserCharRef(charId);
     const lsRef = charRef.collection('localStorage');
     const lsPath = lsRef.path;
 
     // ★ Dirty-tracking：只推送真正有改變的資料（force=true 時繞過）
-    var lsChanged = _filterChanged(lsPath, lsData, force);
+    var lsChanged = _filterChanged(lsPath, lsDataChar, force);
     var lsCount = 0;
     if (Object.keys(lsChanged).length > 0){
       _changedKeysForLog = _changedKeysForLog.concat(Object.keys(lsChanged));  // ★ for audit
       lsCount = await writeDataToFirestore(lsRef, lsChanged);
       // 成功後記住所有資料的簽名（包括沒改變的）
-      _recordSigs(lsPath, lsData);
+      _recordSigs(lsPath, lsDataChar);
       // ★ LWW: 把這批 changed keys 的時間戳推到 <charRef>/_meta/lsTs.ts
       try {
         var _tsUpdates = {};
@@ -878,7 +902,41 @@ async function pushToCloud(opts){
       await delay(WRITE_LONG_PAUSE_MS);
     } else {
       // 無變更，記住簽名但不寫入
-      _recordSigs(lsPath, lsData);
+      _recordSigs(lsPath, lsDataChar);
+    }
+
+    // ★ ★ ★ 全公司共享 LS keys：推到 users/<tenant>/_global/localStorage（不依主角）
+    if (Object.keys(lsDataGlobal).length > 0 && currentUserUid){
+      try {
+        var globalRef = fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('localStorage');
+        var globalPath = globalRef.path;
+        var globalChanged = _filterChanged(globalPath, lsDataGlobal, force);
+        if (Object.keys(globalChanged).length > 0){
+          _changedKeysForLog = _changedKeysForLog.concat(Object.keys(globalChanged).map(function(k){ return 'global:'+k; }));
+          var globalCount = await writeDataToFirestore(globalRef, globalChanged);
+          _recordSigs(globalPath, lsDataGlobal);
+          // ★ LWW: global keys 的時間戳推到 _global/shared/_meta/lsTs.ts
+          try {
+            var _gTsUpdates = {};
+            for (var _gck in globalChanged) {
+              _gTsUpdates['ts.' + _gck] = _localTsMap[_gck] || Date.now();
+            }
+            var _gTsRef = fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('_meta').doc('lsTs');
+            try {
+              await _gTsRef.update(_gTsUpdates);
+            } catch(_e){
+              await _gTsRef.set({ ts: Object.assign({}, _localTsMap) }, { merge: true });
+            }
+          } catch(_e){}
+          console.log('[FirebaseSync] ★ 全公司共享：推送', globalCount, '筆 global LS keys（', Object.keys(globalChanged).join(', '), '）');
+          try { await fsDb.waitForPendingWrites(); } catch(e){}
+          await delay(WRITE_LONG_PAUSE_MS);
+        } else {
+          _recordSigs(globalPath, lsDataGlobal);
+        }
+      } catch(_globalPushErr){
+        console.warn('[FirebaseSync] global push 失敗', _globalPushErr.message || _globalPushErr);
+      }
     }
 
     // 2. IndexedDB（只推送 IDB_LIST，不推送音效 DB）
@@ -1018,6 +1076,10 @@ async function pullFromCloud(){
       var _skipCount = 0, _quotaSkipCount = 0, _quotaSkipKeys = [];
       var _cardsRescueCount = 0, _overwriteCount = 0;
       for (const [k, v] of Object.entries(lsData)){
+        // ★ 全公司共享 keys 不在這裡處理 —— 之後從 _global 統一拉
+        //   即使該 char 的雲端路徑下仍有舊版資料（從 v3 之前累積），也跳過避免亂蓋
+        if (isGlobalLsKey(k)) continue;
+
         var existingVal = localStorage.getItem(k);
 
         // ★ castle_cards_v1 特例（C 段救援，backwards compat fallback）：
@@ -1185,6 +1247,47 @@ async function pullFromCloud(){
   // ★ 關閉本輪 cache 起來的所有 IDB 連線
   for (const _db of _idbCache.values()) {
     try { _db.close(); } catch(_e){}
+  }
+
+  // ★ ★ ★ 全公司共享 LS keys：從 users/<tenant>/_global/shared/localStorage 拉
+  //   不依主角，每個 user 拉一次，所有人都看到同一份（4 月各通路績效、業績比較等）
+  if (currentUserUid){
+    try {
+      var globalRef = fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('localStorage');
+      var globalData = await readDataFromFirestore(globalRef);
+      // 雲端 ts map
+      var globalTs = {};
+      try {
+        var _gTsSnap = await fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('_meta').doc('lsTs').get({ source: 'server' });
+        if (_gTsSnap.exists) globalTs = (_gTsSnap.data() && _gTsSnap.data().ts) || {};
+      } catch(_e){}
+
+      var _globalLsCount = 0, _globalSkipCount = 0, _globalQuotaCount = 0;
+      for (var _gk in globalData){
+        var _gv = globalData[_gk];
+        var _gExisting = localStorage.getItem(_gk);
+        var _gcTs = globalTs[_gk] || 0;
+        var _glTs = _localTsMap[_gk] || 0;
+        // LWW：本地有值且本地較新 → 跳過
+        if (_gExisting !== null && _gExisting !== '' && _glTs >= _gcTs && _gcTs > 0){
+          _globalSkipCount++;
+          continue;
+        }
+        try {
+          _origSet(_gk, _gv);
+          _localTsMap[_gk] = _gcTs || Date.now();
+          totalLS++;
+          _globalLsCount++;
+        } catch(_qe){
+          _globalQuotaCount++;
+        }
+      }
+      if (_globalLsCount > 0 || _globalSkipCount > 0 || _globalQuotaCount > 0){
+        console.log('[FirebaseSync] ★ 全公司共享：補入 ' + _globalLsCount + ' 筆，跳過 ' + _globalSkipCount + ' 筆（本地較新），quota 失敗 ' + _globalQuotaCount + ' 筆');
+      }
+    } catch(_globalPullErr){
+      console.warn('[FirebaseSync] global pull 失敗', _globalPullErr.message || _globalPullErr);
+    }
   }
 
   // ★ LWW: 把這輪 pull 中更新過的 _localTsMap 持久化到 LS（debounce 不適用，pull 結束直接寫）
