@@ -1265,34 +1265,44 @@ async function pullFromCloud(){
   }
 
   // ★ ★ ★ 全公司共享 LS keys：從 users/<tenant>/_global/shared/localStorage 拉
-  //   v2 架構：per-key docs（每個 key 是獨立 doc，內含 {key, value, ts}）
-  //   策略：cloud 永遠是 source of truth，本地一律覆蓋
-  //   原因：LWW 對 global keys 不可靠 — _localTsMap 會在開機 setItem 預設值時被更新
-  //         導致本地誤認為「本地較新」而跳過。為了 22 主角看到同一份，cloud 永遠贏。
-  //   保護：push 端有 signature dirty tracking，「無變更」會自動跳過，不會循環覆蓋。
+  //   v3 策略：「雲端比本地大才覆蓋」 — byte size 比較
+  //   原因：雲端可能被 GH Pages 預設值寫亂（空殼），盲目 cloud-wins 會把 localhost 真資料蓋掉
+  //   邏輯：cloud.length > local.length → 覆蓋（雲端含更多資料）
+  //         cloud.length <= local.length → 跳過（雲端是空殼或同步狀態）
+  //   保證：真資料一定不會被空殼蓋掉；同時雲端有新資料時也能補進來。
   if (currentUserUid){
     try {
       var globalRef = fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('localStorage');
       var globalSnap = await globalRef.get({ source: 'server' });
-      var _globalLsCount = 0, _globalQuotaCount = 0, _globalKeysFound = [];
+      var _globalLsCount = 0, _globalQuotaCount = 0, _globalSkippedCount = 0;
+      var _globalKeysOverwritten = [], _globalKeysSkipped = [];
       globalSnap.forEach(function(docSnap){
         var d = docSnap.data();
         if (!d || typeof d.value !== 'string' || !d.key) {
           // 跳過 v1 的 main / chunk 舊格式（已淘汰）
           return;
         }
-        _globalKeysFound.push(d.key);
+        var _gExisting = localStorage.getItem(d.key) || '';
+        var localSize = _gExisting.length;
+        var cloudSize = d.value.length;
+        // ★ 防呆：雲端比本地小 → 不覆蓋（避免空殼蓋掉真資料）
+        if (cloudSize <= localSize && localSize > 0){
+          _globalSkippedCount++;
+          _globalKeysSkipped.push(d.key + '(c:' + cloudSize + ' ≤ l:' + localSize + ')');
+          return;
+        }
         try {
           _origSet(d.key, d.value);
           _localTsMap[d.key] = d.ts || Date.now();
           totalLS++;
           _globalLsCount++;
+          _globalKeysOverwritten.push(d.key);
         } catch(_qe){
           _globalQuotaCount++;
         }
       });
-      if (_globalLsCount > 0 || _globalQuotaCount > 0){
-        console.log('[FirebaseSync] ★ 全公司共享（per-key, cloud-wins）：覆蓋本地 ' + _globalLsCount + ' 筆，quota 失敗 ' + _globalQuotaCount + ' 筆 — 涵蓋 keys: ' + _globalKeysFound.join(', '));
+      if (_globalLsCount > 0 || _globalSkippedCount > 0 || _globalQuotaCount > 0){
+        console.log('[FirebaseSync] ★ 全公司共享（size-aware）：覆蓋 ' + _globalLsCount + ' 筆 [' + _globalKeysOverwritten.join(', ') + ']，跳過 ' + _globalSkippedCount + ' 筆（雲端較小）[' + _globalKeysSkipped.join(', ') + ']，quota 失敗 ' + _globalQuotaCount + ' 筆');
       }
     } catch(_globalPullErr){
       console.warn('[FirebaseSync] global pull 失敗', _globalPullErr.message || _globalPullErr);
