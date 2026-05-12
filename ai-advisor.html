@@ -690,17 +690,12 @@ var FEATURES={
 };
 
 var curView='cards', curFeature=null, curTopicId=null, pinPage=0;
-var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base',pmemory:'ai_pmemory_v1',aierror:'ai_error_reports_v1',privatechat:'ai_privatechat_v1'};
-// ★ 私聊記憶是「per character」儲存：localStorage key = 'char_<id>_ai_pmemory_v1'
+var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base',pmemory:'ai_pmemory_v1',aierror:'ai_error_reports_v1'};
+// ★ 私聊記憶（= 個人私聊資料庫）是「per character」儲存：LS key = 'char_<id>_ai_pmemory_v1'
+//   會顯示在「🔐 個人私聊資料庫」面板，所有 AI 功能對話時會自動參考
 function _pmemoryKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.pmemory; }
 function _loadPmemory(charId){ try{ var raw=localStorage.getItem(_pmemoryKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
 function _savePmemory(arr,charId){ try{ localStorage.setItem(_pmemoryKey(charId), JSON.stringify(arr||[])); }catch(e){} }
-
-// ★ 私聊資料庫也是「per character」儲存：localStorage key = 'char_<id>_ai_privatechat_v1'
-//   結構：[{id, text, source(feature), tag, createdAt}]
-function _privateChatKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.privatechat; }
-function _loadPrivateChats(charId){ try{ var raw=localStorage.getItem(_privateChatKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
-function _savePrivateChats(arr,charId){ try{ localStorage.setItem(_privateChatKey(charId), JSON.stringify(arr||[])); }catch(e){} }
 
 // ★ Anthropic API Proxy（部署在 Cloudflare Workers，後端帶 key）
 var PROXY_BASE = 'https://anthropic-proxy.ivanapplaud.workers.dev';
@@ -1471,30 +1466,29 @@ function saveMsgToCase(text,btn){
   btn.textContent='✅ 已存入';btn.disabled=true;btn.classList.add('saved');
 }
 
-// ★ 存入私聊資料庫（per-character 儲存，每主角自己一份）
+// ★ 存入個人私聊資料庫（pmemory，per-character，每主角自己一份）
+//   寫進現有的 char_<id>_ai_pmemory_v1 → 會顯示在「🔐 個人私聊資料庫」面板
 function saveMsgToPrivateChat(text,btn){
   try{
     var charId = localStorage.getItem('activeCharacterId') || '';
-    var charName = localStorage.getItem('activeCharacterName') || charId || '匿名';
     if (!charId){
       alert('⚠️ 找不到當前主角，無法存入私聊資料庫');
       return;
     }
-    var items = _loadPrivateChats(charId);
-    var f = curFeature ? FEATURES[curFeature] : null;
-    var tag = f ? f.icon + ' ' + f.title : '🤖 AI';
-    items.push({
-      id: 'pc_' + Date.now(),
+    var arr = _loadPmemory(charId);
+    arr.push({
+      id: 'pm_' + Date.now(),
+      feature: curFeature || 'manual',
       text: text,
-      tag: tag,
-      feature: curFeature || '',
-      topicId: curTopicId || '',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      source: 'chat'   // 標記是從對話存入的（手動新增的不會有這個欄位）
     });
-    _savePrivateChats(items, charId);
+    _savePmemory(arr, charId);
     btn.textContent = '✅ 已存入私聊';
     btn.disabled = true;
     btn.classList.add('saved');
+    // 若 pmemory 面板正開著，立即重繪
+    try { if (typeof renderPmemory === 'function') renderPmemory(); } catch(e){}
     // 觸發 firebase push（per-character LS 會自動同步）
     try {
       var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
