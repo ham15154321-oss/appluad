@@ -1047,10 +1047,107 @@
         function renderDataOverview(rows) {
             if (rows.length === 0) return '<div class="empty-state"><div>無數據</div></div>';
 
-            const headers = Object.keys(rows[0] || {});
-            let html = '<div class="table-wrapper"><table><thead><tr>';
+            let headers = Object.keys(rows[0] || {});
 
-            headers.forEach(header => {
+            // ★ ❸ 業務個人績效（currentSheet=3）：在過濾前先計算「全院排名」
+            //   ★ 規則：排名一律以「全年合計業績」為基準（不管你看的是 1~12 月或合計）
+            //   ★ 用 姓名 作為 key 在合計資料找排名後注入到當前 rows
+            if (currentSheet === 3 && rows.length > 0) {
+                // 1) 取得全年合計的 sheet3 資料
+                var _totalRows = [];
+                if (currentMonth === 'total') {
+                    _totalRows = rows; // 已經在合計視圖
+                } else {
+                    try {
+                        var _td = getYearTotalData();
+                        _totalRows = (_td && _td['sheet3']) || [];
+                    } catch(e){ _totalRows = []; }
+                }
+
+                // 2) 在合計資料找「業績」欄位（合計裡的「業績Ⓐ」就是累計值）
+                var _totalHeaders = _totalRows.length > 0 ? Object.keys(_totalRows[0]) : [];
+                var _rankCol = _totalHeaders.find(h => h === '合計業績' || h === '總業績' || h === '業績合計')
+                            || _totalHeaders.find(h => h === '業績Ⓐ' || h === '業績(Ⓐ)' || h === '業績')
+                            || _totalHeaders.find(h => String(h).indexOf('業績') !== -1);
+
+                if (_rankCol && _totalRows.length > 0) {
+                    // 3) 排除合計/總計列後依「合計業績」降序排序
+                    var _nonTotal = _totalRows.filter(r => {
+                        var fv = String(r[_totalHeaders[0]] || '');
+                        return fv !== '合計' && fv !== '總計';
+                    });
+                    var _sorted = _nonTotal.slice().sort((a, b) => Number(b[_rankCol] || 0) - Number(a[_rankCol] || 0));
+                    var _totalCount = _sorted.length;
+                    var _rankMap = {};
+                    // 用「姓名」當 key（合計用 _detectKeyCol 已經選 姓名 為 group by）
+                    _sorted.forEach((r, i) => {
+                        var nm = String(r['姓名'] || '').trim();
+                        if (nm) _rankMap[nm] = i + 1;
+                    });
+
+                    // 4) 把排名注入當前 rows（用姓名比對）
+                    rows = rows.map(r => {
+                        var fv = String(r[headers[0]] || '');
+                        if (fv === '合計' || fv === '總計'){
+                            return Object.assign({ '🏆 全院排名': '' }, r);
+                        }
+                        var nm = String(r['姓名'] || '').trim();
+                        var rk = _rankMap[nm];
+                        var rkLabel = rk ? (rk + ' / ' + _totalCount) : '— / ' + _totalCount;
+                        return Object.assign({ '🏆 全院排名': rkLabel }, r);
+                    });
+                    headers = Object.keys(rows[0] || {});
+                }
+            }
+
+            // ★ 套用學院過濾：先看欄位是否有「學院」(sheet 3 = 業務個人績效)，按值過濾
+            //   若無學院欄位但 selectedAcademy 是某個欄位名 (sheet 1 通路名單) → 之後保留該欄位 + 第一欄
+            //   其他情況 → 任何 cell 值含學院名就保留該列（fallback）
+            var _filteredRows = rows;
+            var _displayHeaders = headers;
+            var _filterInfo = '';
+            // 用「真實第一欄」偵測合計列（跳過已插入的排名欄）
+            var _origFirstCol = (headers[0] === '🏆 全院排名') ? headers[1] : headers[0];
+            if (selectedAcademy) {
+                var acadCol = headers.find(h => h === '學院')
+                          || headers.find(h => String(h).indexOf('學院') !== -1 && String(h) !== '學院績效總表');
+                if (acadCol) {
+                    // 有「學院」欄位 → 按值篩列（保留合計/總計列）
+                    _filteredRows = rows.filter(r => {
+                        var fv = String(r[_origFirstCol] || '');
+                        if (fv === '合計' || fv === '總計') return true; // 保留總計列
+                        return String(r[acadCol] || '') === selectedAcademy;
+                    });
+                    _filterInfo = '✅ 已過濾：' + selectedAcademy + '（共 ' + (_filteredRows.length) + ' 筆）';
+                } else if (headers.includes(selectedAcademy)) {
+                    // selectedAcademy 是欄位名（sheet 1 通路名單來源分析）→ 顯示第一欄 + 該學院欄位
+                    _displayHeaders = [headers[0], selectedAcademy];
+                    _filterInfo = '✅ 顯示欄位：' + selectedAcademy;
+                } else {
+                    // fallback：任何 cell 值含學院名
+                    _filteredRows = rows.filter(r => Object.values(r).some(v => String(v).indexOf(selectedAcademy) !== -1));
+                    _filterInfo = '✅ 已過濾：' + selectedAcademy + '（共 ' + (_filteredRows.length) + ' 筆）';
+                }
+            }
+
+            if (_filteredRows.length === 0) {
+                return '<div class="empty-state" style="padding:40px;text-align:center;">'
+                     + '<div style="font-size:32px;margin-bottom:12px;">🏫</div>'
+                     + '<div style="color:#ffd700;font-size:14px;margin-bottom:8px;">此資料分頁沒有「' + selectedAcademy + '」的資料</div>'
+                     + '<div style="color:#999;font-size:12px;">請改選其他學院或切回「全部學院」</div>'
+                     + '</div>';
+            }
+
+            var html = '';
+            if (_filterInfo) {
+                html += '<div style="padding:8px 14px;margin-bottom:10px;background:rgba(74,222,128,.10);border:1px solid rgba(74,222,128,.4);border-radius:8px;color:#86efac;font-size:12px;font-weight:600;">' + _filterInfo + '</div>';
+            }
+            html += '<div class="table-wrapper"><table><thead><tr>';
+            // 用 _displayHeaders 取代 headers
+            var headersForRender = _displayHeaders;
+            var rowsForRender = _filteredRows;
+
+            headersForRender.forEach(header => {
                 const arrow = sortCol === header ? (sortAsc ? '▲' : '▼') : '';
                 html += `<th onclick="sortTable('${header}')">
                     ${header}
@@ -1060,13 +1157,27 @@
 
             html += '</tr></thead><tbody>';
 
-            rows.forEach((row, idx) => {
-                const firstVal = String(row[headers[0]] || '');
+            // 合計/總計 列偵測：用「實際第一欄」（如果有加排名欄就改用第 2 欄）
+            var _realFirstCol = (headersForRender[0] === '🏆 全院排名') ? headersForRender[1] : headersForRender[0];
+
+            rowsForRender.forEach((row, idx) => {
+                const firstVal = String(row[_realFirstCol] || '');
                 const isTotalRow = firstVal === '合計' || firstVal === '總計';
                 html += `<tr${isTotalRow ? ' style="background:rgba(255,215,0,0.08);font-weight:700;"' : ''}>`;
-                headers.forEach(header => {
+                headersForRender.forEach(header => {
                     const val = row[header];
                     let formatted = val === '' || val === undefined || val === null ? '' : val;
+
+                    // 排名欄位特殊樣式：前 3 名加 emoji 獎牌
+                    if (header === '🏆 全院排名' && val) {
+                        var rkStr = String(val).split('/')[0].trim();
+                        var rkNum = parseInt(rkStr, 10);
+                        var hasRank = !isNaN(rkNum);
+                        var medal = rkNum === 1 ? '🥇 ' : rkNum === 2 ? '🥈 ' : rkNum === 3 ? '🥉 ' : '';
+                        var color = !hasRank ? '#666' : rkNum <= 3 ? '#ffd700' : rkNum <= 10 ? '#86efac' : rkNum <= 30 ? '#9fc5ff' : '#a3a3a3';
+                        html += `<td style="font-weight:700;color:${color};white-space:nowrap;">${medal}${val}</td>`;
+                        return;
+                    }
 
                     if (isNumeric(val) && val !== '') {
                         if (PERCENTAGE_COLUMNS.some(col => header.includes(col))) {

@@ -1810,7 +1810,7 @@
       </div>
       <div class="ch-import-body">
         <p style="color:var(--dim);font-size:.85rem;margin-bottom:12px;">上傳 Excel 檔案，支援以下兩種格式：<br>
-          <span style="color:var(--accent);">① 多工作表</span>：每個工作表對應一個通路（網際網路 / 學員加購 / 展場活動 / 學員介紹 / 班務追回）<br>
+          <span style="color:var(--accent);">① 多工作表</span>：每個工作表對應一個通路（網際網路 / 學員加購 / 展場活動 / 學員介紹 / 班務追回 / 現＋刷）<br>
           <span style="color:var(--accent);">② 單工作表</span>：所有通路並排在同一張表（如 Numbers 匯出格式）<br>
           <span style="color:rgba(255,200,100,.9);font-size:.8rem;">⚠️ Apple Numbers 檔案請先用 Numbers 開啟 → 檔案 → 輸出到 → Excel (.xlsx)</span></p>
         <div style="text-align:center;padding:24px;border:2px dashed var(--border-hi);border-radius:12px;background:rgba(74,234,255,.03);cursor:pointer;position:relative;margin-bottom:12px;" onclick="document.getElementById('chExcelInput').click()">
@@ -1943,8 +1943,25 @@
 
     // Load data from localStorage
     function loadData() {
-      const stored = localStorage.getItem(getSK());
-      data = stored ? JSON.parse(stored) : getDefaultData();
+      var defaults = getDefaultData();
+      try {
+        var stored = localStorage.getItem(getSK());
+        var parsed = stored ? JSON.parse(stored) : null;
+        if (parsed && typeof parsed === 'object'){
+          // ★ 防呆：localStorage 裡的 JSON 結構不完整時補上預設欄位
+          //   防止「Cannot read properties of undefined (reading 'reduce')」整頁掛掉
+          data = {
+            leftTitle: parsed.leftTitle || defaults.leftTitle,
+            rightTitle: parsed.rightTitle || defaults.rightTitle,
+            regions: Array.isArray(parsed.regions) ? parsed.regions : defaults.regions
+          };
+        } else {
+          data = defaults;
+        }
+      } catch(e){
+        console.warn('[perf_compare_v1] LS 解析失敗，用預設值', e);
+        data = defaults;
+      }
     }
 
     // Save data with debounce
@@ -2719,9 +2736,10 @@
       // Load monthly performance iframe when switching to tab 3
       if (tabIndex === 3) {
         const mpIframe = document.getElementById('mp-iframe');
-        if (!mpIframe.src || mpIframe.src === '' || mpIframe.src === window.location.href) {
-          // ★ 加版本號避免 iframe 抓到舊版（合計按鈕版本）
-          mpIframe.src = 'monthly-performance.html?v=mptotal1';
+        // ★ 永遠用最新的 cache buster（沒有當前版本字串 → 重抓新版）
+        const MP_TARGET_SRC = 'monthly-performance.html?v=acadrank2';
+        if (!mpIframe.src || !mpIframe.src.includes('v=acadrank2')) {
+          mpIframe.src = MP_TARGET_SRC;
         }
       }
 
@@ -3367,7 +3385,8 @@
         { name: '學員加購', targetType: '目標', target: 500000 },
         { name: '展場活動', targetType: '低標', target: 500000 },
         { name: '學員介紹', targetType: '低標', target: 500000 },
-        { name: '班務追回', targetType: '低標', target: 500000 }
+        { name: '班務追回', targetType: '低標', target: 500000 },
+        { name: '現＋刷',   targetType: '低標', target: 500000 }
       ];
       channels.forEach(ch => {
         const rows = [
