@@ -825,6 +825,11 @@ async function pushToCloud(opts){
     console.log('[FirebaseSync] 上次推送尚未完成，跳過');
     return;
   }
+  // ★ 拉取進行中：跳過推送（避免空殼覆蓋雲端真資料）
+  if (_pullingFromCloud){
+    console.log('[FirebaseSync] 拉取進行中，跳過推送');
+    return;
+  }
   const force = !!(opts && opts.force);
   if (force) console.log('[FirebaseSync] ★ force=true：繞過 dirty-tracking 強制推送（_isEmptyCardsTemplate 等 isLocalOnlyKey 保護仍生效）');
   _pushing = true;
@@ -1304,6 +1309,18 @@ async function pullFromCloud(){
       if (_globalLsCount > 0 || _globalSkippedCount > 0 || _globalQuotaCount > 0){
         console.log('[FirebaseSync] ★ 全公司共享（size-aware）：覆蓋 ' + _globalLsCount + ' 筆 [' + _globalKeysOverwritten.join(', ') + ']，跳過 ' + _globalSkippedCount + ' 筆（雲端較小）[' + _globalKeysSkipped.join(', ') + ']，quota 失敗 ' + _globalQuotaCount + ' 筆');
       }
+      // ★ 重要：把雲端值的簽名記到 _lastPushedSig，這樣下次 push 才不會把本地相同資料再推回去
+      //   否則 dirty tracking 認為「都變了」→ 全推 → 空殼覆蓋雲端
+      try {
+        var _gSigMap = {};
+        globalSnap.forEach(function(docSnap){
+          var d = docSnap.data();
+          if (d && typeof d.value === 'string' && d.key){
+            _gSigMap[d.key] = d.value;
+          }
+        });
+        _recordSigs(globalRef.path, _gSigMap);
+      } catch(_e){}
     } catch(_globalPullErr){
       console.warn('[FirebaseSync] global pull 失敗', _globalPullErr.message || _globalPullErr);
     }
