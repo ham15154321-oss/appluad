@@ -3039,7 +3039,35 @@
       fixDuplicateQuarterData();
     }
 
-    function saveChData() { localStorage.setItem(getChSK(), JSON.stringify(chData)); }
+    function saveChData() {
+      // ★ 防呆：如果記憶體 chData 完全是空殼（所有月份所有通路 ranking 都空 + academies 全 0），
+      //   而 LS 已有資料 → 不要儲存空殼覆蓋真資料
+      //   原因：emergencySave (visibilitychange/beforeunload) 可能在 chData 還沒被使用者填過資料時觸發
+      try {
+        var hasAnyData = false;
+        if (chData && typeof chData === 'object'){
+          for (var m = 1; m <= 12 && !hasAnyData; m++){
+            var md = chData[m]; if (!md) continue;
+            for (var chKey in md){
+              var c = md[chKey];
+              if (c && ((c.ranking && c.ranking.length > 0) ||
+                        (c.academies && c.academies.some(function(a){ return Number(a.value) > 0; })))){
+                hasAnyData = true; break;
+              }
+            }
+          }
+        }
+        if (!hasAnyData){
+          var existing = localStorage.getItem(getChSK());
+          if (existing && existing.length > 100){
+            // 記憶體是空殼，LS 已有資料 → 跳過儲存（避免空殼覆蓋）
+            console.warn('[saveChData] 記憶體 chData 是空殼但 LS 有資料，跳過儲存避免覆蓋');
+            return;
+          }
+        }
+      } catch(e){ console.warn('[saveChData] 防呆檢查失敗，仍正常儲存', e); }
+      localStorage.setItem(getChSK(), JSON.stringify(chData));
+    }
 
     // 清理季度重複匯入（同一季三個月資料一模一樣→只保留第一月）
     function fixDuplicateQuarterData() {
