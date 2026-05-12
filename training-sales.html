@@ -1148,14 +1148,37 @@ function _reloadFromLS(){
   }
 })();
 
-// ══════ 訓練教材庫 (全域，不分主角) ══════
-const TLIB_KEY = 'appedu_training_library';
+// ══════ 訓練教材庫 (全公司共享，不分主角) ══════
+// ★ v2：改名（原 appedu_training_library 因為 'appedu_' 前綴在 LOCAL_ONLY_PREFIXES 而從未同步）
+//   新 key 'training_library_v1' 走 _global/shared/ 路徑全公司共享
+const TLIB_KEY = 'training_library_v1';
+const TLIB_OLD_KEY = 'appedu_training_library';
 let _tlibData = { items: [] };
 
 function tlibLoad(){
   try{
-    const raw = localStorage.getItem(TLIB_KEY);
-    if(raw){ const d = JSON.parse(raw); if(d && d.items) _tlibData = d; }
+    var raw = localStorage.getItem(TLIB_KEY);
+    if(raw){
+      var d = JSON.parse(raw);
+      if(d && d.items) _tlibData = d;
+    } else {
+      // 嘗試從舊 key 遷移
+      var oldRaw = localStorage.getItem(TLIB_OLD_KEY);
+      if(oldRaw){
+        try{
+          var oldD = JSON.parse(oldRaw);
+          if(oldD && oldD.items){
+            _tlibData = oldD;
+            // 寫到新 key + 刪舊 key（一次性遷移）
+            try{
+              localStorage.setItem(TLIB_KEY, JSON.stringify(_tlibData));
+              localStorage.removeItem(TLIB_OLD_KEY);
+              console.log('[training_library] 已從 appedu_training_library 遷移到 training_library_v1');
+            }catch(e){}
+          }
+        }catch(e){}
+      }
+    }
   }catch(e){}
   tlibRender();
 }
