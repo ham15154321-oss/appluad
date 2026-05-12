@@ -690,11 +690,17 @@ var FEATURES={
 };
 
 var curView='cards', curFeature=null, curTopicId=null, pinPage=0;
-var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base',pmemory:'ai_pmemory_v1',aierror:'ai_error_reports_v1'};
+var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base',pmemory:'ai_pmemory_v1',aierror:'ai_error_reports_v1',privatechat:'ai_privatechat_v1'};
 // ★ 私聊記憶是「per character」儲存：localStorage key = 'char_<id>_ai_pmemory_v1'
 function _pmemoryKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.pmemory; }
 function _loadPmemory(charId){ try{ var raw=localStorage.getItem(_pmemoryKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
 function _savePmemory(arr,charId){ try{ localStorage.setItem(_pmemoryKey(charId), JSON.stringify(arr||[])); }catch(e){} }
+
+// ★ 私聊資料庫也是「per character」儲存：localStorage key = 'char_<id>_ai_privatechat_v1'
+//   結構：[{id, text, source(feature), tag, createdAt}]
+function _privateChatKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.privatechat; }
+function _loadPrivateChats(charId){ try{ var raw=localStorage.getItem(_privateChatKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
+function _savePrivateChats(arr,charId){ try{ localStorage.setItem(_privateChatKey(charId), JSON.stringify(arr||[])); }catch(e){} }
 
 // ★ Anthropic API Proxy（部署在 Cloudflare Workers，後端帶 key）
 var PROXY_BASE = 'https://anthropic-proxy.ivanapplaud.workers.dev';
@@ -1391,13 +1397,18 @@ function addMsg(type,text,opts){
   opts = opts || {};
   var el=document.getElementById('chatMsgs'),d=document.createElement('div');
   d.className='msg '+type;
-  // AI 回覆加勾選存入案例庫按鈕
+  // AI 回覆加：存入案例庫 + 存入私聊 按鈕
   if(type==='ai'){
     var txt=document.createElement('span');txt.className='msg-text';txt.textContent=text;
     var acts=document.createElement('span');acts.className='msg-actions';
     var btn=document.createElement('button');btn.className='msg-save-btn';btn.textContent='📂 存入案例庫';
     btn.onclick=function(){saveMsgToCase(text,btn);};
     acts.appendChild(btn);
+    // ★ 新增：💬 存入私聊（per-character 儲存，給該主角自己參考用）
+    var btn2=document.createElement('button');btn2.className='msg-save-btn';btn2.textContent='💬 存入私聊';
+    btn2.style.marginLeft='6px';
+    btn2.onclick=function(){saveMsgToPrivateChat(text,btn2);};
+    acts.appendChild(btn2);
     d.appendChild(txt);d.appendChild(acts);
   } else {
     d.textContent=text;
@@ -1458,6 +1469,40 @@ function saveMsgToCase(text,btn){
   items.push({id:'c_'+Date.now(),type:'good',text:'【'+tag+'】\n'+text,marquee:false,createdAt:Date.now(),source:'chat'});
   SS(SK.casedb,items);
   btn.textContent='✅ 已存入';btn.disabled=true;btn.classList.add('saved');
+}
+
+// ★ 存入私聊資料庫（per-character 儲存，每主角自己一份）
+function saveMsgToPrivateChat(text,btn){
+  try{
+    var charId = localStorage.getItem('activeCharacterId') || '';
+    var charName = localStorage.getItem('activeCharacterName') || charId || '匿名';
+    if (!charId){
+      alert('⚠️ 找不到當前主角，無法存入私聊資料庫');
+      return;
+    }
+    var items = _loadPrivateChats(charId);
+    var f = curFeature ? FEATURES[curFeature] : null;
+    var tag = f ? f.icon + ' ' + f.title : '🤖 AI';
+    items.push({
+      id: 'pc_' + Date.now(),
+      text: text,
+      tag: tag,
+      feature: curFeature || '',
+      topicId: curTopicId || '',
+      createdAt: Date.now()
+    });
+    _savePrivateChats(items, charId);
+    btn.textContent = '✅ 已存入私聊';
+    btn.disabled = true;
+    btn.classList.add('saved');
+    // 觸發 firebase push（per-character LS 會自動同步）
+    try {
+      var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
+      if (fs && fs.push) fs.push();
+    } catch(e){}
+  }catch(e){
+    alert('⚠️ 存入私聊失敗：' + (e.message || e));
+  }
 }
 function renderSuggestions(){
   var bar=document.getElementById('suggestBar');
