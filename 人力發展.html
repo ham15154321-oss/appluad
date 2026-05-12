@@ -1210,7 +1210,7 @@
   }
 </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js"></script>
+<script defer src="./firebase-sync.js?v=idb1"></script>
 </head>
 <body>
 
@@ -3408,8 +3408,10 @@ function perfOpen(){
   const ov=document.getElementById('perfOverlay');
   ov.classList.add('active');
   const frame=document.getElementById('perfFrame');
-  if(!frame.src||frame.src==='about:blank'||!frame.src.includes('performance-compare'))
-    frame.src='performance-compare.html?v=yeartotal2';
+  // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
+  const TARGET_SRC='performance-compare.html?v=idb1';
+  if(!frame.src||frame.src==='about:blank'||!frame.src.includes(TARGET_SRC.split('?')[1]))
+    frame.src=TARGET_SRC;
   // ★ 用 sessionStorage 記住「業績數據中心曾開啟過」（重整後自動還原）
   try{ sessionStorage.setItem('perf_was_open','1'); }catch(e){}
 }

@@ -48,7 +48,10 @@ const FIREBASE_CONFIG = {
 // 需要同步的 IndexedDB 清單
 // ★ 只同步真正重要的資料庫，音效 DB 不同步（音效會自動重新載入）
 const IDB_LIST = [
-  { dbName: 'SpaceBaseDB',          dbVer: 1, stores: ['images', 'scores'] }
+  { dbName: 'SpaceBaseDB',          dbVer: 1, stores: ['images', 'scores'] },
+  // ★ v3：motiv_archive 從 localStorage 搬到這裡（避免 5MB quota）
+  //   每個月份是一個 entry（key = '2026-04'），便於增量同步
+  { dbName: 'MotivArchiveDB',       dbVer: 1, stores: ['archive'] }
 ];
 // 拉取時也要能讀取舊的音效 collection（向下相容），但推送時不再寫入
 const IDB_LIST_PULL_ONLY = [
@@ -501,6 +504,26 @@ function idbPutEntries(db, storeName, entries){
                 store.put(_val, _k);
                 _imgWriteCount++;
               }
+              pendingChecks--;
+            };
+            getReq.onerror = function(){ pendingChecks--; };
+          })(k, val);
+          continue;
+        }
+        // ★ MotivArchiveDB.archive 保護：每個月份是一個 entry（key='2026-04'，value 含 archivedAt）
+        //   雲端比本地舊 → 不覆蓋；雲端較新或本地沒有 → 寫入
+        if (storeName === 'archive' && db.name === 'MotivArchiveDB') {
+          pendingChecks++;
+          (function(_k, _val){
+            var getReq = store.get(_k);
+            getReq.onsuccess = function(){
+              var local = getReq.result;
+              var localAt = (local && local.archivedAt) || '';
+              var cloudAt = (_val && _val.archivedAt) || '';
+              if (!local || (cloudAt && cloudAt > localAt)) {
+                store.put(_val, _k);
+              }
+              // 本地較新或同時 → 跳過
               pendingChecks--;
             };
             getReq.onerror = function(){ pendingChecks--; };

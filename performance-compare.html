@@ -2399,10 +2399,8 @@
       // 過濾規則：value < 100,000 不顯示（學院/業務整列隱藏；小組總業績<10萬整組隱藏；組內業績<10萬個別隱藏）
       var _MIN_DISPLAY = 100000;
       try {
-        // ★ 全公司共享 archive（不再用 cid 前綴）
-        var _archRaw = localStorage.getItem('motiv_archive');
-        var _archive = {};
-        if (_archRaw) { try { _archive = JSON.parse(_archRaw) || {}; } catch(e){ _archive = {}; } }
+        // ★ 從 IndexedDB cache 讀（v3 之前是 localStorage.getItem('motiv_archive')）
+        var _archive = (typeof _motivGetArchive === 'function') ? _motivGetArchive() : {};
         var _archKey = year + '-' + String(m).padStart(2, '0');
         var _snap = _archive[_archKey];
 
@@ -4773,134 +4771,185 @@
       }
     })();
 
-    // ★ 自動遷移：把舊版 char_<id>_motiv_archive 合併到新版全局 motiv_archive
-    //   v2 之前每個主角各自儲存，v2 起改為全公司共享
-    //   抽成可重複呼叫的函數 — 因為 firebase pull 後可能有新的 char_*_motiv_archive 需要再合併
-    //   ★ 用 _safeSaveMotivArchive 寫入：遇到 quota 會自動清掉 char_* 釋放空間後重試
-    function _runMotivArchiveMigration(){
+    // ============================================================
+    // ★ motiv_archive：IndexedDB 後端（v3）
+    //   原因：localStorage 5MB 上限太小，22 主角 × 159 筆 = 3500+ keys，
+    //         加上 4~12 個月份的 archive 容易爆 quota。
+    //   解法：搬到 IndexedDB（容量 50MB+）。
+    //   結構：DB=MotivArchiveDB / Store=archive / Key=月份字串（"2026-04"）/ Value=當月快照物件
+    //   Firebase 同步：透過 firebase-sync.js 的 IDB_LIST（idb_MotivArchiveDB_archive collection）
+    // ============================================================
+    window._motivArchiveCache = window._motivArchiveCache || {};
+    window._motivArchiveCacheReady = false;
+    var _MOTIV_DB_NAME  = 'MotivArchiveDB';
+    var _MOTIV_DB_STORE = 'archive';
+
+    function _motivOpenDB(){
+      return new Promise(function(resolve, reject){
+        var req = indexedDB.open(_MOTIV_DB_NAME, 1);
+        req.onupgradeneeded = function(e){
+          var db = e.target.result;
+          if (!db.objectStoreNames.contains(_MOTIV_DB_STORE)){
+            db.createObjectStore(_MOTIV_DB_STORE);
+          }
+        };
+        req.onsuccess = function(){ resolve(req.result); };
+        req.onerror   = function(){ reject(req.error); };
+      });
+    }
+
+    function _motivArchiveLoadAll(){
+      return _motivOpenDB().then(function(db){
+        return new Promise(function(resolve, reject){
+          try {
+            var tx  = db.transaction(_MOTIV_DB_STORE, 'readonly');
+            var st  = tx.objectStore(_MOTIV_DB_STORE);
+            var req = st.openCursor();
+            var out = {};
+            req.onsuccess = function(e){
+              var cur = e.target.result;
+              if (cur){ out[cur.key] = cur.value; cur.continue(); }
+              else { try{db.close();}catch(_){} resolve(out); }
+            };
+            req.onerror = function(){ try{db.close();}catch(_){} reject(req.error); };
+          } catch(e){ try{db.close();}catch(_){} reject(e); }
+        });
+      });
+    }
+
+    function _motivArchiveWriteEntry(monthKey, value){
+      return _motivOpenDB().then(function(db){
+        return new Promise(function(resolve, reject){
+          try {
+            var tx  = db.transaction(_MOTIV_DB_STORE, 'readwrite');
+            var st  = tx.objectStore(_MOTIV_DB_STORE);
+            var req = st.put(value, monthKey);
+            req.onsuccess = function(){ try{db.close();}catch(_){} resolve(); };
+            req.onerror   = function(){ try{db.close();}catch(_){} reject(req.error); };
+          } catch(e){ try{db.close();}catch(_){} reject(e); }
+        });
+      });
+    }
+
+    function _motivArchiveDeleteEntry(monthKey){
+      return _motivOpenDB().then(function(db){
+        return new Promise(function(resolve, reject){
+          try {
+            var tx  = db.transaction(_MOTIV_DB_STORE, 'readwrite');
+            var st  = tx.objectStore(_MOTIV_DB_STORE);
+            var req = st.delete(monthKey);
+            req.onsuccess = function(){ try{db.close();}catch(_){} resolve(); };
+            req.onerror   = function(){ try{db.close();}catch(_){} reject(req.error); };
+          } catch(e){ try{db.close();}catch(_){} reject(e); }
+        });
+      });
+    }
+
+    // sync 介面：拿目前的整份 archive（從 cache 讀）
+    function _motivGetArchive(){ return window._motivArchiveCache || {}; }
+
+    // 寫一個月份：同步更新 cache（讓 UI 立刻看得到）+ 非同步寫 IDB
+    function _motivSaveArchiveEntry(monthKey, value, onSuccess, onError){
+      window._motivArchiveCache[monthKey] = value;
+      _motivArchiveWriteEntry(monthKey, value).then(function(){
+        if (typeof onSuccess === 'function') onSuccess();
+      }).catch(function(e){
+        console.error('[motiv_archive] IDB 寫入失敗', monthKey, e);
+        if (typeof onError === 'function') onError(e);
+        else alert('❌ 儲存到 IndexedDB 失敗：' + (e && e.message || e));
+      });
+    }
+
+    // ★ Boot：載入 IDB 到 cache → 從 LS 撈舊資料合併 → 清掉 LS 版本（釋出空間）
+    async function _motivArchiveBootInit(){
       try {
-        // 1. 先讀完所有 char_*_motiv_archive 到 in-memory 變數（防止 quota 失敗時資料還在）
-        var foundCharKeys = [];
-        var mergedFromChars = {};
+        // 1) IDB 既有資料 → cache
+        var cache = await _motivArchiveLoadAll();
+        window._motivArchiveCache = cache;
+
+        // 2) 從 LS 撈舊版資料（global + 各 char_*_motiv_archive）
+        var fromLs = {};
+        var lsHadGlobal = false;
+        try {
+          var raw = localStorage.getItem('motiv_archive');
+          if (raw){ fromLs = JSON.parse(raw) || {}; lsHadGlobal = true; }
+        } catch(e){}
+
+        var charKeysToDelete = [];
         for (var i = 0; i < localStorage.length; i++){
           var k = localStorage.key(i);
-          if (!k) continue;
-          if (!/^char_(.+?)_motiv_archive$/.test(k)) continue;
-          foundCharKeys.push(k);
+          if (!k || !/^char_(.+?)_motiv_archive$/.test(k)) continue;
+          charKeysToDelete.push(k);
           try {
             var charArch = JSON.parse(localStorage.getItem(k)) || {};
             Object.keys(charArch).forEach(function(mk){
-              var existAt = (mergedFromChars[mk] && mergedFromChars[mk].archivedAt) || '';
-              var newAt = (charArch[mk] && charArch[mk].archivedAt) || '';
-              if (!mergedFromChars[mk] || newAt > existAt){
-                mergedFromChars[mk] = charArch[mk];
-              }
+              var existAt = (fromLs[mk] && fromLs[mk].archivedAt) || '';
+              var newAt   = (charArch[mk] && charArch[mk].archivedAt) || '';
+              if (!fromLs[mk] || newAt > existAt) fromLs[mk] = charArch[mk];
             });
           } catch(e){}
         }
 
-        // 2. 讀現有全局 motiv_archive
-        var global = {};
-        try {
-          var globalRaw = localStorage.getItem('motiv_archive');
-          if (globalRaw) global = JSON.parse(globalRaw) || {};
-        } catch(e){}
-
-        // 3. 合併（char_* 的較新版本會蓋過 global 的舊版本）
-        Object.keys(mergedFromChars).forEach(function(mk){
-          var existAt = (global[mk] && global[mk].archivedAt) || '';
-          var newAt = (mergedFromChars[mk] && mergedFromChars[mk].archivedAt) || '';
-          if (!global[mk] || newAt > existAt){
-            global[mk] = mergedFromChars[mk];
+        // 3) LS 有但 IDB 沒有（或 LS 較新）→ 寫入 IDB
+        var writtenCount = 0;
+        var monthKeys = Object.keys(fromLs);
+        for (var j = 0; j < monthKeys.length; j++){
+          var mk = monthKeys[j];
+          var lsEntry  = fromLs[mk];
+          var idbEntry = window._motivArchiveCache[mk];
+          var lsAt  = (lsEntry  && lsEntry.archivedAt)  || '';
+          var idbAt = (idbEntry && idbEntry.archivedAt) || '';
+          if (!idbEntry || (lsAt && lsAt > idbAt)){
+            try {
+              await _motivArchiveWriteEntry(mk, lsEntry);
+              window._motivArchiveCache[mk] = lsEntry;
+              writtenCount++;
+            } catch(e){ console.warn('[motiv_archive] LS→IDB 寫入失敗', mk, e); }
           }
+        }
+
+        // 4) 清掉 LS 版本（釋出空間 — 這是本次重構的最大目的）
+        if (lsHadGlobal){
+          try { localStorage.removeItem('motiv_archive'); } catch(e){}
+        }
+        charKeysToDelete.forEach(function(k){
+          try { localStorage.removeItem(k); } catch(e){}
         });
-
-        // 4. 沒東西要遷移就早退
-        if (foundCharKeys.length === 0) return Object.keys(global).length;
-
-        // 5. 用 _safeSaveMotivArchive 寫入（quota 時會自動清 char_*_motiv_archive 釋放空間）
-        try {
-          _safeSaveMotivArchive('motiv_archive', JSON.stringify(global));
-          console.log('[motiv_archive] 遷移完成：合併 ' + foundCharKeys.length + ' 個 char_*_motiv_archive，全局共 ' + Object.keys(global).length + ' 個月份');
-          // 收尾：刪除所有 char_*_motiv_archive（_safeSave 可能已清過，但保險再掃一次）
-          for (var j = localStorage.length - 1; j >= 0; j--){
-            var k2 = localStorage.key(j);
-            if (k2 && /^char_.+_motiv_archive$/.test(k2)){
-              try { localStorage.removeItem(k2); } catch(e){}
-            }
-          }
-        } catch(e){
-          console.warn('[motiv_archive] 遷移失敗（連清空間後也寫不下，localStorage 太擠了）：', e.message);
+        if (lsHadGlobal || charKeysToDelete.length || writtenCount){
+          console.log('[motiv_archive] LS→IDB 遷移完成：寫入 ' + writtenCount + ' 個月份，清除 ' + ((lsHadGlobal?1:0) + charKeysToDelete.length) + ' 個 LS key');
         }
 
-        return Object.keys(global).length;
+        window._motivArchiveCacheReady = true;
+
+        // 5) 觸發 UI 重繪
+        try { if (typeof motivRenderArchiveChips === 'function') motivRenderArchiveChips(); } catch(e){}
+        try { if (typeof motivRenderAll === 'function') motivRenderAll(); } catch(e){}
+
+        // 6) 有新資料寫入 IDB → 觸發 firebase push（讓雲端拿到新的 idb_MotivArchiveDB_archive）
+        if (writtenCount > 0){
+          setTimeout(function(){
+            try {
+              if (window.parent && window.parent.firebaseSync && window.parent.firebaseSync.push){
+                window.parent.firebaseSync.push();
+                console.log('[motiv_archive] 觸發 firebase push（推送新 IDB 資料）');
+              }
+            } catch(e){}
+          }, 1500);
+        }
       } catch(e){
-        console.warn('[motiv_archive] 遷移失敗', e);
-        return 0;
+        console.error('[motiv_archive] IDB boot 初始化失敗', e);
+        window._motivArchiveCacheReady = true; // 不阻塞 UI（cache 會是空的，但程式不會炸）
       }
     }
 
-    // 首次載入跑一次（處理本機已有的舊資料）
-    (function _initialMigration(){
-      var monthCount = _runMotivArchiveMigration();
-      if (monthCount > 0){
-        // ★ 立即推到雲端（不等 10 秒 debounce）
-        setTimeout(function(){
-          try {
-            if (window.parent && window.parent.firebaseSync && window.parent.firebaseSync.push){
-              window.parent.firebaseSync.push();
-              console.log('[motiv_archive] 已觸發 firebase push');
-            }
-          } catch(e){}
-        }, 1500);
-      }
-    })();
+    // 立即啟動
+    _motivArchiveBootInit();
 
-    // ★ localStorage 滿了的救急工具：清掉「不是當前主角」的 motiv_archive，釋放空間
-    //   其他主角的資料在雲端還在，下次切換主角時會重新從雲端拉
-    function _purgeOtherCharsMotivArchive(keepKey){
-      var purged = 0;
-      var purgedNames = [];
-      for (var i = localStorage.length - 1; i >= 0; i--) {
-        var k = localStorage.key(i);
-        if (!k) continue;
-        // 清掉其他主角的 motiv_archive（不是自己的）
-        if (k.endsWith('_motiv_archive') && k !== keepKey) {
-          try {
-            localStorage.removeItem(k);
-            purged++;
-            // 抽出主角名給 log 用
-            var m = k.match(/^char_(.+?)_motiv_archive$/);
-            if (m) purgedNames.push(m[1]);
-          } catch(e){}
-        }
-      }
-      if (purged > 0){
-        console.log('[motiv_archive] 釋放空間：清了 ' + purged + ' 個其他主角的 archive：' + purgedNames.join(', '));
-      }
-      return purged;
-    }
-
-    // ★ 安全寫入 motiv_archive：失敗時嘗試清其他主角的 archive 後重試
-    function _safeSaveMotivArchive(key, json){
-      try {
-        localStorage.setItem(key, json);
-        return true;
-      } catch(e1) {
-        // localStorage 滿了 → 試圖釋放空間
-        var freed = _purgeOtherCharsMotivArchive(key);
-        if (freed > 0){
-          try {
-            localStorage.setItem(key, json);
-            console.log('[motiv_archive] 清理後成功儲存');
-            return true;
-          } catch(e2){
-            console.error('[motiv_archive] 清理後還是存不下', e2);
-          }
-        }
-        // 還是不行 → throw
-        throw e1;
-      }
+    // 向下相容 shim：舊程式呼叫的函數先保留，內部改成 noop / 簡單轉接
+    function _runMotivArchiveMigration(){
+      // firebase pull 完成後再跑一次：把雲端可能新加的 LS char_*_motiv_archive 吃進 IDB
+      _motivArchiveBootInit();
+      return Object.keys(window._motivArchiveCache || {}).length;
     }
 
     // ★ 同步成功後自動儲存到 archive — 但已有月份要先問是否覆蓋（解決使用者「不問就覆蓋」的痛點）
@@ -4919,11 +4968,8 @@
       var rLen = (_motivReservePerf || []).length;
       if (aLen + sLen + gLen + rLen === 0) return;
 
-      var cid = '';
-      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var archiveKey = 'motiv_archive';  // ★ 全公司共享（不再用 cid 前綴）
-      var archive = {};
-      try { var raw = localStorage.getItem(archiveKey); if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+      // ★ v3：IDB cache
+      var archive = _motivGetArchive();
 
       // ★ 該月份已有存檔 → 問使用者是否覆蓋（不要默默蓋掉）
       if (archive[key]){
@@ -4942,14 +4988,15 @@
       var now = new Date();
       var stamp = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate()
         + ' ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
-      archive[key] = {
+      var entry = {
         year: year, month: month, archivedAt: stamp,
         academy: _motivAcademy || [],
         sales: _motivSales || [],
         groupPerformance: _motivGroupPerf || [],
         reservePerformance: _motivReservePerf || []
       };
-      _safeSaveMotivArchive(archiveKey, JSON.stringify(archive));
+      // ★ v3：寫到 IDB（同步更新 cache + 非同步寫 IDB）
+      _motivSaveArchiveEntry(key, entry);
       try{ motivRenderArchiveChips(); }catch(e){}
     }
 
@@ -4986,11 +5033,8 @@
         return;
       }
 
-      var cid = '';
-      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var archiveKey = 'motiv_archive';  // ★ 全公司共享（不再用 cid 前綴）
-      var archive = {};
-      try { var raw = localStorage.getItem(archiveKey); if (raw) archive = JSON.parse(raw) || {}; } catch(e){ archive = {}; }
+      // ★ v3：IDB cache
+      var archive = _motivGetArchive();
 
       var existed = !!archive[key];
       if (existed){
@@ -5000,23 +5044,19 @@
       var now2 = new Date();
       var stamp = now2.getFullYear() + '/' + (now2.getMonth()+1) + '/' + now2.getDate()
         + ' ' + now2.getHours() + ':' + String(now2.getMinutes()).padStart(2,'0');
-      archive[key] = {
+      var entry = {
         year: year, month: month, archivedAt: stamp,
         academy: _motivAcademy || [],
         sales: _motivSales || [],
         groupPerformance: _motivGroupPerf || [],
         reservePerformance: _motivReservePerf || []
       };
-      try {
-        _safeSaveMotivArchive(archiveKey, JSON.stringify(archive));
-        // 簡短 toast 取代長 alert
+      // ★ v3：寫到 IDB（不會有 5MB quota 問題）
+      _motivSaveArchiveEntry(key, entry, function(){
         var msg = (existed ? '🔄 已覆蓋 ' : '✅ 已儲存 ') + year + '年' + month + '月（學院 ' + aLen + ' / 業務 ' + sLen + ' / 正式 ' + gLen + ' / 儲備 ' + rLen + '）';
         showStatusToast(msg);
-        // 重新渲染 chips
         motivRenderArchiveChips();
-      } catch(e){
-        alert('❌ 儲存失敗：' + e.message + '\n\n（localStorage 空間可能不足）');
-      }
+      });
     }
 
     // 簡短的 toast 訊息（不需要按 OK，2.5 秒自動消失）
@@ -5036,11 +5076,8 @@
 
     // ★ 渲染「已儲存月份」chips — 點任一 chip 直接載入該月到 4 個排行榜
     function motivRenderArchiveChips(){
-      var cid = '';
-      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var raw = localStorage.getItem('motiv_archive');  // ★ 全公司共享
-      var archive = {};
-      try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+      // ★ v3：從 IDB cache 讀（同步）
+      var archive = _motivGetArchive();
       var keys = Object.keys(archive).sort().reverse(); // 最新月份在前
 
       var bar = document.getElementById('motivArchiveChips');
@@ -5079,12 +5116,8 @@
       var month = ms.value || String(new Date().getMonth()+1).padStart(2,'0');
       var key = year + '-' + month;
 
-      // 看 archive 有沒有
-      var cid = '';
-      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var raw = localStorage.getItem('motiv_archive');  // ★ 全公司共享
-      var archive = {};
-      try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+      // 看 archive 有沒有（v3：IDB cache）
+      var archive = _motivGetArchive();
 
       if (archive[key]){
         // 有存檔 → 直接載入
@@ -5108,9 +5141,8 @@
     //   學院/業務排名：依姓名 SUM 業績
     //   正式組/儲備組：依組別 SUM 總業績 + 組長/組員逐人 SUM
     function motivLoadYearTotal(){
-      var raw = localStorage.getItem('motiv_archive');
-      var archive = {};
-      try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+      // ★ v3：IDB cache
+      var archive = _motivGetArchive();
       var keys = Object.keys(archive).sort();
       if (!keys.length){
         alert('還沒儲存過任何月份，無法計算年度總合計。\n\n請先用 🔄 同步資料 同步月份。');
@@ -5195,11 +5227,8 @@
 
     // ★ 從 archive 載入指定月份到目前畫面（不需要重新同步 EIP）
     function motivLoadFromArchive(key){
-      var cid = '';
-      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var raw = localStorage.getItem('motiv_archive');  // ★ 全公司共享
-      var archive = {};
-      try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+      // ★ v3：IDB cache
+      var archive = _motivGetArchive();
       var snap = archive[key];
       if (!snap){
         alert('❌ 找不到 ' + key + ' 的資料');
@@ -5258,13 +5287,8 @@
 
       // 讀現有 archive
       var cid = '';
-      try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
-      var archiveKey = 'motiv_archive';  // ★ 全公司共享（不再用 cid 前綴）
-      var archive = {};
-      try {
-        var raw = localStorage.getItem(archiveKey);
-        if (raw) archive = JSON.parse(raw) || {};
-      } catch(e){ archive = {}; }
+      // ★ v3：IDB cache
+      var archive = _motivGetArchive();
 
       // 同月份已存在 → 確認覆蓋
       if (archive[key]){
@@ -5279,7 +5303,7 @@
       var stamp = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate()
         + ' ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
 
-      archive[key] = {
+      var entry = {
         year: year,
         month: month,
         archivedAt: stamp,
@@ -5289,10 +5313,10 @@
         reservePerformance: _motivReservePerf || []
       };
 
-      // 寫入
-      try {
-        _safeSaveMotivArchive(archiveKey, JSON.stringify(archive));
-        var months = Object.keys(archive).sort().reverse();
+      // ★ v3：寫入 IDB（不會 quota）
+      _motivSaveArchiveEntry(key, entry, function(){
+        var afterArchive = _motivGetArchive();
+        var months = Object.keys(afterArchive).sort().reverse();
         var monthList = months.slice(0, 6).join('、') + (months.length > 6 ? '...' : '');
         alert(
           '✅ 已匯入成績單：' + year + '年 ' + month + '月\n' +
@@ -5306,12 +5330,8 @@
           '   ' + monthList + '\n\n' +
           'AI 顧問下次對話時可調閱所有歷史月份。'
         );
-        // ★ 不再立即 push — firebase-sync 已 override setItem，會自動 10 秒 debounce 推送
-        // ★ 立刻重渲染已儲存月份 chips（讓使用者看到剛存的月份馬上出現）
         try{ motivRenderArchiveChips(); }catch(e){}
-      } catch(e) {
-        alert('❌ 匯入失敗：' + e.message + '\n\n（可能 localStorage 空間不足，請刪除舊月份成績單再試）');
-      }
+      });
     }
 
     // ========== 年/月 選單初始化 ==========
