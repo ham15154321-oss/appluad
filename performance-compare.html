@@ -2729,6 +2729,8 @@
 
       // 激勵排行榜
       if (tabIndex === 4) {
+        // ★ 每次切到激勵 tab 都重跑遷移（保險：firebase 可能拉了新的 char_*_motiv_archive）
+        try { _runMotivArchiveMigration(); } catch(e){}
         motivRenderAll();
       }
 
@@ -4741,85 +4743,108 @@
     }
 
     // ★ 監聽 parent 的 firebase 同步完成事件 → 雲端拉資料完才能看到 chips
-    //   原因：iframe 載入時 firebase pull 可能還沒完成，第一次 motivRenderAll 讀不到 motiv_archive
-    //   解法：parent firebase 完成後 dispatch event，iframe 收到再 render 一次
+    //   原因：iframe 載入時 firebase pull 可能還沒完成，char_<id>_motiv_archive 可能後到
+    //   解法：parent firebase 完成後 dispatch event，iframe 收到 → 重跑遷移 → 重新 render
     (function _hookFirebaseSyncEvents(){
       try {
         var p = window.parent;
         if (!p || p === window) return;
         var refresh = function(){
           try{
+            // ★ 重要：firebase 拉完後可能有新的 char_*_motiv_archive，要再跑一次遷移
+            _runMotivArchiveMigration();
             if (typeof motivRenderAll === 'function') motivRenderAll();
             if (typeof motivRenderArchiveChips === 'function') motivRenderArchiveChips();
           }catch(e){}
         };
         p.addEventListener('firebase-sync-ready', refresh);
         p.addEventListener('firebase-sync-updated', refresh);
-        console.log('[motiv_archive] 已掛載 parent firebase 事件監聽（拉資料完會自動重新 render chips）');
+        console.log('[motiv_archive] 已掛載 parent firebase 事件監聽（拉資料完會自動 migrate + re-render）');
       } catch(e){
         console.warn('[motiv_archive] 掛載 parent firebase 事件失敗', e);
       }
     })();
 
     // ★ 自動遷移：把舊版 char_<id>_motiv_archive 合併到新版全局 motiv_archive
-    //   v2 之前每個主角各自儲存，v2 起改為全公司共享 → 開頁時自動合併歷史資料
-    (function _migrateMotivArchiveToGlobal(){
+    //   v2 之前每個主角各自儲存，v2 起改為全公司共享
+    //   抽成可重複呼叫的函數 — 因為 firebase pull 後可能有新的 char_*_motiv_archive 需要再合併
+    //   ★ 用 _safeSaveMotivArchive 寫入：遇到 quota 會自動清掉 char_* 釋放空間後重試
+    function _runMotivArchiveMigration(){
       try {
-        var globalKey = 'motiv_archive';
-        var globalRaw = localStorage.getItem(globalKey);
-        var global = {};
-        try { if (globalRaw) global = JSON.parse(globalRaw) || {}; } catch(e){}
-
+        // 1. 先讀完所有 char_*_motiv_archive 到 in-memory 變數（防止 quota 失敗時資料還在）
         var foundCharKeys = [];
-        var mergedCount = 0;
+        var mergedFromChars = {};
         for (var i = 0; i < localStorage.length; i++){
           var k = localStorage.key(i);
           if (!k) continue;
-          var match = k.match(/^char_(.+?)_motiv_archive$/);
-          if (!match) continue;
+          if (!/^char_(.+?)_motiv_archive$/.test(k)) continue;
           foundCharKeys.push(k);
           try {
             var charArch = JSON.parse(localStorage.getItem(k)) || {};
-            // 合併：以「archivedAt 較新」為準
             Object.keys(charArch).forEach(function(mk){
-              if (!global[mk]) {
-                global[mk] = charArch[mk];
-                mergedCount++;
-              } else {
-                // 兩邊都有 → 取 archivedAt 較新的
-                var oldAt = global[mk].archivedAt || '';
-                var newAt = charArch[mk].archivedAt || '';
-                if (newAt > oldAt){
-                  global[mk] = charArch[mk];
-                  mergedCount++;
-                }
+              var existAt = (mergedFromChars[mk] && mergedFromChars[mk].archivedAt) || '';
+              var newAt = (charArch[mk] && charArch[mk].archivedAt) || '';
+              if (!mergedFromChars[mk] || newAt > existAt){
+                mergedFromChars[mk] = charArch[mk];
               }
             });
           } catch(e){}
         }
-        if (foundCharKeys.length > 0){
-          // 寫入合併版本
-          try {
-            localStorage.setItem(globalKey, JSON.stringify(global));
-            console.log('[motiv_archive] 遷移完成：合併 ' + foundCharKeys.length + ' 個主角的 archive，' + mergedCount + ' 個月份匯入全局 motiv_archive');
-            // 清掉舊的 per-character keys 釋放空間
-            foundCharKeys.forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
-            console.log('[motiv_archive] 已清除 ' + foundCharKeys.length + ' 個舊版 per-character archive');
-            // ★ 立即推到雲端（不等 10 秒 debounce，避免使用者切換電腦時雲端還沒更新）
-            setTimeout(function(){
-              try {
-                if (window.parent && window.parent.firebaseSync && window.parent.firebaseSync.push){
-                  window.parent.firebaseSync.push();
-                  console.log('[motiv_archive] 已觸發 firebase push（遷移後立即推送，不等 debounce）');
-                }
-              } catch(e){}
-            }, 1500);
-          } catch(e){
-            console.warn('[motiv_archive] 遷移寫入失敗（quota?）', e.message);
+
+        // 2. 讀現有全局 motiv_archive
+        var global = {};
+        try {
+          var globalRaw = localStorage.getItem('motiv_archive');
+          if (globalRaw) global = JSON.parse(globalRaw) || {};
+        } catch(e){}
+
+        // 3. 合併（char_* 的較新版本會蓋過 global 的舊版本）
+        Object.keys(mergedFromChars).forEach(function(mk){
+          var existAt = (global[mk] && global[mk].archivedAt) || '';
+          var newAt = (mergedFromChars[mk] && mergedFromChars[mk].archivedAt) || '';
+          if (!global[mk] || newAt > existAt){
+            global[mk] = mergedFromChars[mk];
           }
+        });
+
+        // 4. 沒東西要遷移就早退
+        if (foundCharKeys.length === 0) return Object.keys(global).length;
+
+        // 5. 用 _safeSaveMotivArchive 寫入（quota 時會自動清 char_*_motiv_archive 釋放空間）
+        try {
+          _safeSaveMotivArchive('motiv_archive', JSON.stringify(global));
+          console.log('[motiv_archive] 遷移完成：合併 ' + foundCharKeys.length + ' 個 char_*_motiv_archive，全局共 ' + Object.keys(global).length + ' 個月份');
+          // 收尾：刪除所有 char_*_motiv_archive（_safeSave 可能已清過，但保險再掃一次）
+          for (var j = localStorage.length - 1; j >= 0; j--){
+            var k2 = localStorage.key(j);
+            if (k2 && /^char_.+_motiv_archive$/.test(k2)){
+              try { localStorage.removeItem(k2); } catch(e){}
+            }
+          }
+        } catch(e){
+          console.warn('[motiv_archive] 遷移失敗（連清空間後也寫不下，localStorage 太擠了）：', e.message);
         }
+
+        return Object.keys(global).length;
       } catch(e){
         console.warn('[motiv_archive] 遷移失敗', e);
+        return 0;
+      }
+    }
+
+    // 首次載入跑一次（處理本機已有的舊資料）
+    (function _initialMigration(){
+      var monthCount = _runMotivArchiveMigration();
+      if (monthCount > 0){
+        // ★ 立即推到雲端（不等 10 秒 debounce）
+        setTimeout(function(){
+          try {
+            if (window.parent && window.parent.firebaseSync && window.parent.firebaseSync.push){
+              window.parent.firebaseSync.push();
+              console.log('[motiv_archive] 已觸發 firebase push');
+            }
+          } catch(e){}
+        }, 1500);
       }
     })();
 
