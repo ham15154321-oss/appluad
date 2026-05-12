@@ -4622,7 +4622,11 @@
       // 顯示表頭資訊（年/月 + 組數）
       var ymTxt = '';
       if (_motivGroupPerfMeta && _motivGroupPerfMeta.year && _motivGroupPerfMeta.month){
-        ymTxt = _motivGroupPerfMeta.year + '年 ' + _motivGroupPerfMeta.month + '月 · ';
+        if (_motivGroupPerfMeta.month === 'YEAR_TOTAL'){
+          ymTxt = _motivGroupPerfMeta.year + '年 全年總合計（' + (_motivGroupPerfMeta.monthsCount || '?') + ' 個月） · ';
+        } else {
+          ymTxt = _motivGroupPerfMeta.year + '年 ' + _motivGroupPerfMeta.month + '月 · ';
+        }
       }
       header.textContent = '🎖️ 正式小組績效表（' + ymTxt + '共 ' + data.length + ' 組）';
       header.style.display = 'block';
@@ -4677,7 +4681,11 @@
 
       var ymTxt = '';
       if (_motivReservePerfMeta && _motivReservePerfMeta.year && _motivReservePerfMeta.month){
-        ymTxt = _motivReservePerfMeta.year + '年 ' + _motivReservePerfMeta.month + '月 · ';
+        if (_motivReservePerfMeta.month === 'YEAR_TOTAL'){
+          ymTxt = _motivReservePerfMeta.year + '年 全年總合計（' + (_motivReservePerfMeta.monthsCount || '?') + ' 個月） · ';
+        } else {
+          ymTxt = _motivReservePerfMeta.year + '年 ' + _motivReservePerfMeta.month + '月 · ';
+        }
       }
       header.textContent = '🌱 儲備小組績效表（' + ymTxt + '共 ' + data.length + ' 組）';
       header.style.display = 'block';
@@ -4948,6 +4956,12 @@
     // ========== 💾 儲存當前畫面為永久檔（簡化版，避免使用者忘了點匯入成績單導致月份覆蓋）==========
     // 跟 motivImportToReportCard 共用同一個 motiv_archive 後端，但 UX 更簡潔（toast 取代長 alert）
     function motivSaveCurrentToArchive(){
+      // ★ 防呆：目前是 YEAR_TOTAL 視圖（合計資料），不能儲存為某個月份
+      if ((_motivGroupPerfMeta && _motivGroupPerfMeta.month === 'YEAR_TOTAL') ||
+          (_motivReservePerfMeta && _motivReservePerfMeta.month === 'YEAR_TOTAL')){
+        alert('⚠️ 目前畫面是「年度總合計」（合併多個月份的計算結果），無法存為單月份。\n\n請先點下方某個月份 chip 載入該月份資料，或同步特定月份後再儲存。');
+        return;
+      }
       // 用 last-sync meta 推算年月（使用者剛同步什麼，就存什麼）
       var year, month;
       if (_motivGroupPerfMeta && _motivGroupPerfMeta.year && _motivGroupPerfMeta.month){
@@ -5048,6 +5062,8 @@
         var title = '已儲存於 ' + (snap.archivedAt || '?') + '\n學院 ' + aL + ' / 業務 ' + sL + ' / 正式 ' + gL + ' / 儲備 ' + rL + '\n點擊載入到 4 個排行榜';
         html += '<button onclick="motivLoadFromArchive(\'' + k + '\')" title="' + esc(title) + '" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(74,222,128,.4);background:rgba(74,222,128,.10);color:#86efac;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" onmouseover="this.style.background=\'rgba(74,222,128,.25)\';" onmouseout="this.style.background=\'rgba(74,222,128,.10)\';">📅 ' + k + '</button>';
       });
+      // ★ 年度總合計 chip（金色，最右邊）
+      html += '<button onclick="motivLoadYearTotal()" title="把所有已儲存月份加總呈現：學院/業務/組別/組員的年度業績合計" style="padding:6px 14px;border-radius:8px;border:1.5px solid #ffd700;background:linear-gradient(135deg,rgba(255,215,0,.20),rgba(255,167,38,.10));color:#ffd700;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;margin-left:8px;box-shadow:0 0 8px rgba(255,215,0,.15);" onmouseover="this.style.background=\'linear-gradient(135deg,rgba(255,215,0,.35),rgba(255,167,38,.20))\';" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(255,215,0,.20),rgba(255,167,38,.10))\';">📊 年度總合計</button>';
       list.innerHTML = html;
     }
 
@@ -5088,6 +5104,95 @@
       }
     }
 
+    // ★ 把所有已儲存月份加總成「年度總合計」載入到 4 個排行榜
+    //   學院/業務排名：依姓名 SUM 業績
+    //   正式組/儲備組：依組別 SUM 總業績 + 組長/組員逐人 SUM
+    function motivLoadYearTotal(){
+      var raw = localStorage.getItem('motiv_archive');
+      var archive = {};
+      try { if (raw) archive = JSON.parse(raw) || {}; } catch(e){}
+      var keys = Object.keys(archive).sort();
+      if (!keys.length){
+        alert('還沒儲存過任何月份，無法計算年度總合計。\n\n請先用 🔄 同步資料 同步月份。');
+        return;
+      }
+      // 取得年份（從第一個 key 抽出）
+      var year = keys[0].split('-')[0] || (new Date().getFullYear()+'');
+
+      // 1. 學院排名年度合計：依 name SUM value
+      function aggregateNameValue(field){
+        var sumMap = {};
+        keys.forEach(function(k){
+          var arr = (archive[k] && archive[k][field]) || [];
+          arr.forEach(function(it){
+            if (!it || !it.name) return;
+            sumMap[it.name] = (sumMap[it.name] || 0) + (Number(it.value) || 0);
+          });
+        });
+        return Object.keys(sumMap).map(function(n){ return {name:n, value:sumMap[n]}; })
+          .sort(function(a,b){ return b.value - a.value; });
+      }
+
+      // 2. 小組績效年度合計：依 groupName SUM total + 組長/組員逐人 SUM
+      function aggregateGroupPerf(field){
+        var groupMap = {};
+        keys.forEach(function(mk){
+          var arr = (archive[mk] && archive[mk][field]) || [];
+          arr.forEach(function(g){
+            if (!g || !g.groupName) return;
+            if (!groupMap[g.groupName]){
+              groupMap[g.groupName] = {
+                rank: 0, academy: g.academy || '', groupName: g.groupName,
+                total: 0,
+                leader: { name: (g.leader && g.leader.name) || '', value: 0 },
+                memberMap: {}
+              };
+            }
+            var gm = groupMap[g.groupName];
+            gm.total += Number(g.total) || 0;
+            if (!gm.academy && g.academy) gm.academy = g.academy;
+            if (g.leader && g.leader.name){
+              if (!gm.leader.name) gm.leader.name = g.leader.name;
+              gm.leader.value += Number(g.leader.value) || 0;
+            }
+            (g.members || []).forEach(function(m){
+              if (!m || !m.name) return;
+              gm.memberMap[m.name] = (gm.memberMap[m.name] || 0) + (Number(m.value) || 0);
+            });
+          });
+        });
+        var result = Object.keys(groupMap).map(function(gn){
+          var gm = groupMap[gn];
+          var membersArr = Object.keys(gm.memberMap).map(function(nm){
+            return {name:nm, value:gm.memberMap[nm]};
+          }).sort(function(a,b){ return b.value - a.value; });
+          return {
+            rank: 0,
+            academy: gm.academy,
+            groupName: gm.groupName,
+            total: gm.total,
+            leader: gm.leader,
+            members: membersArr
+          };
+        });
+        result.sort(function(a,b){ return b.total - a.total; });
+        result.forEach(function(g,i){ g.rank = i+1; });
+        return result;
+      }
+
+      // 套用到 4 個排行榜
+      _motivAcademy = aggregateNameValue('academy');
+      _motivSales = aggregateNameValue('sales');
+      _motivGroupPerf = aggregateGroupPerf('groupPerformance');
+      _motivReservePerf = aggregateGroupPerf('reservePerformance');
+      // meta 用特殊標記，render 函數會偵測並顯示「全年總合計」
+      _motivGroupPerfMeta = { year: year, month: 'YEAR_TOTAL', monthsCount: keys.length, months: keys };
+      _motivReservePerfMeta = { year: year, month: 'YEAR_TOTAL', monthsCount: keys.length, months: keys };
+      motivSaveData();
+      motivRenderAll();
+      showStatusToast('📊 已載入 ' + year + ' 年度總合計（合併 ' + keys.length + ' 個月份）');
+    }
+
     // ★ 從 archive 載入指定月份到目前畫面（不需要重新同步 EIP）
     function motivLoadFromArchive(key){
       var cid = '';
@@ -5117,6 +5222,12 @@
     //   { "2026-05": {year, month, archivedAt, academy, sales, groupPerformance, reservePerformance}, ... }
     // AI 顧問可從此檔案調閱歷史月份的全部資料。
     function motivImportToReportCard(){
+      // ★ 防呆：目前是 YEAR_TOTAL 視圖，不能存為某月成績單
+      if ((_motivGroupPerfMeta && _motivGroupPerfMeta.month === 'YEAR_TOTAL') ||
+          (_motivReservePerfMeta && _motivReservePerfMeta.month === 'YEAR_TOTAL')){
+        alert('⚠️ 目前畫面是「年度總合計」，無法匯入為單月成績單。\n\n請先點某個月份 chip 載入該月份資料再匯入。');
+        return;
+      }
       // ★ 優先用「最後同步的 meta」決定年/月（確保資料和月份一致）
       var year, month;
       if (_motivGroupPerfMeta && _motivGroupPerfMeta.year && _motivGroupPerfMeta.month){
