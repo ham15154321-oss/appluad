@@ -476,16 +476,38 @@ const TS_STORE = 'byCharacter';
 const TS_IDB_KEY = _cachedCharId != null ? _cachedCharId : 'default';
 
 function _tsOpenDB(){
+  // ★ 不指定 version 直接開（firebase-sync 可能已把版本升到 2+，指定 1 會炸 version error）
+  //   若 store 缺失就 close 重開並升 version 建立 store
   return new Promise(function(resolve, reject){
-    var req = indexedDB.open(TS_DB_NAME, 1);
+    var req = indexedDB.open(TS_DB_NAME);
+    req.onsuccess = function(){
+      var db = req.result;
+      if (db.objectStoreNames.contains(TS_STORE)){
+        resolve(db);
+        return;
+      }
+      // store 缺失 → 升 version 建立
+      var curVer = db.version;
+      db.close();
+      var upReq = indexedDB.open(TS_DB_NAME, curVer + 1);
+      upReq.onupgradeneeded = function(e){
+        var ud = e.target.result;
+        if (!ud.objectStoreNames.contains(TS_STORE)){
+          ud.createObjectStore(TS_STORE);
+        }
+      };
+      upReq.onsuccess = function(){ resolve(upReq.result); };
+      upReq.onerror   = function(){ reject(upReq.error); };
+      upReq.onblocked = function(){ reject(new Error('IDB upgrade blocked')); };
+    };
+    req.onerror = function(){ reject(req.error); };
     req.onupgradeneeded = function(e){
+      // 第一次建立 DB（沒有 version 指定，瀏覽器會用 version 1）
       var db = e.target.result;
       if (!db.objectStoreNames.contains(TS_STORE)){
         db.createObjectStore(TS_STORE);
       }
     };
-    req.onsuccess = function(){ resolve(req.result); };
-    req.onerror   = function(){ reject(req.error); };
   });
 }
 

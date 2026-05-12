@@ -4832,16 +4832,35 @@
     var _MOTIV_DB_STORE = 'archive';
 
     function _motivOpenDB(){
+      // ★ 不指定 version 直接開（firebase-sync 可能已把版本升到 2+，指定 1 會炸 version error）
       return new Promise(function(resolve, reject){
-        var req = indexedDB.open(_MOTIV_DB_NAME, 1);
+        var req = indexedDB.open(_MOTIV_DB_NAME);
         req.onupgradeneeded = function(e){
           var db = e.target.result;
           if (!db.objectStoreNames.contains(_MOTIV_DB_STORE)){
             db.createObjectStore(_MOTIV_DB_STORE);
           }
         };
-        req.onsuccess = function(){ resolve(req.result); };
-        req.onerror   = function(){ reject(req.error); };
+        req.onsuccess = function(){
+          var db = req.result;
+          if (db.objectStoreNames.contains(_MOTIV_DB_STORE)){
+            resolve(db);
+            return;
+          }
+          // store 缺失 → 升 version 建立
+          var curVer = db.version;
+          db.close();
+          var upReq = indexedDB.open(_MOTIV_DB_NAME, curVer + 1);
+          upReq.onupgradeneeded = function(e){
+            var ud = e.target.result;
+            if (!ud.objectStoreNames.contains(_MOTIV_DB_STORE)){
+              ud.createObjectStore(_MOTIV_DB_STORE);
+            }
+          };
+          upReq.onsuccess = function(){ resolve(upReq.result); };
+          upReq.onerror   = function(){ reject(upReq.error); };
+        };
+        req.onerror = function(){ reject(req.error); };
       });
     }
 
