@@ -215,6 +215,7 @@ let syncTimer = null;
 let currentUserUid = null;
 let currentUserEmail = null;
 let _pushing = false; // ★ 推送鎖：防止多個推送同時進行
+let _pullingFromCloud = false; // ★ 拉取進行中：阻擋 schedulePush 觸發，避免 push 把預設值蓋過雲端真資料
 
 // ★ Dirty-tracking：記錄上次成功推送的每筆資料簽名（長度+前32字元）
 //   下次推送時只送「真正有改變」的 key，大幅減少 Firestore 寫入量
@@ -906,6 +907,9 @@ async function pushToCloud(opts){
     }
 
     // ★ ★ ★ 全公司共享 LS keys：推到 users/<tenant>/_global/localStorage（不依主角）
+    //   v2 架構：每個 key 寫獨立 doc（不再 bundle 成 main doc）
+    //   原因：bundle 寫入用 wb.set 會覆蓋整個 doc — 兩個裝置並行 push 時會互相覆蓋對方的 keys
+    //   per-key docs 各自獨立，A 推 key1、B 推 key2 不會相互影響
     if (Object.keys(lsDataGlobal).length > 0 && currentUserUid){
       try {
         var globalRef = fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('localStorage');
@@ -913,22 +917,26 @@ async function pushToCloud(opts){
         var globalChanged = _filterChanged(globalPath, lsDataGlobal, force);
         if (Object.keys(globalChanged).length > 0){
           _changedKeysForLog = _changedKeysForLog.concat(Object.keys(globalChanged).map(function(k){ return 'global:'+k; }));
-          var globalCount = await writeDataToFirestore(globalRef, globalChanged);
-          _recordSigs(globalPath, lsDataGlobal);
-          // ★ LWW: global keys 的時間戳推到 _global/shared/_meta/lsTs.ts
-          try {
-            var _gTsUpdates = {};
-            for (var _gck in globalChanged) {
-              _gTsUpdates['ts.' + _gck] = _localTsMap[_gck] || Date.now();
-            }
-            var _gTsRef = fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('_meta').doc('lsTs');
+          // ★ 每個 key 一個 doc — docId 用 encodeURIComponent 確保合法
+          //   Doc 結構：{ key: <原始 key>, value: <字串值>, ts: <時間戳> }
+          var globalCount = 0;
+          for (var _gck in globalChanged){
+            var _gcv = globalChanged[_gck];
+            var _gcTs = _localTsMap[_gck] || Date.now();
+            var docId = encodeURIComponent(_gck).substring(0, 1400);
             try {
-              await _gTsRef.update(_gTsUpdates);
-            } catch(_e){
-              await _gTsRef.set({ ts: Object.assign({}, _localTsMap) }, { merge: true });
+              await globalRef.doc(docId).set({
+                key: _gck,
+                value: _gcv,
+                ts: _gcTs
+              });
+              globalCount++;
+            } catch(_perKeyErr){
+              console.warn('[FirebaseSync] global push 單 key 失敗', _gck, _perKeyErr.message || _perKeyErr);
             }
-          } catch(_e){}
-          console.log('[FirebaseSync] ★ 全公司共享：推送', globalCount, '筆 global LS keys（', Object.keys(globalChanged).join(', '), '）');
+          }
+          _recordSigs(globalPath, lsDataGlobal);
+          console.log('[FirebaseSync] ★ 全公司共享（per-key）：推送', globalCount, '筆 global LS keys（', Object.keys(globalChanged).join(', '), '）');
           try { await fsDb.waitForPendingWrites(); } catch(e){}
           await delay(WRITE_LONG_PAUSE_MS);
         } else {
@@ -1014,6 +1022,11 @@ async function pushToCloud(opts){
 
 function schedulePush(){
   if (syncTimer) clearTimeout(syncTimer);
+  // ★ 拉取進行中 → 不要立即排程 push，避免覆蓋雲端真資料
+  //   等 pull 結束後第一次有人改 LS 才會 schedulePush
+  if (_pullingFromCloud){
+    return;
+  }
   syncTimer = setTimeout(pushToCloud, SYNC_DEBOUNCE_MS);
 }
 
@@ -1028,6 +1041,8 @@ localStorage.removeItem = function(k){ _origRemove(k); if(!isLocalOnlyKey(k)) sc
 
 // === 拉取 ============================================================
 async function pullFromCloud(){
+  _pullingFromCloud = true; // ★ 阻擋 push 在 pull 期間競賽（避免覆蓋雲端真資料）
+  try {
   // 用 user-scoped 路徑拉取
   var baseRef = currentUserUid
     ? fsDb.collection('users').doc(currentUserUid).collection('characters')
@@ -1250,40 +1265,34 @@ async function pullFromCloud(){
   }
 
   // ★ ★ ★ 全公司共享 LS keys：從 users/<tenant>/_global/shared/localStorage 拉
-  //   不依主角，每個 user 拉一次，所有人都看到同一份（4 月各通路績效、業績比較等）
+  //   v2 架構：per-key docs（每個 key 是獨立 doc，內含 {key, value, ts}）
+  //   策略：cloud 永遠是 source of truth，本地一律覆蓋
+  //   原因：LWW 對 global keys 不可靠 — _localTsMap 會在開機 setItem 預設值時被更新
+  //         導致本地誤認為「本地較新」而跳過。為了 22 主角看到同一份，cloud 永遠贏。
+  //   保護：push 端有 signature dirty tracking，「無變更」會自動跳過，不會循環覆蓋。
   if (currentUserUid){
     try {
       var globalRef = fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('localStorage');
-      var globalData = await readDataFromFirestore(globalRef);
-      // 雲端 ts map
-      var globalTs = {};
-      try {
-        var _gTsSnap = await fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('_meta').doc('lsTs').get({ source: 'server' });
-        if (_gTsSnap.exists) globalTs = (_gTsSnap.data() && _gTsSnap.data().ts) || {};
-      } catch(_e){}
-
-      var _globalLsCount = 0, _globalSkipCount = 0, _globalQuotaCount = 0;
-      for (var _gk in globalData){
-        var _gv = globalData[_gk];
-        var _gExisting = localStorage.getItem(_gk);
-        var _gcTs = globalTs[_gk] || 0;
-        var _glTs = _localTsMap[_gk] || 0;
-        // LWW：本地有值且本地較新 → 跳過
-        if (_gExisting !== null && _gExisting !== '' && _glTs >= _gcTs && _gcTs > 0){
-          _globalSkipCount++;
-          continue;
+      var globalSnap = await globalRef.get({ source: 'server' });
+      var _globalLsCount = 0, _globalQuotaCount = 0, _globalKeysFound = [];
+      globalSnap.forEach(function(docSnap){
+        var d = docSnap.data();
+        if (!d || typeof d.value !== 'string' || !d.key) {
+          // 跳過 v1 的 main / chunk 舊格式（已淘汰）
+          return;
         }
+        _globalKeysFound.push(d.key);
         try {
-          _origSet(_gk, _gv);
-          _localTsMap[_gk] = _gcTs || Date.now();
+          _origSet(d.key, d.value);
+          _localTsMap[d.key] = d.ts || Date.now();
           totalLS++;
           _globalLsCount++;
         } catch(_qe){
           _globalQuotaCount++;
         }
-      }
-      if (_globalLsCount > 0 || _globalSkipCount > 0 || _globalQuotaCount > 0){
-        console.log('[FirebaseSync] ★ 全公司共享：補入 ' + _globalLsCount + ' 筆，跳過 ' + _globalSkipCount + ' 筆（本地較新），quota 失敗 ' + _globalQuotaCount + ' 筆');
+      });
+      if (_globalLsCount > 0 || _globalQuotaCount > 0){
+        console.log('[FirebaseSync] ★ 全公司共享（per-key, cloud-wins）：覆蓋本地 ' + _globalLsCount + ' 筆，quota 失敗 ' + _globalQuotaCount + ' 筆 — 涵蓋 keys: ' + _globalKeysFound.join(', '));
       }
     } catch(_globalPullErr){
       console.warn('[FirebaseSync] global pull 失敗', _globalPullErr.message || _globalPullErr);
@@ -1296,6 +1305,9 @@ async function pullFromCloud(){
 
   console.log('[FirebaseSync] 雲端載入 localStorage:', totalLS, ' IndexedDB:', totalIDB);
   window.dispatchEvent(new Event('firebase-sync-ready'));
+  } finally {
+    _pullingFromCloud = false; // ★ 拉取完成，解鎖 schedulePush
+  }
 }
 
 // === 即時監聽（只監聽主角 metadata 變化）==============================
