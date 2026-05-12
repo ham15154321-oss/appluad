@@ -467,6 +467,54 @@ function getSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+BASE_KEY:B
 const OLD_KEY = 'training_sales_v1';
 function getOldSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+OLD_KEY:OLD_KEY;}
 
+// ★ ★ ★ training_sales_v2 → IndexedDB（v3 架構，根治 LS quota）
+//   原因：22 主角 × 每人多種 LS keys 容易爆 5MB 上限
+//   結構：DB=TrainingSalesDB / Store=byCharacter / Key=charId / Value=完整 store JSON
+//   Firebase 同步：透過 firebase-sync.js IDB_LIST 自動推/拉
+const TS_DB_NAME = 'TrainingSalesDB';
+const TS_STORE = 'byCharacter';
+const TS_IDB_KEY = _cachedCharId != null ? _cachedCharId : 'default';
+
+function _tsOpenDB(){
+  return new Promise(function(resolve, reject){
+    var req = indexedDB.open(TS_DB_NAME, 1);
+    req.onupgradeneeded = function(e){
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains(TS_STORE)){
+        db.createObjectStore(TS_STORE);
+      }
+    };
+    req.onsuccess = function(){ resolve(req.result); };
+    req.onerror   = function(){ reject(req.error); };
+  });
+}
+
+function _tsLoadFromIDB(){
+  return _tsOpenDB().then(function(db){
+    return new Promise(function(resolve, reject){
+      try{
+        var tx = db.transaction(TS_STORE, 'readonly');
+        var req = tx.objectStore(TS_STORE).get(TS_IDB_KEY);
+        req.onsuccess = function(){ try{db.close();}catch(_){} resolve(req.result || null); };
+        req.onerror   = function(){ try{db.close();}catch(_){} reject(req.error); };
+      }catch(e){ try{db.close();}catch(_){} reject(e); }
+    });
+  });
+}
+
+function _tsSaveToIDB(value){
+  return _tsOpenDB().then(function(db){
+    return new Promise(function(resolve, reject){
+      try{
+        var tx = db.transaction(TS_STORE, 'readwrite');
+        var req = tx.objectStore(TS_STORE).put(value, TS_IDB_KEY);
+        req.onsuccess = function(){ try{db.close();}catch(_){} resolve(); };
+        req.onerror   = function(){ try{db.close();}catch(_){} reject(req.error); };
+      }catch(e){ try{db.close();}catch(_){} reject(e); }
+    });
+  });
+}
+
 const AVATARS = ['👤','👩','👨','🧑','👩‍💼','👨‍💼','🧑‍🎓','👩‍🏫','👨‍🏫'];
 const MAX_PEOPLE = 4;
 
@@ -490,20 +538,39 @@ function createPerson(name){
 let store = { people: [], currentIdx: 0 };
 let chapters = []; // 指向當前人的 chapters
 
-function init(){
+async function init(){
   let loaded = false;
-  // 嘗試載入 v2
-  const raw = localStorage.getItem(getSK());
-  if(raw){
-    try{
-      const parsed = JSON.parse(raw);
-      if(parsed && parsed.people){
-        store = parsed;
-        loaded = true;
-      }
-    }catch(e){}
+  // ★ v3：優先從 IDB 載入
+  try{
+    const idbData = await _tsLoadFromIDB();
+    if (idbData && idbData.people && Array.isArray(idbData.people) && idbData.people.length > 0){
+      store = idbData;
+      loaded = true;
+    }
+  }catch(e){ console.warn('[training-sales] IDB 載入失敗', e); }
+
+  // IDB 沒有 → 嘗試從 LS 載入 v2 並遷移到 IDB（一次性遷移）
+  if(!loaded){
+    const raw = localStorage.getItem(getSK());
+    if(raw){
+      try{
+        const parsed = JSON.parse(raw);
+        if(parsed && parsed.people){
+          store = parsed;
+          loaded = true;
+          // 遷移到 IDB（async fire-and-forget）+ 刪 LS 釋出空間
+          _tsSaveToIDB(store).then(function(){
+            try { localStorage.removeItem(getSK()); } catch(e){}
+            console.log('[training-sales] 已從 LS v2 遷移到 IDB（釋出 ' + (raw.length/1024).toFixed(1) + ' KB LS）');
+          }).catch(function(e){
+            console.warn('[training-sales] 遷移到 IDB 失敗', e);
+          });
+        }
+      }catch(e){}
+    }
   }
-  // v2 沒有 → 嘗試遷移 v1 舊資料
+
+  // v2 也沒有 → 嘗試遷移 v1 舊資料（很舊的格式）
   if(!loaded){
     const oldRaw = localStorage.getItem(getOldSK());
     if(oldRaw){
@@ -512,10 +579,13 @@ function init(){
         if(Array.isArray(oldChapters)){
           store = { people: [{ name:'新人1', avatar:'👤', chapters: oldChapters }], currentIdx: 0 };
           loaded = true;
+          _tsSaveToIDB(store);
+          try { localStorage.removeItem(getOldSK()); } catch(e){}
         }
       }catch(e){}
     }
   }
+
   // 都沒有 → 建立第一位新人
   if(!loaded || !store.people || store.people.length===0){
     store = { people: [createPerson('新人1')], currentIdx: 0 };
@@ -928,13 +998,20 @@ function _captureEmergencyBaseline(){
 
 function saveAll(){
   try{
-    var _json = _storeToJSON();
-    localStorage.setItem(getSK(), _json);
+    _prepareStore();
+    cleanEditingFlags();
+    var _snapshot = JSON.parse(JSON.stringify(store));
+    var _json = JSON.stringify(_snapshot);
     _emergencyBaseline = _json;
-    const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
-    document.getElementById('autosaveLabel').textContent = '已儲存：' + t;
-    showToast('💾 已儲存');
-    try{ if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+    // ★ v3：寫到 IDB（不會 quota）
+    _tsSaveToIDB(_snapshot).then(function(){
+      const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('autosaveLabel').textContent = '已儲存：' + t;
+      showToast('💾 已儲存');
+      try{ if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+    }).catch(function(e){
+      showToast('⚠ 儲存失敗：'+(e.message||e));
+    });
   }catch(e){
     showToast('⚠ 儲存失敗：'+e.message);
   }
@@ -946,12 +1023,19 @@ function scheduleAutoSave(){
   document.getElementById('autosaveLabel').textContent = '✏️ 編輯中…';
   _ast = setTimeout(()=>{
     try{
-      var _json = _storeToJSON();
-      localStorage.setItem(getSK(), _json);
+      _prepareStore();
+      cleanEditingFlags();
+      var _snapshot = JSON.parse(JSON.stringify(store));
+      var _json = JSON.stringify(_snapshot);
       _emergencyBaseline = _json;
-      const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
-      document.getElementById('autosaveLabel').textContent = '✅ 自動儲存：' + t;
-      try{ if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+      // ★ v3：寫到 IDB
+      _tsSaveToIDB(_snapshot).then(function(){
+        const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+        document.getElementById('autosaveLabel').textContent = '✅ 自動儲存：' + t;
+        try{ if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+      }).catch(function(e){
+        document.getElementById('autosaveLabel').textContent = '⚠ 儲存失敗：'+(e.message||e);
+      });
     }catch(e){
       document.getElementById('autosaveLabel').textContent = '⚠ 儲存失敗';
     }
@@ -986,10 +1070,15 @@ function cleanEditingFlags(){
 //   觸發 emergencySave，把預設覆蓋到雲端剛同步下來的真實資料。
 function _emergencySave(){
   try{
-    var current = _storeToJSON();
+    _prepareStore();
+    cleanEditingFlags();
+    var snapshot = JSON.parse(JSON.stringify(store));
+    var current = JSON.stringify(snapshot);
     if (_emergencyBaseline !== null && current === _emergencyBaseline) return;
-    localStorage.setItem(getSK(), current);
-    _emergencyBaseline = current;
+    // ★ v3：emergency 也走 IDB（fire-and-forget；catch quota error 不再發生）
+    _tsSaveToIDB(snapshot).then(function(){
+      _emergencyBaseline = current;
+    }).catch(function(e){ console.warn('[training-sales] emergencySave 失敗', e); });
   }catch(e){}
 }
 document.addEventListener('visibilitychange', function(){
@@ -998,22 +1087,17 @@ document.addEventListener('visibilitychange', function(){
 window.addEventListener('beforeunload', _emergencySave);
 window.addEventListener('pagehide', _emergencySave);
 
-// ★ 監聽 firebase 同步事件：雲端 pull 完成後，重新從 LS 載入 store
-//   這個 iframe 套到 training-room.html 再到 人力發展.html — firebase-sync 跑在最頂層
-//   不重新載入 → 記憶體裡的 store 永遠是 init 時的版本 → 使用者一旦編輯就會把
-//   舊 store 覆蓋回 LS（並推到雲端）→ 其他裝置最新的編輯就消失了
+// ★ 監聽 firebase 同步事件：雲端 pull 完成後，重新從 IDB 載入 store
+//   v3：改為從 IDB 讀（LS 已經不用了）
 function _reloadFromLS(){
-  try{
-    const raw = localStorage.getItem(getSK());
-    if(!raw) return;
-    const parsed = JSON.parse(raw);
+  // 檢查當前是否正在編輯（避免吃掉使用者的編輯）
+  if(_ast){
+    console.log('[training-sales] 雲端同步完成但本機正在編輯中（_ast pending），跳過 reload 以保留使用者輸入');
+    return;
+  }
+  _tsLoadFromIDB().then(function(parsed){
     if(!parsed || !parsed.people || !Array.isArray(parsed.people) || parsed.people.length === 0) return;
-    // 檢查當前是否正在編輯（避免吃掉使用者的編輯）
-    if(_ast){
-      console.log('[training-sales] 雲端同步完成但本機正在編輯中（_ast pending），跳過 reload 以保留使用者輸入');
-      return;
-    }
-    var oldJson = _storeToJSON();
+    var oldJson = JSON.stringify(store);
     var newJson = JSON.stringify(parsed);
     if(oldJson === newJson) return; // 沒變化
     store = parsed;
@@ -1023,9 +1107,9 @@ function _reloadFromLS(){
     render();
     _captureEmergencyBaseline(); // 重設 baseline 才不會被 emergencySave 覆蓋
     console.log('[training-sales] 雲端同步完成，已重新載入 store（' + parsed.people.length + ' 位新人）');
-  }catch(e){
-    console.warn('[training-sales] 重新載入 LS 失敗', e);
-  }
+  }).catch(function(e){
+    console.warn('[training-sales] 重新載入 IDB 失敗', e);
+  });
 }
 
 // 監聽最頂層 window 的 firebase-sync 事件（這個 iframe 套兩層，事件 dispatch 在最頂）

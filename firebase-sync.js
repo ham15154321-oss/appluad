@@ -51,7 +51,10 @@ const IDB_LIST = [
   { dbName: 'SpaceBaseDB',          dbVer: 1, stores: ['images', 'scores'] },
   // ★ v3：motiv_archive 從 localStorage 搬到這裡（避免 5MB quota）
   //   每個月份是一個 entry（key = '2026-04'），便於增量同步
-  { dbName: 'MotivArchiveDB',       dbVer: 1, stores: ['archive'] }
+  { dbName: 'MotivArchiveDB',       dbVer: 1, stores: ['archive'] },
+  // ★ v3：training_sales_v2 從 localStorage 搬到這裡（避免 5MB quota）
+  //   每個主角的訓練資料是一個 entry（key = charId），同主角跨裝置同步
+  { dbName: 'TrainingSalesDB',      dbVer: 1, stores: ['byCharacter'] }
 ];
 // 拉取時也要能讀取舊的音效 collection（向下相容），但推送時不再寫入
 const IDB_LIST_PULL_ONLY = [
