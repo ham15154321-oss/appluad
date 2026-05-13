@@ -1728,16 +1728,62 @@ function renderCaseDb(){
   if(caseFilter==='marquee')filtered=items.filter(function(x){return x.marquee;});
   if(!items.length){el.innerHTML='<div class="panel-empty">📂 尚無案例<br>新增好壞案例後，AI 案例庫的問答都會參考這些資料</div>';return;}
   el.innerHTML=filterHtml+filtered.map(function(c){
-    // ★ 只取第一行（去 \n）+ 截斷 50 字當預覽，點擊整個案例 row 開模態看全文
-    var firstLine=(c.text||'').split('\n')[0].trim();
-    var preview=firstLine.length>50?firstLine.substring(0,50)+'…':firstLine;
-    if(firstLine.length<(c.text||'').length&&!preview.endsWith('…'))preview+='…'; // 有多行也加省略號
+    // ★ 取前 2 行 + 截斷 150 字當預覽（比舊版 50 字多 3 倍，看得到「實際在講什麼」）
+    //   點擊整個案例 row 開模態看全文 / 點 ✏️ 編輯按鈕修改內容
+    var allText = (c.text||'').trim();
+    var lines = allText.split('\n');
+    var firstTwoLines = lines.slice(0, 2).join(' · ');  // 兩行用 · 拼起來
+    var MAX_PREVIEW = 150;
+    var preview = firstTwoLines.length > MAX_PREVIEW ? firstTwoLines.substring(0, MAX_PREVIEW) + '…' : firstTwoLines;
+    if (lines.length > 2 && !preview.endsWith('…')) preview += '…';
     return '<div class="case-item '+c.type+'" style="cursor:pointer;" onclick="openCaseDetail(\''+c.id+'\')" title="點擊看全文">'
       +'<input type="checkbox" class="case-check" '+(c.marquee?'checked':'')+' onchange="event.stopPropagation();toggleMarquee(\''+c.id+'\')" onclick="event.stopPropagation()" title="勾選後顯示在首頁跑馬燈">'
       +'<span class="case-tag '+c.type+'">'+(c.type==='good'?'📗 好':(c.type==='bad'?'📕 壞':'📊 數據'))+'</span>'
       +'<span class="case-text">'+esc(preview||'(空白)')+'</span>'
+      +'<span class="case-edit" onclick="event.stopPropagation();editCase(\''+c.id+'\')" style="cursor:pointer;padding:4px 8px;opacity:.7;font-size:.78rem;" title="編輯內容">✏️ 編輯</span>'
       +'<span class="case-del" onclick="event.stopPropagation();delCase(\''+c.id+'\')">🗑 刪除</span></div>';
   }).join('');
+}
+
+// ★ 編輯案例（用 prompt 簡單編輯；長文用 modal）
+function editCase(id){
+  var items = LS(SK.casedb);
+  var c = items.find(function(x){ return x.id === id; });
+  if (!c) return;
+  // 用既有的 case detail modal 改成編輯模式
+  var modal = document.getElementById('caseDetailModal');
+  var titleEl = document.getElementById('caseDetailTitle');
+  var bodyEl = document.getElementById('caseDetailBody');
+  if (!modal || !titleEl || !bodyEl) {
+    // fallback：用 prompt
+    var newText = prompt('編輯案例內容：', c.text || '');
+    if (newText === null) return;
+    c.text = newText;
+    SS(SK.casedb, items);
+    renderCaseDb();
+    return;
+  }
+  // 把 body 換成 textarea 讓使用者編輯
+  var typeLabel = c.type==='good'?'📗 好案例':(c.type==='bad'?'📕 壞案例':'📊 數據查詢案例');
+  titleEl.textContent = '✏️ 編輯' + typeLabel;
+  bodyEl.innerHTML = '<textarea id="caseEditTextarea" style="width:100%;min-height:300px;padding:12px;background:rgba(15,20,60,.3);border:1px solid rgba(74,234,255,.25);border-radius:8px;color:#d0e8ff;font-family:inherit;font-size:.9rem;line-height:1.6;resize:vertical;">'+esc(c.text||'')+'</textarea>'
+    + '<div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">'
+    + '<button onclick="closeModal(\'caseDetailModal\')" style="padding:8px 16px;border-radius:8px;border:1px solid rgba(180,200,240,.3);background:transparent;color:#d0e8ff;cursor:pointer;">取消</button>'
+    + '<button onclick="saveCaseEdit(\''+id+'\')" style="padding:8px 16px;border-radius:8px;border:none;background:linear-gradient(135deg,#4aeaff,#7ad8ff);color:#003020;font-weight:700;cursor:pointer;">💾 儲存</button>'
+    + '</div>';
+  modal.classList.add('open');
+}
+
+function saveCaseEdit(id){
+  var items = LS(SK.casedb);
+  var c = items.find(function(x){ return x.id === id; });
+  if (!c) return;
+  var ta = document.getElementById('caseEditTextarea');
+  if (!ta) return;
+  c.text = ta.value;
+  SS(SK.casedb, items);
+  closeModal('caseDetailModal');
+  renderCaseDb();
 }
 // ★ 點案例 row 打開全文模態
 function openCaseDetail(id){
