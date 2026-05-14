@@ -54,7 +54,10 @@ const IDB_LIST = [
   { dbName: 'MotivArchiveDB',       dbVer: 1, stores: ['archive'] },
   // ★ v3：training_sales_v2 從 localStorage 搬到這裡（避免 5MB quota）
   //   每個主角的訓練資料是一個 entry（key = charId），同主角跨裝置同步
-  { dbName: 'TrainingSalesDB',      dbVer: 1, stores: ['byCharacter'] }
+  { dbName: 'TrainingSalesDB',      dbVer: 1, stores: ['byCharacter'] },
+  // ★ v3：AI 顧問中心的 pmemory（私聊記憶）從 LS 搬到這裡
+  //   每個主角的 pmemory 是一個 entry（key = charId），陣列 of {id, feature, text, createdAt}
+  { dbName: 'AiAdvisorDB',          dbVer: 1, stores: ['pmemory'] }
 ];
 // 拉取時也要能讀取舊的音效 collection（向下相容），但推送時不再寫入
 const IDB_LIST_PULL_ONLY = [

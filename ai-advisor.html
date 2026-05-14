@@ -701,13 +701,150 @@ var FEATURES={
 
 var curView='cards', curFeature=null, curTopicId=null, pinPage=0;
 var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base',pmemory:'ai_pmemory_v1',aierror:'ai_error_reports_v1'};
-// ★ 私聊記憶（= 個人私聊資料庫）是「per character」儲存：LS key = 'char_<id>_ai_pmemory_v1'
-//   會顯示在「🔐 個人私聊資料庫」面板，所有 AI 功能對話時會自動參考
+// ★ 私聊記憶（pmemory）是「per character」儲存
+//   v3 架構：搬到 IndexedDB（AiAdvisorDB.pmemory），key=charId
+//   原因：LS 5MB 容易爆，IDB 50MB+ 永遠不會
+//   保留 LS key 'char_<id>_ai_pmemory_v1' 作為 fallback / 一次性遷移
 function _pmemoryKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.pmemory; }
-function _loadPmemory(charId){ try{ var raw=localStorage.getItem(_pmemoryKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
-function _savePmemory(arr,charId){
-  // ★ 不再 silent fail：把 quota error 拋出來讓呼叫端顯示給使用者
-  localStorage.setItem(_pmemoryKey(charId), JSON.stringify(arr||[]));
+
+// IDB cache：app boot 時 async 載入到記憶體，之後 sync 讀
+window._pmemoryCache = window._pmemoryCache || {};
+window._pmemoryCacheReady = false;
+
+var _AI_DB_NAME = 'AiAdvisorDB';
+var _AI_PMEM_STORE = 'pmemory';
+
+function _aiOpenDB(){
+  return new Promise(function(resolve, reject){
+    var req = indexedDB.open(_AI_DB_NAME);
+    req.onupgradeneeded = function(e){
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains(_AI_PMEM_STORE)) db.createObjectStore(_AI_PMEM_STORE);
+    };
+    req.onsuccess = function(){
+      var db = req.result;
+      if (db.objectStoreNames.contains(_AI_PMEM_STORE)) { resolve(db); return; }
+      // store 缺失 → 升 version 補建
+      var curVer = db.version;
+      db.close();
+      var upReq = indexedDB.open(_AI_DB_NAME, curVer + 1);
+      upReq.onupgradeneeded = function(e){
+        var ud = e.target.result;
+        if (!ud.objectStoreNames.contains(_AI_PMEM_STORE)) ud.createObjectStore(_AI_PMEM_STORE);
+      };
+      upReq.onsuccess = function(){ resolve(upReq.result); };
+      upReq.onerror = function(){ reject(upReq.error); };
+    };
+    req.onerror = function(){ reject(req.error); };
+  });
+}
+
+function _pmemoryLoadFromIDB(charId){
+  return _aiOpenDB().then(function(db){
+    return new Promise(function(resolve){
+      try{
+        var tx = db.transaction(_AI_PMEM_STORE, 'readonly');
+        var req = tx.objectStore(_AI_PMEM_STORE).get(charId);
+        req.onsuccess = function(){ try{db.close();}catch(_){} resolve(req.result || []); };
+        req.onerror = function(){ try{db.close();}catch(_){} resolve([]); };
+      }catch(e){ try{db.close();}catch(_){} resolve([]); }
+    });
+  }).catch(function(){ return []; });
+}
+
+function _pmemorySaveToIDB(charId, arr){
+  return _aiOpenDB().then(function(db){
+    return new Promise(function(resolve, reject){
+      try{
+        var tx = db.transaction(_AI_PMEM_STORE, 'readwrite');
+        var req = tx.objectStore(_AI_PMEM_STORE).put(arr || [], charId);
+        req.onsuccess = function(){ try{db.close();}catch(_){} resolve(); };
+        req.onerror = function(){ try{db.close();}catch(_){} reject(req.error); };
+      }catch(e){ try{db.close();}catch(_){} reject(e); }
+    });
+  });
+}
+
+// ★ Boot：async 載入所有主角的 pmemory 到 cache + 從 LS 遷移
+async function _pmemoryBootInit(){
+  try {
+    var db = await _aiOpenDB();
+    // Load all entries to cache
+    await new Promise(function(resolve){
+      var tx = db.transaction(_AI_PMEM_STORE, 'readonly');
+      var req = tx.objectStore(_AI_PMEM_STORE).openCursor();
+      req.onsuccess = function(e){
+        var cur = e.target.result;
+        if (cur){
+          window._pmemoryCache[cur.key] = cur.value || [];
+          cur.continue();
+        } else { resolve(); }
+      };
+      req.onerror = function(){ resolve(); };
+    });
+    try{ db.close(); }catch(_){}
+
+    // 一次性從 LS 遷移：對每個 char_*_ai_pmemory_v1 key
+    var migrated = 0;
+    var lsKeysToDelete = [];
+    for (var i = 0; i < localStorage.length; i++){
+      var k = localStorage.key(i);
+      var m = k && k.match(/^char_(.+?)_ai_pmemory_v1$/);
+      if (m){
+        var charId = m[1];
+        lsKeysToDelete.push(k);
+        try{
+          var lsArr = JSON.parse(localStorage.getItem(k)) || [];
+          if (lsArr.length){
+            var idbArr = window._pmemoryCache[charId] || [];
+            // 合併：LS 有但 IDB 沒有的 id 補進來（避免覆蓋 IDB 的新資料）
+            var existIds = new Set(idbArr.map(function(x){ return x.id; }));
+            var added = 0;
+            lsArr.forEach(function(item){
+              if (!existIds.has(item.id)){
+                idbArr.push(item);
+                added++;
+              }
+            });
+            if (added){
+              window._pmemoryCache[charId] = idbArr;
+              await _pmemorySaveToIDB(charId, idbArr);
+              migrated += added;
+            }
+          }
+        }catch(e){}
+      }
+    }
+    // 清掉 LS 釋出空間
+    lsKeysToDelete.forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+    if (migrated > 0 || lsKeysToDelete.length){
+      console.log('[ai-pmemory] LS→IDB 遷移完成：' + migrated + ' 筆新增，清除 ' + lsKeysToDelete.length + ' 個 LS key');
+    }
+  }catch(e){
+    console.warn('[ai-pmemory] IDB boot 失敗', e);
+  }
+  window._pmemoryCacheReady = true;
+  // 觸發 pmemory 面板重繪
+  try { if (typeof renderPmemory === 'function') renderPmemory(); } catch(e){}
+}
+_pmemoryBootInit();
+
+// sync 讀（從 cache）
+function _loadPmemory(charId){
+  charId = charId || localStorage.getItem('activeCharacterId') || '';
+  return (window._pmemoryCache && window._pmemoryCache[charId]) ? window._pmemoryCache[charId].slice() : [];
+}
+
+// sync 介面（外觀），實際 IDB 寫入是 async 的（fire-and-forget）
+function _savePmemory(arr, charId){
+  charId = charId || localStorage.getItem('activeCharacterId') || '';
+  if (!charId) throw new Error('找不到當前主角，無法儲存私聊記憶');
+  // 立即更新 cache（讓 UI 立刻看到）
+  window._pmemoryCache[charId] = arr || [];
+  // async 寫 IDB（不會 quota）
+  _pmemorySaveToIDB(charId, arr || []).catch(function(e){
+    console.error('[ai-pmemory] IDB 儲存失敗', e);
+  });
 }
 
 // ★ 釘選話題（pins）是「per character」儲存：LS key = 'char_<id>_ai_pins_v1'
