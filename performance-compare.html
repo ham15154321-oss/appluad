@@ -4918,6 +4918,12 @@
     function _motivSaveArchiveEntry(monthKey, value, onSuccess, onError){
       window._motivArchiveCache[monthKey] = value;
       _motivArchiveWriteEntry(monthKey, value).then(function(){
+        // ★ 通知 parent：motiv_archive 有變動，去同步學院年度業績卡片
+        try {
+          if (window.parent && window.parent !== window){
+            window.parent.dispatchEvent(new CustomEvent('motiv-archive-updated', { detail:{ monthKey: monthKey } }));
+          }
+        } catch(e){}
         if (typeof onSuccess === 'function') onSuccess();
       }).catch(function(e){
         console.error('[motiv_archive] IDB 寫入失敗', monthKey, e);

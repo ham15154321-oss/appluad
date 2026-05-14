@@ -2051,6 +2051,110 @@ function fmtWan(v){
   if(n===0) return '—';
   return (n/10000).toFixed(0)+'萬';
 }
+
+// ★ ★ ★ 卡片學院年度業績 ←→ 業績數據中心 年度總合計（自動同步）
+//   讀 IDB MotivArchiveDB.archive 所有月份的 academy 加總，
+//   依 _ACAD_BOSS_MAP 對應的卡片 → 自動更新 card.groupRevenue
+//   觸發時機：app boot、firebase-sync-ready/updated、業績數據中心匯入新月份
+//   未來要加新 boss/學院對應，只要在 _ACAD_BOSS_MAP 增加一筆即可
+const _ACAD_BOSS_MAP = {
+  '王志軒': '中壢二部'
+  // 之後可以加：
+  // 'XXX': '中壢學院',
+  // 'YYY': '台中二部',
+  // ...
+};
+
+function _readMotivArchiveAll(){
+  return new Promise(function(resolve){
+    try{
+      var req = indexedDB.open('MotivArchiveDB');
+      req.onsuccess = function(){
+        var db = req.result;
+        if (!db.objectStoreNames.contains('archive')){ try{db.close();}catch(_){}; resolve({}); return; }
+        try{
+          var tx = db.transaction('archive', 'readonly');
+          var cur = tx.objectStore('archive').openCursor();
+          var out = {};
+          cur.onsuccess = function(e){
+            var c = e.target.result;
+            if (c){ out[c.key] = c.value; c.continue(); }
+            else { try{db.close();}catch(_){}; resolve(out); }
+          };
+          cur.onerror = function(){ try{db.close();}catch(_){}; resolve({}); };
+        }catch(e){ try{db.close();}catch(_){}; resolve({}); }
+      };
+      req.onerror = function(){ resolve({}); };
+    }catch(e){ resolve({}); }
+  });
+}
+
+async function syncAcademyRevenueFromMotivArchive(){
+  try {
+    var archive = await _readMotivArchiveAll();
+    if (!archive || !Object.keys(archive).length) return;
+    // 加總所有月份的 academy
+    var totals = {};
+    Object.values(archive).forEach(function(monthData){
+      (monthData.academy || []).forEach(function(it){
+        if (!it || !it.name) return;
+        totals[it.name] = (totals[it.name] || 0) + (Number(it.value) || 0);
+      });
+    });
+    // 更新對應卡片
+    var raw = localStorage.getItem('castle_cards_v1');
+    if (!raw) return;
+    var cards = JSON.parse(raw);
+    if (!Array.isArray(cards)) return;
+    var changed = false;
+    var updates = [];
+    Object.keys(_ACAD_BOSS_MAP).forEach(function(bossName){
+      var academy = _ACAD_BOSS_MAP[bossName];
+      var total = totals[academy] || 0;
+      var card = cards.find(function(c){ return c && c.name === bossName; });
+      if (card){
+        var newVal = String(total);
+        if (String(card.groupRevenue || '') !== newVal){
+          card.groupRevenue = newVal;
+          changed = true;
+          updates.push(bossName + '('+academy+') → ' + total);
+        }
+      }
+    });
+    if (changed){
+      localStorage.setItem('castle_cards_v1', JSON.stringify(cards));
+      console.log('[card-sync] 已同步學院年度業績：' + updates.join('；'));
+      // 觸發首頁重繪
+      try { if (typeof updateScoreDisplay === 'function') updateScoreDisplay(); } catch(e){}
+      // 觸發 castle-cards 重繪（如果開著）
+      try {
+        var castleFrame = document.querySelector('iframe[src*="castle-cards"]');
+        if (castleFrame && castleFrame.contentWindow && castleFrame.contentWindow.renderCards){
+          castleFrame.contentWindow.cards = cards;
+          castleFrame.contentWindow.renderCards();
+        }
+      } catch(e){}
+    }
+  } catch(e){
+    console.warn('[card-sync] 同步學院年度業績失敗', e);
+  }
+}
+
+// Hook：app boot + firebase sync 完成
+window.addEventListener('load', function(){
+  setTimeout(syncAcademyRevenueFromMotivArchive, 1500);
+});
+window.addEventListener('firebase-sync-ready', function(){
+  setTimeout(syncAcademyRevenueFromMotivArchive, 500);
+});
+window.addEventListener('firebase-sync-updated', function(){
+  setTimeout(syncAcademyRevenueFromMotivArchive, 500);
+});
+// ★ 業績數據中心匯入/同步新月份 → 立刻更新卡片
+window.addEventListener('motiv-archive-updated', function(e){
+  console.log('[card-sync] 收到 motiv-archive-updated 事件，立刻同步學院業績');
+  setTimeout(syncAcademyRevenueFromMotivArchive, 200);
+});
 function updateScoreDisplay(){
   // 年度業績達成率（從 castle_cards_v1 讀取當前角色資料）
   var pct=0, personal=0, groupRev=0, groupTarget=0, groupRatio=0;
@@ -3409,7 +3513,7 @@ function perfOpen(){
   ov.classList.add('active');
   const frame=document.getElementById('perfFrame');
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
-  const TARGET_SRC='performance-compare.html?v=idb5';
+  const TARGET_SRC='performance-compare.html?v=acadsync';
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes(TARGET_SRC.split('?')[1]))
     frame.src=TARGET_SRC;
   // ★ 用 sessionStorage 記住「業績數據中心曾開啟過」（重整後自動還原）
