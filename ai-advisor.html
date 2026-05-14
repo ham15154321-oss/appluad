@@ -529,7 +529,7 @@ body.day-mode .file-status{color:#8070a0;}
 
 <div class="add-modal-bg" id="caseModal"><div class="add-modal">
   <h3>＋ 新增案例</h3>
-  <select id="caseType"><option value="good">📗 好案例</option><option value="bad">📕 壞案例</option><option value="data">📊 數據查詢案例</option></select>
+  <select id="caseType"><option value="good">📗 好案例</option><option value="bad">📕 踩過的坑</option><option value="data">📊 數據查詢案例</option></select>
   <textarea id="caseText" placeholder="描述案例內容..."></textarea>
   <div class="btn-row"><button class="btn-cancel" onclick="closeModal('caseModal')">取消</button><button class="btn-save" onclick="addCase()">新增</button></div>
 </div></div>
@@ -1694,18 +1694,15 @@ function renderRules(){
 // ══════ 案例資料庫 ══════
 var caseFilter='all';
 function openAddCase(){
-  var type=prompt('案例類型（輸入 1=好案例、2=壞案例、3=數據查詢案例）：');
-  if(!type)return;
-  var t=type.trim();
-  var caseType='good';
-  if(t==='2'||type.indexOf('壞')>=0) caseType='bad';
-  else if(t==='3'||type.indexOf('數據')>=0) caseType='data';
-  var label=caseType==='good'?'📗 好案例':(caseType==='bad'?'📕 壞案例':'📊 數據查詢案例');
-  var text=prompt(label+'，請描述內容：');
-  if(!text||!text.trim())return;
-  var items=LS(SK.casedb);
-  items.push({id:'c_'+Date.now(),type:caseType,text:text.trim(),marquee:false,createdAt:Date.now()});
-  SS(SK.casedb,items);renderCaseDb();
+  // ★ 用既有的 caseModal（含下拉選單 + textarea），而不是 prompt
+  var caseTypeEl = document.getElementById('caseType');
+  var caseTextEl = document.getElementById('caseText');
+  if (caseTypeEl) caseTypeEl.value = 'good';
+  if (caseTextEl) caseTextEl.value = '';
+  var modal = document.getElementById('caseModal');
+  if (modal) modal.classList.add('open');
+  // focus textarea 讓使用者快速輸入
+  setTimeout(function(){ if (caseTextEl) caseTextEl.focus(); }, 50);
 }
 function addCase(){
   var type=document.getElementById('caseType').value,text=document.getElementById('caseText').value.trim();if(!text)return;
@@ -1721,7 +1718,7 @@ function renderCaseDb(){
   var filterHtml='<div class="case-filters">'
     +'<button class="case-filter'+(caseFilter==='all'?' active':'')+'" onclick="setCaseFilter(\'all\')">全部 ('+items.length+')</button>'
     +'<button class="case-filter'+(caseFilter==='good'?' active':'')+'" onclick="setCaseFilter(\'good\')">📗 好案例 ('+items.filter(function(x){return x.type==='good';}).length+')</button>'
-    +'<button class="case-filter'+(caseFilter==='bad'?' active':'')+'" onclick="setCaseFilter(\'bad\')">📕 壞案例 ('+items.filter(function(x){return x.type==='bad';}).length+')</button>'
+    +'<button class="case-filter'+(caseFilter==='bad'?' active':'')+'" onclick="setCaseFilter(\'bad\')">📕 踩過的坑 ('+items.filter(function(x){return x.type==='bad';}).length+')</button>'
     +'<button class="case-filter'+(caseFilter==='data'?' active':'')+'" onclick="setCaseFilter(\'data\')" style="'+(caseFilter==='data'?'background:rgba(74,234,255,.12);border-color:#4aeaff;color:#4aeaff;':'')+'">📊 數據查詢案例 ('+items.filter(function(x){return x.type==='data';}).length+')</button>'
     +'<button class="case-filter" onclick="setCaseFilter(\'marquee\')" style="'+(caseFilter==='marquee'?'background:rgba(255,215,0,.12);border-color:#ffd700;color:#ffd700;':'')+'">📢 跑馬燈 ('+items.filter(function(x){return x.marquee;}).length+')</button>'
     +'</div>';
@@ -1738,7 +1735,7 @@ function renderCaseDb(){
     if (lines.length > 2 && !preview.endsWith('…')) preview += '…';
     return '<div class="case-item '+c.type+'" style="cursor:pointer;" onclick="openCaseDetail(\''+c.id+'\')" title="點擊看全文">'
       +'<input type="checkbox" class="case-check" '+(c.marquee?'checked':'')+' onchange="event.stopPropagation();toggleMarquee(\''+c.id+'\')" onclick="event.stopPropagation()" title="勾選後顯示在首頁跑馬燈">'
-      +'<span class="case-tag '+c.type+'">'+(c.type==='good'?'📗 好':(c.type==='bad'?'📕 壞':'📊 數據'))+'</span>'
+      +'<span class="case-tag '+c.type+'">'+(c.type==='good'?'📗 好':(c.type==='bad'?'📕 坑':'📊 數據'))+'</span>'
       +'<span class="case-text">'+esc(preview||'(空白)')+'</span>'
       +'<span class="case-edit" onclick="event.stopPropagation();editCase(\''+c.id+'\')" style="cursor:pointer;padding:4px 8px;opacity:.7;font-size:.78rem;" title="編輯內容">✏️ 編輯</span>'
       +'<span class="case-del" onclick="event.stopPropagation();delCase(\''+c.id+'\')">🗑 刪除</span></div>';
@@ -1764,7 +1761,7 @@ function editCase(id){
     return;
   }
   // 把 body 換成 textarea 讓使用者編輯
-  var typeLabel = c.type==='good'?'📗 好案例':(c.type==='bad'?'📕 壞案例':'📊 數據查詢案例');
+  var typeLabel = c.type==='good'?'📗 好案例':(c.type==='bad'?'📕 踩過的坑':'📊 數據查詢案例');
   titleEl.textContent = '✏️ 編輯' + typeLabel;
   bodyEl.innerHTML = '<textarea id="caseEditTextarea" style="width:100%;min-height:300px;padding:12px;background:rgba(15,20,60,.3);border:1px solid rgba(74,234,255,.25);border-radius:8px;color:#d0e8ff;font-family:inherit;font-size:.9rem;line-height:1.6;resize:vertical;">'+esc(c.text||'')+'</textarea>'
     + '<div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">'
@@ -1789,7 +1786,7 @@ function saveCaseEdit(id){
 function openCaseDetail(id){
   var items=LS(SK.casedb),c=items.find(function(x){return x.id===id;});
   if(!c)return;
-  var typeLabel=c.type==='good'?'📗 好案例':(c.type==='bad'?'📕 壞案例':'📊 數據查詢案例');
+  var typeLabel=c.type==='good'?'📗 好案例':(c.type==='bad'?'📕 踩過的坑':'📊 數據查詢案例');
   var date=c.createdAt?new Date(c.createdAt).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
   document.getElementById('caseDetailTitle').textContent=typeLabel+(date?' · '+date:'');
   document.getElementById('caseDetailBody').textContent=c.text||'(空白)';
