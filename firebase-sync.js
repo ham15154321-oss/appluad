@@ -1039,8 +1039,127 @@ function schedulePush(){
   syncTimer = setTimeout(pushToCloud, SYNC_DEBOUNCE_MS);
 }
 
+// ★ 自動清理 LS quota — 當 setItem 因 quota 失敗時自動清重複/過長資料後重試
+//   這樣使用者就不會看到 quota error，系統自我清理
+function _autoCleanLS(){
+  var freed = 0;
+  var actions = [];
+
+  // 1. 去除重複的 char_*_prCases（跟全域 prCases 內容一樣的）
+  try {
+    var globalPr = localStorage.getItem('prCases') || '';
+    if (globalPr.length > 100){
+      for (var i = localStorage.length-1; i >= 0; i--) {
+        var k = localStorage.key(i);
+        if (k && /^char_.+_prCases$/.test(k)) {
+          var v = localStorage.getItem(k) || '';
+          if (v === globalPr || v.length === globalPr.length) {
+            freed += v.length;
+            _origRemove(k);
+          }
+        }
+      }
+    }
+  } catch(e){}
+
+  // 2. 去除重複的 char_*_team_issues
+  try {
+    var refTi = null;
+    for (var i = localStorage.length-1; i >= 0; i--) {
+      var k = localStorage.key(i);
+      if (k && /^char_.+_team_issues$/.test(k)) {
+        var v = localStorage.getItem(k) || '';
+        if (!refTi) refTi = v;
+        else if (v === refTi || v.length === refTi.length) {
+          freed += v.length;
+          _origRemove(k);
+        }
+      }
+    }
+  } catch(e){}
+
+  // 3. Trim 過長的 chat history（>30 則 → 只留最近 30 則）
+  try {
+    for (var i = localStorage.length-1; i >= 0; i--) {
+      var k = localStorage.key(i);
+      if (k && /^char_.+_ai_chat_.+_v1$/.test(k)) {
+        var v = localStorage.getItem(k) || '';
+        if (v.length > 30000){  // > 30KB 才處理
+          try {
+            var arr = JSON.parse(v);
+            if (Array.isArray(arr) && arr.length > 30){
+              var trimmed = arr.slice(-30);
+              var newVal = JSON.stringify(trimmed);
+              freed += v.length - newVal.length;
+              _origSet(k, newVal);
+            }
+          } catch(e){}
+        }
+      }
+    }
+  } catch(e){}
+
+  // 4. 清掉太舊的 motiv_archive LS（已搬到 IDB）
+  try {
+    for (var i = localStorage.length-1; i >= 0; i--) {
+      var k = localStorage.key(i);
+      if (k && /^char_.+_motiv_archive$/.test(k)){
+        var v = localStorage.getItem(k) || '';
+        freed += v.length;
+        _origRemove(k);
+      }
+    }
+  } catch(e){}
+
+  // 5. 清掉太舊的 char_*_training_sales_v2 LS（已搬到 IDB）
+  try {
+    for (var i = localStorage.length-1; i >= 0; i--) {
+      var k = localStorage.key(i);
+      if (k && /^char_.+_training_sales_v2$/.test(k)){
+        var v = localStorage.getItem(k) || '';
+        freed += v.length;
+        _origRemove(k);
+      }
+    }
+  } catch(e){}
+
+  if (freed > 0){
+    console.log('[FirebaseSync] 🧹 自動清理 LS：釋出 ' + (freed/1024).toFixed(1) + ' KB');
+  }
+  return freed;
+}
+
+// ★ 帶 quota 自動清理的 setItem wrapper
+//   被 firebase-sync 的 setItem override 呼叫
+function _safeSetItemWithCleanup(k, v){
+  try {
+    _origSet(k, v);
+    return true;
+  } catch(e){
+    if (e && (e.name === 'QuotaExceededError' || /quota|exceeded/i.test(e.message || ''))){
+      console.warn('[FirebaseSync] setItem quota 爆滿，啟動自動清理：' + k);
+      var freed = _autoCleanLS();
+      if (freed > 0){
+        try {
+          _origSet(k, v);
+          console.log('[FirebaseSync] ✓ 清理後重試成功：' + k);
+          return true;
+        } catch(e2){
+          console.error('[FirebaseSync] ✗ 清理後重試仍失敗，建議手動清理：' + k);
+          throw e2;
+        }
+      } else {
+        // 沒可清的資料 → 拋出讓上層處理
+        throw e;
+      }
+    }
+    throw e;
+  }
+}
+
 localStorage.setItem = function(k, v){
-  _origSet(k, v);
+  // ★ 用帶 quota 自動清理的 wrapper（避免使用者看到 quota error）
+  _safeSetItemWithCleanup(k, v);
   if (!isLocalOnlyKey(k)) {
     _recordLocalTs(k);
     schedulePush();

@@ -457,7 +457,9 @@ body.day-mode .file-status{color:#8070a0;}
     </div>
   </div>
   <div class="pin-side">
-    <div class="pin-side-hd">📌 釘選話題 <span id="pinCount" style="float:right;color:#6a8fcc;font-weight:400;font-size:.7rem;"></span></div>
+    <div class="pin-side-hd">📌 釘選話題 <span id="pinCount" style="float:right;color:#6a8fcc;font-weight:400;font-size:.7rem;"></span>
+      <button id="pinsAdminBtn" onclick="openPinsAdmin()" style="display:none;margin-top:6px;width:100%;padding:5px 8px;border-radius:6px;background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.3);color:#ffd700;font-size:.7rem;cursor:pointer;font-weight:600;">👀 查看所有主角的釘選</button>
+    </div>
     <div class="pin-list" id="pinList"></div>
     <div class="pin-page" id="pinPageNav"></div>
     <div class="pin-empty" id="pinEmpty">點「📌 釘選」保存話題<br>可延伸深入討論</div>
@@ -589,6 +591,14 @@ body.day-mode .file-status{color:#8070a0;}
   <div class="btn-row"><button class="btn-cancel" onclick="closeModal('pmemoryAdminModal')">關閉</button></div>
 </div></div>
 
+<!-- 黃柏翰專屬：查看所有主角的釘選話題 Modal -->
+<div class="add-modal-bg" id="pinsAdminModal"><div class="add-modal" style="max-width:880px;max-height:85vh;display:flex;flex-direction:column;">
+  <h3>👀 所有主角的釘選話題（管理員視圖）</h3>
+  <div style="font-size:.75rem;color:rgba(180,200,240,.7);margin-bottom:10px;">這個視圖只有黃柏翰看得到。其他主角只能看自己的釘選。點任一釘選展開對話歷史。</div>
+  <div id="pinsAdminBody" style="flex:1;overflow-y:auto;padding:4px;"></div>
+  <div class="btn-row"><button class="btn-cancel" onclick="closeModal('pinsAdminModal')">關閉</button></div>
+</div></div>
+
 <!-- 結案詳情 Modal -->
 <div class="add-modal-bg" id="closedDetailModal"><div class="add-modal" style="max-width:600px;max-height:80vh;display:flex;flex-direction:column;">
   <h3 id="closedDetailTitle">結案詳情</h3>
@@ -695,7 +705,10 @@ var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:
 //   會顯示在「🔐 個人私聊資料庫」面板，所有 AI 功能對話時會自動參考
 function _pmemoryKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.pmemory; }
 function _loadPmemory(charId){ try{ var raw=localStorage.getItem(_pmemoryKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
-function _savePmemory(arr,charId){ try{ localStorage.setItem(_pmemoryKey(charId), JSON.stringify(arr||[])); }catch(e){} }
+function _savePmemory(arr,charId){
+  // ★ 不再 silent fail：把 quota error 拋出來讓呼叫端顯示給使用者
+  localStorage.setItem(_pmemoryKey(charId), JSON.stringify(arr||[]));
+}
 
 // ★ 釘選話題（pins）是「per character」儲存：LS key = 'char_<id>_ai_pins_v1'
 //   每個主角只看得到自己的釘選話題；黃柏翰可以額外看所有主角（admin view）
@@ -1407,11 +1420,30 @@ function _loadChatHist(feature){
     return raw ? (JSON.parse(raw) || []) : [];
   }catch(e){ return []; }
 }
+// ★ 保留最近 N 則訊息（避免 chat history 無限增長爆 LS quota）
+//   每則 AI 回覆可能 1-5KB，50 則 ≈ 100-250KB
+var CHAT_HIST_MAX = 50;
 function _saveChatHist(feature, history){
+  var arr = history || [];
+  // 過長時 trim 掉最舊的訊息
+  if (arr.length > CHAT_HIST_MAX) {
+    arr = arr.slice(-CHAT_HIST_MAX);
+    console.log('[ai-chat] 對話歷史過長，已 trim 到最近 ' + CHAT_HIST_MAX + ' 則');
+  }
   try{
-    localStorage.setItem(_chatHistKey(feature), JSON.stringify(history || []));
+    localStorage.setItem(_chatHistKey(feature), JSON.stringify(arr));
   }catch(e){
     console.warn('[ai-chat] history save failed', e.message);
+    // ★ 救急：quota 滿時，繼續 trim 到一半再試
+    if (e.name === 'QuotaExceededError' || /quota|exceeded/i.test(e.message)){
+      try {
+        var half = arr.slice(-Math.floor(CHAT_HIST_MAX/2));
+        localStorage.setItem(_chatHistKey(feature), JSON.stringify(half));
+        console.log('[ai-chat] 救急：trim 一半後成功（保留 ' + half.length + ' 則）');
+      } catch(e2){
+        console.error('[ai-chat] 救急失敗，建議清掉重複 LS keys 釋出空間');
+      }
+    }
   }
 }
 function _clearChatHist(feature){
@@ -1705,6 +1737,81 @@ function renderPinList(){
   var nav=document.getElementById('pinPageNav');
   if(pages<=1)nav.innerHTML='';
   else nav.innerHTML=Array.from({length:pages},function(_,i){return '<button class="pp-btn'+(i===pinPage?' active':'')+'" onclick="pinPage='+i+';renderPinList();">'+(i+1)+'</button>';}).join('');
+  // ★ 黃柏翰才看得到「查看所有主角的釘選」按鈕
+  try {
+    var charName = localStorage.getItem('activeCharacterName') || '';
+    var adminBtn = document.getElementById('pinsAdminBtn');
+    if (adminBtn) adminBtn.style.display = (charName === '黃柏翰') ? 'block' : 'none';
+  } catch(e){}
+}
+
+// ★ 黃柏翰專屬：查看所有主角的釘選話題
+function openPinsAdmin(){
+  var name = localStorage.getItem('activeCharacterName') || '';
+  if (name !== '黃柏翰'){ alert('只有黃柏翰可以查看所有主角的釘選話題。'); return; }
+
+  var body = document.getElementById('pinsAdminBody');
+  // 掃 localStorage 找所有 char_*_ai_pins_v1 的 key
+  var charBuckets = {}; // {charId: [pins]}
+  for (var i = 0; i < localStorage.length; i++){
+    var k = localStorage.key(i);
+    var m = k && k.match(/^char_(.+?)_ai_pins_v1$/);
+    if (m){
+      try {
+        var arr = JSON.parse(localStorage.getItem(k)) || [];
+        if (arr.length) charBuckets[m[1]] = arr;
+      } catch(e){}
+    }
+  }
+  var charIds = Object.keys(charBuckets).sort();
+  if (!charIds.length){
+    body.innerHTML = '<div class="panel-empty" style="padding:30px;">尚無任何主角建立過釘選話題。</div>';
+  } else {
+    var html = '';
+    charIds.forEach(function(cid){
+      var pinArr = charBuckets[cid];
+      html += '<div style="margin-bottom:18px;border:1px solid rgba(74,234,255,.2);border-radius:10px;padding:12px;background:rgba(74,234,255,.04);">';
+      html += '<div style="font-weight:700;color:#4aeaff;font-size:.95rem;margin-bottom:8px;">👤 ' + esc(cid) + ' <span style="font-size:.72rem;font-weight:400;color:rgba(180,200,240,.6);margin-left:6px;">' + pinArr.length + ' 個釘選</span></div>';
+      pinArr.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); }).forEach(function(p){
+        var f = FEATURES[p.feature] || {icon:'📌', title:'未知'};
+        var d = p.createdAt ? new Date(p.createdAt).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+        var histCount = (p.history || []).length;
+        html += '<div style="padding:8px 10px;margin:5px 0;border-radius:6px;background:rgba(255,255,255,.03);font-size:.82rem;cursor:pointer;" onclick="openPinsAdminDetail(\'' + cid + '\',\'' + p.id + '\')" title="點擊看完整對話歷史">';
+        html += '<div style="font-size:.7rem;color:rgba(180,200,240,.55);margin-bottom:3px;">' + f.icon + ' ' + f.title + ' · ' + d + ' · ' + histCount + ' 則訊息</div>';
+        html += '<div style="color:#dde6f0;font-weight:600;">' + esc(p.title || '(未命名)') + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    });
+    body.innerHTML = html;
+  }
+  document.getElementById('pinsAdminModal').classList.add('open');
+}
+
+// ★ 從 admin 視圖點某釘選 → 開「對話歷史」 modal（複用 caseDetailModal 結構）
+function openPinsAdminDetail(charId, pinId){
+  try {
+    var raw = localStorage.getItem('char_' + charId + '_ai_pins_v1');
+    var arr = raw ? JSON.parse(raw) : [];
+    var p = arr.find(function(x){ return x.id === pinId; });
+    if (!p) return;
+    var f = FEATURES[p.feature] || {icon:'📌', title:'未知'};
+    var titleEl = document.getElementById('caseDetailTitle');
+    var bodyEl = document.getElementById('caseDetailBody');
+    if (!titleEl || !bodyEl) return;
+    titleEl.textContent = '👤 ' + charId + ' · ' + f.icon + ' ' + (p.title || '(未命名)');
+    var html = '';
+    (p.history || []).forEach(function(m){
+      var role = m.role === 'user' ? '🧑 主管' : '🤖 AI';
+      var bg = m.role === 'user' ? 'rgba(74,234,255,.08)' : 'rgba(255,215,0,.04)';
+      html += '<div style="margin-bottom:10px;padding:10px;background:' + bg + ';border-radius:8px;">';
+      html += '<div style="font-size:.72rem;color:rgba(180,200,240,.6);margin-bottom:4px;font-weight:700;">' + role + '</div>';
+      html += '<div style="white-space:pre-wrap;font-size:.85rem;line-height:1.6;color:#dde6f0;">' + esc(m.content || '') + '</div>';
+      html += '</div>';
+    });
+    bodyEl.innerHTML = html || '<div style="color:rgba(180,200,240,.5);">(無對話內容)</div>';
+    document.getElementById('caseDetailModal').classList.add('open');
+  } catch(e){ console.warn('[openPinsAdminDetail]', e); }
 }
 
 // ══════ 時間軸 ══════
