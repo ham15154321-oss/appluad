@@ -697,6 +697,39 @@ function _pmemoryKey(charId){ return 'char_'+(charId||localStorage.getItem('acti
 function _loadPmemory(charId){ try{ var raw=localStorage.getItem(_pmemoryKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
 function _savePmemory(arr,charId){ try{ localStorage.setItem(_pmemoryKey(charId), JSON.stringify(arr||[])); }catch(e){} }
 
+// ★ 釘選話題（pins）是「per character」儲存：LS key = 'char_<id>_ai_pins_v1'
+//   每個主角只看得到自己的釘選話題；黃柏翰可以額外看所有主角（admin view）
+function _pinsKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.pins; }
+function _loadPins(charId){ try{ var raw=localStorage.getItem(_pinsKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
+function _savePins(arr,charId){ try{ localStorage.setItem(_pinsKey(charId), JSON.stringify(arr||[])); }catch(e){} }
+
+// ★ 結案紀錄（closed）也是「per character」（跟 pins 配套，關閉的釘選會歸檔到這裡）
+function _closedKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.closed; }
+function _loadClosed(charId){ try{ var raw=localStorage.getItem(_closedKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
+function _saveClosed(arr,charId){ try{ localStorage.setItem(_closedKey(charId), JSON.stringify(arr||[])); }catch(e){} }
+
+// ★ 一次性遷移：把舊版全域 ai_pins_v1 / ai_closed_v1 搬到當前主角的 per-char key
+(function _migratePinsToPerChar(){
+  try{
+    var charId = localStorage.getItem('activeCharacterId');
+    if (!charId) return;
+    ['pins', 'closed'].forEach(function(k){
+      var oldKey = SK[k];
+      var newKey = (k==='pins' ? _pinsKey : _closedKey)(charId);
+      var oldRaw = localStorage.getItem(oldKey);
+      var newRaw = localStorage.getItem(newKey);
+      if (oldRaw && !newRaw){
+        // 舊全域有資料 + 新 per-char 沒有 → 搬過去
+        try{
+          localStorage.setItem(newKey, oldRaw);
+          // 不刪舊 key（其他主角第一次登入時也用同一份初始化；之後各自獨立）
+          console.log('[ai-advisor] 已遷移 '+oldKey+' → '+newKey);
+        }catch(e){}
+      }
+    });
+  }catch(e){}
+})();
+
 // ★ Anthropic API Proxy（部署在 Cloudflare Workers，後端帶 key）
 var PROXY_BASE = 'https://anthropic-proxy.ivanapplaud.workers.dev';
 
@@ -970,7 +1003,45 @@ function getPerfCtx(){
   return l.length?l.join('\n'):'（無數據）';}catch(e){return '';}
 }
 function getRulesCtx(){var r=LS(SK.rules);if(!r.length)return '';return '團隊鐵律 — 來自 AI 團隊宣言】\n'+r.map(function(x,i){return(i+1)+'. '+x.text;}).join('\n');}
-function getCaseDbCtx(){var c=LS(SK.casedb);if(!c.length)return '';var l=['案例資料庫 — 來自 AI 案例庫】'];c.forEach(function(x){var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕壞案例':'📊數據查詢案例');l.push(lbl+' '+x.text);});return l.join('\n');}
+function getCaseDbCtx(){var c=LS(SK.casedb);if(!c.length)return '';var l=['案例資料庫 — 來自 AI 案例庫】'];c.forEach(function(x){var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕踩過的坑':'📊數據查詢案例');l.push(lbl+' '+x.text);});return l.join('\n');}
+
+// ★ 釘選話題（per-character）：當前主角自己的釘選對話歷史
+function getPinsCtx(){
+  var pins = _loadPins();
+  if (!pins.length) return '';
+  var l = ['📌 釘選話題 — 該主角自己重要的歷史對話】'];
+  pins.slice(0, 10).forEach(function(p){
+    var f = FEATURES[p.feature] || {icon:'📌',title:'未知'};
+    l.push(f.icon + ' ' + p.title + '（' + f.title + '，' + ((p.history||[]).length) + ' 則訊息）');
+  });
+  if (pins.length > 10) l.push('...等共 ' + pins.length + ' 個釘選話題');
+  return l.join('\n');
+}
+
+// ★ 結案紀錄（per-character）：該主角已處理結束的話題（已解決的問題參考）
+function getClosedCtx(){
+  var closed = _loadClosed();
+  if (!closed.length) return '';
+  var l = ['📋 結案紀錄 — 該主角已處理過的話題（可參考歷史解法）】'];
+  closed.slice(0, 10).forEach(function(c){
+    var f = FEATURES[c.feature] || {icon:'📋',title:'未知'};
+    l.push(f.icon + ' ' + c.title + '（' + f.title + '，' + new Date(c.closedAt||c.createdAt||0).toLocaleDateString('zh-TW') + '）');
+  });
+  if (closed.length > 10) l.push('...等共 ' + closed.length + ' 筆結案');
+  return l.join('\n');
+}
+
+// ★ 我要挑戰AI的論點（aierror，全主角共享）：使用者對 AI 回答的質疑紀錄
+//   讓 AI 看到自己被挑戰過的地方，下次更謹慎
+function getAiErrorCtx(){
+  var errs = LS(SK.aierror);
+  if (!errs.length) return '';
+  var l = ['💪 AI 曾被質疑的論點 — 這是其他主管挑戰 AI 過去回答錯誤/不足之處，回答時要避免犯同樣錯誤】'];
+  errs.slice(0, 10).forEach(function(e){
+    l.push('• ' + (e.text || e.content || '').substring(0, 200));
+  });
+  return l.join('\n');
+}
 
 // ★ 月績效中心 8 個報表（從業績數據中心 → 每月績效，全主角共享 mp_data_v1）
 // 包含 ❶ 通路名單來源分析、❷ 通路業績、❸ 業務個人績效、❹ 正式小組業績總表、
@@ -1287,6 +1358,13 @@ function getFullContext(){
   var tl=getTimelineCtx();if(tl)parts.push(tl);
   var others=getOtherCharsCtx();if(others)parts.push(others);
   var kb=localStorage.getItem(SK.teamkb);if(kb)parts.push('📣 團隊知識庫\n'+kb);
+  // ★ 新增三類 context（讓 AI 更聰明）：
+  //   - 釘選話題：該主角自己的重要對話歷史
+  //   - 結案紀錄：該主角已處理過的話題
+  //   - 我要挑戰AI的論點：使用者對 AI 過去回答的質疑（讓 AI 自我修正）
+  var pinsCtx=getPinsCtx();if(pinsCtx)parts.push(pinsCtx);
+  var closedCtx=getClosedCtx();if(closedCtx)parts.push(closedCtx);
+  var errCtx=getAiErrorCtx();if(errCtx)parts.push(errCtx);
   if(!parts.length)return '';
   return '\n\n═══ 系統資料（全站數據·所有模組共享）═══\n'+parts.join('\n\n')+'\n═══════════════════════════════';
 }
@@ -1557,27 +1635,27 @@ async function sendMsg(){
 // ══════ 釘選系統 ══════
 function pinTopic(){
   if(!curFeature||!curTopicId)return;
-  var pins=LS(SK.pins),exists=pins.find(function(p){return p.id===curTopicId;});
-  if(exists){pins=pins.filter(function(p){return p.id!==curTopicId;});SS(SK.pins,pins);updatePinBtn(false);renderPinList();return;}
+  var pins=_loadPins(),exists=pins.find(function(p){return p.id===curTopicId;});
+  if(exists){pins=pins.filter(function(p){return p.id!==curTopicId;});_savePins(pins);updatePinBtn(false);renderPinList();return;}
   var msgs=document.querySelectorAll('#chatMsgs .msg.user');
   var autoTitle=msgs.length?msgs[0].textContent.substring(0,30):'新話題';
   var title=prompt('📌 為這個釘選命名：',autoTitle);
   if(title===null)return; // 取消
   if(!title.trim())title=autoTitle;
   pins.push({id:curTopicId,feature:curFeature,title:title.trim(),history:collectHistory(),createdAt:Date.now()});
-  SS(SK.pins,pins);updatePinBtn(true);renderPinList();
+  _savePins(pins);updatePinBtn(true);renderPinList();
 }
 function renamePin(id){
-  var pins=LS(SK.pins),p=pins.find(function(x){return x.id===id;});if(!p)return;
+  var pins=_loadPins(),p=pins.find(function(x){return x.id===id;});if(!p)return;
   var name=prompt('📌 重新命名：',p.title);
   if(name===null||!name.trim())return;
-  p.title=name.trim();SS(SK.pins,pins);renderPinList();
+  p.title=name.trim();_savePins(pins);renderPinList();
 }
 function updatePinBtn(on){var b=document.getElementById('pinBtn');b.textContent=on?'📌 已釘選':'📌 釘選';b.classList.toggle('pinned',on);}
-function autoSavePin(){if(!curTopicId)return;var pins=LS(SK.pins),p=pins.find(function(x){return x.id===curTopicId;});if(!p)return;p.history=collectHistory();SS(SK.pins,pins);}
+function autoSavePin(){if(!curTopicId)return;var pins=_loadPins(),p=pins.find(function(x){return x.id===curTopicId;});if(!p)return;p.history=collectHistory();_savePins(pins);}
 
 function openPin(id){
-  var pins=LS(SK.pins),p=pins.find(function(x){return x.id===id;});if(!p)return;
+  var pins=_loadPins(),p=pins.find(function(x){return x.id===id;});if(!p)return;
   autoSavePin();
   curFeature=p.feature;curTopicId=p.id;
   var f=FEATURES[curFeature];
@@ -1593,21 +1671,21 @@ function openPin(id){
 }
 
 function deletePin(id){
-  var pins=LS(SK.pins),p=pins.find(function(x){return x.id===id;});
+  var pins=_loadPins(),p=pins.find(function(x){return x.id===id;});
   if(!p)return;
   // 移到結案
-  var closed=LS(SK.closed);
+  var closed=_loadClosed();
   closed.unshift({id:p.id,feature:p.feature,title:p.title,history:p.history,createdAt:p.createdAt,closedAt:Date.now()});
-  SS(SK.closed,closed);
+  _saveClosed(closed);
   // 從釘選移除
   pins=pins.filter(function(x){return x.id!==id;});
-  SS(SK.pins,pins);
+  _savePins(pins);
   if(curTopicId===id){curTopicId=null;updatePinBtn(false);}
   renderPinList();updateClosedBadge();
 }
 
 function renderPinList(){
-  var pins=LS(SK.pins);
+  var pins=_loadPins();
   var fp=curFeature?pins.filter(function(p){return p.feature===curFeature;}):pins;
   var pages=Math.max(1,Math.ceil(fp.length/5));if(pinPage>=pages)pinPage=pages-1;
   var slice=fp.slice(pinPage*5,pinPage*5+5);
@@ -2074,11 +2152,11 @@ function syncMarquee(){
 }
 
 // ══════ 結案 ══════
-function updateClosedBadge(){var n=LS(SK.closed).length;document.getElementById('closedBadge').textContent=n;updatePmemoryBadge();updateAiErrorBadge();}
+function updateClosedBadge(){var n=_loadClosed().length;document.getElementById('closedBadge').textContent=n;updatePmemoryBadge();updateAiErrorBadge();}
 function updatePmemoryBadge(){try{var n=_loadPmemory().length;var b=document.getElementById('pmemoryBadge');if(b)b.textContent=n;}catch(e){}}
 function updateAiErrorBadge(){try{var n=_aiErrLoad().filter(function(r){return r.status==='open';}).length;var b=document.getElementById('aierrorBadge');if(b)b.textContent=n;}catch(e){}}
 function openClosedDetail(id){
-  var items=LS(SK.closed),c=items.find(function(x){return x.id===id;});if(!c)return;
+  var items=_loadClosed(),c=items.find(function(x){return x.id===id;});if(!c)return;
   var f=FEATURES[c.feature]||{title:'?',icon:'?'};
   document.getElementById('closedDetailTitle').textContent=f.icon+' '+f.title+' — '+c.title;
   var body=c.history.map(function(m){return(m.role==='user'?'👤 ':'🤖 ')+m.content;}).join('\n\n─────────────\n\n');
@@ -2086,7 +2164,7 @@ function openClosedDetail(id){
   document.getElementById('closedDetailModal').classList.add('open');
 }
 function renderClosed(){
-  var items=LS(SK.closed),el=document.getElementById('closedBody');
+  var items=_loadClosed(),el=document.getElementById('closedBody');
   updateClosedBadge();
   if(!items.length){el.innerHTML='<div class="panel-empty">📋 尚無結案紀錄<br>刪除的釘選話題會自動歸檔到這裡</div>';return;}
   el.innerHTML=items.map(function(c){
