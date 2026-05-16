@@ -2948,7 +2948,9 @@ function loadTrainReminders(){
 
   let items = [];
   try{
-    const raw = localStorage.getItem('appedu_training_library');
+    // v3：key 已改名為 training_library_v1（原 appedu_training_library 已棄用，因為前綴在 LOCAL_ONLY）
+    let raw = localStorage.getItem('training_library_v1');
+    if(!raw) raw = localStorage.getItem('appedu_training_library'); // 向下相容
     if(raw){
       const d = JSON.parse(raw);
       if(d && d.items) items = d.items.filter(function(it){ return it.needRemind; });
@@ -3555,7 +3557,7 @@ function showFloatingUI(){
 // ========== AI 顧問 ==========
 function openAiAdvisor(){
   stopBgm();
-  document.getElementById('aiFrame').src='ai-advisor.html?v=pmemidb';
+  document.getElementById('aiFrame').src='ai-advisor.html?v=tasks2';
   document.getElementById('aiOverlay').classList.add('active');
   hideFloatingUI();
 }

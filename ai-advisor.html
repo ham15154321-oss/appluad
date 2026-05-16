@@ -469,7 +469,16 @@ body.day-mode .file-status{color:#8070a0;}
 <!-- ===== 3. 時間軸 ===== -->
 <div class="view panel-view" id="v_timeline">
   <div class="panel-header"><h2>📅 時間軸 — AI 任務追蹤</h2><button class="panel-add-btn" onclick="openAddTask()">＋ 新增任務</button></div>
-  <div class="panel-body" id="timelineBody"></div>
+  <!-- 兩欄佈局：左邊任務列表、右邊預覽 -->
+  <div style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,1.2fr);gap:14px;padding:8px 0;align-items:flex-start;">
+    <div class="panel-body" id="timelineBody" style="max-height:calc(100vh - 220px);overflow-y:auto;"></div>
+    <div id="timelinePreview" style="background:rgba(74,234,255,.04);border:1px solid rgba(74,234,255,.18);border-radius:12px;padding:14px;min-height:200px;color:#dde6f0;font-size:.85rem;line-height:1.6;">
+      <div style="text-align:center;color:rgba(180,200,240,.5);padding:40px 20px;">
+        👈 點任務看詳情<br>
+        <span style="font-size:.75rem;opacity:.7;">指派人、受指派人、附加檔案、作業記錄</span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ===== 4. 鐵律 ===== -->
@@ -512,11 +521,46 @@ body.day-mode .file-status{color:#8070a0;}
 </div>
 
 <!-- ===== Modals ===== -->
-<div class="add-modal-bg" id="taskModal"><div class="add-modal">
-  <h3>＋ 新增任務</h3>
-  <input id="taskName" placeholder="任務名稱">
-  <input id="taskDeadline" type="date">
-  <div class="btn-row"><button class="btn-cancel" onclick="closeModal('taskModal')">取消</button><button class="btn-save" onclick="addTask()">新增</button></div>
+<!-- ★ 新版任務 modal：標題、內容、期限快速按鈕、指派人/受指派人、附加檔案 -->
+<div class="add-modal-bg" id="taskModal"><div class="add-modal" style="max-width:680px;max-height:90vh;overflow-y:auto;">
+  <h3 id="taskModalTitle">＋ 新增任務</h3>
+
+  <div style="display:grid;grid-template-columns:80px 1fr;gap:10px 14px;align-items:flex-start;font-size:.85rem;">
+    <label style="color:#dde6f0;padding-top:8px;">標題</label>
+    <input id="taskName" placeholder="請輸入標題" style="background:rgba(15,20,60,.4);border:1px solid rgba(74,234,255,.25);border-radius:6px;padding:8px;color:#dde6f0;">
+
+    <label style="color:#dde6f0;padding-top:8px;">內容</label>
+    <textarea id="taskContent" placeholder="請輸入內容（選填）" rows="4" style="background:rgba(15,20,60,.4);border:1px solid rgba(74,234,255,.25);border-radius:6px;padding:8px;color:#dde6f0;font-family:inherit;resize:vertical;"></textarea>
+
+    <label style="color:#dde6f0;padding-top:8px;">期限</label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+      <button type="button" class="tk-quick" data-q="" onclick="setTaskQuickDate('')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(180,200,240,.3);background:rgba(74,234,255,.18);color:#4aeaff;cursor:pointer;font-size:.78rem;">無</button>
+      <button type="button" class="tk-quick" onclick="setTaskQuickDate('today')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(180,200,240,.3);background:transparent;color:#dde6f0;cursor:pointer;font-size:.78rem;">今天</button>
+      <button type="button" class="tk-quick" onclick="setTaskQuickDate('tomorrow')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(180,200,240,.3);background:transparent;color:#dde6f0;cursor:pointer;font-size:.78rem;">明天</button>
+      <button type="button" class="tk-quick" onclick="setTaskQuickDate('nextweek')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(180,200,240,.3);background:transparent;color:#dde6f0;cursor:pointer;font-size:.78rem;">下週</button>
+      <input id="taskDeadline" type="date" style="background:rgba(15,20,60,.4);border:1px solid rgba(74,234,255,.25);border-radius:6px;padding:6px 8px;color:#dde6f0;font-size:.78rem;color-scheme:dark;">
+    </div>
+
+    <label style="color:#dde6f0;padding-top:8px;">指派人</label>
+    <div id="taskAssignerArea" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:32px;border:1px solid rgba(74,234,255,.18);border-radius:6px;padding:4px;"></div>
+
+    <label style="color:#dde6f0;padding-top:8px;">受指派人</label>
+    <div>
+      <input id="taskAssigneeSearch" placeholder="點下拉選擇受指派人（可多選）" readonly onclick="toggleAssigneeDropdown()" style="background:rgba(15,20,60,.4);border:1px solid rgba(74,234,255,.25);border-radius:6px;padding:8px;color:#dde6f0;width:100%;cursor:pointer;">
+      <div id="taskAssigneeDropdown" style="display:none;max-height:200px;overflow-y:auto;border:1px solid rgba(74,234,255,.25);border-radius:6px;background:rgba(20,30,70,.95);margin-top:4px;padding:4px;"></div>
+      <div id="taskAssigneeChips" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;"></div>
+    </div>
+
+    <label style="color:#dde6f0;padding-top:8px;">附加檔案</label>
+    <div>
+      <button type="button" onclick="document.getElementById('taskFileInput').click()" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(74,234,255,.3);background:transparent;color:#4aeaff;cursor:pointer;font-size:.8rem;">📎 選擇檔案</button>
+      <input type="file" id="taskFileInput" multiple style="display:none;" onchange="addTaskFiles(this.files)">
+      <span id="taskFileSummary" style="font-size:.74rem;color:rgba(180,200,240,.6);margin-left:8px;">尚未選擇</span>
+      <div id="taskFileList" style="margin-top:6px;display:flex;flex-direction:column;gap:4px;"></div>
+    </div>
+  </div>
+
+  <div class="btn-row" style="margin-top:16px;"><button class="btn-cancel" onclick="closeModal('taskModal')">取消</button><button class="btn-save" onclick="addTask()" id="taskSaveBtn">儲存</button></div>
 </div></div>
 
 <div class="add-modal-bg" id="ruleModal"><div class="add-modal add-modal--lg">
@@ -1951,41 +1995,308 @@ function openPinsAdminDetail(charId, pinId){
   } catch(e){ console.warn('[openPinsAdminDetail]', e); }
 }
 
-// ══════ 時間軸 ══════
+// ══════ 時間軸（新版：標題/內容/期限/指派人/受指派人/附件，含預覽）══════
+// 資料結構：{ id, title, content, deadline, status, assigner, assignees:[], attachments:[{name,size,dataURL}], createdAt, log:[{at, who, action}] }
+var _taskEditId = null;   // 編輯中的任務 id（null=新增）
+var _taskAssigneesTmp = []; // modal 暫存：選了哪些受指派人
+var _taskFilesTmp = [];     // modal 暫存：附加檔案
+
+function _getAllCharacters(){
+  try {
+    var raw = (window.parent && window.parent.localStorage.getItem('castle_cards_v1'))
+            || localStorage.getItem('castle_cards_v1');
+    if (!raw) return [];
+    var cards = JSON.parse(raw);
+    return cards.filter(function(c){
+      return c && c.name && !/^角色 \d+$/.test(c.name);
+    }).map(function(c){ return c.name; });
+  } catch(e){ return []; }
+}
+
+function _curCharName(){
+  try {
+    return (window.parent && window.parent.localStorage.getItem('activeCharacterName'))
+        || localStorage.getItem('activeCharacterName') || '';
+  } catch(e){ return ''; }
+}
+
 function openAddTask(){
-  var name=prompt('請輸入任務名稱：');
-  if(!name||!name.trim())return;
-  var dl=prompt('期限（選填，格式 2026-05-01）：')||'';
-  var items=LS(SK.timeline);
-  items.push({id:'tl_'+Date.now(),task:name.trim(),status:'pending',deadline:dl.trim(),createdAt:Date.now()});
-  SS(SK.timeline,items);renderTimeline();
+  _taskEditId = null;
+  _taskAssigneesTmp = [];
+  _taskFilesTmp = [];
+  document.getElementById('taskModalTitle').textContent = '＋ 新增任務';
+  document.getElementById('taskName').value = '';
+  document.getElementById('taskContent').value = '';
+  document.getElementById('taskDeadline').value = '';
+  setTaskQuickDate('');
+  _renderTaskAssigner();
+  _renderTaskAssigneeDropdown();
+  _renderTaskAssigneeChips();
+  _renderTaskFileList();
+  document.getElementById('taskModal').classList.add('open');
+  setTimeout(function(){ document.getElementById('taskName').focus(); }, 50);
 }
+
+function openEditTask(id){
+  var items = LS(SK.timeline);
+  var t = items.find(function(x){ return x.id === id; });
+  if (!t) return;
+  _taskEditId = id;
+  _taskAssigneesTmp = (t.assignees || []).slice();
+  _taskFilesTmp = (t.attachments || []).slice();
+  document.getElementById('taskModalTitle').textContent = '✏️ 編輯任務';
+  document.getElementById('taskName').value = t.title || t.task || '';
+  document.getElementById('taskContent').value = t.content || '';
+  document.getElementById('taskDeadline').value = t.deadline || '';
+  setTaskQuickDate(null); // 不要套用快速按鈕
+  _renderTaskAssigner();
+  _renderTaskAssigneeDropdown();
+  _renderTaskAssigneeChips();
+  _renderTaskFileList();
+  document.getElementById('taskModal').classList.add('open');
+}
+
+function setTaskQuickDate(quick){
+  // 切換 quick button active 樣式
+  document.querySelectorAll('.tk-quick').forEach(function(btn){
+    btn.style.background = 'transparent';
+    btn.style.color = '#dde6f0';
+  });
+  if (quick === '' || quick === null){
+    // 「無」按鈕
+    var noneBtn = document.querySelector('.tk-quick[data-q=""]');
+    if (noneBtn && quick === ''){ noneBtn.style.background = 'rgba(74,234,255,.18)'; noneBtn.style.color = '#4aeaff'; }
+    if (quick === '') document.getElementById('taskDeadline').value = '';
+    return;
+  }
+  var d = new Date();
+  if (quick === 'today'){ /* d unchanged */ }
+  else if (quick === 'tomorrow'){ d.setDate(d.getDate() + 1); }
+  else if (quick === 'nextweek'){ d.setDate(d.getDate() + 7); }
+  var yyyy = d.getFullYear();
+  var mm = String(d.getMonth() + 1).padStart(2, '0');
+  var dd = String(d.getDate()).padStart(2, '0');
+  document.getElementById('taskDeadline').value = yyyy + '-' + mm + '-' + dd;
+  var clickedBtn = event && event.target;
+  if (clickedBtn){ clickedBtn.style.background = 'rgba(74,234,255,.18)'; clickedBtn.style.color = '#4aeaff'; }
+}
+
+function _renderTaskAssigner(){
+  var me = _curCharName() || '匿名';
+  document.getElementById('taskAssignerArea').innerHTML =
+    '<span style="display:inline-block;padding:3px 10px;border-radius:14px;background:rgba(74,234,255,.18);color:#4aeaff;font-size:.78rem;">' + esc(me) + '</span>'
+    + '<span style="font-size:.72rem;color:rgba(180,200,240,.55);margin-left:8px;">（自動帶入當前主角）</span>';
+}
+
+function toggleAssigneeDropdown(){
+  var dd = document.getElementById('taskAssigneeDropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function _renderTaskAssigneeDropdown(){
+  var dd = document.getElementById('taskAssigneeDropdown');
+  var chars = _getAllCharacters();
+  if (!chars.length){ dd.innerHTML = '<div style="padding:8px;color:rgba(180,200,240,.5);">沒有可選的主角</div>'; return; }
+  dd.innerHTML = chars.map(function(name){
+    var checked = _taskAssigneesTmp.includes(name);
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;border-radius:4px;color:#dde6f0;font-size:.82rem;" onmouseover="this.style.background=\'rgba(74,234,255,.08)\'" onmouseout="this.style.background=\'transparent\'">'
+      + '<input type="checkbox" '+(checked?'checked':'')+' onchange="toggleAssignee(\''+esc(name).replace(/'/g,"\\'")+'\')">'
+      + esc(name)
+      + '</label>';
+  }).join('');
+}
+
+function toggleAssignee(name){
+  if (_taskAssigneesTmp.includes(name)){
+    _taskAssigneesTmp = _taskAssigneesTmp.filter(function(x){ return x !== name; });
+  } else {
+    _taskAssigneesTmp.push(name);
+  }
+  _renderTaskAssigneeChips();
+}
+
+function _renderTaskAssigneeChips(){
+  var el = document.getElementById('taskAssigneeChips');
+  if (!_taskAssigneesTmp.length){ el.innerHTML = '<span style="color:rgba(180,200,240,.5);font-size:.74rem;">尚未選擇受指派人</span>'; return; }
+  el.innerHTML = _taskAssigneesTmp.map(function(name){
+    return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:14px;background:rgba(255,215,0,.18);color:#ffd700;font-size:.78rem;">'
+      + esc(name)
+      + '<span style="cursor:pointer;font-weight:700;" onclick="toggleAssignee(\''+esc(name).replace(/'/g,"\\'")+'\');_renderTaskAssigneeDropdown();">×</span>'
+      + '</span>';
+  }).join('');
+}
+
+function addTaskFiles(fileList){
+  var arr = Array.from(fileList || []);
+  arr.forEach(function(f){
+    if (f.size > 5 * 1024 * 1024){ alert('檔案太大：' + f.name + ' (> 5MB)'); return; }
+    var reader = new FileReader();
+    reader.onload = function(e){
+      _taskFilesTmp.push({ name: f.name, size: f.size, type: f.type, dataURL: e.target.result });
+      _renderTaskFileList();
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+function _renderTaskFileList(){
+  var el = document.getElementById('taskFileList');
+  var sum = document.getElementById('taskFileSummary');
+  if (!_taskFilesTmp.length){
+    sum.textContent = '尚未選擇';
+    el.innerHTML = '';
+    return;
+  }
+  var totalKB = Math.round(_taskFilesTmp.reduce(function(s,f){ return s + (f.size||0); }, 0) / 1024);
+  sum.textContent = _taskFilesTmp.length + ' 個檔案 · 共 ' + totalKB + ' KB';
+  el.innerHTML = _taskFilesTmp.map(function(f, i){
+    return '<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:rgba(74,234,255,.05);border-radius:4px;font-size:.74rem;color:#dde6f0;">'
+      + '📎 <span style="flex:1;">' + esc(f.name) + '</span>'
+      + '<span style="color:rgba(180,200,240,.55);">' + Math.round((f.size||0)/1024) + 'KB</span>'
+      + '<span style="cursor:pointer;color:#ff8a8a;font-weight:700;padding:0 4px;" onclick="_taskFilesTmp.splice('+i+',1);_renderTaskFileList();">×</span>'
+      + '</div>';
+  }).join('');
+}
+
 function addTask(){
-  var name=document.getElementById('taskName').value.trim();if(!name)return;
-  var dl=document.getElementById('taskDeadline').value;
-  var items=LS(SK.timeline);
-  items.push({id:'tl_'+Date.now(),task:name,status:'pending',deadline:dl,createdAt:Date.now()});
-  SS(SK.timeline,items);closeModal('taskModal');renderTimeline();
+  var name = document.getElementById('taskName').value.trim();
+  if (!name) { alert('請輸入標題'); return; }
+  var content = document.getElementById('taskContent').value.trim();
+  var dl = document.getElementById('taskDeadline').value;
+  var assigner = _curCharName() || '匿名';
+  var now = Date.now();
+  var items = LS(SK.timeline);
+  if (_taskEditId){
+    // 編輯模式
+    var t = items.find(function(x){ return x.id === _taskEditId; });
+    if (t){
+      t.title = name;
+      t.content = content;
+      t.deadline = dl;
+      t.assignees = _taskAssigneesTmp.slice();
+      t.attachments = _taskFilesTmp.slice();
+      t.log = (t.log || []).concat([{ at: now, who: assigner, action: '編輯任務' }]);
+    }
+  } else {
+    // 新增模式
+    items.push({
+      id: 'tl_' + now,
+      title: name,
+      content: content,
+      task: name,  // 向下相容
+      status: 'pending',
+      deadline: dl,
+      assigner: assigner,
+      assignees: _taskAssigneesTmp.slice(),
+      attachments: _taskFilesTmp.slice(),
+      createdAt: now,
+      log: [{ at: now, who: assigner, action: '建立任務' }]
+    });
+  }
+  SS(SK.timeline, items);
+  closeModal('taskModal');
+  renderTimeline();
+  // 通知 parent 更新首頁紅點
+  try {
+    if (window.parent && window.parent.refreshTaskBadges){
+      window.parent.refreshTaskBadges();
+    }
+  } catch(e){}
 }
-function setTaskStatus(id,status){var items=LS(SK.timeline);var t=items.find(function(x){return x.id===id;});if(t)t.status=status;SS(SK.timeline,items);renderTimeline();}
-function delTask(id){SS(SK.timeline,LS(SK.timeline).filter(function(x){return x.id!==id;}));renderTimeline();}
+
+function setTaskStatus(id, status){
+  var items = LS(SK.timeline);
+  var t = items.find(function(x){ return x.id === id; });
+  if (t){
+    t.status = status;
+    var who = _curCharName() || '匿名';
+    t.log = (t.log || []).concat([{ at: Date.now(), who: who, action: '改為 '+(status==='pending'?'待執行':status==='doing'?'進行中':'完成') }]);
+  }
+  SS(SK.timeline, items);
+  renderTimeline();
+  if (_selectedTaskId === id) _renderTaskPreview(id);
+}
+
+function delTask(id){
+  if (!confirm('確定刪除此任務？')) return;
+  SS(SK.timeline, LS(SK.timeline).filter(function(x){ return x.id !== id; }));
+  renderTimeline();
+  if (_selectedTaskId === id){
+    _selectedTaskId = null;
+    document.getElementById('timelinePreview').innerHTML = '<div style="text-align:center;color:rgba(180,200,240,.5);padding:40px 20px;">👈 點任務看詳情</div>';
+  }
+}
+
+var _selectedTaskId = null;
+function selectTask(id){
+  _selectedTaskId = id;
+  _renderTaskPreview(id);
+  renderTimeline(); // 重繪以高亮選中項
+}
+
+function _renderTaskPreview(id){
+  var items = LS(SK.timeline);
+  var t = items.find(function(x){ return x.id === id; });
+  if (!t) return;
+  var labels = {pending:'⏳ 待執行', doing:'🔄 進行中', done:'✅ 完成'};
+  var dl = t.deadline ? new Date(t.deadline + 'T00:00:00').toLocaleDateString('zh-TW', {year:'numeric', month:'long', day:'numeric', weekday:'long'}) : '無';
+  var assignees = (t.assignees || []).map(function(n){ return '<span style="display:inline-block;padding:3px 10px;border-radius:14px;background:rgba(255,215,0,.18);color:#ffd700;font-size:.74rem;margin:2px;">' + esc(n) + '</span>'; }).join('');
+  var attachments = (t.attachments || []).map(function(f){
+    return '<a href="' + esc(f.dataURL) + '" download="' + esc(f.name) + '" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(74,234,255,.08);border:1px solid rgba(74,234,255,.25);border-radius:4px;font-size:.74rem;color:#4aeaff;text-decoration:none;margin:2px;">📎 ' + esc(f.name) + ' (' + Math.round((f.size||0)/1024) + 'KB)</a>';
+  }).join('');
+  var logs = (t.log || []).slice().reverse().map(function(L){
+    var d = new Date(L.at).toLocaleString('zh-TW', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+    return '<div style="font-size:.72rem;color:rgba(180,200,240,.6);padding:3px 0;">• ' + d + ' · <b style="color:#dde6f0;">' + esc(L.who||'?') + '</b> ' + esc(L.action||'') + '</div>';
+  }).join('');
+
+  var html = '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
+    + '<div style="font-size:.74rem;color:rgba(180,200,240,.55);">' + labels[t.status||'pending'] + '</div>'
+    + '<div style="display:flex;gap:6px;">'
+    + '<button onclick="openEditTask(\''+t.id+'\')" title="編輯" style="padding:4px 8px;border-radius:4px;border:1px solid rgba(180,200,240,.25);background:transparent;color:#dde6f0;cursor:pointer;font-size:.72rem;">✏️ 編輯</button>'
+    + '<button onclick="delTask(\''+t.id+'\')" title="刪除" style="padding:4px 8px;border-radius:4px;border:1px solid rgba(255,80,80,.3);background:transparent;color:#ff8a8a;cursor:pointer;font-size:.72rem;">🗑 刪除</button>'
+    + '</div></div>'
+    + '<h3 style="margin:0 0 12px;font-size:1.05rem;color:#dde6f0;">' + esc(t.title || t.task || '(未命名)') + '</h3>'
+    + (t.content ? '<div style="background:rgba(15,20,60,.3);border-radius:6px;padding:10px;margin-bottom:14px;font-size:.82rem;color:#dde6f0;white-space:pre-wrap;line-height:1.6;">' + esc(t.content) + '</div>' : '')
+    + '<div style="display:grid;grid-template-columns:70px 1fr;gap:8px 12px;font-size:.78rem;color:rgba(180,200,240,.85);margin-bottom:12px;">'
+    + '<div>期限</div><div style="color:#dde6f0;">' + esc(dl) + '</div>'
+    + '<div>指派人</div><div><span style="display:inline-block;padding:3px 10px;border-radius:14px;background:rgba(74,234,255,.18);color:#4aeaff;font-size:.74rem;">' + esc(t.assigner||'?') + '</span></div>'
+    + '<div>受指派人</div><div>' + (assignees || '<span style="color:rgba(180,200,240,.5);">(無)</span>') + '</div>'
+    + (attachments ? '<div>附件</div><div>' + attachments + '</div>' : '')
+    + '</div>';
+
+  // 狀態切換按鈕
+  html += '<div style="display:flex;gap:6px;margin:14px 0;flex-wrap:wrap;">';
+  if (t.status !== 'pending') html += '<button onclick="setTaskStatus(\''+t.id+'\',\'pending\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(180,200,240,.25);background:transparent;color:#dde6f0;cursor:pointer;font-size:.8rem;">⏳ 待執行</button>';
+  if (t.status !== 'doing') html += '<button onclick="setTaskStatus(\''+t.id+'\',\'doing\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(255,200,0,.4);background:rgba(255,200,0,.1);color:#ffd700;cursor:pointer;font-size:.8rem;">🔄 進行中</button>';
+  if (t.status !== 'done') html += '<button onclick="setTaskStatus(\''+t.id+'\',\'done\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(0,200,100,.4);background:rgba(0,200,100,.15);color:#7fdd7f;cursor:pointer;font-weight:700;font-size:.8rem;">✅ 完成</button>';
+  html += '</div>';
+
+  if (logs){
+    html += '<div style="border-top:1px solid rgba(180,200,240,.15);padding-top:10px;margin-top:14px;">'
+      + '<div style="font-size:.78rem;color:#dde6f0;font-weight:700;margin-bottom:6px;">📋 作業記錄 <span style="color:rgba(180,200,240,.5);font-weight:400;font-size:.72rem;">' + (t.log||[]).length + ' 筆</span></div>'
+      + logs
+      + '</div>';
+  }
+
+  document.getElementById('timelinePreview').innerHTML = html;
+}
+
 function renderTimeline(){
-  var items=LS(SK.timeline),el=document.getElementById('timelineBody');
-  if(!items.length){el.innerHTML='<div class="panel-empty">📅 尚無任務<br>可從「AI 小任務」取得建議，或手動新增</div>';return;}
-  var statusOrder={pending:0,doing:1,done:2};
-  items.sort(function(a,b){return statusOrder[a.status]-statusOrder[b.status];});
-  el.innerHTML=items.map(function(t){
-    var labels={pending:'⏳ 待執行',doing:'🔄 進行中',done:'✅ 完成'};
-    var dl=t.deadline?'期限：'+t.deadline:'';
-    return '<div class="tl-item"><div class="tl-status '+t.status+'"></div><div class="tl-content">'
-      +'<div class="tl-task">'+esc(t.task)+'</div>'
-      +'<div class="tl-meta">'+labels[t.status]+(dl?' · '+dl:'')+'</div>'
-      +'<div class="tl-actions">'
-      +(t.status!=='pending'?'<button class="tl-act" onclick="setTaskStatus(\''+t.id+'\',\'pending\')">⏳待執行</button>':'')
-      +(t.status!=='doing'?'<button class="tl-act" onclick="setTaskStatus(\''+t.id+'\',\'doing\')">🔄進行中</button>':'')
-      +(t.status!=='done'?'<button class="tl-act" onclick="setTaskStatus(\''+t.id+'\',\'done\')">✅完成</button>':'')
-      +'<button class="tl-act del" onclick="delTask(\''+t.id+'\')">刪除</button>'
-      +'</div></div></div>';
+  var items = LS(SK.timeline), el = document.getElementById('timelineBody');
+  if (!items.length){ el.innerHTML = '<div class="panel-empty">📅 尚無任務<br>點上方「＋ 新增任務」開始</div>'; return; }
+  var statusOrder = {pending:0, doing:1, done:2};
+  items.sort(function(a,b){ return statusOrder[a.status||'pending'] - statusOrder[b.status||'pending']; });
+  el.innerHTML = items.map(function(t){
+    var labels = {pending:'⏳ 待執行', doing:'🔄 進行中', done:'✅ 完成'};
+    var dl = t.deadline ? '期限：' + t.deadline : '';
+    var assignees = (t.assignees||[]).slice(0,3).join('、') + ((t.assignees||[]).length > 3 ? ' +' + ((t.assignees||[]).length-3) : '');
+    var isSel = (t.id === _selectedTaskId);
+    return '<div class="tl-item" style="cursor:pointer;'+(isSel?'background:rgba(74,234,255,.1);border-color:#4aeaff;':'')+'" onclick="selectTask(\''+t.id+'\')">'
+      + '<div class="tl-status '+(t.status||'pending')+'"></div>'
+      + '<div class="tl-content">'
+      + '<div class="tl-task">' + esc(t.title || t.task || '(未命名)') + '</div>'
+      + '<div class="tl-meta">' + labels[t.status||'pending'] + (dl?' · '+dl:'') + (assignees?' · 👥 '+esc(assignees):'') + '</div>'
+      + '</div></div>';
   }).join('');
 }
 
