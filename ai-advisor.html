@@ -1994,21 +1994,48 @@ function clearChatHistory(){
   console.log('[ai-chat] 已清除 '+fid+' 的對話歷史');
 }
 
+// ★ Markdown 清理機制（同步自 LINE/Telegram workflow 的 Capture Reply Text Set 節點）
+//   目的：AI 回覆中的 ##/**/---/| 等符號改成 LINE 對話風格（emoji + 「」框字 + • 條列）
+function _cleanMarkdown(text){
+  if (!text || typeof text !== 'string') return text || '';
+  try {
+    return text
+      .replace(/`[\w]*\n?([\s\S]*?)`/g, '「$1」')          // code block → 「」
+      .replace(/`([^`]+)`/g, '「$1」')                      // inline code → 「」
+      .replace(/\*\*\*(.*?)\*\*\*/g, '$1')                  // ***bold italic***
+      .replace(/\*\*(.*?)\*\*/g, '$1')                      // **bold**
+      .replace(/\*(.*?)\*/g, '$1')                           // *italic*
+      .replace(/^#{1,6}\s+/gm, '')                          // # ## ### headers
+      .replace(/^---+$/gm, '────────────')                  // --- horizontal line
+      .replace(/^___+$/gm, '────────────')                  // ___ horizontal line
+      .replace(/^>\s+/gm, '💡 ')                            // > quote → 💡
+      .replace(/\|/g, ' · ')                                 // | table separator → ·
+      .replace(/^[\s·\-]+$/gm, '')                          // empty separator lines (with dots/dashes)
+      .replace(/^[\s·]+$/gm, '')                            // empty dot lines
+      .replace(/^-\s+/gm, '• ')                             // - list → •
+      .replace(/^\*\s+/gm, '• ')                            // * list → •
+      .replace(/\n{3,}/g, '\n\n')                           // 3+ newlines → 2
+      .trim();
+  } catch(e){ return text; }
+}
+
 function addMsg(type,text,opts){
   opts = opts || {};
   var el=document.getElementById('chatMsgs'),d=document.createElement('div');
   d.className='msg '+type;
   // AI 回覆加：存入案例庫 + 存入私聊 按鈕
   if(type==='ai'){
-    var txt=document.createElement('span');txt.className='msg-text';txt.textContent=text;
+    // ★ 清掉 Markdown 符號，給使用者看 LINE 對話風格
+    var displayText = _cleanMarkdown(text);
+    var txt=document.createElement('span');txt.className='msg-text';txt.textContent=displayText;
     var acts=document.createElement('span');acts.className='msg-actions';
     var btn=document.createElement('button');btn.className='msg-save-btn';btn.textContent='📂 存入案例庫';
-    btn.onclick=function(){saveMsgToCase(text,btn);};
+    btn.onclick=function(){saveMsgToCase(displayText,btn);};
     acts.appendChild(btn);
     // ★ 新增：💬 存入私聊（per-character 儲存，給該主角自己參考用）
     var btn2=document.createElement('button');btn2.className='msg-save-btn';btn2.textContent='💬 存入私聊';
     btn2.style.marginLeft='6px';
-    btn2.onclick=function(){saveMsgToPrivateChat(text,btn2);};
+    btn2.onclick=function(){saveMsgToPrivateChat(displayText,btn2);};
     acts.appendChild(btn2);
     d.appendChild(txt);d.appendChild(acts);
   } else {
