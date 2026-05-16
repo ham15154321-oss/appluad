@@ -2027,13 +2027,16 @@ function clearChatHistory(){
   console.log('[ai-chat] 已清除 '+fid+' 的對話歷史');
 }
 
-// ★ Markdown 清理機制（同步自 LINE/Telegram workflow 的 Capture Reply Text Set 節點）
-//   目的：AI 回覆中的 ##/**/---/| 等符號改成 LINE 對話風格（emoji + 「」框字 + • 條列）
-//   v2 加強：表格行 (|a|b|c|) → 條列「a · b · c」整行格式，比單純 | → · 更可讀
+// ★ Markdown 清理機制（同步自 LINE/Telegram workflow + 表格智慧轉換）
+//   v3 重點：表格不再用 ' · ' 平鋪，而是轉成「📌 第一欄：欄2=值，欄3=值」垂直易讀格式
 function _cleanMarkdown(text){
   if (!text || typeof text !== 'string') return text || '';
   try {
     var s = text;
+
+    // 0. 表格智慧轉換（在其他清理之前）— 偵測連續多行 |...| 視為表格區塊
+    //    第一行當 header，剩下的行轉成「📌 第一欄：欄2 值，欄3 值」格式
+    s = _convertTables(s);
 
     // 1. Code blocks / inline code → 「」
     s = s.replace(/`[\w]*\n?([\s\S]*?)`/g, '「$1」');
@@ -2054,33 +2057,83 @@ function _cleanMarkdown(text){
     // 5. Quote → 💡
     s = s.replace(/^>\s+/gm, '💡 ');
 
-    // 6. 表格行特殊處理（必須在 | → · 之前）
-    //    table separator 整行刪掉（|---|---|）
-    s = s.replace(/^\s*\|[\s\-:|]+\|\s*$/gm, '');
-    //    其他表格行 |a|b|c| → 「a · b · c」格式
-    s = s.replace(/^\s*\|(.+)\|\s*$/gm, function(_m, content){
-      var cells = content.split('|').map(function(c){ return c.trim(); }).filter(function(c){ return c; });
-      if (cells.length === 0) return '';
-      if (cells.length === 1) return cells[0];
-      return cells.join(' · ');
-    });
-
-    // 7. 剩下的 | → ·
+    // 6. 剩下的 | → ·（已在 step 0 處理表格，這裡只是清單一 | 殘留）
     s = s.replace(/\|/g, ' · ');
 
-    // 8. 空的分隔/點線
+    // 7. 空的分隔/點線
     s = s.replace(/^[\s·\-]+$/gm, '');
     s = s.replace(/^[\s·]+$/gm, '');
 
-    // 9. List markers → •
+    // 8. List markers → •
     s = s.replace(/^-\s+/gm, '• ');
     s = s.replace(/^\*\s+/gm, '• ');
 
-    // 10. 收斂多餘換行
+    // 9. 收斂多餘換行
     s = s.replace(/\n{3,}/g, '\n\n');
 
     return s.trim();
   } catch(e){ return text; }
+}
+
+// 表格智慧轉換：把連續多行 |...| 表格 → 垂直易讀條列
+function _convertTables(text){
+  var lines = text.split('\n');
+  var out = [];
+  var i = 0;
+  while (i < lines.length){
+    var line = lines[i];
+    // 偵測表格起點：以 | 開頭結尾（trim 後）
+    if (/^\s*\|.+\|\s*$/.test(line)){
+      // 收集連續表格行
+      var block = [];
+      while (i < lines.length && /^\s*\|.+\|\s*$/.test(lines[i])){
+        block.push(lines[i].trim());
+        i++;
+      }
+      // 至少 2 行才算表格（header + 1 row）
+      if (block.length >= 2){
+        // 解析每行的 cells
+        var rows = block.map(function(b){
+          // 去掉前後 | 然後 split
+          var inner = b.replace(/^\|\s*/, '').replace(/\s*\|$/, '');
+          return inner.split('|').map(function(c){ return c.trim(); });
+        });
+        // 偵測並刪除 separator 行（|---|---|）
+        rows = rows.filter(function(r){
+          return !r.every(function(c){ return /^[\s\-:]+$/.test(c); });
+        });
+        if (rows.length >= 2){
+          var headers = rows[0];
+          var dataRows = rows.slice(1);
+          // 每筆 data row → 「📌 第一欄：欄2 值2，欄3 值3...」
+          dataRows.forEach(function(row){
+            if (row.length === 0) return;
+            var firstCell = row[0] || '';
+            var rest = [];
+            for (var j = 1; j < row.length; j++){
+              var h = headers[j] || '';
+              var v = row[j] || '';
+              if (!v) continue;
+              // 如果 header 跟 value 看起來重複（例如 header=金額 value=金額）就不重複放
+              if (h) rest.push(h + ' ' + v);
+              else rest.push(v);
+            }
+            var prefix = firstCell ? '📌 ' + firstCell + '：' : '• ';
+            out.push(prefix + rest.join('，'));
+          });
+          // 表格後留一個空行
+          out.push('');
+          continue;
+        }
+      }
+      // 不是有效表格 → 把 block 原樣放回
+      out = out.concat(block);
+    } else {
+      out.push(line);
+      i++;
+    }
+  }
+  return out.join('\n');
 }
 
 function addMsg(type,text,opts){
