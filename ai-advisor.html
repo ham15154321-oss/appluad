@@ -376,6 +376,321 @@ body.day-mode .file-upload-btn:hover{border-color:rgba(140,100,180,.5);color:#6a
 .file-status{font-size:.75rem;color:#6a8fcc;padding:2px 12px;display:none;}
 .file-status.show{display:block;}
 body.day-mode .file-status{color:#8070a0;}
+
+/* ════════ 任務 Modal — 基礎樣式（晚上模式） ════════ */
+.tk-modal{max-width:680px;max-height:90vh;overflow-y:auto;}
+.tk-grid{display:grid;grid-template-columns:80px 1fr;gap:10px 14px;align-items:flex-start;font-size:.85rem;}
+.tk-grid > label{color:#dde6f0;padding-top:8px;font-weight:500;}
+.tk-input{
+  background:rgba(15,20,60,.4);
+  border:1px solid rgba(74,234,255,.25);
+  border-radius:6px;
+  padding:8px;
+  color:#dde6f0;
+  font-family:inherit;
+}
+.tk-textarea{resize:vertical;}
+.tk-input:focus{outline:none;border-color:#4aeaff;}
+.tk-deadline-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.tk-quick{
+  padding:6px 12px;
+  border-radius:6px;
+  border:1px solid rgba(180,200,240,.3);
+  background:transparent;
+  color:#dde6f0;
+  cursor:pointer;
+  font-size:.78rem;
+  transition:all .15s;
+}
+.tk-quick.tk-quick-active{background:rgba(74,234,255,.18);color:#4aeaff;border-color:rgba(74,234,255,.35);}
+.tk-date{padding:6px 8px;font-size:.78rem;color-scheme:dark;}
+.tk-assigner{
+  display:flex;flex-wrap:wrap;gap:4px;align-items:center;
+  min-height:32px;
+  border:1px solid rgba(74,234,255,.18);
+  border-radius:6px;padding:4px;
+  background:rgba(15,20,60,.2);
+}
+.tk-dropdown{
+  max-height:200px;overflow-y:auto;
+  border:1px solid rgba(74,234,255,.25);
+  border-radius:6px;
+  background:rgba(20,30,70,.95);
+  margin-top:4px;padding:4px;
+}
+.tk-dropdown label{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 8px;cursor:pointer;border-radius:4px;
+  color:#dde6f0;font-size:.82rem;
+}
+.tk-dropdown label:hover{background:rgba(74,234,255,.08);}
+.tk-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.tk-file-btn{
+  padding:6px 12px;border-radius:6px;
+  border:1px solid rgba(74,234,255,.3);
+  background:transparent;color:#4aeaff;
+  cursor:pointer;font-size:.8rem;
+}
+.tk-file-summary{font-size:.74rem;color:rgba(180,200,240,.6);margin-left:8px;}
+.tk-file-list{margin-top:6px;display:flex;flex-direction:column;gap:4px;}
+.tk-btn-row{margin-top:16px;}
+
+/* ════════ 時間軸（新版）日間模式配色 v3 — 設計師標準 ════════ */
+/* 設計系統 colors：
+   - Primary purple: #7c5ec0
+   - Background: #f8f5fc（極淡紫）/ pure white #ffffff
+   - Border subtle: #e8e2f0
+   - Border focus: #b8a4d8
+   - Text primary: #2a1f3d
+   - Text secondary: #6b5a8a
+   - Text muted: #a090b8
+*/
+
+/* 任務 Modal — 白天模式（用 class 覆蓋，乾淨） */
+body.day-mode .tk-grid > label{color:#3d2e5e;}
+body.day-mode .tk-input{
+  background:#ffffff;
+  border:1px solid #d4c5e8;
+  color:#2a1f3d;
+  transition:all .15s;
+}
+body.day-mode .tk-input::placeholder{color:#b8a4d0;}
+body.day-mode .tk-input:focus{
+  border-color:#9070b0;
+  outline:none;
+  box-shadow:0 0 0 3px rgba(144,112,176,.15);
+}
+body.day-mode .tk-date{color-scheme:light;}
+body.day-mode .tk-assigner{
+  background:#fcfaff;
+  border:1px solid #e8e2f0;
+}
+body.day-mode .tk-quick{
+  background:#ffffff;
+  border:1px solid #d4c5e8;
+  color:#5a4a7a;
+  font-weight:500;
+}
+body.day-mode .tk-quick:hover{
+  background:#f4f0fa;
+  border-color:#9070b0;
+}
+body.day-mode .tk-quick.tk-quick-active{
+  background:#7c5ec0;
+  color:#ffffff;
+  border-color:#7c5ec0;
+  font-weight:700;
+}
+body.day-mode .tk-dropdown{
+  background:#ffffff;
+  border:1px solid #d4c5e8;
+  box-shadow:0 4px 16px rgba(124,94,192,.12);
+}
+body.day-mode .tk-dropdown label{color:#2a1f3d;}
+body.day-mode .tk-dropdown label:hover{background:#f0ebf8;}
+body.day-mode .tk-dropdown input[type="checkbox"]{accent-color:#7c5ec0;}
+body.day-mode .tk-file-btn{
+  background:#ffffff;
+  border:1px solid #d4c5e8;
+  color:#7c5ec0;
+  font-weight:600;
+}
+body.day-mode .tk-file-btn:hover{
+  background:#f4f0fa;
+  border-color:#9070b0;
+}
+body.day-mode .tk-file-summary{color:#8070a0;}
+
+/* 任務列表項目 */
+body.day-mode .tl-item{
+  background:#ffffff !important;
+  border-color:#e8e2f0 !important;
+  transition:all .15s;
+}
+body.day-mode .tl-item:hover{
+  border-color:#b8a4d8 !important;
+  background:#fafafe !important;
+}
+body.day-mode .tl-task{color:#2a1f3d !important;font-weight:600;}
+body.day-mode .tl-meta{color:#6b5a8a !important;}
+
+/* 右側預覽面板 */
+body.day-mode #timelinePreview{
+  background:#fcfaff !important;
+  border-color:#e8e2f0 !important;
+  color:#2a1f3d !important;
+  box-shadow:0 2px 8px rgba(124,94,192,.05);
+}
+body.day-mode #timelinePreview h3{color:#3d2e5e !important;}
+/* placeholder（點任務看詳情） */
+body.day-mode #timelinePreview > div[style*="text-align:center"]{color:#a090b8 !important;}
+body.day-mode #timelinePreview > div[style*="text-align:center"] span{color:#a090b8 !important;}
+
+/* 內容區塊 */
+body.day-mode #timelinePreview div[style*="background:rgba(15,20,60"]{
+  background:#f0ebf8 !important;
+  color:#2a1f3d !important;
+  border:1px solid #e8e2f0;
+}
+
+/* 資訊區塊文字 */
+body.day-mode #timelinePreview div[style*="color:rgba(180,200,240"]{color:#a090b8 !important;}
+body.day-mode #timelinePreview span[style*="color:rgba(180,200,240"]{color:#a090b8 !important;}
+
+/* 作業記錄區塊 */
+body.day-mode #timelinePreview div[style*="border-top"]{
+  border-top-color:#e8e2f0 !important;
+}
+
+/* 指派人 chip（青色 → 主紫） */
+body.day-mode #timelinePreview span[style*="rgba(74,234,255,.18)"],
+body.day-mode #taskModal span[style*="rgba(74,234,255,.18)"]{
+  background:#ede4f7 !important;
+  color:#5a3a8a !important;
+  border:1px solid #d4c5e8;
+}
+/* 受指派人 chip（金色 → 暖琥珀） */
+body.day-mode #timelinePreview span[style*="rgba(255,215,0,.18)"],
+body.day-mode #taskModal span[style*="rgba(255,215,0,.18)"]{
+  background:#fef3e2 !important;
+  color:#8a5500 !important;
+  border:1px solid #f5d8a8;
+}
+/* 附件下載連結 */
+body.day-mode #timelinePreview a[style*="rgba(74,234,255,.08)"]{
+  background:#eaf2fc !important;
+  border-color:#c4d6f0 !important;
+  color:#2a5588 !important;
+}
+
+/* 預覽的 3 個狀態切換按鈕 */
+body.day-mode #timelinePreview button[style*="rgba(180,200,240"]{
+  background:#ffffff !important;
+  border-color:#d4c5e8 !important;
+  color:#5a4a7a !important;
+}
+body.day-mode #timelinePreview button[style*="rgba(255,200,0"]{
+  background:#fef3e2 !important;
+  border-color:#f5d8a8 !important;
+  color:#8a5500 !important;
+  font-weight:600;
+}
+body.day-mode #timelinePreview button[style*="rgba(0,200,100"]{
+  background:#e8f5ec !important;
+  border-color:#a5d8b4 !important;
+  color:#2d7a3a !important;
+  font-weight:700;
+}
+
+/* 編輯/刪除小按鈕 */
+body.day-mode #timelinePreview button[style*="rgba(180,200,240,.25)"]{
+  color:#6b5a8a !important;
+  border-color:#e8e2f0 !important;
+  background:#ffffff !important;
+}
+body.day-mode #timelinePreview button[style*="rgba(255,80,80"]{
+  color:#c04040 !important;
+  border-color:#f0d0d0 !important;
+  background:#ffffff !important;
+}
+
+/* ════════ 任務 Modal 日間模式 v2 ════════ */
+body.day-mode #taskModal label{color:#3d2e5e !important;font-weight:600;}
+
+/* Input / Textarea：純白底 + 淡紫邊 + 深字 */
+body.day-mode #taskModal input[type="text"],
+body.day-mode #taskModal input[type="date"],
+body.day-mode #taskModal #taskName,
+body.day-mode #taskModal #taskContent,
+body.day-mode #taskModal #taskDeadline,
+body.day-mode #taskModal #taskAssigneeSearch,
+body.day-mode #taskModal textarea{
+  background:#ffffff !important;
+  border:1px solid #d4c5e8 !important;
+  color:#2a1f3d !important;
+  transition:border-color .15s;
+}
+body.day-mode #taskModal input:focus,
+body.day-mode #taskModal textarea:focus{
+  border-color:#9070b0 !important;
+  outline:none;
+  box-shadow:0 0 0 3px rgba(144,112,176,.15);
+}
+body.day-mode #taskModal input::placeholder,
+body.day-mode #taskModal textarea::placeholder{color:#b8a4d0 !important;}
+
+/* 日期 picker icon 顏色 */
+body.day-mode #taskModal input[type="date"]{color-scheme:light !important;}
+
+/* 指派人區域 */
+body.day-mode #taskModal #taskAssignerArea{
+  background:#fcfaff !important;
+  border:1px solid #e8e2f0 !important;
+}
+
+/* 期限快速按鈕 — 未選 */
+body.day-mode #taskModal .tk-quick{
+  background:#ffffff !important;
+  border:1px solid #d4c5e8 !important;
+  color:#5a4a7a !important;
+  font-weight:500;
+}
+body.day-mode #taskModal .tk-quick:hover{
+  background:#f4f0fa !important;
+  border-color:#9070b0 !important;
+}
+/* 期限快速按鈕 — 選中（紫色填底） */
+body.day-mode #taskModal .tk-quick[style*="rgba(74,234,255,.18)"]{
+  background:#7c5ec0 !important;
+  color:#ffffff !important;
+  border-color:#7c5ec0 !important;
+  font-weight:700;
+}
+
+/* 受指派人下拉選單 — 必須蓋掉深色背景！ */
+body.day-mode #taskAssigneeDropdown{
+  background:#ffffff !important;
+  border:1px solid #d4c5e8 !important;
+  box-shadow:0 4px 16px rgba(124,94,192,.12);
+}
+body.day-mode #taskAssigneeDropdown label{
+  color:#2a1f3d !important;
+  background:transparent !important;
+  padding:8px 12px !important;
+  border-radius:6px;
+}
+body.day-mode #taskAssigneeDropdown label:hover{
+  background:#f0ebf8 !important;
+}
+body.day-mode #taskAssigneeDropdown input[type="checkbox"]{
+  accent-color:#7c5ec0;
+}
+
+/* 選擇檔案按鈕 */
+body.day-mode #taskModal button[style*="rgba(74,234,255,.3)"]{
+  background:#ffffff !important;
+  border:1px solid #d4c5e8 !important;
+  color:#7c5ec0 !important;
+  font-weight:600;
+}
+body.day-mode #taskModal button[style*="rgba(74,234,255,.3)"]:hover{
+  background:#f4f0fa !important;
+  border-color:#9070b0 !important;
+}
+
+/* 附件列表項目 */
+body.day-mode #taskFileList > div{
+  background:#f4f0fa !important;
+  color:#2a1f3d !important;
+  border:1px solid #e8e2f0;
+}
+
+/* 「尚未選擇受指派人」等次要提示文字 */
+body.day-mode #taskAssigneeChips span[style*="rgba(180,200,240,.5)"]{
+  color:#a090b8 !important;
+}
+body.day-mode #taskFileSummary{color:#8070a0 !important;}
+
 </style>
 <!-- CDN: pdf.js + SheetJS + JSZip -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -522,45 +837,45 @@ body.day-mode .file-status{color:#8070a0;}
 
 <!-- ===== Modals ===== -->
 <!-- ★ 新版任務 modal：標題、內容、期限快速按鈕、指派人/受指派人、附加檔案 -->
-<div class="add-modal-bg" id="taskModal"><div class="add-modal" style="max-width:680px;max-height:90vh;overflow-y:auto;">
+<div class="add-modal-bg" id="taskModal"><div class="add-modal tk-modal">
   <h3 id="taskModalTitle">＋ 新增任務</h3>
 
-  <div style="display:grid;grid-template-columns:80px 1fr;gap:10px 14px;align-items:flex-start;font-size:.85rem;">
-    <label style="color:#dde6f0;padding-top:8px;">標題</label>
-    <input id="taskName" placeholder="請輸入標題" style="background:rgba(15,20,60,.4);border:1px solid rgba(74,234,255,.25);border-radius:6px;padding:8px;color:#dde6f0;">
+  <div class="tk-grid">
+    <label>標題</label>
+    <input id="taskName" class="tk-input" placeholder="請輸入標題">
 
-    <label style="color:#dde6f0;padding-top:8px;">內容</label>
-    <textarea id="taskContent" placeholder="請輸入內容（選填）" rows="4" style="background:rgba(15,20,60,.4);border:1px solid rgba(74,234,255,.25);border-radius:6px;padding:8px;color:#dde6f0;font-family:inherit;resize:vertical;"></textarea>
+    <label>內容</label>
+    <textarea id="taskContent" class="tk-input tk-textarea" placeholder="請輸入內容（選填）" rows="4"></textarea>
 
-    <label style="color:#dde6f0;padding-top:8px;">期限</label>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-      <button type="button" class="tk-quick" data-q="" onclick="setTaskQuickDate('')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(180,200,240,.3);background:rgba(74,234,255,.18);color:#4aeaff;cursor:pointer;font-size:.78rem;">無</button>
-      <button type="button" class="tk-quick" onclick="setTaskQuickDate('today')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(180,200,240,.3);background:transparent;color:#dde6f0;cursor:pointer;font-size:.78rem;">今天</button>
-      <button type="button" class="tk-quick" onclick="setTaskQuickDate('tomorrow')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(180,200,240,.3);background:transparent;color:#dde6f0;cursor:pointer;font-size:.78rem;">明天</button>
-      <button type="button" class="tk-quick" onclick="setTaskQuickDate('nextweek')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(180,200,240,.3);background:transparent;color:#dde6f0;cursor:pointer;font-size:.78rem;">下週</button>
-      <input id="taskDeadline" type="date" style="background:rgba(15,20,60,.4);border:1px solid rgba(74,234,255,.25);border-radius:6px;padding:6px 8px;color:#dde6f0;font-size:.78rem;color-scheme:dark;">
+    <label>期限</label>
+    <div class="tk-deadline-row">
+      <button type="button" class="tk-quick tk-quick-active" data-q="" onclick="setTaskQuickDate('')">無</button>
+      <button type="button" class="tk-quick" onclick="setTaskQuickDate('today')">今天</button>
+      <button type="button" class="tk-quick" onclick="setTaskQuickDate('tomorrow')">明天</button>
+      <button type="button" class="tk-quick" onclick="setTaskQuickDate('nextweek')">下週</button>
+      <input id="taskDeadline" type="date" class="tk-input tk-date">
     </div>
 
-    <label style="color:#dde6f0;padding-top:8px;">指派人</label>
-    <div id="taskAssignerArea" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:32px;border:1px solid rgba(74,234,255,.18);border-radius:6px;padding:4px;"></div>
+    <label>指派人</label>
+    <div id="taskAssignerArea" class="tk-assigner"></div>
 
-    <label style="color:#dde6f0;padding-top:8px;">受指派人</label>
+    <label>受指派人</label>
     <div>
-      <input id="taskAssigneeSearch" placeholder="點下拉選擇受指派人（可多選）" readonly onclick="toggleAssigneeDropdown()" style="background:rgba(15,20,60,.4);border:1px solid rgba(74,234,255,.25);border-radius:6px;padding:8px;color:#dde6f0;width:100%;cursor:pointer;">
-      <div id="taskAssigneeDropdown" style="display:none;max-height:200px;overflow-y:auto;border:1px solid rgba(74,234,255,.25);border-radius:6px;background:rgba(20,30,70,.95);margin-top:4px;padding:4px;"></div>
-      <div id="taskAssigneeChips" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;"></div>
+      <input id="taskAssigneeSearch" class="tk-input" placeholder="點下拉選擇受指派人（可多選）" readonly onclick="toggleAssigneeDropdown()">
+      <div id="taskAssigneeDropdown" class="tk-dropdown" style="display:none;"></div>
+      <div id="taskAssigneeChips" class="tk-chips"></div>
     </div>
 
-    <label style="color:#dde6f0;padding-top:8px;">附加檔案</label>
+    <label>附加檔案</label>
     <div>
-      <button type="button" onclick="document.getElementById('taskFileInput').click()" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(74,234,255,.3);background:transparent;color:#4aeaff;cursor:pointer;font-size:.8rem;">📎 選擇檔案</button>
+      <button type="button" class="tk-file-btn" onclick="document.getElementById('taskFileInput').click()">📎 選擇檔案</button>
       <input type="file" id="taskFileInput" multiple style="display:none;" onchange="addTaskFiles(this.files)">
-      <span id="taskFileSummary" style="font-size:.74rem;color:rgba(180,200,240,.6);margin-left:8px;">尚未選擇</span>
-      <div id="taskFileList" style="margin-top:6px;display:flex;flex-direction:column;gap:4px;"></div>
+      <span id="taskFileSummary" class="tk-file-summary">尚未選擇</span>
+      <div id="taskFileList" class="tk-file-list"></div>
     </div>
   </div>
 
-  <div class="btn-row" style="margin-top:16px;"><button class="btn-cancel" onclick="closeModal('taskModal')">取消</button><button class="btn-save" onclick="addTask()" id="taskSaveBtn">儲存</button></div>
+  <div class="btn-row tk-btn-row"><button class="btn-cancel" onclick="closeModal('taskModal')">取消</button><button class="btn-save" onclick="addTask()" id="taskSaveBtn">儲存</button></div>
 </div></div>
 
 <div class="add-modal-bg" id="ruleModal"><div class="add-modal add-modal--lg">
@@ -2057,15 +2372,13 @@ function openEditTask(id){
 }
 
 function setTaskQuickDate(quick){
-  // 切換 quick button active 樣式
+  // 切換 quick button active class（不用 inline style，CSS 自動兩種模式配色）
   document.querySelectorAll('.tk-quick').forEach(function(btn){
-    btn.style.background = 'transparent';
-    btn.style.color = '#dde6f0';
+    btn.classList.remove('tk-quick-active');
   });
   if (quick === '' || quick === null){
-    // 「無」按鈕
     var noneBtn = document.querySelector('.tk-quick[data-q=""]');
-    if (noneBtn && quick === ''){ noneBtn.style.background = 'rgba(74,234,255,.18)'; noneBtn.style.color = '#4aeaff'; }
+    if (noneBtn && quick === '') noneBtn.classList.add('tk-quick-active');
     if (quick === '') document.getElementById('taskDeadline').value = '';
     return;
   }
@@ -2078,7 +2391,7 @@ function setTaskQuickDate(quick){
   var dd = String(d.getDate()).padStart(2, '0');
   document.getElementById('taskDeadline').value = yyyy + '-' + mm + '-' + dd;
   var clickedBtn = event && event.target;
-  if (clickedBtn){ clickedBtn.style.background = 'rgba(74,234,255,.18)'; clickedBtn.style.color = '#4aeaff'; }
+  if (clickedBtn) clickedBtn.classList.add('tk-quick-active');
 }
 
 function _renderTaskAssigner(){
