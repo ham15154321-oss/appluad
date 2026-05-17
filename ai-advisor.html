@@ -501,6 +501,84 @@ body.day-mode .tk-file-btn:hover{
 }
 body.day-mode .tk-file-summary{color:#8070a0;}
 
+/* ════════ 知識庫 ════════ */
+.kb-modal{max-width:760px;max-height:90vh;overflow-y:auto;}
+.kb-grid{display:grid;grid-template-columns:80px 1fr;gap:10px 14px;align-items:flex-start;font-size:.85rem;}
+.kb-grid > label{color:#dde6f0;padding-top:8px;font-weight:500;}
+.kb-filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.kb-filter{
+  padding:5px 12px;border-radius:14px;
+  border:1px solid rgba(74,234,255,.25);
+  background:rgba(74,234,255,.04);
+  color:#8ab8e0;cursor:pointer;font-size:.74rem;
+  font-family:inherit;transition:all .15s;
+}
+.kb-filter:hover{background:rgba(74,234,255,.1);border-color:#4aeaff;}
+.kb-filter.active{background:rgba(74,234,255,.2);border-color:#4aeaff;color:#4aeaff;font-weight:700;}
+.kb-item{
+  padding:14px;border-radius:10px;margin-bottom:10px;
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(50,160,255,.12);
+  transition:all .15s;
+}
+.kb-item.kb-enabled{
+  background:rgba(74,234,255,.06);
+  border-color:rgba(74,234,255,.3);
+}
+.kb-item.kb-disabled{opacity:.5;}
+.kb-item-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
+.kb-toggle{
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  padding:4px 10px;border-radius:6px;
+  background:rgba(0,200,100,.1);border:1px solid rgba(0,200,100,.3);
+  font-size:.74rem;color:#7fdd7f;font-weight:600;
+}
+.kb-disabled .kb-toggle{background:rgba(180,180,180,.1);border-color:rgba(180,180,180,.3);color:#999;}
+.kb-toggle input{accent-color:#4aeaff;}
+.kb-title{font-size:.95rem;color:#e0f0ff;font-weight:700;flex:1;min-width:200px;}
+.kb-meta{display:flex;gap:10px;font-size:.7rem;color:#6a8fcc;flex-wrap:wrap;}
+.kb-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;}
+.kb-tag{
+  display:inline-block;padding:2px 8px;border-radius:10px;
+  background:rgba(180,200,240,.1);color:#8aa0c8;
+  font-size:.7rem;
+}
+.kb-preview{
+  font-size:.78rem;color:#8aa0c8;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  padding:6px 10px;background:rgba(0,0,0,.15);border-radius:6px;
+  margin-bottom:8px;
+}
+.kb-actions{display:flex;gap:6px;}
+.kb-act{
+  padding:5px 12px;border-radius:6px;
+  border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);
+  color:#8aa0c8;cursor:pointer;font-size:.74rem;font-family:inherit;
+}
+.kb-act:hover{border-color:rgba(74,234,255,.3);color:#4aeaff;}
+.kb-act.kb-del{color:#ff8a8a;border-color:rgba(255,80,80,.2);}
+.kb-act.kb-del:hover{background:rgba(255,80,80,.1);}
+
+/* 知識庫 — 白天模式 */
+body.day-mode .kb-filter{
+  background:#ffffff;border:1px solid #d4c5e8;color:#6b5a8a;
+}
+body.day-mode .kb-filter:hover{background:#f4f0fa;border-color:#9070b0;}
+body.day-mode .kb-filter.active{background:#7c5ec0;color:#ffffff;border-color:#7c5ec0;font-weight:700;}
+body.day-mode .kb-item{background:#ffffff;border:1px solid #e8e2f0;}
+body.day-mode .kb-item.kb-enabled{background:#fcfaff;border-color:#b8a4d8;}
+body.day-mode .kb-item.kb-disabled{background:#f4f0fa;}
+body.day-mode .kb-title{color:#2a1f3d;}
+body.day-mode .kb-meta{color:#8070a0;}
+body.day-mode .kb-tag{background:#ede4f7;color:#5a3a8a;}
+body.day-mode .kb-preview{background:#f4f0fa;color:#6b5a8a;}
+body.day-mode .kb-toggle{background:#e8f5ec;border:1px solid #a5d8b4;color:#2d7a3a;}
+body.day-mode .kb-disabled .kb-toggle{background:#f0eef4;border-color:#d8d4e0;color:#a090b0;}
+body.day-mode .kb-act{background:#ffffff;border:1px solid #e8e2f0;color:#5a4a7a;}
+body.day-mode .kb-act:hover{background:#f4f0fa;border-color:#9070b0;color:#2a1f3d;}
+body.day-mode .kb-act.kb-del{color:#c04040;border-color:#f0d0d0;}
+body.day-mode .kb-act.kb-del:hover{background:#fdeded;}
+
 /* 任務列表項目 */
 body.day-mode .tl-item{
   background:#ffffff !important;
@@ -708,6 +786,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
     <button class="top-tab active" onclick="showView('cards')">首頁</button>
     <button class="top-tab" onclick="showView('aierror')" style="background:rgba(255,107,107,.08);border-color:rgba(255,107,107,.4);color:#ff8a8a;">💪 我要挑戰AI的論點<span class="badge" id="aierrorBadge" style="background:rgba(255,107,107,.25);color:#ff8a8a;">0</span></button>
     <button class="top-tab" onclick="showView('timeline')">📅 時間軸</button>
+    <button class="top-tab" onclick="showView('knowledge')">📚 知識庫<span class="badge" id="knowledgeBadge">0</span></button>
     <button class="top-tab" onclick="showView('rules')">📜 鐵律</button>
     <button class="top-tab" onclick="showView('casedb')">📂 資料庫</button>
     <button class="top-tab" onclick="showView('pmemory')">🔐 私聊<span class="badge" id="pmemoryBadge">0</span></button>
@@ -807,6 +886,42 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
   <div class="panel-header"><h2>📂 案例資料庫</h2><button class="panel-add-btn" onclick="openAddCase()">＋ 新增案例</button></div>
   <div class="panel-body" id="casedbBody"></div>
 </div>
+
+<!-- ===== 知識庫（全公司共享，AI 每次對話自動參考啟用的文件） ===== -->
+<div class="view panel-view" id="v_knowledge">
+  <div class="panel-header">
+    <h2>📚 知識庫 <span style="font-size:.74rem;font-weight:400;color:rgba(180,200,240,.6);margin-left:8px;">全公司共享 · AI 對話時自動參考啟用文件</span></h2>
+    <button class="panel-add-btn" onclick="openAddKnowledge()">＋ 新增文件</button>
+  </div>
+  <div class="panel-body" id="knowledgeBody"></div>
+</div>
+
+<!-- 新增知識文件 Modal -->
+<div class="add-modal-bg" id="knowledgeModal"><div class="add-modal kb-modal">
+  <h3 id="knowledgeModalTitle">＋ 新增知識文件</h3>
+  <div class="kb-grid">
+    <label>標題</label>
+    <input id="kbTitle" class="tk-input" placeholder="例如：消費者旅程、招生 SOP、鐵律補充">
+
+    <label>標籤</label>
+    <input id="kbTags" class="tk-input" placeholder="用逗號分隔，例如：消費者旅程, 行銷, SOP">
+
+    <label>內容</label>
+    <div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;align-items:center;">
+        <button type="button" class="tk-file-btn" onclick="document.getElementById('kbFileInput').click()">📎 上傳 .md / .txt</button>
+        <input type="file" id="kbFileInput" accept=".md,.txt,text/markdown,text/plain" style="display:none;" onchange="kbReadFile(this.files)">
+        <span class="tk-file-summary" id="kbFileSummary">或直接貼下方</span>
+      </div>
+      <textarea id="kbContent" class="tk-input tk-textarea" placeholder="貼入 markdown / 純文字內容..." rows="14" style="font-family:'SF Mono', Monaco, Consolas, monospace;font-size:.78rem;"></textarea>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:.72rem;color:rgba(180,200,240,.55);">
+        <span id="kbWordCount">0 字</span>
+        <span id="kbSizeHint" style="color:rgba(180,200,240,.55);">建議單一文件 &lt; 50,000 字（過長會影響 AI 回應速度）</span>
+      </div>
+    </div>
+  </div>
+  <div class="btn-row tk-btn-row"><button class="btn-cancel" onclick="closeModal('knowledgeModal')">取消</button><button class="btn-save" onclick="saveKnowledge()">儲存</button></div>
+</div></div>
 
 <!-- ===== 0b. 我要挑戰AI的論點 — 任意主角挑戰 AI 的回答，黃柏翰收到通知 ===== -->
 <div class="view panel-view" id="v_aierror">
@@ -1095,7 +1210,7 @@ var FEATURES={
 };
 
 var curView='cards', curFeature=null, curTopicId=null, pinPage=0;
-var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base',pmemory:'ai_pmemory_v1',aierror:'ai_error_reports_v1'};
+var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base',pmemory:'ai_pmemory_v1',aierror:'ai_error_reports_v1',knowledge:'knowledge_base_v1'};
 // ★ 私聊記憶（pmemory）是「per character」儲存
 //   v3 架構：搬到 IndexedDB（AiAdvisorDB.pmemory），key=charId
 //   原因：LS 5MB 容易爆，IDB 50MB+ 永遠不會
@@ -1310,6 +1425,7 @@ function showView(id){
     t.classList.toggle('active',['cards','aierror','timeline','rules','casedb','pmemory','closed'][i]===id);
   });
   if(id==='timeline')renderTimeline();
+  if(id==='knowledge')renderKnowledge();
   if(id==='rules')renderRules();
   if(id==='casedb')renderCaseDb();
   if(id==='pmemory')renderPmemory();
@@ -1910,6 +2026,7 @@ function getFullContext(){
   var pinsCtx=getPinsCtx();if(pinsCtx)parts.push(pinsCtx);
   var closedCtx=getClosedCtx();if(closedCtx)parts.push(closedCtx);
   var errCtx=getAiErrorCtx();if(errCtx)parts.push(errCtx);
+  var kbCtx=getKnowledgeBaseCtx();if(kbCtx)parts.push(kbCtx);
   if(!parts.length)return '';
   return '\n\n═══ 系統資料（全站數據·所有模組共享）═══\n'+parts.join('\n\n')+'\n═══════════════════════════════';
 }
@@ -2816,6 +2933,233 @@ function renderRules(){
       +'<span class="rule-del" onclick="delRule(\''+r.id+'\')">✕</span></div>';
   }).join('');
 }
+
+// ══════ 知識庫（全公司共享，AI 對話時自動參考啟用文件）══════
+// LS key: knowledge_base_v1（已在 GLOBAL_LS_KEY_PATTERNS，雲端 /_global 路徑同步）
+// 資料結構：{ items: [{id, title, content, tags:[], enabled, createdAt, updatedAt, size}] }
+var _kbEditId = null;
+var kbFilter = 'all';  // 'all' | 'enabled' | 'disabled' | tag name
+
+function _loadKb(){
+  try {
+    var raw = localStorage.getItem(SK.knowledge);
+    if (!raw) return { items: [] };
+    var d = JSON.parse(raw);
+    if (!d || !d.items) return { items: [] };
+    return d;
+  } catch(e){ return { items: [] }; }
+}
+function _saveKb(d){
+  try {
+    localStorage.setItem(SK.knowledge, JSON.stringify(d || { items: [] }));
+  } catch(e){
+    alert('⚠️ 儲存失敗：' + (e.message || e));
+  }
+}
+
+function openAddKnowledge(){
+  _kbEditId = null;
+  document.getElementById('knowledgeModalTitle').textContent = '＋ 新增知識文件';
+  document.getElementById('kbTitle').value = '';
+  document.getElementById('kbTags').value = '';
+  document.getElementById('kbContent').value = '';
+  document.getElementById('kbFileSummary').textContent = '或直接貼下方';
+  document.getElementById('kbWordCount').textContent = '0 字';
+  document.getElementById('knowledgeModal').classList.add('open');
+  setTimeout(function(){ document.getElementById('kbTitle').focus(); }, 50);
+}
+
+function openEditKnowledge(id){
+  var d = _loadKb();
+  var it = d.items.find(function(x){ return x.id === id; });
+  if (!it) return;
+  _kbEditId = id;
+  document.getElementById('knowledgeModalTitle').textContent = '✏️ 編輯知識文件';
+  document.getElementById('kbTitle').value = it.title || '';
+  document.getElementById('kbTags').value = (it.tags || []).join(', ');
+  document.getElementById('kbContent').value = it.content || '';
+  document.getElementById('kbFileSummary').textContent = '已載入既有內容';
+  _kbUpdateWordCount();
+  document.getElementById('knowledgeModal').classList.add('open');
+}
+
+function kbReadFile(files){
+  if (!files || !files.length) return;
+  var f = files[0];
+  if (f.size > 500 * 1024){
+    alert('⚠️ 檔案太大（' + (f.size/1024).toFixed(0) + 'KB > 500KB），請拆分後再上傳');
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var text = e.target.result || '';
+    document.getElementById('kbContent').value = text;
+    // 自動帶入標題（用檔名去 extension）
+    if (!document.getElementById('kbTitle').value.trim()){
+      var name = (f.name || '').replace(/\.(md|txt)$/i, '');
+      document.getElementById('kbTitle').value = name;
+    }
+    document.getElementById('kbFileSummary').textContent = '已載入 ' + f.name + ' (' + (f.size/1024).toFixed(1) + 'KB)';
+    _kbUpdateWordCount();
+  };
+  reader.readAsText(f, 'utf-8');
+}
+
+function _kbUpdateWordCount(){
+  var v = document.getElementById('kbContent').value || '';
+  document.getElementById('kbWordCount').textContent = v.length + ' 字';
+}
+
+function saveKnowledge(){
+  var title = document.getElementById('kbTitle').value.trim();
+  var tags = document.getElementById('kbTags').value.trim()
+    .split(/[,，]/).map(function(t){ return t.trim(); }).filter(function(t){ return t; });
+  var content = document.getElementById('kbContent').value;
+  if (!title){ alert('請輸入標題'); return; }
+  if (!content || !content.trim()){ alert('請輸入內容（或上傳檔案）'); return; }
+  var d = _loadKb();
+  var now = Date.now();
+  if (_kbEditId){
+    var it = d.items.find(function(x){ return x.id === _kbEditId; });
+    if (it){
+      it.title = title;
+      it.tags = tags;
+      it.content = content;
+      it.size = content.length;
+      it.updatedAt = now;
+    }
+  } else {
+    d.items.push({
+      id: 'kb_' + now,
+      title: title,
+      tags: tags,
+      content: content,
+      enabled: true,
+      size: content.length,
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+  _saveKb(d);
+  closeModal('knowledgeModal');
+  renderKnowledge();
+}
+
+function toggleKnowledge(id){
+  var d = _loadKb();
+  var it = d.items.find(function(x){ return x.id === id; });
+  if (it){
+    it.enabled = !it.enabled;
+    _saveKb(d);
+    renderKnowledge();
+  }
+}
+
+function delKnowledge(id){
+  if (!confirm('確定刪除這份知識文件？此動作無法復原。')) return;
+  var d = _loadKb();
+  d.items = d.items.filter(function(x){ return x.id !== id; });
+  _saveKb(d);
+  renderKnowledge();
+}
+
+function setKbFilter(f){ kbFilter = f; renderKnowledge(); }
+
+function renderKnowledge(){
+  var d = _loadKb();
+  var items = d.items || [];
+  // 收集所有 tag
+  var allTags = {};
+  items.forEach(function(it){
+    (it.tags || []).forEach(function(t){ allTags[t] = (allTags[t]||0) + 1; });
+  });
+  var tagList = Object.keys(allTags).sort();
+  // badge
+  var enabledCount = items.filter(function(it){ return it.enabled; }).length;
+  var bd = document.getElementById('knowledgeBadge');
+  if (bd) bd.textContent = enabledCount;
+
+  // 過濾
+  var filtered = items;
+  if (kbFilter === 'enabled') filtered = items.filter(function(it){ return it.enabled; });
+  else if (kbFilter === 'disabled') filtered = items.filter(function(it){ return !it.enabled; });
+  else if (kbFilter !== 'all') filtered = items.filter(function(it){ return (it.tags || []).indexOf(kbFilter) >= 0; });
+
+  // 篩選列
+  var filterBar = '<div class="kb-filters">'
+    + '<button class="kb-filter' + (kbFilter==='all'?' active':'') + '" onclick="setKbFilter(\'all\')">全部 ('+items.length+')</button>'
+    + '<button class="kb-filter' + (kbFilter==='enabled'?' active':'') + '" onclick="setKbFilter(\'enabled\')">⚡ 啟用中 ('+enabledCount+')</button>'
+    + '<button class="kb-filter' + (kbFilter==='disabled'?' active':'') + '" onclick="setKbFilter(\'disabled\')">⊝ 停用 ('+(items.length-enabledCount)+')</button>';
+  tagList.forEach(function(t){
+    filterBar += '<button class="kb-filter' + (kbFilter===t?' active':'') + '" onclick="setKbFilter(\''+esc(t).replace(/'/g,"\\'")+'\')">#'+esc(t)+' ('+allTags[t]+')</button>';
+  });
+  filterBar += '</div>';
+
+  var el = document.getElementById('knowledgeBody');
+  if (!items.length){
+    el.innerHTML = '<div class="panel-empty">📚 尚無知識文件<br><br>點上方「＋ 新增文件」可以上傳 .md / .txt 檔，或直接貼文字內容。<br><span style="font-size:.78rem;opacity:.7;">啟用的知識文件會在 AI 對話時自動帶入參考。</span></div>';
+    return;
+  }
+  if (!filtered.length){
+    el.innerHTML = filterBar + '<div class="panel-empty">此篩選下沒有文件</div>';
+    return;
+  }
+  // 依更新時間倒序
+  filtered.sort(function(a,b){ return (b.updatedAt||0) - (a.updatedAt||0); });
+  el.innerHTML = filterBar + filtered.map(function(it){
+    var sz = it.size || (it.content||'').length;
+    var tagsHtml = (it.tags || []).map(function(t){
+      return '<span class="kb-tag">#' + esc(t) + '</span>';
+    }).join(' ');
+    var preview = (it.content || '').replace(/\n+/g,' ').substring(0, 80);
+    var date = it.updatedAt ? new Date(it.updatedAt).toLocaleString('zh-TW', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+    return '<div class="kb-item' + (it.enabled?' kb-enabled':' kb-disabled') + '">'
+      + '<div class="kb-item-hd">'
+      +   '<label class="kb-toggle" title="' + (it.enabled?'⚡ 啟用中（AI 會參考）':'⊝ 停用（AI 不會參考）') + '">'
+      +     '<input type="checkbox" ' + (it.enabled?'checked':'') + ' onchange="toggleKnowledge(\''+it.id+'\')">'
+      +     '<span class="kb-toggle-label">' + (it.enabled?'⚡ 啟用':'⊝ 停用') + '</span>'
+      +   '</label>'
+      +   '<div class="kb-title">' + esc(it.title || '(無標題)') + '</div>'
+      +   '<div class="kb-meta">'
+      +     '<span>📄 ' + (sz/1024).toFixed(1) + 'KB</span>'
+      +     '<span>📝 ' + sz + ' 字</span>'
+      +     '<span>🕒 ' + date + '</span>'
+      +   '</div>'
+      + '</div>'
+      + (tagsHtml ? '<div class="kb-tags">' + tagsHtml + '</div>' : '')
+      + '<div class="kb-preview">' + esc(preview) + (it.content && it.content.length > 80 ? '...' : '') + '</div>'
+      + '<div class="kb-actions">'
+      +   '<button class="kb-act" onclick="openEditKnowledge(\''+it.id+'\')">✏️ 編輯</button>'
+      +   '<button class="kb-act kb-del" onclick="delKnowledge(\''+it.id+'\')">🗑 刪除</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+// ★ AI 對話自動帶入啟用的知識文件
+function getKnowledgeBaseCtx(){
+  var d = _loadKb();
+  var enabled = (d.items || []).filter(function(it){ return it.enabled; });
+  if (!enabled.length) return '';
+  var parts = ['📚 知識庫 — 公司核心知識文件（全公司共享，啟用中文件，回答時優先參考這些知識）】'];
+  enabled.forEach(function(it){
+    var tags = (it.tags || []).length ? '（tags: ' + it.tags.join(', ') + '）' : '';
+    parts.push('\n━━━ 📄 ' + (it.title || '無標題') + tags + ' ━━━');
+    // 內容長度限制：每份文件最多 8000 字（避免單一文件吃掉太多 token）
+    var content = it.content || '';
+    if (content.length > 8000){
+      content = content.substring(0, 8000) + '\n\n[...截斷，原文 ' + it.content.length + ' 字]';
+    }
+    parts.push(content);
+  });
+  return parts.join('\n');
+}
+
+// 監聽 kbContent textarea 變更 → 更新字數
+document.addEventListener('DOMContentLoaded', function(){
+  var ta = document.getElementById('kbContent');
+  if (ta) ta.addEventListener('input', _kbUpdateWordCount);
+});
 
 // ══════ 案例資料庫 ══════
 var caseFilter='all';

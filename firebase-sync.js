@@ -204,6 +204,7 @@ const LOCAL_ONLY_PREFIXES = [
 const GLOBAL_LS_KEY_PATTERNS = [
   /^perf_compare_v1/,   // 業績數據中心（含 _channel_v1, _archives, _lec_v1, _channel_v1_archives 等所有子集）
   /^training_library_v1$/, // 訓練教材庫（全公司共享，每個主管都看得到同一份）
+  /^knowledge_base_v1$/,   // AI 顧問中心知識庫（全公司共享，AI 對話時自動帶入）
 ];
 function isGlobalLsKey(k){
   if (!k) return false;
