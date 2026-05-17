@@ -2075,37 +2075,59 @@ function _cleanMarkdown(text){
   } catch(e){ return text; }
 }
 
-// 表格智慧轉換：把連續多行 |...| 表格 → 垂直易讀條列
+// 表格智慧轉換：把連續多行 |...| 或 ·...· 表格 → 垂直易讀條列
 function _convertTables(text){
+  // 第一輪：處理標準 markdown 表格 |...|
+  text = _convertTableBlock(text, '|');
+  // 第二輪：fallback — 處理 ·...· 表格（AI 可能輸出非標準格式，或前一段 cleanup 已把 | 轉成 ·）
+  text = _convertTableBlock(text, '·');
+  return text;
+}
+
+function _convertTableBlock(text, sep){
+  // sep 是分隔字元（| 或 ·）
+  var sepEsc = sep === '|' ? '\\|' : '·';
+  // ★ 偵測 regex：只要一行有 2+ 個 sep（含），就視為可能的表格行
+  //   不要求嚴格的 ^|...|$ 開頭結尾，因為 AI 可能省略首尾分隔符
+  var rowRegex = new RegExp(sepEsc+'.*'+sepEsc);
+  // 排除「明顯不是表格」的行（例如純文字句子含一個 | 用法）
+  var minSepCount = 2;
   var lines = text.split('\n');
   var out = [];
   var i = 0;
+  // helper：計算一行有幾個 sep
+  function _countSep(line){
+    var n = 0;
+    for (var k = 0; k < line.length; k++) if (line[k] === sep) n++;
+    return n;
+  }
   while (i < lines.length){
     var line = lines[i];
-    // 偵測表格起點：以 | 開頭結尾（trim 後）
-    if (/^\s*\|.+\|\s*$/.test(line)){
-      // 收集連續表格行
+    if (rowRegex.test(line) && _countSep(line) >= minSepCount){
+      // 收集連續表格行（同樣需要至少 2 個 sep）
       var block = [];
-      while (i < lines.length && /^\s*\|.+\|\s*$/.test(lines[i])){
+      while (i < lines.length && rowRegex.test(lines[i]) && _countSep(lines[i]) >= minSepCount){
         block.push(lines[i].trim());
         i++;
       }
-      // 至少 2 行才算表格（header + 1 row）
       if (block.length >= 2){
         // 解析每行的 cells
         var rows = block.map(function(b){
-          // 去掉前後 | 然後 split
-          var inner = b.replace(/^\|\s*/, '').replace(/\s*\|$/, '');
-          return inner.split('|').map(function(c){ return c.trim(); });
+          // 去掉前後 sep
+          var inner = b.replace(new RegExp('^'+sepEsc+'\\s*'), '').replace(new RegExp('\\s*'+sepEsc+'$'), '');
+          var cells = inner.split(sep).map(function(c){ return c.trim(); });
+          // 去除前後空 cells（| | a | b | | 之類）
+          while (cells.length && cells[0] === '') cells.shift();
+          while (cells.length && cells[cells.length-1] === '') cells.pop();
+          return cells;
         });
-        // 偵測並刪除 separator 行（|---|---|）
+        // 刪除 separator 行（|---|---|）
         rows = rows.filter(function(r){
-          return !r.every(function(c){ return /^[\s\-:]+$/.test(c); });
+          return r.length && !r.every(function(c){ return /^[\s\-:─]+$/.test(c); });
         });
         if (rows.length >= 2){
           var headers = rows[0];
           var dataRows = rows.slice(1);
-          // 每筆 data row → 「📌 第一欄：欄2 值2，欄3 值3...」
           dataRows.forEach(function(row){
             if (row.length === 0) return;
             var firstCell = row[0] || '';
@@ -2114,19 +2136,17 @@ function _convertTables(text){
               var h = headers[j] || '';
               var v = row[j] || '';
               if (!v) continue;
-              // 如果 header 跟 value 看起來重複（例如 header=金額 value=金額）就不重複放
-              if (h) rest.push(h + ' ' + v);
+              if (h && h !== v) rest.push(h + ' ' + v);
               else rest.push(v);
             }
             var prefix = firstCell ? '📌 ' + firstCell + '：' : '• ';
-            out.push(prefix + rest.join('，'));
+            out.push(prefix + (rest.length ? rest.join('，') : firstCell));
           });
-          // 表格後留一個空行
           out.push('');
           continue;
         }
       }
-      // 不是有效表格 → 把 block 原樣放回
+      // 不是有效表格 → 原樣放回
       out = out.concat(block);
     } else {
       out.push(line);
