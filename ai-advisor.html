@@ -1046,6 +1046,9 @@ var LINE_STYLE = '\n\n【💬 回覆風格 — LINE 對話感】\n'
   + '• 重要區塊用 emoji 開頭：📊 數據、🎯 重點、⚠️ 警訊、✅ 行動、💡 建議、📋 計畫、❓ 反問\n'
   + '• 重要詞用「」框起來：今年「中壢二部」的業績、「凃敏薰」的轉化率\n'
   + '• 列表用 • 開頭（一行一項），不要用 1.2.3.（除非真的有先後）\n'
+  + '• 金額用「萬」當單位，不要用 K（千）或 M（百萬）— 公司習慣用萬：\n'
+  + '   ❌ 566K、497K、1.2M\n'
+  + '   ✅ 56.6萬、49.7萬、120萬\n'
   + '• 數據比較不要用表格，改用「條列+對齊」：\n'
   + '   📊 4 個月業績趨勢：\n'
   + '   • 1月  132 萬（排名 #14）\n'
@@ -2070,6 +2073,19 @@ function _cleanMarkdown(text){
 
     // 9. 收斂多餘換行
     s = s.replace(/\n{3,}/g, '\n\n');
+
+    // 10. 數字單位本地化：K → 萬、M → 萬（公司習慣用「萬」不用 K/M）
+    //     566K → 56.6萬、100K → 10萬、1.5M → 150萬
+    s = s.replace(/(\d+(?:\.\d+)?)\s*K\b/g, function(_m, num){
+      var v = parseFloat(num) * 1000;
+      var wan = v / 10000;
+      return (wan % 1 === 0 ? wan.toFixed(0) : wan.toFixed(1)) + '萬';
+    });
+    s = s.replace(/(\d+(?:\.\d+)?)\s*M\b/g, function(_m, num){
+      var v = parseFloat(num) * 1000000;
+      var wan = v / 10000;
+      return (wan % 1 === 0 ? wan.toFixed(0) : wan.toFixed(1)) + '萬';
+    });
 
     return s.trim();
   } catch(e){ return text; }
