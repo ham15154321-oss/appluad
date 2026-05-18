@@ -502,22 +502,56 @@ async function _loadCardsForFirstTime(){
     } catch(_e){}
 
     console.log('[firstTime] 候選角色 bucket 共 ' + candidates.length + ' 個：', candidates.slice(0, 5).join(','), '...');
+    // ★ firebase-sync.js 把多個 LS key 打包進「main/chunk_N/big_*」幾個 doc 裡，不是每個 key 一個 doc
+    //   所以要讀整個 localStorage collection，組合所有 doc 才能找到 castle_cards_v1
     for (var i = 0; i < candidates.length; i++){
       var charName = candidates[i];
       try {
-        // 正確路徑：users/applaud/characters/{charName}/localStorage/{key}
-        var snapC = await fs.collection('users').doc('applaud').collection('characters').doc(charName).collection('localStorage').doc('castle_cards_v1').get();
-        if (snapC.exists){
-          var dC = snapC.data();
-          var parsedC = _parseCardsValue(dC && dC.value);
+        var lsCollRef = fs.collection('users').doc('applaud').collection('characters').doc(charName).collection('localStorage');
+        var lsSnap = await lsCollRef.get();
+        if (lsSnap.empty){
+          console.log('[firstTime] ['+charName+'] localStorage collection 為空');
+          continue;
+        }
+        // 從 main / chunk_N / big_* 三種 doc 結構裡找 castle_cards_v1
+        var foundValue = null;
+        var bigParts = {}; // {key: {total, pieces: {part: value}}}
+        lsSnap.forEach(function(docSnap){
+          if (foundValue) return;
+          var d = docSnap.data(); if (!d) return;
+          var id = docSnap.id;
+          // 1) main / chunk_N — data 是 {key: value, ...} flat map
+          if (id === 'main' || id.indexOf('chunk_') === 0){
+            if (d.data && d.data.castle_cards_v1){ foundValue = d.data.castle_cards_v1; return; }
+          }
+          // 2) big_<encoded_key>  或  big_<encoded_key>_p0, _p1...
+          if (id.indexOf('big_') === 0){
+            if (d.key !== 'castle_cards_v1') return;
+            if (d.totalParts && d.totalParts > 1){
+              if (!bigParts[d.key]) bigParts[d.key] = { total: d.totalParts, pieces: {} };
+              bigParts[d.key].pieces[d.part] = d.value || '';
+            } else {
+              foundValue = d.value;
+            }
+          }
+        });
+        // 組合分段 big_*_p*
+        if (!foundValue && bigParts.castle_cards_v1){
+          var info = bigParts.castle_cards_v1;
+          var full = '';
+          for (var p = 0; p < info.total; p++) full += (info.pieces[p] || '');
+          if (full) foundValue = full;
+        }
+        if (foundValue){
+          var parsedC = _parseCardsValue(foundValue);
           if (parsedC && parsedC.length){
             console.log('[firstTime] ✅ 從角色 ['+charName+'] 的雲端 bucket 載入卡片資料（'+parsedC.length+' 張）');
             return parsedC;
           } else {
-            console.log('[firstTime] ['+charName+'] doc 存在但解析失敗或空陣列');
+            console.log('[firstTime] ['+charName+'] 找到 castle_cards_v1 但解析失敗或空陣列');
           }
         } else {
-          console.log('[firstTime] ['+charName+'] 無 doc');
+          console.log('[firstTime] ['+charName+'] 的 localStorage（'+lsSnap.size+' 個 doc）中找不到 castle_cards_v1');
         }
       } catch(_e2){
         console.warn('[firstTime] 從 ['+charName+'] 讀失敗', _e2 && (_e2.code || _e2.message));
