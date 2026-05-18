@@ -27,6 +27,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
 .card{width:140px;height:195px;perspective:800px;cursor:pointer;position:relative;}
 .card-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .6s;}
 .card.flipped .card-inner,.reveal-card.flipped .card-inner{transform:rotateY(180deg);}
+/* ★ 權限：自己的卡片發光、別人的鎖定 */
+.card.is-mine{filter:drop-shadow(0 0 14px rgba(74,234,255,.6));}
+.card.is-mine .card-front,.card.is-mine .card-back{border-color:rgba(74,234,255,.7) !important;box-shadow:0 4px 24px rgba(74,234,255,.4) !important;}
+.card.locked{opacity:.32;filter:grayscale(.6) brightness(.7);cursor:not-allowed;}
+.card.locked:hover{transform:none !important;}
+.card.locked::after{content:'🔒';position:absolute;top:6px;right:6px;font-size:14px;z-index:99;filter:drop-shadow(0 1px 3px rgba(0,0,0,.7));}
 
 /* FRONT */
 .card-front,.card-back{position:absolute;top:0;left:0;width:100%;height:100%;border-radius:10px;backface-visibility:hidden;overflow:hidden;border:2px solid rgba(255,255,255,.15);box-shadow:0 4px 20px rgba(0,0,0,.5);}
@@ -693,6 +699,13 @@ function saveSelected(){
 function renderPyramid(){
   const el=document.getElementById('pyramid');
   el.innerHTML='';
+  // ★ 權限狀態
+  var _loggedChar = '';
+  var _isAdmin = false;
+  try {
+    _loggedChar = localStorage.getItem('appedu_logged_character') || '';
+    _isAdmin = localStorage.getItem('appedu_is_admin') === '1';
+  } catch(_e){}
   // Separate visible and hidden cards
   const visibleIdxs=[];
   const hiddenIdxs=[];
@@ -732,7 +745,10 @@ function renderPyramid(){
       const isSel2=selectedCards2.includes(idx);
       const isSel3=selectedCards3.includes(idx);
       const div=document.createElement('div');
-      div.className='card'+(hasPhoto?' flipped':'')+(isSel1?' selected-card-1':'')+(isSel2?' selected-card-2':'')+(isSel3?' selected-card-3':'');
+      // ★ 權限：自己的卡片高亮、非管理員的別人卡片鎖定
+      var _isMine = (_loggedChar && card.name === _loggedChar);
+      var _locked = (!_isAdmin && _loggedChar && card.name !== _loggedChar);
+      div.className='card'+(hasPhoto?' flipped':'')+(isSel1?' selected-card-1':'')+(isSel2?' selected-card-2':'')+(isSel3?' selected-card-3':'')+(_isMine?' is-mine':'')+(_locked?' locked':'');
       div.dataset.idx=idx;
       div.style.setProperty('--card-glow',getGlow(card.color));
       div.innerHTML=buildCardHTML(card,idx);
@@ -1697,6 +1713,16 @@ migrateCharDataToName();
 async function loginAsCharacter(idx){
   const card=cards[idx];
   if(!card.name||card.name==='角色 '+(idx+1)){showToast('⚠ 請先設定角色姓名');return;}
+
+  // ★ 權限檢查：非管理員只能進入自己的角色
+  try {
+    var loggedChar = localStorage.getItem('appedu_logged_character');
+    var isAdmin = localStorage.getItem('appedu_is_admin') === '1';
+    if (!isAdmin && loggedChar && card.name !== loggedChar){
+      alert('⚠️ 你只能進入自己的角色「'+loggedChar+'」。\n如要切換角色，請聯絡管理員。');
+      return;
+    }
+  } catch(_e){}
 
   // 先儲存卡牌資料（確保後台的修改不會遺失）
   saveCards();saveSelected();

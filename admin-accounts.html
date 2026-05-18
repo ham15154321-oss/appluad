@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>員工帳號管理 — 超級管理員專屬</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:'Segoe UI','Microsoft JhengHei',sans-serif;
+    background:linear-gradient(135deg,#050510 0%,#0d1033 60%,#050510 100%);
+    color:#e8e8e8;min-height:100vh;
+    padding:20px 24px 40px;
+    font-size:13px;line-height:1.55;
+  }
+  body.day-mode{
+    background:linear-gradient(135deg,#f4f1f7 0%,#e9ddf0 60%,#f4f1f7 100%);
+    color:#3a2a4c;
+  }
+  h1{
+    font-size:18px;color:#ffd700;letter-spacing:2px;
+    margin-bottom:6px;display:flex;align-items:center;gap:10px;
+  }
+  body.day-mode h1{color:#5a2a8a;}
+  .subtitle{
+    font-size:11px;color:rgba(160,200,255,.5);letter-spacing:1px;
+    margin-bottom:20px;
+  }
+  body.day-mode .subtitle{color:#7a5a9c;}
+  .warn{
+    background:rgba(255,107,107,.10);border:1px solid rgba(255,107,107,.30);
+    padding:14px 18px;border-radius:10px;color:#ff9b9b;
+    margin-bottom:20px;line-height:1.7;font-size:12px;
+  }
+  body.day-mode .warn{
+    background:#fff0ed;border-color:#ff8a7a;color:#a8421a;
+  }
+  .stats{
+    display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;
+  }
+  .stat-card{
+    flex:1;min-width:130px;
+    padding:14px 16px;border-radius:10px;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,215,0,.15);
+  }
+  body.day-mode .stat-card{
+    background:#fff;border-color:#d8b8e0;
+  }
+  .stat-card .label{
+    font-size:10px;color:rgba(160,200,255,.55);letter-spacing:1px;
+    text-transform:uppercase;margin-bottom:4px;
+  }
+  body.day-mode .stat-card .label{color:#7a5a9c;}
+  .stat-card .value{
+    font-size:22px;font-weight:800;color:#ffd700;
+  }
+  body.day-mode .stat-card .value{color:#5a2a8a;}
+  .toolbar{
+    display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;
+  }
+  .btn{
+    padding:7px 14px;border-radius:8px;cursor:pointer;
+    font-size:12px;font-weight:700;font-family:inherit;
+    border:1px solid rgba(74,234,255,.30);
+    background:rgba(74,234,255,.08);color:#4aeaff;
+    transition:all .2s;
+  }
+  .btn:hover{background:rgba(74,234,255,.20);}
+  .btn.danger{
+    border-color:rgba(255,107,107,.30);background:rgba(255,107,107,.08);color:#ff9b9b;
+  }
+  .btn.danger:hover{background:rgba(255,107,107,.20);}
+  .btn.warn{
+    border-color:rgba(255,167,38,.40);background:rgba(255,167,38,.10);color:#ffb84a;
+  }
+  body.day-mode .btn{
+    background:#fff;border-color:#a8a0c0;color:#5a4a7c;
+  }
+  body.day-mode .btn:hover{background:#ede4f4;}
+  body.day-mode .btn.danger{color:#c33;border-color:#ff8a7a;}
+  body.day-mode .btn.warn{color:#a85800;border-color:#e0a050;}
+  input.filter{
+    padding:7px 12px;border-radius:8px;
+    background:rgba(255,255,255,.05);border:1px solid rgba(100,160,255,.15);
+    color:#e8e8ff;font-size:12px;font-family:inherit;outline:none;
+    min-width:200px;
+  }
+  body.day-mode input.filter{
+    background:#fff;border-color:#a8a0c0;color:#3a2a4c;
+  }
+  table{
+    width:100%;border-collapse:collapse;font-size:12px;
+    background:rgba(255,255,255,.02);border-radius:8px;overflow:hidden;
+  }
+  body.day-mode table{
+    background:#fff;
+    box-shadow:0 2px 8px rgba(120,80,160,.08);
+  }
+  thead{
+    background:linear-gradient(135deg,rgba(255,215,0,.10),rgba(255,167,38,.06));
+  }
+  body.day-mode thead{
+    background:linear-gradient(135deg,#fff0d8,#ffe5b8);
+  }
+  th{
+    padding:10px 12px;text-align:left;font-weight:700;
+    color:#ffd700;letter-spacing:1px;font-size:11px;
+    border-bottom:1px solid rgba(255,215,0,.15);
+    white-space:nowrap;
+  }
+  body.day-mode th{color:#a06000;border-bottom-color:#d8a850;}
+  td{
+    padding:10px 12px;
+    border-bottom:1px solid rgba(255,255,255,.04);
+    vertical-align:middle;
+  }
+  body.day-mode td{border-bottom-color:#e8dff0;}
+  tbody tr:hover{
+    background:rgba(255,215,0,.04);
+  }
+  body.day-mode tbody tr:hover{background:#f8f0ff;}
+  .badge-admin{
+    display:inline-block;padding:2px 8px;border-radius:6px;
+    font-size:10px;font-weight:700;letter-spacing:1px;
+    background:rgba(255,107,107,.15);color:#ff9b9b;
+    border:1px solid rgba(255,107,107,.30);
+  }
+  body.day-mode .badge-admin{
+    background:#ffe0dc;color:#c0381c;border-color:#ff8a7a;
+  }
+  .badge-user{
+    display:inline-block;padding:2px 8px;border-radius:6px;
+    font-size:10px;font-weight:600;
+    background:rgba(160,200,255,.10);color:rgba(160,200,255,.7);
+    border:1px solid rgba(160,200,255,.20);
+  }
+  body.day-mode .badge-user{
+    background:#e0e8f4;color:#5a6a8a;border-color:#a8b8d0;
+  }
+  .pw-cell{font-family:monospace;letter-spacing:1px;}
+  .actions{display:flex;gap:6px;flex-wrap:nowrap;}
+  .actions .btn{padding:5px 10px;font-size:11px;}
+  .empty{
+    text-align:center;padding:40px 20px;
+    color:rgba(160,200,255,.5);
+  }
+  body.day-mode .empty{color:#7a5a9c;}
+  .loading{
+    text-align:center;padding:30px;color:rgba(255,215,0,.6);font-size:13px;
+  }
+  .error-msg{
+    background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.30);
+    padding:14px;border-radius:10px;color:#ff8888;margin-bottom:16px;
+  }
+  body.day-mode .error-msg{
+    background:#ffe5e0;color:#a02020;border-color:#ff8a7a;
+  }
+</style>
+<link rel="stylesheet" href="day-mode.css">
+</head>
+<body>
+
+<h1>🔑 員工帳號管理 <span style="font-size:11px;color:#ff9b9b;font-weight:400;letter-spacing:1px;">超級管理員專屬</span></h1>
+<div class="subtitle">查看 / 重設 / 刪除員工的登入帳號與密碼</div>
+
+<div id="accessError" class="error-msg" style="display:none;">
+  ⚠️ 只有「黃柏翰」可以使用這個功能。<br>
+  目前登入主角：<span id="currentChar">—</span>
+</div>
+
+<div id="mainContent" style="display:none;">
+
+  <div class="warn">
+    ⚠️ <b>密碼以明文儲存</b>（這是設計，方便忘記密碼時你能查到並告訴員工）。
+    <br>因此這個頁面只有你（黃柏翰）才看得到。請小心使用，不要把畫面分享給其他人。
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="label">總帳號數</div><div class="value" id="statTotal">—</div></div>
+    <div class="stat-card"><div class="label">管理員</div><div class="value" id="statAdmin">—</div></div>
+    <div class="stat-card"><div class="label">一般員工</div><div class="value" id="statUser">—</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input class="filter" id="searchBox" placeholder="🔍 搜尋員工編號或姓名..." oninput="renderTable()">
+    <button class="btn" onclick="loadAccounts()">🔄 重新整理</button>
+    <button class="btn warn" onclick="exportCsv()">📥 匯出 CSV</button>
+  </div>
+
+  <div id="tableWrap">
+    <div class="loading">載入中...</div>
+  </div>
+</div>
+
+<script src="./auth-firebase.js?v=v1"></script>
+<script>
+var _accounts = [];
+
+function bodyHasDayMode(){
+  try{
+    if (window.parent && window.parent.document && window.parent.document.body){
+      return window.parent.document.body.classList.contains('day-mode');
+    }
+  }catch(e){}
+  return document.body.classList.contains('day-mode');
+}
+function syncDayMode(){
+  if (bodyHasDayMode()) document.body.classList.add('day-mode');
+  else document.body.classList.remove('day-mode');
+}
+syncDayMode();
+setInterval(syncDayMode, 1000);
+
+// ── 權限檢查（必須是黃柏翰）──
+function getLoggedChar(){
+  // 在 iframe 裡跑時，從 parent localStorage 讀
+  try{
+    if (window.parent && window.parent !== window){
+      return window.parent.localStorage.getItem('appedu_logged_character')
+          || window.parent.localStorage.getItem('activeCharacterName')
+          || '';
+    }
+  }catch(e){}
+  return localStorage.getItem('appedu_logged_character')
+      || localStorage.getItem('activeCharacterName')
+      || '';
+}
+
+var _loggedChar = getLoggedChar();
+document.getElementById('currentChar').textContent = _loggedChar || '（無）';
+
+if (_loggedChar !== '黃柏翰'){
+  document.getElementById('accessError').style.display = 'block';
+} else {
+  document.getElementById('mainContent').style.display = 'block';
+  loadAccounts();
+}
+
+async function loadAccounts(){
+  var wrap = document.getElementById('tableWrap');
+  wrap.innerHTML = '<div class="loading">🔄 載入中...</div>';
+  try {
+    await window.authReady;
+    _accounts = await window.authListAll();
+    updateStats();
+    renderTable();
+  } catch(e){
+    wrap.innerHTML = '<div class="error-msg">❌ 載入失敗：' + (e.message||e) + '</div>';
+  }
+}
+
+function updateStats(){
+  document.getElementById('statTotal').textContent = _accounts.length;
+  var adminCount = _accounts.filter(function(a){ return a.isAdmin; }).length;
+  document.getElementById('statAdmin').textContent = adminCount;
+  document.getElementById('statUser').textContent = _accounts.length - adminCount;
+}
+
+function fmtDate(ts){
+  if (!ts) return '—';
+  try {
+    var d = ts.toDate ? ts.toDate() : (ts.seconds ? new Date(ts.seconds*1000) : new Date(ts));
+    if (isNaN(d.getTime())) return '—';
+    var y = d.getFullYear(), m = (d.getMonth()+1+'').padStart(2,'0'), day = (d.getDate()+'').padStart(2,'0');
+    var hh = (d.getHours()+'').padStart(2,'0'), mm = (d.getMinutes()+'').padStart(2,'0');
+    return y+'/'+m+'/'+day+' '+hh+':'+mm;
+  } catch(e){ return '—'; }
+}
+
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderTable(){
+  var q = (document.getElementById('searchBox').value || '').trim().toLowerCase();
+  var filtered = _accounts.filter(function(a){
+    if (!q) return true;
+    return (a.empNo||'').toLowerCase().indexOf(q) >= 0
+        || (a.characterName||'').toLowerCase().indexOf(q) >= 0;
+  });
+
+  var wrap = document.getElementById('tableWrap');
+  if (!filtered.length){
+    wrap.innerHTML = '<div class="empty">'+(q?'🔍 找不到符合的帳號':'目前還沒有任何員工登入過。員工第一次登入後會自動建立帳號。')+'</div>';
+    return;
+  }
+
+  var html = '<table>';
+  html += '<thead><tr>';
+  html += '<th>員工編號</th>';
+  html += '<th>角色名稱</th>';
+  html += '<th>密碼</th>';
+  html += '<th>身分</th>';
+  html += '<th>登入次數</th>';
+  html += '<th>最後登入</th>';
+  html += '<th>建立於</th>';
+  html += '<th>操作</th>';
+  html += '</tr></thead><tbody>';
+
+  filtered.forEach(function(a){
+    html += '<tr>';
+    html += '<td><b>'+esc(a.empNo)+'</b></td>';
+    html += '<td>'+esc(a.characterName||'—')+'</td>';
+    html += '<td class="pw-cell">'+esc(a.password||'—')+'</td>';
+    html += '<td>'+(a.isAdmin?'<span class="badge-admin">管理員</span>':'<span class="badge-user">一般</span>')+'</td>';
+    html += '<td>'+(a.loginCount||0)+'</td>';
+    html += '<td style="font-size:11px;color:rgba(160,200,255,.7);">'+fmtDate(a.lastLoginAt)+'</td>';
+    html += '<td style="font-size:11px;color:rgba(160,200,255,.55);">'+fmtDate(a.createdAt)+'</td>';
+    html += '<td><div class="actions">';
+    html += '<button class="btn warn" onclick="resetPassword(\''+esc(a.empNo)+'\')">🔧 重設</button>';
+    html += '<button class="btn danger" onclick="deleteAccount(\''+esc(a.empNo)+'\',\''+esc(a.characterName||'')+'\')">🗑 刪除</button>';
+    html += '</div></td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+async function resetPassword(empNo){
+  var newPw = prompt('🔧 為 ['+empNo+'] 設定新密碼：\n\n(直接按確定保持原密碼)');
+  if (newPw === null) return;
+  newPw = newPw.trim();
+  if (!newPw){ alert('密碼不能空白'); return; }
+  try {
+    await window.authResetPassword(empNo, newPw);
+    alert('✅ 已重設 '+empNo+' 的密碼為：'+newPw+'\n\n請告知該員工新密碼。');
+    loadAccounts();
+  } catch(e){
+    alert('❌ 重設失敗：' + (e.message||e));
+  }
+}
+
+async function deleteAccount(empNo, charName){
+  if (!confirm('⚠️ 確定要刪除帳號「'+empNo+'」('+charName+')嗎？\n\n刪除後該員工會被當成「第一次登入」，需要重新挑選角色卡。\n（角色卡裡的資料不會被刪除）')) return;
+  try {
+    await window.authDeleteAccount(empNo);
+    alert('✅ 已刪除 '+empNo+' 的登入帳號');
+    loadAccounts();
+  } catch(e){
+    alert('❌ 刪除失敗：' + (e.message||e));
+  }
+}
+
+function exportCsv(){
+  if (!_accounts.length){ alert('沒有資料可匯出'); return; }
+  var headers = ['員工編號','角色名稱','密碼','管理員','登入次數','最後登入','建立於'];
+  var rows = [headers];
+  _accounts.forEach(function(a){
+    rows.push([
+      a.empNo||'',
+      a.characterName||'',
+      a.password||'',
+      a.isAdmin?'是':'否',
+      a.loginCount||0,
+      fmtDate(a.lastLoginAt),
+      fmtDate(a.createdAt)
+    ]);
+  });
+  var csv = rows.map(function(r){
+    return r.map(function(v){
+      var s = String(v).replace(/"/g,'""');
+      if (/[,"\n]/.test(s)) s = '"'+s+'"';
+      return s;
+    }).join(',');
+  }).join('\n');
+  var blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'accounts_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+}
+</script>
+
+</body>
+</html>

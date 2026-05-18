@@ -228,6 +228,7 @@
   }
 </style>
 <link rel="stylesheet" href="day-mode.css">
+<script src="./auth-firebase.js?v=v1"></script>
 </head>
 <body>
 
@@ -243,6 +244,7 @@
   </div>
   <div class="user-bar" id="userBar" style="display:none;">
     <div class="user-badge">👤 <span id="userBadgeName"></span></div>
+    <button class="logout-btn" onclick="handleLogout()">登出</button>
   </div>
 </header>
 
@@ -252,23 +254,66 @@
   <!-- 登入區塊 -->
   <section class="login-section" id="loginSection">
     <h2>🔐 請先登入</h2>
+    <div style="font-size:11px;color:rgba(160,200,255,.55);text-align:center;margin:-8px 0 14px;letter-spacing:1px;">
+      請用你的員工編號登入（例：ap004）
+    </div>
     <form id="loginForm" onsubmit="return handleLogin(event)">
       <div class="login-field">
-        <label>帳號</label>
-        <input type="text" id="loginUser" placeholder="請輸入帳號" autocomplete="username" autofocus>
+        <label>員工編號</label>
+        <input type="text" id="loginUser" placeholder="員工編號（例：ap004）" autocomplete="username" autofocus>
       </div>
       <div class="login-field">
         <label>密碼</label>
         <input type="password" id="loginPass" placeholder="請輸入密碼" autocomplete="current-password">
       </div>
-      <label class="remember-row">
-        <input type="checkbox" id="rememberMe">
-        <span>記住我</span>
-      </label>
+      <div style="font-size:11px;color:rgba(160,200,255,.5);margin:4px 0 12px;letter-spacing:1px;">
+        ✓ 登入後永遠記住，直到手動登出
+      </div>
       <div class="login-error" id="loginError"></div>
       <button type="submit" class="login-submit">登 入</button>
     </form>
   </section>
+
+  <!-- 第一次設定：選擇角色 -->
+  <section class="login-section" id="firstTimeSection" style="display:none;max-width:680px;">
+    <h2 id="firstTimeTitle">🆕 第一次登入 — 請選擇你的角色</h2>
+    <div style="font-size:12px;color:rgba(255,215,0,.7);text-align:center;margin-bottom:12px;letter-spacing:1px;" id="firstTimeSub">
+      員工編號：<span id="firstTimeEmp"></span>　從下列卡片中挑出「你自己」
+    </div>
+    <div id="firstTimeError" style="color:#ff6b6b;font-size:12px;text-align:center;min-height:16px;margin-bottom:6px;"></div>
+    <div id="firstTimeCardGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;max-height:380px;overflow-y:auto;padding:6px;background:rgba(0,0,0,.18);border-radius:10px;">
+      <div style="grid-column:1/-1;text-align:center;color:rgba(160,200,255,.6);padding:20px;font-size:12px;">載入卡片中...</div>
+    </div>
+    <button type="button" onclick="cancelFirstTimeSetup()" style="margin-top:12px;width:100%;padding:9px;border:1px solid rgba(255,100,100,.2);background:rgba(255,255,255,.04);color:rgba(255,160,160,.8);border-radius:10px;font-size:12px;cursor:pointer;">取消，回到登入</button>
+  </section>
+
+  <!-- 第一次設定：確認 modal -->
+  <div id="firstTimeConfirmModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.7);align-items:center;justify-content:center;">
+    <div style="max-width:380px;width:90%;background:#0f1432;border:1px solid rgba(255,215,0,.4);border-radius:14px;padding:22px;color:#e8e8e8;">
+      <div style="font-size:15px;font-weight:700;color:#ffd700;margin-bottom:12px;text-align:center;letter-spacing:1px;">⚠️ 請再次確認</div>
+      <div style="font-size:13px;line-height:1.7;color:rgba(220,235,255,.9);text-align:center;margin-bottom:16px;" id="firstTimeConfirmText"></div>
+      <div style="font-size:11px;color:rgba(255,150,150,.8);text-align:center;margin-bottom:18px;">確定後將無法自行更換角色，需請管理員協助</div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="confirmFirstTimeSetup(false)" style="flex:1;padding:10px;border:1px solid rgba(160,200,255,.2);background:rgba(255,255,255,.04);color:rgba(200,220,255,.8);border-radius:10px;font-size:13px;cursor:pointer;">取消</button>
+        <button onclick="confirmFirstTimeSetup(true)" style="flex:1;padding:10px;border:none;background:linear-gradient(135deg,#ffd700,#f59e0b);color:#1a1a2e;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;">確定建立</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 員工帳號管理（黃柏翰專屬） -->
+  <section class="login-section" id="accountsAdminSection" style="display:none;max-width:920px;">
+    <h2 style="text-align:left;">🔑 員工帳號管理 <span style="font-size:11px;color:rgba(255,100,100,.7);font-weight:400;letter-spacing:1px;">（僅黃柏翰可見）</span>
+      <button type="button" onclick="closeAccountsAdmin()" style="float:right;padding:4px 10px;font-size:11px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);color:rgba(200,220,255,.7);border-radius:6px;cursor:pointer;">✕ 關閉</button>
+    </h2>
+    <div id="accountsAdminBody" style="overflow-x:auto;">
+      <div style="text-align:center;color:rgba(160,200,255,.6);padding:30px;font-size:12px;">載入中...</div>
+    </div>
+  </section>
+
+  <!-- 開啟員工帳號管理按鈕（只有黃柏翰看得到） -->
+  <div id="accountsAdminEntry" style="display:none;text-align:center;margin:-6px 0 14px;">
+    <button onclick="openAccountsAdmin()" style="padding:8px 18px;background:rgba(255,100,100,.08);border:1px solid rgba(255,100,100,.25);color:#ff9b9b;border-radius:10px;font-size:12px;font-weight:600;letter-spacing:1px;cursor:pointer;">🔑 員工帳號管理（超級管理員）</button>
+  </div>
 
   <!-- 鎖定提示 -->
   <div class="lock-hint" id="lockHint">🔒 請登入後使用以下功能</div>
@@ -329,12 +374,8 @@
 
 <script>
 /* ============================================================
-   帳號系統
+   帳號系統 v2 — 員工帳號密碼 + Firebase 後端
    ============================================================ */
-var ACCOUNTS = [
-  { user:'applaud', pass:'0000', displayName:'管理員' }
-  // 未來新增：{ user:'帳號', pass:'密碼', displayName:'顯示名稱' },
-];
 
 /* ---- 星星背景 ---- */
 (function(){
@@ -349,13 +390,22 @@ var ACCOUNTS = [
   }
 })();
 
-/* ---- 登入狀態 ---- */
+/* ---- 取得 session（讀 localStorage 為主，永遠記住） ---- */
 function getSession(){
   try{
-    var s=JSON.parse(sessionStorage.getItem('appedu_session'));
-    if(s&&s.user)return s;
-    var r=JSON.parse(localStorage.getItem('appedu_remembered_session'));
-    if(r&&r.user){sessionStorage.setItem('appedu_session',JSON.stringify(r));return r;}
+    var empNo = localStorage.getItem('appedu_emp_no');
+    var charName = localStorage.getItem('appedu_logged_character');
+    if (empNo && charName){
+      return {
+        user: empNo,
+        displayName: charName,
+        isAdmin: localStorage.getItem('appedu_is_admin')==='1',
+        loginTime: parseInt(localStorage.getItem('appedu_login_at')||'0', 10) || Date.now()
+      };
+    }
+    // 向下相容：舊 sessionStorage
+    var s = JSON.parse(sessionStorage.getItem('appedu_session')||'null');
+    if (s && s.user) return s;
   }catch(e){}
   return null;
 }
@@ -363,75 +413,235 @@ function getSession(){
 /* 切換到「已登入」狀態 */
 function showApp(session, isAutoLogin){
   var loginSection=document.getElementById('loginSection');
+  var firstTimeSection=document.getElementById('firstTimeSection');
+  if (firstTimeSection) firstTimeSection.style.display='none';
   if(isAutoLogin){
-    // 記住我自動登入：替換登入框為提示文字，讓使用者知道為什麼沒看到登入頁面
-    loginSection.innerHTML='<div style="text-align:center;padding:8px 0;"><div style="color:#ffd700;font-size:13px;font-weight:600;letter-spacing:1px;">✅ 已自動登入（'+( session.displayName||session.user )+'）</div><div style="color:rgba(160,200,255,.4);font-size:11px;margin-top:4px;">已勾選「記住我」，如需重新登入請按登出</div></div>';
+    // 已登入：顯示提示文字，不自動跳轉
+    loginSection.innerHTML='<div style="text-align:center;padding:8px 0;"><div style="color:#ffd700;font-size:14px;font-weight:600;letter-spacing:1px;">✅ 已登入：'+( session.displayName||session.user )+'</div><div style="color:rgba(160,200,255,.45);font-size:11px;margin-top:6px;">點下方功能進入，或按右上「登出」</div></div>';
   } else {
     loginSection.style.display='none';
   }
-  document.getElementById('lockHint').style.display='none';
+  var lockHint = document.getElementById('lockHint');
+  if (lockHint) lockHint.style.display='none';
   document.getElementById('appGrid').classList.remove('locked');
   document.getElementById('userBar').style.display='flex';
   document.getElementById('userBadgeName').textContent=session.displayName||session.user;
+  // 黃柏翰：顯示帳號管理入口
+  var adminEntry = document.getElementById('accountsAdminEntry');
+  if (adminEntry){
+    adminEntry.style.display = (session.displayName === (window.SUPER_ADMIN || '黃柏翰')) ? 'block' : 'none';
+  }
   updateCharBar();
-}
-
-/* 自動填入記住的帳密 */
-function loadRemembered(){
-  try{
-    var r=JSON.parse(localStorage.getItem('appedu_remember'));
-    if(r&&r.user){
-      document.getElementById('loginUser').value=r.user;
-      document.getElementById('loginPass').value=r.pass;
-      document.getElementById('rememberMe').checked=true;
-    }
-  }catch(e){}
 }
 
 /* ---- 頁面載入：檢查登入 ---- */
 var existingSession=getSession();
 if(existingSession){
-  showApp(existingSession, true); // true = 自動登入（記住我）
-} else {
-  loadRemembered();
+  showApp(existingSession, true);
+  // 既有 session → 啟動 Firebase 同步
+  if (window._firebaseSyncStart){
+    try { window._firebaseSyncStart(); } catch(e){}
+  }
 }
 
-/* ---- 登入處理 ---- */
-function handleLogin(e){
+/* ─── 載入卡片資料（給第一次設定使用）─────────────── */
+function _loadCardsFromLS(){
+  try{
+    var raw = localStorage.getItem('castle_cards_v1');
+    if (!raw) return [];
+    var arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr;
+  }catch(e){ return []; }
+}
+async function _loadCardsForFirstTime(){
+  // 1. 先試 LS
+  var arr = _loadCardsFromLS();
+  if (arr.length){ return arr; }
+  // 2. 試從 Firestore 拉 castle_cards_v1 全域 doc
+  try {
+    await window.authReady;
+    var fs = firebase.firestore();
+    // 路徑與 firebase-sync.js global push/pull 一致：users/applaud/_global/shared/localStorage/{key}
+    var snap = await fs.collection('users').doc('applaud').collection('_global').doc('shared').collection('localStorage').doc('castle_cards_v1').get();
+    if (snap.exists){
+      var d = snap.data();
+      var v = d && d.value;
+      if (typeof v === 'string'){
+        try { var a = JSON.parse(v); if (Array.isArray(a)) return a; } catch(_){}
+      } else if (Array.isArray(v)) return v;
+    }
+  } catch(e){ console.warn('[firstTime] 從 Firestore 讀卡片失敗', e); }
+  return [];
+}
+
+/* ─── 登入處理（async，Firebase 後端） ────────────── */
+async function handleLogin(e){
   e.preventDefault();
-  var u=document.getElementById('loginUser').value.trim().toLowerCase();
-  var p=document.getElementById('loginPass').value;
-  var remember=document.getElementById('rememberMe').checked;
-  var errEl=document.getElementById('loginError');
+  var empNo = document.getElementById('loginUser').value.trim().toLowerCase();
+  var pass = document.getElementById('loginPass').value;
+  var errEl = document.getElementById('loginError');
 
-  if(!u||!p){errEl.textContent='請輸入帳號和密碼';shakeBox();return false;}
+  if (!empNo || !pass){ errEl.style.color='#ff6b6b'; errEl.textContent='請輸入員工編號和密碼'; shakeBox(); return false; }
 
-  var matched=null;
-  for(var i=0;i<ACCOUNTS.length;i++){
-    if(ACCOUNTS[i].user.toLowerCase()===u&&ACCOUNTS[i].pass===p){matched=ACCOUNTS[i];break;}
+  errEl.style.color = '#ffd700';
+  errEl.textContent = '🔄 連線中...';
+
+  try {
+    if (!window.authReady){
+      errEl.style.color='#ff6b6b';
+      errEl.textContent='❌ 登入模組尚未載入，請重新整理頁面';
+      return false;
+    }
+    await window.authReady;
+    var existing = await window.authLookup(empNo);
+    if (existing){
+      // 既有帳號 → 驗證密碼
+      if (String(existing.password||'') !== String(pass)){
+        errEl.style.color='#ff6b6b';
+        errEl.textContent='❌ 密碼錯誤（如果忘記密碼，請聯絡黃柏翰）';
+        shakeBox();
+        return false;
+      }
+      // 登入成功
+      await window.authUpdateLastLogin(empNo);
+      errEl.textContent='';
+      finishLogin(empNo, existing);
+      return false;
+    } else {
+      // 第一次登入 → 顯示卡片選擇器
+      errEl.textContent = '';
+      showFirstTimeSetup(empNo, pass);
+      return false;
+    }
+  } catch(err){
+    console.error('[handleLogin] error', err);
+    errEl.style.color='#ff6b6b';
+    errEl.textContent='❌ 連線錯誤：' + (err && (err.message||err.code) || err);
+    return false;
   }
-  if(!matched){errEl.textContent='帳號或密碼錯誤';shakeBox();return false;}
+}
 
-  var sessionData={user:matched.user,displayName:matched.displayName,loginTime:Date.now()};
-  sessionStorage.setItem('appedu_session',JSON.stringify(sessionData));
+/* ─── 第一次設定流程 ───────────────────────────── */
+var _firstTimeCtx = null; // { empNo, password, selectedCharName }
 
-  if(remember){
-    localStorage.setItem('appedu_remember',JSON.stringify({user:matched.user,pass:matched.pass}));
-    localStorage.setItem('appedu_remembered_session',JSON.stringify(sessionData));
-  } else {
-    localStorage.removeItem('appedu_remember');
-    localStorage.removeItem('appedu_remembered_session');
+async function showFirstTimeSetup(empNo, password){
+  _firstTimeCtx = { empNo: empNo, password: password, selectedCharName: null };
+  document.getElementById('loginSection').style.display='none';
+  var sect = document.getElementById('firstTimeSection');
+  sect.style.display='block';
+  document.getElementById('firstTimeEmp').textContent = empNo;
+  document.getElementById('firstTimeError').textContent = '';
+
+  // 載入所有卡片 + 已被認領的角色名稱
+  var grid = document.getElementById('firstTimeCardGrid');
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:rgba(160,200,255,.6);padding:20px;font-size:12px;">載入卡片中...</div>';
+
+  var cards = [];
+  var claimed = {};
+  try {
+    cards = await _loadCardsForFirstTime();
+    var all = await window.authListAll();
+    all.forEach(function(a){
+      if (a.characterName){ claimed[a.characterName] = a.empNo; }
+    });
+  } catch(e){
+    console.warn('[firstTime] 載入失敗', e);
   }
 
-  localStorage.setItem('appedu_login_event',JSON.stringify({user:matched.user,time:Date.now()}));
-
-  // ★ 登入成功後啟動 Firebase 同步（同頁面 storage 事件不會觸發）
-  if(window._firebaseSyncStart){
-    try{ window._firebaseSyncStart(); }catch(e){ console.warn('[Login] _firebaseSyncStart error', e); }
+  if (!cards.length){
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#ff9b9b;padding:20px;font-size:12px;">⚠️ 無法載入卡片資料，請聯絡管理員</div>';
+    return;
   }
 
-  showWelcome(matched,function(){showApp(sessionData, false);});
-  return false;
+  // 渲染卡片網格
+  grid.innerHTML = '';
+  cards.forEach(function(c, idx){
+    if (!c || !c.name || c.name === '角色 '+(idx+1) || c.hidden) return;
+    var isClaimed = !!claimed[c.name];
+    var box = document.createElement('div');
+    box.style.cssText = 'position:relative;padding:10px 6px;border-radius:8px;text-align:center;cursor:pointer;transition:all .2s;border:1.5px solid '+(isClaimed?'rgba(255,255,255,.08)':'rgba(255,215,0,.25)')+';background:'+(isClaimed?'rgba(255,255,255,.02)':'rgba(255,215,0,.05)')+';'+(isClaimed?'opacity:.4;pointer-events:none;':'');
+    var photoHTML = c.photo
+      ? '<img src="'+c.photo+'" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,215,0,.3);">'
+      : '<div style="width:54px;height:54px;border-radius:50%;background:rgba(100,160,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px;">👤</div>';
+    box.innerHTML =
+      '<div style="display:flex;justify-content:center;margin-bottom:6px;">'+photoHTML+'</div>'+
+      '<div style="font-size:12px;font-weight:700;color:#e8e8e8;letter-spacing:1px;">'+c.name+'</div>'+
+      '<div style="font-size:10px;color:rgba(160,200,255,.55);margin-top:2px;">'+(c.title||'')+'</div>'+
+      (isClaimed ? '<div style="font-size:10px;color:#ff9b9b;margin-top:4px;">🔒 已被 '+claimed[c.name]+' 認領</div>' : '');
+    if (!isClaimed){
+      box.onmouseover = function(){ box.style.background='rgba(255,215,0,.15)'; box.style.transform='translateY(-2px)'; };
+      box.onmouseout = function(){ box.style.background='rgba(255,215,0,.05)'; box.style.transform='translateY(0)'; };
+      box.onclick = function(){ askConfirmFirstTime(c.name); };
+    }
+    grid.appendChild(box);
+  });
+}
+
+function askConfirmFirstTime(charName){
+  if (!_firstTimeCtx) return;
+  _firstTimeCtx.selectedCharName = charName;
+  document.getElementById('firstTimeConfirmText').innerHTML =
+    '確定要把員工編號<br><b style="color:#ffd700;">「'+_firstTimeCtx.empNo+'」</b><br>對應到角色<br><b style="color:#34d399;">「'+charName+'」</b>嗎？';
+  document.getElementById('firstTimeConfirmModal').style.display='flex';
+}
+
+async function confirmFirstTimeSetup(ok){
+  var modal = document.getElementById('firstTimeConfirmModal');
+  modal.style.display='none';
+  if (!ok || !_firstTimeCtx || !_firstTimeCtx.selectedCharName) return;
+
+  var errEl = document.getElementById('firstTimeError');
+  errEl.style.color='#ffd700';
+  errEl.textContent='🔄 建立帳號中...';
+  try {
+    var data = await window.authCreate({
+      empNo: _firstTimeCtx.empNo,
+      password: _firstTimeCtx.password,
+      characterName: _firstTimeCtx.selectedCharName
+    });
+    errEl.textContent='';
+    var empNo = _firstTimeCtx.empNo;
+    _firstTimeCtx = null;
+    finishLogin(empNo, data);
+  } catch(e){
+    console.error('[confirmFirstTime] error', e);
+    errEl.style.color='#ff6b6b';
+    errEl.textContent='❌ 建立失敗：' + (e && (e.message||e.code) || e);
+  }
+}
+
+function cancelFirstTimeSetup(){
+  _firstTimeCtx = null;
+  document.getElementById('firstTimeSection').style.display='none';
+  document.getElementById('loginSection').style.display='block';
+}
+
+/* ─── 完成登入：寫 LS / sessionStorage / 啟動同步 / 歡迎動畫 ─── */
+function finishLogin(empNo, accountData){
+  var charName = accountData.characterName || '';
+  var isAdmin = !!accountData.isAdmin;
+  try {
+    localStorage.setItem('appedu_emp_no', empNo);
+    localStorage.setItem('appedu_logged_character', charName);
+    localStorage.setItem('appedu_is_admin', isAdmin ? '1' : '0');
+    localStorage.setItem('appedu_login_at', Date.now().toString());
+    localStorage.setItem('activeCharacterId', charName); // ★ 既有系統的 key
+    var sess = { user: empNo, displayName: charName, isAdmin: isAdmin, loginTime: Date.now() };
+    sessionStorage.setItem('appedu_session', JSON.stringify(sess));
+    localStorage.setItem('appedu_login_event', JSON.stringify({user: empNo, time: Date.now()}));
+  } catch(e){ console.warn('[finishLogin] LS write failed', e); }
+
+  // 啟動 Firebase 同步
+  if (window._firebaseSyncStart){
+    try { window._firebaseSyncStart(); } catch(e){ console.warn('[finishLogin] _firebaseSyncStart failed', e); }
+  }
+
+  var accountForWelcome = { user: empNo, displayName: charName };
+  showWelcome(accountForWelcome, function(){
+    // 顯示已登入狀態（不自動跳轉到人力發展）
+    showApp({ user: empNo, displayName: charName, isAdmin: isAdmin }, true);
+  });
 }
 
 /* ---- 歡迎動畫 ---- */
@@ -469,9 +679,17 @@ function shakeBox(){
 
 /* ---- 登出 ---- */
 function handleLogout(){
-  sessionStorage.removeItem('appedu_session');
-  localStorage.removeItem('appedu_remembered_session');
-  localStorage.setItem('appedu_logout_event',Date.now().toString());
+  try {
+    localStorage.removeItem('appedu_emp_no');
+    localStorage.removeItem('appedu_logged_character');
+    localStorage.removeItem('appedu_is_admin');
+    localStorage.removeItem('appedu_login_at');
+    localStorage.removeItem('activeCharacterId');
+    localStorage.removeItem('appedu_remembered_session');
+    localStorage.removeItem('appedu_remember');
+    sessionStorage.removeItem('appedu_session');
+    localStorage.setItem('appedu_logout_event', Date.now().toString());
+  } catch(e){}
   location.reload();
 }
 
@@ -490,6 +708,96 @@ function updateCharBar(){
   else{bar.style.display='none';}
 }
 updateCharBar();
+
+/* ============================================================
+   員工帳號管理（黃柏翰專屬）
+   ============================================================ */
+async function openAccountsAdmin(){
+  var me = localStorage.getItem('appedu_logged_character');
+  if (me !== (window.SUPER_ADMIN || '黃柏翰')){
+    alert('⚠️ 只有黃柏翰可以使用此功能');
+    return;
+  }
+  var sect = document.getElementById('accountsAdminSection');
+  sect.style.display='block';
+  var body = document.getElementById('accountsAdminBody');
+  body.innerHTML = '<div style="text-align:center;color:rgba(160,200,255,.6);padding:30px;font-size:12px;">載入中...</div>';
+  try {
+    await window.authReady;
+    var list = await window.authListAll();
+    renderAccountsTable(list);
+  } catch(e){
+    body.innerHTML = '<div style="text-align:center;color:#ff9b9b;padding:30px;font-size:12px;">❌ 載入失敗：' + (e.message||e) + '</div>';
+  }
+}
+function closeAccountsAdmin(){
+  document.getElementById('accountsAdminSection').style.display='none';
+}
+function renderAccountsTable(list){
+  var body = document.getElementById('accountsAdminBody');
+  if (!list.length){
+    body.innerHTML = '<div style="text-align:center;color:rgba(160,200,255,.6);padding:30px;font-size:12px;">尚無任何帳號</div>';
+    return;
+  }
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:12px;color:#e8e8e8;">';
+  html += '<thead><tr style="background:rgba(255,215,0,.08);color:#ffd700;">';
+  html += '<th style="padding:8px;text-align:left;border-bottom:1px solid rgba(255,215,0,.2);">員工編號</th>';
+  html += '<th style="padding:8px;text-align:left;border-bottom:1px solid rgba(255,215,0,.2);">角色名稱</th>';
+  html += '<th style="padding:8px;text-align:left;border-bottom:1px solid rgba(255,215,0,.2);">密碼</th>';
+  html += '<th style="padding:8px;text-align:left;border-bottom:1px solid rgba(255,215,0,.2);">管理員</th>';
+  html += '<th style="padding:8px;text-align:left;border-bottom:1px solid rgba(255,215,0,.2);">最後登入</th>';
+  html += '<th style="padding:8px;text-align:left;border-bottom:1px solid rgba(255,215,0,.2);">登入次數</th>';
+  html += '<th style="padding:8px;text-align:left;border-bottom:1px solid rgba(255,215,0,.2);">操作</th>';
+  html += '</tr></thead><tbody>';
+  list.forEach(function(a){
+    var lastLogin = '—';
+    try {
+      if (a.lastLoginAt && a.lastLoginAt.toDate){
+        var d = a.lastLoginAt.toDate();
+        lastLogin = d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+(d.getHours()<10?'0':'')+d.getHours()+':'+(d.getMinutes()<10?'0':'')+d.getMinutes();
+      }
+    } catch(_){}
+    var emp = (a.empNo||a._id||'').toString();
+    var safeEmp = emp.replace(/'/g,"\\'");
+    html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);">';
+    html += '<td style="padding:6px 8px;font-family:monospace;color:#fbbf24;">'+emp+'</td>';
+    html += '<td style="padding:6px 8px;font-weight:600;">'+(a.characterName||'')+'</td>';
+    html += '<td style="padding:6px 8px;font-family:monospace;color:rgba(220,235,255,.85);">'+(a.password||'')+'</td>';
+    html += '<td style="padding:6px 8px;">'+(a.isAdmin?'<span style="color:#34d399;font-weight:700;">是</span>':'<span style="color:rgba(160,200,255,.5);">否</span>')+'</td>';
+    html += '<td style="padding:6px 8px;color:rgba(160,200,255,.7);font-size:11px;">'+lastLogin+'</td>';
+    html += '<td style="padding:6px 8px;color:rgba(160,200,255,.6);">'+(a.loginCount||0)+'</td>';
+    html += '<td style="padding:6px 8px;white-space:nowrap;">'
+         + '<button onclick="adminResetPass(\''+safeEmp+'\')" style="margin-right:4px;padding:4px 10px;background:rgba(100,160,255,.1);border:1px solid rgba(100,160,255,.3);color:#8ab4ff;border-radius:6px;font-size:11px;cursor:pointer;">重設密碼</button>'
+         + '<button onclick="adminDeleteAcct(\''+safeEmp+'\',\''+(a.characterName||'').replace(/\'/g,"\\\'")+'\')" style="padding:4px 10px;background:rgba(255,100,100,.1);border:1px solid rgba(255,100,100,.3);color:#ff9b9b;border-radius:6px;font-size:11px;cursor:pointer;">刪除</button>'
+         + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+async function adminResetPass(empNo){
+  var newP = prompt('請輸入「'+empNo+'」的新密碼：');
+  if (newP===null) return;
+  newP = String(newP).trim();
+  if (!newP){ alert('密碼不能為空'); return; }
+  try {
+    await window.authResetPassword(empNo, newP);
+    alert('✅ 已重設「'+empNo+'」的密碼');
+    openAccountsAdmin(); // refresh
+  } catch(e){
+    alert('❌ 重設失敗：'+(e.message||e));
+  }
+}
+async function adminDeleteAcct(empNo, charName){
+  if (!confirm('確定要刪除帳號「'+empNo+'」（'+charName+'）嗎？\n\n刪除後此員工下次登入會被當作第一次登入，可重新挑選角色。')) return;
+  try {
+    await window.authDeleteAccount(empNo);
+    alert('✅ 已刪除「'+empNo+'」');
+    openAccountsAdmin();
+  } catch(e){
+    alert('❌ 刪除失敗：'+(e.message||e));
+  }
+}
 </script>
 
 <script defer src="./firebase-sync.js"></script>

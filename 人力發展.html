@@ -1211,6 +1211,7 @@
 </style>
 <script src="./auth-check.js"></script>
 <script defer src="./firebase-sync.js?v=kb1"></script>
+<script defer src="./auth-firebase.js?v=v1"></script>
 </head>
 <body>
 
@@ -1257,6 +1258,7 @@
   <div class="icon-btn" id="dayNightBtn" title="切換白天/黑夜">🌙</div>
   <div class="icon-btn" id="bellBtn" title="背景音樂">🔔<div class="badge" id="bellBadge" style="display:none;">♪</div></div>
   <div class="icon-btn" id="settingsBtn" title="後台管理">⚙️<div class="badge" style="background:linear-gradient(135deg,#ff9100,#ff6d00);" id="settingsBadge">!</div></div>
+  <div class="icon-btn" id="logoutBtn" title="登出" onclick="if(confirm('確定登出？')){try{localStorage.removeItem('appedu_emp_no');localStorage.removeItem('appedu_logged_character');localStorage.removeItem('appedu_is_admin');localStorage.removeItem('appedu_login_at');localStorage.removeItem('activeCharacterId');localStorage.removeItem('appedu_remembered_session');localStorage.removeItem('appedu_remember');sessionStorage.removeItem('appedu_session');}catch(e){}location.href='./index.html';}" style="color:#ff9b9b;">🚪</div>
 </div>
 
 <!-- ===== 左下：評分 ===== -->
@@ -1693,6 +1695,21 @@
         </div>
         <button class="admin-save-btn" style="width:100%;padding:14px;font-size:15px;background:linear-gradient(135deg,#a78bfa,#ffd700);color:#03060f;letter-spacing:2px;font-weight:800;" onclick="adminNav('admin-ai-rules.html')">
           📋 開啟規則管理頁
+        </button>
+      </div>
+
+      <!-- ★ 員工帳號管理入口（僅超級管理員「黃柏翰」可見） -->
+      <div class="admin-section" id="accountsAdminSection" style="display:none;margin-bottom:18px;border:2px solid rgba(255,107,107,0.35);background:linear-gradient(135deg,rgba(255,107,107,0.08),rgba(255,167,38,0.04));">
+        <h3 style="color:#ff9b9b;display:flex;align-items:center;gap:8px;">
+          🔑 員工帳號管理
+          <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:rgba(255,107,107,.15);color:#ff9b9b;border:1px solid rgba(255,107,107,.3);">超級管理員專屬</span>
+        </h3>
+        <div style="font-size:11px;color:#ffb0b0;line-height:1.7;margin:8px 0 12px;">
+          查看所有員工的登入帳號、密碼、最後登入時間。可協助忘記密碼的員工重設、或刪除離職員工帳號。<br>
+          <span style="color:#ffd700;">⚠️ 密碼以明文顯示，這個頁面只有你（黃柏翰）看得到。</span>
+        </div>
+        <button class="admin-save-btn" style="width:100%;padding:14px;font-size:15px;background:linear-gradient(135deg,#ff6b6b,#ff9100);color:#03060f;letter-spacing:2px;font-weight:800;" onclick="adminNav('admin-accounts.html?v=v1')">
+          🔑 開啟員工帳號管理
         </button>
       </div>
 
@@ -2452,7 +2469,7 @@ function updateAuditAdminVisibility(){
   const ADMINS = ['黃柏翰'];  // 想加更多管理員就加進這個 array
   const cn = localStorage.getItem('activeCharacterName') || '';
   const isAdmin = ADMINS.indexOf(cn) >= 0;
-  ['adminAiCenterSection','aiRulesAdminSection','auditAdminSection'].forEach(function(id){
+  ['adminAiCenterSection','aiRulesAdminSection','auditAdminSection','accountsAdminSection'].forEach(function(id){
     const sec = document.getElementById(id);
     if(sec) sec.style.display = isAdmin ? 'block' : 'none';
   });
