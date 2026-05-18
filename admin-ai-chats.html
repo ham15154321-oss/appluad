@@ -168,6 +168,7 @@ tr:hover td{background:rgba(167,139,250,.04);}
   <button class="btn" id="btnReload">重新載入</button>
   <button class="btn btn-export" id="btnExport">匯出 CSV</button>
   <button class="btn btn-danger" id="btnDeleteFiltered" title="刪除目前過濾條件下顯示的所有對話">🗑 刪除過濾結果</button>
+  <button class="btn btn-danger" id="btnCleanGreetings" title="刪除所有歷史「歡迎詞 / 內建提示」訊息">🧹 清歷史歡迎詞</button>
 </div>
 
 <div class="stats" id="stats"></div>
@@ -440,6 +441,59 @@ document.getElementById('btnReload').addEventListener('click', () => loadMsgs())
 document.getElementById('btnExport').addEventListener('click', exportCSV);
 document.getElementById('loadMore').addEventListener('click', () => loadMsgs(true));
 document.getElementById('btnDeleteFiltered').addEventListener('click', deleteFiltered);
+document.getElementById('btnCleanGreetings').addEventListener('click', cleanGreetings);
+
+// ─── 一鍵清除歷史歡迎詞 ─────────────────────────────
+// 偵測規則：AI 訊息 + 同時包含「你好」與「我是」兩個關鍵字，
+//          且含有 emoji 圖示與「💬」反問提示 → 視為內建歡迎詞
+function _isGreetingMsg(m){
+  if (m.role !== 'ai') return false;
+  var t = m.text || '';
+  if (t.length > 300) return false;            // 歡迎詞通常不長
+  if (t.indexOf('你好') === -1) return false;  // 起手式
+  if (t.indexOf('我是') === -1) return false;  // 自我介紹
+  // 內建歡迎詞會含這些慣用提示之一
+  if (t.indexOf('💬') === -1 && t.indexOf('AI 教練') === -1 && t.indexOf('AI 數據通') === -1
+      && t.indexOf('AI 小任務') === -1 && t.indexOf('AI 團隊宣言') === -1
+      && t.indexOf('AI 陪跑師') === -1 && t.indexOf('AI 案例庫') === -1
+      && t.indexOf('專業與變革') === -1) return false;
+  return true;
+}
+
+async function cleanGreetings(){
+  const targets = allMsgs.filter(_isGreetingMsg);
+  if (!targets.length){
+    alert('✅ 目前資料庫裡沒有偵測到歷史歡迎詞（' + allMsgs.length + ' 則訊息全乾淨）');
+    return;
+  }
+  if (!confirm('🧹 偵測到 ' + targets.length + ' 則「內建歡迎詞」歷史訊息。\n\n這些是 AI 顧問每次被打開時自動顯示的固定提示文字，沒有保留價值。\n\n要全部刪除嗎？')) return;
+  const txt = prompt('再次確認 — 請輸入「清除」兩個字確認操作：');
+  if (txt !== '清除'){ alert('已取消'); return; }
+
+  const btn = document.getElementById('btnCleanGreetings');
+  btn.disabled = true;
+  btn.textContent = '🧹 清理中... 0/' + targets.length;
+  let done = 0;
+  try {
+    for (let i = 0; i < targets.length; i += 400){
+      const batch = db.batch();
+      const slice = targets.slice(i, i+400);
+      slice.forEach(m => batch.delete(db.collection('ai_chats').doc(m.id)));
+      await batch.commit();
+      done += slice.length;
+      btn.textContent = '🧹 清理中... ' + done + '/' + targets.length;
+    }
+    const idSet = new Set(targets.map(m => m.id));
+    allMsgs = allMsgs.filter(m => !idSet.has(m.id));
+    render();
+    alert('✅ 已清除 ' + done + ' 則歷史歡迎詞');
+  } catch(e){
+    alert('❌ 清除失敗：' + (e.message || e.code));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🧹 清歷史歡迎詞';
+  }
+}
 
 // ─── 刪除：單筆 / 整段對話 / 過濾結果全部 ──────────────
 async function deleteMsg(docId, btnEl){

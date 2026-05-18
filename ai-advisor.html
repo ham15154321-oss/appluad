@@ -2328,8 +2328,10 @@ function openChat(fid){
     console.log('[ai-chat] 載入歷史對話 '+history.length+' 則訊息（'+fid+'）');
   } else {
     // 第一次開啟此顧問 → 新 topic + 顯示 greeting
+    // ★ greeting 是內建提示，不記到 Firestore（黃柏翰不需要看一堆重複的歡迎詞）
+    //   也不寫進 chat history（避免日後再次打開時又顯示一遍，且不會被當成對話內容）
     curTopicId = 't_'+Date.now();
-    addMsg('ai', f.greeting);
+    addMsg('ai', f.greeting, { skipSave: true, skipRemoteLog: true });
   }
 
   renderSuggestions();renderPinList();
@@ -2647,6 +2649,10 @@ function addMsg(type,text,opts){
 
   // ★ 寫 AI 對話紀錄到 Firestore（給管理員「黃柏翰」之後檢視/分類用）
   //   不阻塞、失敗也不影響聊天
+  //   - opts.skipRemoteLog=true → 不記（用於 greeting 等內建提示文字）
+  //   - 也內建偵測：text 完全等於 FEATURES[curFeature].greeting 就不記（雙重保險）
+  if (opts.skipRemoteLog) return;
+  if (curFeature && FEATURES[curFeature] && text === FEATURES[curFeature].greeting) return;
   _logAiChatRemote(type,text);
 }
 
