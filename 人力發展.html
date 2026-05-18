@@ -5,6 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>人力發展 - 太空基地</title>
   <script>
+    // ★★★ 權威性最高：強制把 activeCharacterId 對齊登入主角
+    //     如果 appedu_logged_character（登入時記下來的角色）跟 activeCharacterId 不一致，
+    //     一律以「登入主角」為準（避免任何地方的預設值覆蓋使用者選的角色）
+    (function _enforceLoggedCharacter(){
+      try {
+        var loggedChar = localStorage.getItem('appedu_logged_character');
+        if (loggedChar){
+          var cur = localStorage.getItem('activeCharacterId');
+          if (cur !== loggedChar){
+            console.warn('[auth-guard] activeCharacterId 與登入主角不一致：',
+                         '"'+cur+'" → "'+loggedChar+'"（強制對齊登入主角）');
+            localStorage.setItem('activeCharacterId', loggedChar);
+            localStorage.setItem('activeCharacterName', loggedChar);
+          }
+        }
+      } catch(e){ console.error('[auth-guard] error:', e); }
+    })();
+
     // === activeCharacterId fallback (避免進頁面時 ID 為 null 導致分數面板顯示 0) ===
     (function () {
         try {

@@ -723,15 +723,24 @@ function cancelFirstTimeSetup(){
 function finishLogin(empNo, accountData){
   var charName = accountData.characterName || '';
   var isAdmin = !!accountData.isAdmin;
+  console.log('[finishLogin] empNo=' + empNo + ', charName=' + charName + ', isAdmin=' + isAdmin);
+  if (!charName){
+    console.error('[finishLogin] ❌ 角色名稱為空！accountData:', accountData);
+    alert('⚠️ 登入時找不到角色名稱，請通報管理員。\n\n debug info: ' + JSON.stringify(accountData));
+    return;
+  }
   try {
     localStorage.setItem('appedu_emp_no', empNo);
     localStorage.setItem('appedu_logged_character', charName);
     localStorage.setItem('appedu_is_admin', isAdmin ? '1' : '0');
     localStorage.setItem('appedu_login_at', Date.now().toString());
     localStorage.setItem('activeCharacterId', charName); // ★ 既有系統的 key
+    localStorage.setItem('activeCharacterName', charName); // ★ 補上：很多頁面同時看這個
+    localStorage.setItem('lastActiveCharacterId', charName); // ★ 給人力發展.html 的 fallback 用
     var sess = { user: empNo, displayName: charName, isAdmin: isAdmin, loginTime: Date.now() };
     sessionStorage.setItem('appedu_session', JSON.stringify(sess));
     localStorage.setItem('appedu_login_event', JSON.stringify({user: empNo, time: Date.now()}));
+    console.log('[finishLogin] ✅ 已寫入 LS，activeCharacterId=' + localStorage.getItem('activeCharacterId'));
   } catch(e){ console.warn('[finishLogin] LS write failed', e); }
 
   // 啟動 Firebase 同步
