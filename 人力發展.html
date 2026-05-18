@@ -2220,11 +2220,66 @@ async function syncAcademyRevenueFromMotivArchive(){
           castleFrame.contentWindow.renderCards();
         }
       } catch(e){}
+    } else {
+      // 沒有 changed 也記錄，方便 debug 「為什麼沒更新」
+      console.log('[card-sync] 跑完一輪，沒有任何卡片需要更新（資料已是最新狀態）');
     }
+    // ★ 把計算結果暫存到 window，方便 console 用 _debugCardSync() 檢視
+    window._lastCardSyncResult = {
+      monthsCount: Object.keys(archive).length,
+      months: Object.keys(archive).sort(),
+      academyTotals: academyTotals,
+      groupTotalsByLeader: groupTotalsByLeader,
+      groupTotalsByGroup: groupTotalsByGroup,
+      updates: updates,
+      cardsAfter: cards.map(function(c){ return { name: c.name, groupRevenue: c.groupRevenue }; })
+    };
   } catch(e){
     console.warn('[card-sync] 同步年度業績失敗', e);
   }
 }
+
+// ★ debug helper：在 console 輸入 _debugCardSync() 可以看到完整診斷
+//   會印：archive 月份清單、每位組長/組名的加總、目前每張卡片的數字、可能的問題
+window._debugCardSync = async function(){
+  try {
+    // 強制重跑一次同步以確保 _lastCardSyncResult 是最新的
+    await syncAcademyRevenueFromMotivArchive();
+    var r = window._lastCardSyncResult;
+    if (!r){ console.warn('沒有 sync 結果可看，可能沒月份資料'); return; }
+    console.log('═══════════ Card Sync 診斷報告 ═══════════');
+    console.log('Archive 月份數：' + r.monthsCount);
+    console.log('月份清單：' + r.months.join(', '));
+    console.log('───────── 組長姓名加總（groupTotalsByLeader）─────────');
+    console.table(Object.keys(r.groupTotalsByLeader).map(function(k){
+      var v = r.groupTotalsByLeader[k];
+      return { leader: k, groupName: v.groupName, total: v.total.toLocaleString(), academy: v.academy };
+    }));
+    console.log('───────── 組名加總（groupTotalsByGroup）─────────');
+    console.table(Object.keys(r.groupTotalsByGroup).map(function(k){
+      var v = r.groupTotalsByGroup[k];
+      return { groupName: k, leader: v.leaderName, total: v.total.toLocaleString(), academy: v.academy };
+    }));
+    console.log('───────── 目前所有卡片的 groupRevenue ─────────');
+    console.table(r.cardsAfter.map(function(c){
+      return { 卡片名: c.name, 顯示金額: Number(c.groupRevenue||0).toLocaleString() };
+    }));
+    console.log('───────── 此次本輪實際更新（updates）─────────');
+    if (r.updates.length === 0){
+      console.log('（無，所有卡片已是最新狀態）');
+    } else {
+      r.updates.forEach(function(u){ console.log('  ' + u); });
+    }
+    console.log('═══════════════════════════════════════════');
+    console.log('💡 如果某個組長（例如「蕎萱」）的卡片數字跟你預期不同：');
+    console.log('   1. 看「組長姓名加總」表 — 找她的 total 是否正確');
+    console.log('   2. 看「目前所有卡片」表 — 找卡片名 是「蕎萱」還是「鄭蕎萱」');
+    console.log('   3. 對比兩邊：如果加總正確但卡片沒同步 → 表示比對失敗');
+    console.log('   4. 把卡片名改成跟資料裡 leader.name 一樣（建議用全名）就會自動同步');
+  } catch(e){
+    console.error('debug 失敗', e);
+  }
+};
 
 // Hook：app boot + firebase sync 完成
 window.addEventListener('load', function(){
