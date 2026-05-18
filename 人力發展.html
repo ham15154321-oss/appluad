@@ -2095,14 +2095,44 @@ async function syncAcademyRevenueFromMotivArchive(){
   try {
     var archive = await _readMotivArchiveAll();
     if (!archive || !Object.keys(archive).length) return;
-    // 加總所有月份的 academy
-    var totals = {};
+    // ── 1) 學院加總（給學院色卡 boss）──
+    var academyTotals = {};
+    // ── 2) 組長加總（給組長卡：跨月份 sum groupPerformance + reservePerformance 的 total）──
+    //     兩種索引：依「組長姓名」+ 依「組名」— 雙重保險，姓名格式有變化也找得到
+    var groupTotalsByLeader = {};   // 例：'邱屹芊' → { total, groupName, academy }
+    var groupTotalsByGroup  = {};   // 例：'屹芊組' → { total, leaderName, academy }
     Object.values(archive).forEach(function(monthData){
       (monthData.academy || []).forEach(function(it){
         if (!it || !it.name) return;
-        totals[it.name] = (totals[it.name] || 0) + (Number(it.value) || 0);
+        academyTotals[it.name] = (academyTotals[it.name] || 0) + (Number(it.value) || 0);
+      });
+      // ★ 正式組 + 儲備組 都掃；同時用 leader.name 與 groupName 建索引
+      ['groupPerformance', 'reservePerformance'].forEach(function(fld){
+        (monthData[fld] || []).forEach(function(g){
+          if (!g) return;
+          var leaderName = (g.leader && g.leader.name) || '';
+          var groupName  = g.groupName || '';
+          var total      = Number(g.total) || 0;
+          if (leaderName){
+            if (!groupTotalsByLeader[leaderName]){
+              groupTotalsByLeader[leaderName] = { total: 0, groupName: groupName, academy: g.academy || '' };
+            }
+            groupTotalsByLeader[leaderName].total += total;
+            if (!groupTotalsByLeader[leaderName].groupName && groupName) groupTotalsByLeader[leaderName].groupName = groupName;
+            if (!groupTotalsByLeader[leaderName].academy && g.academy)   groupTotalsByLeader[leaderName].academy   = g.academy;
+          }
+          if (groupName){
+            if (!groupTotalsByGroup[groupName]){
+              groupTotalsByGroup[groupName] = { total: 0, leaderName: leaderName, academy: g.academy || '' };
+            }
+            groupTotalsByGroup[groupName].total += total;
+            if (!groupTotalsByGroup[groupName].leaderName && leaderName) groupTotalsByGroup[groupName].leaderName = leaderName;
+            if (!groupTotalsByGroup[groupName].academy && g.academy)     groupTotalsByGroup[groupName].academy     = g.academy;
+          }
+        });
       });
     });
+
     // 更新對應卡片
     var raw = localStorage.getItem('castle_cards_v1');
     if (!raw) return;
@@ -2110,9 +2140,11 @@ async function syncAcademyRevenueFromMotivArchive(){
     if (!Array.isArray(cards)) return;
     var changed = false;
     var updates = [];
+
+    // (A) 學院色卡：用 _ACAD_BOSS_MAP 把 boss 姓名 → 學院 → academy total
     Object.keys(_ACAD_BOSS_MAP).forEach(function(bossName){
       var academy = _ACAD_BOSS_MAP[bossName];
-      var total = totals[academy] || 0;
+      var total = academyTotals[academy] || 0;
       var card = cards.find(function(c){ return c && c.name === bossName; });
       if (card){
         var newVal = String(total);
@@ -2123,9 +2155,61 @@ async function syncAcademyRevenueFromMotivArchive(){
         }
       }
     });
+
+    // (B) 組長卡：用多種比對策略找出該卡片對應的小組年度合計
+    //     跳過已經在 _ACAD_BOSS_MAP 裡的學院 boss（避免覆蓋 A 的結果）
+    //     比對策略（由準到寬鬆）：
+    //       1. card.name 完全等於 leader.name（例：'邱屹芊' === '邱屹芊'）
+    //       2. card.groupName 完全等於 groupName（如果卡片有 groupName 欄位）
+    //       3. card.name + '組' === groupName（例：'屹芊' + '組' === '屹芊組'）
+    //       4. leader.name 以 card.name 結尾（例：'楊雅筑' 結尾是 '雅筑'，card.name='雅筑' 也命中）
+    cards.forEach(function(card){
+      if (!card || !card.name) return;
+      if (_ACAD_BOSS_MAP[card.name]) return; // 學院 boss 已在 (A) 處理
+
+      var matched = null;
+      var matchedBy = '';
+
+      // 策略 1：leader.name 精準比對
+      if (groupTotalsByLeader[card.name]){
+        matched = groupTotalsByLeader[card.name];
+        matchedBy = 'leader.name 精準';
+      }
+      // 策略 2：card.groupName 精準比對
+      else if (card.groupName && groupTotalsByGroup[card.groupName]){
+        matched = groupTotalsByGroup[card.groupName];
+        matchedBy = 'card.groupName 精準';
+      }
+      // 策略 3：card.name + '組' === groupName
+      else if (groupTotalsByGroup[card.name + '組']){
+        matched = groupTotalsByGroup[card.name + '組'];
+        matchedBy = '名稱+組';
+      }
+      // 策略 4：leader.name 以 card.name 結尾（最寬鬆，可能誤配，放最後）
+      else {
+        var foundKey = Object.keys(groupTotalsByLeader).find(function(ln){
+          // 只在 leader.name 比 card.name 長時才寬鬆比對（避免同名衝突）
+          return ln.length > card.name.length && ln.endsWith(card.name);
+        });
+        if (foundKey){
+          matched = groupTotalsByLeader[foundKey];
+          matchedBy = '結尾比對:'+foundKey;
+        }
+      }
+
+      if (!matched) return;
+      var newVal = String(matched.total);
+      if (String(card.groupRevenue || '') !== newVal){
+        card.groupRevenue = newVal;
+        changed = true;
+        var gName = matched.groupName || matched.leaderName || '?組';
+        updates.push(card.name + '('+gName+', '+matchedBy+') → ' + matched.total);
+      }
+    });
+
     if (changed){
       localStorage.setItem('castle_cards_v1', JSON.stringify(cards));
-      console.log('[card-sync] 已同步學院年度業績：' + updates.join('；'));
+      console.log('[card-sync] 已同步年度業績：' + updates.join('；'));
       // 觸發首頁重繪
       try { if (typeof updateScoreDisplay === 'function') updateScoreDisplay(); } catch(e){}
       // 觸發 castle-cards 重繪（如果開著）
@@ -2138,7 +2222,7 @@ async function syncAcademyRevenueFromMotivArchive(){
       } catch(e){}
     }
   } catch(e){
-    console.warn('[card-sync] 同步學院年度業績失敗', e);
+    console.warn('[card-sync] 同步年度業績失敗', e);
   }
 }
 
@@ -3517,7 +3601,7 @@ function perfOpen(){
   ov.classList.add('active');
   const frame=document.getElementById('perfFrame');
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
-  const TARGET_SRC='performance-compare.html?v=acadsync';
+  const TARGET_SRC='performance-compare.html?v=ytotal';
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes(TARGET_SRC.split('?')[1]))
     frame.src=TARGET_SRC;
   // ★ 用 sessionStorage 記住「業績數據中心曾開啟過」（重整後自動還原）

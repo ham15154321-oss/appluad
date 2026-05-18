@@ -2747,7 +2747,28 @@
       if (tabIndex === 4) {
         // ★ 每次切到激勵 tab 都重跑遷移（保險：firebase 可能拉了新的 char_*_motiv_archive）
         try { _runMotivArchiveMigration(); } catch(e){}
-        motivRenderAll();
+        // ★ 等 IDB cache ready 後決定要顯示什麼：
+        //    - 如果目前是 YEAR_TOTAL 視圖 或 畫面沒有資料（首次進入）→ 自動計算年度總合計
+        //    - 如果使用者剛點過某月份 chip → 保留那個視圖
+        var _autoLoadYear = function(retries){
+          retries = (typeof retries === 'number') ? retries : 30;
+          if (!window._motivArchiveCacheReady && retries > 0){
+            setTimeout(function(){ _autoLoadYear(retries-1); }, 100);
+            return;
+          }
+          try{
+            var arch = _motivGetArchive();
+            var hasMonths = Object.keys(arch || {}).length > 0;
+            var isYearTotal = (_motivGroupPerfMeta && _motivGroupPerfMeta.month === 'YEAR_TOTAL');
+            var isEmpty = !_motivGroupPerf || !_motivGroupPerf.length;
+            if (hasMonths && (isYearTotal || isEmpty)){
+              motivLoadYearTotal();
+              return;
+            }
+          }catch(e){}
+          motivRenderAll();
+        };
+        _autoLoadYear();
       }
 
       // Auto-render report card when switching to tab 5
