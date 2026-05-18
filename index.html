@@ -458,20 +458,70 @@ async function _loadCardsForFirstTime(){
   // 1. 先試 LS
   var arr = _loadCardsFromLS();
   if (arr.length){ return arr; }
-  // 2. 試從 Firestore 拉 castle_cards_v1 全域 doc
+
+  // 2. 從 Firestore 撈 — 試多種路徑（castle_cards_v1 是 per-character 路徑，沒有真正的 global doc）
   try {
     await window.authReady;
     var fs = firebase.firestore();
-    // 路徑與 firebase-sync.js global push/pull 一致：users/applaud/_global/shared/localStorage/{key}
-    var snap = await fs.collection('users').doc('applaud').collection('_global').doc('shared').collection('localStorage').doc('castle_cards_v1').get();
-    if (snap.exists){
-      var d = snap.data();
-      var v = d && d.value;
-      if (typeof v === 'string'){
-        try { var a = JSON.parse(v); if (Array.isArray(a)) return a; } catch(_){}
-      } else if (Array.isArray(v)) return v;
+
+    // 2a. 先試 _global 路徑（萬一未來改成 global 也吃得到）
+    try {
+      var snapG = await fs.collection('users').doc('applaud').collection('_global').doc('shared').collection('localStorage').doc('castle_cards_v1').get();
+      if (snapG.exists){
+        var dG = snapG.data();
+        var vG = dG && dG.value;
+        var parsedG = _parseCardsValue(vG);
+        if (parsedG && parsedG.length) return parsedG;
+      }
+    } catch(_){}
+
+    // 2b. 試從已知角色 bucket 抓（castle_cards_v1 內容對所有角色一樣，誰的都行）
+    //     優先順序：所有管理員角色（最可能有完整資料）→ 楊雅筑（系統預設）→ 已建檔帳號
+    var candidates = ['黃柏翰','許傑森','王志軒','楊雅晴','洪士德','黎禹歆','林昭宏','凃敏薰','蔡青倚','楊雅筑'];
+
+    // 從現有 accounts 補進候選名單（用某個已登入的角色當資料源）
+    try {
+      var all = await window.authListAll();
+      all.forEach(function(a){
+        if (a.characterName && candidates.indexOf(a.characterName) < 0){
+          candidates.push(a.characterName);
+        }
+      });
+    } catch(_e){}
+
+    for (var i = 0; i < candidates.length; i++){
+      var charName = candidates[i];
+      try {
+        // 正確路徑：users/applaud/characters/{charName}/localStorage/{key}
+        var snapC = await fs.collection('users').doc('applaud').collection('characters').doc(charName).collection('localStorage').doc('castle_cards_v1').get();
+        if (snapC.exists){
+          var dC = snapC.data();
+          var parsedC = _parseCardsValue(dC && dC.value);
+          if (parsedC && parsedC.length){
+            console.log('[firstTime] 從角色 ['+charName+'] 的雲端 bucket 載入卡片資料（'+parsedC.length+' 張）');
+            return parsedC;
+          }
+        }
+      } catch(_e2){
+        console.warn('[firstTime] 從 ['+charName+'] 讀失敗', _e2 && (_e2.code || _e2.message));
+      }
     }
-  } catch(e){ console.warn('[firstTime] 從 Firestore 讀卡片失敗', e); }
+  } catch(e){
+    console.warn('[firstTime] 從 Firestore 讀卡片失敗', e);
+  }
+  return [];
+}
+
+// 把雲端 doc.value 解析成卡片陣列（可能是 string、可能已是 array）
+function _parseCardsValue(v){
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string'){
+    try {
+      var a = JSON.parse(v);
+      if (Array.isArray(a)) return a;
+    } catch(_){}
+  }
   return [];
 }
 
