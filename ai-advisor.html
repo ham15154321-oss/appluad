@@ -842,7 +842,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
     <div class="feature-card task" onclick="openChat('task')"><div class="fc-icon">✅</div><div class="fc-title">AI 小任務</div><div class="fc-desc">自動指派可執行的小任務</div></div>
     <div class="feature-card team" onclick="openChat('team')"><div class="fc-icon">📣</div><div class="fc-title">AI 團隊宣言</div><div class="fc-desc">公司知識庫，越餵越聰明</div></div>
     <div class="feature-card mentor" onclick="openChat('mentor')"><div class="fc-icon">🧠</div><div class="fc-title">AI 陪跑師</div><div class="fc-desc">芒格巴菲特思維，不灌雞湯</div></div>
-    <div class="feature-card cases" onclick="openChat('cases')"><div class="fc-icon">📚</div><div class="fc-title">AI 案例庫</div><div class="fc-desc">好壞案例批判性分析</div></div>
+    <div class="feature-card cases" onclick="openChat('cases')"><div class="fc-icon">📚</div><div class="fc-title">專業與變革要精益求精</div><div class="fc-desc">好/壞案例 + 精進 + 變革心態</div></div>
   </div>
 </div>
 
@@ -1051,7 +1051,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
     <option value="task">✅ AI 小任務</option>
     <option value="team">📣 AI 團隊宣言</option>
     <option value="mentor">🧠 AI 陪跑師</option>
-    <option value="cases">📚 AI 案例庫</option>
+    <option value="cases">📚 專業與變革要精益求精</option>
     <option value="other">🤷 其他/不確定</option>
   </select>
   <label style="display:block;margin:10px 0 4px;font-size:12px;color:rgba(180,200,240,.7);font-weight:700;">👤 你問了什麼？</label>
@@ -1069,7 +1069,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
 <div class="add-modal-bg" id="pmemoryModal"><div class="add-modal add-modal--lg">
   <h3>＋ 新增個人記憶（只有你自己看得到）</h3>
   <div class="meta">
-    <span class="hint">這條記憶會自動帶入所有 AI 功能（教練/數據通/小任務/團隊宣言/陪跑師/案例庫）的對話。寫越具體 AI 越懂你。</span>
+    <span class="hint">這條記憶會自動帶入所有 AI 功能（教練/數據通/小任務/團隊宣言/陪跑師/精益求精）的對話。寫越具體 AI 越懂你。</span>
     <span class="count" id="pmemoryCount">0 字</span>
   </div>
   <select id="pmemoryFeature" style="margin-bottom:8px;">
@@ -1079,7 +1079,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
     <option value="tasks">✅ AI 小任務</option>
     <option value="declaration">📣 AI 團隊宣言</option>
     <option value="mentor">🧠 AI 陪跑師</option>
-    <option value="cases">📚 AI 案例庫</option>
+    <option value="cases">📚 專業與變革要精益求精</option>
   </select>
   <textarea id="pmemoryText" placeholder="例：我這組目前最大的痛點是面談率只有 35%，主要卡在 ... 我希望 AI 之後的建議都圍繞「先把面談率拉到 60%」展開。" oninput="document.getElementById('pmemoryCount').textContent=this.value.length+' 字'"></textarea>
   <div class="btn-row"><button class="btn-cancel" onclick="closeModal('pmemoryModal')">取消</button><button class="btn-save" onclick="addPmemory()">＋ 儲存記憶</button></div>
@@ -1278,10 +1278,10 @@ var FEATURES={
     system:'你融合芒格、巴菲特、洛克斐勒、富蘭克林、柯維、馬斯克的思維。不說大道理不灌雞湯，只給現實可執行方案。\n\n你應該調動所有可用的數據（評分、業績、案例、鐵律）來讓建議更接地氣、更有針對性，而不是只給通用建議。回答用繁體中文。' + GOLDEN_CIRCLE + CLARIFY_FIRST_BEHAVIOR + LINE_STYLE + SHARED_PRINCIPLES,
     greeting:'你好，我是 AI 陪跑師 🧠\n\n我會結合你的實際數據來給建議，不灌雞湯。告訴我你的問題。\n\n💬 我會主動察覺你的盲點 — 如果發現你問錯方向或漏了重要前提，會用 ❓ 反問釐清。',
     suggestions:['年度成長計畫','結合數據分析突破口','團隊管理瓶頸']},
-  cases:{title:'AI 案例庫',icon:'📚',color:'#ffa726',
-    system:'你是赫綵設計學院案例分析專家。批判性分析案例。📗好案例→做對什麼→可複製。📕壞案例→根因→如何避免。🔍反思。\n\n你應該參考「案例資料庫」中的既有案例，同時調動評分、業績、鐵律等來讓分析更深入。分析案例時要連結到真實數據。回答用繁體中文。' + GOLDEN_CIRCLE + CLARIFY_FIRST_BEHAVIOR + LINE_STYLE + SHARED_PRINCIPLES,
-    greeting:'你好！我是 AI 案例庫 📚\n\n我會結合所有資料來分析案例。描述情境或問特定主題！\n\n💬 案例情境若不夠明確（哪位組員、哪個月、什麼結果），我會先用 ❓ 反問再分析。',
-    suggestions:['結合業績分析案例','面談好壞案例','鐵律違反的案例']}
+  cases:{title:'專業與變革要精益求精',icon:'📚',color:'#ffa726',
+    system:'你是赫綵設計學院的「專業精進與變革教練」。核心信念：「專業與變革，永遠要精益求精」。\n\n你的兩個並重職責：\n1️⃣ 批判性分析案例（好/壞/踩過的坑）— 📗好案例 → 做對什麼 → 為什麼可以再更精準 → 怎麼複製給組員。📕壞案例/踩過的坑 → 根因 → 如何避免重蹈覆轍 → 還能怎麼進階。\n2️⃣ 推動專業精進與變革心態 — 不容許「現在這樣就夠了」、「以前就這樣做」的思維。看到舒適圈、習慣慣性、固化流程 → 主動指出，並提出「下一個版本可以怎麼更好」。\n\n你應該參考「案例資料庫」中的既有案例，同時調動評分、業績、鐵律等資料來讓分析更深入。每次分析案例都要連結到真實數據 + 提出「精進方向」與「需要打破的舊框架」。\n\n語氣特色：直接、不灌雞湯、但永遠相信「還能更好」。每次回答結尾加「📋 下一個版本可以怎麼更精」區塊（2-3 個具體升級方向）。回答用繁體中文。' + GOLDEN_CIRCLE + CLARIFY_FIRST_BEHAVIOR + LINE_STYLE + SHARED_PRINCIPLES,
+    greeting:'你好！我是「專業與變革要精益求精」📚\n\n我會把你的好案例、踩過的坑、業績資料整合起來，告訴你：\n• 過去哪些做法可以複製、哪些必須升級\n• 哪些習慣已經是舒適圈該打破\n• 下一個版本你可以怎麼做得更精\n\n💬 描述情境或問特定主題，我會先確認背景再進入分析。我不會接受「現在這樣就夠了」這種答案。',
+    suggestions:['這個月做得最好的案例下一版怎麼升級？','我哪個習慣已經是舒適圈該打破？','從踩過的坑提煉變革方向']}
 };
 
 var curView='cards', curFeature=null, curTopicId=null, pinPage=0;
@@ -1561,12 +1561,12 @@ const ASK_EXAMPLES = [
   { cat:'team', q:'我的組員裡誰最有潛力升任副組長？根據哪些數據？', target:'coach' },
   { cat:'team', q:'怎麼跟業績下滑的組員談話？有具體建議嗎？', target:'coach' },
 
-  // ━━ 📚 案例與經驗類 (5 條) → AI 案例庫 ━━
-  { cat:'cases', q:'案例庫裡有沒有跟我目前狀況類似的案例？', target:'cases' },
-  { cat:'cases', q:'過去好案例中，提升面談率最有效的做法是什麼？', target:'cases' },
-  { cat:'cases', q:'案例庫的壞案例有哪些常見的退費原因？怎麼避免？', target:'cases' },
-  { cat:'cases', q:'數據查詢案例裡，哪些是最實用的查法？', target:'cases' },
-  { cat:'cases', q:'用我案例庫的好案例分析共通成功要素', target:'cases' },
+  // ━━ 📚 專業精進與變革類 (5 條) → 專業與變革要精益求精 ━━
+  { cat:'cases', q:'我這個月最好的案例下一版怎麼升級？', target:'cases' },
+  { cat:'cases', q:'過去好案例中，提升面談率最有效的做法是什麼？還能再精嗎？', target:'cases' },
+  { cat:'cases', q:'踩過的坑有哪些常見的退費原因？根本變革方向是什麼？', target:'cases' },
+  { cat:'cases', q:'我目前哪個習慣已經是舒適圈該打破？', target:'cases' },
+  { cat:'cases', q:'從好案例提煉「下個版本」可以再進化的方向', target:'cases' },
 
   // ━━ 🚀 行動規劃類 (5 條) → AI 小任務 ━━
   { cat:'action', q:'根據我的數據，我這週要做的 3 件最重要的事？', target:'task' },
@@ -1912,7 +1912,7 @@ function getPmemoryCtx(){
     if(!arr.length) return '';
     var name=localStorage.getItem('activeCharacterName')||'主角';
     var l=['🔐 個人私聊記憶 — 主角【'+name+'】專屬，請以此為對話的優先參考依據】'];
-    var FEAT={manual:'📝一般',cards:'🎯教練',data:'📊數據通',tasks:'✅小任務',declaration:'📣宣言',mentor:'🧠陪跑師',cases:'📚案例庫'};
+    var FEAT={manual:'📝一般',cards:'🎯教練',data:'📊數據通',tasks:'✅小任務',declaration:'📣宣言',mentor:'🧠陪跑師',cases:'📚精益求精'};
     arr.slice().sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);}).forEach(function(x){
       var f=FEAT[x.feature]||'📝';
       var d=x.createdAt?new Date(x.createdAt).toLocaleDateString('zh-TW'):'';

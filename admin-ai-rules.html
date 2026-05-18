@@ -216,7 +216,7 @@ const DEFAULT_RULES = [
     output:'每條鐵律全文（無字數上限）' },
 
   { id:'data_casedb', category:'data', name:'案例資料庫（好/壞/數據查詢）', enabled:true,
-    description:'從 AI 顧問中心 → 📂 資料庫 加入的案例。AI 案例庫對話時尤其依賴，但所有功能都會看。',
+    description:'從 AI 顧問中心 → 📂 資料庫 加入的案例。專業與變革要精益求精對話時尤其依賴，但所有功能都會看。',
     sourceFunction:'ai-advisor.html → getCaseDbCtx() (key: ai_casedb_v1)',
     triggerCondition:'所有 6 個 AI 功能對話時',
     output:'每筆案例的類型標籤（📗好/📕壞/📊數據查詢）+ 全文' },
@@ -282,10 +282,10 @@ const DEFAULT_RULES = [
     triggerCondition:'進入 AI 陪跑師對話時',
     output:'設定 AI 為理性陪跑師' },
 
-  { id:'prompt_cases', category:'prompt', name:'AI 案例庫 system prompt', enabled:true,
+  { id:'prompt_cases', category:'prompt', name:'專業與變革要精益求精 system prompt', enabled:true,
     description:'好壞案例批判性分析（📗做對什麼、📕根因、🔍反思）。應該參考案例資料庫並連結到真實數據。',
     sourceFunction:'ai-advisor.html → FEATURES.cases.system',
-    triggerCondition:'進入 AI 案例庫對話時',
+    triggerCondition:'進入 專業與變革要精益求精對話時',
     output:'設定 AI 為案例分析專家' },
 
   { id:'prompt_clarify_first', category:'prompt', name:'★ 對話行為準則 — 像 Claude 一樣先反問再回答', enabled:true,
@@ -479,7 +479,7 @@ const EDU_EXAMPLES = [
   { cat:'📊 資料調動', title:'教練列同學院 Top 3 對標',
     prompt:'AI 教練回答時自動列出該主角同學院的前 3 名業績組長作為對標標竿。' },
   { cat:'📊 資料調動', title:'案例自帶時空背景',
-    prompt:'AI 案例庫分析任何案例時，自動帶入該案例的時空背景：哪個月份、哪個學院、當時整體環境如何。' },
+    prompt:'專業與變革要精益求精分析任何案例時，自動帶入該案例的時空背景：哪個月份、哪個學院、當時整體環境如何。' },
   { cat:'📊 資料調動', title:'陪跑師看最新私聊記憶優先',
     prompt:'AI 陪跑師對話時，最近 1 個月新增的私聊記憶權重 ×3，超過 3 個月的權重 ×0.3。' },
   { cat:'📊 資料調動', title:'教練看最近嘉許避免重複',
@@ -489,7 +489,7 @@ const EDU_EXAMPLES = [
   { cat:'📊 資料調動', title:'小任務避開時間軸已有任務',
     prompt:'AI 小任務生成新任務前，先掃描 📅 時間軸，避免跟未完成任務內容重複。' },
   { cat:'📊 資料調動', title:'案例庫關聯私聊記憶',
-    prompt:'AI 案例庫分析時，如果該主角有相關的私聊記憶（關鍵字相同），優先以該記憶為分析角度。' },
+    prompt:'專業與變革要精益求精分析時，如果該主角有相關的私聊記憶（關鍵字相同），優先以該記憶為分析角度。' },
   { cat:'📊 資料調動', title:'宣言帶當月通路目標',
     prompt:'AI 團隊宣言對話自動帶入該主角當月各通路（網路、招生、續報）的目標達成率。' },
 
@@ -505,7 +505,7 @@ const EDU_EXAMPLES = [
   { cat:'🎤 風格與口吻', title:'教練固定收尾格式',
     prompt:'AI 教練回答結尾固定加「🎯 三個動作 / 一個放下」格式：列出 3 個本週要做的具體動作 + 1 件可以放下的事。' },
   { cat:'🎤 風格與口吻', title:'案例庫用 SCQA 結構',
-    prompt:'AI 案例庫分析每個案例都用 SCQA 結構：Situation（情境）→ Complication（衝突）→ Question（提問）→ Answer（解方）。' },
+    prompt:'專業與變革要精益求精分析每個案例都用 SCQA 結構：Situation（情境）→ Complication（衝突）→ Question（提問）→ Answer（解方）。' },
   { cat:'🎤 風格與口吻', title:'宣言要引用真實業績',
     prompt:'AI 團隊宣言每次回答都引用最近一週的某位真實組員的具體業績數字作為佐證，不要只是空談理念。' },
   { cat:'🎤 風格與口吻', title:'統一第二人稱「你」',
@@ -525,7 +525,7 @@ const EDU_EXAMPLES = [
 
   // ━━ 🚫 過濾規則 (4 條) ━━
   { cat:'🚫 過濾規則', title:'排除低分主角的案例',
-    prompt:'AI 案例庫對話要排除六大維度評分總分低於 60 的主角的案例。' },
+    prompt:'專業與變革要精益求精對話要排除六大維度評分總分低於 60 的主角的案例。' },
   { cat:'🚫 過濾規則', title:'數據通不顯示 0 業績',
     prompt:'AI 數據通對話永遠不顯示業績為 0 的組員，避免訊號雜訊。' },
   { cat:'🚫 過濾規則', title:'不參考停用鐵律',

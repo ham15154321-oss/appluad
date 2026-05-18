@@ -82,6 +82,31 @@ tr:hover td{background:rgba(167,139,250,.04);}
 .tt-role.ai{color:#a78bfa;}
 .tt-text{max-width:600px;line-height:1.5;color:#e0e8ff;}
 
+/* ★ 刪除按鈕（黃柏翰專屬） */
+.toolbar .btn-danger{background:rgba(255,80,80,.10);border:1px solid rgba(255,100,100,.30);color:#ff9b9b;}
+.toolbar .btn-danger:hover:not(:disabled){background:rgba(255,80,80,.25);}
+.del-btn{
+  padding:3px 9px;border-radius:6px;cursor:pointer;
+  background:rgba(255,80,80,.08);border:1px solid rgba(255,100,100,.25);
+  color:#ff9b9b;font-size:11px;font-family:inherit;transition:all .15s;
+  margin-left:6px;white-space:nowrap;
+}
+.del-btn:hover{background:rgba(255,80,80,.22);color:#ff7070;}
+.del-btn-msg{
+  position:absolute;top:4px;right:6px;
+  padding:1px 5px;border-radius:4px;
+  background:rgba(0,0,0,.35);border:1px solid rgba(255,100,100,.30);
+  color:#ff9b9b;font-size:10px;cursor:pointer;
+  opacity:0;transition:opacity .15s;font-family:inherit;
+}
+.msg{position:relative;}
+.msg:hover .del-btn-msg{opacity:1;}
+.del-row-btn{
+  padding:2px 8px;border-radius:5px;cursor:pointer;
+  background:rgba(255,80,80,.10);border:1px solid rgba(255,100,100,.30);
+  color:#ff9b9b;font-size:11px;font-family:inherit;
+}
+.del-row-btn:hover{background:rgba(255,80,80,.22);}
 .empty{padding:60px 20px;text-align:center;color:rgba(180,200,240,.45);font-size:13px;}
 .loading{padding:40px;text-align:center;color:#a78bfa;}
 .page-bar{max-width:1500px;margin:14px auto 0;display:flex;justify-content:center;gap:8px;}
@@ -117,7 +142,7 @@ tr:hover td{background:rgba(167,139,250,.04);}
       <option value="task">✅ AI 小任務</option>
       <option value="team">📣 AI 團隊宣言</option>
       <option value="mentor">🧠 AI 陪跑師</option>
-      <option value="cases">📚 AI 案例庫</option>
+      <option value="cases">📚 專業與變革要精益求精</option>
     </select>
   </label>
   <label>角色
@@ -142,6 +167,7 @@ tr:hover td{background:rgba(167,139,250,.04);}
   </div>
   <button class="btn" id="btnReload">重新載入</button>
   <button class="btn btn-export" id="btnExport">匯出 CSV</button>
+  <button class="btn btn-danger" id="btnDeleteFiltered" title="刪除目前過濾條件下顯示的所有對話">🗑 刪除過濾結果</button>
 </div>
 
 <div class="stats" id="stats"></div>
@@ -180,7 +206,7 @@ let viewMode = 'thread';   // 'thread' | 'table'
 
 const FEATURE_NAMES = {
   coach:'🎯 AI 教練', data:'📊 AI 數據通', task:'✅ AI 小任務',
-  team:'📣 AI 團隊宣言', mentor:'🧠 AI 陪跑師', cases:'📚 AI 案例庫'
+  team:'📣 AI 團隊宣言', mentor:'🧠 AI 陪跑師', cases:'📚 專業與變革要精益求精'
 };
 
 // ─── 工具 ─────────────────────────────────────────────
@@ -303,6 +329,7 @@ function renderThreadView(list){
   return '<div class="list">' + sorted.map(g => {
     const meta = g.meta;
     const sortedMsgs = g.msgs.slice().sort((a,b) => a.ts - b.ts);
+    const ids = g.msgs.map(x => x.id).join(',');
     return `
       <div class="thread">
         <div class="thread-head">
@@ -310,10 +337,11 @@ function renderThreadView(list){
           <span class="t-char">👤 ${escapeHtml(meta.charName || meta.charId || '?')}</span>
           <span class="t-time">${fmtTime(sortedMsgs[0].ts)}</span>
           <span class="t-count">${g.msgs.length} 則訊息</span>
+          <button class="del-btn" onclick="deleteThread('${ids}', this)" title="刪除整段對話">🗑 刪除整段</button>
         </div>
         <div class="thread-body">
           ${sortedMsgs.map(m => `
-            <div class="msg ${m.role}">${escapeHtml(m.text)}<div class="msg-meta">${fmtTimeShort(m.ts)}</div></div>
+            <div class="msg ${m.role}">${escapeHtml(m.text)}<div class="msg-meta">${fmtTimeShort(m.ts)}</div><button class="del-btn-msg" onclick="deleteMsg('${m.id}', this)" title="刪除這則訊息">🗑</button></div>
           `).join('')}
         </div>
       </div>`;
@@ -329,15 +357,17 @@ function renderTableView(list){
         <th style="width:130px;">AI 工具</th>
         <th style="width:50px;">角色</th>
         <th>內容</th>
+        <th style="width:60px;">操作</th>
       </tr></thead>
       <tbody>
         ${list.map(m => `
-          <tr>
+          <tr id="row-${m.id}">
             <td class="tt-time">${fmtTimeShort(m.ts)}</td>
             <td class="tt-char">${escapeHtml(m.charName || m.charId || '–')}</td>
             <td class="tt-feat">${escapeHtml((m.featureIcon||'')+' '+(m.featureTitle||m.feature||''))}</td>
             <td class="tt-role ${m.role}">${m.role==='user'?'👤':'🤖'}</td>
             <td class="tt-text">${escapeHtml(m.text || '')}</td>
+            <td><button class="del-row-btn" onclick="deleteMsg('${m.id}', this)" title="刪除這筆">🗑</button></td>
           </tr>`).join('')}
       </tbody>
     </table></div>`;
@@ -409,6 +439,82 @@ document.addEventListener('keydown', function(e){
 document.getElementById('btnReload').addEventListener('click', () => loadMsgs());
 document.getElementById('btnExport').addEventListener('click', exportCSV);
 document.getElementById('loadMore').addEventListener('click', () => loadMsgs(true));
+document.getElementById('btnDeleteFiltered').addEventListener('click', deleteFiltered);
+
+// ─── 刪除：單筆 / 整段對話 / 過濾結果全部 ──────────────
+async function deleteMsg(docId, btnEl){
+  if (!docId) return;
+  if (!confirm('⚠️ 確定刪除這筆訊息？刪除後無法復原。')) return;
+  if (btnEl){ btnEl.disabled = true; btnEl.textContent = '...'; }
+  try {
+    await db.collection('ai_chats').doc(docId).delete();
+    // 從本地陣列移除
+    allMsgs = allMsgs.filter(m => m.id !== docId);
+    render();
+  } catch(e){
+    alert('❌ 刪除失敗：' + (e.message || e.code));
+    if (btnEl){ btnEl.disabled = false; btnEl.textContent = '🗑'; }
+  }
+}
+
+async function deleteThread(idsStr, btnEl){
+  if (!idsStr) return;
+  const ids = idsStr.split(',').filter(Boolean);
+  if (!ids.length) return;
+  if (!confirm('⚠️ 確定刪除這整段對話（共 ' + ids.length + ' 則訊息）？\n\n刪除後無法復原。')) return;
+  if (btnEl){ btnEl.disabled = true; btnEl.textContent = '刪除中...'; }
+  let failed = 0;
+  try {
+    // 用 batch 一次刪掉所有訊息（最多 500 筆/batch）
+    for (let i = 0; i < ids.length; i += 400){
+      const batch = db.batch();
+      const slice = ids.slice(i, i+400);
+      slice.forEach(id => batch.delete(db.collection('ai_chats').doc(id)));
+      await batch.commit();
+    }
+    // 從本地陣列移除
+    const idSet = new Set(ids);
+    allMsgs = allMsgs.filter(m => !idSet.has(m.id));
+    render();
+  } catch(e){
+    failed++;
+    alert('❌ 刪除失敗：' + (e.message || e.code));
+    if (btnEl){ btnEl.disabled = false; btnEl.textContent = '🗑 刪除整段'; }
+  }
+}
+
+async function deleteFiltered(){
+  const list = getFiltered();
+  if (!list.length){ alert('目前過濾條件下沒有任何對話可刪除'); return; }
+  // 雙重確認，避免誤刪
+  if (!confirm('⚠️ 確定刪除目前過濾條件下的「全部 ' + list.length + ' 則訊息」？\n\n刪除後無法復原。')) return;
+  const txt = prompt('再次確認 — 請輸入「刪除」兩個字確認操作：');
+  if (txt !== '刪除'){ alert('已取消'); return; }
+
+  const btn = document.getElementById('btnDeleteFiltered');
+  btn.disabled = true;
+  btn.textContent = '🗑 刪除中... 0/' + list.length;
+  let done = 0, failed = 0;
+  try {
+    for (let i = 0; i < list.length; i += 400){
+      const batch = db.batch();
+      const slice = list.slice(i, i+400);
+      slice.forEach(m => batch.delete(db.collection('ai_chats').doc(m.id)));
+      try { await batch.commit(); done += slice.length; }
+      catch(e){ failed += slice.length; console.warn('batch delete fail', e); }
+      btn.textContent = '🗑 刪除中... ' + done + '/' + list.length;
+    }
+    const idSet = new Set(list.map(m => m.id));
+    allMsgs = allMsgs.filter(m => !idSet.has(m.id));
+    render();
+    alert('✅ 已刪除 ' + done + ' 則訊息' + (failed?'（失敗 ' + failed + ' 則）':''));
+  } catch(e){
+    alert('❌ 刪除過程錯誤：' + (e.message || e.code));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🗑 刪除過濾結果';
+  }
+}
 ['filterChar','filterFeature','filterRole','filterKw','filterFrom','filterTo'].forEach(id => {
   document.getElementById(id).addEventListener('input', render);
 });
