@@ -133,6 +133,34 @@ body.day-mode .msg-save-btn{border-color:rgba(180,160,220,.3);color:#8070a0;}
 body.day-mode .msg-save-btn:hover{border-color:rgba(140,100,180,.5);color:#6a4c9c;}
 body.day-mode .msg-save-btn.saved{border-color:rgba(40,160,80,.3);color:#2e7d32;}
 .msg.error{align-self:center;text-align:center;color:#ff8a8a;font-size:.78rem;background:rgba(255,80,80,.06);border:1px solid rgba(255,80,80,.12);}
+/* ────── 互動式反問卡（ASK card） — AI 反問時顯示，使用者可點選項或自填 ────── */
+.ask-card{align-self:flex-start;max-width:88%;margin:6px 0 2px;background:linear-gradient(135deg,rgba(255,215,0,.10),rgba(74,234,255,.08));border:1px solid rgba(255,215,0,.45);border-radius:14px;padding:14px 14px 12px;box-shadow:0 4px 14px rgba(0,0,0,.18);}
+.ask-q{font-size:.92rem;color:#ffe066;font-weight:600;margin-bottom:10px;line-height:1.55;display:flex;align-items:flex-start;gap:6px;}
+.ask-q::before{content:'❓';flex-shrink:0;}
+.ask-options{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.ask-opt{background:rgba(255,215,0,.12);border:1px solid rgba(255,215,0,.45);color:#ffe066;padding:7px 13px;border-radius:18px;cursor:pointer;font-size:.82rem;font-family:inherit;transition:all .15s;line-height:1.3;}
+.ask-opt:hover:not(:disabled){background:rgba(255,215,0,.25);transform:translateY(-1px);}
+.ask-opt:disabled{opacity:.45;cursor:not-allowed;}
+.ask-custom{display:flex;gap:6px;align-items:stretch;}
+.ask-input{flex:1;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:8px 10px;color:#fff;font-family:inherit;font-size:.85rem;resize:none;outline:none;line-height:1.4;}
+.ask-input:focus{border-color:#ffd700;background:rgba(0,0,0,.4);}
+.ask-input::placeholder{color:rgba(255,255,255,.4);}
+.ask-send{background:linear-gradient(135deg,#ffd700,#ffb300);border:none;color:#1a1a1a;padding:0 14px;border-radius:10px;cursor:pointer;font-weight:700;font-size:.8rem;font-family:inherit;white-space:nowrap;}
+.ask-send:hover:not(:disabled){filter:brightness(1.1);}
+.ask-send:disabled{opacity:.45;cursor:not-allowed;}
+.ask-picked{margin-top:10px;font-size:.8rem;color:#a8f0c0;background:rgba(0,232,104,.12);border:1px solid rgba(0,232,104,.25);border-radius:8px;padding:7px 11px;}
+.ask-card.disabled{opacity:.78;border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.03);}
+/* day mode 配色 */
+body.day-mode .ask-card{background:linear-gradient(135deg,#fff8e1,#e3f2fd);border-color:#f9a825;box-shadow:0 2px 10px rgba(0,0,0,.08);}
+body.day-mode .ask-q{color:#bf6000;}
+body.day-mode .ask-opt{background:#fff;border-color:#f9a825;color:#bf6000;}
+body.day-mode .ask-opt:hover:not(:disabled){background:#ffe082;}
+body.day-mode .ask-input{background:#fff;border-color:#c0a070;color:#3a2a4c;}
+body.day-mode .ask-input:focus{border-color:#f9a825;background:#fffdf6;}
+body.day-mode .ask-input::placeholder{color:#998060;}
+body.day-mode .ask-send{background:linear-gradient(135deg,#f9a825,#fb8c00);color:#fff;}
+body.day-mode .ask-picked{background:#c8e6c9;border-color:#81c784;color:#1b5e20;}
+body.day-mode .ask-card.disabled{background:rgba(255,255,255,.6);border-color:#bdbdbd;}
 .typing{align-self:flex-start;color:#4aeaff;font-size:.8rem;padding:6px 12px;}
 .typing span{animation:blink 1.2s infinite;}@keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
 .suggest-bar{padding:6px 12px;border-top:1px solid rgba(50,160,255,.08);display:flex;gap:4px;flex-wrap:wrap;}
@@ -1115,36 +1143,45 @@ var GOLDEN_CIRCLE = '\n\n【重要：跨模組協作與黃金圈理論】\n'
 
 // ★★★ 對話行為準則 — 像 Claude 一樣「先確認再回答」
 //   讓 AI 顧問不要瞎猜、不要灌雞湯，而是先把模糊的地方問清楚再用力思考
-var CLARIFY_FIRST_BEHAVIOR = '\n\n【🎯 對話行為準則 — 像 Claude 一樣先確認再回答】\n'
-  + '收到使用者問題時，請依以下 3 步驟處理：\n'
+var CLARIFY_FIRST_BEHAVIOR = '\n\n【🎯 對話行為準則 — 互動式釐清，不為問而問】\n'
+  + '收到使用者問題時，先判斷「是否真的有模糊點需要釐清」：\n'
   + '\n'
-  + '1️⃣ 檢查模糊點（必做）\n'
-  + '   問題裡有沒有不確定的地方？例如：\n'
-  + '   • 時間範圍不明（哪個月？哪一季？）\n'
-  + '   • 對象不明（哪個學院？哪個組？哪個業務？）\n'
-  + '   • 標準不明（「業績好」是定義為達成率還是絕對值？）\n'
-  + '   • 範圍不明（要分析全公司還是個人？）\n'
-  + '   有模糊 → 用 ❓ 開頭反問 1~3 個關鍵問題，等使用者回答再進行分析。\n'
-  + '   無模糊 → 跳到 3️⃣\n'
+  + '✅ 直接答（不要強求反問）：\n'
+  + '• 問題已明確（例：「5月學院 Top 3」、「凃敏薰3月業績」、「面談 SOP 是什麼」）\n'
+  + '• 一般打招呼、感謝、閒聊\n'
+  + '• 使用者已給足夠脈絡\n'
+  + '→ 直接給答案，不要無病呻吟地反問\n'
   + '\n'
-  + '2️⃣ 主動察覺主角沒想到的盲點（重要）\n'
-  + '   分析資料時，如果發現使用者的問題前提有漏洞或忽略了重要資訊，主動提出。\n'
-  + '   範例：\n'
-  + '   • 使用者問「怎麼提升面談率」，但你看到他面談率已經 90% → 反問「你目前面談率已經 90%，是要拉到 95%？還是其實在意品質而非數量？」\n'
-  + '   • 使用者問「我這個月業績為什麼掉」，但你看到名單數其實也少了 30% → 反問「你發現名單數本身少了 30% 嗎？這可能才是根因，要從這裡查嗎？」\n'
-  + '   • 使用者問「我的組員 A 為什麼業績差」，但你看到組員 A 其實在你的小組裡還是第 2 名 → 反問「組員 A 在你組裡其實是第 2 名，你是跟全公司比還是跟你的目標比？」\n'
+  + '❓ 用「互動式反問卡」釐清（只在真有模糊時）：\n'
+  + '• 時間範圍不明（哪個月？哪一季？）\n'
+  + '• 對象不明（哪個學院/組/業務？）\n'
+  + '• 標準不明（「業績好」是達成率還是絕對值？）\n'
+  + '• 你發現了使用者沒注意到的盲點（例：他問「怎麼拉高面談率」但其實面談率已 90%）\n'
   + '\n'
-  + '3️⃣ 用力思考再生成最終答案（只在完全理解後）\n'
-  + '   • 跨資料源整合：業績 + 360 評分 + 案例 + 鐵律 + 私聊記憶 + 月績效\n'
-  + '   • 給具體可執行的建議（不是泛泛雞湯）\n'
-  + '   • 援引真實數據與來源\n'
-  + '   • 如果使用者已經回答過釐清問題，把答案納入分析時 explicitly 提到「根據你說的 ___，所以 ___」\n'
+  + '🎁 互動式反問卡 — 格式（重要！）：\n'
+  + '當你需要反問時，請在訊息末尾加上一段 ASK 區塊，使用以下精確格式：\n'
+  + '\n'
+  + '<ASK>{"q":"問題本文（一句話）","options":["選項A","選項B","選項C"]}</ASK>\n'
+  + '\n'
+  + '規則：\n'
+  + '• options 給 2~4 個常見選項，使用者可以直接點選\n'
+  + '• 使用者也會看到一個自填輸入框，可以打自己的答案\n'
+  + '• 同一則回覆只能有 1 個 ASK 區塊（避免一次問太多）\n'
+  + '• ASK 一定放在訊息最後一行，前面是簡短引言（不要把問題重複打在引言裡）\n'
+  + '• JSON 必須合法（雙引號、無多餘逗號）\n'
+  + '\n'
+  + '範例：\n'
+  + '「先確認一下範圍：\n'
+  + '<ASK>{"q":"你想看的「課程銷售前十名」是哪一個範圍？","options":["整個集團 22 組","你自己學院內","只看你帶的小組"]}</ASK>」\n'
+  + '\n'
+  + '「我注意到你面談率已經 90%，這個數字其實已經很高了。\n'
+  + '<ASK>{"q":"你真正想優化的是？","options":["拉到 95% 以上","面談品質而非數量","其他指標"]}</ASK>」\n'
   + '\n'
   + '⚠️ 平衡原則：\n'
-  + '• 寧可多問一次也不要瞎猜給錯誤方向\n'
-  + '• 但簡單明確的查詢（例如「5月學院 Top 3」）直接答，不要為了問而問\n'
-  + '• 反問時一次最多 3 題，每題說明「為什麼這個資訊重要」\n'
-  + '• 反問用 ❓ 開頭，最終答案用 💡 或 📋 開頭，視覺上一眼分得出\n';
+  + '• 寧可不問也不要為問而問（使用者很討厭被無謂打斷）\n'
+  + '• 真的有疑慮時用 ASK 卡（一個卡片就好，不要一次問 3 題）\n'
+  + '• 如果使用者已經回答過釐清問題，分析時 explicitly 提到「根據你說的 ___，所以 ___」\n'
+  + '• 最終答案用 💡 或 📋 開頭，跟反問視覺上分清楚\n';
 
 // ★★★ LINE 對話風格 — 全顧問共用
 //   讓回覆像和同事在 LINE 聊天，不要像寫文件
@@ -2145,8 +2182,10 @@ function openChat(fid){
   if (history.length > 0){
     // 沿用最後一條訊息的 topicId（或新生成）
     curTopicId = history[history.length-1].topicId || ('t_'+Date.now());
-    history.forEach(function(m){
-      addMsg(m.type, m.text, { skipSave: true });
+    // ★ 若 AI 訊息後面已有 user 回覆，把 ASK 卡片標記為已回答（避免重複觸發）
+    history.forEach(function(m,i){
+      var alreadyAnswered = (m.type==='ai' && i+1<history.length && history[i+1].type==='user');
+      addMsg(m.type, m.text, { skipSave: true, alreadyAnswered: alreadyAnswered });
     });
     console.log('[ai-chat] 載入歷史對話 '+history.length+' 則訊息（'+fid+'）');
   } else {
@@ -2183,6 +2222,10 @@ function _cleanMarkdown(text){
   if (!text || typeof text !== 'string') return text || '';
   try {
     var s = text;
+
+    // ★ 0a. 先剝掉 <ASK>...</ASK> 互動式反問區塊（會在 addMsg 另外渲染成卡片）
+    //     如果 JSON 解析失敗導致沒渲染卡片，這裡會把標籤吃掉避免使用者看到原碼
+    s = s.replace(/<ASK>[\s\S]*?<\/ASK>/g, '').trim();
 
     // 0. 表格智慧轉換（在其他清理之前）— 偵測連續多行 |...| 視為表格區塊
     //    第一行當 header，剩下的行轉成「📌 第一欄：欄2 值，欄3 值」格式
@@ -2319,13 +2362,114 @@ function _convertTableBlock(text, sep){
   return out.join('\n');
 }
 
+// ══════════ 互動式反問卡（ASK card） ══════════
+// AI system prompt 規定：需要反問時要在訊息末尾加 <ASK>{"q":"...","options":["..."]}</ASK>
+// 這個解析器把那段 JSON 抓出來，addMsg 會渲染成「選項按鈕 + 自填輸入框」的卡片
+// 使用者點選或自填送出 → 自動填到 chat input 並 sendMsg()
+function _parseAsk(text){
+  if (!text || typeof text !== 'string') return null;
+  var m = text.match(/<ASK>([\s\S]*?)<\/ASK>/);
+  if (!m) return null;
+  try {
+    var obj = JSON.parse(m[1].trim());
+    if (!obj || !obj.q) return null;
+    return {
+      question: String(obj.q),
+      options: Array.isArray(obj.options) ? obj.options.slice(0, 6).map(String) : []
+    };
+  } catch(e){
+    // JSON 壞了就不渲染卡片（_cleanMarkdown 仍會把標籤剝掉，不會看到原碼）
+    return null;
+  }
+}
+
+function _renderAskCard(parent, ask, disabled){
+  var card = document.createElement('div');
+  card.className = 'ask-card' + (disabled ? ' disabled' : '');
+
+  // 問題本文（::before 已有 ❓ 圖示）
+  var q = document.createElement('div');
+  q.className = 'ask-q';
+  q.textContent = ask.question;
+  card.appendChild(q);
+
+  // 選項按鈕
+  if (ask.options && ask.options.length){
+    var optsDiv = document.createElement('div');
+    optsDiv.className = 'ask-options';
+    ask.options.forEach(function(opt){
+      var b = document.createElement('button');
+      b.className = 'ask-opt';
+      b.type = 'button';
+      b.textContent = opt;
+      b.disabled = disabled;
+      b.onclick = function(){ _ansAsk(card, opt); };
+      optsDiv.appendChild(b);
+    });
+    card.appendChild(optsDiv);
+  }
+
+  // 自填輸入框（可自由打字）
+  var customWrap = document.createElement('div');
+  customWrap.className = 'ask-custom';
+  var ta = document.createElement('textarea');
+  ta.className = 'ask-input';
+  ta.rows = 2;
+  ta.placeholder = '或自己輸入答案（Enter 送出）';
+  ta.disabled = disabled;
+  var sendB = document.createElement('button');
+  sendB.className = 'ask-send';
+  sendB.type = 'button';
+  sendB.textContent = '送出 ↵';
+  sendB.disabled = disabled;
+  var submitCustom = function(){
+    var v = ta.value.trim();
+    if (!v) return;
+    _ansAsk(card, v);
+  };
+  sendB.onclick = submitCustom;
+  ta.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      submitCustom();
+    }
+  });
+  customWrap.appendChild(ta);
+  customWrap.appendChild(sendB);
+  card.appendChild(customWrap);
+
+  parent.appendChild(card);
+  parent.scrollTop = parent.scrollHeight;
+}
+
+// 點選項 / 自填送出時：disable 卡片 + 標記已回答 + 把答案丟給 sendMsg
+function _ansAsk(card, text){
+  card.classList.add('disabled');
+  card.querySelectorAll('button,textarea').forEach(function(el){ el.disabled = true; });
+  // 顯示「✅ 你的回答：XXX」
+  var picked = document.createElement('div');
+  picked.className = 'ask-picked';
+  picked.textContent = '✅ 你的回答：' + text;
+  card.appendChild(picked);
+  // 塞入聊天輸入框並發送
+  var inp = document.getElementById('chatInput');
+  if (inp){
+    inp.value = text;
+    // 用 setTimeout 讓 UI 先更新（disabled 視覺反饋）
+    setTimeout(function(){ sendMsg(); }, 50);
+  }
+}
+
 function addMsg(type,text,opts){
   opts = opts || {};
   var el=document.getElementById('chatMsgs'),d=document.createElement('div');
   d.className='msg '+type;
   // AI 回覆加：存入案例庫 + 存入私聊 按鈕
   if(type==='ai'){
-    // ★ 清掉 Markdown 符號，給使用者看 LINE 對話風格
+    // ★ 先嘗試從原始文字裡解析「互動式反問卡」(ASK)
+    //   有的話會渲染成可點選按鈕 + 自填輸入框（像 Claude UI 的問答）
+    var askObj = _parseAsk(text);
+    // ★ 清掉 Markdown 符號 + 剝掉 ASK 區塊，給使用者看 LINE 對話風格
     var displayText = _cleanMarkdown(text);
     var txt=document.createElement('span');txt.className='msg-text';txt.textContent=displayText;
     var acts=document.createElement('span');acts.className='msg-actions';
@@ -2337,11 +2481,22 @@ function addMsg(type,text,opts){
     btn2.style.marginLeft='6px';
     btn2.onclick=function(){saveMsgToPrivateChat(displayText,btn2);};
     acts.appendChild(btn2);
-    d.appendChild(txt);d.appendChild(acts);
+    // 如果 displayText 是空（整則訊息只有 ASK 區塊），就不顯示 bubble 本體
+    if (displayText && displayText.trim()){
+      d.appendChild(txt);d.appendChild(acts);
+      el.appendChild(d);
+    }
+    // ★ 渲染互動反問卡（如果有）
+    if (askObj){
+      // 若是「重新渲染歷史」(skipSave)，且這則 AI 訊息後面已經有 user 回覆，視為已回答
+      var disabledAtStart = !!(opts.skipSave && opts.alreadyAnswered);
+      _renderAskCard(el, askObj, disabledAtStart);
+    }
   } else {
     d.textContent=text;
+    el.appendChild(d);
   }
-  el.appendChild(d);el.scrollTop=el.scrollHeight;
+  el.scrollTop=el.scrollHeight;
 
   // ★ 持久化到 localStorage（render 歷史時 skipSave=true）
   if (!opts.skipSave && curFeature && (type === 'user' || type === 'ai')){
@@ -2520,7 +2675,11 @@ function openPin(id){
   updatePinBtn(true);
   var el=document.getElementById('chatMsgs');el.innerHTML='';
   // ★ skipSave：渲染釘選歷史時不要重新寫進 feature 的 chat history（會重複）
-  p.history.forEach(function(m){addMsg(m.role==='user'?'user':'ai',m.content,{skipSave:true});});
+  // ★ alreadyAnswered：若 AI 訊息後面已有 user 回覆，把 ASK 卡片標記成 disabled（避免重複觸發）
+  p.history.forEach(function(m,i){
+    var alreadyAnswered = (m.role!=='user' && i+1<p.history.length && p.history[i+1].role==='user');
+    addMsg(m.role==='user'?'user':'ai',m.content,{skipSave:true, alreadyAnswered:alreadyAnswered});
+  });
   el.scrollTop=el.scrollHeight;
   renderSuggestions();renderPinList();
 }
