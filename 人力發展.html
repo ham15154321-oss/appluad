@@ -3188,6 +3188,30 @@ window.addEventListener('storage', function(e){
 });
 
 // ========== 從 castle_cards_v1 直接讀取角色資料（不依賴 profileImgData） ==========
+//   ★ saveCards 會把 photo / mascot 從 LS 版 cards 剝掉（避免 LS quota），
+//     所以 card.photo / card.mascot 多半是空的 — 必須 fallback 到 IDB 撈
+async function _getCardPhotoFromIdb(cardId, kind){
+  // kind = 'photo' | 'mascot'  → key = 'castle_card_photo_<id>' or 'castle_card_mascot_<id>'
+  if (cardId == null) return null;
+  var key = 'castle_card_' + (kind === 'mascot' ? 'mascot' : 'photo') + '_' + cardId;
+  return new Promise(function(resolve){
+    try {
+      var r = indexedDB.open('SpaceBaseDB');
+      r.onsuccess = function(){
+        try {
+          var db = r.result;
+          if (!db.objectStoreNames.contains('images')){ try{db.close();}catch(_){}; resolve(null); return; }
+          var tx = db.transaction('images','readonly');
+          var g = tx.objectStore('images').get(key);
+          g.onsuccess = function(){ try{db.close();}catch(_){}; resolve(g.result || null); };
+          g.onerror   = function(){ try{db.close();}catch(_){}; resolve(null); };
+        } catch(_e){ resolve(null); }
+      };
+      r.onerror = function(){ resolve(null); };
+    } catch(_e2){ resolve(null); }
+  });
+}
+
 async function syncFromCastleCards(){
   var cid=localStorage.getItem('activeCharacterId');
   if(cid==null) return;
@@ -3197,20 +3221,29 @@ async function syncFromCastleCards(){
     var cardsData=JSON.parse(raw);
     var card=cardsData.find(function(c){return c.name===cid;})||cardsData[parseInt(cid)];
     if(!card) return;
-    // 套用形象照
-    if(card.photo){
-      applyProfile(card.photo);
-      try{await dbPut('images','profile',card.photo);}catch(e){}
+    // 套用形象照（先用 card.photo，沒有就 fallback IDB.images.castle_card_photo_<id>）
+    var photo = card.photo;
+    if(!photo){
+      photo = await _getCardPhotoFromIdb(card.id, 'photo');
+      if (photo) console.log('[syncFromCastleCards] 從 IDB 撈到 '+cid+' 的照片');
+    }
+    if(photo){
+      applyProfile(photo);
+      try{await dbPut('images','profile',photo);}catch(e){}
     }
     // 套用角色名稱
     if(card.name){
       document.getElementById('profileLabel').textContent=card.name;
       try{localStorage.setItem('profileName',card.name);}catch(e){}
     }
-    // 套用吉祥物
-    if(card.mascot){
-      applyMascot(card.mascot);
-      try{await dbPut('images','mascot',card.mascot);}catch(e){}
+    // 套用吉祥物（同樣 fallback IDB）
+    var mascot = card.mascot;
+    if(!mascot){
+      mascot = await _getCardPhotoFromIdb(card.id, 'mascot');
+    }
+    if(mascot){
+      applyMascot(mascot);
+      try{await dbPut('images','mascot',mascot);}catch(e){}
     }
   }catch(e){console.warn('syncFromCastleCards error',e);}
   // 重新載入角色專屬的客訴/獎懲/小組問題資料
@@ -3522,6 +3555,21 @@ async function init(){
   updateDate();setInterval(updateDate,60000);
   // 開 IndexedDB，完全比照吉祥物載入方式
   await openDB();
+
+  // ★★★ 主角切換偵測：如果 IDB.images.profile 屬於別的角色，清掉以免顯示錯
+  //   profileName 記錄「當前 IDB profile 屬於誰」 — 跟 activeCharacterId 不一致就清
+  try {
+    var _curChar = localStorage.getItem('activeCharacterId') || '';
+    var _profileOwner = localStorage.getItem('profileName') || '';
+    if (_curChar && _profileOwner && _curChar !== _profileOwner){
+      console.warn('[init] IDB profile 屬於 "'+_profileOwner+'" 不是當前主角 "'+_curChar+'"，清掉避免顯示錯人照片');
+      try { await dbDelete('images','profile'); } catch(_e){}
+      try { await dbDelete('images','mascot'); } catch(_e){}
+      try { localStorage.removeItem('profileImgData'); } catch(_e){}
+      try { localStorage.setItem('profileName', _curChar); } catch(_e){}
+    }
+  } catch(_e){}
+
   const mascot=await dbGet('images','mascot');if(mascot)applyMascot(mascot);
   const profile=await dbGet('images','profile');if(profile)applyProfile(profile);
   // ★ 六角形圖片：IndexedDB 優先，localStorage 備份兜底
