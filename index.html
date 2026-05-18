@@ -228,7 +228,7 @@
   }
 </style>
 <link rel="stylesheet" href="day-mode.css">
-<script src="./auth-firebase.js?v=v1"></script>
+<script src="./auth-firebase.js?v=v2"></script>
 </head>
 <body>
 
@@ -455,13 +455,25 @@ function _loadCardsFromLS(){
   }catch(e){ return []; }
 }
 async function _loadCardsForFirstTime(){
+  console.log('[firstTime] === 開始載入卡片資料 ===');
   // 1. 先試 LS
   var arr = _loadCardsFromLS();
+  console.log('[firstTime] LS 卡片數：' + arr.length);
   if (arr.length){ return arr; }
 
   // 2. 從 Firestore 撈 — 試多種路徑（castle_cards_v1 是 per-character 路徑，沒有真正的 global doc）
   try {
+    console.log('[firstTime] 等待 authReady...');
+    if (!window.authReady){
+      console.error('[firstTime] ❌ window.authReady 不存在！auth-firebase.js 沒載入');
+      return [];
+    }
     await window.authReady;
+    console.log('[firstTime] ✅ authReady 完成，開始查 Firestore');
+    if (!window.firebase || !firebase.firestore){
+      console.error('[firstTime] ❌ firebase.firestore 不存在！');
+      return [];
+    }
     var fs = firebase.firestore();
 
     // 2a. 先試 _global 路徑（萬一未來改成 global 也吃得到）
@@ -489,6 +501,7 @@ async function _loadCardsForFirstTime(){
       });
     } catch(_e){}
 
+    console.log('[firstTime] 候選角色 bucket 共 ' + candidates.length + ' 個：', candidates.slice(0, 5).join(','), '...');
     for (var i = 0; i < candidates.length; i++){
       var charName = candidates[i];
       try {
@@ -498,14 +511,19 @@ async function _loadCardsForFirstTime(){
           var dC = snapC.data();
           var parsedC = _parseCardsValue(dC && dC.value);
           if (parsedC && parsedC.length){
-            console.log('[firstTime] 從角色 ['+charName+'] 的雲端 bucket 載入卡片資料（'+parsedC.length+' 張）');
+            console.log('[firstTime] ✅ 從角色 ['+charName+'] 的雲端 bucket 載入卡片資料（'+parsedC.length+' 張）');
             return parsedC;
+          } else {
+            console.log('[firstTime] ['+charName+'] doc 存在但解析失敗或空陣列');
           }
+        } else {
+          console.log('[firstTime] ['+charName+'] 無 doc');
         }
       } catch(_e2){
         console.warn('[firstTime] 從 ['+charName+'] 讀失敗', _e2 && (_e2.code || _e2.message));
       }
     }
+    console.warn('[firstTime] ⚠️ 所有候選角色都沒有 castle_cards_v1 資料');
   } catch(e){
     console.warn('[firstTime] 從 Firestore 讀卡片失敗', e);
   }
