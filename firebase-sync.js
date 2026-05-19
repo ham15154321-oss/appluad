@@ -57,7 +57,11 @@ const IDB_LIST = [
   { dbName: 'TrainingSalesDB',      dbVer: 1, stores: ['byCharacter'] },
   // ★ v3：AI 顧問中心的 pmemory（私聊記憶）從 LS 搬到這裡
   //   每個主角的 pmemory 是一個 entry（key = charId），陣列 of {id, feature, text, createdAt}
-  { dbName: 'AiAdvisorDB',          dbVer: 1, stores: ['pmemory'] }
+  { dbName: 'AiAdvisorDB',          dbVer: 1, stores: ['pmemory'] },
+  // ★ v4：AI 顧問中心的知識庫（全公司共享）從 LS 搬到這裡
+  //   單一 entry（key = 'knowledge_base_v1'），value = { items:[{id,title,content,tags,enabled,...}] }
+  //   原本在 GLOBAL_LS_KEY_PATTERNS，但 .md 檔太大會炸 LS 5MB，改用 IDB
+  { dbName: 'KnowledgeBaseDB',      dbVer: 1, stores: ['kb'] }
 ];
 // 拉取時也要能讀取舊的音效 collection（向下相容），但推送時不再寫入
 const IDB_LIST_PULL_ONLY = [

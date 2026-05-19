@@ -3268,12 +3268,127 @@ function renderRules(){
 }
 
 // ══════ 知識庫（全公司共享，AI 對話時自動參考啟用文件）══════
-// LS key: knowledge_base_v1（已在 GLOBAL_LS_KEY_PATTERNS，雲端 /_global 路徑同步）
 // 資料結構：{ items: [{id, title, content, tags:[], enabled, createdAt, updatedAt, size}] }
+// ★ v2 架構：搬到 IndexedDB（KnowledgeBaseDB.kb），key='knowledge_base_v1'
+//   原因：LS 5MB 容易爆（一個 .md 檔可能 20KB+），IDB 50MB+ 完全沒問題
+//   firebase-sync.js IDB_LIST 也已註冊，會自動雙向同步雲端
 var _kbEditId = null;
 var kbFilter = 'all';  // 'all' | 'enabled' | 'disabled' | tag name
 
+// IDB cache：app boot 時 async 載入到記憶體，之後 sync 讀（避免 _loadKb 變成 async 改動太多）
+window._kbCache = window._kbCache || null;
+window._kbCacheReady = false;
+
+var _KB_DB_NAME = 'KnowledgeBaseDB';
+var _KB_STORE = 'kb';
+var _KB_KEY = 'knowledge_base_v1';
+
+function _kbOpenDB(){
+  return new Promise(function(resolve, reject){
+    var req = indexedDB.open(_KB_DB_NAME);
+    req.onupgradeneeded = function(e){
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains(_KB_STORE)) db.createObjectStore(_KB_STORE);
+    };
+    req.onsuccess = function(){
+      var db = req.result;
+      if (db.objectStoreNames.contains(_KB_STORE)) { resolve(db); return; }
+      // store 缺失 → 升 version 補建
+      var curVer = db.version;
+      db.close();
+      var upReq = indexedDB.open(_KB_DB_NAME, curVer + 1);
+      upReq.onupgradeneeded = function(e){
+        var ud = e.target.result;
+        if (!ud.objectStoreNames.contains(_KB_STORE)) ud.createObjectStore(_KB_STORE);
+      };
+      upReq.onsuccess = function(){ resolve(upReq.result); };
+      upReq.onerror = function(){ reject(upReq.error); };
+    };
+    req.onerror = function(){ reject(req.error); };
+  });
+}
+
+function _kbLoadFromIDB(){
+  return _kbOpenDB().then(function(db){
+    return new Promise(function(resolve){
+      try {
+        var tx = db.transaction(_KB_STORE, 'readonly');
+        var req = tx.objectStore(_KB_STORE).get(_KB_KEY);
+        req.onsuccess = function(){ try{db.close();}catch(_){} resolve(req.result || null); };
+        req.onerror   = function(){ try{db.close();}catch(_){} resolve(null); };
+      } catch(e){ try{db.close();}catch(_){} resolve(null); }
+    });
+  }).catch(function(){ return null; });
+}
+
+function _kbSaveToIDB(data){
+  return _kbOpenDB().then(function(db){
+    return new Promise(function(resolve, reject){
+      try {
+        var tx = db.transaction(_KB_STORE, 'readwrite');
+        var req = tx.objectStore(_KB_STORE).put(data || { items: [] }, _KB_KEY);
+        req.onsuccess = function(){ try{db.close();}catch(_){} resolve(); };
+        req.onerror   = function(){ try{db.close();}catch(_){} reject(req.error); };
+      } catch(e){ try{db.close();}catch(_){} reject(e); }
+    });
+  });
+}
+
+// Boot：從 IDB 載到 cache，並從 LS 遷移舊資料（一次性）
+async function _kbBootInit(){
+  try {
+    var fromIdb = await _kbLoadFromIDB();
+    var fromLs = null;
+    try {
+      var raw = localStorage.getItem(SK.knowledge);
+      if (raw) {
+        var d = JSON.parse(raw);
+        if (d && d.items) fromLs = d;
+      }
+    } catch(_){}
+
+    // 合併策略：兩邊都有 → 合併 items（依 id 去重，updatedAt 較新者勝出）
+    //           只有一邊 → 用那邊
+    var merged = { items: [] };
+    if (fromIdb && fromIdb.items) merged = { items: fromIdb.items.slice() };
+    if (fromLs && fromLs.items && fromLs.items.length){
+      var byId = {};
+      merged.items.forEach(function(it){ if(it && it.id) byId[it.id] = it; });
+      fromLs.items.forEach(function(it){
+        if (!it || !it.id) return;
+        var existing = byId[it.id];
+        if (!existing){
+          merged.items.push(it);
+          byId[it.id] = it;
+        } else if ((it.updatedAt||0) > (existing.updatedAt||0)){
+          // LS 較新 → 覆蓋
+          for (var i=0; i<merged.items.length; i++){
+            if (merged.items[i].id === it.id) { merged.items[i] = it; break; }
+          }
+        }
+      });
+      // 寫回 IDB（確保合併結果有持久化）
+      try { await _kbSaveToIDB(merged); } catch(_){}
+      console.log('[kb] LS→IDB 遷移完成，合計 '+merged.items.length+' 個文件');
+    }
+
+    window._kbCache = merged;
+    window._kbCacheReady = true;
+
+    // 清掉 LS 版本（釋出 quota）
+    try { localStorage.removeItem(SK.knowledge); } catch(_){}
+  } catch(e){
+    console.warn('[kb] boot init 失敗', e);
+    window._kbCache = { items: [] };
+    window._kbCacheReady = true;
+  }
+}
+// 立刻啟動 boot
+_kbBootInit();
+
 function _loadKb(){
+  // 優先用 cache（fast, sync）；cache 沒準備好就 fallback 到 LS
+  if (window._kbCache) return window._kbCache;
   try {
     var raw = localStorage.getItem(SK.knowledge);
     if (!raw) return { items: [] };
@@ -3283,11 +3398,20 @@ function _loadKb(){
   } catch(e){ return { items: [] }; }
 }
 function _saveKb(d){
-  try {
-    localStorage.setItem(SK.knowledge, JSON.stringify(d || { items: [] }));
-  } catch(e){
+  var data = d || { items: [] };
+  // 1) 立刻寫 cache（下次 _loadKb 看得到）
+  window._kbCache = data;
+  // 2) async 寫 IDB（不阻塞 UI）
+  _kbSaveToIDB(data).then(function(){
+    // 寫成功後觸發 firebase push（IDB 也會同步雲端）
+    try {
+      var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
+      if (fs && fs.push) fs.push();
+    } catch(_){}
+  }).catch(function(e){
+    console.error('[kb] IDB 儲存失敗', e);
     alert('⚠️ 儲存失敗：' + (e.message || e));
-  }
+  });
 }
 
 function openAddKnowledge(){
