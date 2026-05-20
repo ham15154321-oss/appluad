@@ -3124,6 +3124,82 @@ function _renderTaskFileList(){
   }).join('');
 }
 
+// ★★★ 跨主角任務同步 helpers — v2 用「全公司共享 LS keys」實作
+//   核心想法：每筆跨主角任務存在 LS 的 cross_task_<taskId> key（每筆獨立 doc）
+//   firebase-sync.js 把這些 keys 同步到 _global 路徑 → 全裝置共享
+//   B 的時間軸 render 時，會合併「自己的本地任務」+「assignees 含我的 cross_task_*」
+//   為什麼不直接寫 char_B_ai_timeline_v1？因為 LWW 會讓 A 的版本覆蓋 B 的版本 → B 自己的任務消失
+function _getAssigneeNames(task){
+  return (task.assignees || []).map(function(a){
+    return (typeof a === 'string') ? a : (a && a.name) || null;
+  }).filter(Boolean);
+}
+function _crossKey(taskId){ return 'cross_task_' + taskId; }
+// 把任務寫到全公司共享 key（cross_task_<id>）→ 自動同步到所有裝置
+function _writeCrossTask(task, originalOwner){
+  if (!task || !task.id) return;
+  try {
+    var copy = Object.assign({}, task);
+    copy._originalOwner = originalOwner;
+    // 寫到 parent LS（firebase-sync 才看得到，會推到 _global）
+    var key = _crossKey(task.id);
+    var json = JSON.stringify(copy);
+    try { window.parent.localStorage.setItem(key, json); } catch(e){ localStorage.setItem(key, json); }
+  } catch(e){
+    console.warn('[cross-task] 寫入 cross_task_'+task.id+' 失敗', e);
+  }
+}
+function _deleteCrossTask(taskId){
+  if (!taskId) return;
+  var key = _crossKey(taskId);
+  try { window.parent.localStorage.removeItem(key); } catch(e){}
+  try { localStorage.removeItem(key); } catch(e){}
+}
+// 主入口：建立 / 編輯 / 改狀態 都呼叫這個（若有指派人才會同步）
+function _syncTaskToAllRelated(task, originalOwner){
+  var assignees = _getAssigneeNames(task);
+  // 沒指派人 / 只指派給自己 → 不需要跨主角同步
+  var others = assignees.filter(function(n){ return n && n !== originalOwner; });
+  if (others.length === 0){
+    // 若先前是跨主角任務，這次編輯後變成只有自己 → 應該刪掉 cross_task
+    _deleteCrossTask(task.id);
+    return;
+  }
+  _writeCrossTask(task, originalOwner);
+}
+// 刪除：把 cross_task doc 也刪掉（會同步到所有人）
+function _removeTaskFromAssignees(task){
+  if (!task || !task.id) return;
+  _deleteCrossTask(task.id);
+}
+// 讀取所有 assignees 含我的 cross_task_* — 給 render 用
+function _readReceivedCrossTasks(){
+  var me = _curCharName();
+  if (!me) return [];
+  var received = [];
+  try {
+    // 從 parent LS 讀（firebase-sync 同步進來的位置）
+    var store = (window.parent && window.parent.localStorage) || localStorage;
+    for (var i = 0; i < store.length; i++){
+      var k = store.key(i);
+      if (!k || k.indexOf('cross_task_') !== 0) continue;
+      try {
+        var task = JSON.parse(store.getItem(k) || '{}');
+        if (!task || !task.id) continue;
+        var assignees = _getAssigneeNames(task);
+        var origOwner = task._originalOwner || task.assigner;
+        // 我是受指派人 且 不是原作者本人 → 顯示為「受指派」
+        if (assignees.indexOf(me) >= 0 && me !== origOwner){
+          task._isReceived = true;
+          task._originalOwner = origOwner;
+          received.push(task);
+        }
+      } catch(e){}
+    }
+  } catch(e){}
+  return received;
+}
+
 function addTask(){
   var name = document.getElementById('taskName').value.trim();
   if (!name) { alert('請輸入標題'); return; }
@@ -3132,6 +3208,8 @@ function addTask(){
   var assigner = _curCharName() || '匿名';
   var now = Date.now();
   var items = LS(_timelineKey());
+  var savedTask = null;
+  var originalOwner = null;
   if (_taskEditId){
     // 編輯模式
     var t = items.find(function(x){ return x.id === _taskEditId; });
@@ -3142,10 +3220,12 @@ function addTask(){
       t.assignees = _taskAssigneesTmp.slice();
       t.attachments = _taskFilesTmp.slice();
       t.log = (t.log || []).concat([{ at: now, who: assigner, action: '編輯任務' }]);
+      savedTask = t;
+      originalOwner = t._originalOwner || t.assigner || assigner;
     }
   } else {
     // 新增模式
-    items.push({
+    var newTask = {
       id: 'tl_' + now,
       title: name,
       content: content,
@@ -3157,36 +3237,82 @@ function addTask(){
       attachments: _taskFilesTmp.slice(),
       createdAt: now,
       log: [{ at: now, who: assigner, action: '建立任務' }]
-    });
+    };
+    items.push(newTask);
+    savedTask = newTask;
+    originalOwner = assigner;
   }
   SS(_timelineKey(), items);
+  // ★ 同步給所有受指派人
+  if (savedTask){
+    _syncTaskToAllRelated(savedTask, originalOwner);
+  }
   closeModal('taskModal');
   renderTimeline();
-  // 通知 parent 更新首頁紅點
+  // 通知 parent 更新首頁紅點 + 觸發 firebase push（讓對方裝置能拉到）
   try {
     if (window.parent && window.parent.refreshTaskBadges){
       window.parent.refreshTaskBadges();
     }
+  } catch(e){}
+  try {
+    var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
+    if (fs && fs.push) fs.push();
   } catch(e){}
 }
 
 function setTaskStatus(id, status){
   var items = LS(_timelineKey());
   var t = items.find(function(x){ return x.id === id; });
+  var who = _curCharName() || '匿名';
   if (t){
+    // 自己時間軸的任務
     t.status = status;
-    var who = _curCharName() || '匿名';
     t.log = (t.log || []).concat([{ at: Date.now(), who: who, action: '改為 '+(status==='pending'?'待執行':status==='doing'?'進行中':'完成') }]);
+    var originalOwner = t._originalOwner || t.assigner || who;
+    SS(_timelineKey(), items);
+    _syncTaskToAllRelated(t, originalOwner);
+  } else {
+    // 受指派任務（在 cross_task_<id> 裡）
+    var received = _readReceivedCrossTasks();
+    var rt = received.find(function(x){ return x.id === id; });
+    if (rt){
+      rt.status = status;
+      rt.log = (rt.log || []).concat([{ at: Date.now(), who: who, action: '改為 '+(status==='pending'?'待執行':status==='doing'?'進行中':'完成') }]);
+      _writeCrossTask(rt, rt._originalOwner);
+    }
   }
-  SS(_timelineKey(), items);
   renderTimeline();
   if (_selectedTaskId === id) _renderTaskPreview(id);
+  // 觸發 firebase push
+  try {
+    var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
+    if (fs && fs.push) fs.push();
+  } catch(e){}
 }
 
 function delTask(id){
-  if (!confirm('確定刪除此任務？')) return;
-  SS(_timelineKey(), LS(_timelineKey()).filter(function(x){ return x.id !== id; }));
+  var items = LS(_timelineKey());
+  var t = items.find(function(x){ return x.id === id; });
+  if (t){
+    // 自己時間軸的任務
+    if (!confirm('確定刪除此任務？')) return;
+    // 若有指派給別人 → 同步刪除 cross_task doc（受指派人也看不到了）
+    _removeTaskFromAssignees(t);
+    SS(_timelineKey(), items.filter(function(x){ return x.id !== id; }));
+  } else {
+    // 受指派任務（不在自己時間軸）
+    if (!confirm('這是別人指派給你的任務，移除後你不會再看到，但原作者那邊仍然存在。確定移除？')) return;
+    // ★ 不刪除 cross_task doc（其他指派人可能還在）
+    //   只在 UI 本地暫時隱藏 — 但因為下次 pull 又會出現，先簡單處理：直接刪 cross_task
+    //   （比較粗暴，未來可改為「per-receiver 隱藏列表」）
+    _deleteCrossTask(id);
+  }
   renderTimeline();
+  try {
+    var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
+    if (fs && fs.push) fs.push();
+  } catch(e){}
   if (_selectedTaskId === id){
     _selectedTaskId = null;
     document.getElementById('timelinePreview').innerHTML = '<div style="text-align:center;color:rgba(180,200,240,.5);padding:40px 20px;">👈 點任務看詳情</div>';
@@ -3203,6 +3329,11 @@ function selectTask(id){
 function _renderTaskPreview(id){
   var items = LS(_timelineKey());
   var t = items.find(function(x){ return x.id === id; });
+  // ★ 不在自己時間軸找到 → 可能是受指派任務（從 cross_task 讀）
+  if (!t){
+    var received = _readReceivedCrossTasks();
+    t = received.find(function(x){ return x.id === id; });
+  }
   if (!t) return;
   var labels = {pending:'⏳ 待執行', doing:'🔄 進行中', done:'✅ 完成'};
   var dl = t.deadline ? new Date(t.deadline + 'T00:00:00').toLocaleDateString('zh-TW', {year:'numeric', month:'long', day:'numeric', weekday:'long'}) : '無';
@@ -3215,11 +3346,15 @@ function _renderTaskPreview(id){
     return '<div style="font-size:.72rem;color:rgba(180,200,240,.6);padding:3px 0;">• ' + d + ' · <b style="color:#dde6f0;">' + esc(L.who||'?') + '</b> ' + esc(L.action||'') + '</div>';
   }).join('');
 
-  var html = '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
+  var receivedBanner = t._isReceived
+    ? '<div style="background:rgba(255,200,80,.12);border:1px solid rgba(255,200,80,.4);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:.78rem;color:#ffd97a;">📨 這是「'+esc(t._originalOwner||'?')+'」指派給你的任務 — 你改狀態會同步回對方</div>'
+    : '';
+  var html = receivedBanner
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
     + '<div style="font-size:.74rem;color:rgba(180,200,240,.55);">' + labels[t.status||'pending'] + '</div>'
     + '<div style="display:flex;gap:6px;">'
-    + '<button onclick="openEditTask(\''+t.id+'\')" title="編輯" style="padding:4px 8px;border-radius:4px;border:1px solid rgba(180,200,240,.25);background:transparent;color:#dde6f0;cursor:pointer;font-size:.72rem;">✏️ 編輯</button>'
-    + '<button onclick="delTask(\''+t.id+'\')" title="刪除" style="padding:4px 8px;border-radius:4px;border:1px solid rgba(255,80,80,.3);background:transparent;color:#ff8a8a;cursor:pointer;font-size:.72rem;">🗑 刪除</button>'
+    + (t._isReceived ? '' : '<button onclick="openEditTask(\''+t.id+'\')" title="編輯" style="padding:4px 8px;border-radius:4px;border:1px solid rgba(180,200,240,.25);background:transparent;color:#dde6f0;cursor:pointer;font-size:.72rem;">✏️ 編輯</button>')
+    + '<button onclick="delTask(\''+t.id+'\')" title="刪除" style="padding:4px 8px;border-radius:4px;border:1px solid rgba(255,80,80,.3);background:transparent;color:#ff8a8a;cursor:pointer;font-size:.72rem;">🗑 '+(t._isReceived?'移除':'刪除')+'</button>'
     + '</div></div>'
     + '<h3 style="margin:0 0 12px;font-size:1.05rem;color:#dde6f0;">' + esc(t.title || t.task || '(未命名)') + '</h3>'
     + (t.content ? '<div style="background:rgba(15,20,60,.3);border-radius:6px;padding:10px;margin-bottom:14px;font-size:.82rem;color:#dde6f0;white-space:pre-wrap;line-height:1.6;">' + esc(t.content) + '</div>' : '')
@@ -3248,7 +3383,14 @@ function _renderTaskPreview(id){
 }
 
 function renderTimeline(){
-  var items = LS(_timelineKey()), el = document.getElementById('timelineBody');
+  var ownItems = LS(_timelineKey());
+  // ★ 跨主角任務：別人指派給我的任務（從 cross_task_* global keys 讀）
+  var receivedItems = _readReceivedCrossTasks();
+  // 去重：若 receivedItems 跟 ownItems 有同 id（我自己也是指派人之一）→ 以 own 為準
+  var ownIds = new Set(ownItems.map(function(x){ return x.id; }));
+  receivedItems = receivedItems.filter(function(x){ return !ownIds.has(x.id); });
+  var items = ownItems.concat(receivedItems);
+  var el = document.getElementById('timelineBody');
   if (!items.length){ el.innerHTML = '<div class="panel-empty">📅 尚無任務<br>點上方「＋ 新增任務」開始</div>'; return; }
   var statusOrder = {pending:0, doing:1, done:2};
   items.sort(function(a,b){ return statusOrder[a.status||'pending'] - statusOrder[b.status||'pending']; });
@@ -3257,10 +3399,13 @@ function renderTimeline(){
     var dl = t.deadline ? '期限：' + t.deadline : '';
     var assignees = (t.assignees||[]).slice(0,3).join('、') + ((t.assignees||[]).length > 3 ? ' +' + ((t.assignees||[]).length-3) : '');
     var isSel = (t.id === _selectedTaskId);
-    return '<div class="tl-item" style="cursor:pointer;'+(isSel?'background:rgba(74,234,255,.1);border-color:#4aeaff;':'')+'" onclick="selectTask(\''+t.id+'\')">'
+    var receivedBadge = t._isReceived
+      ? '<span style="display:inline-block;padding:1px 7px;border-radius:10px;background:rgba(255,200,80,.22);color:#ffd97a;font-size:.65rem;font-weight:700;margin-right:6px;border:1px solid rgba(255,200,80,.4);">📨 受指派 來自'+esc(t._originalOwner||'?')+'</span>'
+      : '';
+    return '<div class="tl-item" style="cursor:pointer;'+(isSel?'background:rgba(74,234,255,.1);border-color:#4aeaff;':'')+(t._isReceived?'border-left:3px solid #ffd97a;':'')+'" onclick="selectTask(\''+t.id+'\')">'
       + '<div class="tl-status '+(t.status||'pending')+'"></div>'
       + '<div class="tl-content">'
-      + '<div class="tl-task">' + esc(t.title || t.task || '(未命名)') + '</div>'
+      + '<div class="tl-task">' + receivedBadge + esc(t.title || t.task || '(未命名)') + '</div>'
       + '<div class="tl-meta">' + labels[t.status||'pending'] + (dl?' · '+dl:'') + (assignees?' · 👥 '+esc(assignees):'') + '</div>'
       + '</div></div>';
   }).join('');
