@@ -4112,6 +4112,8 @@ function prGetKey(base){
 }
 function prScanFallback(suffix){
   // 掃描所有 localStorage 找任何包含 suffix 的 key
+  // ★ FIX：LS 滿時 setItem 會拋例外，導致整個 try 區塊掛掉、返回 null（資料看不到）
+  //   改成：嘗試遷移，失敗就保留原 key，仍然回傳資料給使用者用
   try{
     const allKeys=Object.keys(localStorage);
     const mainKey=prGetKey(suffix);
@@ -4119,14 +4121,24 @@ function prScanFallback(suffix){
       const key=allKeys[k];
       if(key===mainKey) continue;
       if(key.indexOf(suffix)===-1) continue;
-      const d=JSON.parse(localStorage.getItem(key)||'[]');
-      if(d.length){
-        localStorage.setItem(mainKey,JSON.stringify(d));
-        localStorage.removeItem(key);
-        return d;
+      let d;
+      try { d = JSON.parse(localStorage.getItem(key)||'[]'); }
+      catch(parseErr){ continue; }
+      if(d && d.length){
+        // 嘗試遷移到正確的 mainKey，失敗（quota）就忍著用原 key
+        try {
+          localStorage.setItem(mainKey, JSON.stringify(d));
+          localStorage.removeItem(key);
+          console.log('[prScanFallback] ✅ 已遷移 '+key+' → '+mainKey);
+        } catch(quotaErr){
+          console.warn('[prScanFallback] LS quota 滿，無法遷移 '+key+' → '+mainKey+'，保留原 key 繼續使用');
+        }
+        return d;  // ★ 不論遷移成不成功都返回資料
       }
     }
-  }catch(e){}
+  }catch(e){
+    console.warn('[prScanFallback] 掃描錯誤', e);
+  }
   return null;
 }
 function prLoadData(){
@@ -4172,13 +4184,21 @@ let prNextId=prLoadNextId();
 let prNewTags=[];
 
 function prSave(){
-  try{
-    localStorage.setItem(prGetKey('prCases'),JSON.stringify(prCases));
-    localStorage.setItem(prGetKey('prRps'),JSON.stringify(prRps));
-    localStorage.setItem(prGetKey('prNextId'),String(prNextId));
-  }catch(e){
-    showToast('⚠ 儲存失敗：空間不足，請清理截圖或備份後刪除舊資料');
-    console.error('prSave error',e);
+  // ★ FIX：分開三個 setItem，避免一個失敗整批回滾
+  //   每個失敗都單獨記錄，至少保住其他兩個
+  var failedKeys = [];
+  try {
+    localStorage.setItem(prGetKey('prCases'), JSON.stringify(prCases));
+  } catch(e){ failedKeys.push('prCases'); }
+  try {
+    localStorage.setItem(prGetKey('prRps'), JSON.stringify(prRps));
+  } catch(e){ failedKeys.push('prRps'); }
+  try {
+    localStorage.setItem(prGetKey('prNextId'), String(prNextId));
+  } catch(e){ failedKeys.push('prNextId'); }
+  if (failedKeys.length){
+    console.error('[prSave] LS quota 滿，以下儲存失敗：'+failedKeys.join(','));
+    showToast('⚠ 部分資料儲存失敗（LS 空間不足）：'+failedKeys.join('、'));
   }
 }
 function prOpenSystem(){
