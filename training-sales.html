@@ -404,7 +404,7 @@ body{
 }
 </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=idbforce"></script>
+<script defer src="./firebase-sync.js?v=v4realm"></script>
 <link rel="stylesheet" href="day-mode.css">
 </head>
 <body>
@@ -1169,35 +1169,38 @@ function _getActiveCharId(){
 }
 
 async function _forcePushToFirestore(snapshot){
-  var fb = _findParentFirebase();
-  if (!fb) throw new Error('找不到 firebase SDK（請等 parent 載入完成）');
   var cid = _getActiveCharId();
   if (!cid) throw new Error('沒有 activeCharacterId（請先選擇角色）');
 
-  var ref = _getDirectRef(fb, cid);
-  var payload = {
-    data: JSON.stringify(snapshot),
-    updatedAt: Date.now(),
-    charId: cid
-  };
-
-  // ★ 詳細除錯：先把 payload 跟 path 印出來，再 set，這樣 invalid-argument 時看得到原因
-  console.log('[training-sales] PUSH path:', ref.path);
-  console.log('[training-sales] PUSH payload size:', JSON.stringify(payload).length, 'bytes');
-  console.log('[training-sales] PUSH cid type:', typeof cid, 'value:', JSON.stringify(cid));
-
-  try {
-    await ref.set(payload);
-    console.log('[training-sales] ⚡ 強力推送成功：'+ref.path);
-    _updateSyncStatus('LastPush', '☁️ 已推 ('+cid+') ' + _formatTime(), '#22c55e');
-  } catch(err){
-    console.error('[training-sales] PUSH 失敗 — code:', err.code, 'name:', err.name, 'message:', err.message);
-    console.error('[training-sales] PUSH 失敗 — 完整錯誤:', err);
-    // 把詳細錯誤資訊塞進 alert 讓使用者看得到
-    var detail = (err.code || 'no-code') + ' / ' + (err.message || 'no-msg').substring(0, 100);
-    _updateSyncStatus('LastPush', '❌ ' + detail, '#ef4444');
-    throw err;
+  // ★ 找頂層 firebaseSync.writeTrainingSalesDoc（parent 提供的）
+  //   iframe 自己呼叫 set() 會因為跨 realm 物件問題拋 "Data must be an object" invalid-argument
+  //   改成讓 parent 處理：iframe 只傳字串
+  var w = window, hop = 0;
+  var writeFn = null;
+  while (w && hop < 10){
+    try {
+      if (w.firebaseSync && typeof w.firebaseSync.writeTrainingSalesDoc === 'function'){
+        writeFn = w.firebaseSync.writeTrainingSalesDoc;
+        // ★ 重要：用 parent 的 fn，不要 bind 到 iframe context
+        var jsonString = JSON.stringify(snapshot);
+        try {
+          var result = await w.firebaseSync.writeTrainingSalesDoc(cid, jsonString);
+          console.log('[training-sales] ⚡ 強力推送成功（透過 parent）：', result && result.path);
+          _updateSyncStatus('LastPush', '☁️ 已推 ('+cid+') ' + _formatTime(), '#22c55e');
+          return;
+        } catch(err){
+          console.error('[training-sales] PUSH 失敗 — code:', err.code, 'message:', err.message);
+          var detail = (err.code || 'no-code') + ' / ' + (err.message || 'no-msg').substring(0, 100);
+          _updateSyncStatus('LastPush', '❌ ' + detail, '#ef4444');
+          throw err;
+        }
+      }
+    } catch(_){}
+    if (w.parent === w) break;
+    w = w.parent;
+    hop++;
   }
+  throw new Error('找不到 parent firebaseSync.writeTrainingSalesDoc — 請等 parent 載入完成');
 }
 
 window.triggerSave = function(){
@@ -1304,7 +1307,7 @@ var _SYNC_VERSION = 'v3-direct';
   bar.id = 'syncStatusBar';
   bar.style.cssText = 'position:sticky;top:0;z-index:9999;padding:10px 18px;background:#1e293b;color:#fff;font-family:inherit;font-size:13px;font-weight:600;border-bottom:2px solid #3b82f6;display:flex;align-items:center;gap:14px;flex-wrap:wrap;';
   bar.innerHTML =
-    '<span style="background:#22c55e;color:#000;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:800;">v3-direct ✓</span>'+
+    '<span style="background:#22c55e;color:#000;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:800;">v4-realmfix ✓</span>'+
     '<span id="syncStatusChar">⏳ 載入中...</span>'+
     '<span id="syncStatusLastPush" style="color:#94a3b8;font-weight:500;">推送：—</span>'+
     '<span id="syncStatusLastPull" style="color:#94a3b8;font-weight:500;">拉取：—</span>'+
@@ -1337,39 +1340,46 @@ _refreshCharStatus();
 setInterval(_refreshCharStatus, 2000);
 
 // ★★★ 暴力修法：每 5 秒主動拉 Firestore 雲端最新資料，更新本地 IDB + 重新渲染 UI
+//   一樣讓 parent 處理 Firestore 讀取，iframe 只取得字串
 async function _forcePullFromFirestore(silent){
   if (_ast) {
     if (!silent) _updateSyncStatus('LastPull', '⏸ 編輯中暫停', '#fbbf24');
     return;
   }
   try {
-    var fb = _findParentFirebase();
-    if (!fb) {
-      _updateSyncStatus('LastPull', '❌ 找不到 firebase SDK', '#ef4444');
-      return;
-    }
     var cid = _getActiveCharId();
     if (!cid) {
       _updateSyncStatus('LastPull', '❌ 沒有 activeCharacterId', '#ef4444');
       return;
     }
 
-    // 從新的乾淨路徑讀
-    var ref = _getDirectRef(fb, cid);
-    var snap = await ref.get();
-    if (!snap.exists) {
-      _updateSyncStatus('LastPull', '雲端尚無此角色資料 (' + cid + ') ' + _formatTime(), '#94a3b8');
+    // ★ 找頂層 firebaseSync.readTrainingSalesDoc
+    var w = window, hop = 0;
+    var readFn = null;
+    while (w && hop < 10){
+      try {
+        if (w.firebaseSync && typeof w.firebaseSync.readTrainingSalesDoc === 'function'){
+          readFn = w.firebaseSync.readTrainingSalesDoc;
+          break;
+        }
+      } catch(_){}
+      if (w.parent === w) break;
+      w = w.parent;
+      hop++;
+    }
+    if (!readFn) {
+      _updateSyncStatus('LastPull', '❌ 找不到 parent readTrainingSalesDoc', '#ef4444');
       return;
     }
-    var docData = snap.data();
-    var myEntry = docData && docData.data;
-    if (!myEntry) {
-      _updateSyncStatus('LastPull', '雲端 doc 無 data 欄位 ' + _formatTime(), '#94a3b8');
+
+    var jsonString = await readFn(cid);
+    if (!jsonString) {
+      _updateSyncStatus('LastPull', '雲端尚無此角色資料 (' + cid + ') ' + _formatTime(), '#94a3b8');
       return;
     }
 
     var parsed;
-    try { parsed = (typeof myEntry === 'string') ? JSON.parse(myEntry) : myEntry; }
+    try { parsed = JSON.parse(jsonString); }
     catch(e){
       _updateSyncStatus('LastPull', '❌ 解析失敗 ' + _formatTime(), '#ef4444');
       return;

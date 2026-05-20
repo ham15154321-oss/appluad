@@ -68,6 +68,16 @@ try {
       logAiChat: function(payload){
         var top = _findTopFirebaseSync();
         if (top && top.logAiChat) return top.logAiChat(payload);
+      },
+      writeTrainingSalesDoc: function(charId, jsonString){
+        var top = _findTopFirebaseSync();
+        if (top && top.writeTrainingSalesDoc) return top.writeTrainingSalesDoc(charId, jsonString);
+        return Promise.reject(new Error('parent 沒有 writeTrainingSalesDoc'));
+      },
+      readTrainingSalesDoc: function(charId){
+        var top = _findTopFirebaseSync();
+        if (top && top.readTrainingSalesDoc) return top.readTrainingSalesDoc(charId);
+        return Promise.reject(new Error('parent 沒有 readTrainingSalesDoc'));
       }
     };
     return;
@@ -1868,7 +1878,29 @@ window.firebaseSync = {
   push: pushToCloud,
   pull: pullFromCloud,
   changeSyncCode: changeSyncCode,
-  logAiChat: logAiChat
+  logAiChat: logAiChat,
+  // ★ iframe 用：直接讀寫 training_sales_direct 路徑（避免 iframe 跨 realm 物件問題）
+  //   iframe 傳 charId 跟 JSON 字串，parent 用本身的 Object 建 payload 寫 Firestore
+  writeTrainingSalesDoc: async function(charId, jsonString){
+    if (!fsDb) throw new Error('Firestore 還沒初始化');
+    if (!charId) throw new Error('沒有 charId');
+    var ref = fsDb.collection('users').doc('applaud').collection('training_sales_direct').doc(String(charId));
+    await ref.set({
+      data: String(jsonString || ''),
+      updatedAt: Date.now(),
+      charId: String(charId)
+    });
+    return { path: ref.path };
+  },
+  readTrainingSalesDoc: async function(charId){
+    if (!fsDb) throw new Error('Firestore 還沒初始化');
+    if (!charId) throw new Error('沒有 charId');
+    var ref = fsDb.collection('users').doc('applaud').collection('training_sales_direct').doc(String(charId));
+    var snap = await ref.get();
+    if (!snap.exists) return null;
+    var d = snap.data();
+    return d ? (d.data || null) : null;  // 只回傳 data 字串
+  }
 };
 
 // === 跨分頁主角切換同步 =============================================
