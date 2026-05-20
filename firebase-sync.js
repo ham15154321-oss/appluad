@@ -222,6 +222,29 @@ function isGlobalLsKey(k){
   return false;
 }
 
+// ★ 已搬到 IndexedDB 的 LS key suffix（含 global + per-char 兩種形式）
+//   pull 時遇到這些 key 就跳過寫 LS（避免又把 LS 灌爆）
+//   push 時也應該跳過（這些 key 不該存在 LS）
+var IDB_MIGRATED_LS_SUFFIXES = [
+  'achievement_unlock_data',     // → AchievementDB.data
+  'achievement_shared_all_yt',
+  'achievement_shared_regional_yt',
+  'training_room_door_imgs',     // → SpaceBaseDB.images
+  'knowledge_base_v1',           // → KnowledgeBaseDB.kb
+  'training_sales_v2',           // → TrainingSalesDB.byCharacter
+  'ai_pmemory_v1',               // → AiAdvisorDB.pmemory
+  'motiv_archive'                // → MotivArchiveDB.archive
+];
+function _isIdbMigratedLsKey(k){
+  if (!k) return false;
+  for (var i = 0; i < IDB_MIGRATED_LS_SUFFIXES.length; i++){
+    var suf = IDB_MIGRATED_LS_SUFFIXES[i];
+    if (k === suf) return true;
+    if (k.indexOf('char_') === 0 && k.endsWith('_' + suf)) return true;
+  }
+  return false;
+}
+
 // 單筆 localStorage value 超過這個大小且是圖片才壓縮（非圖片大型資料直接同步）
 const LS_MAX_VALUE_SIZE = 800 * 1024; // 800KB
 
@@ -861,6 +884,8 @@ async function pushToCloud(opts){
       const k = localStorage.key(i);
       if (!k) continue;
       if (isLocalOnlyKey(k)) continue;
+      // ★ 已搬到 IDB 的 key 不再走 LS push（雲端版本會被新版 IDB 取代）
+      if (_isIdbMigratedLsKey(k)) continue;
       var val = localStorage.getItem(k) || '';
       if (val.length > LS_MAX_VALUE_SIZE){
         if (isBase64Image(val)){
@@ -1234,6 +1259,10 @@ async function pullFromCloud(){
         // ★ 全公司共享 keys 不在這裡處理 —— 之後從 _global 統一拉
         //   即使該 char 的雲端路徑下仍有舊版資料（從 v3 之前累積），也跳過避免亂蓋
         if (isGlobalLsKey(k)) continue;
+
+        // ★★★ 已搬到 IndexedDB 的 keys — pull 時跳過寫 LS（避免又把 LS 灌爆）
+        //   含 global 版本 + per-char 版本（char_<id>_<suffix>）
+        if (_isIdbMigratedLsKey(k)) continue;
 
         var existingVal = localStorage.getItem(k);
 
