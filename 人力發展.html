@@ -1226,6 +1226,7 @@
     .train-popup{ width:240px; }
     .train-popup-item-name{ font-size:10px; }
   }
+
 </style>
 <script src="./auth-check.js"></script>
 <script defer src="./firebase-sync.js?v=kb1"></script>
@@ -3618,6 +3619,10 @@ async function init(){
   checkAutoBackup();
 }
 init();
+
+// ★ 還原：清掉之前可能殘留的 simplified mode 旗標（避免使用者已經切換的人卡在簡化模式）
+try { localStorage.removeItem('appedu_ui_mode_simplified'); } catch(e){}
+try { document.body.classList.remove('simplified-mode'); } catch(e){}
 
 // ========== 雲端同步完成後重新載入所有圖片 ==========
 // firebase-sync.js pullFromCloud 完成後會觸發此事件

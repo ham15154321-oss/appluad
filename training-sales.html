@@ -462,10 +462,16 @@ body{
 
 <script>
 const BASE_KEY = 'training_sales_v2';
-const _cachedCharId = localStorage.getItem('activeCharacterId');
-function getSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+BASE_KEY:BASE_KEY;}
+// ★ FIX: 不再用 const 鎖死 charId — 改成每次「真的需要」時動態讀
+//   原本的 bug：script 載入時 activeCharacterId 可能是 null（race condition），
+//   結果 TS_IDB_KEY = 'default'，所有人的資料都被寫到同一個 'default' 桶裡，
+//   而下次再開時又改讀 charId → 空的 → 使用者以為「分數沒存到」
+function _getCurCharId(){
+  try { return localStorage.getItem('activeCharacterId'); } catch(e){ return null; }
+}
+function getSK(){var c=_getCurCharId(); return c!=null?'char_'+c+'_'+BASE_KEY:BASE_KEY;}
 const OLD_KEY = 'training_sales_v1';
-function getOldSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+OLD_KEY:OLD_KEY;}
+function getOldSK(){var c=_getCurCharId(); return c!=null?'char_'+c+'_'+OLD_KEY:OLD_KEY;}
 
 // ★ ★ ★ training_sales_v2 → IndexedDB（v3 架構，根治 LS quota）
 //   原因：22 主角 × 每人多種 LS keys 容易爆 5MB 上限
@@ -473,7 +479,11 @@ function getOldSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+OLD_KEY
 //   Firebase 同步：透過 firebase-sync.js IDB_LIST 自動推/拉
 const TS_DB_NAME = 'TrainingSalesDB';
 const TS_STORE = 'byCharacter';
-const TS_IDB_KEY = _cachedCharId != null ? _cachedCharId : 'default';
+// ★ FIX: 每次操作都動態讀（不再 const），避免 race condition 把資料寫錯桶
+function _getTsIdbKey(){
+  var c = _getCurCharId();
+  return c != null ? c : 'default';
+}
 
 function _tsOpenDB(){
   // ★ 不指定 version 直接開（firebase-sync 可能已把版本升到 2+，指定 1 會炸 version error）
@@ -515,9 +525,14 @@ function _tsLoadFromIDB(){
   return _tsOpenDB().then(function(db){
     return new Promise(function(resolve, reject){
       try{
+        var k = _getTsIdbKey();   // ★ 動態讀，避免 race condition
         var tx = db.transaction(TS_STORE, 'readonly');
-        var req = tx.objectStore(TS_STORE).get(TS_IDB_KEY);
-        req.onsuccess = function(){ try{db.close();}catch(_){} resolve(req.result || null); };
+        var req = tx.objectStore(TS_STORE).get(k);
+        req.onsuccess = function(){
+          try{db.close();}catch(_){}
+          console.log('[training-sales] IDB load from key='+k+' → '+(req.result?'has data':'empty'));
+          resolve(req.result || null);
+        };
         req.onerror   = function(){ try{db.close();}catch(_){} reject(req.error); };
       }catch(e){ try{db.close();}catch(_){} reject(e); }
     });
@@ -528,13 +543,72 @@ function _tsSaveToIDB(value){
   return _tsOpenDB().then(function(db){
     return new Promise(function(resolve, reject){
       try{
+        var k = _getTsIdbKey();   // ★ 動態讀，避免存到錯桶
         var tx = db.transaction(TS_STORE, 'readwrite');
-        var req = tx.objectStore(TS_STORE).put(value, TS_IDB_KEY);
-        req.onsuccess = function(){ try{db.close();}catch(_){} resolve(); };
+        var req = tx.objectStore(TS_STORE).put(value, k);
+        req.onsuccess = function(){
+          try{db.close();}catch(_){}
+          console.log('[training-sales] IDB save to key='+k+' OK');
+          resolve();
+        };
         req.onerror   = function(){ try{db.close();}catch(_){} reject(req.error); };
       }catch(e){ try{db.close();}catch(_){} reject(e); }
     });
   });
+}
+
+// ★ 一次性資料救援：如果舊版 bug 把資料存到 'default' 桶，現在把它搬到正確的 charId 桶
+//   只在「當前 charId 桶為空」且「default 桶有資料」時才搬，避免覆蓋既有正確資料
+async function _tsRescueDefaultBucket(){
+  try {
+    var curKey = _getTsIdbKey();
+    if (curKey === 'default' || !curKey) return;
+    var db = await _tsOpenDB();
+    var defaultData = await new Promise(function(resolve){
+      var tx = db.transaction(TS_STORE, 'readonly');
+      var req = tx.objectStore(TS_STORE).get('default');
+      req.onsuccess = function(){ resolve(req.result || null); };
+      req.onerror   = function(){ resolve(null); };
+    });
+    var curData = await new Promise(function(resolve){
+      var tx = db.transaction(TS_STORE, 'readonly');
+      var req = tx.objectStore(TS_STORE).get(curKey);
+      req.onsuccess = function(){ resolve(req.result || null); };
+      req.onerror   = function(){ resolve(null); };
+    });
+    var defaultHasData = defaultData && defaultData.people && defaultData.people.length > 0
+      && defaultData.people.some(function(p){
+        return p.chapters && p.chapters.some(function(ch){
+          return ch.drills && ch.drills.some(function(d){
+            return (d.scores && d.scores.some(function(s){ return s > 0; })) || d.evaluator || d.date;
+          });
+        });
+      });
+    var curHasData = curData && curData.people && curData.people.length > 0
+      && curData.people.some(function(p){
+        return p.chapters && p.chapters.some(function(ch){
+          return ch.drills && ch.drills.some(function(d){
+            return (d.scores && d.scores.some(function(s){ return s > 0; })) || d.evaluator || d.date;
+          });
+        });
+      });
+
+    if (defaultHasData && !curHasData){
+      // 救援！把 default 桶搬到 curKey 桶
+      await new Promise(function(resolve, reject){
+        var tx = db.transaction(TS_STORE, 'readwrite');
+        var st = tx.objectStore(TS_STORE);
+        st.put(defaultData, curKey);
+        st.delete('default');
+        tx.oncomplete = function(){ resolve(); };
+        tx.onerror = function(){ reject(tx.error); };
+      });
+      console.warn('[training-sales] ✅ 救援：把舊 default 桶的資料搬到 ['+curKey+']');
+    }
+    try{db.close();}catch(_){}
+  } catch(e){
+    console.warn('[training-sales] _tsRescueDefaultBucket 失敗', e);
+  }
 }
 
 const AVATARS = ['👤','👩','👨','🧑','👩‍💼','👨‍💼','🧑‍🎓','👩‍🏫','👨‍🏫'];
@@ -562,12 +636,15 @@ let chapters = []; // 指向當前人的 chapters
 
 async function init(){
   let loaded = false;
+  // ★ 先做一次性資料救援：把可能存到 'default' 桶的資料搬回正確的 charId 桶
+  try{ await _tsRescueDefaultBucket(); }catch(e){ console.warn('[training-sales] rescue failed', e); }
   // ★ v3：優先從 IDB 載入
   try{
     const idbData = await _tsLoadFromIDB();
     if (idbData && idbData.people && Array.isArray(idbData.people) && idbData.people.length > 0){
       store = idbData;
       loaded = true;
+      console.log('[training-sales] ✅ 從 IDB 載入 '+idbData.people.length+' 位新人的資料');
     }
   }catch(e){ console.warn('[training-sales] IDB 載入失敗', e); }
 
