@@ -26,7 +26,50 @@ try {
         };
       }
     } catch(_e) { /* cross-origin parent — fall back to native setItem */ }
-    window.firebaseSync = { push: function(){}, pull: function(){} };
+
+    // ★★★ CRITICAL FIX：iframe 的 push/pull 不能是 noop！
+    //   training-sales.html 是雙層 iframe（人力發展→training-room→training-sales）
+    //   它寫 IDB 後呼叫 push → 原本是 noop → 雲端永遠收不到 → 別台永遠看不到
+    //   現在改成：往「最頂層的 window」找 firebaseSync 並轉發
+    function _findTopFirebaseSync(){
+      var w = window;
+      var hop = 0;
+      try {
+        while (w && hop < 5){  // 最多往上找 5 層（防無窮迴圈）
+          if (w !== window && w.firebaseSync
+              && typeof w.firebaseSync.push === 'function'
+              && w.firebaseSync.push !== _noop){
+            return w.firebaseSync;
+          }
+          if (w.parent === w) break;
+          w = w.parent;
+          hop++;
+        }
+      } catch(_e){}
+      return null;
+    }
+    function _noop(){}
+    window.firebaseSync = {
+      push: function(){
+        var top = _findTopFirebaseSync();
+        if (top && top.push) {
+          console.log('[FirebaseSync iframe] 轉發 push 到 parent');
+          return top.push();
+        }
+        console.warn('[FirebaseSync iframe] push 失敗 — 找不到 parent.firebaseSync.push');
+      },
+      pull: function(){
+        var top = _findTopFirebaseSync();
+        if (top && top.pull) {
+          console.log('[FirebaseSync iframe] 轉發 pull 到 parent');
+          return top.pull();
+        }
+      },
+      logAiChat: function(payload){
+        var top = _findTopFirebaseSync();
+        if (top && top.logAiChat) return top.logAiChat(payload);
+      }
+    };
     return;
   }
 } catch(e) {
