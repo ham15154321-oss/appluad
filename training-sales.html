@@ -1175,14 +1175,29 @@ async function _forcePushToFirestore(snapshot){
   if (!cid) throw new Error('沒有 activeCharacterId（請先選擇角色）');
 
   var ref = _getDirectRef(fb, cid);
-  // 直接覆寫，無 merge，乾淨無沖突
-  await ref.set({
+  var payload = {
     data: JSON.stringify(snapshot),
     updatedAt: Date.now(),
     charId: cid
-  });
-  console.log('[training-sales] ⚡ 強力推送：直接寫 '+ref.path);
-  _updateSyncStatus('LastPush', '☁️ 已推 ('+cid+') ' + _formatTime(), '#22c55e');
+  };
+
+  // ★ 詳細除錯：先把 payload 跟 path 印出來，再 set，這樣 invalid-argument 時看得到原因
+  console.log('[training-sales] PUSH path:', ref.path);
+  console.log('[training-sales] PUSH payload size:', JSON.stringify(payload).length, 'bytes');
+  console.log('[training-sales] PUSH cid type:', typeof cid, 'value:', JSON.stringify(cid));
+
+  try {
+    await ref.set(payload);
+    console.log('[training-sales] ⚡ 強力推送成功：'+ref.path);
+    _updateSyncStatus('LastPush', '☁️ 已推 ('+cid+') ' + _formatTime(), '#22c55e');
+  } catch(err){
+    console.error('[training-sales] PUSH 失敗 — code:', err.code, 'name:', err.name, 'message:', err.message);
+    console.error('[training-sales] PUSH 失敗 — 完整錯誤:', err);
+    // 把詳細錯誤資訊塞進 alert 讓使用者看得到
+    var detail = (err.code || 'no-code') + ' / ' + (err.message || 'no-msg').substring(0, 100);
+    _updateSyncStatus('LastPush', '❌ ' + detail, '#ef4444');
+    throw err;
+  }
 }
 
 window.triggerSave = function(){
