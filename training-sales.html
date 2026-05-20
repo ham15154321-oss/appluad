@@ -1152,16 +1152,18 @@ async function _forcePushToFirestore(snapshot){
   // 取頂層 firebase（iframe 沒 init，要從 parent 拿）
   var w = window;
   var fb = null;
-  while (w){
+  var hop = 0;
+  while (w && hop < 10){
     try { if (w.firebase && w.firebase.firestore){ fb = w.firebase; break; } } catch(_){}
     if (w.parent === w) break;
     w = w.parent;
+    hop++;
   }
-  if (!fb) throw new Error('找不到 firebase SDK');
+  if (!fb) throw new Error('找不到 firebase SDK（請等 parent 載入完成）');
   var cid = (function(){
     try { return (window.parent.localStorage || localStorage).getItem('activeCharacterId'); } catch(_){ return null; }
   })();
-  if (!cid) throw new Error('沒有 activeCharacterId');
+  if (!cid) throw new Error('沒有 activeCharacterId（請先選擇角色）');
 
   var fs = fb.firestore();
   var ref = fs.collection('users').doc('applaud').collection('characters').doc(cid)
@@ -1179,6 +1181,7 @@ async function _forcePushToFirestore(snapshot){
 
   await ref.set({ totalBatches: 1, data: existing });
   console.log('[training-sales] ⚡ 強力推送：直接寫 Firestore '+ref.path+'，當前角色 '+cid);
+  _updateSyncStatus('LastPush', '☁️ 已推 ('+cid+') ' + _formatTime(), '#22c55e');
 }
 
 window.triggerSave = function(){
@@ -1275,50 +1278,106 @@ function _reloadFromLS(){
   }
 })();
 
+// ★★★ 超大狀態列 — 永遠顯示在頁面頂端，跨裝置同步看一眼就知道狀況
+(function _addSyncStatusBar(){
+  if (document.getElementById('syncStatusBar')) return;
+  var bar = document.createElement('div');
+  bar.id = 'syncStatusBar';
+  bar.style.cssText = 'position:sticky;top:0;z-index:9999;padding:10px 18px;background:#1e293b;color:#fff;font-family:inherit;font-size:13px;font-weight:600;border-bottom:2px solid #3b82f6;display:flex;align-items:center;gap:14px;flex-wrap:wrap;';
+  bar.innerHTML =
+    '<span id="syncStatusChar">⏳ 載入中...</span>'+
+    '<span id="syncStatusLastPush" style="color:#94a3b8;font-weight:500;">推送：—</span>'+
+    '<span id="syncStatusLastPull" style="color:#94a3b8;font-weight:500;">拉取：—</span>'+
+    '<button onclick="_manualSyncNow()" style="margin-left:auto;padding:6px 14px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;">🔄 立即同步</button>';
+  // 插到 main 容器最頂
+  var container = document.querySelector('.container') || document.body.firstElementChild || document.body;
+  container.insertBefore(bar, container.firstChild);
+})();
+
+function _updateSyncStatus(field, text, color){
+  try {
+    var el = document.getElementById('syncStatusBar');
+    if (!el) return;
+    var target = document.getElementById('syncStatus'+field);
+    if (!target) return;
+    target.textContent = text;
+    if (color) target.style.color = color;
+  } catch(_){}
+}
+function _formatTime(){ var d = new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'); }
+
+// 顯示當前主角名稱
+function _refreshCharStatus(){
+  var cid = (function(){
+    try { return (window.parent.localStorage || localStorage).getItem('activeCharacterId'); } catch(_){ return null; }
+  })();
+  _updateSyncStatus('Char', cid ? '🎮 ' + cid : '⚠️ 未選角色', cid ? '#fbbf24' : '#ef4444');
+}
+_refreshCharStatus();
+setInterval(_refreshCharStatus, 2000);
+
 // ★★★ 暴力修法：每 5 秒主動拉 Firestore 雲端最新資料，更新本地 IDB + 重新渲染 UI
-//   原因：onSnapshot 偵測+pull 機制可能因 _ast/locks 漏接，使用者無法看到別台改的內容
-//   做法：直接從 Firestore 讀 idb_TrainingSalesDB_byCharacter 的 main doc，
-//        如果雲端 凃敏薰 entry 跟本地不同就強制更新 + render
-//   保護：如果使用者正在編輯（_ast pending），跳過這輪 polling 避免吃掉輸入
-async function _forcePullFromFirestore(){
-  if (_ast) return;  // 正在編輯 → 跳過
+async function _forcePullFromFirestore(silent){
+  if (_ast) {
+    if (!silent) _updateSyncStatus('LastPull', '⏸ 編輯中暫停', '#fbbf24');
+    return;
+  }
   try {
     // 取頂層 firebase（iframe 沒 init，要從 parent 拿）
     var w = window;
     var fb = null;
-    while (w){
+    var hop = 0;
+    while (w && hop < 10){
       try { if (w.firebase && w.firebase.firestore){ fb = w.firebase; break; } } catch(_){}
       if (w.parent === w) break;
       w = w.parent;
+      hop++;
     }
-    if (!fb) return;
+    if (!fb) {
+      _updateSyncStatus('LastPull', '❌ 找不到 firebase SDK', '#ef4444');
+      return;
+    }
     var fs = fb.firestore();
     var cid = (function(){
       try { return (window.parent.localStorage || localStorage).getItem('activeCharacterId'); } catch(_){ return null; }
     })();
-    if (!cid) return;
+    if (!cid) {
+      _updateSyncStatus('LastPull', '❌ 沒有 activeCharacterId', '#ef4444');
+      return;
+    }
 
-    // 讀雲端 main doc
     var snap = await fs.collection('users').doc('applaud').collection('characters').doc(cid)
                        .collection('idb_TrainingSalesDB_byCharacter').doc('main').get();
-    if (!snap.exists) return;
+    if (!snap.exists) {
+      _updateSyncStatus('LastPull', '雲端無此角色資料 ' + _formatTime(), '#94a3b8');
+      return;
+    }
     var doc = snap.data();
     var dataMap = (doc && doc.data) || {};
     var myEntry = dataMap[cid];
-    if (!myEntry) return;
+    if (!myEntry) {
+      _updateSyncStatus('LastPull', '雲端 main doc 沒此 charId entry ' + _formatTime(), '#94a3b8');
+      return;
+    }
 
-    // 解析（雲端存的是 string）
     var parsed;
     try { parsed = (typeof myEntry === 'string') ? JSON.parse(myEntry) : myEntry; }
-    catch(e){ return; }
-    if (!parsed || !parsed.people || !Array.isArray(parsed.people)) return;
+    catch(e){
+      _updateSyncStatus('LastPull', '❌ 解析失敗 ' + _formatTime(), '#ef4444');
+      return;
+    }
+    if (!parsed || !parsed.people || !Array.isArray(parsed.people)) {
+      _updateSyncStatus('LastPull', '雲端資料格式異常 ' + _formatTime(), '#fbbf24');
+      return;
+    }
 
-    // 比對本地 store
     var oldJson = JSON.stringify(store || {});
     var newJson = JSON.stringify(parsed);
-    if (oldJson === newJson) return;  // 沒變化
+    if (oldJson === newJson) {
+      _updateSyncStatus('LastPull', '✓ 已最新 ' + _formatTime(), '#22c55e');
+      return;
+    }
 
-    // 雲端較新 → 寫進本地 IDB + 更新 store + 重新渲染
     await _tsSaveToIDB(parsed);
     store = parsed;
     if (store.currentIdx >= store.people.length) store.currentIdx = 0;
@@ -1327,14 +1386,33 @@ async function _forcePullFromFirestore(){
     render();
     _captureEmergencyBaseline();
     console.log('[training-sales] ⚡ 強力拉取：從雲端取得新資料（'+parsed.people.length+' 位新人），已更新 UI');
+    _updateSyncStatus('LastPull', '⬇️ 已更新 ' + parsed.people.length + ' 位新人 ' + _formatTime(), '#22c55e');
   } catch(e){
-    // 靜默失敗（避免每 5 秒洗版錯誤訊息）
+    console.error('[training-sales] forcePull 失敗', e);
+    _updateSyncStatus('LastPull', '❌ ' + (e.code || e.message || e) + ' ' + _formatTime(), '#ef4444');
   }
 }
+
+// 手動「立即同步」按鈕
+window._manualSyncNow = async function(){
+  _updateSyncStatus('LastPush', '⏳ 手動推送中...', '#fbbf24');
+  try {
+    _prepareStore();
+    cleanEditingFlags();
+    var snapshot = JSON.parse(JSON.stringify(store));
+    await _tsSaveToIDB(snapshot);
+    await _forcePushToFirestore(snapshot);
+    _updateSyncStatus('LastPush', '☁️ 手動推送成功 ' + _formatTime(), '#22c55e');
+  } catch(e){
+    _updateSyncStatus('LastPush', '❌ ' + (e.code || e.message || e), '#ef4444');
+  }
+  await _forcePullFromFirestore(true);
+};
+
 // 啟動每 5 秒輪詢
-setInterval(_forcePullFromFirestore, 5000);
+setInterval(function(){ _forcePullFromFirestore(true); }, 5000);
 // 頁面開啟立刻拉一次
-setTimeout(_forcePullFromFirestore, 1500);
+setTimeout(function(){ _forcePullFromFirestore(false); }, 1500);
 
 // 星空
 (function(){
