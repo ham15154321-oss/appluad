@@ -1435,6 +1435,29 @@ function _savePmemory(arr, charId){
 // ★ 釘選話題（pins）是「per character」儲存：LS key = 'char_<id>_ai_pins_v1'
 //   每個主角只看得到自己的釘選話題；黃柏翰可以額外看所有主角（admin view）
 function _pinsKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.pins; }
+// ★ 時間軸（任務追蹤）改成 per-character：每個主角只看到自己建立的任務
+//   雲端路徑：firebase-sync.js 自動把 char_<id>_ai_timeline_v1 視為角色資料分別同步
+function _timelineKey(charId){ return 'char_'+(charId||localStorage.getItem('activeCharacterId')||'')+'_'+SK.timeline; }
+// 一次性遷移：把舊版全域 ai_timeline_v1 搬到當前主角的 per-char key
+(function _migrateTimeline(){
+  try {
+    var charId = localStorage.getItem('activeCharacterId');
+    if (!charId) return;
+    var perCharKey = _timelineKey(charId);
+    if (localStorage.getItem(perCharKey)) return;  // 已有就不要覆蓋
+    var oldRaw = localStorage.getItem(SK.timeline);
+    if (oldRaw){
+      try {
+        var arr = JSON.parse(oldRaw) || [];
+        if (arr.length){
+          localStorage.setItem(perCharKey, oldRaw);
+          // 不刪舊全域 key，因為其他主角也需要遷移（每個主角第一次進入時各自搬一份）
+          console.log('[timeline] 已把舊版 ai_timeline_v1 遷移到 '+perCharKey+'（'+arr.length+' 筆）');
+        }
+      } catch(e){}
+    }
+  } catch(e){ console.warn('[timeline] migrate failed', e); }
+})();
 function _loadPins(charId){ try{ var raw=localStorage.getItem(_pinsKey(charId)); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
 function _savePins(arr,charId){ try{ localStorage.setItem(_pinsKey(charId), JSON.stringify(arr||[])); }catch(e){} }
 
@@ -1921,7 +1944,7 @@ function getPmemoryCtx(){
     return l.join('\n');
   }catch(e){return '';}
 }
-function getTimelineCtx(){var t=LS(SK.timeline);if(!t.length)return '';var labels={pending:'待執行',doing:'進行中',done:'已完成'};var l=['時間軸任務 — 來自 AI 小任務】'];t.forEach(function(x){l.push('• ['+labels[x.status]+'] '+x.task+(x.deadline?' (期限:'+x.deadline+')':''));});return l.join('\n');}
+function getTimelineCtx(){var t=LS(_timelineKey());if(!t.length)return '';var labels={pending:'待執行',doing:'進行中',done:'已完成'};var l=['時間軸任務 — 來自 AI 小任務】'];t.forEach(function(x){l.push('• ['+labels[x.status]+'] '+x.task+(x.deadline?' (期限:'+x.deadline+')':''));});return l.join('\n');}
 
 // ══════ 全站數據讀取（360評估備註、火種、成就、其他主角挑戰） ══════
 function getCid(){return localStorage.getItem('activeCharacterId');}
@@ -2983,7 +3006,7 @@ function openAddTask(){
 }
 
 function openEditTask(id){
-  var items = LS(SK.timeline);
+  var items = LS(_timelineKey());
   var t = items.find(function(x){ return x.id === id; });
   if (!t) return;
   _taskEditId = id;
@@ -3108,7 +3131,7 @@ function addTask(){
   var dl = document.getElementById('taskDeadline').value;
   var assigner = _curCharName() || '匿名';
   var now = Date.now();
-  var items = LS(SK.timeline);
+  var items = LS(_timelineKey());
   if (_taskEditId){
     // 編輯模式
     var t = items.find(function(x){ return x.id === _taskEditId; });
@@ -3136,7 +3159,7 @@ function addTask(){
       log: [{ at: now, who: assigner, action: '建立任務' }]
     });
   }
-  SS(SK.timeline, items);
+  SS(_timelineKey(), items);
   closeModal('taskModal');
   renderTimeline();
   // 通知 parent 更新首頁紅點
@@ -3148,21 +3171,21 @@ function addTask(){
 }
 
 function setTaskStatus(id, status){
-  var items = LS(SK.timeline);
+  var items = LS(_timelineKey());
   var t = items.find(function(x){ return x.id === id; });
   if (t){
     t.status = status;
     var who = _curCharName() || '匿名';
     t.log = (t.log || []).concat([{ at: Date.now(), who: who, action: '改為 '+(status==='pending'?'待執行':status==='doing'?'進行中':'完成') }]);
   }
-  SS(SK.timeline, items);
+  SS(_timelineKey(), items);
   renderTimeline();
   if (_selectedTaskId === id) _renderTaskPreview(id);
 }
 
 function delTask(id){
   if (!confirm('確定刪除此任務？')) return;
-  SS(SK.timeline, LS(SK.timeline).filter(function(x){ return x.id !== id; }));
+  SS(_timelineKey(), LS(_timelineKey()).filter(function(x){ return x.id !== id; }));
   renderTimeline();
   if (_selectedTaskId === id){
     _selectedTaskId = null;
@@ -3178,7 +3201,7 @@ function selectTask(id){
 }
 
 function _renderTaskPreview(id){
-  var items = LS(SK.timeline);
+  var items = LS(_timelineKey());
   var t = items.find(function(x){ return x.id === id; });
   if (!t) return;
   var labels = {pending:'⏳ 待執行', doing:'🔄 進行中', done:'✅ 完成'};
@@ -3225,7 +3248,7 @@ function _renderTaskPreview(id){
 }
 
 function renderTimeline(){
-  var items = LS(SK.timeline), el = document.getElementById('timelineBody');
+  var items = LS(_timelineKey()), el = document.getElementById('timelineBody');
   if (!items.length){ el.innerHTML = '<div class="panel-empty">📅 尚無任務<br>點上方「＋ 新增任務」開始</div>'; return; }
   var statusOrder = {pending:0, doing:1, done:2};
   items.sort(function(a,b){ return statusOrder[a.status||'pending'] - statusOrder[b.status||'pending']; });
