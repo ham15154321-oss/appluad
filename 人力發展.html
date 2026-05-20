@@ -1229,7 +1229,7 @@
 
 </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=idbskip"></script>
+<script defer src="./firebase-sync.js?v=pridb"></script>
 <script defer src="./auth-firebase.js?v=v2"></script>
 </head>
 <body>
@@ -4110,6 +4110,125 @@ function prGetKey(base){
   const cid=localStorage.getItem('activeCharacterId');
   return cid!=null ? 'char_'+cid+'_'+base : base;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ★ prCases / prRps → IndexedDB（v2 架構，根治 LS 5MB 爆滿）
+//   原本每個主角的 prCases 約 372 KB（22 主角 × 372KB = 8MB+）一定爆
+//   結構：DB=PrCasesDB / Store=data / Key='cases:<charId>' | 'rps:<charId>' | 'nextId:<charId>'
+//   Firebase 同步：透過 firebase-sync.js IDB_LIST 自動推/拉
+// ═══════════════════════════════════════════════════════════════
+const PR_DB_NAME = 'PrCasesDB';
+const PR_STORE = 'data';
+window._prCache = window._prCache || {};
+window._prCacheReady = false;
+
+function _prOpenDB(){
+  return new Promise(function(resolve, reject){
+    var req = indexedDB.open(PR_DB_NAME);
+    req.onupgradeneeded = function(e){
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains(PR_STORE)) db.createObjectStore(PR_STORE);
+    };
+    req.onsuccess = function(){
+      var db = req.result;
+      if (db.objectStoreNames.contains(PR_STORE)) { resolve(db); return; }
+      var v = db.version; db.close();
+      var u = indexedDB.open(PR_DB_NAME, v + 1);
+      u.onupgradeneeded = function(e){
+        var d = e.target.result;
+        if (!d.objectStoreNames.contains(PR_STORE)) d.createObjectStore(PR_STORE);
+      };
+      u.onsuccess = function(){ resolve(u.result); };
+      u.onerror = function(){ reject(u.error); };
+    };
+    req.onerror = function(){ reject(req.error); };
+  });
+}
+function _prLoadAll(){
+  return _prOpenDB().then(function(db){
+    return new Promise(function(resolve){
+      try {
+        var tx = db.transaction(PR_STORE, 'readonly');
+        var req = tx.objectStore(PR_STORE).openCursor();
+        var out = {};
+        req.onsuccess = function(e){
+          var c = e.target.result;
+          if (c){ out[c.key] = c.value; c.continue(); }
+          else { try{db.close();}catch(_){} resolve(out); }
+        };
+        req.onerror = function(){ try{db.close();}catch(_){} resolve(out); };
+      } catch(e){ try{db.close();}catch(_){} resolve({}); }
+    });
+  }).catch(function(){ return {}; });
+}
+function _prSaveOne(key, value){
+  return _prOpenDB().then(function(db){
+    return new Promise(function(resolve, reject){
+      try {
+        var tx = db.transaction(PR_STORE, 'readwrite');
+        var req = tx.objectStore(PR_STORE).put(value, key);
+        req.onsuccess = function(){ try{db.close();}catch(_){} resolve(); };
+        req.onerror = function(){ try{db.close();}catch(_){} reject(req.error); };
+      } catch(e){ try{db.close();}catch(_){} reject(e); }
+    });
+  });
+}
+
+// Boot：載入 IDB → cache，並一次性把 LS 裡的 char_*_prCases / char_*_prRps 搬到 IDB
+async function _prBootInit(){
+  try {
+    window._prCache = await _prLoadAll();
+
+    var migrated = 0, lsKeysToDelete = [];
+    for (var i = 0; i < localStorage.length; i++){
+      var k = localStorage.key(i);
+      if (!k) continue;
+      // 抓 'prCases', 'prRps', 'prNextId', 'char_<X>_prCases' etc.
+      var m = k.match(/^(?:char_(.+?)_)?(prCases|prRps|prNextId)$/);
+      if (!m) continue;
+      var charId = m[1] || 'default';
+      var field = m[2];        // 'prCases' | 'prRps' | 'prNextId'
+      var idbKey = field + ':' + charId;
+      try {
+        var raw = localStorage.getItem(k);
+        if (!raw) { lsKeysToDelete.push(k); continue; }
+        var parsed = field === 'prNextId' ? parseInt(raw) : JSON.parse(raw);
+        // 只有 IDB 沒有資料時才搬（避免覆蓋 IDB 新資料）
+        if (window._prCache[idbKey] == null){
+          await _prSaveOne(idbKey, parsed);
+          window._prCache[idbKey] = parsed;
+          migrated++;
+        }
+        lsKeysToDelete.push(k);
+      } catch(e){ console.warn('[pr] 遷移失敗', k, e); }
+    }
+    // 清掉 LS（釋出空間）
+    lsKeysToDelete.forEach(function(k){ try { localStorage.removeItem(k); } catch(_){} });
+    if (migrated > 0 || lsKeysToDelete.length){
+      console.log('[pr] LS→IDB 遷移：搬 '+migrated+' 個、清掉 '+lsKeysToDelete.length+' 個 LS key');
+    }
+  } catch(e){
+    console.warn('[pr] boot init 失敗', e);
+  } finally {
+    window._prCacheReady = true;
+  }
+}
+_prBootInit();
+
+// 給 prLoadData/Rps/NextId 用的 helper：從 cache 讀
+function _prCacheGet(field){
+  var cid = localStorage.getItem('activeCharacterId') || 'default';
+  var key = field + ':' + cid;
+  return window._prCache ? window._prCache[key] : undefined;
+}
+function _prCacheSet(field, value){
+  var cid = localStorage.getItem('activeCharacterId') || 'default';
+  var key = field + ':' + cid;
+  window._prCache = window._prCache || {};
+  window._prCache[key] = value;
+  // async 寫 IDB
+  _prSaveOne(key, value).catch(function(e){ console.warn('[pr] IDB 寫入失敗', key, e); });
+}
 function prScanFallback(suffix){
   // 掃描所有 localStorage 找任何包含 suffix 的 key
   // ★ FIX：LS 滿時 setItem 會拋例外，導致整個 try 區塊掛掉、返回 null（資料看不到）
@@ -4142,6 +4261,10 @@ function prScanFallback(suffix){
   return null;
 }
 function prLoadData(){
+  // ★ v2：優先從 IDB cache 讀（boot 時已預載）
+  var idbVal = _prCacheGet('prCases');
+  if (Array.isArray(idbVal)) return idbVal;
+  // Fallback：LS 還有舊資料（首次載入、boot 尚未完成等情境）
   const key=prGetKey('prCases');
   let data=[];
   try{ data=JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ data=[]; }
@@ -4156,6 +4279,10 @@ function prLoadData(){
   return data;
 }
 function prLoadRps(){
+  // ★ v2：優先從 IDB cache 讀
+  var idbVal = _prCacheGet('prRps');
+  if (Array.isArray(idbVal)) return idbVal;
+  // Fallback：LS
   const key=prGetKey('prRps');
   let data=[];
   try{ data=JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ data=[]; }
@@ -4170,6 +4297,10 @@ function prLoadRps(){
   return data;
 }
 function prLoadNextId(){
+  // ★ v2：優先從 IDB cache 讀
+  var idbVal = _prCacheGet('prNextId');
+  if (typeof idbVal === 'number' && idbVal > 0) return idbVal;
+  // Fallback：LS
   const key=prGetKey('prNextId');
   let val=parseInt(localStorage.getItem(key)||'0');
   if(!val){
@@ -4184,22 +4315,18 @@ let prNextId=prLoadNextId();
 let prNewTags=[];
 
 function prSave(){
-  // ★ FIX：分開三個 setItem，避免一個失敗整批回滾
-  //   每個失敗都單獨記錄，至少保住其他兩個
-  var failedKeys = [];
+  // ★ v2：寫到 IndexedDB（透過 cache，不會爆 LS）
+  _prCacheSet('prCases', prCases);
+  _prCacheSet('prRps', prRps);
+  _prCacheSet('prNextId', prNextId);
+  // 順手把 LS 殘留清掉
+  try { localStorage.removeItem(prGetKey('prCases')); } catch(_){}
+  try { localStorage.removeItem(prGetKey('prRps')); } catch(_){}
+  try { localStorage.removeItem(prGetKey('prNextId')); } catch(_){}
+  // 觸發 firebase push（IDB 變動會同步雲端）
   try {
-    localStorage.setItem(prGetKey('prCases'), JSON.stringify(prCases));
-  } catch(e){ failedKeys.push('prCases'); }
-  try {
-    localStorage.setItem(prGetKey('prRps'), JSON.stringify(prRps));
-  } catch(e){ failedKeys.push('prRps'); }
-  try {
-    localStorage.setItem(prGetKey('prNextId'), String(prNextId));
-  } catch(e){ failedKeys.push('prNextId'); }
-  if (failedKeys.length){
-    console.error('[prSave] LS quota 滿，以下儲存失敗：'+failedKeys.join(','));
-    showToast('⚠ 部分資料儲存失敗（LS 空間不足）：'+failedKeys.join('、'));
-  }
+    if (window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push();
+  } catch(_){}
 }
 function prOpenSystem(){
   stopBgm();

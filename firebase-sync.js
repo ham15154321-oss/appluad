@@ -65,7 +65,11 @@ const IDB_LIST = [
   // ★ v5：成就解鎖 achievement_unlock_data + achievement_shared_all_yt 從 LS 搬到這裡
   //   原本 LS 單一 key 可達 3MB（含照片 base64），是 LS quota 最大兇手之一
   //   entries：'achievement_shared_all_yt'（共享）+ 每個主角的 'char_<id>_achievement_unlock_data'
-  { dbName: 'AchievementDB',        dbVer: 1, stores: ['data'] }
+  { dbName: 'AchievementDB',        dbVer: 1, stores: ['data'] },
+  // ★ v6：客訴/獎懲 prCases/prRps/prNextId 從 LS 搬到這裡
+  //   22 主角 × ~372 KB 每個 = 8MB+ LS 直接爆
+  //   entries：'prCases:<charId>'、'prRps:<charId>'、'prNextId:<charId>'
+  { dbName: 'PrCasesDB',            dbVer: 1, stores: ['data'] }
 ];
 // 拉取時也要能讀取舊的音效 collection（向下相容），但推送時不再寫入
 const IDB_LIST_PULL_ONLY = [
@@ -233,7 +237,10 @@ var IDB_MIGRATED_LS_SUFFIXES = [
   'knowledge_base_v1',           // → KnowledgeBaseDB.kb
   'training_sales_v2',           // → TrainingSalesDB.byCharacter
   'ai_pmemory_v1',               // → AiAdvisorDB.pmemory
-  'motiv_archive'                // → MotivArchiveDB.archive
+  'motiv_archive',               // → MotivArchiveDB.archive
+  'prCases',                     // → PrCasesDB.data（每主角 ~372KB，22 人 = 8MB）
+  'prRps',                       // → PrCasesDB.data
+  'prNextId'                     // → PrCasesDB.data
 ];
 function _isIdbMigratedLsKey(k){
   if (!k) return false;
