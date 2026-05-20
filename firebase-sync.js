@@ -1075,18 +1075,16 @@ async function pushToCloud(opts){
           if (entryCount === 0) continue;
           const storeRef = charRef.collection('idb_' + idbInfo.dbName + '_' + storeName);
           const idbPath = storeRef.path;
-          // ★ Dirty-tracking：只推送有變更的 IDB 資料（force=true 時繞過）
-          var idbChanged = _filterChanged(idbPath, entries, force);
-          if (Object.keys(idbChanged).length === 0){
-            _recordSigs(idbPath, entries);
-            continue;
-          }
-          // ★ for audit：把 IDB 變更的 key 也記下來（前綴避免和 LS key 撞名）
+          // ★★★ FIX：IDB 永遠當作有變更，直接推（不走 dirty-tracking）
+          //   原本用 _sig 算 signature，但 sig 只看頭尾 32 字元，中間改動會漏掉
+          //   而且 IDB 物件先 JSON.stringify 再算 sig，5000 字元 JSON 改一個值若沒影響長度也會漏
+          //   IDB 資料寫入頻率本來就低（使用者操作觸發），每次推幾筆不會爆 Firebase 配額
+          //   ★ 永遠推 = 永遠正確同步
+          console.log('[FirebaseSync] IDB ' + idbInfo.dbName + '.' + storeName + ': ' + entryCount + ' 筆強制推送');
           _changedKeysForLog = _changedKeysForLog.concat(
-            Object.keys(idbChanged).map(function(k){ return 'idb:' + idbInfo.dbName + '/' + storeName + '/' + k; })
+            Object.keys(entries).map(function(k){ return 'idb:' + idbInfo.dbName + '/' + storeName + '/' + k; })
           );
-          const n = await writeDataToFirestore(storeRef, idbChanged);
-          _recordSigs(idbPath, entries);
+          const n = await writeDataToFirestore(storeRef, entries);
           idbCount += n;
         }
         idb.close();
