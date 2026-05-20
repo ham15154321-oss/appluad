@@ -1147,40 +1147,41 @@ function scheduleAutoSave(){
   }, 800);
 }
 
-// ★★★ 直接寫 Firestore（不走 firebase-sync.js 的 push pipeline，避免 dirty-tracking/lock 擋下）
-async function _forcePushToFirestore(snapshot){
-  // 取頂層 firebase（iframe 沒 init，要從 parent 拿）
-  var w = window;
-  var fb = null;
-  var hop = 0;
+// ★★★ 直接寫 Firestore — 用獨立路徑（不跟 firebase-sync.js 的 IDB 路徑混）
+//   路徑：users/applaud/training_sales_direct/{charId}
+//   結構：{ data: <JSON string>, updatedAt: <timestamp> }
+//   超乾淨：一個 char 一份 doc，不需要 merge，不會 invalid-argument
+function _getDirectRef(fb, cid){
+  return fb.firestore().collection('users').doc('applaud').collection('training_sales_direct').doc(cid);
+}
+function _findParentFirebase(){
+  var w = window, hop = 0;
   while (w && hop < 10){
-    try { if (w.firebase && w.firebase.firestore){ fb = w.firebase; break; } } catch(_){}
+    try { if (w.firebase && w.firebase.firestore){ return w.firebase; } } catch(_){}
     if (w.parent === w) break;
     w = w.parent;
     hop++;
   }
+  return null;
+}
+function _getActiveCharId(){
+  try { return (window.parent.localStorage || localStorage).getItem('activeCharacterId'); } catch(_){ return null; }
+}
+
+async function _forcePushToFirestore(snapshot){
+  var fb = _findParentFirebase();
   if (!fb) throw new Error('找不到 firebase SDK（請等 parent 載入完成）');
-  var cid = (function(){
-    try { return (window.parent.localStorage || localStorage).getItem('activeCharacterId'); } catch(_){ return null; }
-  })();
+  var cid = _getActiveCharId();
   if (!cid) throw new Error('沒有 activeCharacterId（請先選擇角色）');
 
-  var fs = fb.firestore();
-  var ref = fs.collection('users').doc('applaud').collection('characters').doc(cid)
-              .collection('idb_TrainingSalesDB_byCharacter').doc('main');
-
-  // 讀現有 doc（可能有其他角色的資料）
-  var existing = {};
-  try {
-    var snap = await ref.get();
-    if (snap.exists) existing = (snap.data() && snap.data().data) || {};
-  } catch(_){}
-
-  // 把當前 charId 的資料寫入 / 更新（保留其他 char 的資料）
-  existing[cid] = JSON.stringify(snapshot);
-
-  await ref.set({ totalBatches: 1, data: existing });
-  console.log('[training-sales] ⚡ 強力推送：直接寫 Firestore '+ref.path+'，當前角色 '+cid);
+  var ref = _getDirectRef(fb, cid);
+  // 直接覆寫，無 merge，乾淨無沖突
+  await ref.set({
+    data: JSON.stringify(snapshot),
+    updatedAt: Date.now(),
+    charId: cid
+  });
+  console.log('[training-sales] ⚡ 強力推送：直接寫 '+ref.path);
   _updateSyncStatus('LastPush', '☁️ 已推 ('+cid+') ' + _formatTime(), '#22c55e');
 }
 
@@ -1323,40 +1324,28 @@ async function _forcePullFromFirestore(silent){
     return;
   }
   try {
-    // 取頂層 firebase（iframe 沒 init，要從 parent 拿）
-    var w = window;
-    var fb = null;
-    var hop = 0;
-    while (w && hop < 10){
-      try { if (w.firebase && w.firebase.firestore){ fb = w.firebase; break; } } catch(_){}
-      if (w.parent === w) break;
-      w = w.parent;
-      hop++;
-    }
+    var fb = _findParentFirebase();
     if (!fb) {
       _updateSyncStatus('LastPull', '❌ 找不到 firebase SDK', '#ef4444');
       return;
     }
-    var fs = fb.firestore();
-    var cid = (function(){
-      try { return (window.parent.localStorage || localStorage).getItem('activeCharacterId'); } catch(_){ return null; }
-    })();
+    var cid = _getActiveCharId();
     if (!cid) {
       _updateSyncStatus('LastPull', '❌ 沒有 activeCharacterId', '#ef4444');
       return;
     }
 
-    var snap = await fs.collection('users').doc('applaud').collection('characters').doc(cid)
-                       .collection('idb_TrainingSalesDB_byCharacter').doc('main').get();
+    // 從新的乾淨路徑讀
+    var ref = _getDirectRef(fb, cid);
+    var snap = await ref.get();
     if (!snap.exists) {
-      _updateSyncStatus('LastPull', '雲端無此角色資料 ' + _formatTime(), '#94a3b8');
+      _updateSyncStatus('LastPull', '雲端尚無此角色資料 (' + cid + ') ' + _formatTime(), '#94a3b8');
       return;
     }
-    var doc = snap.data();
-    var dataMap = (doc && doc.data) || {};
-    var myEntry = dataMap[cid];
+    var docData = snap.data();
+    var myEntry = docData && docData.data;
     if (!myEntry) {
-      _updateSyncStatus('LastPull', '雲端 main doc 沒此 charId entry ' + _formatTime(), '#94a3b8');
+      _updateSyncStatus('LastPull', '雲端 doc 無 data 欄位 ' + _formatTime(), '#94a3b8');
       return;
     }
 
