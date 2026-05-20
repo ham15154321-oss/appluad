@@ -411,8 +411,58 @@ function closeSub(){
 
 // ── 門面照片更換 ──
 const BASE_DOOR_KEY = 'training_room_door_imgs';
-const _cachedCharId=localStorage.getItem('activeCharacterId');
-function getDoorSK(){return _cachedCharId!=null?'char_'+_cachedCharId+'_'+BASE_DOOR_KEY:BASE_DOOR_KEY;}
+function _getDoorCharId(){ return localStorage.getItem('activeCharacterId'); }
+function getDoorSK(){ var c=_getDoorCharId(); return c!=null?'char_'+c+'_'+BASE_DOOR_KEY:BASE_DOOR_KEY; }
+
+// ★ 新架構：照片存在 IndexedDB SpaceBaseDB.images（key = getDoorSK()）
+//   原本只存 LS，但門面照片可能 500KB+，會炸 LS 5MB 上限
+//   現在優先 IDB，LS 只當 fallback
+function _doorOpenDB(){
+  return new Promise(function(resolve, reject){
+    var req = indexedDB.open('SpaceBaseDB');
+    req.onupgradeneeded = function(e){
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains('images')) db.createObjectStore('images');
+    };
+    req.onsuccess = function(){
+      var db = req.result;
+      if (db.objectStoreNames.contains('images')) { resolve(db); return; }
+      var v = db.version; db.close();
+      var u = indexedDB.open('SpaceBaseDB', v + 1);
+      u.onupgradeneeded = function(e){
+        var d = e.target.result;
+        if (!d.objectStoreNames.contains('images')) d.createObjectStore('images');
+      };
+      u.onsuccess = function(){ resolve(u.result); };
+      u.onerror = function(){ reject(u.error); };
+    };
+    req.onerror = function(){ reject(req.error); };
+  });
+}
+function _doorIdbGet(key){
+  return _doorOpenDB().then(function(db){
+    return new Promise(function(resolve){
+      try {
+        var tx = db.transaction('images','readonly');
+        var r = tx.objectStore('images').get(key);
+        r.onsuccess = function(){ try{db.close();}catch(_){} resolve(r.result || null); };
+        r.onerror = function(){ try{db.close();}catch(_){} resolve(null); };
+      } catch(e){ try{db.close();}catch(_){} resolve(null); }
+    });
+  }).catch(function(){ return null; });
+}
+function _doorIdbPut(key, value){
+  return _doorOpenDB().then(function(db){
+    return new Promise(function(resolve, reject){
+      try {
+        var tx = db.transaction('images','readwrite');
+        var r = tx.objectStore('images').put(value, key);
+        r.onsuccess = function(){ try{db.close();}catch(_){} resolve(); };
+        r.onerror = function(){ try{db.close();}catch(_){} reject(r.error); };
+      } catch(e){ try{db.close();}catch(_){} reject(e); }
+    });
+  });
+}
 
 function changeDoorImg(doorKey, input){
   const file = input.files[0];
@@ -458,24 +508,60 @@ function saveDoorImgs(){
     const imgEl = document.getElementById('doorImg_'+k);
     if(imgEl && imgEl.src && !imgEl.src.endsWith(location.pathname)) data[k] = imgEl.src;
   });
-  try{ localStorage.setItem(getDoorSK(), JSON.stringify(data)); }catch(e){}
+  // ★ 寫進 IDB（不會爆 LS）；LS 不再寫，避免重複佔空間
+  var key = getDoorSK();
+  _doorIdbPut(key, JSON.stringify(data)).then(function(){
+    console.log('[training-room] door 照片已存到 IDB ('+key+')');
+    // 觸發 firebase push
+    try {
+      var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
+      if (fs && fs.push) fs.push();
+    } catch(_){}
+  }).catch(function(e){
+    console.error('[training-room] IDB 存入失敗', e);
+  });
+  // 順便清掉 LS 殘留
+  try { localStorage.removeItem(key); } catch(_){}
+  try { localStorage.removeItem(BASE_DOOR_KEY); } catch(_){}
 }
 
-function loadDoorImgs(){
+async function loadDoorImgs(){
   try{
-    let raw = localStorage.getItem(getDoorSK());
-    // 若角色專屬無資料，回退到預設(無角色) key
-    if(!raw){
-      raw = localStorage.getItem(BASE_DOOR_KEY);
+    var key = getDoorSK();
+    // ★ 優先讀 IDB
+    var idbData = await _doorIdbGet(key);
+    if (!idbData){
+      // 退回預設（無角色）IDB key
+      idbData = await _doorIdbGet(BASE_DOOR_KEY);
     }
+    if (idbData){
+      try {
+        var parsed = (typeof idbData === 'string') ? JSON.parse(idbData) : idbData;
+        Object.keys(parsed).forEach(function(k){ if(parsed[k]) applyDoorImg(k, parsed[k]); });
+        return;
+      } catch(e){ /* parsing failed, continue to LS fallback */ }
+    }
+    // 最後 fallback：LS（舊版相容）
+    let raw = localStorage.getItem(key);
+    if(!raw){ raw = localStorage.getItem(BASE_DOOR_KEY); }
     if(!raw) return;
     const data = JSON.parse(raw);
     Object.keys(data).forEach(k=>{ if(data[k]) applyDoorImg(k, data[k]); });
-  }catch(e){}
+  }catch(e){
+    console.warn('[training-room] loadDoorImgs 失敗', e);
+  }
 }
 
 // 頁面載入時還原門面照片
 loadDoorImgs();
+// ★ 雲端同步完成後也重新載入（確保跨電腦同步的照片能顯示）
+try {
+  var wins = [window, window.parent].filter(function(w,i,a){ return w && a.indexOf(w)===i; });
+  wins.forEach(function(w){
+    try { w.addEventListener('firebase-sync-ready', loadDoorImgs); } catch(_){}
+    try { w.addEventListener('firebase-sync-updated', loadDoorImgs); } catch(_){}
+  });
+} catch(_){}
 
 // 暴露 triggerSave 給 parent
 window.triggerSave=function(){

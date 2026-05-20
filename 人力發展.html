@@ -8,8 +8,17 @@
     // ★★★ 權威性最高：強制把 activeCharacterId 對齊登入主角
     //     如果 appedu_logged_character（登入時記下來的角色）跟 activeCharacterId 不一致，
     //     一律以「登入主角」為準（避免任何地方的預設值覆蓋使用者選的角色）
+    //
+    // ★ EXCEPTION：管理員（appedu_is_admin='1'）可以透過「指揮城堡」切換角色檢視，
+    //   activeCharacterId 跟 appedu_logged_character 可以不一致，**Cmd+R 後也要保留**
+    //   否則 admin 切到別人查資料、按 Cmd+R 就會自動跳回自己 → 資料寫到錯角色桶
     (function _enforceLoggedCharacter(){
       try {
+        var isAdmin = localStorage.getItem('appedu_is_admin') === '1';
+        if (isAdmin) {
+          console.log('[auth-guard] 管理員身份 — 不強制對齊 activeCharacterId（允許跨角色檢視）');
+          return;
+        }
         var loggedChar = localStorage.getItem('appedu_logged_character');
         if (loggedChar){
           var cur = localStorage.getItem('activeCharacterId');
@@ -3104,7 +3113,7 @@ function close360Assessment(){
 // ========== 練功坊 ==========
 function openTrainingRoom(){
   stopBgm();
-  document.getElementById('trainingFrame').src='training-room.html?v=tlib2';
+  document.getElementById('trainingFrame').src='training-room.html?v=dooridb';
   document.getElementById('trainingOverlay').classList.add('active');
 }
 function closeTrainingRoom(){
