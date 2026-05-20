@@ -4175,6 +4175,8 @@ function _prSaveOne(key, value){
 }
 
 // Boot：載入 IDB → cache，並一次性把 LS 裡的 char_*_prCases / char_*_prRps 搬到 IDB
+// ★ 關鍵：boot 完成後一定要 **重新讀取 prCases/prRps/prNextId 變數 + 重繪 UI**
+//   不然 script 載入時 prCases 已經被指派為空陣列了，使用者看不到資料
 async function _prBootInit(){
   try {
     window._prCache = await _prLoadAll();
@@ -4211,6 +4213,31 @@ async function _prBootInit(){
     console.warn('[pr] boot init 失敗', e);
   } finally {
     window._prCacheReady = true;
+    // ★★★ 關鍵步驟：cache 已就緒 → 重新讀取 + 觸發 UI 重繪
+    //   prCases/prRps/prNextId 在 boot 開始時可能還是空的（script 載入太快）
+    //   現在 IDB 載完了，要重新指派變數 + 重新渲染畫面
+    try {
+      if (typeof prCases !== 'undefined'){
+        var freshCases = _prCacheGet('prCases');
+        if (Array.isArray(freshCases)) prCases = freshCases;
+      }
+      if (typeof prRps !== 'undefined'){
+        var freshRps = _prCacheGet('prRps');
+        if (Array.isArray(freshRps)) prRps = freshRps;
+      }
+      if (typeof prNextId !== 'undefined'){
+        var freshNextId = _prCacheGet('prNextId');
+        if (typeof freshNextId === 'number' && freshNextId > 0) prNextId = freshNextId;
+      }
+      // 觸發 UI 重繪（如果函式已定義）
+      if (typeof prRenderAll === 'function') prRenderAll();
+      if (typeof tiRender === 'function') tiRender();
+      console.log('[pr] cache 就緒，已重繪 UI（prCases='+(typeof prCases!=='undefined'?prCases.length:'?')+' 筆、prRps='+(typeof prRps!=='undefined'?prRps.length:'?')+' 筆）');
+    } catch(reloadErr){
+      console.warn('[pr] reload 失敗', reloadErr);
+    }
+    // 發出全局事件，給其他需要等待的程式知道
+    try { window.dispatchEvent(new Event('pr-cache-ready')); } catch(_){}
   }
 }
 _prBootInit();
