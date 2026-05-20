@@ -658,8 +658,18 @@ function idbPutEntries(db, storeName, entries){
 // 快速產生一個值的「指紋」：長度 + 前32字元 + 後32字元
 // 用來比較兩次推送之間同一個 key 的值是否有變化
 function _sig(v){
-  if (!v) return '0:';
-  var s = String(v);
+  if (v == null) return '0:';
+  // ★ CRITICAL FIX：原本 String(v) 對 JS 物件會回傳 "[object Object]" 永遠不變 → IDB 資料根本不會推
+  //   現在改成：物件先 JSON.stringify，這樣內容改了 sig 才會跟著變
+  var s;
+  if (typeof v === 'string') {
+    s = v;
+  } else if (typeof v === 'object') {
+    try { s = JSON.stringify(v); }
+    catch(_e){ s = String(v); }   // 循環參考或無法序列化時 fallback
+  } else {
+    s = String(v);
+  }
   return s.length + ':' + s.substring(0, 32) + (s.length > 64 ? s.substring(s.length - 32) : '');
 }
 
