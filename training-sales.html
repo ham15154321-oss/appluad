@@ -1120,7 +1120,8 @@ let _ast = null;
 function scheduleAutoSave(){
   clearTimeout(_ast);
   document.getElementById('autosaveLabel').textContent = '✏️ 編輯中…';
-  _ast = setTimeout(()=>{
+  _ast = setTimeout(async ()=>{
+    _ast = null;   // ★ 重要：清掉編輯中標記，否則 _forcePullFromFirestore 永遠不會跑
     try{
       _prepareStore();
       cleanEditingFlags();
@@ -1128,17 +1129,56 @@ function scheduleAutoSave(){
       var _json = JSON.stringify(_snapshot);
       _emergencyBaseline = _json;
       // ★ v3：寫到 IDB
-      _tsSaveToIDB(_snapshot).then(function(){
-        const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
-        document.getElementById('autosaveLabel').textContent = '✅ 自動儲存：' + t;
-        try{ if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
-      }).catch(function(e){
-        document.getElementById('autosaveLabel').textContent = '⚠ 儲存失敗：'+(e.message||e);
-      });
+      await _tsSaveToIDB(_snapshot);
+      const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('autosaveLabel').textContent = '✅ 已存本機：' + t + ' ⏳ 同步雲端中...';
+
+      // ★★★ 暴力直接寫雲端 — 不依賴 firebaseSync.push（會被 dirty-tracking/locks 擋）
+      try {
+        await _forcePushToFirestore(_snapshot);
+        document.getElementById('autosaveLabel').textContent = '☁️ 已同步雲端：' + t;
+      } catch(e){
+        document.getElementById('autosaveLabel').textContent = '⚠ 雲端同步失敗：'+(e.message||e);
+        console.error('[training-sales] forcePush failed', e);
+      }
     }catch(e){
       document.getElementById('autosaveLabel').textContent = '⚠ 儲存失敗';
     }
   }, 800);
+}
+
+// ★★★ 直接寫 Firestore（不走 firebase-sync.js 的 push pipeline，避免 dirty-tracking/lock 擋下）
+async function _forcePushToFirestore(snapshot){
+  // 取頂層 firebase（iframe 沒 init，要從 parent 拿）
+  var w = window;
+  var fb = null;
+  while (w){
+    try { if (w.firebase && w.firebase.firestore){ fb = w.firebase; break; } } catch(_){}
+    if (w.parent === w) break;
+    w = w.parent;
+  }
+  if (!fb) throw new Error('找不到 firebase SDK');
+  var cid = (function(){
+    try { return (window.parent.localStorage || localStorage).getItem('activeCharacterId'); } catch(_){ return null; }
+  })();
+  if (!cid) throw new Error('沒有 activeCharacterId');
+
+  var fs = fb.firestore();
+  var ref = fs.collection('users').doc('applaud').collection('characters').doc(cid)
+              .collection('idb_TrainingSalesDB_byCharacter').doc('main');
+
+  // 讀現有 doc（可能有其他角色的資料）
+  var existing = {};
+  try {
+    var snap = await ref.get();
+    if (snap.exists) existing = (snap.data() && snap.data().data) || {};
+  } catch(_){}
+
+  // 把當前 charId 的資料寫入 / 更新（保留其他 char 的資料）
+  existing[cid] = JSON.stringify(snapshot);
+
+  await ref.set({ totalBatches: 1, data: existing });
+  console.log('[training-sales] ⚡ 強力推送：直接寫 Firestore '+ref.path+'，當前角色 '+cid);
 }
 
 window.triggerSave = function(){
@@ -1234,6 +1274,67 @@ function _reloadFromLS(){
     console.warn('[training-sales] firebase-sync 監聽掛載失敗', e);
   }
 })();
+
+// ★★★ 暴力修法：每 5 秒主動拉 Firestore 雲端最新資料，更新本地 IDB + 重新渲染 UI
+//   原因：onSnapshot 偵測+pull 機制可能因 _ast/locks 漏接，使用者無法看到別台改的內容
+//   做法：直接從 Firestore 讀 idb_TrainingSalesDB_byCharacter 的 main doc，
+//        如果雲端 凃敏薰 entry 跟本地不同就強制更新 + render
+//   保護：如果使用者正在編輯（_ast pending），跳過這輪 polling 避免吃掉輸入
+async function _forcePullFromFirestore(){
+  if (_ast) return;  // 正在編輯 → 跳過
+  try {
+    // 取頂層 firebase（iframe 沒 init，要從 parent 拿）
+    var w = window;
+    var fb = null;
+    while (w){
+      try { if (w.firebase && w.firebase.firestore){ fb = w.firebase; break; } } catch(_){}
+      if (w.parent === w) break;
+      w = w.parent;
+    }
+    if (!fb) return;
+    var fs = fb.firestore();
+    var cid = (function(){
+      try { return (window.parent.localStorage || localStorage).getItem('activeCharacterId'); } catch(_){ return null; }
+    })();
+    if (!cid) return;
+
+    // 讀雲端 main doc
+    var snap = await fs.collection('users').doc('applaud').collection('characters').doc(cid)
+                       .collection('idb_TrainingSalesDB_byCharacter').doc('main').get();
+    if (!snap.exists) return;
+    var doc = snap.data();
+    var dataMap = (doc && doc.data) || {};
+    var myEntry = dataMap[cid];
+    if (!myEntry) return;
+
+    // 解析（雲端存的是 string）
+    var parsed;
+    try { parsed = (typeof myEntry === 'string') ? JSON.parse(myEntry) : myEntry; }
+    catch(e){ return; }
+    if (!parsed || !parsed.people || !Array.isArray(parsed.people)) return;
+
+    // 比對本地 store
+    var oldJson = JSON.stringify(store || {});
+    var newJson = JSON.stringify(parsed);
+    if (oldJson === newJson) return;  // 沒變化
+
+    // 雲端較新 → 寫進本地 IDB + 更新 store + 重新渲染
+    await _tsSaveToIDB(parsed);
+    store = parsed;
+    if (store.currentIdx >= store.people.length) store.currentIdx = 0;
+    chapters = store.people[store.currentIdx].chapters;
+    renderAvatars();
+    render();
+    _captureEmergencyBaseline();
+    console.log('[training-sales] ⚡ 強力拉取：從雲端取得新資料（'+parsed.people.length+' 位新人），已更新 UI');
+  } catch(e){
+    // 靜默失敗（避免每 5 秒洗版錯誤訊息）
+  }
+}
+// 啟動每 5 秒輪詢
+setInterval(_forcePullFromFirestore, 5000);
+// 頁面開啟立刻拉一次
+setTimeout(_forcePullFromFirestore, 1500);
 
 // 星空
 (function(){
