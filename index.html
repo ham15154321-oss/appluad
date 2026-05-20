@@ -437,11 +437,13 @@ function showApp(session, isAutoLogin){
 /* ---- 頁面載入：檢查登入 ---- */
 var existingSession=getSession();
 if(existingSession){
-  showApp(existingSession, true);
-  // 既有 session → 啟動 Firebase 同步
+  // ★ 已登入 → 直接跳到首頁（人力發展.html），不再停留在 index.html 中間頁
+  //   先啟動 Firebase 同步（即使會跳轉也沒關係，下個頁面會接著用）
   if (window._firebaseSyncStart){
     try { window._firebaseSyncStart(); } catch(e){}
   }
+  try { location.replace('./%E4%BA%BA%E5%8A%9B%E7%99%BC%E5%B1%95.html'); }
+  catch(e){ showApp(existingSession, true); }
 }
 
 /* ─── 載入卡片資料（給第一次設定使用）─────────────── */
@@ -750,8 +752,9 @@ function finishLogin(empNo, accountData){
 
   var accountForWelcome = { user: empNo, displayName: charName };
   showWelcome(accountForWelcome, function(){
-    // 顯示已登入狀態（不自動跳轉到人力發展）
-    showApp({ user: empNo, displayName: charName, isAdmin: isAdmin }, true);
+    // ★ 登入成功 → 直接跳到首頁（人力發展.html），不再停留在 index.html 中間頁
+    try { location.href = './%E4%BA%BA%E5%8A%9B%E7%99%BC%E5%B1%95.html'; }
+    catch(e){ showApp({ user: empNo, displayName: charName, isAdmin: isAdmin }, true); }
   });
 }
 
