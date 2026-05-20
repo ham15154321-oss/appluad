@@ -1469,19 +1469,58 @@ async function pullFromCloud(){
 }
 
 // === 即時監聽（只監聽主角 metadata 變化）==============================
+// ★ FIX：偵測到雲端更新時，不只發 event，還要實際 pullFromCloud()
+//   原本只發 event 但本地 IDB 沒拉新資料 → 跨電腦改動永遠看不到
+var _isInitialSnapshot = true;
+var _pullDebounceTimer = null;
 function setupRealtime(){
   var baseRef = currentUserUid
     ? fsDb.collection('users').doc(currentUserUid).collection('characters')
     : fsDb.collection('characters');
-  baseRef.onSnapshot(snap => {
+  baseRef.onSnapshot(async snap => {
     var changes = [];
     snap.docChanges().forEach(ch => {
       if (ch.type === 'removed') return;
       changes.push(ch.doc.id);
     });
-    if (changes.length > 0) console.log('[FirebaseSync] 偵測到雲端更新:', changes.length, '筆');
-    window.dispatchEvent(new Event('firebase-sync-updated'));
+    // 第一次（init 觸發的）的 snapshot 不算 — pullFromCloud 已經在 init 跑過了
+    if (_isInitialSnapshot){
+      _isInitialSnapshot = false;
+      return;
+    }
+    if (changes.length === 0) return;
+    console.log('[FirebaseSync] 🔄 偵測到雲端更新:', changes.length, '筆 — 啟動 pull');
+    // debounce：短時間內多筆更新只 pull 一次
+    if (_pullDebounceTimer) clearTimeout(_pullDebounceTimer);
+    _pullDebounceTimer = setTimeout(async function(){
+      try {
+        // 避免跟 push 撞車：如果正在 push 中，等等再 pull
+        var maxWait = 10;
+        while (_pushing && maxWait-- > 0){
+          await new Promise(function(r){ setTimeout(r, 500); });
+        }
+        await pullFromCloud();
+        console.log('[FirebaseSync] ✅ realtime pull 完成');
+        // pull 完才發事件 — 確保監聽端讀到的是新資料
+        window.dispatchEvent(new Event('firebase-sync-updated'));
+      } catch(e){
+        console.warn('[FirebaseSync] realtime pull 失敗', e);
+      }
+    }, 800);
   });
+}
+
+// ★ 定期 pull 保險：每 90 秒額外拉一次（即使 onSnapshot 失效也保證資料會更新）
+//   不在 _pushing 中才 pull，避免衝突
+var PULL_INTERVAL_MS = 90 * 1000;
+function _startPeriodicPull(){
+  setInterval(async function(){
+    if (_pushing || _pullingFromCloud) return;
+    try {
+      await pullFromCloud();
+      window.dispatchEvent(new Event('firebase-sync-updated'));
+    } catch(e){ /* 失敗就靜默忽略，下個週期再試 */ }
+  }, PULL_INTERVAL_MS);
 }
 
 // === 啟動 ============================================================
@@ -1580,6 +1619,7 @@ async function _doInit(){
         await pullFromCloud();
         ready = true;
         setupRealtime();
+        _startPeriodicPull();   // ★ 每 90s 額外 pull 一次（onSnapshot 沒抓到也能補救）
         if (!IS_ADMIN) setInterval(pushToCloud, SYNC_INTERVAL_MS);
         setBadge(IS_ADMIN ? '☁ 管理者' : badgeLabel, '#00ff88');
         setTimeout(() => { if (badgeEl) badgeEl.style.opacity = '0.3'; }, 2000);
@@ -1658,6 +1698,7 @@ async function startSyncAfterCode(){
     await pullFromCloud();
     ready = true;
     setupRealtime();
+    _startPeriodicPull();   // ★ 每 90s 額外 pull 一次（救援同步漏掉的更新）
     if (!IS_ADMIN) setInterval(pushToCloud, SYNC_INTERVAL_MS);
     var code = localStorage.getItem('firebase_sync_code') || '';
     setBadge(IS_ADMIN ? '☁ 管理者' : '☁ ' + code, '#00ff88');
