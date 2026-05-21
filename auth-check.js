@@ -14,6 +14,28 @@
   if(path.endsWith('index.html') || path.endsWith('/')) return;
 
   function hasSession(){
+    // ★ 主要依據：持久化登入狀態（localStorage，永遠記住）
+    //   必須跟 index.html 的 getSession() 用同一組 key，否則會無限互踢造成畫面狂閃。
+    //   sessionStorage 關掉瀏覽器就清空，不能拿來當唯一判斷。
+    try{
+      var empNo = localStorage.getItem('appedu_emp_no');
+      var charName = localStorage.getItem('appedu_logged_character');
+      if(empNo && charName){
+        // 補回 sessionStorage，讓同分頁內其他舊程式碼也讀得到
+        try{
+          if(!sessionStorage.getItem('appedu_session')){
+            sessionStorage.setItem('appedu_session', JSON.stringify({
+              user: empNo,
+              displayName: charName,
+              isAdmin: localStorage.getItem('appedu_is_admin') === '1',
+              loginTime: parseInt(localStorage.getItem('appedu_login_at')||'0', 10) || Date.now()
+            }));
+          }
+        }catch(e){}
+        return true;
+      }
+    }catch(e){}
+    // 向下相容：舊的 session key
     try{
       var s = JSON.parse(sessionStorage.getItem('appedu_session'));
       if(s && s.user) return true;
