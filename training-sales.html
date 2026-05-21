@@ -404,12 +404,20 @@ body{
 }
 </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=v4realm"></script>
+<script defer src="./firebase-sync.js?v=v5pullfirst"></script>
 <link rel="stylesheet" href="day-mode.css">
 </head>
 <body>
 
 <div class="stars" id="stars"></div>
+
+<!-- ★★★ 開頁載入遮罩：強制「先從雲端拉到最新資料」才讓使用者操作 -->
+<div id="cloudLoadOverlay" style="position:fixed;inset:0;z-index:99999;background:radial-gradient(ellipse at 50% 35%,#0d1b3e 0%,#070d1f 60%,#03060f 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:'Segoe UI','Microsoft JhengHei',sans-serif;">
+  <div style="width:54px;height:54px;border:5px solid rgba(120,180,255,.18);border-top-color:#4aeaff;border-radius:50%;animation:tsSpin 0.8s linear infinite;"></div>
+  <div id="cloudLoadText" style="color:#cfe0ff;font-size:1rem;font-weight:700;letter-spacing:1px;">⏳ 正在從雲端載入最新資料…</div>
+  <div id="cloudLoadSub" style="color:#6a7faa;font-size:.8rem;">同步完成前請稍候，避免覆蓋其他裝置的內容</div>
+</div>
+<style>@keyframes tsSpin{to{transform:rotate(360deg);}}</style>
 
 <div class="container">
   <div class="header">
@@ -696,6 +704,9 @@ async function init(){
   render();
   // ★ 抓 baseline：emergencySave 用這個比對是否真的有改動
   _captureEmergencyBaseline();
+
+  // ★★★ 最關鍵：開頁先「阻塞式」從雲端拉最新資料，拉完才放行 → 保證每次看到的都是最新
+  await _bootCloudSync();
 }
 
 // ===== 頭像列渲染 =====
@@ -1102,12 +1113,16 @@ function saveAll(){
     var _snapshot = JSON.parse(JSON.stringify(store));
     var _json = JSON.stringify(_snapshot);
     _emergencyBaseline = _json;
-    // ★ v3：寫到 IDB（不會 quota）
+    // ★ v5：寫 IDB（本機快取）→ 再直接推雲端（training_sales_direct 唯一同步路徑）
     _tsSaveToIDB(_snapshot).then(function(){
       const t = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
-      document.getElementById('autosaveLabel').textContent = '已儲存：' + t;
+      document.getElementById('autosaveLabel').textContent = '✅ 已存本機：' + t + ' ⏳ 同步雲端中...';
       showToast('💾 已儲存');
-      try{ if(window.firebaseSync && window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+      _forcePushToFirestore(_snapshot).then(function(){
+        document.getElementById('autosaveLabel').textContent = '☁️ 已同步雲端：' + t;
+      }).catch(function(e){
+        document.getElementById('autosaveLabel').textContent = '⚠ 雲端同步失敗：'+(e.message||e);
+      });
     }).catch(function(e){
       showToast('⚠ 儲存失敗：'+(e.message||e));
     });
@@ -1147,60 +1162,144 @@ function scheduleAutoSave(){
   }, 800);
 }
 
-// ★★★ 直接寫 Firestore — 用獨立路徑（不跟 firebase-sync.js 的 IDB 路徑混）
+// ★★★ 跨裝置同步 v5 — 雲端唯一真相 + 拉取優先（一次修好「昨天可以今天不行」）
 //   路徑：users/applaud/training_sales_direct/{charId}
-//   結構：{ data: <JSON string>, updatedAt: <timestamp> }
-//   超乾淨：一個 char 一份 doc，不需要 merge，不會 invalid-argument
-function _getDirectRef(fb, cid){
-  return fb.firestore().collection('users').doc('applaud').collection('training_sales_direct').doc(cid);
+//   結構：{ data: <JSON string>, updatedAt: <timestamp>, charId }
+//   鐵則：
+//     1. 開頁先「阻塞式」拉雲端最新 → 拉完才放行（loading overlay）
+//     2. 拉取完成前「禁止任何推送」→ 舊資料絕不可能蓋掉雲端
+//     3. 用 updatedAt 時間戳判斷：跟我手上的不一樣 = 別人改過 = 拉下來
+//   ── 同步狀態旗標 ──
+var _initialPullDone = false;   // 開頁雲端拉取是否完成（完成前禁止推送）
+var _cloudUpdatedAt  = 0;       // 我手上這份資料的雲端時間戳（自己推/拉時更新）
+var _offlineMode     = false;   // 連不上雲端時為 true
+
+function _getActiveCharId(){
+  try { return (window.parent.localStorage || localStorage).getItem('activeCharacterId'); } catch(_){ return null; }
 }
-function _findParentFirebase(){
+// 往上層 window 找 parent 提供的 firebaseSync 函式（writeTrainingSalesDoc / readTrainingSalesDoc）
+function _findSyncFn(name){
   var w = window, hop = 0;
   while (w && hop < 10){
-    try { if (w.firebase && w.firebase.firestore){ return w.firebase; } } catch(_){}
+    try {
+      if (w.firebaseSync && typeof w.firebaseSync[name] === 'function') return w.firebaseSync[name];
+    } catch(_){}
     if (w.parent === w) break;
     w = w.parent;
     hop++;
   }
   return null;
 }
-function _getActiveCharId(){
-  try { return (window.parent.localStorage || localStorage).getItem('activeCharacterId'); } catch(_){ return null; }
+
+// ★★★ 開頁阻塞式雲端同步 — 一定先拉到最新，拉完才掀開遮罩放行
+async function _bootCloudSync(){
+  function setText(t, sub){
+    var e = document.getElementById('cloudLoadText'); if (e) e.textContent = t;
+    var s = document.getElementById('cloudLoadSub'); if (s && sub !== undefined) s.textContent = sub;
+  }
+  function hideOverlay(){
+    var ov = document.getElementById('cloudLoadOverlay');
+    if (ov){ ov.style.transition = 'opacity .25s'; ov.style.opacity = '0'; setTimeout(function(){ try{ov.remove();}catch(_){} }, 260); }
+  }
+  function delay(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  // 1. 等 activeCharacterId（雙層 iframe 偶爾會晚到）
+  var cid = _getActiveCharId();
+  for (var c = 0; c < 6 && !cid; c++){ await delay(500); cid = _getActiveCharId(); }
+  if (!cid){
+    console.warn('[training-sales] 開頁同步：找不到 activeCharacterId，用本機資料放行');
+    _initialPullDone = true; hideOverlay(); return;
+  }
+
+  // 2. 等 parent 的 readTrainingSalesDoc 就緒（firebase-sync.js 要先載入）
+  var readFn = null;
+  for (var a = 0; a < 20 && !readFn; a++){
+    readFn = _findSyncFn('readTrainingSalesDoc');
+    if (readFn) break;
+    setText('⏳ 正在連線雲端…', '初始化同步服務（' + (a + 1) + '）');
+    await delay(500);
+  }
+  if (!readFn){
+    console.warn('[training-sales] 開頁同步：雲端連線逾時，離線模式');
+    _offlineMode = true; _initialPullDone = true;
+    setText('⚠️ 雲端連線逾時，先用本機資料', '稍後會自動重試');
+    _updateSyncStatus('LastPull', '❌ 連線逾時（離線）', '#ef4444');
+    setTimeout(hideOverlay, 900);
+    return;
+  }
+
+  // 3. 真正拉雲端（重試多次防 Firestore 還沒初始化 / 暫時性網路錯誤）
+  setText('⏳ 正在從雲端載入最新資料…', '同步完成前請稍候');
+  var got = null, lastErr = null;
+  for (var t = 0; t < 12; t++){
+    try { got = await readFn(cid); lastErr = null; break; }
+    catch(e){ lastErr = e; setText('⏳ 正在從雲端載入…', '重試中（' + (t + 1) + '）'); await delay(1000); }
+  }
+  if (lastErr){
+    console.warn('[training-sales] 開頁同步：雲端讀取失敗', lastErr);
+    _offlineMode = true; _initialPullDone = true;
+    setText('⚠️ 雲端讀取失敗，先用本機資料', '');
+    _updateSyncStatus('LastPull', '❌ ' + (lastErr.code || lastErr.message || lastErr), '#ef4444');
+    setTimeout(hideOverlay, 900);
+    return;
+  }
+
+  // 4. 套用雲端資料
+  if (got && got.data){
+    try {
+      var parsed = JSON.parse(got.data);
+      if (parsed && parsed.people && Array.isArray(parsed.people) && parsed.people.length > 0){
+        store = parsed;
+        if (store.currentIdx >= store.people.length) store.currentIdx = 0;
+        chapters = store.people[store.currentIdx].chapters;
+        _cloudUpdatedAt = got.updatedAt || 0;
+        try { await _tsSaveToIDB(store); } catch(_){}
+        renderAvatars(); render(); _captureEmergencyBaseline();
+        console.log('[training-sales] ✅ 開頁雲端拉取成功，' + parsed.people.length + ' 位新人，updatedAt=' + _cloudUpdatedAt);
+        _updateSyncStatus('LastPull', '⬇️ 開頁已載入雲端最新 ' + _formatTime(), '#22c55e');
+      } else {
+        console.warn('[training-sales] 開頁同步：雲端資料格式異常，用本機');
+      }
+    } catch(e){
+      console.warn('[training-sales] 開頁同步：雲端 JSON 解析失敗，用本機', e);
+    }
+  } else {
+    // 雲端尚無此角色資料 → 用本機快取（第一次用，本機資料之後第一次儲存時會推上去）
+    console.log('[training-sales] 開頁同步：雲端尚無此角色資料，使用本機快取');
+    _cloudUpdatedAt = 0;
+    _updateSyncStatus('LastPull', '雲端尚無資料，使用本機 ' + _formatTime(), '#94a3b8');
+  }
+  _initialPullDone = true;
+  hideOverlay();
 }
 
+// ★★★ 推送到雲端 — 拉取優先鐵則生效
 async function _forcePushToFirestore(snapshot){
+  // ⛔ 開頁雲端拉取還沒完成前，「禁止推送」
+  //    這就是「昨天可以今天不行」的根因修復：舊資料絕不可能蓋掉雲端最新
+  if (!_initialPullDone){
+    console.warn('[training-sales] ⛔ 開頁同步尚未完成，拒絕推送（避免覆蓋雲端）');
+    _updateSyncStatus('LastPush', '⏳ 等開頁同步完成…', '#fbbf24');
+    return;
+  }
   var cid = _getActiveCharId();
   if (!cid) throw new Error('沒有 activeCharacterId（請先選擇角色）');
-
-  // ★ 找頂層 firebaseSync.writeTrainingSalesDoc（parent 提供的）
-  //   iframe 自己呼叫 set() 會因為跨 realm 物件問題拋 "Data must be an object" invalid-argument
-  //   改成讓 parent 處理：iframe 只傳字串
-  var w = window, hop = 0;
-  var writeFn = null;
-  while (w && hop < 10){
-    try {
-      if (w.firebaseSync && typeof w.firebaseSync.writeTrainingSalesDoc === 'function'){
-        writeFn = w.firebaseSync.writeTrainingSalesDoc;
-        // ★ 重要：用 parent 的 fn，不要 bind 到 iframe context
-        var jsonString = JSON.stringify(snapshot);
-        try {
-          var result = await w.firebaseSync.writeTrainingSalesDoc(cid, jsonString);
-          console.log('[training-sales] ⚡ 強力推送成功（透過 parent）：', result && result.path);
-          _updateSyncStatus('LastPush', '☁️ 已推 ('+cid+') ' + _formatTime(), '#22c55e');
-          return;
-        } catch(err){
-          console.error('[training-sales] PUSH 失敗 — code:', err.code, 'message:', err.message);
-          var detail = (err.code || 'no-code') + ' / ' + (err.message || 'no-msg').substring(0, 100);
-          _updateSyncStatus('LastPush', '❌ ' + detail, '#ef4444');
-          throw err;
-        }
-      }
-    } catch(_){}
-    if (w.parent === w) break;
-    w = w.parent;
-    hop++;
+  var writeFn = _findSyncFn('writeTrainingSalesDoc');
+  if (!writeFn) throw new Error('找不到 parent firebaseSync.writeTrainingSalesDoc — 請等 parent 載入完成');
+  var jsonString = JSON.stringify(snapshot);
+  try {
+    var result = await writeFn(cid, jsonString);
+    // ★ 記住自己推上去的時間戳 → 輪詢看到一樣的 updatedAt 就知道是自己推的，不重拉
+    if (result && result.updatedAt) _cloudUpdatedAt = result.updatedAt;
+    console.log('[training-sales] ⚡ 推送成功：', result && result.path, 'updatedAt=' + _cloudUpdatedAt);
+    _updateSyncStatus('LastPush', '☁️ 已推 (' + cid + ') ' + _formatTime(), '#22c55e');
+    return;
+  } catch(err){
+    console.error('[training-sales] PUSH 失敗 — code:', err.code, 'message:', err.message);
+    var detail = (err.code || 'no-code') + ' / ' + (err.message || 'no-msg').substring(0, 100);
+    _updateSyncStatus('LastPush', '❌ ' + detail, '#ef4444');
+    throw err;
   }
-  throw new Error('找不到 parent firebaseSync.writeTrainingSalesDoc — 請等 parent 載入完成');
 }
 
 window.triggerSave = function(){
@@ -1248,29 +1347,10 @@ document.addEventListener('visibilitychange', function(){
 window.addEventListener('beforeunload', _emergencySave);
 window.addEventListener('pagehide', _emergencySave);
 
-// ★ 監聽 firebase 同步事件：雲端 pull 完成後，重新從 IDB 載入 store
-//   v3：改為從 IDB 讀（LS 已經不用了）
-function _reloadFromLS(){
-  // 檢查當前是否正在編輯（避免吃掉使用者的編輯）
-  if(_ast){
-    console.log('[training-sales] 雲端同步完成但本機正在編輯中（_ast pending），跳過 reload 以保留使用者輸入');
-    return;
-  }
-  _tsLoadFromIDB().then(function(parsed){
-    if(!parsed || !parsed.people || !Array.isArray(parsed.people) || parsed.people.length === 0) return;
-    var oldJson = JSON.stringify(store);
-    var newJson = JSON.stringify(parsed);
-    if(oldJson === newJson) return; // 沒變化
-    store = parsed;
-    if(store.currentIdx >= store.people.length) store.currentIdx = 0;
-    chapters = store.people[store.currentIdx].chapters;
-    renderAvatars();
-    render();
-    _captureEmergencyBaseline(); // 重設 baseline 才不會被 emergencySave 覆蓋
-    console.log('[training-sales] 雲端同步完成，已重新載入 store（' + parsed.people.length + ' 位新人）');
-  }).catch(function(e){
-    console.warn('[training-sales] 重新載入 IDB 失敗', e);
-  });
+// ★ 監聽 firebase 同步事件：任何同步事件都直接「重拉雲端」（不再讀本機 IDB，避免拿到舊快取）
+function _onFirebaseSyncEvent(){
+  if (!_initialPullDone) return;   // 開頁同步還沒完成 → 交給 _bootCloudSync
+  _forcePullFromFirestore(true);
 }
 
 // 監聽最頂層 window 的 firebase-sync 事件（這個 iframe 套兩層，事件 dispatch 在最頂）
@@ -1287,8 +1367,8 @@ function _reloadFromLS(){
     }
     targets.forEach(function(t){
       try{
-        t.addEventListener('firebase-sync-ready', _reloadFromLS);
-        t.addEventListener('firebase-sync-updated', _reloadFromLS);
+        t.addEventListener('firebase-sync-ready', _onFirebaseSyncEvent);
+        t.addEventListener('firebase-sync-updated', _onFirebaseSyncEvent);
       }catch(e){}
     });
     console.log('[training-sales] 已掛載 firebase-sync 監聽（' + targets.length + ' 層 window）');
@@ -1299,7 +1379,7 @@ function _reloadFromLS(){
 
 // ★★★ 超大狀態列 — 永遠顯示在頁面頂端，跨裝置同步看一眼就知道狀況
 // 版本號 — 改程式碼時要同步更新這個，讓你一眼看出跑的是不是新版
-var _SYNC_VERSION = 'v3-direct';
+var _SYNC_VERSION = 'v5-pullfirst';
 
 (function _addSyncStatusBar(){
   if (document.getElementById('syncStatusBar')) return;
@@ -1307,7 +1387,7 @@ var _SYNC_VERSION = 'v3-direct';
   bar.id = 'syncStatusBar';
   bar.style.cssText = 'position:sticky;top:0;z-index:9999;padding:10px 18px;background:#1e293b;color:#fff;font-family:inherit;font-size:13px;font-weight:600;border-bottom:2px solid #3b82f6;display:flex;align-items:center;gap:14px;flex-wrap:wrap;';
   bar.innerHTML =
-    '<span style="background:#22c55e;color:#000;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:800;">v4-realmfix ✓</span>'+
+    '<span style="background:#22c55e;color:#000;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:800;">v5-pullfirst ✓</span>'+
     '<span id="syncStatusChar">⏳ 載入中...</span>'+
     '<span id="syncStatusLastPush" style="color:#94a3b8;font-weight:500;">推送：—</span>'+
     '<span id="syncStatusLastPull" style="color:#94a3b8;font-weight:500;">拉取：—</span>'+
@@ -1339,9 +1419,11 @@ function _refreshCharStatus(){
 _refreshCharStatus();
 setInterval(_refreshCharStatus, 2000);
 
-// ★★★ 暴力修法：每 5 秒主動拉 Firestore 雲端最新資料，更新本地 IDB + 重新渲染 UI
-//   一樣讓 parent 處理 Firestore 讀取，iframe 只取得字串
+// ★★★ 每 5 秒主動拉雲端最新 — 用 updatedAt 時間戳判斷「別人有沒有改過」
 async function _forcePullFromFirestore(silent){
+  // 開頁同步還沒完成 → 交給 _bootCloudSync 處理，這裡不插手
+  if (!_initialPullDone) return;
+  // 使用者正在編輯 → 暫停拉取，避免吃掉正在打的內容
   if (_ast) {
     if (!silent) _updateSyncStatus('LastPull', '⏸ 編輯中暫停', '#fbbf24');
     return;
@@ -1352,34 +1434,27 @@ async function _forcePullFromFirestore(silent){
       _updateSyncStatus('LastPull', '❌ 沒有 activeCharacterId', '#ef4444');
       return;
     }
-
-    // ★ 找頂層 firebaseSync.readTrainingSalesDoc
-    var w = window, hop = 0;
-    var readFn = null;
-    while (w && hop < 10){
-      try {
-        if (w.firebaseSync && typeof w.firebaseSync.readTrainingSalesDoc === 'function'){
-          readFn = w.firebaseSync.readTrainingSalesDoc;
-          break;
-        }
-      } catch(_){}
-      if (w.parent === w) break;
-      w = w.parent;
-      hop++;
-    }
+    var readFn = _findSyncFn('readTrainingSalesDoc');
     if (!readFn) {
       _updateSyncStatus('LastPull', '❌ 找不到 parent readTrainingSalesDoc', '#ef4444');
       return;
     }
 
-    var jsonString = await readFn(cid);
-    if (!jsonString) {
+    var got = await readFn(cid);   // { data, updatedAt } 或 null
+    if (!got || !got.data) {
       _updateSyncStatus('LastPull', '雲端尚無此角色資料 (' + cid + ') ' + _formatTime(), '#94a3b8');
       return;
     }
 
+    // ★ 時間戳判斷：跟我手上的一樣 = 沒人改過（或就是我自己推的）→ 不動
+    //   不一樣（無論大小）= 別人改過 → 拉下來（防時鐘誤差，不用比大小）
+    if ((got.updatedAt || 0) === _cloudUpdatedAt) {
+      _updateSyncStatus('LastPull', '✓ 已最新 ' + _formatTime(), '#22c55e');
+      return;
+    }
+
     var parsed;
-    try { parsed = JSON.parse(jsonString); }
+    try { parsed = JSON.parse(got.data); }
     catch(e){
       _updateSyncStatus('LastPull', '❌ 解析失敗 ' + _formatTime(), '#ef4444');
       return;
@@ -1389,21 +1464,15 @@ async function _forcePullFromFirestore(silent){
       return;
     }
 
-    var oldJson = JSON.stringify(store || {});
-    var newJson = JSON.stringify(parsed);
-    if (oldJson === newJson) {
-      _updateSyncStatus('LastPull', '✓ 已最新 ' + _formatTime(), '#22c55e');
-      return;
-    }
-
-    await _tsSaveToIDB(parsed);
+    _cloudUpdatedAt = got.updatedAt || 0;
+    try { await _tsSaveToIDB(parsed); } catch(_){}
     store = parsed;
     if (store.currentIdx >= store.people.length) store.currentIdx = 0;
     chapters = store.people[store.currentIdx].chapters;
     renderAvatars();
     render();
     _captureEmergencyBaseline();
-    console.log('[training-sales] ⚡ 強力拉取：從雲端取得新資料（'+parsed.people.length+' 位新人），已更新 UI');
+    console.log('[training-sales] ⚡ 拉取：雲端有更新（'+parsed.people.length+' 位新人），已更新 UI');
     _updateSyncStatus('LastPull', '⬇️ 已更新 ' + parsed.people.length + ' 位新人 ' + _formatTime(), '#22c55e');
   } catch(e){
     console.error('[training-sales] forcePull 失敗', e);
@@ -1427,10 +1496,8 @@ window._manualSyncNow = async function(){
   await _forcePullFromFirestore(true);
 };
 
-// 啟動每 5 秒輪詢
+// 啟動每 5 秒輪詢（_initialPullDone 之前會自動跳過）
 setInterval(function(){ _forcePullFromFirestore(true); }, 5000);
-// 頁面開啟立刻拉一次
-setTimeout(function(){ _forcePullFromFirestore(false); }, 1500);
 
 // 星空
 (function(){
@@ -1552,6 +1619,17 @@ window.getTrainingReminders = function(){
 
 init();
 tlibLoad();
+
+// ★ 失效保險：不論如何，30 秒後一定掀開遮罩（避免任何意外卡住整頁）
+setTimeout(function(){
+  var ov = document.getElementById('cloudLoadOverlay');
+  if (ov){
+    _initialPullDone = true;
+    ov.style.transition = 'opacity .25s'; ov.style.opacity = '0';
+    setTimeout(function(){ try{ov.remove();}catch(_){} }, 260);
+    console.warn('[training-sales] 遮罩失效保險觸發（30s）');
+  }
+}, 30000);
 </script>
 <script src="./nav-home.js"></script>
 <script src="day-mode-init.js"></script>

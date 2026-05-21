@@ -105,9 +105,11 @@ const IDB_LIST = [
   // ★ v3：motiv_archive 從 localStorage 搬到這裡（避免 5MB quota）
   //   每個月份是一個 entry（key = '2026-04'），便於增量同步
   { dbName: 'MotivArchiveDB',       dbVer: 1, stores: ['archive'] },
-  // ★ v3：training_sales_v2 從 localStorage 搬到這裡（避免 5MB quota）
-  //   每個主角的訓練資料是一個 entry（key = charId），同主角跨裝置同步
-  { dbName: 'TrainingSalesDB',      dbVer: 1, stores: ['byCharacter'] },
+  // ★★★ 注意：TrainingSalesDB 已「移出」這個清單！
+  //   原因：業務訓練檢核表（training-sales.html）改用「直接路徑」同步
+  //         （users/applaud/training_sales_direct/<charId>），由 training-sales.html
+  //         自己管理拉取/推送。若這裡也同步，會變成「兩條路徑互相覆蓋」→ 昨天可以今天不行。
+  //   現在：TrainingSalesDB 的 IndexedDB 只當「本機離線快取」用，firebase-sync.js 完全不碰它。
   // ★ v3：AI 顧問中心的 pmemory（私聊記憶）從 LS 搬到這裡
   //   每個主角的 pmemory 是一個 entry（key = charId），陣列 of {id, feature, text, createdAt}
   { dbName: 'AiAdvisorDB',          dbVer: 1, stores: ['pmemory'] },
@@ -1886,21 +1888,27 @@ window.firebaseSync = {
     if (!fsDb) throw new Error('Firestore 還沒初始化');
     if (!charId) throw new Error('沒有 charId');
     var ref = fsDb.collection('users').doc('applaud').collection('training_sales_direct').doc(String(charId));
+    var ts = Date.now();
     await ref.set({
       data: String(jsonString || ''),
-      updatedAt: Date.now(),
+      updatedAt: ts,
       charId: String(charId)
     });
-    return { path: ref.path };
+    return { path: ref.path, updatedAt: ts };
   },
+  // ★ 一律從伺服器讀（source:'server'），不要吃本機 SDK cache —— 跨裝置同步必須拿到雲端真實版本
+  //   回傳物件 { data:<JSON字串>, updatedAt:<timestamp> }；沒有資料回 null
   readTrainingSalesDoc: async function(charId){
     if (!fsDb) throw new Error('Firestore 還沒初始化');
     if (!charId) throw new Error('沒有 charId');
     var ref = fsDb.collection('users').doc('applaud').collection('training_sales_direct').doc(String(charId));
-    var snap = await ref.get();
+    var snap;
+    try { snap = await ref.get({ source: 'server' }); }
+    catch(e){ snap = await ref.get(); }  // 離線時 fallback 吃 cache
     if (!snap.exists) return null;
     var d = snap.data();
-    return d ? (d.data || null) : null;  // 只回傳 data 字串
+    if (!d) return null;
+    return { data: d.data || null, updatedAt: d.updatedAt || 0 };
   }
 };
 
