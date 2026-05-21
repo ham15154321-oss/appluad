@@ -843,6 +843,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
     <div class="feature-card team" onclick="openChat('team')"><div class="fc-icon">📣</div><div class="fc-title">AI 團隊宣言</div><div class="fc-desc">公司知識庫，越餵越聰明</div></div>
     <div class="feature-card mentor" onclick="openChat('mentor')"><div class="fc-icon">🧠</div><div class="fc-title">AI 陪跑師</div><div class="fc-desc">芒格巴菲特思維，不灌雞湯</div></div>
     <div class="feature-card cases" onclick="openChat('cases')"><div class="fc-icon">📚</div><div class="fc-title">專業與變革要精益求精</div><div class="fc-desc">好/壞案例 + 精進 + 變革心態</div></div>
+    <div class="feature-card" onclick="openVoiceModal()" style="grid-column:1/-1;background:linear-gradient(135deg,rgba(91,157,255,.14),rgba(123,224,200,.12));border-color:rgba(123,224,200,.34);"><div class="fc-icon">🎙️</div><div class="fc-title">錄音轉摘要</div><div class="fc-desc">上傳會議錄音 → 自動逐字稿 + AI 摘要 → 存進知識庫、Telegram 通知你</div></div>
   </div>
 </div>
 
@@ -949,6 +950,56 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
     </div>
   </div>
   <div class="btn-row tk-btn-row"><button class="btn-cancel" onclick="closeModal('knowledgeModal')">取消</button><button class="btn-save" onclick="saveKnowledge()">儲存</button></div>
+</div></div>
+
+<!-- 🎙️ 錄音轉摘要 Modal -->
+<div class="add-modal-bg" id="voiceModal"><div class="add-modal" style="max-width:640px;">
+  <h3>🎙️ 錄音轉摘要</h3>
+  <div style="font-size:.76rem;color:rgba(180,200,240,.62);margin:-4px 0 14px;line-height:1.6;">
+    上傳錄音檔 → 自動轉逐字稿 → AI 摘要 → 存進知識庫（全公司共享）→ Telegram 通知你。<br>
+    全程在這個視窗自動完成，你只要選檔、按「開始處理」。
+  </div>
+  <div class="kb-grid">
+    <label>標題</label>
+    <input id="voiceTitle" class="tk-input" placeholder="例如：0521 營銷部週會">
+
+    <label>錄音檔</label>
+    <div>
+      <button type="button" class="tk-file-btn" onclick="document.getElementById('voiceFileInput').click()">📎 選擇音檔</button>
+      <input type="file" id="voiceFileInput" accept="audio/*,.m4a,.mp3,.wav,.ogg,.aac" style="display:none;" onchange="voicePickFile(this.files)">
+      <span class="tk-file-summary" id="voiceFileSummary" style="margin-left:8px;">尚未選擇檔案</span>
+      <div style="font-size:.7rem;color:rgba(180,200,240,.5);margin-top:6px;">支援 m4a / mp3 / wav / ogg。建議單檔 60 分鐘內，更長請先分段。</div>
+    </div>
+  </div>
+
+  <div id="voiceStatus" style="display:none;margin-top:16px;">
+    <div style="font-size:.8rem;color:#ffd700;margin-bottom:6px;" id="voiceStatusText">處理中…</div>
+    <div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;">
+      <div id="voiceProgBar" style="height:100%;width:0;background:linear-gradient(90deg,#5b9dff,#7be0c8);transition:width .4s;"></div>
+    </div>
+  </div>
+
+  <div id="voiceResult" style="display:none;margin-top:16px;">
+    <div style="font-size:.78rem;font-weight:700;color:#7be0c8;margin-bottom:4px;">📝 摘要</div>
+    <div id="voiceResultSummary" style="white-space:pre-wrap;font-size:.82rem;line-height:1.7;color:rgba(220,232,255,.92);background:rgba(10,16,38,.5);padding:12px;border-radius:10px;margin-bottom:10px;"></div>
+    <details>
+      <summary style="cursor:pointer;font-size:.78rem;color:rgba(180,200,240,.72);">📄 點開看完整逐字稿</summary>
+      <div id="voiceResultTranscript" style="white-space:pre-wrap;font-size:.78rem;line-height:1.7;color:rgba(200,215,240,.8);background:rgba(10,16,38,.5);padding:12px;border-radius:10px;margin-top:6px;max-height:40vh;overflow:auto;"></div>
+    </details>
+    <div style="font-size:.75rem;color:#7be0c8;margin-top:8px;">✅ 已存進知識庫，AI 顧問現在就能參考。</div>
+  </div>
+
+  <div class="btn-row tk-btn-row">
+    <button class="btn-cancel" onclick="closeModal('voiceModal')">關閉</button>
+    <button class="btn-save" id="voiceStartBtn" onclick="startVoiceProcess()" disabled>開始處理</button>
+  </div>
+</div></div>
+
+<!-- 📄 逐字稿檢視 Modal -->
+<div class="add-modal-bg" id="voiceViewModal"><div class="add-modal" style="max-width:680px;">
+  <h3 id="voiceViewTitle">📄 逐字稿</h3>
+  <div id="voiceViewBody" style="max-height:62vh;overflow:auto;white-space:pre-wrap;font-size:.82rem;line-height:1.8;color:rgba(220,232,255,.92);background:rgba(10,16,38,.5);padding:14px;border-radius:10px;"></div>
+  <div class="btn-row tk-btn-row"><button class="btn-cancel" onclick="closeModal('voiceViewModal')">關閉</button></div>
 </div></div>
 
 <!-- ===== 0b. 我要挑戰AI的論點 — 任意主角挑戰 AI 的回答，黃柏翰收到通知 ===== -->
@@ -3754,6 +3805,7 @@ function renderKnowledge(){
       + (tagsHtml ? '<div class="kb-tags">' + tagsHtml + '</div>' : '')
       + '<div class="kb-preview">' + esc(preview) + (it.content && it.content.length > 80 ? '...' : '') + '</div>'
       + '<div class="kb-actions">'
+      +   ((it.isVoiceNote && it.transcript) ? '<button class="kb-act" onclick="showVoiceTranscript(\''+it.id+'\')">📄 看逐字稿</button>' : '')
       +   '<button class="kb-act" onclick="openEditKnowledge(\''+it.id+'\')">✏️ 編輯</button>'
       +   '<button class="kb-act kb-del" onclick="delKnowledge(\''+it.id+'\')">🗑 刪除</button>'
       + '</div>'
@@ -3766,10 +3818,19 @@ function getKnowledgeBaseCtx(){
   var d = _loadKb();
   var enabled = (d.items || []).filter(function(it){ return it.enabled; });
   if (!enabled.length) return '';
+  // 一般文件全部帶入；錄音摘要只帶最近 40 筆（避免累積上百筆拖慢 AI、暴增 token）
+  // 錄音摘要的完整逐字稿（transcript 欄位）永遠不進 AI context，只有 content（摘要）會。
+  var VOICE_LIMIT = 40;
+  var docs = enabled.filter(function(it){ return !it.isVoiceNote; });
+  var voiceNotes = enabled.filter(function(it){ return it.isVoiceNote; });
+  voiceNotes.sort(function(a,b){ return (b.updatedAt||0) - (a.updatedAt||0); });
+  var voiceForCtx = voiceNotes.slice(0, VOICE_LIMIT);
+  var used = docs.concat(voiceForCtx);
   var parts = ['📚 知識庫 — 公司核心知識文件（全公司共享，啟用中文件，回答時優先參考這些知識）】'];
-  enabled.forEach(function(it){
+  used.forEach(function(it){
     var tags = (it.tags || []).length ? '（tags: ' + it.tags.join(', ') + '）' : '';
-    parts.push('\n━━━ 📄 ' + (it.title || '無標題') + tags + ' ━━━');
+    var icon = it.isVoiceNote ? '🎙️' : '📄';
+    parts.push('\n━━━ ' + icon + ' ' + (it.title || '無標題') + tags + ' ━━━');
     // 內容長度限制：每份文件最多 8000 字（避免單一文件吃掉太多 token）
     var content = it.content || '';
     if (content.length > 8000){
@@ -3777,6 +3838,9 @@ function getKnowledgeBaseCtx(){
     }
     parts.push(content);
   });
+  if (voiceNotes.length > VOICE_LIMIT){
+    parts.push('\n（註：另有 ' + (voiceNotes.length - VOICE_LIMIT) + ' 筆較早的錄音摘要未列出，使用者若問到較舊的錄音，請他到「知識庫」頁查閱。）');
+  }
   return parts.join('\n');
 }
 
@@ -3785,6 +3849,244 @@ document.addEventListener('DOMContentLoaded', function(){
   var ta = document.getElementById('kbContent');
   if (ta) ta.addEventListener('input', _kbUpdateWordCount);
 });
+
+// ══════ 🎙️ 錄音轉摘要 ══════
+// 流程：上傳音檔 → 瀏覽器降頻成 16kHz mono MP3 → Groq Whisper 轉逐字稿
+//       → Anthropic 出摘要 → 存成知識庫文件（content=摘要、transcript=逐字稿）
+//       → Telegram 通知。全部透過 anthropic-proxy Worker，金鑰不外洩。
+var _voiceFile = null;
+var _voiceBusy = false;
+var _lamePromise = null;
+
+// lamejs（MP3 編碼器）首次使用時才載入；多 CDN 備援，單一網址失效會自動換下一個
+function _ensureLame(){
+  if (typeof lamejs !== 'undefined') return Promise.resolve();
+  if (_lamePromise) return _lamePromise;
+  var urls = [
+    'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.0/lame.min.js',
+    'https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js',
+    'https://unpkg.com/lamejs@1.2.1/lame.min.js'
+  ];
+  _lamePromise = new Promise(function(resolve, reject){
+    var idx = 0;
+    function tryNext(){
+      if (idx >= urls.length){
+        _lamePromise = null;
+        reject(new Error('MP3 編碼器載入失敗，請檢查網路後再試'));
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = urls[idx++];
+      s.onload = function(){ (typeof lamejs !== 'undefined') ? resolve() : tryNext(); };
+      s.onerror = function(){ tryNext(); };
+      document.head.appendChild(s);
+    }
+    tryNext();
+  });
+  return _lamePromise;
+}
+
+function openVoiceModal(){
+  _voiceFile = null;
+  _voiceBusy = false;
+  document.getElementById('voiceTitle').value = '';
+  document.getElementById('voiceFileInput').value = '';
+  document.getElementById('voiceFileSummary').textContent = '尚未選擇檔案';
+  document.getElementById('voiceStatus').style.display = 'none';
+  document.getElementById('voiceResult').style.display = 'none';
+  document.getElementById('voiceStartBtn').disabled = true;
+  document.getElementById('voiceModal').classList.add('open');
+}
+
+function voicePickFile(files){
+  if (!files || !files.length) return;
+  var f = files[0];
+  _voiceFile = f;
+  var mb = f.size / 1024 / 1024;
+  document.getElementById('voiceFileSummary').textContent = '✅ ' + f.name + '（' + mb.toFixed(1) + ' MB）';
+  document.getElementById('voiceStartBtn').disabled = false;
+  var t = document.getElementById('voiceTitle');
+  if (!t.value.trim()) t.value = (f.name || '').replace(/\.[^.]+$/, '');
+  if (mb > 80){
+    document.getElementById('voiceFileSummary').textContent += ' ⚠️ 檔案偏大，若處理失敗請分段';
+  }
+}
+
+function _voiceSetStatus(msg, pct){
+  var s = document.getElementById('voiceStatus');
+  if (s) s.style.display = 'block';
+  var t = document.getElementById('voiceStatusText');
+  if (t) t.textContent = msg;
+  if (pct != null){
+    var bar = document.getElementById('voiceProgBar');
+    if (bar) bar.style.width = pct + '%';
+  }
+}
+
+// 音檔 → 16kHz mono → MP3 32kbps（讓檔案夠小、轉譯快）
+async function _voiceCompress(file, onProg){
+  var arrayBuf = await file.arrayBuffer();
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) throw new Error('此瀏覽器不支援音訊處理');
+  var ac = new AC();
+  var decoded;
+  try {
+    decoded = await ac.decodeAudioData(arrayBuf);
+  } catch(e){
+    throw new Error('音檔無法解碼，請確認格式（建議 m4a / mp3 / wav）');
+  } finally {
+    try{ ac.close(); }catch(_){}
+  }
+  var targetRate = 16000;
+  var frames = Math.max(1, Math.ceil(decoded.duration * targetRate));
+  var OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  var off = new OAC(1, frames, targetRate);
+  var src = off.createBufferSource();
+  src.buffer = decoded;
+  src.connect(off.destination);
+  src.start(0);
+  var rendered = await off.startRendering();
+  var ch = rendered.getChannelData(0);
+  var n = ch.length;
+  var samples = new Int16Array(n);
+  for (var i=0; i<n; i++){
+    var s = ch[i];
+    if (s > 1) s = 1; else if (s < -1) s = -1;
+    samples[i] = s < 0 ? (s * 0x8000) : (s * 0x7FFF);
+  }
+  if (typeof lamejs === 'undefined') throw new Error('MP3 編碼器未載入');
+  var enc = new lamejs.Mp3Encoder(1, targetRate, 32);
+  var block = 1152, mp3 = [], cnt = 0;
+  for (var j=0; j<n; j+=block){
+    var buf = enc.encodeBuffer(samples.subarray(j, j+block));
+    if (buf.length > 0) mp3.push(buf);
+    cnt++;
+    if (cnt % 400 === 0){
+      if (onProg) onProg(j / n);
+      await new Promise(function(r){ setTimeout(r, 0); });
+    }
+  }
+  var endBuf = enc.flush();
+  if (endBuf.length > 0) mp3.push(endBuf);
+  return { blob: new Blob(mp3, { type: 'audio/mpeg' }), durationSec: Math.round(decoded.duration) };
+}
+
+// 送 Groq Whisper 轉逐字稿
+async function _voiceTranscribe(mp3Blob){
+  var fd = new FormData();
+  fd.append('file', mp3Blob, 'audio.mp3');
+  fd.append('model', 'whisper-large-v3');
+  fd.append('language', 'zh');
+  fd.append('response_format', 'json');
+  var resp = await fetch(PROXY_BASE + '/groq/audio/transcriptions', { method: 'POST', body: fd });
+  if (!resp.ok){
+    var t = ''; try{ t = await resp.text(); }catch(_){}
+    throw new Error('轉譯失敗（' + resp.status + '）' + t.substring(0, 200));
+  }
+  var data = await resp.json();
+  return (data && data.text) || '';
+}
+
+// 送 Anthropic 出摘要
+async function _voiceSummarize(transcript){
+  var sys = '你是專業的會議記錄助理。使用者會給你一段語音逐字稿，請輸出結構化的繁體中文摘要：\n'
+    + '【一句話總結】用一句話講清楚這段內容在談什麼。\n'
+    + '【重點摘要】條列 3-8 個重點。\n'
+    + '【決議／待辦】若內容有決定事項或要做的事，條列出來並標註負責人（如有提到）；沒有就寫「無」。\n'
+    + '只輸出摘要本身，不要開場白或客套話。逐字稿可能有同音錯字，請依上下文合理判讀。';
+  var resp = await fetch(PROXY_BASE + '/v1/messages', { method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-opus-4-7', max_tokens: 1500, system: sys,
+      messages: [{ role: 'user', content: '以下是逐字稿：\n\n' + transcript }]
+    }) });
+  if (!resp.ok){
+    var t = ''; try{ t = await resp.text(); }catch(_){}
+    throw new Error('摘要失敗（' + resp.status + '）' + t.substring(0, 200));
+  }
+  var data = await resp.json();
+  return (data && data.content && data.content[0] && data.content[0].text) || '';
+}
+
+// Telegram 通知（失敗不中斷流程）
+async function _voiceNotify(text){
+  try {
+    await fetch(PROXY_BASE + '/telegram/send', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text }) });
+  } catch(e){
+    console.warn('[voice] Telegram 通知失敗', e);
+  }
+}
+
+async function startVoiceProcess(){
+  if (_voiceBusy || !_voiceFile) return;
+  _voiceBusy = true;
+  var startBtn = document.getElementById('voiceStartBtn');
+  startBtn.disabled = true;
+  document.getElementById('voiceResult').style.display = 'none';
+  var title = document.getElementById('voiceTitle').value.trim()
+    || ('錄音 ' + new Date().toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }));
+  try {
+    _voiceSetStatus('📦 載入編碼器…', 8);
+    await _ensureLame();
+    _voiceSetStatus('🎚️ 壓縮音檔中…', 15);
+    var comp = await _voiceCompress(_voiceFile, function(p){
+      _voiceSetStatus('🎚️ 壓縮音檔中… ' + Math.round(p*100) + '%', 15 + Math.round(p*23));
+    });
+    var mb = comp.blob.size / 1024 / 1024;
+    if (mb > 24){
+      throw new Error('壓縮後仍有 ' + mb.toFixed(1) + 'MB，超過上限。請把錄音分段成 60 分鐘內再上傳。');
+    }
+    _voiceSetStatus('✍️ 語音轉文字中（Groq Whisper，請稍候）…', 45);
+    var transcript = await _voiceTranscribe(comp.blob);
+    if (!transcript || !transcript.trim()){
+      throw new Error('轉譯結果是空白的，請確認這個錄音檔有聲音。');
+    }
+    _voiceSetStatus('🧠 AI 摘要中…', 72);
+    var summary = await _voiceSummarize(transcript);
+    if (!summary || !summary.trim()) summary = '（摘要產生失敗，請點開下方逐字稿查看內容）';
+    _voiceSetStatus('💾 存入知識庫…', 88);
+    var now = Date.now();
+    var d = _loadKb();
+    d.items.push({
+      id: 'kb_' + now,
+      title: '🎙️ ' + title,
+      tags: ['錄音摘要'],
+      content: summary,        // ★ AI 自動參考的是這個（短）
+      transcript: transcript,  // ★ 完整逐字稿，不進 AI context
+      isVoiceNote: true,
+      durationSec: comp.durationSec,
+      enabled: true,
+      size: summary.length,
+      createdAt: now,
+      updatedAt: now
+    });
+    _saveKb(d);
+    try{ renderKnowledge(); }catch(_){}
+    _voiceSetStatus('📲 發送 Telegram 通知…', 95);
+    await _voiceNotify('✅ 錄音處理完成\n📌 ' + title + '\n\n' + summary);
+    _voiceSetStatus('✅ 完成！已存進知識庫，AI 顧問現在就能參考。', 100);
+    document.getElementById('voiceResult').style.display = 'block';
+    document.getElementById('voiceResultSummary').textContent = summary;
+    document.getElementById('voiceResultTranscript').textContent = transcript;
+  } catch(e){
+    console.error('[voice] 處理失敗', e);
+    _voiceSetStatus('❌ ' + (e && e.message || e), null);
+  }
+  _voiceBusy = false;
+  startBtn.disabled = false;
+}
+
+// 從知識庫項目檢視完整逐字稿
+function showVoiceTranscript(id){
+  var d = _loadKb();
+  var it = (d.items || []).find(function(x){ return x.id === id; });
+  if (!it) return;
+  document.getElementById('voiceViewTitle').textContent = '📄 ' + (it.title || '逐字稿');
+  document.getElementById('voiceViewBody').textContent = it.transcript || '（這筆沒有逐字稿）';
+  document.getElementById('voiceViewModal').classList.add('open');
+}
 
 // ══════ 案例資料庫 ══════
 var caseFilter='all';

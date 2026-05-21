@@ -4,8 +4,9 @@
 // 前端打 https://<your-worker>.workers.dev/v1/...，proxy 轉發到 api.anthropic.com。
 //
 // 支援：
-//   - 任何 endpoint（/v1/messages、/v1/models、/v1/messages/batches…）
-//   - SSE 串流（streaming 回應自動 pass-through）
+//   - /v1/*       → Anthropic API（/v1/messages 等，含 SSE 串流）
+//   - /groq/*     → Groq API（語音轉文字 Whisper），key 用 GROQ_API_KEY secret
+//   - /telegram/send → Telegram Bot 通知，用 TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID secret
 //   - CORS preflight + origin 白名單
 // ------------------------------------------------------------
 
@@ -110,7 +111,163 @@ export default {
     // 3) 健康檢查
     const url = new URL(request.url);
     if (url.pathname === '/' || url.pathname === '/healthz') {
-      return jsonResponse({ ok: true, proxy: 'anthropic' }, 200, cors);
+      return jsonResponse({ ok: true, proxy: 'anthropic+groq+telegram' }, 200, cors);
+    }
+
+    // ── Groq 轉發（語音轉文字 Whisper）─────────────────────
+    //   前端打 /groq/audio/transcriptions → 轉發到 Groq 的 OpenAI 相容端點。
+    //   GROQ_API_KEY 只存在 Worker secret，前端永遠看不到。
+    if (url.pathname.startsWith('/groq/')) {
+      if (!env.GROQ_API_KEY) {
+        return jsonResponse(
+          { error: { type: 'config_error', message: 'GROQ_API_KEY not set on worker' } },
+          500, cors,
+        );
+      }
+      const groqUrl =
+        'https://api.groq.com/openai/v1' +
+        url.pathname.replace(/^\/groq/, '') +
+        url.search;
+      const gHeaders = new Headers();
+      const ct = request.headers.get('content-type');
+      if (ct) gHeaders.set('content-type', ct);
+      gHeaders.set('authorization', 'Bearer ' + env.GROQ_API_KEY);
+      let gBody;
+      try {
+        gBody = ['GET', 'HEAD'].includes(request.method)
+          ? undefined
+          : await request.arrayBuffer();
+      } catch (err) {
+        return jsonResponse(
+          { error: { type: 'bad_request', message: 'cannot read body: ' + String(err) } },
+          400, cors,
+        );
+      }
+      let gResp;
+      try {
+        gResp = await fetch(groqUrl, {
+          method: request.method,
+          headers: gHeaders,
+          body: gBody,
+        });
+      } catch (err) {
+        return jsonResponse(
+          { error: { type: 'upstream_error', message: String(err) } },
+          502, cors,
+        );
+      }
+      const gRespHeaders = new Headers(gResp.headers);
+      for (const [k, v] of Object.entries(cors)) gRespHeaders.set(k, v);
+      gRespHeaders.delete('content-encoding');
+      gRespHeaders.delete('content-length');
+      return new Response(gResp.body, {
+        status: gResp.status,
+        statusText: gResp.statusText,
+        headers: gRespHeaders,
+      });
+    }
+
+    // ── 取得 chat id 小工具（設定用）──────────────────────
+    //   用法：先在 Telegram 跟自己的 bot 傳一句話，再用瀏覽器打開
+    //   https://<worker>/telegram/chatid，就會看到 chat_id。
+    if (url.pathname === '/telegram/chatid') {
+      if (!env.TELEGRAM_BOT_TOKEN) {
+        return jsonResponse(
+          { error: { type: 'config_error', message: 'TELEGRAM_BOT_TOKEN not set on worker' } },
+          500, cors,
+        );
+      }
+      let updData;
+      try {
+        const updResp = await fetch(
+          'https://api.telegram.org/bot' + env.TELEGRAM_BOT_TOKEN + '/getUpdates',
+        );
+        updData = await updResp.json();
+      } catch (err) {
+        return jsonResponse(
+          { error: { type: 'upstream_error', message: String(err) } },
+          502, cors,
+        );
+      }
+      const chats = {};
+      ((updData && updData.result) || []).forEach((u) => {
+        const m = u.message || u.edited_message || u.channel_post;
+        if (m && m.chat) {
+          chats[m.chat.id] = {
+            chat_id: m.chat.id,
+            type: m.chat.type,
+            name: [m.chat.first_name, m.chat.last_name, m.chat.title, m.chat.username]
+              .filter(Boolean).join(' '),
+          };
+        }
+      });
+      const found = Object.values(chats);
+      const tgOk = !!(updData && updData.ok);
+      let note;
+      if (found.length) {
+        note = '成功！把 found 裡的 chat_id 數字設成 TELEGRAM_CHAT_ID。';
+      } else if (!tgOk) {
+        note = 'Worker 裡的 TELEGRAM_BOT_TOKEN 無效，或不是你要用的那隻 bot。請用 BotFather 拿正確 token 重設。';
+      } else {
+        note = 'token 正常，但還沒收到任何訊息。請打開你 bot 的對話、按 START、傳一句話，再重整此頁。';
+      }
+      return jsonResponse({
+        ok: true,
+        telegram_ok: tgOk,
+        telegram_error: tgOk ? null : ((updData && (updData.description || updData.error_code)) || 'unknown'),
+        found: found,
+        note: note,
+      }, 200, cors);
+    }
+
+    // ── Telegram 轉發（處理完成通知）──────────────────────
+    //   前端打 POST /telegram/send  body: {"text":"..."}
+    //   TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID 只存在 Worker secret。
+    if (url.pathname === '/telegram/send') {
+      if (request.method !== 'POST') {
+        return jsonResponse(
+          { error: { type: 'method_not_allowed', message: 'POST only' } },
+          405, cors,
+        );
+      }
+      if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
+        return jsonResponse(
+          { error: { type: 'config_error', message: 'TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set on worker' } },
+          500, cors,
+        );
+      }
+      let payload = {};
+      try { payload = await request.json(); } catch (e) { payload = {}; }
+      const text = String((payload && payload.text) || '').slice(0, 4000);
+      if (!text) {
+        return jsonResponse(
+          { error: { type: 'bad_request', message: 'text required' } },
+          400, cors,
+        );
+      }
+      let tgResp;
+      try {
+        tgResp = await fetch(
+          'https://api.telegram.org/bot' + env.TELEGRAM_BOT_TOKEN + '/sendMessage',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: env.TELEGRAM_CHAT_ID,
+              text: text,
+              disable_web_page_preview: true,
+            }),
+          },
+        );
+      } catch (err) {
+        return jsonResponse(
+          { error: { type: 'upstream_error', message: String(err) } },
+          502, cors,
+        );
+      }
+      let tgData = {};
+      try { tgData = await tgResp.json(); } catch (e) { tgData = { ok: false }; }
+      return jsonResponse(tgData, tgResp.status, cors);
     }
 
     // 4) 只允許轉發 /v1/* 路徑（避免 proxy 變成開放轉發器）
