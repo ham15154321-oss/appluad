@@ -529,6 +529,15 @@ body.day-mode .tk-file-btn:hover{
 }
 body.day-mode .tk-file-summary{color:#8070a0;}
 
+/* 錄音轉摘要 modal 文字 — 日夜兩用，白天模式改深色才看得清楚 */
+.voice-sub{font-size:.76rem;color:rgba(180,200,240,.62);line-height:1.6;}
+.voice-hint{font-size:.7rem;color:rgba(180,200,240,.5);margin-top:6px;}
+.voice-box{background:rgba(10,16,38,.5);color:rgba(220,232,255,.92);}
+body.day-mode .kb-grid > label{color:#3a2a4c;}
+body.day-mode .voice-sub{color:#5a4a72;}
+body.day-mode .voice-hint{color:#6a5a82;}
+body.day-mode .voice-box{background:#f4f0fa;color:#2a1f3d;}
+
 /* ════════ 知識庫 ════════ */
 .kb-modal{max-width:760px;max-height:90vh;overflow-y:auto;}
 .kb-grid{display:grid;grid-template-columns:80px 1fr;gap:10px 14px;align-items:flex-start;font-size:.85rem;}
@@ -955,7 +964,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
 <!-- 🎙️ 錄音轉摘要 Modal -->
 <div class="add-modal-bg" id="voiceModal"><div class="add-modal" style="max-width:640px;">
   <h3>🎙️ 錄音轉摘要</h3>
-  <div style="font-size:.76rem;color:rgba(180,200,240,.62);margin:-4px 0 14px;line-height:1.6;">
+  <div class="voice-sub" style="margin:-4px 0 14px;">
     上傳錄音檔 → 自動轉逐字稿 → AI 摘要 → 存進知識庫（全公司共享）→ Telegram 通知你。<br>
     全程在這個視窗自動完成，你只要選檔、按「開始處理」。
   </div>
@@ -968,7 +977,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
       <button type="button" class="tk-file-btn" onclick="document.getElementById('voiceFileInput').click()">📎 選擇音檔</button>
       <input type="file" id="voiceFileInput" accept="audio/*,.m4a,.mp3,.wav,.ogg,.aac" style="display:none;" onchange="voicePickFile(this.files)">
       <span class="tk-file-summary" id="voiceFileSummary" style="margin-left:8px;">尚未選擇檔案</span>
-      <div style="font-size:.7rem;color:rgba(180,200,240,.5);margin-top:6px;">支援 m4a / mp3 / wav / ogg。建議單檔 60 分鐘內，更長請先分段。</div>
+      <div class="voice-hint">支援 m4a / mp3 / wav / ogg。建議單檔 60 分鐘內，更長請先分段。</div>
     </div>
   </div>
 
@@ -981,10 +990,10 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
 
   <div id="voiceResult" style="display:none;margin-top:16px;">
     <div style="font-size:.78rem;font-weight:700;color:#7be0c8;margin-bottom:4px;">📝 摘要</div>
-    <div id="voiceResultSummary" style="white-space:pre-wrap;font-size:.82rem;line-height:1.7;color:rgba(220,232,255,.92);background:rgba(10,16,38,.5);padding:12px;border-radius:10px;margin-bottom:10px;"></div>
+    <div id="voiceResultSummary" class="voice-box" style="white-space:pre-wrap;font-size:.82rem;line-height:1.7;padding:12px;border-radius:10px;margin-bottom:10px;"></div>
     <details>
-      <summary style="cursor:pointer;font-size:.78rem;color:rgba(180,200,240,.72);">📄 點開看完整逐字稿</summary>
-      <div id="voiceResultTranscript" style="white-space:pre-wrap;font-size:.78rem;line-height:1.7;color:rgba(200,215,240,.8);background:rgba(10,16,38,.5);padding:12px;border-radius:10px;margin-top:6px;max-height:40vh;overflow:auto;"></div>
+      <summary class="voice-sub" style="cursor:pointer;">📄 點開看完整逐字稿</summary>
+      <div id="voiceResultTranscript" class="voice-box" style="white-space:pre-wrap;font-size:.78rem;line-height:1.7;padding:12px;border-radius:10px;margin-top:6px;max-height:40vh;overflow:auto;"></div>
     </details>
     <div style="font-size:.75rem;color:#7be0c8;margin-top:8px;">✅ 已存進知識庫，AI 顧問現在就能參考。</div>
   </div>
@@ -998,7 +1007,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
 <!-- 📄 逐字稿檢視 Modal -->
 <div class="add-modal-bg" id="voiceViewModal"><div class="add-modal" style="max-width:680px;">
   <h3 id="voiceViewTitle">📄 逐字稿</h3>
-  <div id="voiceViewBody" style="max-height:62vh;overflow:auto;white-space:pre-wrap;font-size:.82rem;line-height:1.8;color:rgba(220,232,255,.92);background:rgba(10,16,38,.5);padding:14px;border-radius:10px;"></div>
+  <div id="voiceViewBody" class="voice-box" style="max-height:62vh;overflow:auto;white-space:pre-wrap;font-size:.82rem;line-height:1.8;padding:14px;border-radius:10px;"></div>
   <div class="btn-row tk-btn-row"><button class="btn-cancel" onclick="closeModal('voiceViewModal')">關閉</button></div>
 </div></div>
 
