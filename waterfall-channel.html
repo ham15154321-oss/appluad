@@ -77,7 +77,8 @@ select.tin{cursor:pointer;}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px;}
 .modal-bg.open{display:flex;}
 .modal{background:#fff;border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;max-height:86vh;overflow-y:auto;padding:20px;box-shadow:0 12px 48px rgba(0,0,0,0.2);}
-.modal.max{max-width:none;width:96vw;height:92vh;max-height:92vh;}
+.modal.max{max-width:none;width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;}
+.modal.max textarea.tin{min-height:64vh;}
 .modal h3{font-size:16px;color:#1d1d1f;margin-bottom:12px;}
 .modal-body{font-size:13px;color:#1d1d1f;line-height:1.8;white-space:pre-wrap;}
 .pick-item{border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;}
@@ -200,10 +201,7 @@ select.tin{cursor:pointer;}
 <!-- 🎙️ 錄音轉摘要 modal -->
 <div class="modal-bg" id="voiceModal">
   <div class="modal" id="voiceModalBox" style="max-width:760px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <h3 style="margin:0;">🎙️ 錄音轉摘要</h3>
-      <button class="btn" onclick="toggleVoiceMax()">⛶ 放大／縮小</button>
-    </div>
+    <h3>🎙️ 錄音轉摘要</h3>
     <div class="voice-sub" style="margin-bottom:12px;">上傳錄音 → 逐字稿 + AI 摘要 → 存進案例（與 AI 顧問共用）。可一次選多個檔,設定好就能離開。</div>
     <div class="edit-row"><label>標題</label><input id="voiceTitle" class="tin" placeholder="例如：0521 約訪通話"></div>
     <div class="edit-row"><label>存到</label><select id="voiceDest" class="tin">
@@ -753,8 +751,8 @@ function _voiceRenderEditPanel(){
   p.units.forEach(function(u,idx){
     html+='<div style="margin-bottom:12px;padding:8px;border:1px solid #d2d2d7;border-radius:8px;">';
     if(p.units.length>1) html+='<div class="voice-sub" style="font-weight:700;margin-bottom:4px;">第 '+(idx+1)+' 筆</div>';
-    html+='<input id="voiceEditTitle_'+idx+'" class="tin" style="margin-bottom:6px;" value="'+escAttr(u.title||'')+'">';
-    html+='<textarea id="voiceEditText_'+idx+'" class="tin" style="min-height:200px;">'+esc(u.body||'')+'</textarea></div>';
+    html+='<div style="display:flex;gap:8px;margin-bottom:6px;"><input id="voiceEditTitle_'+idx+'" class="tin" style="flex:1;min-width:0;" value="'+escAttr(u.title||'')+'"><button class="btn" onclick="toggleVoiceMax()">⛶ 放大／縮小</button></div>';
+    html+='<textarea id="voiceEditText_'+idx+'" class="tin" style="min-height:240px;">'+esc(u.body||'')+'</textarea></div>';
   });
   html+='<button class="btn green" style="width:100%;padding:10px;" onclick="voiceSaveEdited()">💾 儲存</button>';
   document.getElementById('voiceResultBody').innerHTML=html;
