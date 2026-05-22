@@ -858,7 +858,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
     <div class="feature-card data" onclick="openChat('data')"><div class="fc-icon">📊</div><div class="fc-title">AI 數據通</div><div class="fc-desc">業績通路排名深度分析</div></div>
     <div class="feature-card task" onclick="openChat('task')"><div class="fc-icon">✅</div><div class="fc-title">AI 小任務</div><div class="fc-desc">自動指派可執行的小任務</div></div>
     <div class="feature-card team" onclick="openChat('team')"><div class="fc-icon">📣</div><div class="fc-title">AI 團隊宣言</div><div class="fc-desc">公司知識庫，越餵越聰明</div></div>
-    <div class="feature-card mentor" onclick="openChat('mentor')"><div class="fc-icon">🧠</div><div class="fc-title">AI 陪跑師</div><div class="fc-desc">芒格巴菲特思維，不灌雞湯</div></div>
+    <div class="feature-card mentor" onclick="openChat('mentor')"><div class="fc-icon">🧠</div><div class="fc-title">A通路研究院</div><div class="fc-desc">芒格巴菲特思維，不灌雞湯</div></div>
     <div class="feature-card cases" onclick="openChat('cases')"><div class="fc-icon">📚</div><div class="fc-title">專業與變革要精益求精</div><div class="fc-desc">好/壞案例 + 精進 + 變革心態</div></div>
     <div class="feature-card" onclick="openVoiceModal()" style="grid-column:1/-1;background:linear-gradient(135deg,rgba(91,157,255,.14),rgba(123,224,200,.12));border-color:rgba(123,224,200,.34);"><div class="fc-icon">🎙️</div><div class="fc-title">錄音轉摘要</div><div class="fc-desc">上傳會議錄音 → 自動逐字稿 + AI 摘要 → 存進知識庫、Telegram 通知你</div></div>
   </div>
@@ -1125,7 +1125,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
     <option value="data">📊 AI 數據通</option>
     <option value="task">✅ AI 小任務</option>
     <option value="team">📣 AI 團隊宣言</option>
-    <option value="mentor">🧠 AI 陪跑師</option>
+    <option value="mentor">🧠 A通路研究院</option>
     <option value="cases">📚 專業與變革要精益求精</option>
     <option value="other">🤷 其他/不確定</option>
   </select>
@@ -1144,7 +1144,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
 <div class="add-modal-bg" id="pmemoryModal"><div class="add-modal add-modal--lg">
   <h3>＋ 新增個人記憶（只有你自己看得到）</h3>
   <div class="meta">
-    <span class="hint">這條記憶會自動帶入所有 AI 功能（教練/數據通/小任務/團隊宣言/陪跑師/精益求精）的對話。寫越具體 AI 越懂你。</span>
+    <span class="hint">這條記憶會自動帶入所有 AI 功能（教練/數據通/小任務/團隊宣言/A通路研究院/精益求精）的對話。寫越具體 AI 越懂你。</span>
     <span class="count" id="pmemoryCount">0 字</span>
   </div>
   <select id="pmemoryFeature" style="margin-bottom:8px;">
@@ -1153,7 +1153,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
     <option value="data">📊 AI 數據通</option>
     <option value="tasks">✅ AI 小任務</option>
     <option value="declaration">📣 AI 團隊宣言</option>
-    <option value="mentor">🧠 AI 陪跑師</option>
+    <option value="mentor">🧠 A通路研究院</option>
     <option value="cases">📚 專業與變革要精益求精</option>
   </select>
   <textarea id="pmemoryText" placeholder="例：我這組目前最大的痛點是面談率只有 35%，主要卡在 ... 我希望 AI 之後的建議都圍繞「先把面談率拉到 60%」展開。" oninput="document.getElementById('pmemoryCount').textContent=this.value.length+' 字'"></textarea>
@@ -1349,9 +1349,9 @@ var FEATURES={
     system:'你是赫綵設計學院企業知識庫AI。了解公司文化和運作。\n\n回答時必須參考「團隊鐵律」，同時也可以調動評分、業績、案例等資料來讓回答更有說服力。當使用者提供新資訊時記住它。回答用繁體中文。' + GOLDEN_CIRCLE + CLARIFY_FIRST_BEHAVIOR + LINE_STYLE + SHARED_PRINCIPLES,
     greeting:'你好！我是 AI 團隊宣言 📣\n\n我會參考鐵律和所有資料來回答。問我公司問題或提供新資訊！\n\n💬 抽象問題（例如「我們價值觀是什麼」）我會先用 ❓ 反問你想用在什麼場景再答。',
     suggestions:['核心價值是什麼？','結合數據寫團隊宣言','新人須知']},
-  mentor:{title:'AI 陪跑師',icon:'🧠',color:'#ff6b6b',
+  mentor:{title:'A通路研究院',icon:'🧠',color:'#ff6b6b',
     system:'你融合芒格、巴菲特、洛克斐勒、富蘭克林、柯維、馬斯克的思維。不說大道理不灌雞湯，只給現實可執行方案。\n\n你應該調動所有可用的數據（評分、業績、案例、鐵律）來讓建議更接地氣、更有針對性，而不是只給通用建議。回答用繁體中文。' + GOLDEN_CIRCLE + CLARIFY_FIRST_BEHAVIOR + LINE_STYLE + SHARED_PRINCIPLES,
-    greeting:'你好，我是 AI 陪跑師 🧠\n\n我會結合你的實際數據來給建議，不灌雞湯。告訴我你的問題。\n\n💬 我會主動察覺你的盲點 — 如果發現你問錯方向或漏了重要前提，會用 ❓ 反問釐清。',
+    greeting:'你好，我是 A通路研究院 🧠\n\n我會結合你的實際數據來給建議，不灌雞湯。告訴我你的問題。\n\n💬 我會主動察覺你的盲點 — 如果發現你問錯方向或漏了重要前提，會用 ❓ 反問釐清。',
     suggestions:['年度成長計畫','結合數據分析突破口','團隊管理瓶頸']},
   cases:{title:'專業與變革要精益求精',icon:'📚',color:'#ffa726',
     system:'你是赫綵設計學院的「專業精進與變革教練」。核心信念：「專業與變革，永遠要精益求精」。\n\n你的兩個並重職責：\n1️⃣ 批判性分析案例（好/壞/踩過的坑）— 📗好案例 → 做對什麼 → 為什麼可以再更精準 → 怎麼複製給組員。📕壞案例/踩過的坑 → 根因 → 如何避免重蹈覆轍 → 還能怎麼進階。\n2️⃣ 推動專業精進與變革心態 — 不容許「現在這樣就夠了」、「以前就這樣做」的思維。看到舒適圈、習慣慣性、固化流程 → 主動指出，並提出「下一個版本可以怎麼更好」。\n\n你應該參考「案例資料庫」中的既有案例，同時調動評分、業績、鐵律等資料來讓分析更深入。每次分析案例都要連結到真實數據 + 提出「精進方向」與「需要打破的舊框架」。\n\n語氣特色：直接、不灌雞湯、但永遠相信「還能更好」。每次回答結尾加「📋 下一個版本可以怎麼更精」區塊（2-3 個具體升級方向）。回答用繁體中文。' + GOLDEN_CIRCLE + CLARIFY_FIRST_BEHAVIOR + LINE_STYLE + SHARED_PRINCIPLES,
@@ -2010,7 +2010,7 @@ function getPmemoryCtx(){
     if(!arr.length) return '';
     var name=localStorage.getItem('activeCharacterName')||'主角';
     var l=['🔐 個人私聊記憶 — 主角【'+name+'】專屬，請以此為對話的優先參考依據】'];
-    var FEAT={manual:'📝一般',cards:'🎯教練',data:'📊數據通',tasks:'✅小任務',declaration:'📣宣言',mentor:'🧠陪跑師',cases:'📚精益求精'};
+    var FEAT={manual:'📝一般',cards:'🎯教練',data:'📊數據通',tasks:'✅小任務',declaration:'📣宣言',mentor:'🧠A通路研究院',cases:'📚精益求精'};
     arr.slice().sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);}).forEach(function(x){
       var f=FEAT[x.feature]||'📝';
       var d=x.createdAt?new Date(x.createdAt).toLocaleDateString('zh-TW'):'';
@@ -2444,7 +2444,7 @@ function clearChatHistory(){
   if (!curFeature) return;
   var f = FEATURES[curFeature];
   var msg = '確定清除「'+f.title+'」的所有對話歷史嗎？\n\n'+
-            '⚠️ 此動作無法還原。其他顧問（教練/數據通/小任務/宣言/陪跑師/案例庫）的對話不受影響。';
+            '⚠️ 此動作無法還原。其他顧問（教練/數據通/小任務/宣言/A通路研究院/案例庫）的對話不受影響。';
   if (!confirm(msg)) return;
   _clearChatHist(curFeature);
   // 重新開啟（會走 first-time 路徑顯示 greeting）
@@ -4347,7 +4347,7 @@ function openCaseDetail(id){
   document.getElementById('caseDetailModal').classList.add('open');
 }
 // ══════ 🔐 個人私聊資料庫 ══════
-var FEAT_LABEL={manual:'📝 一般',cards:'🎯 教練',data:'📊 數據通',tasks:'✅ 小任務',declaration:'📣 宣言',mentor:'🧠 陪跑師',cases:'📚 案例庫'};
+var FEAT_LABEL={manual:'📝 一般',cards:'🎯 教練',data:'📊 數據通',tasks:'✅ 小任務',declaration:'📣 宣言',mentor:'🧠 A通路研究院',cases:'📚 案例庫'};
 
 function openAddPmemory(){
   document.getElementById('pmemoryText').value='';
@@ -4388,7 +4388,7 @@ function renderPmemory(){
 
   var el=document.getElementById('pmemoryBody');
   if(!arr.length){
-    el.innerHTML='<div class="panel-empty">🔐 尚無記憶<br>新增記憶後，所有 AI 功能（教練/數據通/小任務/團隊宣言/陪跑師/案例庫）都會自動參考你的記憶來回答。<br><br><span style="font-size:.78rem;opacity:.7;">你可以記錄：個人風格偏好、目前痛點、組員特性、想聚焦的目標、AI 之前說過的金句等等。</span></div>';
+    el.innerHTML='<div class="panel-empty">🔐 尚無記憶<br>新增記憶後，所有 AI 功能（教練/數據通/小任務/團隊宣言/A通路研究院/案例庫）都會自動參考你的記憶來回答。<br><br><span style="font-size:.78rem;opacity:.7;">你可以記錄：個人風格偏好、目前痛點、組員特性、想聚焦的目標、AI 之前說過的金句等等。</span></div>';
     return;
   }
   // 排序：最新在前
@@ -4565,7 +4565,7 @@ function renderAiError(){
     return (b.reportedAt||0) - (a.reportedAt||0);
   });
 
-  var FEAT_NAMES = { coach:'🎯 教練', data:'📊 數據通', task:'✅ 小任務', team:'📣 宣言', mentor:'🧠 陪跑師', cases:'📚 案例庫', other:'🤷 其他' };
+  var FEAT_NAMES = { coach:'🎯 教練', data:'📊 數據通', task:'✅ 小任務', team:'📣 宣言', mentor:'🧠 A通路研究院', cases:'📚 案例庫', other:'🤷 其他' };
 
   visible.forEach(function(r){
     var date = r.reportedAt ? new Date(r.reportedAt).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
