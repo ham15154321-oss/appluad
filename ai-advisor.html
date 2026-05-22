@@ -970,7 +970,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
 </div></div>
 
 <!-- 🎙️ 錄音轉摘要 Modal -->
-<div class="add-modal-bg" id="voiceModal"><div class="add-modal" style="max-width:640px;">
+<div class="add-modal-bg" id="voiceModal"><div class="add-modal" style="max-width:640px;max-height:88vh;overflow-y:auto;">
   <h3>🎙️ 錄音轉摘要</h3>
   <div class="voice-sub" style="margin:-4px 0 14px;">
     上傳錄音檔 → 自動轉逐字稿 + AI 摘要 → 存到你選的位置 → Telegram 通知你（含完成文字）。<br>
@@ -3881,7 +3881,24 @@ document.addEventListener('DOMContentLoaded', function(){
 //   多檔可選「合併成一個案例」或「各自獨立成多個案例」。
 var _voiceFiles = [];
 var _voiceBusy = false;
+var _voicePending = null;   // 轉譯完、尚未儲存的結果 {dest, units}
 var _lamePromise = null;
+
+// 帶 timeout 的 fetch — API 沒回應時不會無限卡住
+function _voiceFetch(url, opts, ms){
+  var ctrl = new AbortController();
+  var to = setTimeout(function(){ try{ ctrl.abort(); }catch(_){} }, ms || 240000);
+  opts = opts || {};
+  opts.signal = ctrl.signal;
+  return fetch(url, opts).then(
+    function(r){ clearTimeout(to); return r; },
+    function(e){
+      clearTimeout(to);
+      if (e && e.name === 'AbortError') throw new Error('連線逾時（超過 ' + Math.round((ms||240000)/1000) + ' 秒沒回應），請再試一次');
+      throw e;
+    }
+  );
+}
 
 // lamejs（MP3 編碼器）首次使用時才載入；多 CDN 備援，單一網址失效會自動換下一個
 function _ensureLame(){
@@ -3912,6 +3929,13 @@ function _ensureLame(){
 }
 
 function openVoiceModal(){
+  document.getElementById('voiceModal').classList.add('open');
+  // 有尚未儲存的轉譯結果 → 直接還原編輯面板，不要洗掉
+  if (_voicePending && _voicePending.units && _voicePending.units.length){
+    document.getElementById('voiceStatus').style.display = 'none';
+    _voiceRenderEditPanel();
+    return;
+  }
   _voiceFiles = [];
   _voiceBusy = false;
   document.getElementById('voiceTitle').value = '';
@@ -3922,7 +3946,6 @@ function openVoiceModal(){
   document.getElementById('voiceStatus').style.display = 'none';
   document.getElementById('voiceResult').style.display = 'none';
   document.getElementById('voiceStartBtn').disabled = true;
-  document.getElementById('voiceModal').classList.add('open');
 }
 
 function voicePickFiles(files){
@@ -4006,7 +4029,7 @@ async function _voiceTranscribe(mp3Blob){
   fd.append('model', 'whisper-large-v3');
   fd.append('language', 'zh');
   fd.append('response_format', 'json');
-  var resp = await fetch(PROXY_BASE + '/groq/audio/transcriptions', { method: 'POST', body: fd });
+  var resp = await _voiceFetch(PROXY_BASE + '/groq/audio/transcriptions', { method: 'POST', body: fd }, 240000);
   if (!resp.ok){
     var t = ''; try{ t = await resp.text(); }catch(_){}
     throw new Error('轉譯失敗（' + resp.status + '）' + t.substring(0, 200));
@@ -4022,12 +4045,12 @@ async function _voiceSummarize(transcript){
     + '【重點摘要】條列 3-8 個重點。\n'
     + '【決議／待辦】若內容有決定事項或要做的事，條列出來並標註負責人（如有提到）；沒有就寫「無」。\n'
     + '只輸出摘要本身，不要開場白或客套話。逐字稿可能有同音錯字，請依上下文合理判讀。';
-  var resp = await fetch(PROXY_BASE + '/v1/messages', { method: 'POST',
+  var resp = await _voiceFetch(PROXY_BASE + '/v1/messages', { method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-opus-4-7', max_tokens: 1500, system: sys,
       messages: [{ role: 'user', content: '以下是逐字稿：\n\n' + transcript }]
-    }) });
+    }) }, 180000);
   if (!resp.ok){
     var t = ''; try{ t = await resp.text(); }catch(_){}
     throw new Error('摘要失敗（' + resp.status + '）' + t.substring(0, 200));
@@ -4039,9 +4062,9 @@ async function _voiceSummarize(transcript){
 // Telegram 通知（失敗不中斷流程）
 async function _voiceNotify(text){
   try {
-    await fetch(PROXY_BASE + '/telegram/send', { method: 'POST',
+    await _voiceFetch(PROXY_BASE + '/telegram/send', { method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text }) });
+      body: JSON.stringify({ text: text }) }, 30000);
   } catch(e){
     console.warn('[voice] Telegram 通知失敗', e);
   }
@@ -4060,31 +4083,31 @@ async function startVoiceProcess(){
   var mergeMode = 'merge';
   var mr = document.querySelector('input[name="voiceMerge"]:checked');
   if (mr) mergeMode = mr.value;
-  var destLabel = dest==='kb' ? '知識庫' : (dest==='voice' ? '案例庫 · 錄音學習' : '案例庫 · 驗收電話');
-  var saved = [];
   try {
     _voiceSetStatus('📦 載入編碼器…', 4);
     await _ensureLame();
-    // Step 1：逐檔壓縮 + 轉譯
+    // Step 1：逐檔壓縮 + 轉譯（單檔失敗不影響其他檔，也不會整個卡死）
     var transcripts = [];
     for (var i=0; i<files.length; i++){
-      var fi = i+1, fn = files.length;
-      var capI = i;
-      _voiceSetStatus('🎚️ (' + fi + '/' + fn + ') 壓縮音檔…', 4 + (i/fn)*52);
-      var comp = await _voiceCompress(files[i], (function(fi, fn, capI){
-        return function(p){
-          _voiceSetStatus('🎚️ (' + fi + '/' + fn + ') 壓縮音檔… ' + Math.round(p*100) + '%', 4 + ((capI + p*0.5)/fn)*52);
-        };
-      })(fi, fn, capI));
-      var mb = comp.blob.size / 1024 / 1024;
-      if (mb > 24){
-        throw new Error('第 ' + fi + ' 個檔壓縮後仍有 ' + mb.toFixed(1) + 'MB，超過上限，請把它分段成 60 分鐘內。');
+      var fi = i+1, fn = files.length, capI = i;
+      try {
+        _voiceSetStatus('🎚️ (' + fi + '/' + fn + ') 壓縮音檔…', 4 + (capI/fn)*52);
+        var comp = await _voiceCompress(files[i], (function(fi, fn, capI){
+          return function(p){
+            _voiceSetStatus('🎚️ (' + fi + '/' + fn + ') 壓縮音檔… ' + Math.round(p*100) + '%', 4 + ((capI + p*0.5)/fn)*52);
+          };
+        })(fi, fn, capI));
+        var mb = comp.blob.size / 1024 / 1024;
+        if (mb > 24) throw new Error('壓縮後 ' + mb.toFixed(1) + 'MB 超過上限，請分段成 60 分鐘內');
+        _voiceSetStatus('✍️ (' + fi + '/' + fn + ') 語音轉文字中…（長錄音可能要 1~3 分鐘，請耐心等）', 4 + ((capI + 0.6)/fn)*52);
+        var tr = await _voiceTranscribe(comp.blob);
+        transcripts.push((tr || '').trim() || '（這個檔轉譯結果是空白的，請確認有聲音）');
+      } catch(fileErr){
+        console.error('[voice] 第 ' + fi + ' 個檔失敗', fileErr);
+        transcripts.push('（第 ' + fi + ' 個檔處理失敗：' + (fileErr && fileErr.message || fileErr) + '）');
       }
-      _voiceSetStatus('✍️ (' + fi + '/' + fn + ') 語音轉文字中…', 4 + ((capI + 0.6)/fn)*52);
-      var tr = await _voiceTranscribe(comp.blob);
-      transcripts.push((tr || '').trim());
     }
-    // Step 2：依合併模式組裝成 units
+    // Step 2：依合併模式組裝 units
     var units = [];
     if (!multi || mergeMode === 'merge'){
       var combined = transcripts.map(function(t, idx){
@@ -4096,33 +4119,31 @@ async function startVoiceProcess(){
         return { title: baseTitle + '（' + (idx+1) + '）', transcript: t };
       });
     }
-    // Step 3：逐 unit 摘要 + 自動存檔
+    // Step 3：逐 unit 摘要（摘要失敗不致命，逐字稿一定保留）
     for (var u=0; u<units.length; u++){
       var unit = units[u];
-      _voiceSetStatus('🧠 (' + (u+1) + '/' + units.length + ') AI 摘要中…', 58 + (u/units.length)*30);
-      if (!unit.transcript){
-        unit.summary = '（這段轉譯是空白的，請確認錄音有聲音）';
-      } else {
-        unit.summary = await _voiceSummarize(unit.transcript);
-        if (!unit.summary || !unit.summary.trim()) unit.summary = '（摘要產生失敗，請看下方逐字稿）';
+      _voiceSetStatus('🧠 (' + (u+1) + '/' + units.length + ') AI 摘要中…（約 20~60 秒）', 60 + (u/units.length)*30);
+      var summary = '';
+      if (unit.transcript && unit.transcript.trim()){
+        try { summary = await _voiceSummarize(unit.transcript); }
+        catch(sumErr){
+          console.error('[voice] 摘要失敗', sumErr);
+          summary = '（摘要產生失敗：' + (sumErr && sumErr.message || sumErr) + '。下方逐字稿仍可用，可自行整理。）';
+        }
       }
-      _voiceSaveUnit(dest, unit);
-      saved.push(unit);
+      if (!summary || !summary.trim()) summary = '（無摘要）';
+      unit.summary = summary;
+      unit.body = '【摘要】\n' + summary + '\n\n【逐字稿】\n' + (unit.transcript || '');
     }
-    // Step 4：Telegram 通知（含完成文字）
-    _voiceSetStatus('📲 發送 Telegram 通知…', 93);
-    var notify = '✅ 錄音處理完成 — 已存 ' + saved.length + ' 筆到「' + destLabel + '」\n';
-    saved.forEach(function(r){ notify += '\n━━━ 📌 ' + r.title + ' ━━━\n' + r.summary + '\n'; });
+    // Step 4：Telegram 通知（轉譯完成、待編輯儲存）
+    _voiceSetStatus('📲 發送 Telegram 通知…', 95);
+    var notify = '✅ 錄音轉譯完成（共 ' + units.length + ' 筆），請回 AI 顧問確認、編輯後按儲存：\n';
+    units.forEach(function(r){ notify += '\n━━━ 📌 ' + r.title + ' ━━━\n' + r.summary + '\n'; });
     await _voiceNotify(notify.slice(0, 3900));
-    // 完成顯示
-    _voiceSetStatus('✅ 完成！已存 ' + saved.length + ' 筆到「' + destLabel + '」。', 100);
-    document.getElementById('voiceResultBody').innerHTML = saved.map(function(r){
-      return '<div style="margin-bottom:10px;">'
-        + '<div style="font-size:.78rem;font-weight:700;color:#7be0c8;margin-bottom:4px;">📌 ' + esc(r.title) + '</div>'
-        + '<div class="voice-box" style="white-space:pre-wrap;font-size:.82rem;line-height:1.7;padding:12px;border-radius:10px;">' + esc(r.summary) + '</div>'
-        + '</div>';
-    }).join('') + '<div style="font-size:.75rem;color:#7be0c8;margin-top:2px;">✅ 已自動存入「' + destLabel + '」，可到該分類用 ✏️ 編輯內容（含逐字稿）。</div>';
-    document.getElementById('voiceResult').style.display = 'block';
+    // Step 5：顯示可編輯面板（不自動存，讓使用者改完再存）
+    _voicePending = { dest: dest, units: units };
+    _voiceSetStatus('✅ 轉譯完成！請在下方確認 / 修改後按「💾 儲存」。', 100);
+    _voiceRenderEditPanel();
   } catch(e){
     console.error('[voice] 處理失敗', e);
     _voiceSetStatus('❌ ' + (e && e.message || e), null);
@@ -4131,37 +4152,81 @@ async function startVoiceProcess(){
   document.getElementById('voiceStartBtn').disabled = false;
 }
 
-// 把一個 unit（title + transcript + summary）存到指定目的地
-function _voiceSaveUnit(dest, unit){
+// 顯示可編輯的結果面板（標題 + 內容 textarea + 存到選單 + 儲存鈕）
+function _voiceRenderEditPanel(){
+  var p = _voicePending;
+  if (!p || !p.units || !p.units.length) return;
+  var dest = p.dest || 'voice';
+  var html = '<div class="voice-sub" style="margin-bottom:10px;color:#7be0c8;font-weight:700;">✅ 轉譯完成！確認或修改下面內容，選好要存到哪，再按「💾 儲存」。</div>';
+  html += '<div style="margin-bottom:12px;"><span class="voice-sub">存到：</span> '
+    + '<select id="voiceEditDest" class="tk-input" style="width:auto;display:inline-block;min-width:230px;">'
+    + '<option value="voice"' + (dest==='voice'?' selected':'') + '>🎙️ 案例資料庫 — 錄音學習</option>'
+    + '<option value="acceptance"' + (dest==='acceptance'?' selected':'') + '>📞 案例資料庫 — 驗收電話</option>'
+    + '<option value="kb"' + (dest==='kb'?' selected':'') + '>📚 知識庫（全公司共享）</option>'
+    + '</select></div>';
+  p.units.forEach(function(u, idx){
+    html += '<div style="margin-bottom:14px;padding:10px;border:1px solid rgba(123,224,200,.22);border-radius:8px;">';
+    if (p.units.length > 1) html += '<div class="voice-sub" style="font-weight:700;margin-bottom:6px;">第 ' + (idx+1) + ' 筆</div>';
+    html += '<div class="voice-sub" style="margin-bottom:3px;">標題</div>';
+    html += '<input id="voiceEditTitle_' + idx + '" class="tk-input" style="margin-bottom:8px;" value="' + esc(u.title || '') + '">';
+    html += '<div class="voice-sub" style="margin-bottom:3px;">內容（可自由修改，含摘要與逐字稿）</div>';
+    html += '<textarea id="voiceEditText_' + idx + '" class="tk-input" style="width:100%;min-height:240px;font-size:.82rem;line-height:1.6;resize:vertical;">' + esc(u.body || '') + '</textarea>';
+    html += '</div>';
+  });
+  html += '<button class="btn-save" style="width:100%;padding:11px;" onclick="voiceSaveEdited()">💾 儲存</button>';
+  document.getElementById('voiceResultBody').innerHTML = html;
+  document.getElementById('voiceResult').style.display = 'block';
+}
+
+// 把編輯後的結果存到指定目的地
+function voiceSaveEdited(){
+  if (!_voicePending || !_voicePending.units || !_voicePending.units.length) return;
+  var destEl = document.getElementById('voiceEditDest');
+  var dest = (destEl && destEl.value) || _voicePending.dest || 'voice';
+  var units = _voicePending.units;
+  var savedTitles = [];
+  for (var u=0; u<units.length; u++){
+    var titleEl = document.getElementById('voiceEditTitle_' + u);
+    var textEl = document.getElementById('voiceEditText_' + u);
+    var title = (titleEl && titleEl.value.trim()) || units[u].title || ('錄音 ' + (u+1));
+    var body = textEl ? textEl.value : (units[u].body || '');
+    _voiceCommitUnit(dest, title, body);
+    savedTitles.push(title);
+  }
+  _voicePending = null;
+  var destLabel = dest==='kb' ? '知識庫' : (dest==='voice' ? '案例資料庫 · 錄音學習' : '案例資料庫 · 驗收電話');
+  document.getElementById('voiceResultBody').innerHTML =
+    '<div style="text-align:center;padding:18px;color:#7be0c8;font-weight:700;font-size:.95rem;">✅ 已儲存 ' + savedTitles.length + ' 筆到「' + destLabel + '」</div>'
+    + '<div class="voice-sub" style="text-align:center;">之後可到該分類用 ✏️ 編輯隨時修改。</div>';
+  _voiceSetStatus('✅ 已儲存到「' + destLabel + '」。', 100);
+  _voiceNotify('✅ 錄音已儲存到「' + destLabel + '」，共 ' + savedTitles.length + ' 筆：\n' + savedTitles.map(function(t){ return '• ' + t; }).join('\n'));
+}
+
+// 把一筆（title + body）存到指定目的地
+function _voiceCommitUnit(dest, title, body){
   var now = Date.now() + Math.floor(Math.random() * 100000);
   if (dest === 'kb'){
+    // 從 body 拆出摘要 / 逐字稿
+    var summary = body || '', transcript = '';
+    var mk = (body || '').indexOf('【逐字稿】');
+    if (mk >= 0){
+      summary = body.substring(0, mk).replace(/^\s*【摘要】\s*/, '').trim();
+      transcript = body.substring(mk + 5).trim();
+    }
     var d = _loadKb();
     d.items.push({
-      id: 'kb_' + now,
-      title: '🎙️ ' + unit.title,
-      tags: ['錄音摘要'],
-      content: unit.summary,        // AI 自動參考的是這個（短）
-      transcript: unit.transcript,  // 完整逐字稿，不進 AI context
-      isVoiceNote: true,
-      enabled: true,
-      size: (unit.summary || '').length,
-      createdAt: now,
-      updatedAt: now
+      id: 'kb_' + now, title: '🎙️ ' + title, tags: ['錄音摘要'],
+      content: summary, transcript: transcript, isVoiceNote: true,
+      enabled: true, size: summary.length, createdAt: now, updatedAt: now
     });
     _saveKb(d);
     try{ renderKnowledge(); }catch(_){}
   } else {
     // dest = 'voice'（錄音學習）或 'acceptance'（驗收電話）→ 案例資料庫
     var items = LS(SK.casedb);
-    var fullText = unit.title + '\n【摘要】\n' + (unit.summary || '')
-      + '\n\n【逐字稿】\n' + (unit.transcript || '');
     items.push({
-      id: 'c_' + now,
-      type: dest,
-      text: fullText,
-      marquee: false,
-      isVoice: true,
-      createdAt: now
+      id: 'c_' + now, type: dest, text: title + '\n' + (body || ''),
+      marquee: false, isVoice: true, createdAt: now
     });
     SS(SK.casedb, items);
     try{ renderCaseDb(); }catch(_){}
