@@ -98,6 +98,25 @@ select.tin{cursor:pointer;}
 .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-60px);padding:9px 22px;border-radius:10px;font-size:13px;font-weight:600;z-index:10000;opacity:0;transition:all .3s;pointer-events:none;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
+.btn.green{border-color:rgba(34,197,94,0.35);color:#4ade80;}
+.btn.green:hover{background:rgba(34,197,94,0.15);}
+
+/* 需優化錄音 / 錄音轉摘要 / A業績圖 */
+.voice-sub{font-size:12px;color:var(--dim);line-height:1.6;}
+.need-card{background:var(--card);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:12px;margin-bottom:10px;}
+.need-card .nc-no{font-size:11px;font-weight:700;color:#4ade80;margin-bottom:6px;}
+.vprog{height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin-top:6px;}
+.vprog>div{height:100%;width:0;background:linear-gradient(90deg,#5b9dff,#7be0c8);transition:width .4s;}
+.vbox{background:rgba(10,16,38,0.5);color:rgba(220,232,255,0.92);white-space:pre-wrap;font-size:12px;line-height:1.7;padding:10px;border-radius:8px;}
+.abar-row{margin-bottom:12px;}
+.abar-name{font-size:12px;color:var(--text);margin-bottom:3px;display:flex;justify-content:space-between;align-items:baseline;}
+.abar-name .chg{font-weight:700;font-size:11px;}
+.abar-line{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+.abar-tag{font-size:9px;color:var(--dim);width:28px;flex-shrink:0;}
+.abar-track{flex:1;height:13px;background:rgba(255,255,255,0.05);border-radius:7px;overflow:hidden;}
+.abar-fill{height:100%;border-radius:7px;min-width:2px;}
+.abar-val{font-size:10px;color:var(--dim);width:70px;text-align:right;flex-shrink:0;}
+
 @media(max-width:560px){
   .edit-row label{width:100%;}
   .lrow .tin{flex:1 1 100%;max-width:none;}
@@ -129,10 +148,16 @@ select.tin{cursor:pointer;}
     <div class="award" id="block1"></div>
   </div>
 
-  <!-- ══ Block 2 — 需優化錄音（下一階段）══ -->
+  <!-- ══ Block 2 — 需優化錄音 ══ -->
   <div class="section">
     <div class="section-title"><div class="icon" style="background:rgba(34,197,94,0.2);">🎧</div>需優化錄音 ×3</div>
-    <div class="placeholder"><div class="pl-icon">🚧</div>下一階段建置中<br><span style="font-size:11px;">需優化錄音卡 ×3 + 🎙️錄音轉摘要 + A業績長條圖</span></div>
+    <div id="needGrid"></div>
+    <div class="subhead">🎙️ 錄音轉摘要 <button class="btn green" onclick="openVoiceModal()">＋ 上傳錄音</button></div>
+    <div class="voice-sub" style="margin-bottom:8px;">上傳會議/通話錄音 → 自動逐字稿 + AI 摘要 → 存進案例（預設驗收電話，與 AI 顧問共用）。</div>
+    <div class="subhead">📚 錄音案例庫（與 AI 顧問共用）</div>
+    <div id="caseLibList"></div>
+    <div class="subhead">📊 我小組的 A業績（業績Ⓐ · 本月 vs 上月）</div>
+    <div id="aChart"></div>
   </div>
 
   <!-- ══ Block 3 — 本月目標作戰計劃（下一階段）══ -->
@@ -177,6 +202,39 @@ select.tin{cursor:pointer;}
     <h3 id="caseViewTitle">案例</h3>
     <div class="modal-body" id="caseViewBody"></div>
     <div style="text-align:right;margin-top:12px;"><button class="btn" onclick="closeModal('caseViewModal')">關閉</button></div>
+  </div>
+</div>
+
+<!-- 🎙️ 錄音轉摘要 modal -->
+<div class="modal-bg" id="voiceModal">
+  <div class="modal" style="max-width:600px;">
+    <h3>🎙️ 錄音轉摘要</h3>
+    <div class="voice-sub" style="margin-bottom:12px;">上傳錄音 → 逐字稿 + AI 摘要 → 存進案例（與 AI 顧問共用）。可一次選多個檔,設定好就能離開。</div>
+    <div class="edit-row"><label>標題</label><input id="voiceTitle" class="tin" placeholder="例如：0521 約訪通話"></div>
+    <div class="edit-row"><label>存到</label><select id="voiceDest" class="tin">
+      <option value="acceptance">📞 驗收電話</option>
+      <option value="voice">🎙️ 錄音學習</option>
+    </select></div>
+    <div class="edit-row"><label>錄音檔</label><div style="flex:1;min-width:160px;">
+      <button type="button" class="btn" onclick="document.getElementById('voiceFileInput').click()">📎 選擇音檔（可多選）</button>
+      <input type="file" id="voiceFileInput" accept="audio/*,.m4a,.mp3,.wav,.ogg,.aac" multiple style="display:none;" onchange="voicePickFiles(this.files)">
+      <div class="voice-sub" style="margin-top:4px;">支援 m4a / mp3 / wav / ogg,建議單檔 60 分鐘內。</div>
+      <div id="voiceFileList" style="margin-top:4px;"></div>
+    </div></div>
+    <div id="voiceMergeRow" style="display:none;margin-top:8px;padding:8px 10px;background:rgba(123,224,200,0.06);border:1px solid rgba(123,224,200,0.22);border-radius:8px;">
+      <div class="voice-sub" style="margin-bottom:4px;">選了多個檔,這批要:</div>
+      <label class="voice-sub" style="display:block;margin:3px 0;cursor:pointer;"><input type="radio" name="voiceMerge" value="merge" checked> 同一場錄音的分段 → 合併成一個</label>
+      <label class="voice-sub" style="display:block;margin:3px 0;cursor:pointer;"><input type="radio" name="voiceMerge" value="split"> 各自獨立 → 每個檔各成一個</label>
+    </div>
+    <div id="voiceStatus" style="display:none;margin-top:12px;">
+      <div style="font-size:12px;color:var(--gold);" id="voiceStatusText">處理中…</div>
+      <div class="vprog"><div id="voiceProgBar"></div></div>
+    </div>
+    <div id="voiceResult" style="display:none;margin-top:12px;"><div id="voiceResultBody"></div></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="btn" onclick="closeModal('voiceModal')">關閉</button>
+      <button class="btn green" id="voiceStartBtn" onclick="startVoiceProcess()" disabled>開始處理</button>
+    </div>
   </div>
 </div>
 
@@ -420,13 +478,13 @@ function pickCase(cid){
   if(t.caseIds.indexOf(cid)<0) t.caseIds.push(cid);
   scheduleSave();
   closeModal('casePickerModal');
-  renderBlock1();
+  renderBlock1(); renderNeedCards();
 }
 function unlinkCase(kind,idx,cid){
   var t=kind==='star' ? md().star : md().needImprove[idx];
   t.caseIds=(t.caseIds||[]).filter(function(x){ return x!==cid; });
   scheduleSave();
-  renderBlock1();
+  renderBlock1(); renderNeedCards();
 }
 function viewCase(cid){
   var c=caseById(cid);
@@ -435,9 +493,292 @@ function viewCase(cid){
   document.getElementById('caseViewModal').classList.add('open');
 }
 
+// ════════ Block 2 — 需優化錄音 ════════
+function renderNeedCards(){
+  var arr=md().needImprove, members=getGroupMembers();
+  document.getElementById('needGrid').innerHTML=arr.map(function(it,i){
+    if(!it.caseIds) it.caseIds=[];
+    var opts='<option value="">— 選擇 —</option>';
+    members.forEach(function(m){ opts+='<option value="'+escAttr(m)+'"'+(m===it.name?' selected':'')+'>'+esc(m)+'</option>'; });
+    if(it.name && members.indexOf(it.name)<0) opts+='<option value="'+escAttr(it.name)+'" selected>'+esc(it.name)+'（手動）</option>';
+    opts+='<option value="__manual__">✏️ 手動輸入…</option>';
+    var caseHtml=(it.caseIds||[]).map(function(cid){
+      var c=caseById(cid); var tg=c?(c.type==='acceptance'?'acceptance':'voice'):'voice';
+      var lbl=tg==='acceptance'?'📞 驗收電話':'🎙️ 錄音學習';
+      return '<div class="case-chip"><span class="cc-tag '+tg+'">'+lbl+'</span>'
+        +'<span class="cc-title">'+esc(c?caseTitle(c):'(案例已刪除)')+'</span>'
+        +(c?'<span class="cc-link">AI 顧問連動</span><button class="btn" onclick="viewCase(\''+cid+'\')">看</button>':'')
+        +'<button class="btn danger" onclick="unlinkCase(\'need\','+i+',\''+cid+'\')">移除</button></div>';
+    }).join('');
+    return '<div class="need-card"><div class="nc-no">需優化 #'+(i+1)+'</div>'
+      +'<div class="edit-row"><label>姓名</label><select class="tin" onchange="setNeedName('+i+',this.value)">'+opts+'</select></div>'
+      +'<div class="edit-row"><label>錄音連結</label><input class="tin" value="'+escAttr(it.driveUrl)+'" placeholder="貼 Google 雲端硬碟連結" oninput="md().needImprove['+i+'].driveUrl=this.value;scheduleSave();_syncOpen(this);">'
+      +'<a class="link-open'+(safeUrl(it.driveUrl)?'':' off')+'" href="'+escAttr(safeUrl(it.driveUrl)||'#')+'" target="_blank">🔗 開啟</a></div>'
+      +'<div class="edit-row"><label>備註</label><input class="tin" value="'+escAttr(it.note)+'" placeholder="需優化的點 / 觀察" oninput="md().needImprove['+i+'].note=this.value;scheduleSave();"></div>'
+      +'<div class="subhead" style="margin:6px 0;">🎙️ 連結錄音案例 <button class="btn cyan" onclick="openCasePicker(\'need\','+i+')">＋ 連結案例</button></div>'
+      +(caseHtml||'<div class="voice-sub">尚未連結（可連多則）</div>')+'</div>';
+  }).join('');
+}
+function setNeedName(i,v){
+  if(v==='__manual__'){ var nm=prompt('輸入姓名：',md().needImprove[i].name||''); if(nm===null){ renderNeedCards(); return; } md().needImprove[i].name=nm.trim(); }
+  else md().needImprove[i].name=v;
+  scheduleSave(); renderNeedCards();
+}
+function renderCaseLib(){
+  var cases=voiceCases(), el=document.getElementById('caseLibList');
+  if(!cases.length){ el.innerHTML='<div class="voice-sub" style="padding:6px 0;">尚無錄音案例,用上方「錄音轉摘要」上傳。</div>'; return; }
+  el.innerHTML=cases.slice().reverse().slice(0,30).map(function(c){
+    var tg=c.type==='acceptance'?'acceptance':'voice'; var lbl=tg==='acceptance'?'📞 驗收電話':'🎙️ 錄音學習';
+    return '<div class="case-chip"><span class="cc-tag '+tg+'">'+lbl+'</span>'
+      +'<span class="cc-title">'+esc(caseTitle(c))+'</span>'
+      +'<span class="cc-link">AI 顧問連動</span><button class="btn" onclick="viewCase(\''+c.id+'\')">看</button></div>';
+  }).join('')+(cases.length>30?'<div class="voice-sub">…共 '+cases.length+' 則,只顯示最近 30</div>':'');
+}
+function _num(v){ v=String(v==null?'':v).replace(/[,，\s]/g,''); var n=parseFloat(v); return isNaN(n)?0:n; }
+function _fmt(n){ n=Math.round(n); return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function getAPerf(monthNum,name){
+  if(!_mpData) return 0;
+  var s3=(_mpData[String(monthNum)]||{}).sheet3||[];
+  for(var i=0;i<s3.length;i++){
+    var row=s3[i]||{};
+    var nm=String(row['姓名']||row['業務員']||row['業務']||row['人員']||'').trim();
+    if(nm===name){
+      if(row['業績Ⓐ']!=null) return _num(row['業績Ⓐ']);
+      var k=Object.keys(row).find(function(x){ return x.indexOf('業績')>=0 && /Ⓐ|Ａ/.test(x); });
+      return k?_num(row[k]):0;
+    }
+  }
+  return 0;
+}
+function renderAChart(){
+  var el=document.getElementById('aChart');
+  if(!_mpLoaded){ el.innerHTML='<div class="voice-sub">載入業績資料中…</div>'; return; }
+  if(!_mpData){ el.innerHTML='<div class="voice-sub">尚無業績數據（業績數據中心還沒匯入）。</div>'; return; }
+  var members=getGroupMembers();
+  if(!members.length){ el.innerHTML='<div class="voice-sub">找不到你的小組成員（業績數據裡沒有你當組長的列,可在上方卡片手動輸入）。</div>'; return; }
+  var prevM=currentMonth-1<1?12:currentMonth-1;
+  var rows=members.map(function(n){ return {name:n,cur:getAPerf(currentMonth,n),prev:getAPerf(prevM,n)}; });
+  var max=1; rows.forEach(function(r){ if(r.cur>max)max=r.cur; if(r.prev>max)max=r.prev; });
+  el.innerHTML=rows.map(function(r){
+    var diff=r.cur-r.prev;
+    var chg=diff>0?'<span class="chg" style="color:#4ade80;">▲ +'+_fmt(diff)+'</span>'
+      :diff<0?'<span class="chg" style="color:#f87171;">▼ '+_fmt(diff)+'</span>'
+      :'<span class="chg" style="color:var(--dim);">— 持平</span>';
+    return '<div class="abar-row"><div class="abar-name"><span>'+esc(r.name)+'</span>'+chg+'</div>'
+      +'<div class="abar-line"><span class="abar-tag">上月</span><div class="abar-track"><div class="abar-fill" style="width:'+(r.prev/max*100)+'%;background:#64748b;"></div></div><span class="abar-val">'+_fmt(r.prev)+'</span></div>'
+      +'<div class="abar-line"><span class="abar-tag">本月</span><div class="abar-track"><div class="abar-fill" style="width:'+(r.cur/max*100)+'%;background:linear-gradient(90deg,#06b6d4,#3b82f6);"></div></div><span class="abar-val">'+_fmt(r.cur)+'</span></div></div>';
+  }).join('');
+}
+function renderBlock2(){ renderNeedCards(); renderCaseLib(); renderAChart(); }
+
+// ════════ 🎙️ 錄音轉摘要（移植自 AI 顧問）════════
+var PROXY_BASE='https://anthropic-proxy.ivanapplaud.workers.dev';
+var _voiceFiles=[], _voiceBusy=false, _voicePending=null, _lamePromise=null;
+function _ensureLame(){
+  if(typeof lamejs!=='undefined') return Promise.resolve();
+  if(_lamePromise) return _lamePromise;
+  var urls=['https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.0/lame.min.js','https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js','https://unpkg.com/lamejs@1.2.1/lame.min.js'];
+  _lamePromise=new Promise(function(resolve,reject){
+    var idx=0;
+    function tryNext(){
+      if(idx>=urls.length){ _lamePromise=null; reject(new Error('MP3 編碼器載入失敗')); return; }
+      var s=document.createElement('script'); s.src=urls[idx++];
+      s.onload=function(){ (typeof lamejs!=='undefined')?resolve():tryNext(); };
+      s.onerror=function(){ tryNext(); };
+      document.head.appendChild(s);
+    }
+    tryNext();
+  });
+  return _lamePromise;
+}
+function _voiceFetch(url,opts,ms){
+  var ctrl=new AbortController();
+  var to=setTimeout(function(){ try{ctrl.abort();}catch(_){} },ms||240000);
+  opts=opts||{}; opts.signal=ctrl.signal;
+  return fetch(url,opts).then(function(r){ clearTimeout(to); return r; },function(e){
+    clearTimeout(to);
+    if(e&&e.name==='AbortError') throw new Error('連線逾時,請再試一次');
+    throw e;
+  });
+}
+function openVoiceModal(){
+  document.getElementById('voiceModal').classList.add('open');
+  if(_voicePending&&_voicePending.units&&_voicePending.units.length){ document.getElementById('voiceStatus').style.display='none'; _voiceRenderEditPanel(); return; }
+  _voiceFiles=[]; _voiceBusy=false;
+  document.getElementById('voiceTitle').value='';
+  document.getElementById('voiceFileInput').value='';
+  document.getElementById('voiceDest').value='acceptance';
+  document.getElementById('voiceFileList').innerHTML='';
+  document.getElementById('voiceMergeRow').style.display='none';
+  document.getElementById('voiceStatus').style.display='none';
+  document.getElementById('voiceResult').style.display='none';
+  document.getElementById('voiceStartBtn').disabled=true;
+}
+function voicePickFiles(files){
+  if(!files||!files.length) return;
+  _voiceFiles=Array.prototype.slice.call(files);
+  document.getElementById('voiceFileList').innerHTML=_voiceFiles.map(function(f,i){
+    return '<div class="voice-sub">'+(i+1)+'. '+esc(f.name)+'（'+(f.size/1024/1024).toFixed(1)+' MB）</div>';
+  }).join('');
+  document.getElementById('voiceMergeRow').style.display=_voiceFiles.length>1?'block':'none';
+  document.getElementById('voiceStartBtn').disabled=false;
+  var t=document.getElementById('voiceTitle');
+  if(!t.value.trim()&&_voiceFiles[0]) t.value=(_voiceFiles[0].name||'').replace(/\.[^.]+$/,'');
+}
+function _voiceSetStatus(msg,pct){
+  document.getElementById('voiceStatus').style.display='block';
+  document.getElementById('voiceStatusText').textContent=msg;
+  if(pct!=null) document.getElementById('voiceProgBar').style.width=pct+'%';
+}
+async function _voiceCompress(file,onProg){
+  var arrayBuf=await file.arrayBuffer();
+  var AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC) throw new Error('此瀏覽器不支援音訊處理');
+  var ac=new AC(), decoded;
+  try{ decoded=await ac.decodeAudioData(arrayBuf); }
+  catch(e){ throw new Error('音檔無法解碼,請確認格式（m4a/mp3/wav）'); }
+  finally{ try{ac.close();}catch(_){} }
+  var rate=16000, frames=Math.max(1,Math.ceil(decoded.duration*rate));
+  var OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  var off=new OAC(1,frames,rate);
+  var src=off.createBufferSource(); src.buffer=decoded; src.connect(off.destination); src.start(0);
+  var rendered=await off.startRendering();
+  var ch=rendered.getChannelData(0), n=ch.length, samples=new Int16Array(n);
+  for(var i=0;i<n;i++){ var s=ch[i]; if(s>1)s=1; else if(s<-1)s=-1; samples[i]=s<0?(s*0x8000):(s*0x7FFF); }
+  if(typeof lamejs==='undefined') throw new Error('MP3 編碼器未載入');
+  var enc=new lamejs.Mp3Encoder(1,rate,32), block=1152, mp3=[], cnt=0;
+  for(var j=0;j<n;j+=block){
+    var buf=enc.encodeBuffer(samples.subarray(j,j+block));
+    if(buf.length>0) mp3.push(buf);
+    cnt++;
+    if(cnt%400===0){ if(onProg)onProg(j/n); await new Promise(function(r){ setTimeout(r,0); }); }
+  }
+  var endBuf=enc.flush(); if(endBuf.length>0) mp3.push(endBuf);
+  return { blob:new Blob(mp3,{type:'audio/mpeg'}) };
+}
+async function _voiceTranscribe(blob){
+  var fd=new FormData();
+  fd.append('file',blob,'audio.mp3');
+  fd.append('model','whisper-large-v3'); fd.append('language','zh'); fd.append('response_format','json');
+  var resp=await _voiceFetch(PROXY_BASE+'/groq/audio/transcriptions',{method:'POST',body:fd},240000);
+  if(!resp.ok){ var t=''; try{t=await resp.text();}catch(_){} throw new Error('轉譯失敗('+resp.status+') '+t.substring(0,160)); }
+  var data=await resp.json();
+  return (data&&data.text)||'';
+}
+async function _voiceSummarize(transcript){
+  var sys='你是專業的會議記錄助理。請把語音逐字稿輸出成結構化繁體中文摘要：\n【一句話總結】\n【重點摘要】條列 3-8 點。\n【決議／待辦】沒有就寫「無」。\n只輸出摘要,不要客套話。逐字稿可能有同音錯字,請依上下文判讀。';
+  var resp=await _voiceFetch(PROXY_BASE+'/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-opus-4-7',max_tokens:1500,system:sys,messages:[{role:'user',content:'以下是逐字稿：\n\n'+transcript}]})},180000);
+  if(!resp.ok){ var t=''; try{t=await resp.text();}catch(_){} throw new Error('摘要失敗('+resp.status+') '+t.substring(0,160)); }
+  var data=await resp.json();
+  return (data&&data.content&&data.content[0]&&data.content[0].text)||'';
+}
+async function _voiceNotify(text){
+  try{ await _voiceFetch(PROXY_BASE+'/telegram/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text})},30000); }
+  catch(e){ console.warn('[voice] Telegram 失敗',e); }
+}
+async function startVoiceProcess(){
+  if(_voiceBusy||!_voiceFiles.length) return;
+  _voiceBusy=true;
+  document.getElementById('voiceStartBtn').disabled=true;
+  document.getElementById('voiceResult').style.display='none';
+  var dest=document.getElementById('voiceDest').value||'acceptance';
+  var baseTitle=document.getElementById('voiceTitle').value.trim()||('錄音 '+new Date().toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}));
+  var files=_voiceFiles.slice(), multi=files.length>1, mergeMode='merge';
+  var mr=document.querySelector('input[name="voiceMerge"]:checked'); if(mr) mergeMode=mr.value;
+  try{
+    _voiceSetStatus('📦 載入編碼器…',4);
+    await _ensureLame();
+    var transcripts=[];
+    for(var i=0;i<files.length;i++){
+      var fi=i+1,fn=files.length,capI=i;
+      try{
+        _voiceSetStatus('🎚️ ('+fi+'/'+fn+') 壓縮音檔…',4+(capI/fn)*52);
+        var comp=await _voiceCompress(files[i],(function(fi,fn,capI){ return function(p){ _voiceSetStatus('🎚️ ('+fi+'/'+fn+') 壓縮音檔… '+Math.round(p*100)+'%',4+((capI+p*0.5)/fn)*52); }; })(fi,fn,capI));
+        var mb=comp.blob.size/1024/1024;
+        if(mb>24) throw new Error('壓縮後 '+mb.toFixed(1)+'MB 超過上限,請分段成 60 分鐘內');
+        _voiceSetStatus('✍️ ('+fi+'/'+fn+') 語音轉文字中…（長錄音 1~3 分鐘,請耐心等）',4+((capI+0.6)/fn)*52);
+        var tr=await _voiceTranscribe(comp.blob);
+        transcripts.push((tr||'').trim()||'（此檔轉譯結果空白）');
+      }catch(fe){ console.error('[voice]',fe); transcripts.push('（第 '+fi+' 個檔處理失敗：'+(fe&&fe.message||fe)+'）'); }
+    }
+    var units=[];
+    if(!multi||mergeMode==='merge'){
+      var combined=transcripts.map(function(t,idx){ return (multi?'【第'+(idx+1)+'段】\n':'')+t; }).join('\n\n');
+      units=[{title:baseTitle,transcript:combined}];
+    } else {
+      units=transcripts.map(function(t,idx){ return {title:baseTitle+'（'+(idx+1)+'）',transcript:t}; });
+    }
+    for(var u=0;u<units.length;u++){
+      var unit=units[u];
+      _voiceSetStatus('🧠 ('+(u+1)+'/'+units.length+') AI 摘要中…（約 20~60 秒）',60+(u/units.length)*30);
+      var summary='';
+      if(unit.transcript&&unit.transcript.trim()){
+        try{ summary=await _voiceSummarize(unit.transcript); }
+        catch(se){ console.error('[voice]',se); summary='（摘要產生失敗：'+(se&&se.message||se)+'。下方逐字稿仍可用。）'; }
+      }
+      if(!summary||!summary.trim()) summary='（無摘要）';
+      unit.summary=summary;
+      unit.body='【摘要】\n'+summary+'\n\n【逐字稿】\n'+(unit.transcript||'');
+    }
+    _voiceSetStatus('📲 發送 Telegram 通知…',95);
+    var notify='✅ 錄音轉譯完成（共 '+units.length+' 筆）,請回瀑布確認、編輯後儲存：\n';
+    units.forEach(function(r){ notify+='\n━━ '+r.title+' ━━\n'+r.summary+'\n'; });
+    await _voiceNotify(notify.slice(0,3900));
+    _voicePending={dest:dest,units:units};
+    _voiceSetStatus('✅ 轉譯完成!請在下方確認/修改後按「儲存」。',100);
+    _voiceRenderEditPanel();
+  }catch(e){ console.error('[voice]',e); _voiceSetStatus('❌ '+(e&&e.message||e),null); }
+  _voiceBusy=false;
+  document.getElementById('voiceStartBtn').disabled=false;
+}
+function _voiceRenderEditPanel(){
+  var p=_voicePending; if(!p||!p.units||!p.units.length) return;
+  var dest=p.dest||'acceptance';
+  var html='<div class="voice-sub" style="color:#7be0c8;font-weight:700;margin-bottom:8px;">✅ 轉譯完成!確認/修改後選存到哪、按儲存。</div>';
+  html+='<div class="edit-row"><label>存到</label><select id="voiceEditDest" class="tin">'
+    +'<option value="acceptance"'+(dest==='acceptance'?' selected':'')+'>📞 驗收電話</option>'
+    +'<option value="voice"'+(dest==='voice'?' selected':'')+'>🎙️ 錄音學習</option></select></div>';
+  p.units.forEach(function(u,idx){
+    html+='<div style="margin-bottom:12px;padding:8px;border:1px solid rgba(123,224,200,0.22);border-radius:8px;">';
+    if(p.units.length>1) html+='<div class="voice-sub" style="font-weight:700;margin-bottom:4px;">第 '+(idx+1)+' 筆</div>';
+    html+='<input id="voiceEditTitle_'+idx+'" class="tin" style="margin-bottom:6px;" value="'+escAttr(u.title||'')+'">';
+    html+='<textarea id="voiceEditText_'+idx+'" class="tin" style="min-height:200px;">'+esc(u.body||'')+'</textarea></div>';
+  });
+  html+='<button class="btn green" style="width:100%;padding:10px;" onclick="voiceSaveEdited()">💾 儲存</button>';
+  document.getElementById('voiceResultBody').innerHTML=html;
+  document.getElementById('voiceResult').style.display='block';
+}
+function voiceSaveEdited(){
+  if(!_voicePending||!_voicePending.units||!_voicePending.units.length) return;
+  var de=document.getElementById('voiceEditDest');
+  var dest=(de&&de.value)||_voicePending.dest||'acceptance';
+  var titles=[];
+  _voicePending.units.forEach(function(u,idx){
+    var te=document.getElementById('voiceEditTitle_'+idx), be=document.getElementById('voiceEditText_'+idx);
+    var title=(te&&te.value.trim())||u.title||'錄音';
+    var body=be?be.value:(u.body||'');
+    _voiceCommitUnit(dest,title,body);
+    titles.push(title);
+  });
+  _voicePending=null;
+  var lbl=dest==='voice'?'錄音學習':'驗收電話';
+  document.getElementById('voiceResultBody').innerHTML='<div style="text-align:center;padding:14px;color:#7be0c8;font-weight:700;">✅ 已儲存 '+titles.length+' 筆到「'+lbl+'」</div>';
+  _voiceSetStatus('✅ 已儲存到「'+lbl+'」。',100);
+  _voiceNotify('✅ 錄音已儲存到「'+lbl+'」,共 '+titles.length+' 筆：\n'+titles.map(function(t){return '• '+t;}).join('\n'));
+  renderBlock2();
+}
+function _voiceCommitUnit(dest,title,body){
+  var now=Date.now()+Math.floor(Math.random()*100000);
+  var arr=loadCases();
+  arr.push({ id:'c_'+now, type:(dest==='voice'?'voice':'acceptance'), text:title+'\n'+(body||''), marquee:false, isVoice:true, createdAt:now });
+  try{ localStorage.setItem('ai_casedb_v1',JSON.stringify(arr)); }catch(e){ toast('⚠ 案例儲存失敗：'+e.message,true); }
+}
+
 // ════════ 渲染 ════════
 function renderAll(){
   renderBlock1();
+  renderBlock2();
   renderLinkList('scripts');
   renderLinkList('hunts');
   renderFiles();
@@ -450,7 +791,7 @@ function renderAll(){
   updateMonthLabel();
   renderAll();
   await loadMpData();
-  renderBlock1(); // mp_data 載入後重畫選單
+  renderBlock1(); renderBlock2(); // mp_data 載入後重畫選單與長條圖
 })();
 
 document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ closeModal('casePickerModal'); closeModal('caseViewModal'); } });
