@@ -288,6 +288,7 @@ function FILES_SK(){ return 'char_' + charId() + '_waterfall_files_v3'; }
 
 var allData = {};
 var files = [];
+var _loadedChar = null;   // ★ 目前 allData / files 屬於哪個主角（防止顯示或存到別人的資料）
 var currentYear = new Date().getFullYear();
 var currentMonth = new Date().getMonth() + 1;
 
@@ -303,17 +304,23 @@ function defaultMonth(){
 function md(){ var k=monthKey(); if(!allData[k]) allData[k]=defaultMonth(); return allData[k]; }
 
 function loadAll(){
-  try{ var r=localStorage.getItem(SK()); if(r) allData=JSON.parse(r)||{}; }catch(e){ allData={}; }
-  try{ var f=localStorage.getItem(FILES_SK()); if(f) files=JSON.parse(f)||[]; }catch(e){ files=[]; }
+  // ★ 記住這份資料屬於誰；切到沒有資料的主角時也要清空，不能殘留上一位的內容
+  _loadedChar = charId();
+  try{ var r=localStorage.getItem(SK()); allData = r ? (JSON.parse(r)||{}) : {}; }catch(e){ allData={}; }
+  try{ var f=localStorage.getItem(FILES_SK()); files = f ? (JSON.parse(f)||[]) : []; }catch(e){ files=[]; }
 }
+// ★ 寫入前必檢查：若主角已切換（allData 還是舊主角的）就絕不寫入，避免污染新主角的資料桶
+function _charMismatch(){ return _loadedChar !== null && charId() !== _loadedChar; }
 var _saveTimer=null;
 function scheduleSave(){
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(function(){
+    if(_charMismatch()) return;
     try{ localStorage.setItem(SK(), JSON.stringify(allData)); }catch(e){ toast('⚠ 儲存失敗：'+e.message,true); }
   }, 700);
 }
 function saveAll(){
+  if(_charMismatch()) return;
   try{
     localStorage.setItem(SK(), JSON.stringify(allData));
     localStorage.setItem(FILES_SK(), JSON.stringify(files));
@@ -321,6 +328,7 @@ function saveAll(){
   }catch(e){ toast('⚠ 儲存失敗：'+e.message,true); }
 }
 function saveFiles(){
+  if(_charMismatch()) return;
   try{ localStorage.setItem(FILES_SK(), JSON.stringify(files)); }catch(e){ toast('⚠ 儲存失敗：'+e.message,true); }
 }
 window.triggerSave = saveAll;
@@ -935,8 +943,11 @@ function renderAll(){
 }
 
 // ════════ 初始化 ════════
-(async function init(){
+function _applyWhoLabel(){
   document.getElementById('whoLabel').textContent='👤 '+(charName()||'(未登入)')+'　·　每位主角各自一份';
+}
+(async function init(){
+  _applyWhoLabel();
   loadAll();
   updateMonthLabel();
   renderAll();
@@ -944,8 +955,28 @@ function renderAll(){
   renderBlock1(); renderBlock2(); // mp_data 載入後重畫選單與長條圖
 })();
 
+// ★ 主角切換後自動重載 —— 避免顯示／儲存到別的主角的資料
+//   觸發來源：父頁改 activeCharacterId（storage 事件）、父頁 postMessage、分頁重新可見
+function reloadForCharChange(){
+  if(charId() === _loadedChar) return;   // 沒換主角 → 不動作
+  _applyWhoLabel();
+  loadAll();                              // 會把 _loadedChar 更新成新主角
+  updateMonthLabel();
+  renderAll();
+  loadMpData().then(function(){ renderBlock1(); renderBlock2(); });
+}
+window.addEventListener('storage',function(e){
+  if(!e.key || e.key==='activeCharacterId' || e.key==='activeCharacterName') reloadForCharChange();
+});
+window.addEventListener('message',function(e){
+  if(e&&e.data&&(e.data.action==='characterSwitched'||e.data.action==='characterLogin')) reloadForCharChange();
+});
+
 document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ closeModal('casePickerModal'); closeModal('caseViewModal'); } });
-document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden') saveAll(); });
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='hidden'){ saveAll(); }
+  else { reloadForCharChange(); }
+});
 window.addEventListener('pagehide',saveAll);
 </script>
 <script src="./nav-home.js"></script>
