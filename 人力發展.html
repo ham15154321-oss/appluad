@@ -1939,10 +1939,23 @@
 // ========== IndexedDB ==========
 const DB_NAME='SpaceBaseDB';
 let db=null;
+// ★ 綁定連線：記住它，並在被外部升版/關閉時自動釋放快取
+//   （否則 openDB 每次重開都會留下一個沒關的連線 → 記憶體洩漏 → 分頁被瀏覽器砍掉 / 錯誤碼 5）
+function _bindDb(d){
+  db=d;
+  try{
+    d.onversionchange=function(){ try{d.close();}catch(e){} if(db===d) db=null; };
+    d.onclose=function(){ if(db===d) db=null; };
+  }catch(e){}
+}
 // ★ probe-then-upgrade：先不指定版本看 DB 現況，缺 store 才升一版補建。
 //   避免 hardcode 版本號跟 firebase-sync 的 idbOpenOrCreate 互相擋升版。
 function openDB(){
   return new Promise((res,rej)=>{
+    // ★ 已經有開著的連線 → 直接重用，絕不重開。
+    //   重開但不關舊連線會累積數十個連線，幾分鐘後記憶體爆掉。
+    //   IndexedDB 透過同一條連線也讀得到最新已提交資料，不需要重開。
+    if(db){ res(db); return; }
     const probe=indexedDB.open(DB_NAME);
     let wasCreated=false;
     probe.onupgradeneeded=(e)=>{
@@ -1954,7 +1967,7 @@ function openDB(){
     probe.onsuccess=(e)=>{
       const d=e.target.result;
       const missing=['images','scores'].filter(s=>!d.objectStoreNames.contains(s));
-      if(wasCreated||missing.length===0){db=d;res(db);return;}
+      if(wasCreated||missing.length===0){_bindDb(d);res(db);return;}
       // DB 存在但缺 store → 升版補建
       const cur=d.version;
       d.close();
@@ -1964,7 +1977,7 @@ function openDB(){
         if(!d2.objectStoreNames.contains('images')) d2.createObjectStore('images');
         if(!d2.objectStoreNames.contains('scores')) d2.createObjectStore('scores',{keyPath:'id',autoIncrement:true});
       };
-      up.onsuccess=(e2)=>{db=e2.target.result;res(db);};
+      up.onsuccess=(e2)=>{_bindDb(e2.target.result);res(db);};
       up.onerror=rej;
       up.onblocked=()=>rej(new Error('DB upgrade blocked'));
     };
@@ -3119,7 +3132,7 @@ function closeSubpage(){document.getElementById('subpageOverlay').classList.remo
 // ========== 成就解鎖 ==========
 function openAchievement(){
   stopBgm();
-  document.getElementById('achieveFrame').src='achievement-unlock.html';
+  document.getElementById('achieveFrame').src='achievement-unlock.html?v=apple1';
   document.getElementById('achieveOverlay').classList.add('active');
 }
 function closeAchievement(){
@@ -3131,7 +3144,7 @@ function closeAchievement(){
 // ========== 火種九宮格 ==========
 function openFireMandala(){
   stopBgm();
-  document.getElementById('fireFrame').src='fire-mandala.html';
+  document.getElementById('fireFrame').src='fire-mandala.html?v=apple1';
   document.getElementById('fireOverlay').classList.add('active');
 }
 function closeFireMandala(){
@@ -3144,7 +3157,7 @@ function closeFireMandala(){
 function open360Assessment(){
   stopBgm(); hideFloatingUI();
   var _f360 = document.getElementById('assess360Frame');
-  _f360.src = 'team-leader-map-assessment.html';
+  _f360.src = 'team-leader-map-assessment.html?v=apple1';
   document.getElementById('assess360Overlay').classList.add('active');
   _f360.onload = function() {
     var _cid = localStorage.getItem('activeCharacterId');
@@ -3167,7 +3180,7 @@ function close360Assessment(){
 // ========== 練功坊 ==========
 function openTrainingRoom(){
   stopBgm();
-  document.getElementById('trainingFrame').src='training-room.html?v=dooridb';
+  document.getElementById('trainingFrame').src='training-room.html?v=apple1';
   document.getElementById('trainingOverlay').classList.add('active');
 }
 function closeTrainingRoom(){
@@ -3323,7 +3336,7 @@ async function syncFromCastleCards(){
 // ========== 指揮城堡 ==========
 function openCastle(){
   stopBgm();
-  document.getElementById('castleFrame').src='castle-cards.html';
+  document.getElementById('castleFrame').src='castle-cards.html?v=apple1';
   document.getElementById('castleOverlay').classList.add('active');
 }
 async function closeCastle(){
