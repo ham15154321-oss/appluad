@@ -256,6 +256,10 @@ body.day-mode .chat-view.fullscreen{background:#f0ebe8;}
 .case-tag.good{background:rgba(0,200,100,.15);color:#00e868;}
 .case-tag.bad{background:rgba(255,80,80,.15);color:#ff8a8a;}
 .case-tag.data{background:rgba(74,234,255,.15);color:#4aeaff;}
+.case-item.voice{border:1px solid rgba(123,224,200,.2);background:rgba(123,224,200,.045);}
+.case-item.acceptance{border:1px solid rgba(255,176,80,.2);background:rgba(255,176,80,.045);}
+.case-tag.voice{background:rgba(123,224,200,.16);color:#7be0c8;}
+.case-tag.acceptance{background:rgba(255,176,80,.16);color:#ffb050;}
 .case-text{flex:1;font-size:.82rem;color:#d0e8ff;line-height:1.5;}
 .case-del{font-size:.75rem;color:#ff8a8a;cursor:pointer;padding:4px 8px;opacity:.7;border:1px solid rgba(255,100,100,.25);border-radius:6px;white-space:nowrap;flex-shrink:0;transition:all .2s;}
 .case-del:hover{opacity:1;background:rgba(255,80,80,.12);border-color:rgba(255,80,80,.5);}
@@ -376,6 +380,10 @@ body.day-mode .case-item.data{border-color:rgba(60,140,200,.22);background:rgba(
 body.day-mode .case-tag.good{background:rgba(40,160,80,.12);color:#2a8a4a;}
 body.day-mode .case-tag.bad{background:rgba(200,60,60,.12);color:#c04040;}
 body.day-mode .case-tag.data{background:rgba(60,140,200,.12);color:#2a6a9a;}
+body.day-mode .case-item.voice{border-color:rgba(40,160,140,.25);background:rgba(222,246,241,.6);}
+body.day-mode .case-item.acceptance{border-color:rgba(200,140,40,.25);background:rgba(252,242,225,.6);}
+body.day-mode .case-tag.voice{background:rgba(40,160,140,.13);color:#1f7a68;}
+body.day-mode .case-tag.acceptance{background:rgba(200,140,40,.15);color:#9a6a1a;}
 body.day-mode .case-text{color:#4a3a5c;}
 body.day-mode .case-del{color:#c04040;border-color:rgba(200,60,60,.25);}
 body.day-mode .case-del:hover{background:rgba(200,60,60,.1);border-color:rgba(200,60,60,.5);}
@@ -962,23 +970,36 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
 </div></div>
 
 <!-- 🎙️ 錄音轉摘要 Modal -->
-<div class="add-modal-bg" id="voiceModal"><div class="add-modal" style="max-width:640px;">
+<div class="add-modal-bg" id="voiceModal"><div class="add-modal" style="max-width:640px;max-height:88vh;overflow-y:auto;">
   <h3>🎙️ 錄音轉摘要</h3>
   <div class="voice-sub" style="margin:-4px 0 14px;">
-    上傳錄音檔 → 自動轉逐字稿 → AI 摘要 → 存進知識庫（全公司共享）→ Telegram 通知你。<br>
-    全程在這個視窗自動完成，你只要選檔、按「開始處理」。
+    上傳錄音檔 → 自動轉逐字稿 + AI 摘要 → 存到你選的位置 → Telegram 通知你（含完成文字）。<br>
+    可一次選多個檔，按「開始處理」後就能離開去忙別的事。
   </div>
   <div class="kb-grid">
     <label>標題</label>
     <input id="voiceTitle" class="tk-input" placeholder="例如：0521 營銷部週會">
 
+    <label>存到</label>
+    <select id="voiceDest" class="tk-input">
+      <option value="voice">🎙️ 案例資料庫 — 錄音學習</option>
+      <option value="acceptance">📞 案例資料庫 — 驗收電話</option>
+      <option value="kb">📚 知識庫（全公司共享）</option>
+    </select>
+
     <label>錄音檔</label>
     <div>
-      <button type="button" class="tk-file-btn" onclick="document.getElementById('voiceFileInput').click()">📎 選擇音檔</button>
-      <input type="file" id="voiceFileInput" accept="audio/*,.m4a,.mp3,.wav,.ogg,.aac" style="display:none;" onchange="voicePickFile(this.files)">
-      <span class="tk-file-summary" id="voiceFileSummary" style="margin-left:8px;">尚未選擇檔案</span>
-      <div class="voice-hint">支援 m4a / mp3 / wav / ogg。建議單檔 60 分鐘內，更長請先分段。</div>
+      <button type="button" class="tk-file-btn" onclick="document.getElementById('voiceFileInput').click()">📎 選擇音檔（可多選）</button>
+      <input type="file" id="voiceFileInput" accept="audio/*,.m4a,.mp3,.wav,.ogg,.aac" multiple style="display:none;" onchange="voicePickFiles(this.files)">
+      <div class="voice-hint">支援 m4a / mp3 / wav / ogg。建議單檔 60 分鐘內。</div>
+      <div id="voiceFileList" style="margin-top:6px;"></div>
     </div>
+  </div>
+
+  <div id="voiceMergeRow" style="display:none;margin-top:12px;padding:10px 12px;background:rgba(123,224,200,.06);border:1px solid rgba(123,224,200,.22);border-radius:8px;">
+    <div class="voice-sub" style="margin-bottom:6px;">你選了多個檔，這批要：</div>
+    <label class="voice-sub" style="display:block;font-size:.84rem;margin:4px 0;cursor:pointer;"><input type="radio" name="voiceMerge" value="merge" checked style="margin-right:6px;">同一場錄音的分段 → <b>合併成一個案例</b></label>
+    <label class="voice-sub" style="display:block;font-size:.84rem;margin:4px 0;cursor:pointer;"><input type="radio" name="voiceMerge" value="split" style="margin-right:6px;">各自獨立 → <b>每個檔各成一個案例</b></label>
   </div>
 
   <div id="voiceStatus" style="display:none;margin-top:16px;">
@@ -989,13 +1010,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
   </div>
 
   <div id="voiceResult" style="display:none;margin-top:16px;">
-    <div style="font-size:.78rem;font-weight:700;color:#7be0c8;margin-bottom:4px;">📝 摘要</div>
-    <div id="voiceResultSummary" class="voice-box" style="white-space:pre-wrap;font-size:.82rem;line-height:1.7;padding:12px;border-radius:10px;margin-bottom:10px;"></div>
-    <details>
-      <summary class="voice-sub" style="cursor:pointer;">📄 點開看完整逐字稿</summary>
-      <div id="voiceResultTranscript" class="voice-box" style="white-space:pre-wrap;font-size:.78rem;line-height:1.7;padding:12px;border-radius:10px;margin-top:6px;max-height:40vh;overflow:auto;"></div>
-    </details>
-    <div style="font-size:.75rem;color:#7be0c8;margin-top:8px;">✅ 已存進知識庫，AI 顧問現在就能參考。</div>
+    <div id="voiceResultBody"></div>
   </div>
 
   <div class="btn-row tk-btn-row">
@@ -1093,7 +1108,7 @@ body.day-mode #taskFileSummary{color:#8070a0 !important;}
 
 <div class="add-modal-bg" id="caseModal"><div class="add-modal">
   <h3>＋ 新增案例</h3>
-  <select id="caseType"><option value="good">📗 好案例</option><option value="bad">📕 踩過的坑</option><option value="data">📊 數據查詢案例</option></select>
+  <select id="caseType"><option value="good">📗 好案例</option><option value="bad">📕 踩過的坑</option><option value="voice">🎙️ 錄音學習</option><option value="acceptance">📞 驗收電話</option><option value="data">📊 數據查詢案例</option></select>
   <textarea id="caseText" placeholder="描述案例內容..."></textarea>
   <div class="btn-row"><button class="btn-cancel" onclick="closeModal('caseModal')">取消</button><button class="btn-save" onclick="addCase()">新增</button></div>
 </div></div>
@@ -1822,7 +1837,7 @@ function getPerfCtx(){
   return l.length?l.join('\n'):'（無數據）';}catch(e){return '';}
 }
 function getRulesCtx(){var r=LS(SK.rules);if(!r.length)return '';return '團隊鐵律 — 來自 AI 團隊宣言】\n'+r.map(function(x,i){return(i+1)+'. '+x.text;}).join('\n');}
-function getCaseDbCtx(){var c=LS(SK.casedb);if(!c.length)return '';var l=['📂 案例資料庫（公司共享）— 來自 AI 案例庫，⚠️ 內容裡提到的姓名/組別/學院都是「案例主角」，不是「當前使用者」'];c.forEach(function(x){var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕踩過的坑':'📊數據查詢案例');l.push(lbl+' '+x.text);});return l.join('\n');}
+function getCaseDbCtx(){var c=LS(SK.casedb);if(!c.length)return '';var l=['📂 案例資料庫（公司共享）— 來自 AI 案例庫，⚠️ 內容裡提到的姓名/組別/學院都是「案例主角」，不是「當前使用者」'];c.forEach(function(x){var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕踩過的坑':(x.type==='voice'?'🎙️錄音學習':(x.type==='acceptance'?'📞驗收電話':'📊數據查詢案例')));var t=x.text||'';if((x.type==='voice'||x.type==='acceptance')&&t.length>1200)t=t.substring(0,1200)+'…（節錄，完整內容請看案例資料庫）';l.push(lbl+' '+t);});return l.join('\n');}
 
 // ★ 釘選話題（per-character）：當前主角自己的釘選對話歷史
 function getPinsCtx(){
@@ -3860,12 +3875,30 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 // ══════ 🎙️ 錄音轉摘要 ══════
-// 流程：上傳音檔 → 瀏覽器降頻成 16kHz mono MP3 → Groq Whisper 轉逐字稿
-//       → Anthropic 出摘要 → 存成知識庫文件（content=摘要、transcript=逐字稿）
-//       → Telegram 通知。全部透過 anthropic-proxy Worker，金鑰不外洩。
-var _voiceFile = null;
+// 流程：可一次上傳多個音檔 → 瀏覽器降頻成 16kHz mono MP3 → Groq Whisper 轉逐字稿
+//       → Anthropic 出摘要 → 依「存到」選單存進 知識庫 / 案例庫(錄音學習) / 案例庫(驗收電話)
+//       → Telegram 通知（含完成文字）。全部透過 anthropic-proxy Worker，金鑰不外洩。
+//   多檔可選「合併成一個案例」或「各自獨立成多個案例」。
+var _voiceFiles = [];
 var _voiceBusy = false;
+var _voicePending = null;   // 轉譯完、尚未儲存的結果 {dest, units}
 var _lamePromise = null;
+
+// 帶 timeout 的 fetch — API 沒回應時不會無限卡住
+function _voiceFetch(url, opts, ms){
+  var ctrl = new AbortController();
+  var to = setTimeout(function(){ try{ ctrl.abort(); }catch(_){} }, ms || 240000);
+  opts = opts || {};
+  opts.signal = ctrl.signal;
+  return fetch(url, opts).then(
+    function(r){ clearTimeout(to); return r; },
+    function(e){
+      clearTimeout(to);
+      if (e && e.name === 'AbortError') throw new Error('連線逾時（超過 ' + Math.round((ms||240000)/1000) + ' 秒沒回應），請再試一次');
+      throw e;
+    }
+  );
+}
 
 // lamejs（MP3 編碼器）首次使用時才載入；多 CDN 備援，單一網址失效會自動換下一個
 function _ensureLame(){
@@ -3896,29 +3929,38 @@ function _ensureLame(){
 }
 
 function openVoiceModal(){
-  _voiceFile = null;
+  document.getElementById('voiceModal').classList.add('open');
+  // 有尚未儲存的轉譯結果 → 直接還原編輯面板，不要洗掉
+  if (_voicePending && _voicePending.units && _voicePending.units.length){
+    document.getElementById('voiceStatus').style.display = 'none';
+    _voiceRenderEditPanel();
+    return;
+  }
+  _voiceFiles = [];
   _voiceBusy = false;
   document.getElementById('voiceTitle').value = '';
   document.getElementById('voiceFileInput').value = '';
-  document.getElementById('voiceFileSummary').textContent = '尚未選擇檔案';
+  document.getElementById('voiceDest').value = 'voice';
+  document.getElementById('voiceFileList').innerHTML = '';
+  document.getElementById('voiceMergeRow').style.display = 'none';
   document.getElementById('voiceStatus').style.display = 'none';
   document.getElementById('voiceResult').style.display = 'none';
   document.getElementById('voiceStartBtn').disabled = true;
-  document.getElementById('voiceModal').classList.add('open');
 }
 
-function voicePickFile(files){
+function voicePickFiles(files){
   if (!files || !files.length) return;
-  var f = files[0];
-  _voiceFile = f;
-  var mb = f.size / 1024 / 1024;
-  document.getElementById('voiceFileSummary').textContent = '✅ ' + f.name + '（' + mb.toFixed(1) + ' MB）';
+  _voiceFiles = Array.prototype.slice.call(files);
+  var listEl = document.getElementById('voiceFileList');
+  listEl.innerHTML = _voiceFiles.map(function(f, i){
+    var mb = f.size / 1024 / 1024;
+    var warn = mb > 80 ? ' ⚠️偏大，若失敗請分段' : '';
+    return '<div class="voice-hint" style="margin:2px 0;">' + (i+1) + '. ' + esc(f.name) + '（' + mb.toFixed(1) + ' MB）' + warn + '</div>';
+  }).join('');
+  document.getElementById('voiceMergeRow').style.display = _voiceFiles.length > 1 ? 'block' : 'none';
   document.getElementById('voiceStartBtn').disabled = false;
   var t = document.getElementById('voiceTitle');
-  if (!t.value.trim()) t.value = (f.name || '').replace(/\.[^.]+$/, '');
-  if (mb > 80){
-    document.getElementById('voiceFileSummary').textContent += ' ⚠️ 檔案偏大，若處理失敗請分段';
-  }
+  if (!t.value.trim() && _voiceFiles[0]) t.value = (_voiceFiles[0].name || '').replace(/\.[^.]+$/, '');
 }
 
 function _voiceSetStatus(msg, pct){
@@ -3987,7 +4029,7 @@ async function _voiceTranscribe(mp3Blob){
   fd.append('model', 'whisper-large-v3');
   fd.append('language', 'zh');
   fd.append('response_format', 'json');
-  var resp = await fetch(PROXY_BASE + '/groq/audio/transcriptions', { method: 'POST', body: fd });
+  var resp = await _voiceFetch(PROXY_BASE + '/groq/audio/transcriptions', { method: 'POST', body: fd }, 240000);
   if (!resp.ok){
     var t = ''; try{ t = await resp.text(); }catch(_){}
     throw new Error('轉譯失敗（' + resp.status + '）' + t.substring(0, 200));
@@ -4003,12 +4045,12 @@ async function _voiceSummarize(transcript){
     + '【重點摘要】條列 3-8 個重點。\n'
     + '【決議／待辦】若內容有決定事項或要做的事，條列出來並標註負責人（如有提到）；沒有就寫「無」。\n'
     + '只輸出摘要本身，不要開場白或客套話。逐字稿可能有同音錯字，請依上下文合理判讀。';
-  var resp = await fetch(PROXY_BASE + '/v1/messages', { method: 'POST',
+  var resp = await _voiceFetch(PROXY_BASE + '/v1/messages', { method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-opus-4-7', max_tokens: 1500, system: sys,
       messages: [{ role: 'user', content: '以下是逐字稿：\n\n' + transcript }]
-    }) });
+    }) }, 180000);
   if (!resp.ok){
     var t = ''; try{ t = await resp.text(); }catch(_){}
     throw new Error('摘要失敗（' + resp.status + '）' + t.substring(0, 200));
@@ -4020,71 +4062,175 @@ async function _voiceSummarize(transcript){
 // Telegram 通知（失敗不中斷流程）
 async function _voiceNotify(text){
   try {
-    await fetch(PROXY_BASE + '/telegram/send', { method: 'POST',
+    await _voiceFetch(PROXY_BASE + '/telegram/send', { method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text }) });
+      body: JSON.stringify({ text: text }) }, 30000);
   } catch(e){
     console.warn('[voice] Telegram 通知失敗', e);
   }
 }
 
 async function startVoiceProcess(){
-  if (_voiceBusy || !_voiceFile) return;
+  if (_voiceBusy || !_voiceFiles.length) return;
   _voiceBusy = true;
-  var startBtn = document.getElementById('voiceStartBtn');
-  startBtn.disabled = true;
+  document.getElementById('voiceStartBtn').disabled = true;
   document.getElementById('voiceResult').style.display = 'none';
-  var title = document.getElementById('voiceTitle').value.trim()
+  var dest = document.getElementById('voiceDest').value || 'voice';
+  var baseTitle = document.getElementById('voiceTitle').value.trim()
     || ('錄音 ' + new Date().toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }));
+  var files = _voiceFiles.slice();
+  var multi = files.length > 1;
+  var mergeMode = 'merge';
+  var mr = document.querySelector('input[name="voiceMerge"]:checked');
+  if (mr) mergeMode = mr.value;
   try {
-    _voiceSetStatus('📦 載入編碼器…', 8);
+    _voiceSetStatus('📦 載入編碼器…', 4);
     await _ensureLame();
-    _voiceSetStatus('🎚️ 壓縮音檔中…', 15);
-    var comp = await _voiceCompress(_voiceFile, function(p){
-      _voiceSetStatus('🎚️ 壓縮音檔中… ' + Math.round(p*100) + '%', 15 + Math.round(p*23));
-    });
-    var mb = comp.blob.size / 1024 / 1024;
-    if (mb > 24){
-      throw new Error('壓縮後仍有 ' + mb.toFixed(1) + 'MB，超過上限。請把錄音分段成 60 分鐘內再上傳。');
+    // Step 1：逐檔壓縮 + 轉譯（單檔失敗不影響其他檔，也不會整個卡死）
+    var transcripts = [];
+    for (var i=0; i<files.length; i++){
+      var fi = i+1, fn = files.length, capI = i;
+      try {
+        _voiceSetStatus('🎚️ (' + fi + '/' + fn + ') 壓縮音檔…', 4 + (capI/fn)*52);
+        var comp = await _voiceCompress(files[i], (function(fi, fn, capI){
+          return function(p){
+            _voiceSetStatus('🎚️ (' + fi + '/' + fn + ') 壓縮音檔… ' + Math.round(p*100) + '%', 4 + ((capI + p*0.5)/fn)*52);
+          };
+        })(fi, fn, capI));
+        var mb = comp.blob.size / 1024 / 1024;
+        if (mb > 24) throw new Error('壓縮後 ' + mb.toFixed(1) + 'MB 超過上限，請分段成 60 分鐘內');
+        _voiceSetStatus('✍️ (' + fi + '/' + fn + ') 語音轉文字中…（長錄音可能要 1~3 分鐘，請耐心等）', 4 + ((capI + 0.6)/fn)*52);
+        var tr = await _voiceTranscribe(comp.blob);
+        transcripts.push((tr || '').trim() || '（這個檔轉譯結果是空白的，請確認有聲音）');
+      } catch(fileErr){
+        console.error('[voice] 第 ' + fi + ' 個檔失敗', fileErr);
+        transcripts.push('（第 ' + fi + ' 個檔處理失敗：' + (fileErr && fileErr.message || fileErr) + '）');
+      }
     }
-    _voiceSetStatus('✍️ 語音轉文字中（Groq Whisper，請稍候）…', 45);
-    var transcript = await _voiceTranscribe(comp.blob);
-    if (!transcript || !transcript.trim()){
-      throw new Error('轉譯結果是空白的，請確認這個錄音檔有聲音。');
+    // Step 2：依合併模式組裝 units
+    var units = [];
+    if (!multi || mergeMode === 'merge'){
+      var combined = transcripts.map(function(t, idx){
+        return (multi ? '【第' + (idx+1) + '段】\n' : '') + t;
+      }).join('\n\n');
+      units = [{ title: baseTitle, transcript: combined }];
+    } else {
+      units = transcripts.map(function(t, idx){
+        return { title: baseTitle + '（' + (idx+1) + '）', transcript: t };
+      });
     }
-    _voiceSetStatus('🧠 AI 摘要中…', 72);
-    var summary = await _voiceSummarize(transcript);
-    if (!summary || !summary.trim()) summary = '（摘要產生失敗，請點開下方逐字稿查看內容）';
-    _voiceSetStatus('💾 存入知識庫…', 88);
-    var now = Date.now();
-    var d = _loadKb();
-    d.items.push({
-      id: 'kb_' + now,
-      title: '🎙️ ' + title,
-      tags: ['錄音摘要'],
-      content: summary,        // ★ AI 自動參考的是這個（短）
-      transcript: transcript,  // ★ 完整逐字稿，不進 AI context
-      isVoiceNote: true,
-      durationSec: comp.durationSec,
-      enabled: true,
-      size: summary.length,
-      createdAt: now,
-      updatedAt: now
-    });
-    _saveKb(d);
-    try{ renderKnowledge(); }catch(_){}
+    // Step 3：逐 unit 摘要（摘要失敗不致命，逐字稿一定保留）
+    for (var u=0; u<units.length; u++){
+      var unit = units[u];
+      _voiceSetStatus('🧠 (' + (u+1) + '/' + units.length + ') AI 摘要中…（約 20~60 秒）', 60 + (u/units.length)*30);
+      var summary = '';
+      if (unit.transcript && unit.transcript.trim()){
+        try { summary = await _voiceSummarize(unit.transcript); }
+        catch(sumErr){
+          console.error('[voice] 摘要失敗', sumErr);
+          summary = '（摘要產生失敗：' + (sumErr && sumErr.message || sumErr) + '。下方逐字稿仍可用，可自行整理。）';
+        }
+      }
+      if (!summary || !summary.trim()) summary = '（無摘要）';
+      unit.summary = summary;
+      unit.body = '【摘要】\n' + summary + '\n\n【逐字稿】\n' + (unit.transcript || '');
+    }
+    // Step 4：Telegram 通知（轉譯完成、待編輯儲存）
     _voiceSetStatus('📲 發送 Telegram 通知…', 95);
-    await _voiceNotify('✅ 錄音處理完成\n📌 ' + title + '\n\n' + summary);
-    _voiceSetStatus('✅ 完成！已存進知識庫，AI 顧問現在就能參考。', 100);
-    document.getElementById('voiceResult').style.display = 'block';
-    document.getElementById('voiceResultSummary').textContent = summary;
-    document.getElementById('voiceResultTranscript').textContent = transcript;
+    var notify = '✅ 錄音轉譯完成（共 ' + units.length + ' 筆），請回 AI 顧問確認、編輯後按儲存：\n';
+    units.forEach(function(r){ notify += '\n━━━ 📌 ' + r.title + ' ━━━\n' + r.summary + '\n'; });
+    await _voiceNotify(notify.slice(0, 3900));
+    // Step 5：顯示可編輯面板（不自動存，讓使用者改完再存）
+    _voicePending = { dest: dest, units: units };
+    _voiceSetStatus('✅ 轉譯完成！請在下方確認 / 修改後按「💾 儲存」。', 100);
+    _voiceRenderEditPanel();
   } catch(e){
     console.error('[voice] 處理失敗', e);
     _voiceSetStatus('❌ ' + (e && e.message || e), null);
   }
   _voiceBusy = false;
-  startBtn.disabled = false;
+  document.getElementById('voiceStartBtn').disabled = false;
+}
+
+// 顯示可編輯的結果面板（標題 + 內容 textarea + 存到選單 + 儲存鈕）
+function _voiceRenderEditPanel(){
+  var p = _voicePending;
+  if (!p || !p.units || !p.units.length) return;
+  var dest = p.dest || 'voice';
+  var html = '<div class="voice-sub" style="margin-bottom:10px;color:#7be0c8;font-weight:700;">✅ 轉譯完成！確認或修改下面內容，選好要存到哪，再按「💾 儲存」。</div>';
+  html += '<div style="margin-bottom:12px;"><span class="voice-sub">存到：</span> '
+    + '<select id="voiceEditDest" class="tk-input" style="width:auto;display:inline-block;min-width:230px;">'
+    + '<option value="voice"' + (dest==='voice'?' selected':'') + '>🎙️ 案例資料庫 — 錄音學習</option>'
+    + '<option value="acceptance"' + (dest==='acceptance'?' selected':'') + '>📞 案例資料庫 — 驗收電話</option>'
+    + '<option value="kb"' + (dest==='kb'?' selected':'') + '>📚 知識庫（全公司共享）</option>'
+    + '</select></div>';
+  p.units.forEach(function(u, idx){
+    html += '<div style="margin-bottom:14px;padding:10px;border:1px solid rgba(123,224,200,.22);border-radius:8px;">';
+    if (p.units.length > 1) html += '<div class="voice-sub" style="font-weight:700;margin-bottom:6px;">第 ' + (idx+1) + ' 筆</div>';
+    html += '<div class="voice-sub" style="margin-bottom:3px;">標題</div>';
+    html += '<input id="voiceEditTitle_' + idx + '" class="tk-input" style="margin-bottom:8px;" value="' + esc(u.title || '') + '">';
+    html += '<div class="voice-sub" style="margin-bottom:3px;">內容（可自由修改，含摘要與逐字稿）</div>';
+    html += '<textarea id="voiceEditText_' + idx + '" class="tk-input" style="width:100%;min-height:240px;font-size:.82rem;line-height:1.6;resize:vertical;">' + esc(u.body || '') + '</textarea>';
+    html += '</div>';
+  });
+  html += '<button class="btn-save" style="width:100%;padding:11px;" onclick="voiceSaveEdited()">💾 儲存</button>';
+  document.getElementById('voiceResultBody').innerHTML = html;
+  document.getElementById('voiceResult').style.display = 'block';
+}
+
+// 把編輯後的結果存到指定目的地
+function voiceSaveEdited(){
+  if (!_voicePending || !_voicePending.units || !_voicePending.units.length) return;
+  var destEl = document.getElementById('voiceEditDest');
+  var dest = (destEl && destEl.value) || _voicePending.dest || 'voice';
+  var units = _voicePending.units;
+  var savedTitles = [];
+  for (var u=0; u<units.length; u++){
+    var titleEl = document.getElementById('voiceEditTitle_' + u);
+    var textEl = document.getElementById('voiceEditText_' + u);
+    var title = (titleEl && titleEl.value.trim()) || units[u].title || ('錄音 ' + (u+1));
+    var body = textEl ? textEl.value : (units[u].body || '');
+    _voiceCommitUnit(dest, title, body);
+    savedTitles.push(title);
+  }
+  _voicePending = null;
+  var destLabel = dest==='kb' ? '知識庫' : (dest==='voice' ? '案例資料庫 · 錄音學習' : '案例資料庫 · 驗收電話');
+  document.getElementById('voiceResultBody').innerHTML =
+    '<div style="text-align:center;padding:18px;color:#7be0c8;font-weight:700;font-size:.95rem;">✅ 已儲存 ' + savedTitles.length + ' 筆到「' + destLabel + '」</div>'
+    + '<div class="voice-sub" style="text-align:center;">之後可到該分類用 ✏️ 編輯隨時修改。</div>';
+  _voiceSetStatus('✅ 已儲存到「' + destLabel + '」。', 100);
+  _voiceNotify('✅ 錄音已儲存到「' + destLabel + '」，共 ' + savedTitles.length + ' 筆：\n' + savedTitles.map(function(t){ return '• ' + t; }).join('\n'));
+}
+
+// 把一筆（title + body）存到指定目的地
+function _voiceCommitUnit(dest, title, body){
+  var now = Date.now() + Math.floor(Math.random() * 100000);
+  if (dest === 'kb'){
+    // 從 body 拆出摘要 / 逐字稿
+    var summary = body || '', transcript = '';
+    var mk = (body || '').indexOf('【逐字稿】');
+    if (mk >= 0){
+      summary = body.substring(0, mk).replace(/^\s*【摘要】\s*/, '').trim();
+      transcript = body.substring(mk + 5).trim();
+    }
+    var d = _loadKb();
+    d.items.push({
+      id: 'kb_' + now, title: '🎙️ ' + title, tags: ['錄音摘要'],
+      content: summary, transcript: transcript, isVoiceNote: true,
+      enabled: true, size: summary.length, createdAt: now, updatedAt: now
+    });
+    _saveKb(d);
+    try{ renderKnowledge(); }catch(_){}
+  } else {
+    // dest = 'voice'（錄音學習）或 'acceptance'（驗收電話）→ 案例資料庫
+    var items = LS(SK.casedb);
+    items.push({
+      id: 'c_' + now, type: dest, text: title + '\n' + (body || ''),
+      marquee: false, isVoice: true, createdAt: now
+    });
+    SS(SK.casedb, items);
+    try{ renderCaseDb(); }catch(_){}
+  }
 }
 
 // 從知識庫項目檢視完整逐字稿
@@ -4125,6 +4271,8 @@ function renderCaseDb(){
     +'<button class="case-filter'+(caseFilter==='all'?' active':'')+'" onclick="setCaseFilter(\'all\')">全部 ('+items.length+')</button>'
     +'<button class="case-filter'+(caseFilter==='good'?' active':'')+'" onclick="setCaseFilter(\'good\')">📗 好案例 ('+items.filter(function(x){return x.type==='good';}).length+')</button>'
     +'<button class="case-filter'+(caseFilter==='bad'?' active':'')+'" onclick="setCaseFilter(\'bad\')">📕 踩過的坑 ('+items.filter(function(x){return x.type==='bad';}).length+')</button>'
+    +'<button class="case-filter'+(caseFilter==='voice'?' active':'')+'" onclick="setCaseFilter(\'voice\')" style="'+(caseFilter==='voice'?'background:rgba(123,224,200,.14);border-color:#7be0c8;color:#7be0c8;':'')+'">🎙️ 錄音學習 ('+items.filter(function(x){return x.type==='voice';}).length+')</button>'
+    +'<button class="case-filter'+(caseFilter==='acceptance'?' active':'')+'" onclick="setCaseFilter(\'acceptance\')" style="'+(caseFilter==='acceptance'?'background:rgba(255,176,80,.14);border-color:#ffb050;color:#ffb050;':'')+'">📞 驗收電話 ('+items.filter(function(x){return x.type==='acceptance';}).length+')</button>'
     +'<button class="case-filter'+(caseFilter==='data'?' active':'')+'" onclick="setCaseFilter(\'data\')" style="'+(caseFilter==='data'?'background:rgba(74,234,255,.12);border-color:#4aeaff;color:#4aeaff;':'')+'">📊 數據查詢案例 ('+items.filter(function(x){return x.type==='data';}).length+')</button>'
     +'<button class="case-filter" onclick="setCaseFilter(\'marquee\')" style="'+(caseFilter==='marquee'?'background:rgba(255,215,0,.12);border-color:#ffd700;color:#ffd700;':'')+'">📢 跑馬燈 ('+items.filter(function(x){return x.marquee;}).length+')</button>'
     +'</div>';
@@ -4141,7 +4289,7 @@ function renderCaseDb(){
     if (lines.length > 2 && !preview.endsWith('…')) preview += '…';
     return '<div class="case-item '+c.type+'" style="cursor:pointer;" onclick="openCaseDetail(\''+c.id+'\')" title="點擊看全文">'
       +'<input type="checkbox" class="case-check" '+(c.marquee?'checked':'')+' onchange="event.stopPropagation();toggleMarquee(\''+c.id+'\')" onclick="event.stopPropagation()" title="勾選後顯示在首頁跑馬燈">'
-      +'<span class="case-tag '+c.type+'">'+(c.type==='good'?'📗 好':(c.type==='bad'?'📕 坑':'📊 數據'))+'</span>'
+      +'<span class="case-tag '+c.type+'">'+(c.type==='good'?'📗 好':(c.type==='bad'?'📕 坑':(c.type==='voice'?'🎙️ 錄音':(c.type==='acceptance'?'📞 驗收':'📊 數據'))))+'</span>'
       +'<span class="case-text">'+esc(preview||'(空白)')+'</span>'
       +'<span class="case-edit" onclick="event.stopPropagation();editCase(\''+c.id+'\')" style="cursor:pointer;padding:4px 8px;opacity:.7;font-size:.78rem;" title="編輯內容">✏️ 編輯</span>'
       +'<span class="case-del" onclick="event.stopPropagation();delCase(\''+c.id+'\')">🗑 刪除</span></div>';
@@ -4167,7 +4315,7 @@ function editCase(id){
     return;
   }
   // 把 body 換成 textarea 讓使用者編輯
-  var typeLabel = c.type==='good'?'📗 好案例':(c.type==='bad'?'📕 踩過的坑':'📊 數據查詢案例');
+  var typeLabel = c.type==='good'?'📗 好案例':(c.type==='bad'?'📕 踩過的坑':(c.type==='voice'?'🎙️ 錄音學習':(c.type==='acceptance'?'📞 驗收電話':'📊 數據查詢案例')));
   titleEl.textContent = '✏️ 編輯' + typeLabel;
   bodyEl.innerHTML = '<textarea id="caseEditTextarea" style="width:100%;min-height:300px;padding:12px;background:rgba(15,20,60,.3);border:1px solid rgba(74,234,255,.25);border-radius:8px;color:#d0e8ff;font-family:inherit;font-size:.9rem;line-height:1.6;resize:vertical;">'+esc(c.text||'')+'</textarea>'
     + '<div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">'
@@ -4192,7 +4340,7 @@ function saveCaseEdit(id){
 function openCaseDetail(id){
   var items=LS(SK.casedb),c=items.find(function(x){return x.id===id;});
   if(!c)return;
-  var typeLabel=c.type==='good'?'📗 好案例':(c.type==='bad'?'📕 踩過的坑':'📊 數據查詢案例');
+  var typeLabel=c.type==='good'?'📗 好案例':(c.type==='bad'?'📕 踩過的坑':(c.type==='voice'?'🎙️ 錄音學習':(c.type==='acceptance'?'📞 驗收電話':'📊 數據查詢案例')));
   var date=c.createdAt?new Date(c.createdAt).toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
   document.getElementById('caseDetailTitle').textContent=typeLabel+(date?' · '+date:'');
   document.getElementById('caseDetailBody').textContent=c.text||'(空白)';
