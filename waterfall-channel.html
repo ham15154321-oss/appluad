@@ -160,10 +160,12 @@ select.tin{cursor:pointer;}
     <div id="aChart"></div>
   </div>
 
-  <!-- ══ Block 3 — 本月目標作戰計劃（下一階段）══ -->
+  <!-- ══ Block 3 — 本月目標作戰計劃 ══ -->
   <div class="section">
-    <div class="section-title"><div class="icon" style="background:rgba(167,139,250,0.2);">📋</div>本月目標作戰計劃</div>
-    <div class="placeholder"><div class="pl-icon">🚧</div>下一階段建置中<br><span style="font-size:11px;">文字記錄 + AI 分析 + 會議記錄 + 連到 A通路研究院</span></div>
+    <div class="section-title"><div class="icon" style="background:rgba(167,139,250,0.2);">📋</div>本月目標作戰計劃
+      <button class="btn purple" onclick="goToAChannel()">🧠 連到 A通路研究院</button>
+    </div>
+    <div class="card" id="block3"></div>
   </div>
 
   <!-- ══ Block 4 — 當月話術與獵殺名單 ══ -->
@@ -473,6 +475,13 @@ function openCasePicker(kind,idx){
 }
 function pickCase(cid){
   if(!_pickTarget) return;
+  if(_pickTarget.kind==='meetingText'){
+    var mc=caseById(cid);
+    if(mc){ md().battlePlan.meetingText=String(mc.text||''); scheduleSave(); }
+    closeModal('casePickerModal');
+    renderBlock3();
+    return;
+  }
   var t=_pickTarget.kind==='star' ? md().star : md().needImprove[_pickTarget.idx];
   if(!t.caseIds) t.caseIds=[];
   if(t.caseIds.indexOf(cid)<0) t.caseIds.push(cid);
@@ -775,10 +784,106 @@ function _voiceCommitUnit(dest,title,body){
   try{ localStorage.setItem('ai_casedb_v1',JSON.stringify(arr)); }catch(e){ toast('⚠ 案例儲存失敗：'+e.message,true); }
 }
 
+// ════════ Block 3 — 本月目標作戰計劃 ════════
+var _battleAi=[];
+function renderBlock3(){
+  var d=md().battlePlan;
+  if(!d.suggestions) d.suggestions=[];
+  var html='';
+  html+='<div class="subhead">📝 文字記錄（本月目標 / 作戰計劃）</div>';
+  html+='<textarea class="tin" placeholder="寫本月 A通路目標與作戰計劃…" oninput="md().battlePlan.notes=this.value;scheduleSave();">'+esc(d.notes)+'</textarea>';
+  html+='<div class="subhead">🗂️ 會議記錄</div>';
+  html+='<div class="edit-row"><label>雲端連結</label><input class="tin" value="'+escAttr(d.meetingUrl)+'" placeholder="會議記錄 Google 雲端硬碟連結" oninput="md().battlePlan.meetingUrl=this.value;scheduleSave();_syncOpen(this);">'
+    +'<a class="link-open'+(safeUrl(d.meetingUrl)?'':' off')+'" href="'+escAttr(safeUrl(d.meetingUrl)||'#')+'" target="_blank">🔗 開啟</a></div>';
+  html+='<div style="font-size:12px;color:var(--dim);margin:6px 0 3px;">會議記錄文字（給 AI 分析用）<button class="btn" style="margin-left:6px;" onclick="openCasePicker(\'meetingText\',0)">📋 從錄音案例帶入</button></div>';
+  html+='<textarea class="tin" placeholder="貼上會議記錄文字，或從錄音案例帶入" oninput="md().battlePlan.meetingText=this.value;scheduleSave();">'+esc(d.meetingText)+'</textarea>';
+  html+='<div class="subhead">🤖 AI 作戰分析 <button class="btn gold" id="battleAiBtn" onclick="runBattleAnalysis()">分析並給建議</button></div>';
+  html+='<div class="voice-sub" style="margin-bottom:6px;">分析素材：小組 A業績Ⓐ(本月+上月) + 已連結的錄音案例逐字稿 + 會議記錄文字 + 文字記錄。</div>';
+  html+='<div id="battleAiResult"></div>';
+  html+='<div class="subhead">✅ 已採納建議</div><div id="battleAdopted"></div>';
+  document.getElementById('block3').innerHTML=html;
+  renderAdopted();
+}
+function renderAdopted(){
+  var el=document.getElementById('battleAdopted'); if(!el) return;
+  var sg=md().battlePlan.suggestions||[];
+  if(!sg.length){ el.innerHTML='<div class="voice-sub">尚無採納的建議。跑 AI 分析後勾選採納。</div>'; return; }
+  el.innerHTML=sg.map(function(s,i){
+    return '<div class="lrow"><span style="flex:1;font-size:12px;line-height:1.5;">✅ '+esc(s.text)+'</span><button class="btn danger" onclick="delAdopted('+i+')">🗑</button></div>';
+  }).join('');
+}
+function delAdopted(i){ md().battlePlan.suggestions.splice(i,1); scheduleSave(); renderAdopted(); }
+async function runBattleAnalysis(){
+  var btn=document.getElementById('battleAiBtn');
+  if(btn){ btn.disabled=true; btn.textContent='分析中…'; }
+  var res=document.getElementById('battleAiResult');
+  if(res) res.innerHTML='<div class="voice-sub">🤖 AI 分析中…（約 20~40 秒）</div>';
+  try{
+    var d=md().battlePlan, members=getGroupMembers();
+    var prevM=currentMonth-1<1?12:currentMonth-1;
+    var perfLines=members.map(function(n){ return '  '+n+'：上月 '+_fmt(getAPerf(prevM,n))+' → 本月 '+_fmt(getAPerf(currentMonth,n)); });
+    var ids=[]; (md().star.caseIds||[]).forEach(function(x){ ids.push(x); });
+    md().needImprove.forEach(function(it){ (it.caseIds||[]).forEach(function(x){ ids.push(x); }); });
+    var caseTxt=ids.map(function(cid){ var c=caseById(cid); return c?('— '+caseTitle(c)+'\n'+String(c.text||'').substring(0,1500)):''; }).filter(Boolean).join('\n\n');
+    var material='【小組 A業績Ⓐ（上月→本月）】\n'+(perfLines.join('\n')||'（無業績資料）')
+      +'\n\n【已連結的錄音案例（逐字稿/摘要節錄）】\n'+(caseTxt||'（尚未連結錄音案例）')
+      +'\n\n【會議記錄文字】\n'+(d.meetingText||'（無）')
+      +'\n\n【組長的文字記錄】\n'+(d.notes||'（無）');
+    var sys='你是赫綵的「A通路作戰顧問」。根據組長提供的資料,給出本月 A通路作戰計劃的具體建議。\n'
+      +'要求：條列 5-8 點,每點一句話、可立刻執行,聚焦在「話術調整、錄音優化、撥打量、音調、約訪轉換」。\n'
+      +'判斷有沒有因話術/錄音調整而提升業績；若沒提升,點出可能是音調或撥打量問題。\n'
+      +'只輸出建議清單,每點開頭用「- 」,不要其他說明文字。';
+    var resp=await _voiceFetch(PROXY_BASE+'/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-opus-4-7',max_tokens:1200,system:sys,messages:[{role:'user',content:material}]})},180000);
+    if(!resp.ok){ var t=''; try{t=await resp.text();}catch(_){} throw new Error('分析失敗('+resp.status+') '+t.substring(0,140)); }
+    var data=await resp.json();
+    var txt=(data&&data.content&&data.content[0]&&data.content[0].text)||'';
+    _battleAi=txt.split('\n').map(function(l){ return l.replace(/^[-•*\d.、\s]+/,'').trim(); }).filter(function(l){ return l.length>3; });
+    renderBattleAi();
+  }catch(e){
+    console.error('[battle]',e);
+    if(res) res.innerHTML='<div class="voice-sub" style="color:#f87171;">❌ '+esc(e&&e.message||e)+'</div>';
+  }
+  if(btn){ btn.disabled=false; btn.textContent='分析並給建議'; }
+}
+function renderBattleAi(){
+  var el=document.getElementById('battleAiResult');
+  if(!_battleAi.length){ el.innerHTML='<div class="voice-sub">（分析沒有產生建議,可再試一次）</div>'; return; }
+  el.innerHTML='<div class="voice-sub" style="margin-bottom:4px;">勾選要採納的,按下方「採納」存進已採納清單:</div>'
+    +_battleAi.map(function(s,i){
+      return '<div class="lrow"><label style="flex:1;font-size:12px;display:flex;gap:8px;align-items:flex-start;cursor:pointer;line-height:1.5;"><input type="checkbox" id="bai_'+i+'" style="margin-top:2px;"><span>'+esc(s)+'</span></label></div>';
+    }).join('')
+    +'<button class="btn gold" style="margin-top:4px;" onclick="adoptBattleAi()">✓ 採納勾選的建議</button>';
+}
+function adoptBattleAi(){
+  var added=0;
+  _battleAi.forEach(function(s,i){
+    var cb=document.getElementById('bai_'+i);
+    if(cb&&cb.checked){ md().battlePlan.suggestions.push({text:s,adopted:true}); added++; }
+  });
+  if(!added){ toast('沒有勾選任何建議',true); return; }
+  _battleAi=[]; scheduleSave();
+  document.getElementById('battleAiResult').innerHTML='';
+  renderAdopted();
+  toast('✅ 已採納 '+added+' 條建議');
+}
+function goToAChannel(){
+  try{ localStorage.setItem('_wf_open_mentor','1'); }catch(e){}
+  try{
+    if(window.parent && window.parent!==window){
+      if(window.parent.closeWaterfall) window.parent.closeWaterfall();
+      if(window.parent.openAiAdvisor) window.parent.openAiAdvisor();
+      return;
+    }
+  }catch(e){}
+  toast('請從首頁進入 AI 顧問中心 → A通路研究院');
+}
+
 // ════════ 渲染 ════════
 function renderAll(){
   renderBlock1();
   renderBlock2();
+  renderBlock3();
   renderLinkList('scripts');
   renderLinkList('hunts');
   renderFiles();
