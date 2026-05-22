@@ -109,6 +109,37 @@ select.tin{cursor:pointer;}
 .abar-fill{height:100%;border-radius:7px;min-width:2px;}
 .abar-val{font-size:10px;color:var(--dim);width:70px;text-align:right;flex-shrink:0;}
 
+/* 🎙️ 錄音轉摘要 — 置頂 Hero（Apple Swift 風：黑底發光）*/
+.voice-hero{
+  position:relative;overflow:hidden;
+  background:radial-gradient(ellipse 85% 130% at 50% -15%, #3a3a42 0%, #18181a 44%, #000000 100%);
+  border:1px solid #2c2c2e;border-radius:18px;
+  padding:22px 22px 20px;
+  box-shadow:0 10px 44px rgba(0,0,0,0.34);
+}
+.voice-hero::before{
+  content:'';position:absolute;left:50%;top:-46%;transform:translateX(-50%);
+  width:360px;height:280px;pointer-events:none;
+  background:radial-gradient(closest-side, rgba(130,175,255,0.32), rgba(130,175,255,0));
+}
+.vh-row{position:relative;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.vh-title{
+  font-size:19px;font-weight:700;color:#fff;letter-spacing:.4px;
+  text-shadow:0 0 16px rgba(150,190,255,0.6),0 0 38px rgba(255,255,255,0.22);
+}
+.vh-btn{
+  background:linear-gradient(135deg,#ffffff 0%,#cfe0ff 100%);
+  color:#0a0a0a;font-weight:700;font-size:13px;font-family:inherit;
+  border:none;border-radius:980px;padding:9px 20px;cursor:pointer;
+  box-shadow:0 0 18px rgba(150,190,255,0.7),0 0 46px rgba(255,255,255,0.28);
+  transition:transform .15s,box-shadow .25s;
+}
+.vh-btn:hover{
+  transform:translateY(-1px);
+  box-shadow:0 0 26px rgba(150,190,255,0.95),0 0 68px rgba(255,255,255,0.42);
+}
+.vh-sub{position:relative;color:#a1a1a6;font-size:12px;line-height:1.7;margin-top:10px;}
+
 @media(max-width:560px){
   .edit-row label{width:100%;}
   .lrow .tin{flex:1 1 100%;max-width:none;}
@@ -133,6 +164,23 @@ select.tin{cursor:pointer;}
 
 <div class="container">
 
+  <!-- ══ 🎙️ 錄音轉摘要（置頂 Hero）══ -->
+  <div class="section">
+    <div class="voice-hero">
+      <div class="vh-row">
+        <div class="vh-title">🎙️ 錄音轉摘要</div>
+        <button class="vh-btn" onclick="openVoiceModal()">＋ 上傳錄音</button>
+      </div>
+      <div class="vh-sub">上傳會議/通話錄音 → 自動逐字稿 + AI 摘要 → 存進案例（預設驗收電話，與 AI 顧問共用）。</div>
+    </div>
+  </div>
+
+  <!-- ══ 📚 錄音案例庫 ══ -->
+  <div class="section">
+    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📚</div>錄音案例庫（與 AI 顧問共用）</div>
+    <div id="caseLibList"></div>
+  </div>
+
   <!-- ══ Block 1 — 本月約訪之星 ══ -->
   <div class="section">
     <div class="section-title"><div class="icon" style="background:#f0f0f3;">🏆</div>本月約訪之星</div>
@@ -143,10 +191,6 @@ select.tin{cursor:pointer;}
   <div class="section">
     <div class="section-title"><div class="icon" style="background:#f0f0f3;">🎧</div>需優化錄音 ×3</div>
     <div id="needGrid"></div>
-    <div class="subhead">🎙️ 錄音轉摘要 <button class="btn green" onclick="openVoiceModal()">＋ 上傳錄音</button></div>
-    <div class="voice-sub" style="margin-bottom:8px;">上傳會議/通話錄音 → 自動逐字稿 + AI 摘要 → 存進案例（預設驗收電話，與 AI 顧問共用）。</div>
-    <div class="subhead">📚 錄音案例庫（與 AI 顧問共用）</div>
-    <div id="caseLibList"></div>
     <div class="subhead">📊 我小組的 A業績（業績Ⓐ · 近三個月比較）</div>
     <div id="aChart"></div>
   </div>
