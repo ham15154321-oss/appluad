@@ -3368,7 +3368,7 @@ async function closeCastle(){
 // ========== 瀑布 ==========
 function openWaterfall(){
   stopBgm();
-  document.getElementById('waterfallFrame').src='waterfall-channel.html?v=apple1';
+  document.getElementById('waterfallFrame').src='waterfall-channel.html?v=apple2';
   document.getElementById('waterfallOverlay').classList.add('active');
 }
 function closeWaterfall(){
@@ -3780,12 +3780,14 @@ window.addEventListener('message',async function(e){
     if(e.data.mascot){
       try{applyMascot(e.data.mascot);}catch(ex){}
     }
-    // ★ 通知 assess360 iframe 切換主角（file:// 模式 storage 事件不觸發）
+    // ★ 通知子 iframe 切換主角（file:// 模式 storage 事件不觸發 → 用 postMessage 補）
     try{
-      var af=document.getElementById('assess360Frame');
-      if(af&&af.contentWindow){
-        af.contentWindow.postMessage({action:'characterSwitched',characterId:e.data.name},'*');
-      }
+      ['assess360Frame','waterfallFrame'].forEach(function(fid){
+        var af=document.getElementById(fid);
+        if(af&&af.contentWindow){
+          af.contentWindow.postMessage({action:'characterSwitched',characterId:e.data.name},'*');
+        }
+      });
     }catch(ex){}
     // 更新評分
     update360DimScores();
