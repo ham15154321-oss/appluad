@@ -273,6 +273,7 @@ const GLOBAL_LS_KEY_PATTERNS = [
   /^training_library_v1$/, // 訓練教材庫（全公司共享，每個主管都看得到同一份）
   /^knowledge_base_v1$/,   // AI 顧問中心知識庫（全公司共享，AI 對話時自動帶入）
   /^cross_task_/,          // 跨主角任務（A 指派給 B 的任務 — 每筆獨立 doc，避免 LWW 互蓋）
+  /^pr_attr_/,             // 星際法院 歸屬爭議：規則 MD / 判例庫 / 爭議清單（全公司共用一份）
 ];
 function isGlobalLsKey(k){
   if (!k) return false;
