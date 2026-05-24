@@ -4055,6 +4055,13 @@ function perfPwCancel(){
 #pr-app .pr-zoom-btn:hover{background:rgba(100,180,255,0.22);}
 body.day-mode #pr-app .pr-zoom-btn{background:#f5f5f7;border-color:#d2d2d7;color:#0071e3;}
 body.day-mode #pr-app .pr-zoom-btn:hover{background:#ebebed;}
+/* 爭議編號 — 橘色（白底夜底都讀得清楚）*/
+#pr-app .pr-attr-id{color:#ff9500;}
+body.day-mode #pr-app .pr-attr-id{color:#e65100;}
+/* 歸屬爭議標題 — Apple Swift 黑底發光 Hero */
+#pr-app .pr-attr-hero{position:relative;overflow:hidden;border-radius:14px;margin-bottom:14px;padding:22px 24px;background:radial-gradient(ellipse 85% 135% at 50% -15%,#3a3a42 0%,#18181a 44%,#000000 100%);border:1px solid #2c2c2e;box-shadow:0 8px 36px rgba(0,0,0,0.4);}
+#pr-app .pr-attr-hero::before{content:'';position:absolute;left:50%;top:-52%;transform:translateX(-50%);width:360px;height:280px;pointer-events:none;background:radial-gradient(closest-side,rgba(130,175,255,0.32),rgba(130,175,255,0));}
+#pr-app .pr-attr-hero-title{position:relative;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:.6px;line-height:1.4;text-shadow:0 0 18px rgba(150,190,255,0.6),0 0 42px rgba(255,255,255,0.22);}
 /* 歸屬爭議 — 白天 Apple 配色 */
 body.day-mode #pr-app .pr-attr-judge{color:#ffffff;background:linear-gradient(135deg,#0071e3,#0077ed);box-shadow:0 2px 12px rgba(0,113,227,0.4);}
 body.day-mode #pr-app .pr-attr-judge:hover{box-shadow:0 4px 18px rgba(0,113,227,0.55);}
@@ -4163,7 +4170,7 @@ body.day-mode #pr-app .pr-mclose{color:#6e6e73;}
     </div>
     <div class="pr-panel" id="pr-panel-attr">
       <div class="pr-card">
-        <div class="pr-card-title">⚖️ 歸屬爭議 — 業績歸屬第一層判定</div>
+        <div class="pr-attr-hero"><div class="pr-attr-hero-title">⚖️ 歸屬爭議 — 業績歸屬第一層判定</div></div>
         <div style="font-size:.83rem;color:#6a8fcc;margin-bottom:6px;line-height:1.6;">
           同一學員/名單被多位業務碰過,要判業績算誰的。建立爭議 → 點一張卡片選取 → 按上方【⚖️ 歸屬判定】,AI 依《規則 MD》+ 過往判例給裁定建議(僅供參考,不會自動改資料)。
         </div>
@@ -4775,7 +4782,7 @@ function prAttrRender(){
     var sel = d.id===_prAttrCur ? ' sel' : '';
     h+='<div class="pr-attr-item'+sel+'" onclick="prAttrSelect(\''+d.id+'\')">';
     h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">';
-    h+='<span style="font-size:.78rem;font-weight:700;color:#ffd54f;">'+prAttrEsc(d.id)+(d.id===_prAttrCur?'　◀ 已選取':'')+'</span>';
+    h+='<span class="pr-attr-id" style="font-size:.82rem;font-weight:700;">'+prAttrEsc(d.id)+(d.id===_prAttrCur?'　◀ 已選取':'')+'</span>';
     h+='<button class="btn btn-ol btn-sm" onclick="event.stopPropagation();prAttrDelDispute(\''+d.id+'\')">刪除</button></div>';
     h+='<div class="pr-row2" style="margin-bottom:7px;">';
     h+='<div class="pr-field" style="margin:0;"><label>學員姓名</label><input type="text" value="'+prAttrEscA(d.student)+'" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'student\',this.value)"></div>';
