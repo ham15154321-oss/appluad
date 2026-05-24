@@ -4781,7 +4781,18 @@ function prAttrRender(){
     h+='<div class="pr-field" style="margin:0;"><label>學員姓名</label><input type="text" value="'+prAttrEscA(d.student)+'" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'student\',this.value)"></div>';
     h+='<div class="pr-field" style="margin:0;"><label>學員電話</label><input type="text" value="'+prAttrEscA(d.phone)+'" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'phone\',this.value)"></div>';
     h+='</div>';
-    h+='<div class="pr-field" style="margin-bottom:7px;"><label>涉及業務（多位用、分隔）</label><input type="text" value="'+prAttrEscA(d.parties)+'" placeholder="例：黃強生、胡世鵬" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'parties\',this.value)"></div>';
+    h+='<div style="font-size:.8rem;font-weight:700;color:#4aeaff;margin:2px 0 5px;">👤 涉及 A 業務</div>';
+    h+='<div class="pr-row2" style="margin-bottom:6px;">';
+    h+='<div class="pr-field" style="margin:0;"><label>A 業務姓名</label><input type="text" value="'+prAttrEscA(d.aName)+'" placeholder="例：黃強生" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'aName\',this.value)"></div>';
+    h+='<div class="pr-field" style="margin:0;"><label>A 所屬學院</label><input type="text" value="'+prAttrEscA(d.aSchool)+'" placeholder="例：東區學院" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'aSchool\',this.value)"></div>';
+    h+='</div>';
+    h+='<div class="pr-field" style="margin-bottom:9px;"><label>A 業務的主張內容 <button class="pr-zoom-btn" onclick="event.stopPropagation();prAttrZoom(\'dispute\',\''+d.id+'\',\'aClaim\')">🔍 放大</button></label><textarea style="min-height:54px;" placeholder="A 業務主張這筆業績歸他的理由…" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'aClaim\',this.value)">'+prAttrEsc(d.aClaim)+'</textarea></div>';
+    h+='<div style="font-size:.8rem;font-weight:700;color:#ff8f9b;margin:2px 0 5px;">👤 涉及 B 業務</div>';
+    h+='<div class="pr-row2" style="margin-bottom:6px;">';
+    h+='<div class="pr-field" style="margin:0;"><label>B 業務姓名</label><input type="text" value="'+prAttrEscA(d.bName)+'" placeholder="例：胡世鵬" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'bName\',this.value)"></div>';
+    h+='<div class="pr-field" style="margin:0;"><label>B 所屬學院</label><input type="text" value="'+prAttrEscA(d.bSchool)+'" placeholder="例：站前學院" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'bSchool\',this.value)"></div>';
+    h+='</div>';
+    h+='<div class="pr-field" style="margin-bottom:9px;"><label>B 業務的主張內容 <button class="pr-zoom-btn" onclick="event.stopPropagation();prAttrZoom(\'dispute\',\''+d.id+'\',\'bClaim\')">🔍 放大</button></label><textarea style="min-height:54px;" placeholder="B 業務主張這筆業績歸他的理由…" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'bClaim\',this.value)">'+prAttrEsc(d.bClaim)+'</textarea></div>';
     h+='<div class="pr-field" style="margin-bottom:7px;"><label>爭議簡述</label><textarea style="min-height:46px;" placeholder="一句話說明在爭什麼…" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'desc\',this.value)">'+prAttrEsc(d.desc)+'</textarea></div>';
     h+='<div class="pr-field" style="margin-bottom:7px;"><label>事實／名單資料（可貼上） <button class="pr-zoom-btn" onclick="event.stopPropagation();prAttrZoom(\'dispute\',\''+d.id+'\',\'facts\')">🔍 放大</button></label><textarea style="min-height:72px;" placeholder="貼上名單建檔日、狀態、編輯次數、約訪/報到時間、LINE通知時間等事實…" onclick="event.stopPropagation()" onchange="prAttrEdit(\''+d.id+'\',\'facts\',this.value)">'+prAttrEsc(d.facts)+'</textarea></div>';
     if(d.verdict){
@@ -4801,7 +4812,7 @@ function prAttrEdit(id,field,val){ var d=prAttrFind(id); if(!d) return; d[field]
 function prAttrNewDispute(){
   prAttrLoad();
   var id='AD-'+Date.now().toString(36).toUpperCase();
-  prAttrData.disputes.unshift({id:id,student:'',phone:'',parties:'',desc:'',facts:'',verdict:'',verdictAt:'',createdAt:new Date().toISOString()});
+  prAttrData.disputes.unshift({id:id,student:'',phone:'',aName:'',aSchool:'',aClaim:'',bName:'',bSchool:'',bClaim:'',desc:'',facts:'',verdict:'',verdictAt:'',createdAt:new Date().toISOString()});
   prAttrSaveDisputes(); _prAttrCur=id; prAttrRender();
 }
 function prAttrDelDispute(id){
@@ -4824,16 +4835,19 @@ async function prAttrJudge(id){
   prAttrLoad();
   var d=prAttrFind(id); if(!d) return;
   if(!prAttrData.rules.trim()){ alert('還沒設定「規則 MD」。請先點【📄 規則 MD】貼上業績歸屬規則。'); return; }
-  if(!(d.parties||'').trim() && !(d.desc||'').trim() && !(d.facts||'').trim()){
-    alert('這筆爭議還沒填內容,先把「涉及業務 / 爭議簡述 / 事實」至少填一項。'); return;
+  if(!(d.aName||'').trim() && !(d.bName||'').trim() && !(d.desc||'').trim() && !(d.facts||'').trim()){
+    alert('這筆爭議還沒填內容,先把「A/B 業務 / 爭議簡述 / 事實」至少填一些。'); return;
   }
   var exs=prAttrData.examples.slice(-12);
   var exText=exs.length ? exs.map(function(e,i){ return '【判例'+(i+1)+'｜'+(e.title||'')+'】\n情境：'+(e.situation||'')+'\n裁定：'+(e.verdict||'')+'\n理由：'+(e.reason||''); }).join('\n\n') : '（目前沒有判例）';
   var caseText='學員：'+(d.student||'(未填)')+'　電話：'+(d.phone||'(未填)')
-    +'\n涉及業務：'+(d.parties||'(未填)')
-    +'\n爭議簡述：'+(d.desc||'(未填)')
+    +'\n\n【涉及 A 業務】'+(d.aName||'(未填)')+(d.aSchool?'　所屬學院：'+d.aSchool:'')
+    +'\nA 的主張：'+(d.aClaim||'(未填)')
+    +'\n\n【涉及 B 業務】'+(d.bName||'(未填)')+(d.bSchool?'　所屬學院：'+d.bSchool:'')
+    +'\nB 的主張：'+(d.bClaim||'(未填)')
+    +'\n\n爭議簡述：'+(d.desc||'(未填)')
     +'\n事實／名單資料：\n'+(d.facts||'(未填)');
-  var sys='你是赫綵設計學院的「業績歸屬裁定官」。唯一任務:依據下方《業績歸屬規則》與過往判例,判定一筆業績歸屬爭議該歸給哪一位業務(一方得業績、一方不得)。\n\n嚴格要求:\n1. 只做歸屬判定,不做業績數據分析、不給經營建議。\n2. 必須引用《規則》的具體條文,或某一則判例編號當依據。\n3. 資訊不足以判定時,明說還缺什麼,不要硬猜。\n4. 輸出固定格式,只輸出這四行,前面不要加任何多餘文字:\n歸屬：<業務姓名,或「資訊不足」>\n信心：<高｜中｜低>\n依據：<引用哪一條規則或哪一則判例>\n理由：<為什麼這樣判,2-4 句>\n\n=== 業績歸屬規則 ===\n'+prAttrData.rules+'\n\n=== 過往判例 ===\n'+exText;
+  var sys='你是赫綵設計學院的「業績歸屬裁定官」。唯一任務:依據下方《業績歸屬規則》與過往判例,判定一筆業績歸屬爭議該歸給 A 業務還是 B 業務(一方得業績、一方不得)。\n\n嚴格要求:\n1. 只做歸屬判定,不做業績數據分析、不給經營建議。\n2. 必須引用《規則》的具體條文,或某一則判例編號當依據。\n3. 資訊不足以判定時,明說還缺什麼,不要硬猜。\n4. 要同時衡量 A、B 雙方的主張內容與爭議簡述,評估哪一方的主張較符合規則。\n5. 輸出固定格式,只輸出這四行,前面不要加任何多餘文字:\n歸屬：<業務姓名,或「資訊不足」>\n信心：<高｜中｜低>\n依據：<引用哪一條規則或哪一則判例>\n理由：<為什麼判給這一方、另一方為何不成立,2-4 句>\n\n=== 業績歸屬規則 ===\n'+prAttrData.rules+'\n\n=== 過往判例 ===\n'+exText;
   d.verdict='⏳ 判定中…請稍候'; d.verdictAt=''; prAttrSaveDisputes(); prAttrRender();
   var ctrl=new AbortController();
   var to=setTimeout(function(){ ctrl.abort(); },120000);
@@ -4864,7 +4878,7 @@ function prAttrToExample(id){
   prAttrData.examples.push({
     id:'AX-'+Date.now().toString(36).toUpperCase(),
     title:(d.student||'未命名')+' 歸屬爭議',
-    situation:'涉及業務：'+(d.parties||'')+'\n爭議：'+(d.desc||'')+'\n事實：'+(d.facts||''),
+    situation:'A業務：'+(d.aName||'')+(d.aSchool?'('+d.aSchool+')':'')+' 主張：'+(d.aClaim||'')+'\nB業務：'+(d.bName||'')+(d.bSchool?'('+d.bSchool+')':'')+' 主張：'+(d.bClaim||'')+'\n爭議：'+(d.desc||'')+'\n事實：'+(d.facts||''),
     verdict:verdictLine||'(請填正確裁定)',
     reason:reasonLine||'(請填理由)',
     addedAt:new Date().toLocaleString('zh-TW')
