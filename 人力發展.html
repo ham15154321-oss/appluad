@@ -300,7 +300,7 @@
 
   /* ===== 廣場地圖內容 ===== */
   .plaza-map {
-    flex:1; position:relative; overflow:hidden;
+    flex:1; position:relative; overflow:auto;
     background:
       radial-gradient(ellipse at 20% 80%, rgba(60,100,255,0.08) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 30%, rgba(120,60,200,0.06) 0%, transparent 50%),
@@ -1485,6 +1485,7 @@
         <button onclick="closePlaza()" class="nav-back-btn">◀ 返回</button>
         <h2 style="margin:0;">🌌 星際廣場</h2>
       </div>
+      <span id="plazaZoomSlot" style="margin-left:auto;"></span>
       <button class="page-close" onclick="closePlaza()">✕</button>
     </div>
     <div class="plaza-map" id="plazaMap">
@@ -3180,7 +3181,7 @@ function close360Assessment(){
 // ========== 練功坊 ==========
 function openTrainingRoom(){
   stopBgm();
-  document.getElementById('trainingFrame').src='training-room.html?v=apple1';
+  document.getElementById('trainingFrame').src='training-room.html?v=apple2';
   document.getElementById('trainingOverlay').classList.add('active');
 }
 function closeTrainingRoom(){
@@ -3336,7 +3337,7 @@ async function syncFromCastleCards(){
 // ========== 指揮城堡 ==========
 function openCastle(){
   stopBgm();
-  document.getElementById('castleFrame').src='castle-cards.html?v=apple1';
+  document.getElementById('castleFrame').src='castle-cards.html?v=apple2';
   document.getElementById('castleOverlay').classList.add('active');
 }
 async function closeCastle(){
@@ -3822,7 +3823,7 @@ function perfOpen(){
   ov.classList.add('active');
   const frame=document.getElementById('perfFrame');
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
-  const TARGET_SRC='performance-compare.html?v=apple1';
+  const TARGET_SRC='performance-compare.html?v=apple2';
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes(TARGET_SRC.split('?')[1]))
     frame.src=TARGET_SRC;
   // ★ 用 sessionStorage 記住「業績數據中心曾開啟過」（重整後自動還原）
@@ -3862,7 +3863,7 @@ function showFloatingUI(){
 // ========== AI 顧問 ==========
 function openAiAdvisor(){
   stopBgm();
-  document.getElementById('aiFrame').src='ai-advisor.html?v=apple1';
+  document.getElementById('aiFrame').src='ai-advisor.html?v=apple2';
   document.getElementById('aiOverlay').classList.add('active');
   hideFloatingUI();
 }
@@ -5213,5 +5214,7 @@ function tiDelScreenshot(idx){
 }
 </script>
 <script src="./nav-home.js"></script>
+<script>window.TEXT_ZOOM_CFG={target:'#plazaMap',mount:'#plazaZoomSlot'};</script>
+<script src="./text-zoom.js?v=1"></script>
 </body>
 </html>
