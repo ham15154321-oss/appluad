@@ -140,6 +140,19 @@ select.tin{cursor:pointer;}
   box-shadow:0 0 26px rgba(150,190,255,0.95),0 0 68px rgba(255,255,255,0.42);
 }
 .vh-sub{position:relative;color:#a1a1a6;font-size:12px;line-height:1.7;margin-top:10px;}
+.vh-btn2{background:rgba(255,255,255,0.09);color:#dfe7f5;border:1px solid rgba(150,190,255,0.4);border-radius:980px;padding:9px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;}
+.vh-btn2:hover{background:rgba(255,255,255,0.18);}
+/* 作戰分析按鈕 — Apple Swift 黑底發光 */
+.battle-ai-btn{background:linear-gradient(135deg,#1a1a1f,#000);color:#fff;font-weight:800;font-size:13px;border:1px solid #2c2c2e;border-radius:980px;padding:9px 20px;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(130,175,255,0.5),0 0 36px rgba(255,255,255,0.14);transition:all .2s;}
+.battle-ai-btn:hover{box-shadow:0 0 24px rgba(130,175,255,0.85),0 0 52px rgba(255,255,255,0.24);transform:translateY(-1px);}
+.battle-ai-btn:disabled{opacity:.55;cursor:default;box-shadow:none;transform:none;}
+/* 優秀錄音案例 列 */
+.gc-item{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;}
+body.night .gc-item{background:rgba(14,26,58,0.72);border-color:rgba(100,170,255,0.18);}
+.gc-pick{border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:7px;cursor:pointer;font-size:12px;color:#1d1d1f;background:#fff;}
+.gc-pick:hover{background:#f5f5f7;}
+body.night .gc-pick{background:rgba(20,32,66,0.7);color:#e0e8ff;border-color:rgba(100,170,255,0.18);}
+body.night .gc-pick:hover{background:rgba(30,46,90,0.85);}
 
 @media(max-width:560px){
   .edit-row label{width:100%;}
@@ -313,6 +326,51 @@ body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-col
     <div id="filesList"></div>
   </div>
 
+  <!-- ══ 🏆 優秀錄音案例 ══ -->
+  <div class="section">
+    <div class="voice-hero">
+      <div class="vh-row">
+        <div class="vh-title">🏆 優秀錄音案例</div>
+        <button class="vh-btn" onclick="openGoodCases()">＋ 開啟案例庫</button>
+        <button class="vh-btn2" onclick="openSopModal()">📋 約訪流程 SOP</button>
+      </div>
+      <div class="vh-sub">收錄「好的長相」典範通話。AI 作戰分析會自動參考這裡與約訪流程 SOP — 內容越多,抓問題越準、建議越精確。全主角共用、不分月份。</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 優秀錄音案例庫 modal -->
+<div class="modal-bg" id="goodCasesModal">
+  <div class="modal">
+    <h3>🏆 優秀錄音案例庫</h3>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:10px;line-height:1.6;">典範通話案例。AI 作戰分析會參考這裡 — 案例越多,越能抓出問題、給精準建議。全主角共用、不分月份。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="btn cyan" onclick="addGoodCase()">＋ 新增案例</button>
+      <button class="btn" onclick="openGoodPicker()">📋 從錄音案例庫帶入</button>
+    </div>
+    <div id="goodCasesList"></div>
+    <div style="text-align:right;margin-top:12px;"><button class="btn cyan" onclick="closeModal('goodCasesModal')">✓ 完成</button></div>
+  </div>
+</div>
+<!-- 約訪流程 SOP modal -->
+<div class="modal-bg" id="sopModal">
+  <div class="modal">
+    <h3>📋 約訪流程 SOP</h3>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:10px;line-height:1.6;">貼上或上傳約訪流程 SOP（純文字 / Markdown）。AI 作戰分析會以這份為「主要判準」抓問題。全公司共用一份。</div>
+    <label class="btn" style="cursor:pointer;display:inline-block;margin-bottom:8px;">📂 上傳 .md/.txt 檔<input type="file" accept=".md,.txt,.markdown" onchange="importSopFile(event)" style="display:none;"></label>
+    <textarea class="tin" id="sopBox" placeholder="# 約訪流程 SOP&#10;&#10;在此貼上約訪流程內容…" style="width:100%;min-height:320px;font-family:monospace;font-size:12px;line-height:1.7;"></textarea>
+    <div style="text-align:right;margin-top:10px;"><button class="btn" onclick="closeModal('sopModal')">取消</button> <button class="btn cyan" onclick="saveSop()">💾 儲存</button></div>
+  </div>
+</div>
+<!-- 從錄音案例庫帶入 picker -->
+<div class="modal-bg" id="goodPickerModal">
+  <div class="modal">
+    <h3>📋 從錄音案例庫帶入</h3>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:10px;">點一則錄音案例,加入「優秀錄音案例」(之後可再補重點摘要)。</div>
+    <div id="goodPickerList"></div>
+    <div style="text-align:right;margin-top:10px;"><button class="btn" onclick="closeModal('goodPickerModal')">關閉</button></div>
+  </div>
 </div>
 
 <!-- 選錄音案例 modal -->
@@ -931,6 +989,132 @@ function _voiceCommitUnit(dest,title,body){
   try{ localStorage.setItem('ai_casedb_v1',JSON.stringify(arr)); }catch(e){ toast('⚠ 案例儲存失敗：'+e.message,true); }
 }
 
+// ════════ 🏆 優秀錄音案例 + 📋 約訪流程 SOP（全主角共用、不分月份）════════
+function loadGoodCases(){
+  try{ var r=localStorage.getItem('wf_good_cases'); var a=r?JSON.parse(r):[]; return Array.isArray(a)?a:[]; }
+  catch(e){ return []; }
+}
+function saveGoodCases(arr){
+  try{ localStorage.setItem('wf_good_cases',JSON.stringify(arr)); }
+  catch(e){ toast('⚠ 儲存失敗：'+e.message,true); }
+}
+function loadSop(){ try{ return localStorage.getItem('wf_appointment_sop')||''; }catch(e){ return ''; } }
+function saveSopText(t){ try{ localStorage.setItem('wf_appointment_sop',t); }catch(e){ toast('⚠ 儲存失敗：'+e.message,true); } }
+
+function openGoodCases(){ renderGoodCases(); document.getElementById('goodCasesModal').classList.add('open'); }
+function renderGoodCases(){
+  var arr=loadGoodCases(), el=document.getElementById('goodCasesList');
+  if(!el) return;
+  if(!arr.length){ el.innerHTML='<div class="voice-sub" style="padding:8px 0;">尚無優秀案例。點「＋ 新增案例」或「從錄音案例庫帶入」。</div>'; return; }
+  el.innerHTML=arr.slice().reverse().map(function(g){
+    return '<div class="gc-item">'
+      +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">'
+      +'<input class="tin" value="'+escAttr(g.title)+'" placeholder="案例標題" oninput="editGoodCase(\''+g.id+'\',\'title\',this.value)" style="flex:1;font-weight:600;">'
+      +'<button class="btn danger" onclick="delGoodCase(\''+g.id+'\')">🗑</button></div>'
+      +'<div style="font-size:11px;color:var(--dim);margin-bottom:3px;">重點摘要（為什麼優秀、關鍵話術/動作）</div>'
+      +'<textarea class="tin" placeholder="這通為什麼是典範…" oninput="editGoodCase(\''+g.id+'\',\'summary\',this.value)">'+esc(g.summary)+'</textarea>'
+      +'<div style="font-size:11px;color:var(--dim);margin:6px 0 3px;">完整逐字稿 <label style="color:#0071e3;cursor:pointer;font-weight:600;">（📂 上傳檔<input type="file" accept=".md,.txt,.markdown" onchange="gcImportFile(\''+g.id+'\',event)" style="display:none;">）</label></div>'
+      +'<textarea class="tin" placeholder="貼上完整逐字稿，或上傳檔案…" oninput="editGoodCase(\''+g.id+'\',\'transcript\',this.value)">'+esc(g.transcript)+'</textarea>'
+      +'</div>';
+  }).join('');
+}
+function addGoodCase(){
+  var arr=loadGoodCases();
+  arr.push({id:'gc_'+Date.now().toString(36),title:'',summary:'',transcript:'',addedAt:Date.now()});
+  saveGoodCases(arr); renderGoodCases();
+}
+function editGoodCase(id,field,val){
+  var arr=loadGoodCases(), g=arr.find(function(x){return x.id===id;});
+  if(g){ g[field]=val; saveGoodCases(arr); }
+}
+function delGoodCase(id){
+  if(!confirm('確定刪除這則優秀案例？')) return;
+  saveGoodCases(loadGoodCases().filter(function(x){return x.id!==id;}));
+  renderGoodCases();
+}
+function gcImportFile(id,ev){
+  var f=ev.target.files&&ev.target.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){ editGoodCase(id,'transcript',r.result||''); renderGoodCases(); };
+  r.readAsText(f); ev.target.value='';
+}
+function openGoodPicker(){
+  var cases=voiceCases(), el=document.getElementById('goodPickerList');
+  if(!cases.length){ el.innerHTML='<div class="voice-sub">錄音案例庫目前是空的。</div>'; }
+  else{
+    el.innerHTML=cases.slice().reverse().map(function(c){
+      return '<div class="gc-pick" onclick="pickGoodCase(\''+c.id+'\')">🎙️ '+esc(caseTitle(c))+'</div>';
+    }).join('');
+  }
+  document.getElementById('goodPickerModal').classList.add('open');
+}
+function pickGoodCase(cid){
+  var c=caseById(cid); if(!c) return;
+  var arr=loadGoodCases();
+  arr.push({id:'gc_'+Date.now().toString(36),title:caseTitle(c),summary:'',transcript:String(c.text||''),addedAt:Date.now()});
+  saveGoodCases(arr);
+  closeModal('goodPickerModal'); renderGoodCases();
+  toast('✅ 已加入優秀案例,記得補「重點摘要」');
+}
+function openSopModal(){
+  var box=document.getElementById('sopBox'); if(box) box.value=loadSop();
+  document.getElementById('sopModal').classList.add('open');
+}
+function saveSop(){
+  var box=document.getElementById('sopBox'); if(box) saveSopText(box.value);
+  closeModal('sopModal');
+  toast('✅ 約訪流程 SOP 已儲存');
+}
+function importSopFile(ev){
+  var f=ev.target.files&&ev.target.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){ var box=document.getElementById('sopBox'); if(box) box.value=r.result||''; };
+  r.readAsText(f); ev.target.value='';
+}
+// 給作戰分析用：組裝優秀案例 / 知識庫 內容（控 token）
+function buildGoodCasesContext(){
+  var arr=loadGoodCases();
+  if(!arr.length) return '';
+  return arr.slice(-8).map(function(g,i){
+    var s='【優秀案例'+(i+1)+'｜'+(g.title||'未命名')+'】';
+    if(g.summary) s+='\n重點：'+g.summary;
+    if(g.transcript) s+='\n逐字稿節錄：'+String(g.transcript).substring(0,800);
+    return s;
+  }).join('\n\n');
+}
+function _loadKnowledgeBase(){
+  return new Promise(function(resolve){
+    try{
+      var req=indexedDB.open('KnowledgeBaseDB');
+      req.onsuccess=function(){
+        var db=req.result;
+        if(!db.objectStoreNames.contains('kb')){ try{db.close();}catch(e){} resolve(null); return; }
+        try{
+          var g=db.transaction('kb','readonly').objectStore('kb').get('knowledge_base_v1');
+          g.onsuccess=function(){ try{db.close();}catch(e){} resolve(g.result||null); };
+          g.onerror=function(){ try{db.close();}catch(e){} resolve(null); };
+        }catch(e){ try{db.close();}catch(_){} resolve(null); }
+      };
+      req.onerror=function(){ resolve(null); };
+    }catch(e){ resolve(null); }
+  });
+}
+async function buildKbContext(){
+  try{
+    var kb=await _loadKnowledgeBase();
+    var items=(kb&&kb.items)||[];
+    if(!items.length) return '';
+    var out=[],total=0;
+    for(var i=0;i<items.length;i++){
+      var it=items[i]||{};
+      var chunk='【'+(it.title||'知識')+'】'+String(it.content||'').substring(0,600);
+      if(total+chunk.length>6000) break;
+      out.push(chunk); total+=chunk.length;
+    }
+    return out.join('\n\n');
+  }catch(e){ return ''; }
+}
+
 // ════════ Block 3 — 本月目標作戰計劃 ════════
 var _battleAi=[];
 function renderBlock3(){
@@ -944,8 +1128,8 @@ function renderBlock3(){
     +'<a class="link-open'+(safeUrl(d.meetingUrl)?'':' off')+'" href="'+escAttr(safeUrl(d.meetingUrl)||'#')+'" target="_blank">🔗 開啟</a></div>';
   html+='<div style="font-size:12px;color:var(--dim);margin:6px 0 3px;">會議記錄文字（給 AI 分析用）<button class="btn" style="margin-left:6px;" onclick="openCasePicker(\'meetingText\',0)">📋 從錄音案例帶入</button></div>';
   html+='<textarea class="tin" placeholder="貼上會議記錄文字，或從錄音案例帶入" oninput="md().battlePlan.meetingText=this.value;scheduleSave();">'+esc(d.meetingText)+'</textarea>';
-  html+='<div class="subhead">🤖 AI 作戰分析 <button class="btn gold" id="battleAiBtn" onclick="runBattleAnalysis()">分析並給建議</button></div>';
-  html+='<div class="voice-sub" style="margin-bottom:6px;">分析素材：小組 A業績Ⓐ(本月+上月) + 已連結的錄音案例逐字稿 + 會議記錄文字 + 文字記錄。</div>';
+  html+='<div class="subhead">🤖 AI 作戰分析 <button class="battle-ai-btn" id="battleAiBtn" onclick="runBattleAnalysis()">🤖 分析並給建議</button></div>';
+  html+='<div class="voice-sub" style="margin-bottom:6px;">分析素材：小組 A業績Ⓐ + 已連結錄音案例 + 會議記錄 + 文字記錄 ＋ 約訪流程 SOP ＋ 🏆優秀錄音案例 ＋ AI 顧問知識庫。</div>';
   html+='<div id="battleAiResult"></div>';
   html+='<div class="subhead">✅ 已採納建議</div><div id="battleAdopted"></div>';
   document.getElementById('block3').innerHTML=html;
@@ -977,10 +1161,18 @@ async function runBattleAnalysis(){
       +'\n\n【已連結的錄音案例（逐字稿/摘要節錄）】\n'+(caseTxt||'（尚未連結錄音案例）')
       +'\n\n【會議記錄文字】\n'+(d.meetingText||'（無）')
       +'\n\n【組長的文字記錄】\n'+(d.notes||'（無）');
+    var sopTxt=loadSop();
+    var goodTxt=buildGoodCasesContext();
+    var kbTxt=await buildKbContext();
     var sys='你是赫綵的「A通路作戰顧問」。根據組長提供的資料,給出本月 A通路作戰計劃的具體建議。\n'
+      +'★ 主要判準：以下《約訪流程 SOP》是你抓問題、給建議的最高依據,務必逐項對照組長小組的執行落差,並盡量指出違反 SOP 的哪一條。\n'
+      +'★ 典範對照：《優秀錄音案例》是「好的長相」,用來對照組長小組哪裡做得不到位。\n'
       +'要求：條列 5-8 點,每點一句話、可立刻執行,聚焦在「話術調整、錄音優化、撥打量、音調、約訪轉換」。\n'
       +'判斷有沒有因話術/錄音調整而提升業績；若沒提升,點出可能是音調或撥打量問題。\n'
-      +'只輸出建議清單,每點開頭用「- 」,不要其他說明文字。';
+      +'只輸出建議清單,每點開頭用「- 」,不要其他說明文字。\n\n'
+      +'=== 約訪流程 SOP（主要判準）===\n'+(sopTxt||'（尚未設定約訪流程 SOP）')+'\n\n'
+      +'=== 優秀錄音案例（典範對照）===\n'+(goodTxt||'（尚無優秀案例）')+'\n\n'
+      +'=== 補充知識（AI 顧問知識庫）===\n'+(kbTxt||'（無）');
     var resp=await _voiceFetch(PROXY_BASE+'/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-opus-4-7',max_tokens:1200,system:sys,messages:[{role:'user',content:material}]})},180000);
     if(!resp.ok){ var t=''; try{t=await resp.text();}catch(_){} throw new Error('分析失敗('+resp.status+') '+t.substring(0,140)); }
@@ -992,7 +1184,7 @@ async function runBattleAnalysis(){
     console.error('[battle]',e);
     if(res) res.innerHTML='<div class="voice-sub" style="color:#1d1d1f;">❌ '+esc(e&&e.message||e)+'</div>';
   }
-  if(btn){ btn.disabled=false; btn.textContent='分析並給建議'; }
+  if(btn){ btn.disabled=false; btn.textContent='🤖 分析並給建議'; }
 }
 function renderBattleAi(){
   var el=document.getElementById('battleAiResult');
