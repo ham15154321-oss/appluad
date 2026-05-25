@@ -80,6 +80,11 @@ select.tin{cursor:pointer;}
 .modal.max{max-width:none;width:100vw;height:100vh;max-height:100vh;border-radius:0;margin:0;}
 .modal.max textarea.tin{min-height:64vh;}
 .modal h3{font-size:16px;color:#1d1d1f;margin-bottom:12px;}
+/* modal 固定頂列 + 醒目橘紅關閉鍵 */
+.modal-xrow{position:sticky;top:-20px;margin:-20px -20px 12px;padding:13px 18px;background:#fff;border-radius:16px 16px 0 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;z-index:3;}
+body.night .modal-xrow{background:#0c1730;border-bottom-color:rgba(100,170,255,0.2);}
+.modal-x{flex-shrink:0;background:#ff4d2e;color:#fff;border:none;border-radius:9px;padding:8px 15px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 2px 9px rgba(255,77,46,0.4);transition:all .15s;}
+.modal-x:hover{background:#ff6347;transform:translateY(-1px);}
 .modal-body{font-size:13px;color:#1d1d1f;line-height:1.8;white-space:pre-wrap;}
 .pick-item{border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;}
 .pick-item .pi-top{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
@@ -386,7 +391,10 @@ body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-col
 <!-- 看案例全文 modal -->
 <div class="modal-bg" id="caseViewModal">
   <div class="modal">
-    <h3 id="caseViewTitle">案例</h3>
+    <div class="modal-xrow">
+      <h3 id="caseViewTitle" style="margin:0;flex:1;">案例</h3>
+      <button class="modal-x" onclick="closeModal('caseViewModal')">✕ 關閉</button>
+    </div>
     <div class="modal-body" id="caseViewBody"></div>
     <div style="text-align:right;margin-top:12px;"><button class="btn" onclick="closeModal('caseViewModal')">關閉</button></div>
   </div>
@@ -1267,5 +1275,6 @@ document.addEventListener('visibilitychange',function(){
 window.addEventListener('pagehide',saveAll);
 </script>
 <script src="./nav-home.js"></script>
+<script src="./text-zoom.js?v=2"></script>
 </body>
 </html>

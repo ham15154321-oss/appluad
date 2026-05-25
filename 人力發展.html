@@ -2020,14 +2020,25 @@ function showToast(m){const t=document.getElementById('saveToast');t.textContent
   resize();addEventListener('resize',resize);
   const stars=Array.from({length:260},()=>({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.8+0.3,a:Math.random(),da:(Math.random()-0.5)*0.02}));
   let ss=[];
-  setInterval(()=>ss.push({x:Math.random()*c.width,y:0,vx:(Math.random()-0.3)*6,vy:Math.random()*4+3,life:1,decay:0.015+Math.random()*0.01}),4000);
-  function frame(){
+  // ★ 只在「星空真的看得到」時才畫 —— 白天模式隱形、被面板蓋住、分頁切走時都不畫,省 CPU
+  function starsVisible(){
+    if(document.hidden) return false;
+    if(document.body.classList.contains('day-mode')) return false;
+    if(document.querySelector('.page-overlay.active, .admin-overlay.active')) return false;
+    return true;
+  }
+  setInterval(()=>{ if(starsVisible()) ss.push({x:Math.random()*c.width,y:0,vx:(Math.random()-0.3)*6,vy:Math.random()*4+3,life:1,decay:0.015+Math.random()*0.01}); },4000);
+  let _starLast=0;
+  function frame(ts){
+    requestAnimationFrame(frame);
+    if(!starsVisible()) return;            // 看不到 → 不畫
+    if(ts-_starLast<32) return;            // 節流到約 30fps（眨眼星星不需要 60）
+    _starLast=ts;
     ctx.clearRect(0,0,c.width,c.height);
     for(const s of stars){s.a+=s.da;if(s.a>1||s.a<0.2)s.da*=-1;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(200,220,255,${s.a})`;ctx.fill()}
     for(let i=ss.length-1;i>=0;i--){const s=ss[i];ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x-s.vx*8,s.y-s.vy*8);ctx.strokeStyle=`rgba(200,230,255,${s.life*0.6})`;ctx.lineWidth=2;ctx.stroke();s.x+=s.vx;s.y+=s.vy;s.life-=s.decay;if(s.life<=0)ss.splice(i,1)}
-    requestAnimationFrame(frame);
   }
-  frame();
+  requestAnimationFrame(frame);
 })();
 
 // ========== 日期 ==========
@@ -3080,7 +3091,11 @@ document.getElementById('mergeRestoreInput').addEventListener('change',async fun
 
 // ========== 廣場頁面 ==========
 function openPlaza(){stopBgm();document.getElementById('plazaOverlay').classList.add('active');initPlazaParticles()}
-function closePlaza(){document.getElementById('plazaOverlay').classList.remove('active')}
+function closePlaza(){
+  document.getElementById('plazaOverlay').classList.remove('active');
+  // ★ 停掉粒子動畫迴圈 —— 否則關掉後它會在隱形畫面上永遠 60fps 空轉,拖慢整頁
+  if(plazaAnimId){ cancelAnimationFrame(plazaAnimId); plazaAnimId=null; }
+}
 
 // 廣場粒子效果
 let plazaAnimId=null;
@@ -3133,7 +3148,7 @@ function closeSubpage(){document.getElementById('subpageOverlay').classList.remo
 // ========== 成就解鎖 ==========
 function openAchievement(){
   stopBgm();
-  document.getElementById('achieveFrame').src='achievement-unlock.html?v=apple1';
+  document.getElementById('achieveFrame').src='achievement-unlock.html?v=tz1';
   document.getElementById('achieveOverlay').classList.add('active');
 }
 function closeAchievement(){
@@ -3145,7 +3160,7 @@ function closeAchievement(){
 // ========== 火種九宮格 ==========
 function openFireMandala(){
   stopBgm();
-  document.getElementById('fireFrame').src='fire-mandala.html?v=apple1';
+  document.getElementById('fireFrame').src='fire-mandala.html?v=tz1';
   document.getElementById('fireOverlay').classList.add('active');
 }
 function closeFireMandala(){
@@ -3158,7 +3173,7 @@ function closeFireMandala(){
 function open360Assessment(){
   stopBgm(); hideFloatingUI();
   var _f360 = document.getElementById('assess360Frame');
-  _f360.src = 'team-leader-map-assessment.html?v=apple1';
+  _f360.src = 'team-leader-map-assessment.html?v=tz1';
   document.getElementById('assess360Overlay').classList.add('active');
   _f360.onload = function() {
     var _cid = localStorage.getItem('activeCharacterId');
@@ -3369,7 +3384,7 @@ async function closeCastle(){
 // ========== 瀑布 ==========
 function openWaterfall(){
   stopBgm();
-  document.getElementById('waterfallFrame').src='waterfall-channel.html?v=apple5';
+  document.getElementById('waterfallFrame').src='waterfall-channel.html?v=apple7';
   document.getElementById('waterfallOverlay').classList.add('active');
 }
 function closeWaterfall(){
@@ -4113,6 +4128,7 @@ body.day-mode #pr-app [style*="color:#b0c4d4"]{color:#6e6e73 !important;}
       <button class="pr-attr-judge" onclick="prAttrJudgeCurrent()">⚖️ 歸屬判定</button>
       <button class="pr-attr-tool" onclick="prAttrOpenExamples()">📁 歸屬案例</button>
       <button class="pr-attr-tool" onclick="prAttrOpenMd()">📄 規則 MD</button>
+      <span id="prZoomSlot" style="display:flex;align-items:center;"></span>
     </div>
   </nav>
   <div class="pr-main">
@@ -5214,7 +5230,7 @@ function tiDelScreenshot(idx){
 }
 </script>
 <script src="./nav-home.js"></script>
-<script>window.TEXT_ZOOM_CFG={target:'#plazaMap',mount:'#plazaZoomSlot'};</script>
-<script src="./text-zoom.js?v=1"></script>
+<script>window.TEXT_ZOOM_CFG={targets:['#plazaMap','#pr-app .pr-main'],mounts:['#plazaZoomSlot','#prZoomSlot']};</script>
+<script src="./text-zoom.js?v=2"></script>
 </body>
 </html>
