@@ -108,6 +108,7 @@ select.tin{cursor:pointer;}
 .abar-track{flex:1;height:13px;background:#e8e8ed;border-radius:7px;overflow:hidden;}
 .abar-fill{height:100%;border-radius:7px;min-width:2px;}
 .abar-val{font-size:10px;color:var(--dim);width:70px;text-align:right;flex-shrink:0;}
+.abar-total{font-size:12.5px;font-weight:800;color:#0071e3;background:rgba(0,113,227,0.1);border:1px solid rgba(0,113,227,0.28);border-radius:8px;padding:2px 10px;white-space:nowrap;}
 
 /* 🎙️ 錄音轉摘要 — 置頂 Hero（Apple Swift 風：黑底發光）*/
 .voice-hero{
@@ -216,6 +217,7 @@ body.night .vprog>div{background:#4aeaff;}
 body.night .vbox{background:rgba(8,16,38,0.85);color:#e0e8ff;}
 body.night .abar-name{color:#e0e8ff;}
 body.night .abar-track{background:rgba(100,170,255,0.14);}
+body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-color:rgba(74,234,255,0.32);}
 </style>
 <script src="./auth-check.js"></script>
 <script defer src="./firebase-sync.js"></script>
@@ -261,6 +263,12 @@ body.night .abar-track{background:rgba(100,170,255,0.14);}
     </div>
   </div>
 
+  <!-- ══ 📊 我小組的 A業績 ══ -->
+  <div class="section">
+    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📊</div>我小組的 A業績（業績Ⓐ · 近三個月比較）</div>
+    <div id="aChart"></div>
+  </div>
+
   <!-- ══ 📚 錄音案例庫 ══ -->
   <div class="section">
     <div class="section-title"><div class="icon" style="background:#f0f0f3;">📚</div>錄音案例庫（與 AI 顧問共用）</div>
@@ -277,8 +285,6 @@ body.night .abar-track{background:rgba(100,170,255,0.14);}
   <div class="section">
     <div class="section-title"><div class="icon" style="background:#f0f0f3;">🎧</div>需優化錄音 ×3</div>
     <div id="needGrid"></div>
-    <div class="subhead">📊 我小組的 A業績（業績Ⓐ · 近三個月比較）</div>
-    <div id="aChart"></div>
   </div>
 
   <!-- ══ Block 3 — 本月目標作戰計劃 ══ -->
@@ -709,7 +715,10 @@ function renderAChart(){
         +'<div class="abar-track"><div class="abar-fill" style="width:'+(r.v[i]/max*100)+'%;background:'+colors[i]+';"></div></div>'
         +'<span class="abar-val">'+_fmt(r.v[i])+'</span></div>';
     }).join('');
-    return '<div class="abar-row"><div class="abar-name"><span>'+esc(r.name)+'</span>'+chg+'</div>'+bars+'</div>';
+    var total=r.v[0]+r.v[1]+r.v[2];
+    return '<div class="abar-row"><div class="abar-name"><span>'+esc(r.name)+'</span>'
+      +'<span style="display:flex;align-items:baseline;gap:8px;flex-shrink:0;">'
+      +'<span class="abar-total">近三月合計 '+_fmt(total)+'</span>'+chg+'</span></div>'+bars+'</div>';
   }).join('');
 }
 function renderBlock2(){ renderNeedCards(); renderCaseLib(); renderAChart(); }
