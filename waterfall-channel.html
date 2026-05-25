@@ -25,7 +25,28 @@ body{font-family:-apple-system,'Noto Sans TC','PingFang TC',sans-serif;backgroun
 .month-label{font-size:17px;font-weight:600;color:#1d1d1f;min-width:140px;text-align:center;}
 
 .container{max-width:1080px;margin:0 auto;padding:18px 14px 90px;}
-.section{margin-bottom:26px;}
+/* 每個區塊 = 一張卡片（Apple Store 風格）+ 滑入輕微放大 */
+.section{
+  margin-bottom:20px;background:#fff;border:1px solid var(--border);
+  border-radius:16px;padding:18px;
+  transition:transform .22s ease, box-shadow .22s ease;
+}
+.section:hover{
+  transform:translateY(-3px) scale(1.015);
+  box-shadow:0 14px 34px rgba(0,0,0,0.10);
+}
+body.night .section{background:rgba(14,26,58,0.72);border-color:rgba(100,170,255,0.16);}
+body.night .section:hover{box-shadow:0 14px 34px rgba(0,0,0,0.46);border-color:rgba(100,170,255,0.32);}
+/* Hero 區塊（黑底）不套白卡，由 .voice-hero 自己當卡 */
+.section.section-bare{background:transparent;border:none;border-radius:0;padding:0;}
+.section.section-bare:hover{transform:none;box-shadow:none;}
+.voice-hero{transition:transform .22s ease, box-shadow .22s ease;}
+.voice-hero:hover{transform:translateY(-3px) scale(1.015);box-shadow:0 18px 44px rgba(0,0,0,0.5);}
+/* 區塊卡內的舊內框拍平，避免框中框 */
+.section .card,.section .award{
+  background:transparent !important;border:none !important;
+  border-radius:0 !important;padding:0 !important;
+}
 .section-title{font-size:16px;font-weight:700;color:#1d1d1f;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .section-title .icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:#f5f5f7;}
 .subhead{font-size:13px;font-weight:700;color:#1d1d1f;margin:14px 0 8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
@@ -271,7 +292,7 @@ body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-col
 <div class="container">
 
   <!-- ══ 🎙️ 錄音轉摘要（置頂 Hero）══ -->
-  <div class="section">
+  <div class="section section-bare">
     <div class="voice-hero">
       <div class="vh-row">
         <div class="vh-title">🎙️ 錄音轉摘要</div>
@@ -332,7 +353,7 @@ body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-col
   </div>
 
   <!-- ══ 🏆 優秀錄音案例 ══ -->
-  <div class="section">
+  <div class="section section-bare">
     <div class="voice-hero">
       <div class="vh-row">
         <div class="vh-title">🏆 優秀錄音案例</div>
