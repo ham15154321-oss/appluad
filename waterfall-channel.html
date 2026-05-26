@@ -1222,9 +1222,46 @@ function renderAdopted(){
   if(!sg.length){ el.innerHTML='<div class="voice-sub">尚無採納的建議。跑 AI 分析後勾選採納。</div>'; return; }
   el.innerHTML=sg.map(function(s,i){
     return '<div class="lrow"><span style="flex:1;font-size:12px;line-height:1.5;">✅ '+esc(s.text)+'</span><button class="btn danger" onclick="delAdopted('+i+')">🗑</button></div>';
-  }).join('');
+  }).join('')
+  + '<button class="battle-ai-btn" style="margin-top:8px;" onclick="packageBattleAsTask()">📤 打包成任務 → AI 顧問時間軸</button>';
 }
 function delAdopted(i){ md().battlePlan.suggestions.splice(i,1); scheduleSave(); renderAdopted(); }
+// 📤 把本次採納建議打包成任務 → 寫進 AI 顧問當前主角的時間軸,然後清空瀑布本次分析讓使用者跑下一輪
+function packageBattleAsTask(){
+  var sg = md().battlePlan.suggestions || [];
+  if(!sg.length){ toast('沒有採納建議可打包',true); return; }
+  if(!confirm('把這些採納建議打包到 AI 顧問 → 📅 時間軸?\n打包後瀑布本次分析會清空,讓你可以跑下一輪。')) return;
+  var cid = localStorage.getItem('activeCharacterId') || '';
+  if(!cid){ toast('找不到登入主角',true); return; }
+  var key = 'char_'+cid+'_ai_timeline_v1';
+  var arr=[]; try{ var r=localStorage.getItem(key); arr=r?(JSON.parse(r)||[]):[]; if(!Array.isArray(arr)) arr=[]; }catch(e){ arr=[]; }
+  var who = charName() || '我';
+  var monthLabel = currentYear+'/'+currentMonth;
+  var content = '【來源】瀑布 A通路作戰分析\n【主角】'+who+'　【月份】'+monthLabel+'\n\n'
+    +'【採納建議】\n'+sg.map(function(s,i){ return (i+1)+'. '+s.text; }).join('\n');
+  var now=Date.now();
+  arr.push({
+    id:'tl_'+now,
+    title:'🤖 作戰分析 — '+monthLabel+'（'+who+'）',
+    content:content,
+    task:'🤖 作戰分析 — '+monthLabel,
+    status:'pending',
+    deadline:'',
+    assigner:who,
+    assignees:[],
+    attachments:[],
+    createdAt:now,
+    log:[{at:now,who:who,action:'從瀑布作戰分析打包進時間軸'}]
+  });
+  try{ localStorage.setItem(key,JSON.stringify(arr)); }catch(e){ toast('儲存失敗：'+(e.message||e),true); return; }
+  // 清空本次分析,讓使用者可以跑下一輪話術
+  md().battlePlan.suggestions=[];
+  _battleAi=[];
+  var bai=document.getElementById('battleAiResult'); if(bai) bai.innerHTML='';
+  scheduleSave();
+  renderAdopted();
+  toast('✅ 已打包到 AI 顧問 → 📅 時間軸,可繼續分析下一輪');
+}
 async function runBattleAnalysis(){
   var btn=document.getElementById('battleAiBtn');
   if(btn){ btn.disabled=true; btn.textContent='分析中…'; }
