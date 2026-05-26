@@ -304,7 +304,7 @@ body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-col
 
   <!-- ══ 📊 我小組的 A業績 ══ -->
   <div class="section">
-    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📊</div>我小組的 A業績（業績Ⓐ · 近三個月比較）</div>
+    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📊</div><span id="aChartLabel">我小組的 A業績（業績Ⓐ · 近三個月比較）</span></div>
     <div id="aChart"></div>
   </div>
 
@@ -557,25 +557,57 @@ function loadMpData(){
     }catch(e){ _mpLoaded=true; resolve(); }
   });
 }
-// 找登入主角的小組成員（從 sheet4 正式小組業績總表：組長 = 主角 → 收集 組員*）
+// ★ 學院主管 → A業績圖看「整個學院」的所有業務（不只自己一組）
+//   v1：先只啟用王志軒。確認 OK 後再把其他 6 位開放（取消註解即可）。
+var _WATERFALL_ACAD_MAP = {
+  '王志軒': '中壢二部',
+  '楊雅晴': '台中三部',
+  '洪士德': '中壢學院',
+  '黎禹歆': '高雄建國',
+  '林昭宏': '台中學院',
+  '凃敏薰': '台中二部',
+  '蔡青倚': '中壢三部'
+};
+// 找登入主角的小組成員
+//   學院主管 → 掃 sheet3 業務個人績效，篩「學院 = 對應學院」收集所有業務姓名
+//   其他人  → 從 sheet4 正式小組業績總表：組長 = 主角 → 收集 組員*
 function getGroupMembers(){
-  var me=charName(); var out=[];
-  if(me) out.push(me);
-  if(!_mpData) return out;
-  var months=Object.keys(_mpData).sort(function(a,b){return Number(b)-Number(a);});
-  for(var mi=0;mi<months.length;mi++){
-    var s4=(_mpData[months[mi]]||{}).sheet4||[];
-    for(var ri=0;ri<s4.length;ri++){
-      var row=s4[ri]||{};
-      if(String(row['組長']||'').trim()===me){
-        Object.keys(row).forEach(function(k){
-          if(/^組員/.test(k)){ var nm=String(row[k]||'').trim(); if(nm && out.indexOf(nm)<0) out.push(nm); }
+  var me=charName();
+  if(!_mpData) return me?[me]:[];
+  var months=Object.keys(_mpData);
+  var academy=_WATERFALL_ACAD_MAP[me];
+  if(academy){
+    // 學院主管：從 sheet3 篩學院
+    var out=[], seen={};
+    for(var mi=0;mi<months.length;mi++){
+      var s3=(_mpData[months[mi]]||{}).sheet3||[];
+      for(var ri=0;ri<s3.length;ri++){
+        var row=s3[ri]||{};
+        var acad=String(row['學院']||row['區域']||'').trim();
+        if(acad!==academy) continue;
+        var nm=String(row['姓名']||row['業務員']||row['業務']||row['人員']||'').trim();
+        if(nm && !seen[nm]){ seen[nm]=1; out.push(nm); }
+      }
+    }
+    return out;
+  }
+  // 一般組長：從 sheet4 抓自己組的組員
+  var out2=[];
+  if(me) out2.push(me);
+  var ms=months.sort(function(a,b){return Number(b)-Number(a);});
+  for(var mi2=0;mi2<ms.length;mi2++){
+    var s4=(_mpData[ms[mi2]]||{}).sheet4||[];
+    for(var ri2=0;ri2<s4.length;ri2++){
+      var row2=s4[ri2]||{};
+      if(String(row2['組長']||'').trim()===me){
+        Object.keys(row2).forEach(function(k){
+          if(/^組員/.test(k)){ var nm2=String(row2[k]||'').trim(); if(nm2 && out2.indexOf(nm2)<0) out2.push(nm2); }
         });
-        return out;  // 找到主角的組就回傳
+        return out2;  // 找到主角的組就回傳
       }
     }
   }
-  return out;
+  return out2;
 }
 
 // ════════ 案例資料庫（ai_casedb_v1，與 AI 顧問共用）════════
@@ -781,18 +813,33 @@ function getAPerf(monthNum,name){
   return 0;
 }
 function _wrapMonth(n){ while(n<1)n+=12; while(n>12)n-=12; return n; }
+var _aChartExpanded=false;
+function toggleAChart(){ _aChartExpanded=!_aChartExpanded; renderAChart(); }
 function renderAChart(){
   var el=document.getElementById('aChart');
+  // ★ 學院主管 → 標題改「我學院」、由高到低排序、第一名加皇冠
+  var academy=_WATERFALL_ACAD_MAP[charName()];
+  var isBoss=!!academy;
+  var lbl=document.getElementById('aChartLabel');
+  if(lbl) lbl.textContent = (isBoss?'我學院':'我小組')+'的 A業績（業績Ⓐ · 近三個月比較）';
   if(!_mpLoaded){ el.innerHTML='<div class="voice-sub">載入業績資料中…</div>'; return; }
   if(!_mpData){ el.innerHTML='<div class="voice-sub">尚無業績數據（業績數據中心還沒匯入）。</div>'; return; }
   var members=getGroupMembers();
-  if(!members.length){ el.innerHTML='<div class="voice-sub">找不到你的小組成員（業績數據裡沒有你當組長的列,可在上方卡片手動輸入）。</div>'; return; }
+  if(!members.length){ el.innerHTML='<div class="voice-sub">找不到你的'+(isBoss?'學院':'小組')+'成員（業績數據裡沒有對應資料）。</div>'; return; }
   // 近三個月：選定月份的前三個月（例如 5 月 → 4、3、2 月）
   var mo=[_wrapMonth(currentMonth-1),_wrapMonth(currentMonth-2),_wrapMonth(currentMonth-3)];
   var colors=['#0071e3','#aeaeb2','#d2d2d7'];
   var rows=members.map(function(n){ return {name:n,v:[getAPerf(mo[0],n),getAPerf(mo[1],n),getAPerf(mo[2],n)]}; });
+  // ★ 三個月合計沒有超過 10 萬的不顯示
+  rows = rows.filter(function(r){ return (r.v[0]+r.v[1]+r.v[2]) > 100000; });
+  if(!rows.length){ el.innerHTML='<div class="voice-sub">目前沒有「近三月合計超過 10 萬」的業務可顯示。</div>'; return; }
+  // ★ 學院主管 → 由近三月合計高到低排序
+  if(isBoss){ rows.sort(function(a,b){ return (b.v[0]+b.v[1]+b.v[2])-(a.v[0]+a.v[1]+a.v[2]); }); }
+  // ★ 學院主管預設只看前 3 名,點按鈕展開全部
+  var allCount=rows.length;
+  var visibleRows = (isBoss && !_aChartExpanded && allCount>3) ? rows.slice(0,3) : rows;
   var max=1; rows.forEach(function(r){ r.v.forEach(function(x){ if(x>max)max=x; }); });
-  el.innerHTML=rows.map(function(r){
+  el.innerHTML=visibleRows.map(function(r,idx){
     var diff=r.v[0]-r.v[1];
     var chg=diff>0?'<span class="chg" style="color:#0071e3;">▲ +'+_fmt(diff)+'</span>'
       :diff<0?'<span class="chg" style="color:#6e6e73;">▼ '+_fmt(diff)+'</span>'
@@ -803,10 +850,15 @@ function renderAChart(){
         +'<span class="abar-val">'+_fmt(r.v[i])+'</span></div>';
     }).join('');
     var total=r.v[0]+r.v[1]+r.v[2];
-    return '<div class="abar-row"><div class="abar-name"><span>'+esc(r.name)+'</span>'
+    var crown = (isBoss && idx===0) ? '👑 ' : '';
+    return '<div class="abar-row"><div class="abar-name"><span>'+crown+esc(r.name)+'</span>'
       +'<span style="display:flex;align-items:baseline;gap:8px;flex-shrink:0;">'
       +'<span class="abar-total">近三月合計 '+_fmt(total)+'</span>'+chg+'</span></div>'+bars+'</div>';
   }).join('');
+  if(isBoss && allCount>3){
+    el.innerHTML += '<div style="text-align:center;margin-top:10px;"><button class="btn" onclick="toggleAChart()">'
+      +(_aChartExpanded?'▲ 收合（只看前 3 名）':'▼ 展開查看全部 '+allCount+' 人')+'</button></div>';
+  }
 }
 function renderBlock2(){ renderNeedCards(); renderCaseLib(); renderAChart(); }
 
