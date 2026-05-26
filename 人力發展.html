@@ -2411,7 +2411,7 @@ window.addEventListener('load', function(){
 });
 window.addEventListener('firebase-sync-ready', function(){
   setTimeout(syncAcademyRevenueFromMotivArchive, 500);
-});
+}, {once:true}); // ★ 只跑一次 — 之後的同步由下方 firebase-sync-updated 處理（每 90 秒再跑這個會堆積記憶體）
 window.addEventListener('firebase-sync-updated', function(){
   setTimeout(syncAcademyRevenueFromMotivArchive, 500);
 });
@@ -3768,7 +3768,7 @@ window.addEventListener('firebase-sync-ready', async function(){
     // ★ 最後安全步：重新載入當前模式的建築縮圖（防止 sync 過程中遺失）
     if(typeof swapHexImgsForMode === 'function') await swapHexImgsForMode();
   }catch(e){console.warn('[人力發展] 雲端同步後重載失敗',e);}
-});
+}, {once:true}); // ★ 只跑一次 — 這段是「首次同步完成的重載」,每 90 秒再跑會持續攪動記憶體導致錯誤碼5
 
 // 監聽子頁面（iframe）的角色登入訊息
 window.addEventListener('message',async function(e){
