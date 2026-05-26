@@ -1572,12 +1572,27 @@ var PROXY_BASE = 'https://anthropic-proxy.ivanapplaud.workers.dev';
 
 // ── Storage helpers ──
 function LS(k){
+  // ★ 案例庫(ai_casedb_v1)改走 IndexedDB cache — 避免 LS quota 自動清理把資料清掉
+  if(k==='ai_casedb_v1'){
+    if(window._caseCacheReady && Array.isArray(window._caseCache)) return window._caseCache;
+    // cache 還沒準備好(極短時間):先從 LS fallback,啟動後會被 boot init 接管
+    try{var d0=localStorage.getItem(k);if(d0)return JSON.parse(d0)||[];}catch(e){}
+    return [];
+  }
   try{var d=localStorage.getItem(k);if(d)return JSON.parse(d)||[];}catch(e){}
   // fallback: 從父頁面讀取
   try{var d2=window.parent.localStorage.getItem(k);if(d2)return JSON.parse(d2)||[];}catch(e){}
   return [];
 }
 function SS(k,v){
+  // ★ 案例庫改寫 IndexedDB(同時更新 cache),不再寫 LS
+  if(k==='ai_casedb_v1'){
+    window._caseCache = Array.isArray(v)?v:[];
+    if(typeof _caseSaveToIDB==='function'){
+      _caseSaveToIDB(window._caseCache).catch(function(e){ console.warn('[casedb] IDB 寫入失敗',e); });
+    }
+    return;
+  }
   var json=JSON.stringify(v);
   try{localStorage.setItem(k,json);}catch(e){}
   // 同步到父頁面
@@ -3676,6 +3691,81 @@ async function _kbBootInit(){
 }
 // 立刻啟動 boot
 _kbBootInit();
+
+// ════════════════════════════════════════════════════════════════
+// 案例庫 ai_casedb_v1 → AiCasedbDB.cases.data
+//   原本存在 localStorage,但案例多了會撐爆 5MB 上限 → quota 自動清理把資料清掉。
+//   搬到 IndexedDB(空間幾乎無上限)後,案例不會再無故消失。
+// ════════════════════════════════════════════════════════════════
+var _CASE_DB_NAME='AiCasedbDB', _CASE_STORE='cases', _CASE_KEY='ai_casedb_v1';
+window._caseCache = window._caseCache || null;
+window._caseCacheReady = false;
+function _caseOpenDB(){
+  return new Promise(function(resolve,reject){
+    var req=indexedDB.open(_CASE_DB_NAME);
+    req.onupgradeneeded=function(e){var db=e.target.result;if(!db.objectStoreNames.contains(_CASE_STORE))db.createObjectStore(_CASE_STORE);};
+    req.onsuccess=function(){
+      var db=req.result;
+      if(db.objectStoreNames.contains(_CASE_STORE)){ resolve(db); return; }
+      var v=db.version; db.close();
+      var up=indexedDB.open(_CASE_DB_NAME, v+1);
+      up.onupgradeneeded=function(e){var ud=e.target.result;if(!ud.objectStoreNames.contains(_CASE_STORE))ud.createObjectStore(_CASE_STORE);};
+      up.onsuccess=function(){ resolve(up.result); };
+      up.onerror=function(){ reject(up.error); };
+    };
+    req.onerror=function(){ reject(req.error); };
+  });
+}
+function _caseLoadFromIDB(){
+  return _caseOpenDB().then(function(db){
+    return new Promise(function(resolve){
+      try{
+        var tx=db.transaction(_CASE_STORE,'readonly');
+        var g=tx.objectStore(_CASE_STORE).get(_CASE_KEY);
+        g.onsuccess=function(){try{db.close();}catch(_){} resolve(g.result||null);};
+        g.onerror=function(){try{db.close();}catch(_){} resolve(null);};
+      }catch(e){try{db.close();}catch(_){} resolve(null);}
+    });
+  }).catch(function(){return null;});
+}
+function _caseSaveToIDB(arr){
+  return _caseOpenDB().then(function(db){
+    return new Promise(function(resolve,reject){
+      try{
+        var tx=db.transaction(_CASE_STORE,'readwrite');
+        tx.objectStore(_CASE_STORE).put(arr,_CASE_KEY);
+        tx.oncomplete=function(){try{db.close();}catch(_){} resolve();};
+        tx.onerror=function(){try{db.close();}catch(_){} reject(tx.error);};
+      }catch(e){try{db.close();}catch(_){} reject(e);}
+    });
+  });
+}
+async function _caseBootInit(){
+  try{
+    var fromIdb = await _caseLoadFromIDB();
+    var fromLs = null;
+    try{ var r=localStorage.getItem(_CASE_KEY); if(r) fromLs=JSON.parse(r); }catch(_){}
+    if(!Array.isArray(fromIdb)) fromIdb=null;
+    if(!Array.isArray(fromLs)) fromLs=null;
+    // 合併 LS 跟 IDB:以 id 去重,兩邊獨有的都保留(保護資料不消失)
+    var merged=[], seen={};
+    function push(a){ if(!Array.isArray(a)) return; a.forEach(function(x){ if(!x) return; var id=x.id||('_'+merged.length); if(!seen[id]){ seen[id]=1; merged.push(x); } }); }
+    push(fromIdb); push(fromLs);
+    window._caseCache = merged;
+    window._caseCacheReady = true;
+    // 把合併版寫回 IDB(成為主檔)
+    try{ await _caseSaveToIDB(merged); }catch(_){}
+    // 從 LS 移除(釋出空間,避免日後 quota 衝突)
+    try{ localStorage.removeItem(_CASE_KEY); }catch(_){}
+    try{ window.parent.localStorage.removeItem(_CASE_KEY); }catch(_){}
+    console.log('[casedb] 已搬到 IndexedDB('+merged.length+' 筆),LS 已釋放');
+  }catch(e){
+    console.warn('[casedb] boot init 失敗',e);
+    window._caseCache = window._caseCache || [];
+    window._caseCacheReady = true;
+  }
+}
+_caseBootInit();
 
 function _loadKb(){
   // 優先用 cache（fast, sync）；cache 沒準備好就 fallback 到 LS

@@ -299,7 +299,8 @@ var IDB_MIGRATED_LS_SUFFIXES = [
   'motiv_archive',               // → MotivArchiveDB.archive
   'prCases',                     // → PrCasesDB.data（每主角 ~372KB，22 人 = 8MB）
   'prRps',                       // → PrCasesDB.data
-  'prNextId'                     // → PrCasesDB.data
+  'prNextId',                    // → PrCasesDB.data
+  'ai_casedb_v1'                 // → AiCasedbDB.cases（錄音案例庫，全公司共用 IDB）
 ];
 function _isIdbMigratedLsKey(k){
   if (!k) return false;

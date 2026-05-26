@@ -379,14 +379,17 @@ body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-col
     <div style="text-align:right;margin-top:12px;"><button class="btn cyan" onclick="closeModal('goodCasesModal')">✓ 完成</button></div>
   </div>
 </div>
-<!-- 約訪流程 SOP modal -->
+<!-- 約訪流程 SOP modal — 多 md 檔卡片清單 -->
 <div class="modal-bg" id="sopModal">
   <div class="modal">
     <h3>📋 約訪流程 SOP</h3>
-    <div style="font-size:12px;color:var(--dim);margin-bottom:10px;line-height:1.6;">貼上或上傳約訪流程 SOP（純文字 / Markdown）。AI 作戰分析會以這份為「主要判準」抓問題。全公司共用一份。</div>
-    <label class="btn" style="cursor:pointer;display:inline-block;margin-bottom:8px;">📂 上傳 .md/.txt 檔<input type="file" accept=".md,.txt,.markdown" onchange="importSopFile(event)" style="display:none;"></label>
-    <textarea class="tin" id="sopBox" placeholder="# 約訪流程 SOP&#10;&#10;在此貼上約訪流程內容…" style="width:100%;min-height:320px;font-family:monospace;font-size:12px;line-height:1.7;"></textarea>
-    <div style="text-align:right;margin-top:10px;"><button class="btn" onclick="closeModal('sopModal')">取消</button> <button class="btn cyan" onclick="saveSop()">💾 儲存</button></div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:10px;line-height:1.6;">收錄多份 SOP（純文字 / Markdown）。實戰狀況很多 → 可分檔分主題（例：開場話術、反對問題、舊名單救援、未接電話、簡訊範本…）。AI 作戰分析會把所有 SOP 當「主要判準」抓問題。全公司共用。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="btn cyan" onclick="addSopFile()">＋ 新增 SOP</button>
+      <label class="btn" style="cursor:pointer;display:inline-block;">📂 批量上傳 .md/.txt（可多選）<input type="file" accept=".md,.txt,.markdown" multiple onchange="importSopFilesMulti(event)" style="display:none;"></label>
+    </div>
+    <div id="sopList"></div>
+    <div style="text-align:right;margin-top:12px;"><button class="btn cyan" onclick="closeModal('sopModal')">✓ 完成</button></div>
   </div>
 </div>
 <!-- 從錄音案例庫帶入 picker -->
@@ -610,8 +613,84 @@ function getGroupMembers(){
   return out2;
 }
 
-// ════════ 案例資料庫（ai_casedb_v1，與 AI 顧問共用）════════
+// ════════════════════════════════════════════════════════════════
+// 案例庫 ai_casedb_v1 → AiCasedbDB.cases.data
+//   與 AI 顧問共用 IndexedDB(空間幾乎無上限)。
+//   原本存 localStorage,但 5MB 上限 + firebase-sync 自動清理會把錄音清掉。
+// ════════════════════════════════════════════════════════════════
+var _CASE_DB_NAME='AiCasedbDB', _CASE_STORE='cases', _CASE_KEY='ai_casedb_v1';
+window._caseCache = window._caseCache || null;
+window._caseCacheReady = false;
+function _caseOpenDB(){
+  return new Promise(function(resolve,reject){
+    var req=indexedDB.open(_CASE_DB_NAME);
+    req.onupgradeneeded=function(e){var db=e.target.result;if(!db.objectStoreNames.contains(_CASE_STORE))db.createObjectStore(_CASE_STORE);};
+    req.onsuccess=function(){
+      var db=req.result;
+      if(db.objectStoreNames.contains(_CASE_STORE)){ resolve(db); return; }
+      var v=db.version; db.close();
+      var up=indexedDB.open(_CASE_DB_NAME, v+1);
+      up.onupgradeneeded=function(e){var ud=e.target.result;if(!ud.objectStoreNames.contains(_CASE_STORE))ud.createObjectStore(_CASE_STORE);};
+      up.onsuccess=function(){ resolve(up.result); };
+      up.onerror=function(){ reject(up.error); };
+    };
+    req.onerror=function(){ reject(req.error); };
+  });
+}
+function _caseLoadFromIDB(){
+  return _caseOpenDB().then(function(db){
+    return new Promise(function(resolve){
+      try{
+        var tx=db.transaction(_CASE_STORE,'readonly');
+        var g=tx.objectStore(_CASE_STORE).get(_CASE_KEY);
+        g.onsuccess=function(){try{db.close();}catch(_){} resolve(g.result||null);};
+        g.onerror=function(){try{db.close();}catch(_){} resolve(null);};
+      }catch(e){try{db.close();}catch(_){} resolve(null);}
+    });
+  }).catch(function(){return null;});
+}
+function _caseSaveToIDB(arr){
+  return _caseOpenDB().then(function(db){
+    return new Promise(function(resolve,reject){
+      try{
+        var tx=db.transaction(_CASE_STORE,'readwrite');
+        tx.objectStore(_CASE_STORE).put(arr,_CASE_KEY);
+        tx.oncomplete=function(){try{db.close();}catch(_){} resolve();};
+        tx.onerror=function(){try{db.close();}catch(_){} reject(tx.error);};
+      }catch(e){try{db.close();}catch(_){} reject(e);}
+    });
+  });
+}
+async function _caseBootInit(){
+  try{
+    var fromIdb = await _caseLoadFromIDB();
+    var fromLs = null;
+    try{ var r=localStorage.getItem(_CASE_KEY); if(r) fromLs=JSON.parse(r); }catch(_){}
+    if(!Array.isArray(fromIdb)) fromIdb=null;
+    if(!Array.isArray(fromLs)) fromLs=null;
+    // 合併 LS 跟 IDB:以 id 去重,兩邊獨有的都保留(保護資料不消失)
+    var merged=[], seen={};
+    function push(a){ if(!Array.isArray(a)) return; a.forEach(function(x){ if(!x) return; var id=x.id||('_'+merged.length); if(!seen[id]){ seen[id]=1; merged.push(x); } }); }
+    push(fromIdb); push(fromLs);
+    window._caseCache = merged;
+    window._caseCacheReady = true;
+    // 把合併版寫回 IDB(成為主檔)
+    try{ await _caseSaveToIDB(merged); }catch(_){}
+    // 從 LS 移除(釋出空間,避免日後 quota 衝突)
+    try{ localStorage.removeItem(_CASE_KEY); }catch(_){}
+    try{ if(window.parent && window.parent!==window) window.parent.localStorage.removeItem(_CASE_KEY); }catch(_){}
+    console.log('[casedb/wf] 已搬到 IndexedDB('+merged.length+' 筆),LS 已釋放');
+  }catch(e){
+    console.warn('[casedb/wf] boot init 失敗',e);
+    window._caseCache = window._caseCache || [];
+    window._caseCacheReady = true;
+  }
+}
+
+// ════════ 案例資料庫（ai_casedb_v1，與 AI 顧問共用 IndexedDB）════════
 function loadCases(){
+  // 優先用 IDB cache(已 boot 過);沒準備好才退回 LS
+  if(window._caseCacheReady && Array.isArray(window._caseCache)) return window._caseCache;
   try{ var r=localStorage.getItem('ai_casedb_v1'); var a=r?JSON.parse(r):[]; return Array.isArray(a)?a:[]; }
   catch(e){ return []; }
 }
@@ -1067,7 +1146,14 @@ function _voiceCommitUnit(dest,title,body){
   var now=Date.now()+Math.floor(Math.random()*100000);
   var arr=loadCases();
   arr.push({ id:'c_'+now, type:(dest==='voice'?'voice':'acceptance'), text:title+'\n'+(body||''), marquee:false, isVoice:true, createdAt:now });
-  try{ localStorage.setItem('ai_casedb_v1',JSON.stringify(arr)); }catch(e){ toast('⚠ 案例儲存失敗：'+e.message,true); }
+  // 寫到 IndexedDB(不再用 LS,避免被 quota 清理清掉)
+  window._caseCache = arr;
+  window._caseCacheReady = true;
+  if(typeof _caseSaveToIDB==='function'){
+    _caseSaveToIDB(arr).catch(function(e){ toast('⚠ 案例儲存失敗：'+(e&&e.message||e),true); });
+  } else {
+    try{ localStorage.setItem('ai_casedb_v1',JSON.stringify(arr)); }catch(e){ toast('⚠ 案例儲存失敗：'+e.message,true); }
+  }
 }
 
 // ════════ 🏆 優秀錄音案例 + 📋 約訪流程 SOP（全主角共用、不分月份）════════
@@ -1079,8 +1165,36 @@ function saveGoodCases(arr){
   try{ localStorage.setItem('wf_good_cases',JSON.stringify(arr)); }
   catch(e){ toast('⚠ 儲存失敗：'+e.message,true); }
 }
-function loadSop(){ try{ return localStorage.getItem('wf_appointment_sop')||''; }catch(e){ return ''; } }
-function saveSopText(t){ try{ localStorage.setItem('wf_appointment_sop',t); }catch(e){ toast('⚠ 儲存失敗：'+e.message,true); } }
+// === 📋 約訪流程 SOP — 多份 md 卡片(全公司共用、不分月份) ===
+//   舊版:單一字串 wf_appointment_sop
+//   新版:陣列 [{id,title,content,addedAt}],仍存同一個 key,自動遷移
+function loadSopFiles(){
+  try{
+    var r=localStorage.getItem('wf_appointment_sop'); if(!r) return [];
+    // 嘗試 JSON 解析(新版)
+    try{
+      var a=JSON.parse(r);
+      if(Array.isArray(a)) return a;
+    }catch(_){ /* 不是 JSON → 是舊版單檔字串 */ }
+    // 舊版字串 → 自動包裝成第一份 SOP
+    if(typeof r==='string' && r.trim()){
+      var arr=[{id:'sop_legacy_'+Date.now().toString(36), title:'約訪流程 SOP（舊版）', content:r, addedAt:Date.now()}];
+      saveSopFiles(arr);
+      return arr;
+    }
+    return [];
+  }catch(e){ return []; }
+}
+function saveSopFiles(arr){
+  try{ localStorage.setItem('wf_appointment_sop',JSON.stringify(arr||[])); }
+  catch(e){ toast('⚠ SOP 儲存失敗:'+e.message,true); }
+}
+// 舊 API 保留向下相容(其他地方還有人在用 loadSop)
+function loadSop(){
+  var arr=loadSopFiles();
+  if(!arr.length) return '';
+  return arr.map(function(s){ return '## '+(s.title||'未命名 SOP')+'\n\n'+(s.content||''); }).join('\n\n---\n\n');
+}
 
 function openGoodCases(){ renderGoodCases(); document.getElementById('goodCasesModal').classList.add('open'); }
 function renderGoodCases(){
@@ -1138,19 +1252,90 @@ function pickGoodCase(cid){
   toast('✅ 已加入優秀案例,記得補「重點摘要」');
 }
 function openSopModal(){
-  var box=document.getElementById('sopBox'); if(box) box.value=loadSop();
+  renderSopList();
   document.getElementById('sopModal').classList.add('open');
 }
-function saveSop(){
-  var box=document.getElementById('sopBox'); if(box) saveSopText(box.value);
-  closeModal('sopModal');
-  toast('✅ 約訪流程 SOP 已儲存');
+function renderSopList(){
+  var arr=loadSopFiles(), el=document.getElementById('sopList');
+  if(!el) return;
+  if(!arr.length){ el.innerHTML='<div class="voice-sub" style="padding:8px 0;">尚無 SOP。點「＋ 新增 SOP」或「📂 批量上傳」。</div>'; return; }
+  el.innerHTML=arr.slice().reverse().map(function(s){
+    var sid=s.id;
+    var collapsed = s._collapsed===true; // 預設展開(剛新增時要看見內容)
+    return '<div class="gc-item" data-sopid="'+escAttr(sid)+'">'
+      +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">'
+      +'<input class="tin" value="'+escAttr(s.title||'')+'" placeholder="SOP 標題(例:開場話術 / 反對問題處理 / 舊名單救援…)" oninput="editSopFile(\''+sid+'\',\'title\',this.value)" style="flex:1;font-weight:600;">'
+      +'<button class="btn" onclick="toggleSopPreview(\''+sid+'\')" title="預覽 / 編輯切換">'+(collapsed?'✏️ 編輯':'👁 預覽')+'</button>'
+      +'<button class="btn danger" onclick="delSopFile(\''+sid+'\')">🗑</button></div>'
+      +'<div style="font-size:11px;color:var(--dim);margin:0 0 3px;display:flex;justify-content:space-between;align-items:center;">'
+      +'<span>SOP 內容（Markdown / 純文字）</span>'
+      +'<label style="color:#0071e3;cursor:pointer;font-weight:600;">📂 取代此檔內容<input type="file" accept=".md,.txt,.markdown" onchange="importSopReplace(\''+sid+'\',event)" style="display:none;"></label>'
+      +'</div>'
+      +(collapsed
+          ? '<div class="sop-preview" style="background:rgba(0,113,227,0.04);border:1px solid rgba(0,113,227,0.18);border-radius:8px;padding:10px;font-size:12.5px;line-height:1.65;white-space:pre-wrap;max-height:320px;overflow:auto;color:#1d1d1f;">'+esc(s.content||'(空白)')+'</div>'
+          : '<textarea class="tin" placeholder="貼上 SOP 內容…" oninput="editSopFile(\''+sid+'\',\'content\',this.value)" style="font-family:monospace;font-size:12px;line-height:1.7;min-height:220px;">'+esc(s.content||'')+'</textarea>')
+      +'</div>';
+  }).join('');
 }
-function importSopFile(ev){
+function addSopFile(){
+  var arr=loadSopFiles();
+  arr.push({id:'sop_'+Date.now().toString(36),title:'',content:'',addedAt:Date.now()});
+  saveSopFiles(arr); renderSopList();
+}
+function editSopFile(id,field,val){
+  var arr=loadSopFiles(), s=arr.find(function(x){return x.id===id;});
+  if(s){ s[field]=val; saveSopFiles(arr); }
+}
+function delSopFile(id){
+  var arr=loadSopFiles(), s=arr.find(function(x){return x.id===id;});
+  if(!confirm('確定刪除「'+(s&&s.title||'(未命名)')+'」？')) return;
+  saveSopFiles(arr.filter(function(x){return x.id!==id;}));
+  renderSopList();
+}
+function toggleSopPreview(id){
+  var arr=loadSopFiles(), s=arr.find(function(x){return x.id===id;});
+  if(!s) return;
+  s._collapsed = !s._collapsed;
+  saveSopFiles(arr); renderSopList();
+}
+function importSopReplace(id,ev){
   var f=ev.target.files&&ev.target.files[0]; if(!f) return;
   var r=new FileReader();
-  r.onload=function(){ var box=document.getElementById('sopBox'); if(box) box.value=r.result||''; };
+  r.onload=function(){
+    var arr=loadSopFiles(), s=arr.find(function(x){return x.id===id;});
+    if(s){
+      s.content=r.result||'';
+      if(!s.title) s.title=f.name.replace(/\.(md|txt|markdown)$/i,'');
+      saveSopFiles(arr); renderSopList();
+      toast('✅ 已匯入「'+(s.title||f.name)+'」');
+    }
+  };
   r.readAsText(f); ev.target.value='';
+}
+function importSopFilesMulti(ev){
+  var files=ev.target.files; if(!files||!files.length) return;
+  var arr=loadSopFiles();
+  var pending=files.length, added=[];
+  Array.prototype.forEach.call(files,function(f){
+    var r=new FileReader();
+    r.onload=function(){
+      arr.push({
+        id:'sop_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6),
+        title: f.name.replace(/\.(md|txt|markdown)$/i,''),
+        content: r.result||'',
+        addedAt: Date.now()
+      });
+      added.push(f.name);
+      pending--;
+      if(pending===0){
+        saveSopFiles(arr); renderSopList();
+        toast('✅ 已匯入 '+added.length+' 份 SOP');
+      }
+    };
+    r.onerror=function(){ pending--; if(pending===0){ saveSopFiles(arr); renderSopList(); } };
+    r.readAsText(f);
+  });
+  ev.target.value='';
 }
 // 給作戰分析用：組裝優秀案例 / 知識庫 內容（控 token）
 function buildGoodCasesContext(){
@@ -1373,6 +1558,8 @@ function _applyWhoLabel(){
   _applyWhoLabel();
   loadAll();
   updateMonthLabel();
+  // 等案例庫從 IDB boot 完成,再畫第一次(避免 LS 還沒搬完時 loadCases 拿到空陣列)
+  try{ await _caseBootInit(); }catch(_){}
   renderAll();
   await loadMpData();
   renderBlock1(); renderBlock2(); // mp_data 載入後重畫選單與長條圖
