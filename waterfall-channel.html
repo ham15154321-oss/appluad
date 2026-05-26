@@ -813,6 +813,8 @@ function getAPerf(monthNum,name){
   return 0;
 }
 function _wrapMonth(n){ while(n<1)n+=12; while(n>12)n-=12; return n; }
+var _aChartExpanded=false;
+function toggleAChart(){ _aChartExpanded=!_aChartExpanded; renderAChart(); }
 function renderAChart(){
   var el=document.getElementById('aChart');
   // ★ 學院主管 → 標題改「我學院」、由高到低排序、第一名加皇冠
@@ -833,8 +835,11 @@ function renderAChart(){
   if(!rows.length){ el.innerHTML='<div class="voice-sub">目前沒有「近三月合計超過 10 萬」的業務可顯示。</div>'; return; }
   // ★ 學院主管 → 由近三月合計高到低排序
   if(isBoss){ rows.sort(function(a,b){ return (b.v[0]+b.v[1]+b.v[2])-(a.v[0]+a.v[1]+a.v[2]); }); }
+  // ★ 學院主管預設只看前 3 名,點按鈕展開全部
+  var allCount=rows.length;
+  var visibleRows = (isBoss && !_aChartExpanded && allCount>3) ? rows.slice(0,3) : rows;
   var max=1; rows.forEach(function(r){ r.v.forEach(function(x){ if(x>max)max=x; }); });
-  el.innerHTML=rows.map(function(r,idx){
+  el.innerHTML=visibleRows.map(function(r,idx){
     var diff=r.v[0]-r.v[1];
     var chg=diff>0?'<span class="chg" style="color:#0071e3;">▲ +'+_fmt(diff)+'</span>'
       :diff<0?'<span class="chg" style="color:#6e6e73;">▼ '+_fmt(diff)+'</span>'
@@ -850,6 +855,10 @@ function renderAChart(){
       +'<span style="display:flex;align-items:baseline;gap:8px;flex-shrink:0;">'
       +'<span class="abar-total">近三月合計 '+_fmt(total)+'</span>'+chg+'</span></div>'+bars+'</div>';
   }).join('');
+  if(isBoss && allCount>3){
+    el.innerHTML += '<div style="text-align:center;margin-top:10px;"><button class="btn" onclick="toggleAChart()">'
+      +(_aChartExpanded?'▲ 收合（只看前 3 名）':'▼ 展開查看全部 '+allCount+' 人')+'</button></div>';
+  }
 }
 function renderBlock2(){ renderNeedCards(); renderCaseLib(); renderAChart(); }
 
