@@ -304,7 +304,7 @@ body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-col
 
   <!-- ══ 📊 我小組的 A業績 ══ -->
   <div class="section">
-    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📊</div>我小組的 A業績（業績Ⓐ · 近三個月比較）</div>
+    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📊</div><span id="aChartLabel">我小組的 A業績（業績Ⓐ · 近三個月比較）</span></div>
     <div id="aChart"></div>
   </div>
 
@@ -815,10 +815,15 @@ function getAPerf(monthNum,name){
 function _wrapMonth(n){ while(n<1)n+=12; while(n>12)n-=12; return n; }
 function renderAChart(){
   var el=document.getElementById('aChart');
+  // ★ 學院主管 → 標題改「我學院」、由高到低排序、第一名加皇冠
+  var academy=_WATERFALL_ACAD_MAP[charName()];
+  var isBoss=!!academy;
+  var lbl=document.getElementById('aChartLabel');
+  if(lbl) lbl.textContent = (isBoss?'我學院':'我小組')+'的 A業績（業績Ⓐ · 近三個月比較）';
   if(!_mpLoaded){ el.innerHTML='<div class="voice-sub">載入業績資料中…</div>'; return; }
   if(!_mpData){ el.innerHTML='<div class="voice-sub">尚無業績數據（業績數據中心還沒匯入）。</div>'; return; }
   var members=getGroupMembers();
-  if(!members.length){ el.innerHTML='<div class="voice-sub">找不到你的小組成員（業績數據裡沒有你當組長的列,可在上方卡片手動輸入）。</div>'; return; }
+  if(!members.length){ el.innerHTML='<div class="voice-sub">找不到你的'+(isBoss?'學院':'小組')+'成員（業績數據裡沒有對應資料）。</div>'; return; }
   // 近三個月：選定月份的前三個月（例如 5 月 → 4、3、2 月）
   var mo=[_wrapMonth(currentMonth-1),_wrapMonth(currentMonth-2),_wrapMonth(currentMonth-3)];
   var colors=['#0071e3','#aeaeb2','#d2d2d7'];
@@ -826,8 +831,10 @@ function renderAChart(){
   // ★ 三個月合計沒有超過 10 萬的不顯示
   rows = rows.filter(function(r){ return (r.v[0]+r.v[1]+r.v[2]) > 100000; });
   if(!rows.length){ el.innerHTML='<div class="voice-sub">目前沒有「近三月合計超過 10 萬」的業務可顯示。</div>'; return; }
+  // ★ 學院主管 → 由近三月合計高到低排序
+  if(isBoss){ rows.sort(function(a,b){ return (b.v[0]+b.v[1]+b.v[2])-(a.v[0]+a.v[1]+a.v[2]); }); }
   var max=1; rows.forEach(function(r){ r.v.forEach(function(x){ if(x>max)max=x; }); });
-  el.innerHTML=rows.map(function(r){
+  el.innerHTML=rows.map(function(r,idx){
     var diff=r.v[0]-r.v[1];
     var chg=diff>0?'<span class="chg" style="color:#0071e3;">▲ +'+_fmt(diff)+'</span>'
       :diff<0?'<span class="chg" style="color:#6e6e73;">▼ '+_fmt(diff)+'</span>'
@@ -838,7 +845,8 @@ function renderAChart(){
         +'<span class="abar-val">'+_fmt(r.v[i])+'</span></div>';
     }).join('');
     var total=r.v[0]+r.v[1]+r.v[2];
-    return '<div class="abar-row"><div class="abar-name"><span>'+esc(r.name)+'</span>'
+    var crown = (isBoss && idx===0) ? '👑 ' : '';
+    return '<div class="abar-row"><div class="abar-name"><span>'+crown+esc(r.name)+'</span>'
       +'<span style="display:flex;align-items:baseline;gap:8px;flex-shrink:0;">'
       +'<span class="abar-total">近三月合計 '+_fmt(total)+'</span>'+chg+'</span></div>'+bars+'</div>';
   }).join('');
