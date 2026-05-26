@@ -823,6 +823,9 @@ function renderAChart(){
   var mo=[_wrapMonth(currentMonth-1),_wrapMonth(currentMonth-2),_wrapMonth(currentMonth-3)];
   var colors=['#0071e3','#aeaeb2','#d2d2d7'];
   var rows=members.map(function(n){ return {name:n,v:[getAPerf(mo[0],n),getAPerf(mo[1],n),getAPerf(mo[2],n)]}; });
+  // ★ 三個月合計沒有超過 10 萬的不顯示
+  rows = rows.filter(function(r){ return (r.v[0]+r.v[1]+r.v[2]) > 100000; });
+  if(!rows.length){ el.innerHTML='<div class="voice-sub">目前沒有「近三月合計超過 10 萬」的業務可顯示。</div>'; return; }
   var max=1; rows.forEach(function(r){ r.v.forEach(function(x){ if(x>max)max=x; }); });
   el.innerHTML=rows.map(function(r){
     var diff=r.v[0]-r.v[1];
