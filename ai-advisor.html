@@ -3927,6 +3927,13 @@ document.addEventListener('DOMContentLoaded', function(){
       setTimeout(function(){ try{ openChat('mentor'); }catch(e){} }, 450);
     }
   }catch(e){}
+  // 從瀑布「📤 打包成任務」後跳過來 → 自動開啟時間軸
+  try{
+    if(localStorage.getItem('_wf_open_timeline')==='1'){
+      localStorage.removeItem('_wf_open_timeline');
+      setTimeout(function(){ try{ showView('timeline'); }catch(e){} }, 450);
+    }
+  }catch(e){}
 });
 
 // ══════ 🎙️ 錄音轉摘要 ══════

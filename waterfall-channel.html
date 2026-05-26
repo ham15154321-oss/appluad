@@ -1216,8 +1216,16 @@ function renderBlock3(){
   document.getElementById('block3').innerHTML=html;
   renderAdopted();
 }
+var _justPackaged=false;
 function renderAdopted(){
   var el=document.getElementById('battleAdopted'); if(!el) return;
+  if(_justPackaged){
+    el.innerHTML = '<div class="lrow" style="background:rgba(0,113,227,0.08);border-color:rgba(0,113,227,0.4);align-items:center;gap:8px;">'
+      +'<span style="flex:1;font-size:13px;font-weight:700;color:#0071e3;">✅ 已打包到 AI 顧問 → 📅 時間軸</span>'
+      +'<button class="battle-ai-btn" onclick="goToTimelineFromWf()">→ 前往時間軸</button>'
+      +'<button class="btn" onclick="dismissPackaged()">關閉</button></div>';
+    return;
+  }
   var sg=md().battlePlan.suggestions||[];
   if(!sg.length){ el.innerHTML='<div class="voice-sub">尚無採納的建議。跑 AI 分析後勾選採納。</div>'; return; }
   el.innerHTML=sg.map(function(s,i){
@@ -1226,6 +1234,16 @@ function renderAdopted(){
   + '<button class="battle-ai-btn" style="margin-top:8px;" onclick="packageBattleAsTask()">📤 打包成任務 → AI 顧問時間軸</button>';
 }
 function delAdopted(i){ md().battlePlan.suggestions.splice(i,1); scheduleSave(); renderAdopted(); }
+function dismissPackaged(){ _justPackaged=false; renderAdopted(); }
+function goToTimelineFromWf(){
+  try{ localStorage.setItem('_wf_open_timeline','1'); }catch(e){}
+  try{
+    if(window.parent && window.parent!==window){
+      if(window.parent.closeWaterfall) window.parent.closeWaterfall();
+      if(window.parent.openAiAdvisor) window.parent.openAiAdvisor();
+    }
+  }catch(e){}
+}
 // 📤 把本次採納建議打包成任務 → 寫進 AI 顧問當前主角的時間軸,然後清空瀑布本次分析讓使用者跑下一輪
 function packageBattleAsTask(){
   var sg = md().battlePlan.suggestions || [];
@@ -1258,9 +1276,9 @@ function packageBattleAsTask(){
   md().battlePlan.suggestions=[];
   _battleAi=[];
   var bai=document.getElementById('battleAiResult'); if(bai) bai.innerHTML='';
+  _justPackaged=true;
   scheduleSave();
   renderAdopted();
-  toast('✅ 已打包到 AI 顧問 → 📅 時間軸,可繼續分析下一輪');
 }
 async function runBattleAnalysis(){
   var btn=document.getElementById('battleAiBtn');
