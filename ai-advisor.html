@@ -118,6 +118,9 @@ body.day-mode .ae-q-target.cases{color:#1d1d1f;background:rgba(0,113,227,.22);}
 .chat-left{flex:1;display:flex;flex-direction:column;min-width:0;}
 .chat-header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(50,160,255,.1);}
 .chat-header .ch-title{flex:1;font-size:.9rem;font-weight:700;color:#fff;}
+/* 🧠 A通路研究院 → 回到瀑布按鈕（Apple Swift 黑底發光）*/
+.back-wf-btn{background:linear-gradient(135deg,#1a1a1f,#000);color:#fff;font-weight:800;font-size:12px;border:1px solid #2c2c2e;border-radius:999px;padding:7px 14px;cursor:pointer;font-family:-apple-system,'Noto Sans TC',sans-serif;box-shadow:0 0 14px rgba(130,175,255,0.5),0 0 32px rgba(255,255,255,0.14);transition:all .18s;flex-shrink:0;}
+.back-wf-btn:hover{box-shadow:0 0 22px rgba(130,175,255,0.9),0 0 48px rgba(255,255,255,0.26);transform:translateY(-1px);}
 .pin-btn{background:none;border:1px solid rgba(255,215,0,.3);color:#ffd700;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.75rem;font-family:inherit;}
 .pin-btn.pinned{background:rgba(255,215,0,.15);border-color:#ffd700;}
 .chat-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
@@ -879,6 +882,7 @@ body.day-mode #taskFileSummary{color:#86868b !important;}
     <div class="chat-header">
       <span id="chatIcon">🎯</span>
       <span class="ch-title" id="chatTitle">AI 教練</span>
+      <button class="back-wf-btn" id="backToWfBtn" onclick="backToWaterfall()" style="display:none;">🏔️ 回到瀑布</button>
       <div class="chat-tools">
         <button class="chat-tool-btn" id="fontBtn" onclick="toggleChatFontSize()" title="切換字體大小">字 A</button>
         <button class="chat-tool-btn" id="fullscreenBtn" onclick="toggleChatFullscreen()" title="全螢幕">⛶</button>
@@ -2441,6 +2445,8 @@ function openChat(fid){
   showView('chat');
   document.getElementById('chatIcon').textContent=f.icon;
   document.getElementById('chatTitle').textContent=f.title;
+  // ★ A通路研究院才顯示「回到瀑布」按鈕
+  var bwf=document.getElementById('backToWfBtn'); if(bwf) bwf.style.display = (fid==='mentor') ? '' : 'none';
   updatePinBtn(false);
 
   var msgsEl = document.getElementById('chatMsgs');
@@ -2471,6 +2477,15 @@ function openChat(fid){
   setTimeout(function(){ msgsEl.scrollTop = msgsEl.scrollHeight; }, 50);
 }
 function closeChat(){autoSavePin();showView('cards');curFeature=null;curTopicId=null;}
+// 🧠 A通路研究院 → 回到瀑布:關掉 AI 顧問 iframe + 打開瀑布 iframe
+function backToWaterfall(){
+  try{
+    if(window.parent && window.parent!==window){
+      if(window.parent.closeAiAdvisor) window.parent.closeAiAdvisor();
+      if(window.parent.openWaterfall) window.parent.openWaterfall();
+    }
+  }catch(e){}
+}
 
 // ★ 清除當前顧問的對話歷史（使用者手動觸發）
 function clearChatHistory(){
