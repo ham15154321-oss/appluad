@@ -310,7 +310,11 @@ body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-col
 
   <!-- ══ 📚 錄音案例庫 ══ -->
   <div class="section">
-    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📚</div>錄音案例庫（與 AI 顧問共用）</div>
+    <div class="section-title">
+      <div class="icon" style="background:#f0f0f3;">📚</div>
+      <span style="flex:1;">錄音案例庫（與 AI 顧問共用）</span>
+      <button class="btn purple" onclick="goToAiCaseDb()">📂 連到 AI 顧問 案例庫</button>
+    </div>
     <div id="caseLibList"></div>
   </div>
 
@@ -1422,6 +1426,16 @@ function delAdopted(i){ md().battlePlan.suggestions.splice(i,1); scheduleSave();
 function dismissPackaged(){ _justPackaged=false; renderAdopted(); }
 function goToTimelineFromWf(){
   try{ localStorage.setItem('_wf_open_timeline','1'); }catch(e){}
+  try{
+    if(window.parent && window.parent!==window){
+      if(window.parent.closeWaterfall) window.parent.closeWaterfall();
+      if(window.parent.openAiAdvisor) window.parent.openAiAdvisor();
+    }
+  }catch(e){}
+}
+// 📂 從瀑布錄音案例庫 → 跳到 AI 顧問中心 案例資料庫
+function goToAiCaseDb(){
+  try{ localStorage.setItem('_wf_open_casedb','1'); }catch(e){}
   try{
     if(window.parent && window.parent!==window){
       if(window.parent.closeWaterfall) window.parent.closeWaterfall();

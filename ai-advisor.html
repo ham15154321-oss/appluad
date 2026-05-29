@@ -934,7 +934,13 @@ body.day-mode #taskFileSummary{color:#86868b !important;}
 
 <!-- ===== 5. 資料庫 ===== -->
 <div class="view panel-view" id="v_casedb">
-  <div class="panel-header"><h2>📂 案例資料庫</h2><button class="panel-add-btn" onclick="openAddCase()">＋ 新增案例</button></div>
+  <div class="panel-header">
+    <h2>📂 案例資料庫</h2>
+    <div style="display:flex;gap:8px;margin-left:auto;align-items:center;">
+      <button class="panel-add-btn" style="background:linear-gradient(135deg,#a78bfa,#4aeaff);" onclick="backToWaterfall()">🏔️ 連回瀑布 A通路</button>
+      <button class="panel-add-btn" onclick="openAddCase()">＋ 新增案例</button>
+    </div>
+  </div>
   <div class="panel-body" id="casedbBody"></div>
 </div>
 
@@ -4315,6 +4321,13 @@ document.addEventListener('DOMContentLoaded', function(){
     if(localStorage.getItem('_wf_open_timeline')==='1'){
       localStorage.removeItem('_wf_open_timeline');
       setTimeout(function(){ try{ showView('timeline'); }catch(e){} }, 450);
+    }
+  }catch(e){}
+  // 從瀑布「📂 連到 AI 顧問 案例庫」跳過來 → 自動開啟案例資料庫
+  try{
+    if(localStorage.getItem('_wf_open_casedb')==='1'){
+      localStorage.removeItem('_wf_open_casedb');
+      setTimeout(function(){ try{ showView('casedb'); }catch(e){} }, 450);
     }
   }catch(e){}
 });
