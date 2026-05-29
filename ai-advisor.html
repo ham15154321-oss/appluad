@@ -3540,11 +3540,18 @@ function renderTimeline(){
     var receivedBadge = t._isReceived
       ? '<span style="display:inline-block;padding:1px 7px;border-radius:10px;background:rgba(255,200,80,.22);color:#ffd97a;font-size:.65rem;font-weight:700;margin-right:6px;border:1px solid rgba(255,200,80,.4);">📨 受指派 來自'+esc(t._originalOwner||'?')+'</span>'
       : '';
-    return '<div class="tl-item" style="cursor:pointer;'+(isSel?'background:rgba(74,234,255,.1);border-color:#4aeaff;':'')+(t._isReceived?'border-left:3px solid #ffd97a;':'')+'" onclick="selectTask(\''+t.id+'\')">'
+    // ★ 中央指揮台管理員註記(公開顯示,讓主角看見管理層意見)
+    var adminLogArr = Array.isArray(t.adminLog) ? t.adminLog : [];
+    var lastAdm = adminLogArr.length ? adminLogArr[adminLogArr.length-1] : null;
+    var adminBadge = lastAdm
+      ? '<div style="margin-top:6px;padding:5px 9px;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.32);border-radius:6px;font-size:.7rem;color:#c7b9ff;line-height:1.5;">📝 <b>管理員：</b>'+esc(lastAdm.note||'')+'<span style="opacity:.7;margin-left:6px;">— '+esc(lastAdm.who||'')+' '+esc(lastAdm.at||'')+'</span>'+(adminLogArr.length>1?'<span style="opacity:.6;margin-left:4px;">（共 '+adminLogArr.length+' 則）</span>':'')+'</div>'
+      : '';
+    return '<div class="tl-item" style="cursor:pointer;'+(isSel?'background:rgba(74,234,255,.1);border-color:#4aeaff;':'')+(t._isReceived?'border-left:3px solid #ffd97a;':'')+(lastAdm?'box-shadow:inset 3px 0 0 #a78bfa;':'')+'" onclick="selectTask(\''+t.id+'\')">'
       + '<div class="tl-status '+(t.status||'pending')+'"></div>'
       + '<div class="tl-content">'
       + '<div class="tl-task">' + receivedBadge + esc(t.title || t.task || '(未命名)') + '</div>'
       + '<div class="tl-meta">' + labels[t.status||'pending'] + (dl?' · '+dl:'') + (assignees?' · 👥 '+esc(assignees):'') + '</div>'
+      + adminBadge
       + '</div></div>';
   }).join('');
 }

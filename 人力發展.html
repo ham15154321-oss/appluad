@@ -1781,6 +1781,21 @@
         </button>
       </div>
 
+      <!-- ★ 中央指揮台入口（僅超級管理員「黃柏翰」可見） -->
+      <div class="admin-section" id="centralCommandSection" style="display:none;margin-bottom:18px;border:2px solid rgba(167,139,250,0.4);background:linear-gradient(135deg,rgba(167,139,250,0.1),rgba(74,234,255,0.06));">
+        <h3 style="color:#a78bfa;display:flex;align-items:center;gap:8px;">
+          🏛️ 中央指揮台
+          <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:rgba(167,139,250,.15);color:#c7b9ff;border:1px solid rgba(167,139,250,.3);">超級管理員專屬</span>
+        </h3>
+        <div style="font-size:11px;color:#b9c3df;line-height:1.7;margin:8px 0 12px;">
+          一頁俯瞰全部 22 主角承諾任務 + 跨主角指派的看板。可改狀態、加管理員註記（公開到主角時間軸）、從這裡直接指派新任務給任一主角。<br>
+          <span style="color:#ffd700;">⚠️ 未來會加更多 CEO 視角的管理功能。</span>
+        </div>
+        <button class="admin-save-btn" style="width:100%;padding:14px;font-size:15px;background:linear-gradient(135deg,#a78bfa,#4aeaff);color:#0a0c14;letter-spacing:2px;font-weight:800;" onclick="adminNav('central-command.html?v=v1')">
+          🏛️ 進入中央指揮台
+        </button>
+      </div>
+
       <!-- ★ 員工帳號管理入口（僅超級管理員「黃柏翰」可見） -->
       <div class="admin-section" id="accountsAdminSection" style="display:none;margin-bottom:18px;border:2px solid rgba(255,107,107,0.35);background:linear-gradient(135deg,rgba(255,107,107,0.08),rgba(255,167,38,0.04));">
         <h3 style="color:#ff9b9b;display:flex;align-items:center;gap:8px;">
@@ -2576,7 +2591,7 @@ function updateAuditAdminVisibility(){
   const ADMINS = ['黃柏翰'];  // 想加更多管理員就加進這個 array
   const cn = localStorage.getItem('activeCharacterName') || '';
   const isAdmin = ADMINS.indexOf(cn) >= 0;
-  ['adminAiCenterSection','aiRulesAdminSection','auditAdminSection','accountsAdminSection'].forEach(function(id){
+  ['centralCommandSection','adminAiCenterSection','aiRulesAdminSection','auditAdminSection','accountsAdminSection'].forEach(function(id){
     const sec = document.getElementById(id);
     if(sec) sec.style.display = isAdmin ? 'block' : 'none';
   });

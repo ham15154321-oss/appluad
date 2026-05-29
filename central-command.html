@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>🏛️ 中央指揮台 — 赫綵教育機構</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script defer src="./firebase-sync.js"></script>
+<script defer src="./day-mode-init.js"></script>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+:root{
+  --bg:#0a0c14; --panel:#11141d; --panel2:#171b27;
+  --text:#e7ecf3; --dim:#8da0bf; --border:#1e2434;
+  --accent:#a78bfa; --accent2:#4aeaff; --gold:#ffd700;
+  --green:#34d399; --orange:#fb923c; --red:#ef4444;
+  --pending:#94a3b8; --doing:#4aeaff; --done:#34d399; --overdue:#ef4444;
+}
+html,body { height:100%; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",PingFang TC,"Noto Sans TC",sans-serif; font-size:13.5px; line-height:1.55; overflow:hidden; }
+
+/* ── Shell ─────────────────────────────────────── */
+.shell { display:flex; height:100vh; width:100vw; }
+
+/* 左側選單 */
+.sidebar {
+  width:220px; flex:0 0 220px; background:linear-gradient(180deg,#0f1320,#0a0c14);
+  border-right:1px solid var(--border); display:flex; flex-direction:column;
+}
+/* ✨ Apple Swift 風格 hero — 黑底 + 藍/橙光暈（白天/夜間共用） */
+.sidebar-head {
+  padding:18px 16px 14px;
+  background:
+    radial-gradient(ellipse 60% 80% at 20% 40%, rgba(122,162,255,0.22), transparent 70%),
+    radial-gradient(ellipse 70% 80% at 80% 80%, rgba(255,150,80,0.18), transparent 65%),
+    linear-gradient(135deg, #0a0c14 0%, #14182a 100%);
+  border-bottom:1px solid rgba(130,175,255,0.18);
+  box-shadow: inset 0 -1px 0 rgba(130,175,255,0.12);
+  position:relative; overflow:hidden;
+}
+.sidebar-head::after {
+  /* Swift 鳥翼般的微光斜線 */
+  content:''; position:absolute; top:-30%; right:-20%; width:140%; height:160%;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.05) 50%, transparent 65%);
+  pointer-events:none;
+}
+.sidebar-head h1 {
+  font-size:15px; font-weight:800; letter-spacing:1px;
+  color:#fff;
+  text-shadow: 0 0 12px rgba(130,175,255,0.55), 0 0 24px rgba(255,150,80,0.22);
+  display:flex; align-items:center; gap:8px;
+  position:relative; z-index:1;
+}
+.sidebar-head .sub {
+  font-size:10.5px; color:rgba(255,255,255,0.7); margin-top:4px;
+  position:relative; z-index:1;
+}
+.sidebar-nav { flex:1; padding:10px 8px; overflow-y:auto; }
+.nav-item {
+  display:flex; align-items:center; gap:10px; padding:10px 12px; margin:2px 0;
+  border-radius:10px; cursor:pointer; color:var(--dim); font-size:13px;
+  transition: background .18s, color .18s, transform .12s;
+}
+.nav-item:hover { background:rgba(167,139,250,0.08); color:var(--text); }
+.nav-item.active {
+  background:linear-gradient(135deg,rgba(167,139,250,0.22),rgba(74,234,255,0.12));
+  color:#fff; box-shadow: inset 0 0 0 1px rgba(167,139,250,0.4);
+}
+.nav-item .icon { font-size:16px; }
+.nav-item .badge {
+  margin-left:auto; background:rgba(255,107,107,0.25); color:#ffb0b0;
+  font-size:10px; padding:1px 7px; border-radius:8px; font-weight:700;
+}
+.nav-section-label {
+  font-size:10px; color:#5f6b85; padding:14px 12px 6px; letter-spacing:2px;
+  text-transform:uppercase;
+}
+.sidebar-foot {
+  padding:12px 14px; border-top:1px solid var(--border); font-size:11px; color:var(--dim);
+}
+.sidebar-foot .me { color:var(--gold); font-weight:700; }
+
+/* 右側內容 */
+.content { flex:1; display:flex; flex-direction:column; min-width:0; }
+/* ✨ Apple Swift 風格 hero topbar — 黑底 + 藍/橙光暈 + 玻璃質感 */
+.topbar {
+  padding:16px 24px; display:flex; align-items:center; gap:14px;
+  background:
+    radial-gradient(ellipse 40% 100% at 20% 50%, rgba(122,162,255,0.20), transparent 70%),
+    radial-gradient(ellipse 50% 120% at 85% 80%, rgba(255,150,80,0.16), transparent 65%),
+    linear-gradient(135deg, #0a0c14 0%, #14182a 100%);
+  border-bottom:1px solid rgba(130,175,255,0.18);
+  box-shadow: inset 0 -1px 0 rgba(130,175,255,0.12),
+              0 4px 20px rgba(0,0,0,0.18);
+  position:relative; overflow:hidden;
+  color:#fff;
+}
+.topbar::after {
+  content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.06) 50%, transparent 65%);
+  pointer-events:none;
+}
+.topbar > * { position:relative; z-index:1; }
+.topbar h2 {
+  font-size:17px; font-weight:800; color:#fff;
+  text-shadow: 0 0 14px rgba(130,175,255,0.5), 0 0 28px rgba(255,150,80,0.2);
+}
+.topbar .crumb { color:rgba(255,255,255,0.7); font-size:12px; }
+.topbar .right { margin-left:auto; display:flex; gap:8px; align-items:center; }
+.btn {
+  padding:7px 14px; border:1px solid var(--border); background:var(--panel2); color:var(--text);
+  border-radius:9px; cursor:pointer; font-size:12.5px; font-weight:600; transition: all .15s;
+  white-space:nowrap;
+}
+.btn:hover { background:#212840; border-color:#33405e; }
+.btn.primary {
+  background:linear-gradient(135deg,#a78bfa,#4aeaff); color:#0a0c14; border:none; font-weight:800;
+}
+.btn.primary:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(167,139,250,0.35); }
+.btn.danger { background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.4); color:#ffb0b0; }
+.btn.danger:hover { background:rgba(239,68,68,0.25); }
+.btn.ghost { background:transparent; }
+
+/* ✨ Topbar 內按鈕 — Swift 玻璃 + 光暈（白天/夜間共用） */
+.topbar .btn {
+  background:rgba(255,255,255,0.06);
+  color:rgba(255,255,255,0.92);
+  border:1px solid rgba(255,255,255,0.18);
+  box-shadow: inset 0 0 0 0.5px rgba(255,255,255,0.08);
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+}
+.topbar .btn:hover {
+  background:rgba(255,255,255,0.14);
+  border-color:rgba(130,175,255,0.6);
+  color:#fff;
+  box-shadow: 0 0 16px rgba(130,175,255,0.3);
+}
+.topbar .btn.primary {
+  background:linear-gradient(135deg, #1a1a1f, #000);
+  color:#fff;
+  border:1px solid rgba(130,175,255,0.4);
+  font-weight:800; letter-spacing:1px;
+  box-shadow:
+    0 0 0 1px rgba(130,175,255,0.22),
+    0 0 18px rgba(130,175,255,0.5),
+    0 0 36px rgba(255,150,80,0.22),
+    inset 0 0 14px rgba(130,175,255,0.18);
+  text-shadow: 0 0 8px rgba(255,255,255,0.6);
+}
+.topbar .btn.primary:hover {
+  background:linear-gradient(135deg, #2a2a32, #050510);
+  border-color:rgba(130,175,255,0.7);
+  box-shadow:
+    0 0 0 1px rgba(130,175,255,0.5),
+    0 0 26px rgba(130,175,255,0.75),
+    0 0 52px rgba(255,150,80,0.35),
+    inset 0 0 18px rgba(130,175,255,0.28);
+  transform:translateY(-1px);
+}
+
+.pane { flex:1; overflow:auto; padding:18px 22px; }
+
+/* ── 任務總覽 ──────────────────────────────────── */
+.controls {
+  background:var(--panel); border:1px solid var(--border); border-radius:12px;
+  padding:14px 16px; margin-bottom:14px; display:flex; flex-direction:column; gap:12px;
+}
+.controls-row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.controls-row .label { font-size:11.5px; color:var(--dim); font-weight:600; }
+
+.chip-bar { display:flex; flex-wrap:wrap; gap:6px; }
+.char-chip {
+  padding:5px 11px; border-radius:18px; border:1px solid var(--border);
+  background:var(--panel2); color:var(--dim); font-size:12px; cursor:pointer;
+  transition: all .15s; user-select:none;
+}
+.char-chip.on {
+  background:linear-gradient(135deg,#a78bfa,#4aeaff); color:#0a0c14; border-color:transparent;
+  font-weight:700;
+}
+.char-chip:hover { transform:translateY(-1px); }
+
+.search-box {
+  flex:1; min-width:200px; padding:7px 12px; border-radius:9px;
+  background:var(--panel2); border:1px solid var(--border); color:var(--text); font-size:13px;
+}
+.search-box:focus { outline:none; border-color:var(--accent); }
+
+.toggle-group { display:inline-flex; background:var(--panel2); border:1px solid var(--border); border-radius:9px; overflow:hidden; }
+.toggle-group button {
+  padding:6px 12px; background:transparent; border:none; color:var(--dim); font-size:12px;
+  cursor:pointer; transition: all .15s; font-weight:600;
+}
+.toggle-group button.on { background:linear-gradient(135deg,#a78bfa,#4aeaff); color:#0a0c14; }
+
+.summary {
+  display:flex; gap:14px; font-size:12px; color:var(--dim);
+}
+.summary span b { color:var(--text); font-weight:700; }
+
+/* Kanban */
+.kanban {
+  display:grid; grid-template-columns: repeat(4, minmax(220px,1fr)); gap:14px; align-items:flex-start;
+}
+@media (max-width: 1100px){ .kanban { grid-template-columns: repeat(2,1fr); } }
+.col {
+  background:var(--panel); border:1px solid var(--border); border-radius:14px;
+  padding:12px; min-height:300px; display:flex; flex-direction:column; gap:10px;
+}
+.col.drag-over { background:rgba(167,139,250,0.08); border-color:var(--accent); }
+.col-head {
+  display:flex; align-items:center; gap:8px; padding-bottom:8px;
+  border-bottom:1px solid var(--border); font-size:13px; font-weight:800;
+}
+.col-head .count {
+  margin-left:auto; padding:2px 9px; border-radius:10px; background:var(--panel2);
+  font-size:11px; color:var(--dim); font-weight:700;
+}
+.col.pending .col-head { color:var(--pending); }
+.col.doing .col-head { color:var(--doing); }
+.col.done .col-head { color:var(--done); }
+.col.overdue .col-head { color:var(--overdue); }
+.col.overdue { background:linear-gradient(180deg,rgba(239,68,68,0.06),rgba(17,20,29,0.95)); border-color:rgba(239,68,68,0.35); }
+
+/* Card */
+.tcard {
+  background:var(--panel2); border:1px solid var(--border); border-radius:10px;
+  padding:11px; cursor:grab; transition: all .15s; position:relative;
+}
+.tcard:hover { border-color:#33405e; transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.3); }
+.tcard.dragging { opacity:0.5; cursor:grabbing; }
+.tcard.echo { border-style:dashed; opacity:0.85; }  /* 過期欄裡的複製版 */
+.tcard-top {
+  display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-bottom:6px;
+}
+.owner-chip {
+  font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:6px;
+  background:rgba(167,139,250,0.18); color:#c7b9ff; border:1px solid rgba(167,139,250,0.35);
+}
+.cross-chip {
+  font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px;
+  background:rgba(255,167,38,0.12); color:#ffd07f; border:1px solid rgba(255,167,38,0.32);
+}
+.overdue-chip {
+  font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px;
+  background:rgba(239,68,68,0.18); color:#ffb0b0; border:1px solid rgba(239,68,68,0.35);
+}
+.tcard-title { font-size:13.5px; font-weight:700; color:#fff; line-height:1.4; margin:2px 0 6px; }
+.tcard-meta { font-size:11.5px; color:var(--dim); display:flex; flex-wrap:wrap; gap:10px; }
+.tcard-meta .due.late { color:#ff9b9b; font-weight:700; }
+.tcard-admin-mark {
+  margin-top:7px; padding:5px 8px; background:rgba(255,215,0,0.08);
+  border:1px solid rgba(255,215,0,0.25); border-radius:6px; font-size:11px; color:#ffd700;
+}
+
+.empty-pane { padding:50px 20px; text-align:center; color:var(--dim); font-size:13px; }
+.empty-col { padding:24px 8px; text-align:center; color:#4a5670; font-size:11.5px; font-style:italic; }
+
+/* Modal */
+.modal-bg {
+  position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px);
+  display:none; align-items:center; justify-content:center; z-index:100; padding:20px;
+}
+.modal-bg.on { display:flex; }
+.modal {
+  background:var(--panel); border:1px solid var(--border); border-radius:16px;
+  width:min(640px,100%); max-height:90vh; overflow:auto; padding:20px;
+  box-shadow:0 24px 80px rgba(0,0,0,0.6);
+}
+.modal h3 { font-size:16px; margin-bottom:6px; display:flex; align-items:center; gap:10px; }
+.modal .sub { font-size:12px; color:var(--dim); margin-bottom:16px; }
+.modal label { font-size:11.5px; color:var(--dim); font-weight:600; display:block; margin:10px 0 4px; }
+.modal input[type=text], .modal input[type=date], .modal textarea, .modal select {
+  width:100%; padding:8px 11px; background:var(--panel2); border:1px solid var(--border);
+  border-radius:8px; color:var(--text); font-size:13px; font-family:inherit;
+}
+.modal textarea { min-height:80px; resize:vertical; }
+.modal-buttons { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; padding-top:14px; border-top:1px solid var(--border); }
+
+.admin-log-list {
+  margin-top:6px; max-height:180px; overflow:auto; background:var(--panel2);
+  border:1px solid var(--border); border-radius:8px; padding:8px 11px; font-size:12px;
+}
+.admin-log-entry {
+  padding:5px 0; border-bottom:1px dashed var(--border); color:var(--text);
+}
+.admin-log-entry:last-child { border-bottom:none; }
+.admin-log-entry .meta { font-size:10.5px; color:var(--dim); margin-bottom:2px; }
+
+.assignee-pickers { display:flex; flex-wrap:wrap; gap:6px; max-height:180px; overflow-y:auto; padding:8px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; }
+.assignee-pickers .char-chip { font-size:11.5px; }
+
+.toast {
+  position:fixed; top:18px; left:50%; transform:translateX(-50%);
+  background:#0f1320; border:1px solid var(--green); color:var(--green);
+  padding:10px 18px; border-radius:10px; font-size:13px; font-weight:700; z-index:200;
+  box-shadow:0 8px 24px rgba(0,0,0,0.5); animation: slideDown .25s ease;
+}
+.toast.err { border-color:var(--red); color:#ffb0b0; }
+@keyframes slideDown { from { transform:translateX(-50%) translateY(-20px); opacity:0; } to { transform:translateX(-50%) translateY(0); opacity:1; } }
+
+.deny {
+  margin:80px auto; max-width:520px; text-align:center; padding:36px 24px;
+  background:var(--panel); border:2px solid rgba(239,68,68,0.4); border-radius:16px;
+}
+.deny .ico { font-size:40px; margin-bottom:12px; }
+.deny h2 { color:#ff9b9b; margin-bottom:8px; font-size:18px; }
+.deny p { color:var(--dim); font-size:13px; }
+
+/* ════════════════════════════════════════════════════════════════
+   ☀️ 白天模式 — Apple 風配色
+   背景米白 #f5f5f7、卡片白 #fff、邊框 #d2d2d7、文字 #1d1d1f
+   Accent：Apple blue #0071e3、green #34c759、orange #ff9500、red #ff3b30
+   ════════════════════════════════════════════════════════════════ */
+body.day-mode {
+  background:#f5f5f7;
+  color:#1d1d1f;
+}
+body.day-mode .sidebar {
+  background:linear-gradient(180deg,#ffffff,#fbfbfd);
+  border-right:1px solid #d2d2d7;
+  box-shadow: 1px 0 0 rgba(0,0,0,0.02);
+}
+/* ✨ Swift hero — 不論白天/夜間都保持 Swift 黑底光暈(已在預設樣式) */
+/* sidebar-head 配色由預設規則控制,白天模式不覆寫 */
+body.day-mode .nav-section-label { color:#86868b; }
+body.day-mode .nav-item { color:#515154; }
+body.day-mode .nav-item:hover { background:rgba(0,113,227,0.08); color:#1d1d1f; }
+body.day-mode .nav-item.active {
+  background:linear-gradient(135deg,rgba(0,113,227,0.14),rgba(0,113,227,0.06));
+  color:#0071e3; font-weight:700;
+  box-shadow: inset 0 0 0 1px rgba(0,113,227,0.32);
+}
+body.day-mode .nav-item .badge {
+  background:#ff3b30; color:#fff;
+}
+body.day-mode .sidebar-foot {
+  border-top:1px solid #e5e5ea; color:#6e6e73;
+}
+body.day-mode .sidebar-foot .me { color:#0071e3; }
+
+/* topbar 配色保持 Swift 黑底光暈(預設規則),白天模式不覆寫 */
+
+body.day-mode .btn {
+  background:#fff; color:#1d1d1f; border:1px solid #d2d2d7;
+  box-shadow:0 1px 2px rgba(0,0,0,0.04);
+}
+body.day-mode .btn:hover { background:#f5f5f7; border-color:#bdbdc2; }
+body.day-mode .btn.primary {
+  background:linear-gradient(135deg,#0071e3,#5e9bff);
+  color:#fff; border:none; font-weight:800;
+  box-shadow:0 2px 8px rgba(0,113,227,0.3);
+}
+body.day-mode .btn.primary:hover {
+  box-shadow:0 4px 14px rgba(0,113,227,0.45);
+}
+body.day-mode .btn.ghost {
+  background:transparent; border:1px solid #d2d2d7; color:#515154;
+}
+body.day-mode .btn.ghost:hover { background:rgba(0,0,0,0.04); }
+body.day-mode .btn.danger {
+  background:rgba(255,59,48,0.08); border-color:rgba(255,59,48,0.35); color:#d70015;
+}
+body.day-mode .btn.danger:hover { background:rgba(255,59,48,0.18); }
+
+body.day-mode .controls {
+  background:#fff; border:1px solid #e5e5ea;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+body.day-mode .controls-row .label { color:#515154; }
+body.day-mode .search-box {
+  background:#fbfbfd; border:1px solid #d2d2d7; color:#1d1d1f;
+}
+body.day-mode .search-box:focus { border-color:#0071e3; box-shadow:0 0 0 3px rgba(0,113,227,0.12); }
+body.day-mode .search-box::placeholder { color:#86868b; }
+
+body.day-mode .char-chip {
+  background:#fbfbfd; color:#515154; border:1px solid #d2d2d7;
+}
+body.day-mode .char-chip:hover { background:#f0f0f3; }
+body.day-mode .char-chip.on {
+  background:linear-gradient(135deg,#0071e3,#5e9bff); color:#fff; border-color:transparent;
+  box-shadow:0 2px 6px rgba(0,113,227,0.3);
+}
+
+body.day-mode .toggle-group {
+  background:#fbfbfd; border:1px solid #d2d2d7;
+}
+body.day-mode .toggle-group button { color:#515154; }
+body.day-mode .toggle-group button.on {
+  background:linear-gradient(135deg,#0071e3,#5e9bff); color:#fff;
+}
+
+body.day-mode .summary { color:#6e6e73; }
+body.day-mode .summary span b { color:#1d1d1f; }
+
+/* Kanban 欄位 */
+body.day-mode .col {
+  background:#fff; border:1px solid #e5e5ea;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+body.day-mode .col.drag-over {
+  background:rgba(0,113,227,0.06); border-color:#0071e3;
+}
+body.day-mode .col-head { border-bottom:1px solid #e5e5ea; }
+body.day-mode .col-head .count {
+  background:#f0f0f3; color:#515154;
+}
+body.day-mode .col.pending .col-head { color:#515154; }
+body.day-mode .col.doing   .col-head { color:#0071e3; }
+body.day-mode .col.done    .col-head { color:#1f8a3a; }
+body.day-mode .col.overdue .col-head { color:#d70015; }
+body.day-mode .col.overdue {
+  background:linear-gradient(180deg,rgba(255,59,48,0.04),#fff);
+  border-color:rgba(255,59,48,0.32);
+}
+
+/* 任務卡片 */
+body.day-mode .tcard {
+  background:#fff; border:1px solid #e5e5ea;
+  box-shadow:0 1px 2px rgba(0,0,0,0.04);
+}
+body.day-mode .tcard:hover {
+  border-color:#0071e3; box-shadow:0 6px 18px rgba(0,113,227,0.14);
+}
+body.day-mode .tcard.echo {
+  border:2px dashed rgba(255,59,48,0.5);
+  background:#fff7f6;
+}
+body.day-mode .tcard-title { color:#1d1d1f; font-weight:700; }
+body.day-mode .tcard-meta { color:#6e6e73; }
+body.day-mode .tcard-meta .due.late { color:#d70015; }
+body.day-mode .owner-chip {
+  background:rgba(0,113,227,0.12) !important;
+  color:#0050a8 !important;
+  border-color:rgba(0,113,227,0.32) !important;
+}
+body.day-mode .cross-chip {
+  background:#fff4d6;
+  color:#946600;
+  border-color:#ffd966;
+}
+body.day-mode .overdue-chip {
+  background:rgba(255,59,48,0.12);
+  color:#d70015;
+  border-color:rgba(255,59,48,0.32);
+}
+body.day-mode .tcard-admin-mark {
+  background:rgba(123,92,255,0.08);
+  border:1px solid rgba(123,92,255,0.3);
+  color:#5736c4;
+}
+body.day-mode .empty-col { color:#86868b; }
+body.day-mode .empty-pane { color:#86868b; }
+
+/* Modal */
+body.day-mode .modal-bg {
+  background:rgba(0,0,0,0.4); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+}
+body.day-mode .modal {
+  background:#fff; border:1px solid #e5e5ea;
+  box-shadow:0 24px 80px rgba(0,0,0,0.18);
+  color:#1d1d1f;
+}
+body.day-mode .modal h3 { color:#1d1d1f; }
+body.day-mode .modal .sub { color:#6e6e73; }
+body.day-mode .modal label { color:#515154; }
+body.day-mode .modal input[type=text],
+body.day-mode .modal input[type=date],
+body.day-mode .modal textarea,
+body.day-mode .modal select {
+  background:#fbfbfd; border:1px solid #d2d2d7; color:#1d1d1f;
+}
+body.day-mode .modal input:focus,
+body.day-mode .modal textarea:focus,
+body.day-mode .modal select:focus {
+  outline:none; border-color:#0071e3; box-shadow:0 0 0 3px rgba(0,113,227,0.12);
+}
+body.day-mode .modal-buttons { border-top:1px solid #e5e5ea; }
+
+body.day-mode .admin-log-list {
+  background:#fbfbfd; border:1px solid #d2d2d7; color:#1d1d1f;
+}
+body.day-mode .admin-log-entry {
+  border-bottom:1px dashed #d2d2d7; color:#1d1d1f;
+}
+body.day-mode .admin-log-entry .meta { color:#6e6e73; }
+body.day-mode .assignee-pickers {
+  background:#fbfbfd; border:1px solid #d2d2d7;
+}
+
+/* Toast */
+body.day-mode .toast {
+  background:#fff; border:1px solid #34c759; color:#1f8a3a;
+  box-shadow:0 8px 24px rgba(0,0,0,0.12);
+}
+body.day-mode .toast.err { border-color:#ff3b30; color:#d70015; }
+
+/* 拒絕進入 */
+body.day-mode .deny {
+  background:#fff; border:2px solid rgba(255,59,48,0.35);
+  box-shadow:0 8px 24px rgba(0,0,0,0.08);
+}
+body.day-mode .deny h2 { color:#d70015; }
+body.day-mode .deny p { color:#6e6e73; }
+</style>
+</head>
+<body>
+
+<!-- 主框架 (admin 才看得到) -->
+<div class="shell" id="shell" style="display:none;">
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <h1>🏛️ 中央指揮台</h1>
+      <div class="sub">CEO 俯瞰｜赫綵設計學院</div>
+    </div>
+    <nav class="sidebar-nav" id="navList">
+      <div class="nav-section-label">營運管理</div>
+      <div class="nav-item active" data-page="tasks">
+        <span class="icon">📅</span>
+        <span>任務總覽</span>
+        <span class="badge" id="navTasksBadge" style="display:none;">0</span>
+      </div>
+      <!-- 未來分頁就加在這裡 -->
+      <div class="nav-section-label">即將推出</div>
+      <div class="nav-item" style="opacity:0.4;cursor:not-allowed;">
+        <span class="icon">🔮</span>
+        <span>待規劃功能…</span>
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      登入中：<span class="me" id="meLabel">…</span><br>
+      <span style="opacity:0.7">v1 · <span id="dateLabel"></span></span>
+    </div>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <div>
+        <h2 id="pageTitle">📅 任務總覽</h2>
+        <div class="crumb">22 主角承諾任務 + 跨主角指派 · 一頁俯瞰</div>
+      </div>
+      <div class="right">
+        <button class="btn ghost" onclick="reloadData()">🔄 重新整理</button>
+        <button class="btn primary" onclick="openAssignModal()">＋ 指派新任務</button>
+      </div>
+    </header>
+
+    <div class="pane" id="pageContent">
+      <!-- ── 任務總覽 ── -->
+      <div class="page-tasks">
+        <div class="controls">
+          <div class="controls-row">
+            <span class="label">主角篩選</span>
+            <button class="btn ghost" style="padding:4px 10px;font-size:11.5px;" onclick="charsToggleAll(true)">全選</button>
+            <button class="btn ghost" style="padding:4px 10px;font-size:11.5px;" onclick="charsToggleAll(false)">清除</button>
+          </div>
+          <div class="chip-bar" id="charChipBar"></div>
+          <div class="controls-row">
+            <input type="text" class="search-box" id="searchBox" placeholder="🔍 搜任務名 / 內容 / 主角名 / 註記…" oninput="renderBoard()">
+            <div class="toggle-group" id="sourceToggle">
+              <button class="on" data-src="all">全部</button>
+              <button data-src="own">僅承諾</button>
+              <button data-src="cross">僅跨主角</button>
+            </div>
+          </div>
+          <div class="summary" id="summary"></div>
+        </div>
+
+        <div class="kanban" id="kanban">
+          <div class="col pending"   data-col="pending">  <div class="col-head">📋 待辦 <span class="count" id="cnt-pending">0</span></div></div>
+          <div class="col doing"     data-col="doing">    <div class="col-head">🚀 進行中 <span class="count" id="cnt-doing">0</span></div></div>
+          <div class="col done"      data-col="done">     <div class="col-head">✅ 已完成 <span class="count" id="cnt-done">0</span></div></div>
+          <div class="col overdue"   data-col="overdue">  <div class="col-head">⚠️ 過期未完成 <span class="count" id="cnt-overdue">0</span></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 拒絕進入 -->
+<div class="deny" id="denyPane" style="display:none;">
+  <div class="ico">⛔</div>
+  <h2>無權限</h2>
+  <p>「🏛️ 中央指揮台」僅 超級管理員 可以開啟。<br>請洽 <b>黃柏翰</b> 開通權限。</p>
+</div>
+
+<!-- ── 任務編輯 Modal ── -->
+<div class="modal-bg" id="taskModal">
+  <div class="modal">
+    <h3 id="taskModalTitle">編輯任務</h3>
+    <div class="sub" id="taskModalSub">·</div>
+
+    <label>任務標題</label>
+    <input type="text" id="tmTitle">
+
+    <label>內容</label>
+    <textarea id="tmContent"></textarea>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <label>狀態</label>
+        <select id="tmStatus">
+          <option value="pending">📋 待辦</option>
+          <option value="doing">🚀 進行中</option>
+          <option value="done">✅ 已完成</option>
+        </select>
+      </div>
+      <div>
+        <label>到期日</label>
+        <input type="date" id="tmDeadline">
+      </div>
+    </div>
+
+    <label>📝 管理員註記（公開，主角時間軸也看得到）</label>
+    <div class="admin-log-list" id="tmAdminLog"></div>
+    <textarea id="tmNewMark" placeholder="新增一筆管理員備註…（例：5/30 前一定要完成）" style="margin-top:8px;"></textarea>
+
+    <div class="modal-buttons">
+      <button class="btn danger" onclick="deleteTask()">🗑 刪除任務</button>
+      <button class="btn ghost" onclick="closeModal('taskModal')">取消</button>
+      <button class="btn primary" onclick="saveTask()">💾 儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 指派新任務 Modal ── -->
+<div class="modal-bg" id="assignModal">
+  <div class="modal">
+    <h3>＋ 指派新任務</h3>
+    <div class="sub">可一次指派給多位主角，會出現在他們的時間軸並推送通知。</div>
+
+    <label>任務標題</label>
+    <input type="text" id="asTitle" placeholder="例：補打 30 通 FB 名單">
+
+    <label>內容</label>
+    <textarea id="asContent" placeholder="任務描述、需要達成什麼、要交付什麼…"></textarea>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <label>狀態</label>
+        <select id="asStatus">
+          <option value="pending" selected>📋 待辦</option>
+          <option value="doing">🚀 進行中</option>
+        </select>
+      </div>
+      <div>
+        <label>到期日</label>
+        <input type="date" id="asDeadline">
+      </div>
+    </div>
+
+    <label>指派給（可多選）</label>
+    <div class="assignee-pickers" id="asAssignees"></div>
+
+    <div class="modal-buttons">
+      <button class="btn ghost" onclick="closeModal('assignModal')">取消</button>
+      <button class="btn primary" onclick="submitAssign()">🚀 派發</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// 🏛️ 中央指揮台 — admin shell + 任務看板
+// ════════════════════════════════════════════════════════════════
+'use strict';
+
+var ADMINS = ['黃柏翰'];
+
+// ── 跨環境 LS 存取（與 ai-advisor 一致）─────────
+function pLS(){ try{ return (window.parent && window.parent !== window) ? window.parent.localStorage : localStorage; }catch(e){ return localStorage; } }
+function lsGet(k){ try{ return pLS().getItem(k); }catch(e){ try{ return localStorage.getItem(k); }catch(_){ return null; } } }
+function lsSet(k,v){ try{ pLS().setItem(k,v); }catch(e){ try{ localStorage.setItem(k,v); }catch(_){} } }
+function lsDel(k){ try{ pLS().removeItem(k); }catch(e){ try{ localStorage.removeItem(k); }catch(_){} } }
+function lsAllKeys(){
+  var keys=[], store=pLS();
+  try{ for(var i=0;i<store.length;i++){ var k=store.key(i); if(k) keys.push(k); } }catch(e){}
+  return keys;
+}
+
+// ── 安全 HTML ──────────────────────────────────
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function escAttr(s){ return esc(s); }
+function todayStr(){
+  var d=new Date(), m=d.getMonth()+1, day=d.getDate();
+  return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(day<10?'0':'')+day;
+}
+function isOverdueDate(s){
+  if(!s) return false;
+  return String(s) < todayStr();
+}
+function toast(msg,err){
+  var t=document.createElement('div');
+  t.className='toast'+(err?' err':'');
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(function(){ t.remove(); },300); }, err?3500:1800);
+}
+
+// ── 主角清單 ──────────────────────────────────
+var ALL_CHARS = [];
+function loadAllChars(){
+  ALL_CHARS = [];
+  try{
+    var raw = lsGet('castle_cards_v1');
+    if(!raw) return;
+    var cards = JSON.parse(raw)||[];
+    var seen = {};
+    cards.forEach(function(c){
+      if(!c || !c.name) return;
+      if(/^角色 \d+$/.test(c.name)) return;
+      if(c.hidden) return;
+      if(seen[c.name]) return; seen[c.name]=1;
+      ALL_CHARS.push({ id:c.id, name:c.name, color:c.color||'gray', title:c.title||'' });
+    });
+  }catch(e){ console.warn('[cc] 讀主角清單失敗',e); }
+}
+function chipColor(color){
+  return ({
+    blue:'#4aeaff', purple:'#a78bfa', red:'#ff6b6b', yellow:'#ffd700',
+    black:'#5a6478', gray:'#94a3b8'
+  })[color] || '#94a3b8';
+}
+
+// ── 任務聚合 ──────────────────────────────────
+//   一張卡 = { id, title, content, status, deadline, assigner, assignees, attachments,
+//             createdAt, log, adminLog,
+//             _ownerName, _sourceKey, _isCross, _originalOwner }
+var TASKS = [];
+
+function loadAllTasks(){
+  TASKS = [];
+  var seenKey = {}; // 'ownerName::taskId' 去重
+
+  // (1) 每位主角的 char_<name>_ai_timeline_v1
+  ALL_CHARS.forEach(function(ch){
+    var k = 'char_' + ch.name + '_ai_timeline_v1';
+    var raw = lsGet(k);
+    if(!raw) return;
+    try{
+      var arr = JSON.parse(raw)||[];
+      arr.forEach(function(t){
+        if(!t || !t.id) return;
+        var card = Object.assign({}, t);
+        card._ownerName  = ch.name;
+        card._sourceKey  = k;
+        card._isCross    = false;
+        card._originalOwner = t.assigner || ch.name;
+        if(!Array.isArray(card.adminLog)) card.adminLog = [];
+        TASKS.push(card);
+        seenKey[ch.name+'::'+t.id] = 1;
+      });
+    }catch(e){}
+  });
+
+  // (2) cross_task_* — assignees 多人,每人一張卡(過濾掉原作者)
+  var keys = lsAllKeys().filter(function(k){ return k.indexOf('cross_task_')===0; });
+  keys.forEach(function(k){
+    try{
+      var t = JSON.parse(lsGet(k)||'null');
+      if(!t || !t.id) return;
+      var origOwner = t._originalOwner || t.assigner;
+      var assignees = (t.assignees||[]).map(function(a){ return (typeof a==='string')?a:(a&&a.name)||null; }).filter(Boolean);
+      assignees.forEach(function(owner){
+        if(owner === origOwner) return;            // 原作者已在自己 timeline 中
+        if(seenKey[owner+'::'+t.id]) return;       // 已存在在該人 timeline → 略
+        var card = Object.assign({}, t);
+        card._ownerName  = owner;
+        card._sourceKey  = k;
+        card._isCross    = true;
+        card._originalOwner = origOwner;
+        if(!Array.isArray(card.adminLog)) card.adminLog = [];
+        TASKS.push(card);
+        seenKey[owner+'::'+t.id] = 1;
+      });
+    }catch(e){}
+  });
+}
+
+// ── 篩選狀態 ──────────────────────────────────
+var STATE = {
+  page: 'tasks',
+  selectedChars: null,    // null = 全選, [] = 全清, [names] = 指定
+  search: '',
+  source: 'all'           // all | own | cross
+};
+
+function isCharSelected(name){
+  return STATE.selectedChars === null || STATE.selectedChars.indexOf(name) >= 0;
+}
+function charsToggleAll(allOn){
+  if(allOn){ STATE.selectedChars = null; }
+  else { STATE.selectedChars = []; }
+  renderCharChips(); renderBoard();
+}
+function toggleChar(name){
+  if(STATE.selectedChars === null){
+    STATE.selectedChars = ALL_CHARS.map(function(c){return c.name;}).filter(function(n){return n!==name;});
+  } else {
+    var idx = STATE.selectedChars.indexOf(name);
+    if(idx>=0) STATE.selectedChars.splice(idx,1);
+    else STATE.selectedChars.push(name);
+  }
+  renderCharChips(); renderBoard();
+}
+
+function renderCharChips(){
+  var el = document.getElementById('charChipBar');
+  el.innerHTML = ALL_CHARS.map(function(c){
+    var on = isCharSelected(c.name);
+    return '<span class="char-chip'+(on?' on':'')+'" onclick="toggleChar(\''+c.name+'\')" '
+         + 'style="'+(on?'':'border-left:3px solid '+chipColor(c.color)+';padding-left:8px;')+'">'+esc(c.name)+'</span>';
+  }).join('');
+}
+
+// ── Kanban 渲染 ──────────────────────────────────
+function getFiltered(){
+  var q = (STATE.search||'').toLowerCase().trim();
+  return TASKS.filter(function(t){
+    if(!isCharSelected(t._ownerName)) return false;
+    if(STATE.source==='own' && t._isCross) return false;
+    if(STATE.source==='cross' && !t._isCross) return false;
+    if(q){
+      var hay = ((t.title||t.task||'')+' '+(t.content||'')+' '+(t._ownerName||'')+' '+
+                 (t.adminLog||[]).map(function(x){return x.note||'';}).join(' ')).toLowerCase();
+      if(hay.indexOf(q)<0) return false;
+    }
+    return true;
+  });
+}
+
+function renderBoard(){
+  var list = getFiltered();
+  var byCol = { pending:[], doing:[], done:[] };
+  var overdueOnes = [];
+  list.forEach(function(t){
+    var st = (t.status==='doing'||t.status==='done')?t.status:'pending';
+    byCol[st].push(t);
+    if(st !== 'done' && isOverdueDate(t.deadline)) overdueOnes.push(t);
+  });
+
+  ['pending','doing','done','overdue'].forEach(function(col){
+    var c = document.querySelector('.col[data-col="'+col+'"]');
+    // 清空已有卡片(保留 head)
+    Array.from(c.querySelectorAll('.tcard')).forEach(function(x){ x.remove(); });
+    var arr = (col==='overdue'?overdueOnes:byCol[col]);
+    // 排序：到期日近的在前(undefined 在後), createdAt desc
+    arr.sort(function(a,b){
+      var da = a.deadline||'9999-99-99', db = b.deadline||'9999-99-99';
+      if(da !== db) return da<db?-1:1;
+      return (b.createdAt||0)-(a.createdAt||0);
+    });
+    document.getElementById('cnt-'+col).textContent = arr.length;
+    if(!arr.length){
+      var emp = document.createElement('div');
+      emp.className = 'empty-col';
+      emp.textContent = col==='overdue' ? '🎉 全部準時！' : '（無）';
+      c.appendChild(emp);
+    } else {
+      arr.forEach(function(t){
+        c.appendChild(buildCard(t, col==='overdue'));
+      });
+    }
+  });
+
+  // 摘要列
+  var total = TASKS.length, shown = list.length, overdue = overdueOnes.length;
+  document.getElementById('summary').innerHTML =
+    '<span>顯示 <b>'+shown+'</b> / 全部 <b>'+total+'</b></span>'
+    +'<span>待辦 <b style="color:var(--pending);">'+byCol.pending.length+'</b></span>'
+    +'<span>進行中 <b style="color:var(--doing);">'+byCol.doing.length+'</b></span>'
+    +'<span>已完成 <b style="color:var(--done);">'+byCol.done.length+'</b></span>'
+    +'<span>過期 <b style="color:var(--overdue);">'+overdue+'</b></span>';
+
+  // 側邊 badge
+  var b = document.getElementById('navTasksBadge');
+  if(overdue>0){ b.style.display='inline-block'; b.textContent=overdue; }
+  else b.style.display='none';
+}
+
+function buildCard(t, isEcho){
+  var d = document.createElement('div');
+  d.className = 'tcard'+(isEcho?' echo':'');
+  d.draggable = !isEcho; // 過期欄的複製卡不能拖(原卡可以拖)
+  d.dataset.taskId = t.id;
+  d.dataset.owner  = t._ownerName;
+  d.dataset.isCross = t._isCross?'1':'0';
+  var crossLbl = t._isCross && t._originalOwner
+    ? '<span class="cross-chip" title="來自跨主角指派">📨 '+esc(t._originalOwner)+'</span>'
+    : '';
+  var overdue = (t.status!=='done') && isOverdueDate(t.deadline)
+    ? '<span class="overdue-chip">⚠️ 過期</span>' : '';
+  var due = t.deadline
+    ? '<span class="due'+(isOverdueDate(t.deadline)&&t.status!=='done'?' late':'')+'">📅 '+esc(t.deadline)+'</span>'
+    : '';
+  var ownerColor = chipColor(((ALL_CHARS.find(function(c){return c.name===t._ownerName;})||{}).color)||'gray');
+  var adm = (t.adminLog||[]).slice(-1)[0];
+  var admHtml = adm ? '<div class="tcard-admin-mark">📝 '+esc(adm.note||'')+'<br><span style="opacity:0.7;font-size:10px;">— '+esc(adm.who||'')+' '+esc(adm.at||'')+'</span></div>' : '';
+
+  d.innerHTML =
+    '<div class="tcard-top">'
+      +'<span class="owner-chip" style="background:'+ownerColor+'22;color:'+ownerColor+';border-color:'+ownerColor+'66;">'+esc(t._ownerName)+'</span>'
+      +crossLbl + overdue +
+    '</div>'
+    +'<div class="tcard-title">'+esc(t.title||t.task||'(未命名任務)')+'</div>'
+    +'<div class="tcard-meta">'+due
+      +(t.assigner && t.assigner!==t._ownerName ? '<span>👤 指派人 '+esc(t.assigner)+'</span>' : '')
+    +'</div>'
+    +admHtml;
+
+  d.addEventListener('click', function(){ openTaskModal(t); });
+  d.addEventListener('dragstart', function(e){ d.classList.add('dragging'); e.dataTransfer.setData('text/plain', JSON.stringify({id:t.id, owner:t._ownerName})); });
+  d.addEventListener('dragend', function(){ d.classList.remove('dragging'); });
+  return d;
+}
+
+// ── 拖拉 ──────────────────────────────────────
+function setupDnd(){
+  document.querySelectorAll('.col').forEach(function(c){
+    c.addEventListener('dragover', function(e){
+      var col = c.dataset.col;
+      if(col === 'overdue') return; // 過期欄不接受 drop
+      e.preventDefault();
+      c.classList.add('drag-over');
+    });
+    c.addEventListener('dragleave', function(){ c.classList.remove('drag-over'); });
+    c.addEventListener('drop', function(e){
+      c.classList.remove('drag-over');
+      var col = c.dataset.col;
+      if(col === 'overdue') return;
+      var newStatus = col;
+      try{
+        var data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        var t = TASKS.find(function(x){return x.id===data.id && x._ownerName===data.owner;});
+        if(t && t.status !== newStatus){
+          changeStatus(t, newStatus);
+        }
+      }catch(_){}
+    });
+  });
+}
+
+// ── 寫回某張卡 ──────────────────────────────────
+//   t._sourceKey 是 LS key:
+//     - 'char_<name>_ai_timeline_v1' → 寫回 array 中該 id
+//     - 'cross_task_<id>' → 整筆 put
+function persistCard(t, addLog){
+  var key = t._sourceKey, who = currentAdminName();
+  var nowStr = (new Date()).toLocaleString('zh-TW',{hour12:false}).replace(/\//g,'/');
+
+  // 攜帶 admin 操作 log
+  if(addLog){
+    if(!Array.isArray(t.log)) t.log = [];
+    t.log.push({ at: Date.now(), who: who, action: addLog });
+  }
+
+  if(key && key.indexOf('cross_task_')===0){
+    // cross_task: 直接 put
+    var stripped = stripInternal(t);
+    lsSet(key, JSON.stringify(stripped));
+  } else if(key && key.indexOf('char_')===0){
+    // per-char timeline: 讀 array → 改該 id → 寫回
+    var raw = lsGet(key);
+    var arr = [];
+    try{ arr = JSON.parse(raw)||[]; }catch(_){ arr = []; }
+    var found = false;
+    for(var i=0;i<arr.length;i++){
+      if(arr[i] && arr[i].id === t.id){
+        arr[i] = stripInternal(t);
+        found = true; break;
+      }
+    }
+    if(!found) arr.push(stripInternal(t));
+    lsSet(key, JSON.stringify(arr));
+  }
+}
+function stripInternal(t){
+  var out = {};
+  Object.keys(t).forEach(function(k){
+    if(k.charAt(0)==='_') return; // 過濾掉 _ownerName / _sourceKey / _isCross 等
+    out[k] = t[k];
+  });
+  return out;
+}
+
+function changeStatus(t, newStatus){
+  var old = t.status;
+  t.status = newStatus;
+  persistCard(t, '改狀態：'+(old||'pending')+' → '+newStatus+'（中央指揮台）');
+  renderBoard();
+  triggerSync();
+  toast('✅ 已改成「'+statusLabel(newStatus)+'」');
+}
+function statusLabel(s){
+  return ({pending:'📋 待辦', doing:'🚀 進行中', done:'✅ 已完成'})[s] || s;
+}
+
+// ── 觸發 firebase-sync 同步 ──────────────────────
+function triggerSync(){
+  try{
+    var sync = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
+    if(sync && typeof sync.schedulePush==='function') sync.schedulePush('central-command');
+    else if(sync && typeof sync.push==='function') sync.push('central-command');
+  }catch(e){}
+}
+
+// ── 任務 Modal ──────────────────────────────────
+var EDITING_CARD = null;
+function openTaskModal(t){
+  EDITING_CARD = t;
+  document.getElementById('taskModalTitle').textContent = '編輯任務 — '+t._ownerName;
+  document.getElementById('taskModalSub').innerHTML =
+    '建立 '+(new Date(t.createdAt||Date.now())).toLocaleDateString('zh-TW')
+    + (t._isCross ? '　·　📨 來自跨主角指派（'+esc(t._originalOwner||'')+'）' : '');
+  document.getElementById('tmTitle').value   = t.title || t.task || '';
+  document.getElementById('tmContent').value = t.content || '';
+  document.getElementById('tmStatus').value  = (t.status==='doing'||t.status==='done') ? t.status : 'pending';
+  document.getElementById('tmDeadline').value= t.deadline || '';
+  renderAdminLog(t);
+  document.getElementById('tmNewMark').value = '';
+  document.getElementById('taskModal').classList.add('on');
+}
+function renderAdminLog(t){
+  var arr = (t.adminLog||[]);
+  var el = document.getElementById('tmAdminLog');
+  if(!arr.length){ el.innerHTML = '<div style="color:var(--dim);font-size:11.5px;text-align:center;padding:8px;">尚無管理員註記</div>'; return; }
+  el.innerHTML = arr.slice().reverse().map(function(m){
+    return '<div class="admin-log-entry">'
+      +'<div class="meta">'+esc(m.who||'')+' · '+esc(m.at||'')+'</div>'
+      +'<div>'+esc(m.note||'')+'</div>'
+    +'</div>';
+  }).join('');
+}
+function saveTask(){
+  if(!EDITING_CARD) return;
+  var t = EDITING_CARD;
+  t.title    = document.getElementById('tmTitle').value.trim() || t.title || '(未命名)';
+  t.content  = document.getElementById('tmContent').value;
+  t.status   = document.getElementById('tmStatus').value;
+  t.deadline = document.getElementById('tmDeadline').value || '';
+  var newMark = document.getElementById('tmNewMark').value.trim();
+  if(newMark){
+    if(!Array.isArray(t.adminLog)) t.adminLog = [];
+    t.adminLog.push({ at: (new Date()).toLocaleString('zh-TW',{hour12:false}).replace(/\//g,'/'), who: currentAdminName(), note: newMark });
+  }
+  persistCard(t, '中央指揮台 編輯任務');
+  renderBoard();
+  triggerSync();
+  closeModal('taskModal');
+  toast(newMark?'✅ 已儲存並加註':'✅ 已儲存');
+  EDITING_CARD = null;
+}
+function deleteTask(){
+  if(!EDITING_CARD) return;
+  var t = EDITING_CARD;
+  if(!confirm('確定刪除「'+(t.title||'(未命名)')+'」？此操作不可復原。')) return;
+
+  if(t._sourceKey && t._sourceKey.indexOf('cross_task_')===0){
+    lsDel(t._sourceKey);
+  } else if(t._sourceKey && t._sourceKey.indexOf('char_')===0){
+    try{
+      var arr = JSON.parse(lsGet(t._sourceKey)||'[]')||[];
+      arr = arr.filter(function(x){return x.id !== t.id;});
+      lsSet(t._sourceKey, JSON.stringify(arr));
+    }catch(e){}
+  }
+  // 從本地陣列移除
+  TASKS = TASKS.filter(function(x){return !(x.id===t.id && x._ownerName===t._ownerName);});
+  renderBoard();
+  triggerSync();
+  closeModal('taskModal');
+  toast('🗑 已刪除');
+  EDITING_CARD = null;
+}
+
+// ── 指派新任務 Modal ──────────────────────────────────
+function openAssignModal(){
+  document.getElementById('asTitle').value = '';
+  document.getElementById('asContent').value = '';
+  document.getElementById('asStatus').value = 'pending';
+  document.getElementById('asDeadline').value = '';
+  var el = document.getElementById('asAssignees');
+  el.innerHTML = ALL_CHARS.map(function(c){
+    return '<span class="char-chip" data-name="'+escAttr(c.name)+'" onclick="this.classList.toggle(\'on\')">'+esc(c.name)+'</span>';
+  }).join('');
+  document.getElementById('assignModal').classList.add('on');
+}
+function submitAssign(){
+  var title = document.getElementById('asTitle').value.trim();
+  if(!title){ toast('請輸入任務標題',true); return; }
+  var content = document.getElementById('asContent').value;
+  var status  = document.getElementById('asStatus').value;
+  var deadline= document.getElementById('asDeadline').value||'';
+  var assignees = Array.from(document.querySelectorAll('#asAssignees .char-chip.on')).map(function(el){ return el.dataset.name; });
+  if(!assignees.length){ toast('請至少選 1 位主角',true); return; }
+
+  var me = currentAdminName();
+  var taskId = 'tl_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  var nowStr = (new Date()).toLocaleString('zh-TW',{hour12:false}).replace(/\//g,'/');
+  var task = {
+    id: taskId,
+    title: title,
+    task: title,
+    content: content,
+    status: status,
+    deadline: deadline,
+    assigner: me,
+    assignees: assignees.slice(),
+    attachments: [],
+    createdAt: Date.now(),
+    log: [{ at: Date.now(), who: me, action: '由中央指揮台派發' }],
+    adminLog: [],
+    _originalOwner: me
+  };
+
+  // 寫到 cross_task_<id>(會自動同步給所有 assignees)
+  lsSet('cross_task_'+taskId, JSON.stringify(task));
+
+  // 如果 me 也在 assignees 裡 → 把 task 寫進 me 自己的 timeline(讓 me 在自己時間軸也看得到)
+  if(assignees.indexOf(me) >= 0){
+    var meKey = 'char_'+me+'_ai_timeline_v1';
+    var meArr = [];
+    try{ meArr = JSON.parse(lsGet(meKey)||'[]')||[]; }catch(_){}
+    meArr.unshift(task);
+    lsSet(meKey, JSON.stringify(meArr));
+  }
+
+  triggerSync();
+  closeModal('assignModal');
+  toast('🚀 已派發給 '+assignees.length+' 位主角');
+  setTimeout(reloadData, 400);
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('on'); }
+
+// ── 初始化 ──────────────────────────────────────
+function currentAdminName(){
+  return lsGet('activeCharacterName') || lsGet('activeCharacterId') || lsGet('appedu_logged_character') || '(未知)';
+}
+function isCurrentAdmin(){
+  return ADMINS.indexOf(currentAdminName()) >= 0;
+}
+
+function reloadData(){
+  loadAllChars();
+  loadAllTasks();
+  renderCharChips();
+  renderBoard();
+}
+
+function bindSourceToggle(){
+  document.querySelectorAll('#sourceToggle button').forEach(function(b){
+    b.onclick = function(){
+      document.querySelectorAll('#sourceToggle button').forEach(function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      STATE.source = b.dataset.src;
+      renderBoard();
+    };
+  });
+}
+
+(function init(){
+  document.getElementById('meLabel').textContent = currentAdminName();
+  document.getElementById('dateLabel').textContent = (new Date()).toLocaleDateString('zh-TW');
+
+  if(!isCurrentAdmin()){
+    document.getElementById('denyPane').style.display = 'block';
+    return;
+  }
+  document.getElementById('shell').style.display = 'flex';
+  reloadData();
+  setupDnd();
+  bindSourceToggle();
+
+  // ESC 關閉 modal
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){ closeModal('taskModal'); closeModal('assignModal'); }
+  });
+  // 監聽其他分頁變更 → 自動 reload
+  window.addEventListener('storage',function(e){
+    if(!e.key) return;
+    if(/^char_.*_ai_timeline_v1$/.test(e.key) || e.key.indexOf('cross_task_')===0){
+      setTimeout(reloadData, 200);
+    }
+  });
+})();
+</script>
+</body>
+</html>
