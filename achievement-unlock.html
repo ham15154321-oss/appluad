@@ -209,6 +209,86 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
 .reply-box textarea{flex:1;min-height:40px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px;font-size:12px;font-family:inherit;outline:none;resize:none;}
 .reply-box button{padding:6px 14px;background:rgba(74,234,255,.1);border:1px solid var(--border-hi);border-radius:6px;color:var(--accent);font-size:12px;cursor:pointer;}
 .msg-empty{text-align:center;padding:60px;color:var(--dim);}
+
+/* ══════ 💎 任務檔案 ══════ */
+.tarc-head{max-width:1100px;margin:0 auto 18px;padding:0 6px;}
+.tarc-h2{font-size:22px;font-weight:800;color:var(--text);margin:0 0 6px;letter-spacing:1px;}
+.tarc-sub{font-size:13px;color:var(--dim);line-height:1.7;margin:0;}
+.tarc-summary{max-width:1100px;margin:0 auto 14px;display:flex;flex-wrap:wrap;gap:10px;font-size:12.5px;color:var(--dim);}
+.tarc-summary .pill{padding:5px 14px;background:rgba(74,234,255,.1);border:1px solid var(--border-hi);border-radius:14px;color:var(--accent);}
+.tarc-summary .pill b{color:var(--text);font-weight:700;margin-left:4px;}
+.tarc-grid{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+.tarc-card{
+  background:linear-gradient(135deg,rgba(74,234,255,.06),rgba(167,139,250,.06));
+  border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.tarc-card:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:0 8px 26px rgba(74,234,255,.18);}
+.tarc-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:linear-gradient(180deg,#4aeaff,#a78bfa);}
+.tarc-card.deleted{background:rgba(255,107,107,.05);border-color:rgba(255,107,107,.3);}
+.tarc-card.deleted::before{background:#ff6b6b;}
+.tarc-card.reopened{background:rgba(255,200,80,.06);border-color:rgba(255,200,80,.3);}
+.tarc-card.reopened::before{background:#ffd700;}
+.tc-when{font-size:11px;color:var(--dim);margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.tc-when .tc-badge{padding:1px 7px;border-radius:8px;font-weight:700;}
+.tc-when .tc-deleted-badge{background:rgba(255,107,107,.18);color:#ff8a8a;border:1px solid rgba(255,107,107,.4);}
+.tc-when .tc-reopen-badge{background:rgba(255,200,80,.18);color:#ffd97a;border:1px solid rgba(255,200,80,.4);}
+.tc-title{font-size:15px;font-weight:700;color:var(--text);margin:0 0 8px;line-height:1.4;}
+.tc-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--dim);}
+.tc-meta .chip{padding:1px 8px;border-radius:8px;background:rgba(74,234,255,.1);color:var(--accent);font-weight:700;}
+.tc-meta .chip.ev{background:rgba(167,139,250,.14);color:#c7b9ff;}
+.tc-meta .chip.adm{background:rgba(255,215,0,.12);color:#ffe680;}
+.tarc-empty{max-width:520px;margin:60px auto;text-align:center;padding:40px 24px;background:rgba(74,234,255,.04);border:1px solid var(--border);border-radius:14px;}
+.tarc-empty .te-ico{font-size:42px;margin-bottom:10px;}
+.tarc-empty .te-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.tarc-empty .te-sub{font-size:12.5px;color:var(--dim);line-height:1.7;}
+
+/* 詳情 modal */
+.tarc-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px;}
+.tarc-modal-bg.on{display:flex;}
+.tarc-modal{background:var(--panel,#0a0c14);border:1px solid var(--border);border-radius:16px;width:min(640px,100%);max-height:90vh;overflow:auto;padding:24px;position:relative;color:var(--text);}
+.tarc-close{position:absolute;top:14px;right:14px;width:32px;height:32px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--dim);cursor:pointer;font-size:14px;}
+.tarc-close:hover{background:rgba(255,107,107,.15);color:#ff8a8a;}
+.tm-section{margin-top:16px;}
+.tm-section h4{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;font-weight:700;}
+.tm-ev-list{display:flex;flex-direction:column;gap:6px;}
+.tm-ev-item{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(74,234,255,.06);border:1px solid var(--border);border-radius:8px;font-size:12.5px;}
+.tm-ev-item .nm{font-weight:700;}
+.tm-ev-item a{color:var(--accent);text-decoration:none;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;}
+.tm-ev-item a:hover{text-decoration:underline;}
+.tm-ev-item .who{font-size:10px;color:var(--dim);white-space:nowrap;}
+.tm-adm-list{display:flex;flex-direction:column;gap:8px;}
+.tm-adm-item{background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.28);border-radius:8px;padding:8px 12px;font-size:12px;color:#c7b9ff;}
+.tm-adm-item .by{font-size:10.5px;opacity:.7;margin-top:2px;}
+.tm-content-box{background:rgba(15,20,60,.3);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12.5px;color:var(--text);white-space:pre-wrap;line-height:1.6;}
+
+/* 白天模式 */
+body.day-mode .tarc-h2{color:#1d1d1f;}
+body.day-mode .tarc-sub{color:#6e6e73;}
+body.day-mode .tarc-card{background:#fff;border:1px solid #e5e5ea;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+body.day-mode .tarc-card:hover{border-color:#0071e3;box-shadow:0 8px 26px rgba(0,113,227,.14);}
+body.day-mode .tarc-card.deleted{background:#fff7f6;border-color:rgba(255,59,48,.35);}
+body.day-mode .tarc-card.reopened{background:#fffbeb;border-color:#ffd966;}
+body.day-mode .tc-when{color:#6e6e73;}
+body.day-mode .tc-title{color:#1d1d1f;}
+body.day-mode .tc-meta{color:#6e6e73;}
+body.day-mode .tc-meta .chip{background:rgba(0,113,227,.1);color:#0050a8;}
+body.day-mode .tc-meta .chip.ev{background:rgba(123,92,255,.1);color:#5736c4;}
+body.day-mode .tc-meta .chip.adm{background:rgba(255,149,0,.12);color:#a05900;}
+body.day-mode .tarc-summary{color:#6e6e73;}
+body.day-mode .tarc-summary .pill{background:rgba(0,113,227,.08);color:#0050a8;border-color:rgba(0,113,227,.25);}
+body.day-mode .tarc-summary .pill b{color:#1d1d1f;}
+body.day-mode .tarc-empty{background:#fff;border-color:#e5e5ea;}
+body.day-mode .tarc-empty .te-title{color:#1d1d1f;}
+body.day-mode .tarc-empty .te-sub{color:#6e6e73;}
+body.day-mode .tarc-modal{background:#fff;color:#1d1d1f;box-shadow:0 24px 80px rgba(0,0,0,.18);}
+body.day-mode .tarc-close{border-color:#d2d2d7;color:#6e6e73;}
+body.day-mode .tm-section h4{color:#86868b;}
+body.day-mode .tm-ev-item{background:#fbfbfd;border:1px solid #e5e5ea;color:#1d1d1f;}
+body.day-mode .tm-ev-item a{color:#0071e3;}
+body.day-mode .tm-ev-item .who{color:#6e6e73;}
+body.day-mode .tm-adm-item{background:rgba(123,92,255,.08);border-color:rgba(123,92,255,.28);color:#5736c4;}
+body.day-mode .tm-content-box{background:#fbfbfd;border-color:#e5e5ea;color:#1d1d1f;}
 .msg-del{background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:12px;padding:2px 6px;opacity:.5;transition:opacity .2s;}
 .msg-del:hover{opacity:1;}
 
@@ -360,6 +440,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
   <button onclick="showTab('achieve',this)">成 就</button>
   <button onclick="showTab('gallery',this)">精華區</button>
   <button onclick="showTab('board',this)">留言板</button>
+  <button onclick="showTab('taskarchive',this)">💎 任務檔案</button>
 </div>
 
 <!-- ══════ 潛能 ══════ -->
@@ -480,6 +561,29 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
   <div class="msg-empty" id="msgEmpty">尚無留言，來記錄第一筆豐功偉業吧！</div>
 </div>
 
+<!-- ══════ 💎 任務檔案 ══════ -->
+<div id="page-taskarchive" class="page">
+  <div class="tarc-head">
+    <h2 class="tarc-h2">💎 任務完成檔案</h2>
+    <p class="tarc-sub">由你完成的所有任務 — 從中央指揮台、AI 顧問中心時間軸自動匯入。<b>活同步</b>：之後你或黃柏翰加新 Google 連結、改內容，這裡也會跟著更新。</p>
+  </div>
+  <div class="tarc-summary" id="tarcSummary"></div>
+  <div class="tarc-grid" id="tarcGrid"></div>
+  <div class="tarc-empty" id="tarcEmpty" style="display:none;">
+    <div class="te-ico">🌱</div>
+    <div class="te-title">尚未有完成的任務</div>
+    <div class="te-sub">當你在「AI 顧問中心 → 時間軸」把任務改成 <b>✅ 完成</b>，或黃柏翰在「中央指揮台」把你的任務拖到「✅ 已完成」欄位時，這裡會自動記錄並永久保存。</div>
+  </div>
+</div>
+
+<!-- 💎 任務檔案詳情 modal -->
+<div class="tarc-modal-bg" id="tarcModal" onclick="if(event.target===this)closeTarcModal()">
+  <div class="tarc-modal">
+    <button class="tarc-close" onclick="closeTarcModal()">✕</button>
+    <div id="tarcModalBody"></div>
+  </div>
+</div>
+
 <!-- 等級全屏儀式 -->
 <div class="level-ceremony" id="ceremony">
   <div class="lc-bg" id="ceremonyBg"></div>
@@ -502,6 +606,7 @@ function showTab(id,btn){
   document.getElementById('page-'+id).classList.add('active');
   btn.classList.add('active');
   if(id==='potential') drawRadar();
+  if(id==='taskarchive') renderTaskArchive();
 }
 const BASE_SK='achievement_unlock_data';
 const SHARED_YT_SK='achievement_shared_all_yt'; // 精華區影片照片：全角色共享
@@ -741,7 +846,8 @@ function getDefault(){
     ytVideos:[],
     ytCurrentCat:'全部',
     ytCurrentPage:0,
-    messages:[]
+    messages:[],
+    taskArchive:[]   // ★ 中央指揮台/AI 顧問中心 改 done 自動寫入這裡
   };
 }
 
@@ -1534,6 +1640,165 @@ window.triggerSave = function(){ save(); showToast('💾 成就解鎖已儲存')
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')save();});
 window.addEventListener('beforeunload',save);
 window.addEventListener('pagehide',save);
+
+// ════════════════════════════════════════════════════════════════
+// 💎 任務完成檔案 — 活同步從 D.taskArchive[] 讀,每筆即時對應 sourceKey
+// ════════════════════════════════════════════════════════════════
+function escTA(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function pLS_TA(){ try{ return (window.parent && window.parent !== window) ? window.parent.localStorage : localStorage; }catch(e){ return localStorage; } }
+function _ta_readLiveTask(sourceKey, taskId){
+  // 活讀原任務(從 parent localStorage)
+  try{
+    var raw = pLS_TA().getItem(sourceKey);
+    if(!raw) return null;
+    if(sourceKey.indexOf('cross_task_')===0){
+      var t = JSON.parse(raw);
+      return (t && t.id === taskId) ? t : null;
+    }
+    if(sourceKey.indexOf('char_')===0){
+      var arr = JSON.parse(raw);
+      if(!Array.isArray(arr)) return null;
+      return arr.find(function(x){return x && x.id === taskId;}) || null;
+    }
+  }catch(e){}
+  return null;
+}
+var _taCachedRecords = []; // [{archive, live}]
+
+// 強制從 IDB 重新讀取最新的 taskArchive(以防其他頁面剛寫入)
+async function _ta_reloadFromIDB(){
+  try{
+    var db = await _achOpenDB();
+    var arr = await new Promise(function(res){
+      try{
+        var tx = db.transaction(ACH_STORE,'readonly');
+        var g = tx.objectStore(ACH_STORE).get(getSK());
+        g.onsuccess = function(){ res(g.result||null); };
+        g.onerror = function(){ res(null); };
+      }catch(e){ res(null); }
+    });
+    try{ db.close(); }catch(_){}
+    if(arr && Array.isArray(arr.taskArchive)){
+      D.taskArchive = arr.taskArchive;
+      // 更新 cache 讓 save() 不會覆蓋
+      window._achCache = window._achCache || {};
+      var cached = window._achCache[getSK()] || {};
+      cached.taskArchive = arr.taskArchive;
+      window._achCache[getSK()] = cached;
+    }
+  }catch(e){ console.warn('[taskarchive] reload IDB 失敗',e); }
+}
+
+function renderTaskArchive(){
+  // 先 sync render(用記憶體的 D),再 async 從 IDB 拉最新後重 render
+  _ta_renderNow();
+  _ta_reloadFromIDB().then(function(){ _ta_renderNow(); });
+}
+
+function _ta_renderNow(){
+  var arr = Array.isArray(D.taskArchive) ? D.taskArchive : [];
+  // 排序: completedAt desc
+  arr = arr.slice().sort(function(a,b){ return (b.completedAt||0) - (a.completedAt||0); });
+  _taCachedRecords = arr.map(function(a){
+    var live = _ta_readLiveTask(a.sourceKey, a.taskId);
+    return { archive:a, live:live };
+  });
+
+  var grid = document.getElementById('tarcGrid');
+  var empty = document.getElementById('tarcEmpty');
+  var sum = document.getElementById('tarcSummary');
+
+  if(!_taCachedRecords.length){
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    sum.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  var deletedCnt=0, reopenedCnt=0;
+  _taCachedRecords.forEach(function(r){
+    if(!r.live) deletedCnt++;
+    else if(r.live.status && r.live.status !== 'done') reopenedCnt++;
+  });
+  sum.innerHTML =
+    '<span class="pill">完成任務 <b>'+_taCachedRecords.length+'</b> 件</span>'
+    +(deletedCnt?'<span class="pill" style="background:rgba(255,107,107,.12);color:#ff8a8a;border-color:rgba(255,107,107,.35);">⚠️ 原任務已刪除 <b>'+deletedCnt+'</b></span>':'')
+    +(reopenedCnt?'<span class="pill" style="background:rgba(255,200,80,.12);color:#ffd97a;border-color:rgba(255,200,80,.35);">⚠️ 已被改回待辦 <b>'+reopenedCnt+'</b></span>':'');
+
+  grid.innerHTML = _taCachedRecords.map(function(r, idx){
+    var src = r.live || r.archive.snapshot || {};
+    var title = src.title || src.task || '(未命名)';
+    var content = src.content || '';
+    var evCount = (Array.isArray(src.evidenceLinks) ? src.evidenceLinks.length : 0);
+    var admCount = (Array.isArray(src.adminLog) ? src.adminLog.length : 0);
+    var completedDate = new Date(r.archive.completedAt||0).toLocaleDateString('zh-TW');
+    var deletedBadge = !r.live ? '<span class="tc-badge tc-deleted-badge">⚠️ 原任務已刪除</span>' : '';
+    var reopenedBadge = (r.live && r.live.status && r.live.status !== 'done') ? '<span class="tc-badge tc-reopen-badge">⚠️ 已改回 '+escTA({pending:'待辦',doing:'進行中'}[r.live.status]||r.live.status)+'</span>' : '';
+    var clsExtra = !r.live ? ' deleted' : (reopenedBadge ? ' reopened' : '');
+
+    return '<div class="tarc-card'+clsExtra+'" onclick="openTarcModal('+idx+')">'
+      + '<div class="tc-when">📅 '+escTA(completedDate)+'　完成'+deletedBadge+reopenedBadge+'</div>'
+      + '<h3 class="tc-title">'+escTA(title)+'</h3>'
+      + (content?'<div style="font-size:12px;color:var(--dim);margin-bottom:8px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">'+escTA(content)+'</div>':'')
+      + '<div class="tc-meta">'
+      +   (evCount?'<span class="chip ev">📎 '+evCount+'</span>':'')
+      +   (admCount?'<span class="chip adm">📝 '+admCount+'</span>':'')
+      +   '<span class="chip">🔁 點開看詳情</span>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function openTarcModal(idx){
+  var r = _taCachedRecords[idx];
+  if(!r) return;
+  var src = r.live || r.archive.snapshot || {};
+  var title = src.title || src.task || '(未命名)';
+  var content = src.content || '';
+  var evArr = Array.isArray(src.evidenceLinks) ? src.evidenceLinks : [];
+  var admArr = Array.isArray(src.adminLog) ? src.adminLog : [];
+  var completedDate = new Date(r.archive.completedAt||0).toLocaleString('zh-TW',{hour12:false});
+  var statusInfo = !r.live ? '<div style="background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);padding:9px 12px;border-radius:8px;font-size:12px;color:#ff8a8a;margin-bottom:14px;">⚠️ 原任務已被刪除 — 以下為存檔當下凍結快照</div>'
+    : (r.live.status && r.live.status !== 'done') ? '<div style="background:rgba(255,200,80,.1);border:1px solid rgba(255,200,80,.35);padding:9px 12px;border-radius:8px;font-size:12px;color:#ffd97a;margin-bottom:14px;">⚠️ 原任務已被改回「'+escTA({pending:'待辦',doing:'進行中'}[r.live.status]||r.live.status)+'」狀態 — 成就記錄仍保留(曾完成過)</div>'
+    : '<div style="background:rgba(74,234,255,.08);border:1px solid rgba(74,234,255,.3);padding:9px 12px;border-radius:8px;font-size:12px;color:var(--accent);margin-bottom:14px;">✅ 活同步中 — 顯示原任務的最新內容</div>';
+
+  var html = statusInfo
+    + '<div style="font-size:11px;color:var(--dim);margin-bottom:4px;">📅 完成於 '+escTA(completedDate)+'</div>'
+    + '<h2 style="font-size:20px;margin:0 0 12px;line-height:1.4;">'+escTA(title)+'</h2>';
+
+  if(content){
+    html += '<div class="tm-section"><h4>📋 任務內容</h4><div class="tm-content-box">'+escTA(content)+'</div></div>';
+  }
+
+  if(evArr.length){
+    html += '<div class="tm-section"><h4>📎 成果連結 / 證據檔（'+evArr.length+' 筆）</h4><div class="tm-ev-list">';
+    evArr.forEach(function(ev){
+      var safeUrl = String(ev.url||'');
+      if(!/^https?:\/\//.test(safeUrl)) safeUrl='';
+      html += '<div class="tm-ev-item">'
+        + '<span class="nm">🔗 '+escTA(ev.name||'(未命名)')+'</span>'
+        + (safeUrl?'<a href="'+escTA(safeUrl)+'" target="_blank" rel="noopener">'+escTA(safeUrl)+'</a>':'<span style="color:#ff8a8a;flex:1;">⚠️ URL 不合法</span>')
+        + '<span class="who">'+escTA(ev.addedBy||'')+'</span>'
+      + '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  if(admArr.length){
+    html += '<div class="tm-section"><h4>📝 管理員註記（'+admArr.length+' 則）</h4><div class="tm-adm-list">';
+    admArr.slice().reverse().forEach(function(m){
+      html += '<div class="tm-adm-item">'+escTA(m.note||'')+'<div class="by">— '+escTA(m.who||'')+' '+escTA(m.at||'')+'</div></div>';
+    });
+    html += '</div></div>';
+  }
+
+  document.getElementById('tarcModalBody').innerHTML = html;
+  document.getElementById('tarcModal').classList.add('on');
+}
+function closeTarcModal(){ document.getElementById('tarcModal').classList.remove('on'); }
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeTarcModal(); });
+
 </script>
 <script src="./nav-home.js"></script>
 <script src="day-mode-init.js"></script>

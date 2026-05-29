@@ -3403,22 +3403,34 @@ function setTaskStatus(id, status){
   var items = LS(_timelineKey());
   var t = items.find(function(x){ return x.id === id; });
   var who = _curCharName() || '匿名';
+  var becameDone = false; // 從非 done → done?
+  var archiveTarget = null;
   if (t){
     // 自己時間軸的任務
+    becameDone = (status === 'done' && t.status !== 'done');
     t.status = status;
     t.log = (t.log || []).concat([{ at: Date.now(), who: who, action: '改為 '+(status==='pending'?'待執行':status==='doing'?'進行中':'完成') }]);
     var originalOwner = t._originalOwner || t.assigner || who;
     SS(_timelineKey(), items);
     _syncTaskToAllRelated(t, originalOwner);
+    if(becameDone) archiveTarget = t;
   } else {
     // 受指派任務（在 cross_task_<id> 裡）
     var received = _readReceivedCrossTasks();
     var rt = received.find(function(x){ return x.id === id; });
     if (rt){
+      becameDone = (status === 'done' && rt.status !== 'done');
       rt.status = status;
       rt.log = (rt.log || []).concat([{ at: Date.now(), who: who, action: '改為 '+(status==='pending'?'待執行':status==='doing'?'進行中':'完成') }]);
       _writeCrossTask(rt, rt._originalOwner);
+      if(becameDone) archiveTarget = rt;
     }
+  }
+  // ✅ done → 自動 archive 進完成者(who)的成就 store
+  if(archiveTarget && typeof window.archiveTaskOnDone === 'function'){
+    window.archiveTaskOnDone(archiveTarget, who).then(function(ok){
+      if(ok) console.log('[timeline] ✅ 任務「'+esc(archiveTarget.title||archiveTarget.task||'')+'」已存入成就檔案');
+    });
   }
   renderTimeline();
   if (_selectedTaskId === id) _renderTaskPreview(id);
@@ -3427,6 +3439,66 @@ function setTaskStatus(id, status){
     var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
     if (fs && fs.push) fs.push();
   } catch(e){}
+}
+
+// ════════ 📎 成果連結 (主角自己也可以加 — 不分自己時間軸 / 受指派任務) ════════
+function _aiFindAndUpdateTask(id, mutator){
+  var items = LS(_timelineKey());
+  var t = items.find(function(x){ return x.id === id; });
+  if (t){
+    mutator(t);
+    SS(_timelineKey(), items);
+    _syncTaskToAllRelated(t, t._originalOwner || t.assigner || _curCharName());
+    return true;
+  }
+  var received = _readReceivedCrossTasks();
+  var rt = received.find(function(x){ return x.id === id; });
+  if (rt){
+    mutator(rt);
+    _writeCrossTask(rt, rt._originalOwner);
+    return true;
+  }
+  return false;
+}
+function _aiAddEvidence(taskId){
+  var nameEl = document.getElementById('_aiEvName_'+taskId);
+  var urlEl  = document.getElementById('_aiEvUrl_'+taskId);
+  var name = nameEl ? nameEl.value.trim() : '';
+  var url  = urlEl  ? urlEl.value.trim()  : '';
+  if(!name){ alert('請輸入連結名稱'); return; }
+  if(!/^https?:\/\//.test(url)){ alert('URL 必須是 https://... 開頭'); return; }
+  var who = _curCharName() || '匿名';
+  var ok = _aiFindAndUpdateTask(taskId, function(t){
+    if(!Array.isArray(t.evidenceLinks)) t.evidenceLinks = [];
+    t.evidenceLinks.push({
+      id: 'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      name: name,
+      url: url,
+      addedBy: who,
+      addedAt: (new Date()).toLocaleString('zh-TW',{hour12:false}).replace(/\//g,'/')
+    });
+    t.log = (t.log||[]).concat([{ at: Date.now(), who: who, action: '加成果連結:'+name }]);
+  });
+  if(!ok){ alert('找不到任務'); return; }
+  _renderTaskPreview(taskId);
+  renderTimeline();
+  try { var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync; if (fs && fs.push) fs.push(); } catch(e){}
+}
+function _aiDelEvidence(taskId, evId){
+  if(!confirm('確定刪除這筆連結?')) return;
+  var who = _curCharName() || '匿名';
+  var ok = _aiFindAndUpdateTask(taskId, function(t){
+    if(!Array.isArray(t.evidenceLinks)) t.evidenceLinks = [];
+    t.evidenceLinks = t.evidenceLinks.filter(function(x){ return x.id !== evId; });
+    t.log = (t.log||[]).concat([{ at: Date.now(), who: who, action: '刪成果連結' }]);
+  });
+  if(!ok) return;
+  _renderTaskPreview(taskId);
+  renderTimeline();
+  try { var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync; if (fs && fs.push) fs.push(); } catch(e){}
+}
+function _aiCopyEv(url){
+  try{ navigator.clipboard.writeText(url); }catch(e){}
 }
 
 function delTask(id){
@@ -3508,6 +3580,34 @@ function _renderTaskPreview(id){
   if (t.status !== 'pending') html += '<button onclick="setTaskStatus(\''+t.id+'\',\'pending\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(180,200,240,.25);background:transparent;color:#dde6f0;cursor:pointer;font-size:.8rem;">⏳ 待執行</button>';
   if (t.status !== 'doing') html += '<button onclick="setTaskStatus(\''+t.id+'\',\'doing\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(255,200,0,.4);background:rgba(255,200,0,.1);color:#ffd700;cursor:pointer;font-size:.8rem;">🔄 進行中</button>';
   if (t.status !== 'done') html += '<button onclick="setTaskStatus(\''+t.id+'\',\'done\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(0,200,100,.4);background:rgba(0,200,100,.15);color:#7fdd7f;cursor:pointer;font-weight:700;font-size:.8rem;">✅ 完成</button>';
+  html += '</div>';
+
+  // ────── 📎 成果連結 / 證據檔 (主角自己也可以加) ──────
+  var evArr = Array.isArray(t.evidenceLinks) ? t.evidenceLinks : [];
+  html += '<div class="tl-ev-block" style="border-top:1px solid rgba(180,200,240,.15);padding-top:12px;margin-top:14px;">'
+    + '<div style="font-size:.78rem;color:#dde6f0;font-weight:700;margin-bottom:8px;">📎 成果連結 / 證據檔 <span style="color:rgba(180,200,240,.5);font-weight:400;font-size:.72rem;">'+evArr.length+' 筆</span></div>';
+  if (!evArr.length){
+    html += '<div style="font-size:.72rem;color:rgba(180,200,240,.5);padding:6px 0;font-style:italic;">尚無成果連結 — 把 Google 雲端、文件、影片貼進來給黃柏翰看你完成的工作</div>';
+  } else {
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+    evArr.slice().reverse().forEach(function(ev){
+      var safeUrl = String(ev.url||'');
+      if(!/^https?:\/\//.test(safeUrl)) safeUrl='';
+      html += '<div class="tl-ev-item" style="display:flex;gap:6px;align-items:center;padding:7px 10px;background:rgba(15,20,60,.3);border:1px solid rgba(180,200,240,.15);border-radius:6px;font-size:.74rem;">'
+        + '<span style="font-weight:700;color:#dde6f0;">🔗 '+esc(ev.name||'(未命名)')+'</span>'
+        + (safeUrl?'<a href="'+esc(safeUrl)+'" target="_blank" rel="noopener" style="color:#4aeaff;text-decoration:none;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(safeUrl)+'</a>':'<span style="color:#ff9b9b;flex:1;">⚠️ 不合法</span>')
+        + '<span style="color:rgba(180,200,240,.55);font-size:.66rem;white-space:nowrap;">'+esc(ev.addedBy||'?')+'</span>'
+        + (safeUrl?'<button onclick="_aiCopyEv(\''+escAttr(safeUrl)+'\')" title="複製" style="padding:2px 6px;background:transparent;border:1px solid rgba(180,200,240,.25);border-radius:4px;color:#dde6f0;cursor:pointer;font-size:.66rem;">📋</button>':'')
+        + '<button onclick="_aiDelEvidence(\''+t.id+'\',\''+escAttr(ev.id)+'\')" title="刪除" style="padding:2px 6px;background:transparent;border:1px solid rgba(255,80,80,.3);border-radius:4px;color:#ff8a8a;cursor:pointer;font-size:.66rem;">🗑</button>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+  html += '<div style="display:flex;gap:6px;margin-top:8px;">'
+    + '<input id="_aiEvName_'+t.id+'" type="text" placeholder="連結名稱" style="flex:1;min-width:0;padding:5px 8px;background:rgba(15,20,60,.4);border:1px solid rgba(180,200,240,.2);border-radius:5px;color:#dde6f0;font-size:.74rem;">'
+    + '<input id="_aiEvUrl_'+t.id+'" type="text" placeholder="https://…" style="flex:1.4;min-width:0;padding:5px 8px;background:rgba(15,20,60,.4);border:1px solid rgba(180,200,240,.2);border-radius:5px;color:#dde6f0;font-size:.74rem;">'
+    + '<button onclick="_aiAddEvidence(\''+t.id+'\')" style="padding:5px 10px;background:rgba(74,234,255,.15);border:1px solid rgba(74,234,255,.4);border-radius:5px;color:#4aeaff;cursor:pointer;font-size:.74rem;font-weight:700;white-space:nowrap;">＋ 加連結</button>'
+    + '</div>';
   html += '</div>';
 
   if (logs){
@@ -5049,6 +5149,7 @@ updateClosedBadge();
 document.getElementById('chatInput').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,150)+'px';});
 </script>
 <script src="day-mode-init.js"></script>
+<script src="./task-archive.js"></script>
 <script src="./text-zoom.js?v=2"></script>
 </body>
 </html>
