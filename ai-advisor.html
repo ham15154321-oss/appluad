@@ -233,7 +233,8 @@ body.day-mode .chat-view.fullscreen{background:#ffffff;}
 /* 時間軸項目 */
 .tl-item{display:flex;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid rgba(50,160,255,.1);margin-bottom:8px;background:rgba(255,255,255,.02);}
 .tl-status{width:10px;border-radius:4px;flex-shrink:0;}
-.tl-status.pending{background:#ffa726;}.tl-status.doing{background:#4aeaff;}.tl-status.done{background:#00e868;}
+.tl-status.pending{background:#ffa726;}.tl-status.doing{background:#4aeaff;}.tl-status.done{background:#00e868;}.tl-status.declared_done{background:#a78bfa;animation:pulseTl 2.4s ease-in-out infinite;}
+@keyframes pulseTl{0%,100%{opacity:1;}50%{opacity:.6;}}
 .tl-content{flex:1;min-width:0;}
 .tl-task{font-size:.85rem;color:#e0f0ff;font-weight:600;margin-bottom:4px;}
 .tl-meta{font-size:.72rem;color:#6a8fcc;}
@@ -3501,6 +3502,142 @@ function _aiCopyEv(url){
   try{ navigator.clipboard.writeText(url); }catch(e){}
 }
 
+// ════════ 宣告完成 / 主管確認 / 重新宣告期限 (含完整 log) ════════
+var _SUPERVISORS = ['黃柏翰','王志軒','楊雅晴','洪士德','黎禹歆','林昭宏','凃敏薰','蔡青倚'];
+function _isSup(name){ return _SUPERVISORS.indexOf(name) >= 0; }
+
+// 主角宣告完成 → status='declared_done'
+function declareDone(taskId){
+  var who = _curCharName() || '匿名';
+  var note = prompt('請簡述完成情況(會記入 log + 通知主管):','我已完成,請主管確認');
+  if(note === null) return;
+  var ok = _aiFindAndUpdateTask(taskId, function(t){
+    t.status = 'declared_done';
+    t.log = (t.log||[]).concat([{ at: Date.now(), who: who, action: '⏳ 宣告完成: '+(note||'') }]);
+  });
+  if(!ok) return;
+  _renderTaskPreview(taskId);
+  renderTimeline();
+  try { var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync; if (fs && fs.push) fs.push(); } catch(e){}
+}
+// 主管確認主角宣告的完成 → status='done' + 觸發 archive
+function supervisorConfirmDone(taskId){
+  var who = _curCharName() || '匿名';
+  if(!_isSup(who)){ alert('只有主管能確認'); return; }
+  // 先撈宣告者 → 自我確認檢查
+  var items = LS(_timelineKey());
+  var preT = items.find(function(x){return x.id===taskId;}) || _readReceivedCrossTasks().find(function(x){return x.id===taskId;});
+  if(!preT){ alert('找不到任務'); return; }
+  var declarer = ((preT.log||[]).slice().reverse().find(function(L){return /宣告完成/.test(L.action||'');}) || {}).who;
+  if(declarer === who){ alert('你自己宣告的不能自己確認 — 請其他主管處理'); return; }
+  var ownerForArchive = declarer || preT._originalOwner || preT.assigner || preT._ownerName;
+  var ok = _aiFindAndUpdateTask(taskId, function(t){
+    t.status = 'done';
+    t.log = (t.log||[]).concat([{ at: Date.now(), who: who, action: '✅ 主管確認完成' }]);
+  });
+  if(!ok) return;
+  // 觸發 archive 進完成者的成就 store
+  if(ownerForArchive && typeof window.archiveTaskOnDone === 'function'){
+    // 重新撈最新 task
+    var items = LS(_timelineKey());
+    var t = items.find(function(x){return x.id===taskId;}) || _readReceivedCrossTasks().find(function(x){return x.id===taskId;});
+    if(t) window.archiveTaskOnDone(t, ownerForArchive);
+  }
+  _renderTaskPreview(taskId);
+  renderTimeline();
+  try { var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync; if (fs && fs.push) fs.push(); } catch(e){}
+}
+// 主管退回完成宣告 → status='doing'
+function supervisorRejectDone(taskId){
+  var who = _curCharName() || '匿名';
+  if(!_isSup(who)){ alert('只有主管能退回'); return; }
+  var note = prompt('退回理由(讓主角看到):','還需要再多一些成果證據');
+  if(note === null) return;
+  var ok = _aiFindAndUpdateTask(taskId, function(t){
+    t.status = 'doing';
+    t.log = (t.log||[]).concat([{ at: Date.now(), who: who, action: '↩️ 主管退回完成宣告: '+note }]);
+    if(!Array.isArray(t.adminLog)) t.adminLog = [];
+    t.adminLog.push({ at: (new Date()).toLocaleString('zh-TW',{hour12:false}).replace(/\//g,'/'), who: who, note: '退回完成宣告: '+note });
+  });
+  if(!ok) return;
+  _renderTaskPreview(taskId);
+  renderTimeline();
+  try { var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync; if (fs && fs.push) fs.push(); } catch(e){}
+}
+// 主角宣告新期限
+function declareRecommit(taskId){
+  var who = _curCharName() || '匿名';
+  var dlEl = document.getElementById('_tlRcDl_'+taskId);
+  var rsEl = document.getElementById('_tlRcRs_'+taskId);
+  var dl = dlEl ? dlEl.value : '';
+  var rs = rsEl ? rsEl.value.trim() : '';
+  if(!dl){ alert('請選新期限'); return; }
+  if(!rs){ alert('請填宣告理由 (你承諾什麼?)'); return; }
+  var ok = _aiFindAndUpdateTask(taskId, function(t){
+    var oldRc = t.recommitDeadline || '無';
+    t.recommitDeadline = dl;
+    t.recommitReason = rs;
+    t.recommitDeclaredBy = who;
+    t.recommitDeclaredAt = Date.now();
+    // 主角宣告 → 等待主管確認
+    if(_isSup(who)){
+      // 主管自己改 → 視同確認
+      t.recommitConfirmedBy = who;
+      t.recommitConfirmedAt = Date.now();
+    } else {
+      t.recommitConfirmedBy = '';
+      t.recommitConfirmedAt = 0;
+    }
+    t.log = (t.log||[]).concat([{ at: Date.now(), who: who, action: '📅 重新宣告期限: '+oldRc+' → '+dl+'　理由: '+rs }]);
+  });
+  if(!ok) return;
+  _renderTaskPreview(taskId);
+  renderTimeline();
+  try { var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync; if (fs && fs.push) fs.push(); } catch(e){}
+}
+function supervisorAcceptRecommit(taskId){
+  var who = _curCharName() || '匿名';
+  if(!_isSup(who)){ alert('只有主管能確認'); return; }
+  // 先檢查自我確認
+  var items = LS(_timelineKey());
+  var preT = items.find(function(x){return x.id===taskId;}) || _readReceivedCrossTasks().find(function(x){return x.id===taskId;});
+  if(!preT){ alert('找不到任務'); return; }
+  if(preT.recommitDeclaredBy === who){ alert('你自己宣告的不能自己確認 — 請其他主管處理'); return; }
+  var ok = _aiFindAndUpdateTask(taskId, function(t){
+    var oldDl = t.deadline || '無';
+    t.deadline = t.recommitDeadline;
+    t.recommitConfirmedBy = who;
+    t.recommitConfirmedAt = Date.now();
+    t.log = (t.log||[]).concat([{ at: Date.now(), who: who, action: '✅ 主管確認接受新期限: '+oldDl+' → '+t.recommitDeadline }]);
+  });
+  if(!ok) return;
+  _renderTaskPreview(taskId);
+  renderTimeline();
+  try { var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync; if (fs && fs.push) fs.push(); } catch(e){}
+}
+function supervisorRejectRecommit(taskId){
+  var who = _curCharName() || '匿名';
+  if(!_isSup(who)){ alert('只有主管能退回'); return; }
+  var note = prompt('退回新期限的理由:','原期限不變,請按原承諾完成');
+  if(note === null) return;
+  var ok = _aiFindAndUpdateTask(taskId, function(t){
+    var oldRc = t.recommitDeadline || '無';
+    t.recommitDeadline = '';
+    t.recommitReason = '';
+    t.recommitDeclaredBy = '';
+    t.recommitDeclaredAt = 0;
+    t.recommitConfirmedBy = '';
+    t.recommitConfirmedAt = 0;
+    t.log = (t.log||[]).concat([{ at: Date.now(), who: who, action: '↩️ 主管退回新期限('+oldRc+'): '+note }]);
+    if(!Array.isArray(t.adminLog)) t.adminLog = [];
+    t.adminLog.push({ at: (new Date()).toLocaleString('zh-TW',{hour12:false}).replace(/\//g,'/'), who: who, note: '退回新期限('+oldRc+'): '+note });
+  });
+  if(!ok) return;
+  _renderTaskPreview(taskId);
+  renderTimeline();
+  try { var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync; if (fs && fs.push) fs.push(); } catch(e){}
+}
+
 function delTask(id){
   var items = LS(_timelineKey());
   var t = items.find(function(x){ return x.id === id; });
@@ -3576,10 +3713,59 @@ function _renderTaskPreview(id){
     + '</div>';
 
   // 狀態切換按鈕
+  var who = _curCharName() || '';
+  var isSup = ['黃柏翰','王志軒','楊雅晴','洪士德','黎禹歆','林昭宏','凃敏薰','蔡青倚'].indexOf(who) >= 0;
   html += '<div style="display:flex;gap:6px;margin:14px 0;flex-wrap:wrap;">';
   if (t.status !== 'pending') html += '<button onclick="setTaskStatus(\''+t.id+'\',\'pending\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(180,200,240,.25);background:transparent;color:#dde6f0;cursor:pointer;font-size:.8rem;">⏳ 待執行</button>';
   if (t.status !== 'doing') html += '<button onclick="setTaskStatus(\''+t.id+'\',\'doing\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(255,200,0,.4);background:rgba(255,200,0,.1);color:#ffd700;cursor:pointer;font-size:.8rem;">🔄 進行中</button>';
-  if (t.status !== 'done') html += '<button onclick="setTaskStatus(\''+t.id+'\',\'done\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(0,200,100,.4);background:rgba(0,200,100,.15);color:#7fdd7f;cursor:pointer;font-weight:700;font-size:.8rem;">✅ 完成</button>';
+  // 主角:宣告完成 → declared_done (待主管確認)
+  if (t.status !== 'done' && t.status !== 'declared_done') {
+    html += '<button onclick="declareDone(\''+t.id+'\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(167,139,250,.45);background:rgba(167,139,250,.15);color:#c7b9ff;cursor:pointer;font-weight:700;font-size:.8rem;">⏳ 宣告完成 (待主管確認)</button>';
+  }
+  // 主管 + 不是宣告者本人 → 顯示確認 / 退回
+  if (t.status === 'declared_done' && isSup){
+    var declarer = ((t.log||[]).slice().reverse().find(function(L){return /宣告完成/.test(L.action||'');}) || {}).who;
+    if (declarer !== who){
+      html += '<button onclick="supervisorConfirmDone(\''+t.id+'\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(0,200,100,.5);background:rgba(0,200,100,.18);color:#7fdd7f;cursor:pointer;font-weight:700;font-size:.8rem;">✅ 主管確認完成</button>';
+      html += '<button onclick="supervisorRejectDone(\''+t.id+'\')" style="flex:1;padding:8px;border-radius:6px;border:1px solid rgba(255,159,67,.5);background:rgba(255,159,67,.15);color:#ffb280;cursor:pointer;font-size:.8rem;">↩️ 退回宣告</button>';
+    } else {
+      html += '<div style="flex:1;padding:8px;border-radius:6px;border:1px dashed rgba(180,200,240,.25);background:transparent;color:rgba(180,200,240,.5);font-size:.72rem;text-align:center;">⏳ 等其他主管確認 (你自己宣告的不能自己確認)</div>';
+    }
+  }
+  html += '</div>';
+
+  // ────── 📅 重新宣告期限區塊 (主角可宣告新期限,主管核可) ──────
+  html += '<div class="tl-rc-block" style="border-top:1px solid rgba(180,200,240,.15);padding-top:12px;margin-top:14px;">';
+  html += '<div style="font-size:.78rem;color:#dde6f0;font-weight:700;margin-bottom:8px;">📅 重新宣告期限</div>';
+  if (t.recommitDeadline){
+    var rcConfirmed = !!t.recommitConfirmedAt;
+    var rcBy = t.recommitDeclaredBy || t._ownerName || '';
+    var rcReason = t.recommitReason || '(未填理由)';
+    var bgCol = rcConfirmed ? 'rgba(0,200,100,.08)' : 'rgba(255,215,0,.1)';
+    var bdCol = rcConfirmed ? 'rgba(0,200,100,.3)' : 'rgba(255,215,0,.35)';
+    var statusTxt = rcConfirmed
+      ? '✅ 已被主管 <b>'+esc(t.recommitConfirmedBy||'?')+'</b> 接受 → 新期限生效'
+      : '⏳ 等主管確認接受';
+    html += '<div style="background:'+bgCol+';border:1px solid '+bdCol+';border-radius:6px;padding:10px;font-size:.74rem;color:#dde6f0;line-height:1.6;">'
+      + '<b>'+esc(rcBy)+'</b> 宣告延到 <b>'+esc(t.recommitDeadline)+'</b><br>'
+      + '理由：'+esc(rcReason)+'<br>'
+      + '<span style="color:rgba(180,200,240,.7);">'+statusTxt+'</span>'
+    + '</div>';
+    // 主管 + 不是宣告者 → 可確認 / 退回
+    if (isSup && rcBy !== who && !rcConfirmed){
+      html += '<div style="display:flex;gap:6px;margin-top:8px;">'
+        + '<button onclick="supervisorAcceptRecommit(\''+t.id+'\')" style="flex:1;padding:6px;border-radius:5px;border:1px solid rgba(0,200,100,.4);background:rgba(0,200,100,.15);color:#7fdd7f;cursor:pointer;font-size:.72rem;font-weight:700;">✅ 接受新期限</button>'
+        + '<button onclick="supervisorRejectRecommit(\''+t.id+'\')" style="flex:1;padding:6px;border-radius:5px;border:1px solid rgba(255,159,67,.4);background:rgba(255,159,67,.12);color:#ffb280;cursor:pointer;font-size:.72rem;">↩️ 退回</button>'
+      + '</div>';
+    }
+  } else {
+    html += '<div style="font-size:.72rem;color:rgba(180,200,240,.55);margin-bottom:8px;font-style:italic;">尚未宣告新期限</div>';
+  }
+  html += '<div style="display:flex;gap:6px;margin-top:8px;">'
+    + '<input id="_tlRcDl_'+t.id+'" type="date" value="'+esc(t.recommitDeadline||'')+'" style="flex:1;min-width:0;padding:5px 8px;background:rgba(15,20,60,.4);border:1px solid rgba(180,200,240,.2);border-radius:5px;color:#dde6f0;font-size:.74rem;">'
+    + '<input id="_tlRcRs_'+t.id+'" type="text" value="'+escAttr(t.recommitReason||'')+'" placeholder="宣告理由(承諾什麼)" style="flex:1.4;min-width:0;padding:5px 8px;background:rgba(15,20,60,.4);border:1px solid rgba(180,200,240,.2);border-radius:5px;color:#dde6f0;font-size:.74rem;">'
+    + '<button onclick="declareRecommit(\''+t.id+'\')" style="padding:5px 10px;background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.4);border-radius:5px;color:#ffd700;cursor:pointer;font-size:.74rem;font-weight:700;white-space:nowrap;">📅 宣告新期限</button>'
+  + '</div>';
   html += '</div>';
 
   // ────── 📎 成果連結 / 證據檔 (主角自己也可以加) ──────
@@ -3630,10 +3816,10 @@ function renderTimeline(){
   var items = ownItems.concat(receivedItems);
   var el = document.getElementById('timelineBody');
   if (!items.length){ el.innerHTML = '<div class="panel-empty">📅 尚無任務<br>點上方「＋ 新增任務」開始</div>'; return; }
-  var statusOrder = {pending:0, doing:1, done:2};
+  var statusOrder = {pending:0, doing:1, declared_done:2, done:3};
   items.sort(function(a,b){ return statusOrder[a.status||'pending'] - statusOrder[b.status||'pending']; });
   el.innerHTML = items.map(function(t){
-    var labels = {pending:'⏳ 待執行', doing:'🔄 進行中', done:'✅ 完成'};
+    var labels = {pending:'⏳ 待執行', doing:'🔄 進行中', declared_done:'⏳ 已宣告完成 (待主管確認)', done:'✅ 完成'};
     var dl = t.deadline ? '期限：' + t.deadline : '';
     var assignees = (t.assignees||[]).slice(0,3).join('、') + ((t.assignees||[]).length > 3 ? ' +' + ((t.assignees||[]).length-3) : '');
     var isSel = (t.id === _selectedTaskId);
