@@ -737,6 +737,116 @@
       color: #ff6b6b;
     }
 
+    /* ════ 期間選擇 + 儲存 工具列 ════ */
+    .cmp-toolbar {
+      background:var(--bg2);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:14px 16px;
+      margin-bottom:16px;
+      display:flex; flex-direction:column; gap:10px;
+    }
+    .cmp-tb-row {
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    }
+    .cmp-tb-label {
+      font-size:12px; font-weight:700; color:var(--dim);
+      min-width:60px;
+    }
+    .cmp-tb-divider {
+      width:1px; height:20px; background:var(--border); margin:0 4px;
+    }
+    .cmp-mode-btn {
+      padding:5px 14px; background:var(--bg3); border:1px solid var(--border);
+      color:var(--dim); border-radius:6px; cursor:pointer;
+      font-size:13px; font-weight:600; transition:all .15s;
+    }
+    .cmp-mode-btn:hover { color:var(--text); border-color:var(--border-hi); }
+    .cmp-mode-btn.active {
+      background:linear-gradient(135deg,#4aeaff,#a78bfa);
+      color:#0a0c14; border-color:transparent; font-weight:800;
+    }
+    .cmp-year-sel {
+      padding:5px 10px; background:var(--bg3); border:1px solid var(--border);
+      color:var(--text); border-radius:6px; font-size:13px; cursor:pointer;
+    }
+    .cmp-period-chips { display:flex; flex-wrap:wrap; gap:6px; flex:1; }
+    .cmp-period-chip {
+      padding:5px 12px; background:var(--bg3); border:1px solid var(--border);
+      color:var(--dim); border-radius:14px; cursor:pointer;
+      font-size:12.5px; font-weight:600; transition:all .15s;
+      min-width:42px; text-align:center;
+    }
+    .cmp-period-chip:hover { color:var(--text); border-color:var(--border-hi); transform:translateY(-1px); }
+    .cmp-period-chip.active {
+      background:linear-gradient(135deg,#4aeaff,#a78bfa);
+      color:#0a0c14; border-color:transparent; font-weight:800;
+    }
+    .cmp-period-chip.has-data {
+      background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.5); color:#4ade80;
+    }
+    .cmp-period-chip.has-data.active {
+      background:linear-gradient(135deg,#4ade80,#4aeaff); color:#0a0c14;
+    }
+    .cmp-current-tag {
+      font-size:13px; color:#4aeaff; font-weight:700;
+      background:rgba(74,234,255,0.1); padding:5px 12px; border-radius:6px;
+      border:1px solid rgba(74,234,255,0.3); flex:1; min-width:200px;
+    }
+    .cmp-save-btn {
+      padding:6px 16px; background:linear-gradient(135deg,rgba(74,222,128,0.2),rgba(74,234,255,0.1));
+      border:1px solid rgba(74,222,128,0.5); color:#4ade80;
+      border-radius:6px; cursor:pointer; font-size:13px; font-weight:800; transition:all .15s;
+    }
+    .cmp-save-btn:hover {
+      background:linear-gradient(135deg,rgba(74,222,128,0.3),rgba(74,234,255,0.2));
+      transform:translateY(-1px); box-shadow:0 3px 10px rgba(74,222,128,0.25);
+    }
+    .cmp-clear-btn {
+      padding:6px 12px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.4);
+      color:#ff8a8a; border-radius:6px; cursor:pointer; font-size:12.5px; font-weight:700;
+    }
+    .cmp-clear-btn:hover { background:rgba(239,68,68,0.2); }
+    .cmp-archive-chips {
+      background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.25);
+      border-radius:8px; padding:10px 12px;
+    }
+    .cmp-archive-label {
+      font-size:11px; color:rgba(180,255,200,0.7); margin-bottom:7px; font-weight:600;
+    }
+    .cmp-archive-list { display:flex; flex-wrap:wrap; gap:6px; }
+    .cmp-archive-chip {
+      padding:4px 10px; background:rgba(74,222,128,0.12); border:1px solid rgba(74,222,128,0.4);
+      color:#86efac; border-radius:12px; cursor:pointer; font-size:11.5px; font-weight:600;
+      display:inline-flex; align-items:center; gap:4px;
+    }
+    .cmp-archive-chip:hover { background:rgba(74,222,128,0.22); transform:translateY(-1px); }
+    .cmp-archive-chip.active { background:#4ade80; color:#0a0c14; border-color:transparent; }
+    .cmp-archive-del {
+      background:transparent; border:none; color:inherit; cursor:pointer;
+      font-size:10px; opacity:0.6; padding:0 0 0 2px;
+    }
+    .cmp-archive-del:hover { opacity:1; color:#ff6b6b; }
+
+    /* 白天模式 */
+    body.day-mode .cmp-toolbar { background:#fff; border-color:#e5e5ea; }
+    body.day-mode .cmp-tb-label { color:#6e6e73; }
+    body.day-mode .cmp-tb-divider { background:#d2d2d7; }
+    body.day-mode .cmp-mode-btn { background:#f5f5f7; border-color:#d2d2d7; color:#515154; }
+    body.day-mode .cmp-mode-btn:hover { color:#1d1d1f; background:#e8e8ed; }
+    body.day-mode .cmp-mode-btn.active { background:linear-gradient(135deg,#0071e3,#5e9bff); color:#fff; }
+    body.day-mode .cmp-year-sel { background:#fff; border-color:#d2d2d7; color:#1d1d1f; }
+    body.day-mode .cmp-period-chip { background:#f5f5f7; border-color:#d2d2d7; color:#515154; }
+    body.day-mode .cmp-period-chip:hover { color:#1d1d1f; background:#e8e8ed; }
+    body.day-mode .cmp-period-chip.active { background:linear-gradient(135deg,#0071e3,#5e9bff); color:#fff; }
+    body.day-mode .cmp-period-chip.has-data { background:rgba(52,199,89,0.12); border-color:rgba(52,199,89,0.5); color:#1f8a3a; }
+    body.day-mode .cmp-current-tag { background:rgba(0,113,227,0.08); color:#0050a8; border-color:rgba(0,113,227,0.3); }
+    body.day-mode .cmp-save-btn { color:#1f8a3a; border-color:rgba(52,199,89,0.5); }
+    body.day-mode .cmp-clear-btn { color:#d70015; border-color:rgba(255,59,48,0.4); }
+    body.day-mode .cmp-archive-chips { background:#f0fdf4; border-color:#bbf7d0; }
+    body.day-mode .cmp-archive-label { color:#1f8a3a; }
+    body.day-mode .cmp-archive-chip { background:#dcfce7; border-color:#86efac; color:#15803d; }
+
     .edit-controls {
       display: flex;
       gap: 0.5rem;
@@ -1632,8 +1742,31 @@
     <div class="content-max">
       <!-- Tab 0: Comparison -->
       <div class="tab-content active" id="tab-0">
-        <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
-          <button class="edit-btn" id="editBtn" onclick="toggleEditMode()">✏️ 編輯</button>
+        <!-- ★ 期間選擇 + 儲存 工具列 -->
+        <div class="cmp-toolbar">
+          <div class="cmp-tb-row">
+            <span class="cmp-tb-label">期間類型</span>
+            <button class="cmp-mode-btn active" id="cmpModeMonth" onclick="cmpSetMode('month')">📅 月</button>
+            <button class="cmp-mode-btn" id="cmpModeQuarter" onclick="cmpSetMode('quarter')">📊 季</button>
+            <span class="cmp-tb-divider"></span>
+            <span class="cmp-tb-label">年份</span>
+            <select class="cmp-year-sel" id="cmpYearSel" onchange="cmpSetYear(this.value)"></select>
+          </div>
+          <div class="cmp-tb-row">
+            <span class="cmp-tb-label">期間</span>
+            <div class="cmp-period-chips" id="cmpPeriodChips"></div>
+          </div>
+          <div class="cmp-tb-row">
+            <span class="cmp-current-tag" id="cmpCurrentTag">目前編輯: —</span>
+            <button class="edit-btn" id="editBtn" onclick="toggleEditMode()">✏️ 編輯</button>
+            <button class="cmp-save-btn" onclick="cmpSaveSnapshot()" title="把目前畫面內容存進對應月/季的儲存槽">💾 儲存到此期間</button>
+            <button class="cmp-clear-btn" onclick="cmpClearCurrent()" title="清空目前期間,重新開始輸入">🗑 清空</button>
+          </div>
+          <!-- 📂 已儲存月份/季的 chip 列表 -->
+          <div class="cmp-archive-chips" id="cmpArchiveChips" style="display:none;">
+            <div class="cmp-archive-label">📂 已儲存歷史 (點即載入)：</div>
+            <div class="cmp-archive-list" id="cmpArchiveList"></div>
+          </div>
         </div>
         <div id="comparisonContainer"></div>
       </div>
@@ -1933,6 +2066,7 @@
     // Initialize
     function init() {
       loadData();
+      _renderCmpToolbar();
       renderComparison();
       loadLecData();
       renderLecMonths();
@@ -1949,19 +2083,231 @@
         var parsed = stored ? JSON.parse(stored) : null;
         if (parsed && typeof parsed === 'object'){
           // ★ 防呆：localStorage 裡的 JSON 結構不完整時補上預設欄位
-          //   防止「Cannot read properties of undefined (reading 'reduce')」整頁掛掉
           data = {
             leftTitle: parsed.leftTitle || defaults.leftTitle,
             rightTitle: parsed.rightTitle || defaults.rightTitle,
-            regions: Array.isArray(parsed.regions) ? parsed.regions : defaults.regions
+            regions: Array.isArray(parsed.regions) ? parsed.regions : defaults.regions,
+            // ★ 新增:期間選擇 + 歷史存檔
+            cmpMode: parsed.cmpMode || 'month',           // 'month' | 'quarter'
+            cmpYear: parsed.cmpYear || (new Date()).getFullYear(),
+            currentPeriod: parsed.currentPeriod || null,  // 例:'M-2026-3' or 'Q-2026-1'
+            archives: (parsed.archives && typeof parsed.archives==='object') ? parsed.archives : {}
           };
         } else {
-          data = defaults;
+          data = Object.assign({}, defaults, {
+            cmpMode: 'month',
+            cmpYear: (new Date()).getFullYear(),
+            currentPeriod: null,
+            archives: {}
+          });
         }
       } catch(e){
         console.warn('[perf_compare_v1] LS 解析失敗，用預設值', e);
-        data = defaults;
+        data = Object.assign({}, defaults, {
+          cmpMode: 'month', cmpYear: (new Date()).getFullYear(),
+          currentPeriod: null, archives: {}
+        });
       }
+    }
+
+    // ═══════════════════════════════════════════
+    // 📅 期間選擇 + 儲存 + 歷史回查
+    // ═══════════════════════════════════════════
+    function _periodKey(mode, year, n){
+      return (mode==='quarter' ? 'Q' : 'M') + '-' + year + '-' + n;
+    }
+    function _parsePeriodKey(key){
+      // 'M-2026-3' → {mode:'month', year:2026, n:3}
+      if(!key) return null;
+      var parts = String(key).split('-');
+      if(parts.length !== 3) return null;
+      return {
+        mode: parts[0]==='Q' ? 'quarter' : 'month',
+        year: parseInt(parts[1],10),
+        n: parseInt(parts[2],10)
+      };
+    }
+    function _periodLabel(key){
+      var p = _parsePeriodKey(key);
+      if(!p) return '—';
+      return p.mode==='quarter' ? (p.year + ' Q' + p.n) : (p.year + '/' + p.n + ' 月');
+    }
+    function _defaultTitlesFor(mode, year, n){
+      if(mode==='quarter'){
+        return { leftTitle: (year-1)+' Q'+n, rightTitle: year+' Q'+n };
+      }
+      return { leftTitle: (year-1)+' '+n+'月', rightTitle: year+' '+n+'月' };
+    }
+
+    // 把目前 data.leftTitle/rightTitle/regions 寫進 archives[currentPeriod]
+    function _persistCurrentToArchive(){
+      if(!data.currentPeriod) return;
+      data.archives[data.currentPeriod] = {
+        leftTitle: data.leftTitle,
+        rightTitle: data.rightTitle,
+        regions: JSON.parse(JSON.stringify(data.regions||[])),
+        savedAt: Date.now()
+      };
+    }
+    // 把 archives[period] 載入 data.live
+    function _loadArchiveToCurrent(period){
+      var p = _parsePeriodKey(period);
+      if(!p) return;
+      var ar = data.archives[period];
+      if(ar){
+        data.leftTitle = ar.leftTitle;
+        data.rightTitle = ar.rightTitle;
+        data.regions = JSON.parse(JSON.stringify(ar.regions||[]));
+      } else {
+        // 沒存檔過 → 用預設標題 + 沿用目前 regions 結構(只清空數字)
+        var t = _defaultTitlesFor(p.mode, p.year, p.n);
+        data.leftTitle = t.leftTitle;
+        data.rightTitle = t.rightTitle;
+        // 沿用現有 regions 結構,把數字清零(方便快速填新一期)
+        data.regions = (data.regions||[]).map(function(r){
+          return {
+            name: r.name,
+            branches: (r.branches||[]).map(function(b){
+              return { name: b.name, left: 0, right: 0 };
+            })
+          };
+        });
+        // 若 regions 是空的 → 用預設模板
+        if(!data.regions.length){
+          var defs = getDefaultData().regions;
+          data.regions = JSON.parse(JSON.stringify(defs)).map(function(r){
+            r.branches = r.branches.map(function(b){ return {name:b.name, left:0, right:0}; });
+            return r;
+          });
+        }
+      }
+    }
+
+    function cmpSetMode(mode){
+      _persistCurrentToArchive();
+      data.cmpMode = mode;
+      saveData();
+      _renderCmpToolbar();
+    }
+    function cmpSetYear(year){
+      _persistCurrentToArchive();
+      data.cmpYear = parseInt(year,10) || (new Date()).getFullYear();
+      saveData();
+      _renderCmpToolbar();
+    }
+    function cmpPickPeriod(n){
+      _persistCurrentToArchive();
+      var key = _periodKey(data.cmpMode, data.cmpYear, n);
+      data.currentPeriod = key;
+      _loadArchiveToCurrent(key);
+      saveData();
+      renderComparison();
+      _renderCmpToolbar();
+    }
+    function cmpSaveSnapshot(){
+      if(!data.currentPeriod){ showCmpToast('⚠ 請先選擇月份或季', true); return; }
+      _persistCurrentToArchive();
+      saveData();
+      _renderCmpToolbar();
+      showCmpToast('💾 已存入「' + _periodLabel(data.currentPeriod) + '」');
+    }
+    function cmpClearCurrent(){
+      if(!data.currentPeriod){ showCmpToast('⚠ 請先選擇月份或季', true); return; }
+      if(!confirm('清空「' + _periodLabel(data.currentPeriod) + '」目前畫面所有數字?\n(歷史存檔不會被刪掉)')) return;
+      data.regions = (data.regions||[]).map(function(r){
+        return { name: r.name, branches: (r.branches||[]).map(function(b){
+          return { name: b.name, left: 0, right: 0 };
+        })};
+      });
+      saveData();
+      renderComparison();
+      showCmpToast('🗑 已清空');
+    }
+    function cmpLoadArchive(period){
+      _persistCurrentToArchive();
+      var p = _parsePeriodKey(period);
+      if(!p) return;
+      data.cmpMode = p.mode;
+      data.cmpYear = p.year;
+      data.currentPeriod = period;
+      _loadArchiveToCurrent(period);
+      saveData();
+      renderComparison();
+      _renderCmpToolbar();
+    }
+    function cmpDelArchive(period, ev){
+      if(ev) ev.stopPropagation();
+      if(!confirm('刪除「' + _periodLabel(period) + '」的存檔?')) return;
+      delete data.archives[period];
+      if(data.currentPeriod === period) data.currentPeriod = null;
+      saveData();
+      _renderCmpToolbar();
+      showCmpToast('🗑 已刪除');
+    }
+
+    function _renderCmpToolbar(){
+      // 模式 buttons
+      document.getElementById('cmpModeMonth').classList.toggle('active', data.cmpMode!=='quarter');
+      document.getElementById('cmpModeQuarter').classList.toggle('active', data.cmpMode==='quarter');
+      // 年份 select
+      var ySel = document.getElementById('cmpYearSel');
+      if(ySel){
+        var thisYear = (new Date()).getFullYear();
+        var years = [];
+        for(var y=thisYear-3; y<=thisYear+1; y++) years.push(y);
+        ySel.innerHTML = years.map(function(y){
+          return '<option value="'+y+'"'+(y===data.cmpYear?' selected':'')+'>'+y+'</option>';
+        }).join('');
+      }
+      // 期間 chips
+      var chipBar = document.getElementById('cmpPeriodChips');
+      if(chipBar){
+        var n = data.cmpMode==='quarter' ? 4 : 12;
+        var html = '';
+        for(var i=1;i<=n;i++){
+          var key = _periodKey(data.cmpMode, data.cmpYear, i);
+          var has = !!data.archives[key];
+          var active = data.currentPeriod === key;
+          var label = data.cmpMode==='quarter' ? ('Q'+i) : (i+'月');
+          html += '<div class="cmp-period-chip'+(has?' has-data':'')+(active?' active':'')+'" onclick="cmpPickPeriod('+i+')" title="'+(has?'已存':'未存')+'">'+label+(has?' ●':'')+'</div>';
+        }
+        chipBar.innerHTML = html;
+      }
+      // 目前期間 tag
+      var tag = document.getElementById('cmpCurrentTag');
+      if(tag){
+        tag.textContent = '目前編輯: ' + (data.currentPeriod ? _periodLabel(data.currentPeriod) : '— (請選期間)');
+      }
+      // 已儲存歷史 chip bar
+      var ar = document.getElementById('cmpArchiveChips');
+      var arList = document.getElementById('cmpArchiveList');
+      var keys = Object.keys(data.archives||{}).sort(function(a,b){
+        // 由新到舊:先比 year 再比 n
+        var pa = _parsePeriodKey(a), pb = _parsePeriodKey(b);
+        if(!pa||!pb) return 0;
+        if(pa.year !== pb.year) return pb.year - pa.year;
+        if(pa.mode !== pb.mode) return pa.mode==='quarter' ? -1 : 1;
+        return pb.n - pa.n;
+      });
+      if(keys.length === 0){
+        ar.style.display = 'none';
+      } else {
+        ar.style.display = '';
+        arList.innerHTML = keys.map(function(k){
+          var active = data.currentPeriod === k;
+          return '<div class="cmp-archive-chip'+(active?' active':'')+'" onclick="cmpLoadArchive(\''+k+'\')">'
+            + _periodLabel(k)
+            + '<button class="cmp-archive-del" onclick="cmpDelArchive(\''+k+'\',event)" title="刪除存檔">✕</button>'
+            + '</div>';
+        }).join('');
+      }
+    }
+    function showCmpToast(msg, err){
+      var t=document.createElement('div');
+      t.textContent=msg;
+      t.style.cssText='position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1320;border:1px solid '+(err?'#ef4444':'#4ade80')+';color:'+(err?'#ff8a8a':'#86efac')+';padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.5);';
+      document.body.appendChild(t);
+      setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(function(){ t.remove(); },300); }, 1800);
     }
 
     // Save data with debounce
