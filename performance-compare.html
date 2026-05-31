@@ -737,115 +737,96 @@
       color: #ff6b6b;
     }
 
-    /* ════ 期間選擇 + 儲存 工具列 ════ */
+    /* ════ 期間選擇 + 儲存 工具列(沿用 motiv-import-bar 同款精簡風) ════ */
     .cmp-toolbar {
-      background:var(--bg2);
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:14px 16px;
-      margin-bottom:16px;
-      display:flex; flex-direction:column; gap:10px;
+      display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+      margin-bottom:12px;
     }
-    .cmp-tb-row {
-      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    .cmp-mode-btn, .cmp-period-chip {
+      background:var(--bg3); color:var(--dim); border:1px solid var(--border);
+      border-radius:6px; padding:4px 10px; font-size:.82rem; cursor:pointer;
+      transition:all .2s; font-weight:600;
     }
-    .cmp-tb-label {
-      font-size:12px; font-weight:700; color:var(--dim);
-      min-width:60px;
+    .cmp-mode-btn:hover, .cmp-period-chip:hover {
+      color:var(--text); border-color:var(--border-hi);
+      background:rgba(74,234,255,0.08);
     }
-    .cmp-tb-divider {
-      width:1px; height:20px; background:var(--border); margin:0 4px;
+    .cmp-mode-btn.active, .cmp-period-chip.active {
+      background:linear-gradient(135deg, var(--accent), #a78bfa);
+      color:#fff; border-color:transparent; font-weight:700;
     }
-    .cmp-mode-btn {
-      padding:5px 14px; background:var(--bg3); border:1px solid var(--border);
-      color:var(--dim); border-radius:6px; cursor:pointer;
-      font-size:13px; font-weight:600; transition:all .15s;
-    }
-    .cmp-mode-btn:hover { color:var(--text); border-color:var(--border-hi); }
-    .cmp-mode-btn.active {
-      background:linear-gradient(135deg,#4aeaff,#a78bfa);
-      color:#0a0c14; border-color:transparent; font-weight:800;
-    }
-    .cmp-year-sel {
-      padding:5px 10px; background:var(--bg3); border:1px solid var(--border);
-      color:var(--text); border-radius:6px; font-size:13px; cursor:pointer;
-    }
-    .cmp-period-chips { display:flex; flex-wrap:wrap; gap:6px; flex:1; }
-    .cmp-period-chip {
-      padding:5px 12px; background:var(--bg3); border:1px solid var(--border);
-      color:var(--dim); border-radius:14px; cursor:pointer;
-      font-size:12.5px; font-weight:600; transition:all .15s;
-      min-width:42px; text-align:center;
-    }
-    .cmp-period-chip:hover { color:var(--text); border-color:var(--border-hi); transform:translateY(-1px); }
-    .cmp-period-chip.active {
-      background:linear-gradient(135deg,#4aeaff,#a78bfa);
-      color:#0a0c14; border-color:transparent; font-weight:800;
-    }
+    .cmp-period-chip { min-width:38px; text-align:center; padding:4px 8px; }
     .cmp-period-chip.has-data {
-      background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.5); color:#4ade80;
+      border-color:rgba(74,222,128,0.5); color:#86efac;
     }
     .cmp-period-chip.has-data.active {
-      background:linear-gradient(135deg,#4ade80,#4aeaff); color:#0a0c14;
+      background:linear-gradient(135deg, #4ade80, var(--accent)); color:#fff;
+    }
+    .cmp-year-sel {
+      background:var(--bg3); color:var(--text); border:1px solid var(--border);
+      border-radius:6px; padding:4px 8px; font-size:.82rem; cursor:pointer;
+    }
+    .cmp-sep {
+      width:1px; height:18px; background:var(--border); margin:0 2px;
+    }
+    .cmp-tb-label {
+      font-size:.75rem; color:var(--dim);
     }
     .cmp-current-tag {
-      font-size:13px; color:#4aeaff; font-weight:700;
-      background:rgba(74,234,255,0.1); padding:5px 12px; border-radius:6px;
-      border:1px solid rgba(74,234,255,0.3); flex:1; min-width:200px;
+      font-size:.78rem; color:var(--accent); margin-left:auto;
+      padding:3px 8px; border-radius:6px;
+      background:rgba(74,234,255,0.06); border:1px solid rgba(74,234,255,0.25);
     }
-    .cmp-save-btn {
-      padding:6px 16px; background:linear-gradient(135deg,rgba(74,222,128,0.2),rgba(74,234,255,0.1));
-      border:1px solid rgba(74,222,128,0.5); color:#4ade80;
-      border-radius:6px; cursor:pointer; font-size:13px; font-weight:800; transition:all .15s;
+    .cmp-save-btn, .cmp-clear-btn {
+      background:linear-gradient(135deg, rgba(74,234,255,.15), rgba(167,139,250,.1));
+      border:1px solid var(--border-hi); color:var(--accent);
+      font-size:.82rem; padding:5px 12px; border-radius:8px;
+      cursor:pointer; font-weight:700; transition:all .2s;
     }
-    .cmp-save-btn:hover {
-      background:linear-gradient(135deg,rgba(74,222,128,0.3),rgba(74,234,255,0.2));
-      transform:translateY(-1px); box-shadow:0 3px 10px rgba(74,222,128,0.25);
+    .cmp-save-btn:hover, .cmp-clear-btn:hover {
+      background:rgba(74,234,255,.2);
     }
     .cmp-clear-btn {
-      padding:6px 12px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.4);
-      color:#ff8a8a; border-radius:6px; cursor:pointer; font-size:12.5px; font-weight:700;
+      background:rgba(255,107,107,.08); border-color:rgba(255,107,107,.35); color:#ff8a8a;
     }
-    .cmp-clear-btn:hover { background:rgba(239,68,68,0.2); }
+    .cmp-clear-btn:hover { background:rgba(255,107,107,.15); }
     .cmp-archive-chips {
-      background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.25);
-      border-radius:8px; padding:10px 12px;
+      width:100%; margin-top:4px; padding:0;
+      display:flex; align-items:center; gap:6px; flex-wrap:wrap;
     }
-    .cmp-archive-label {
-      font-size:11px; color:rgba(180,255,200,0.7); margin-bottom:7px; font-weight:600;
-    }
-    .cmp-archive-list { display:flex; flex-wrap:wrap; gap:6px; }
+    .cmp-archive-label { font-size:.72rem; color:var(--dim); }
     .cmp-archive-chip {
-      padding:4px 10px; background:rgba(74,222,128,0.12); border:1px solid rgba(74,222,128,0.4);
-      color:#86efac; border-radius:12px; cursor:pointer; font-size:11.5px; font-weight:600;
-      display:inline-flex; align-items:center; gap:4px;
+      padding:3px 9px; background:rgba(74,222,128,0.08);
+      border:1px solid rgba(74,222,128,0.32);
+      color:#86efac; border-radius:12px; cursor:pointer;
+      font-size:.74rem; font-weight:600;
+      display:inline-flex; align-items:center; gap:3px;
+      transition:all .15s;
     }
-    .cmp-archive-chip:hover { background:rgba(74,222,128,0.22); transform:translateY(-1px); }
-    .cmp-archive-chip.active { background:#4ade80; color:#0a0c14; border-color:transparent; }
+    .cmp-archive-chip:hover { background:rgba(74,222,128,0.18); }
+    .cmp-archive-chip.active { background:rgba(74,222,128,0.32); border-color:#4ade80; }
     .cmp-archive-del {
       background:transparent; border:none; color:inherit; cursor:pointer;
-      font-size:10px; opacity:0.6; padding:0 0 0 2px;
+      font-size:.7rem; opacity:0.5; padding:0 0 0 2px;
     }
     .cmp-archive-del:hover { opacity:1; color:#ff6b6b; }
 
     /* 白天模式 */
-    body.day-mode .cmp-toolbar { background:#fff; border-color:#e5e5ea; }
-    body.day-mode .cmp-tb-label { color:#6e6e73; }
-    body.day-mode .cmp-tb-divider { background:#d2d2d7; }
-    body.day-mode .cmp-mode-btn { background:#f5f5f7; border-color:#d2d2d7; color:#515154; }
-    body.day-mode .cmp-mode-btn:hover { color:#1d1d1f; background:#e8e8ed; }
-    body.day-mode .cmp-mode-btn.active { background:linear-gradient(135deg,#0071e3,#5e9bff); color:#fff; }
-    body.day-mode .cmp-year-sel { background:#fff; border-color:#d2d2d7; color:#1d1d1f; }
-    body.day-mode .cmp-period-chip { background:#f5f5f7; border-color:#d2d2d7; color:#515154; }
-    body.day-mode .cmp-period-chip:hover { color:#1d1d1f; background:#e8e8ed; }
-    body.day-mode .cmp-period-chip.active { background:linear-gradient(135deg,#0071e3,#5e9bff); color:#fff; }
-    body.day-mode .cmp-period-chip.has-data { background:rgba(52,199,89,0.12); border-color:rgba(52,199,89,0.5); color:#1f8a3a; }
-    body.day-mode .cmp-current-tag { background:rgba(0,113,227,0.08); color:#0050a8; border-color:rgba(0,113,227,0.3); }
-    body.day-mode .cmp-save-btn { color:#1f8a3a; border-color:rgba(52,199,89,0.5); }
-    body.day-mode .cmp-clear-btn { color:#d70015; border-color:rgba(255,59,48,0.4); }
-    body.day-mode .cmp-archive-chips { background:#f0fdf4; border-color:#bbf7d0; }
-    body.day-mode .cmp-archive-label { color:#1f8a3a; }
-    body.day-mode .cmp-archive-chip { background:#dcfce7; border-color:#86efac; color:#15803d; }
+    body.day-mode .cmp-mode-btn,
+    body.day-mode .cmp-period-chip { background:rgba(255,255,255,.7); color:#86868b; border-color:rgba(210,210,215,.4); }
+    body.day-mode .cmp-mode-btn:hover,
+    body.day-mode .cmp-period-chip:hover { color:#1d1d1f; background:rgba(245,245,247,.6); }
+    body.day-mode .cmp-mode-btn.active,
+    body.day-mode .cmp-period-chip.active { background:linear-gradient(135deg, #d2d2d7, #0071e3); color:#fff; }
+    body.day-mode .cmp-period-chip.has-data { color:#1f8a3a; border-color:rgba(52,199,89,0.5); }
+    body.day-mode .cmp-year-sel { background:rgba(255,255,255,.7); color:#1d1d1f; border-color:rgba(210,210,215,.4); }
+    body.day-mode .cmp-tb-label { color:#86868b; }
+    body.day-mode .cmp-current-tag { color:#0050a8; background:rgba(0,113,227,.06); border-color:rgba(0,113,227,.25); }
+    body.day-mode .cmp-save-btn { background:rgba(0,113,227,.12); border-color:rgba(0,113,227,.35); color:#0050a8; }
+    body.day-mode .cmp-clear-btn { background:rgba(255,59,48,.08); border-color:rgba(255,59,48,.32); color:#d70015; }
+    body.day-mode .cmp-archive-chip { background:rgba(52,199,89,.1); border-color:rgba(52,199,89,.4); color:#15803d; }
+    body.day-mode .cmp-archive-label { color:#86868b; }
+    body.day-mode .cmp-sep { background:rgba(210,210,215,.4); }
 
     .edit-controls {
       display: flex;
@@ -1742,30 +1723,21 @@
     <div class="content-max">
       <!-- Tab 0: Comparison -->
       <div class="tab-content active" id="tab-0">
-        <!-- ★ 期間選擇 + 儲存 工具列 -->
-        <div class="cmp-toolbar">
-          <div class="cmp-tb-row">
-            <span class="cmp-tb-label">期間類型</span>
-            <button class="cmp-mode-btn active" id="cmpModeMonth" onclick="cmpSetMode('month')">📅 月</button>
-            <button class="cmp-mode-btn" id="cmpModeQuarter" onclick="cmpSetMode('quarter')">📊 季</button>
-            <span class="cmp-tb-divider"></span>
-            <span class="cmp-tb-label">年份</span>
-            <select class="cmp-year-sel" id="cmpYearSel" onchange="cmpSetYear(this.value)"></select>
-          </div>
-          <div class="cmp-tb-row">
-            <span class="cmp-tb-label">期間</span>
-            <div class="cmp-period-chips" id="cmpPeriodChips"></div>
-          </div>
-          <div class="cmp-tb-row">
-            <span class="cmp-current-tag" id="cmpCurrentTag">目前編輯: —</span>
-            <button class="edit-btn" id="editBtn" onclick="toggleEditMode()">✏️ 編輯</button>
-            <button class="cmp-save-btn" onclick="cmpSaveSnapshot()" title="把目前畫面內容存進對應月/季的儲存槽">💾 儲存到此期間</button>
-            <button class="cmp-clear-btn" onclick="cmpClearCurrent()" title="清空目前期間,重新開始輸入">🗑 清空</button>
-          </div>
-          <!-- 📂 已儲存月份/季的 chip 列表 -->
+        <!-- ★ 期間選擇 + 儲存 工具列(精簡風) -->
+        <div class="cmp-toolbar" id="cmpToolbar">
+          <button class="cmp-mode-btn active" id="cmpModeMonth" onclick="cmpSetMode('month')">📅 月</button>
+          <button class="cmp-mode-btn" id="cmpModeQuarter" onclick="cmpSetMode('quarter')">📊 季</button>
+          <select class="cmp-year-sel" id="cmpYearSel" onchange="cmpSetYear(this.value)"></select>
+          <span class="cmp-sep"></span>
+          <div id="cmpPeriodChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+          <span class="cmp-current-tag" id="cmpCurrentTag">未選期間</span>
+          <button class="edit-btn" id="editBtn" onclick="toggleEditMode()">✏️ 編輯</button>
+          <button class="cmp-save-btn" onclick="cmpSaveSnapshot()" title="把目前畫面內容存進對應月/季的儲存槽">💾 儲存</button>
+          <button class="cmp-clear-btn" onclick="cmpClearCurrent()" title="清空目前期間,重新開始輸入">🗑</button>
+          <!-- 📂 已儲存月份/季 chip 列表(整列獨佔) -->
           <div class="cmp-archive-chips" id="cmpArchiveChips" style="display:none;">
-            <div class="cmp-archive-label">📂 已儲存歷史 (點即載入)：</div>
-            <div class="cmp-archive-list" id="cmpArchiveList"></div>
+            <span class="cmp-archive-label">📂 歷史:</span>
+            <div class="cmp-archive-list" id="cmpArchiveList" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
           </div>
         </div>
         <div id="comparisonContainer"></div>
@@ -2276,7 +2248,13 @@
       // 目前期間 tag
       var tag = document.getElementById('cmpCurrentTag');
       if(tag){
-        tag.textContent = '目前編輯: ' + (data.currentPeriod ? _periodLabel(data.currentPeriod) : '— (請選期間)');
+        if(data.currentPeriod){
+          tag.textContent = '✏ ' + _periodLabel(data.currentPeriod);
+          tag.style.display = '';
+        } else {
+          tag.textContent = '未選期間';
+          tag.style.display = '';
+        }
       }
       // 已儲存歷史 chip bar
       var ar = document.getElementById('cmpArchiveChips');
