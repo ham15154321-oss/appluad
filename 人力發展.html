@@ -1781,17 +1781,17 @@
         </button>
       </div>
 
-      <!-- ★ 中央指揮台入口（僅超級管理員「黃柏翰」可見） -->
+      <!-- ★ 中央指揮台入口（黃柏翰 + 7 位學院主管可見） -->
       <div class="admin-section" id="centralCommandSection" style="display:none;margin-bottom:18px;border:2px solid rgba(167,139,250,0.4);background:linear-gradient(135deg,rgba(167,139,250,0.1),rgba(74,234,255,0.06));">
         <h3 style="color:#a78bfa;display:flex;align-items:center;gap:8px;">
           🏛️ 中央指揮台
-          <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:rgba(167,139,250,.15);color:#c7b9ff;border:1px solid rgba(167,139,250,.3);">超級管理員專屬</span>
+          <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:rgba(167,139,250,.15);color:#c7b9ff;border:1px solid rgba(167,139,250,.3);">CEO + 7 位學院主管</span>
         </h3>
         <div style="font-size:11px;color:#b9c3df;line-height:1.7;margin:8px 0 12px;">
-          一頁俯瞰全部 22 主角承諾任務 + 跨主角指派的看板。可改狀態、加管理員註記（公開到主角時間軸）、從這裡直接指派新任務給任一主角。<br>
-          <span style="color:#ffd700;">⚠️ 未來會加更多 CEO 視角的管理功能。</span>
+          一頁俯瞰全部 22 主角承諾任務 + 跨主角指派的看板。可改狀態、確認完成 / 確認未達成、加管理員註記（公開到主角時間軸）、從這裡直接指派新任務給任一主角。<br>
+          <span style="color:#ffd700;">⚠️ 過期未完成的任務可「❌ 確認未達成」存入主角成就檔案,追蹤食言記錄。</span>
         </div>
-        <button class="admin-save-btn" style="width:100%;padding:14px;font-size:15px;background:linear-gradient(135deg,#a78bfa,#4aeaff);color:#0a0c14;letter-spacing:2px;font-weight:800;" onclick="adminNav('central-command.html?v=v3')">
+        <button class="admin-save-btn" style="width:100%;padding:14px;font-size:15px;background:linear-gradient(135deg,#a78bfa,#4aeaff);color:#0a0c14;letter-spacing:2px;font-weight:800;" onclick="adminNav('central-command.html?v=v4')">
           🏛️ 進入中央指揮台
         </button>
       </div>
@@ -2589,9 +2589,16 @@ function openAdmin(){
 // ★ 控制「審計記錄」「AI 顧問中心」等管理員區塊是否顯示
 function updateAuditAdminVisibility(){
   const ADMINS = ['黃柏翰'];  // 想加更多管理員就加進這個 array
+  // ★ 中央指揮台:黃柏翰 + 7 位學院主管都能進
+  const SUPERVISORS = ['黃柏翰','王志軒','楊雅晴','洪士德','黎禹歆','林昭宏','凃敏薰','蔡青倚'];
   const cn = localStorage.getItem('activeCharacterName') || '';
   const isAdmin = ADMINS.indexOf(cn) >= 0;
-  ['centralCommandSection','adminAiCenterSection','aiRulesAdminSection','auditAdminSection','accountsAdminSection'].forEach(function(id){
+  const isSupervisor = SUPERVISORS.indexOf(cn) >= 0;
+  // 中央指揮台 = 8 人都看得到
+  var ccSec = document.getElementById('centralCommandSection');
+  if(ccSec) ccSec.style.display = isSupervisor ? 'block' : 'none';
+  // 其他超管功能 = 只黃柏翰
+  ['adminAiCenterSection','aiRulesAdminSection','auditAdminSection','accountsAdminSection'].forEach(function(id){
     const sec = document.getElementById(id);
     if(sec) sec.style.display = isAdmin ? 'block' : 'none';
   });
@@ -3163,7 +3170,7 @@ function closeSubpage(){document.getElementById('subpageOverlay').classList.remo
 // ========== 成就解鎖 ==========
 function openAchievement(){
   stopBgm();
-  document.getElementById('achieveFrame').src='achievement-unlock.html?v=tz2';
+  document.getElementById('achieveFrame').src='achievement-unlock.html?v=tz5';
   document.getElementById('achieveOverlay').classList.add('active');
 }
 function closeAchievement(){
@@ -3367,7 +3374,7 @@ async function syncFromCastleCards(){
 // ========== 指揮城堡 ==========
 function openCastle(){
   stopBgm();
-  document.getElementById('castleFrame').src='castle-cards.html?v=apple2';
+  document.getElementById('castleFrame').src='castle-cards.html?v=apple3';
   document.getElementById('castleOverlay').classList.add('active');
 }
 async function closeCastle(){

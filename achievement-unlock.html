@@ -211,9 +211,24 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
 .msg-empty{text-align:center;padding:60px;color:var(--dim);}
 
 /* ══════ 💎 任務檔案 ══════ */
-.tarc-head{max-width:1100px;margin:0 auto 18px;padding:0 6px;}
+.tarc-head{max-width:1100px;margin:0 auto 14px;padding:0 6px;}
 .tarc-h2{font-size:22px;font-weight:800;color:var(--text);margin:0 0 6px;letter-spacing:1px;}
 .tarc-sub{font-size:13px;color:var(--dim);line-height:1.7;margin:0;}
+.tarc-filter-row{max-width:1100px;margin:0 auto 12px;display:flex;gap:8px;padding:0 6px;}
+.tarc-fbtn{padding:7px 16px;background:transparent;border:1px solid var(--border);border-radius:18px;color:var(--dim);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;}
+.tarc-fbtn:hover{color:var(--text);border-color:var(--border-hi);}
+.tarc-fbtn.on{background:linear-gradient(135deg,#4aeaff,#a78bfa);color:#0a0c14;border-color:transparent;font-weight:800;}
+body.day-mode .tarc-fbtn{border:1px solid #d2d2d7;color:#515154;background:#fff;}
+body.day-mode .tarc-fbtn:hover{background:#f5f5f7;color:#1d1d1f;}
+body.day-mode .tarc-fbtn.on{background:linear-gradient(135deg,#0071e3,#5e9bff);color:#fff;border-color:transparent;}
+/* 失敗卡片 — 紅色醒目 */
+.tarc-card.failed{background:linear-gradient(135deg,rgba(239,68,68,0.10),rgba(239,68,68,0.04));border:1px solid rgba(239,68,68,0.45);}
+.tarc-card.failed::before{background:#ef4444;}
+.tarc-card.failed:hover{border-color:#ef4444;box-shadow:0 8px 26px rgba(239,68,68,.25);}
+.tc-when .tc-failed-badge{background:rgba(239,68,68,.32);color:#fff;border:1px solid rgba(239,68,68,.7);font-weight:800;}
+body.day-mode .tarc-card.failed{background:#fff5f5;border-color:#d70015;box-shadow:0 2px 8px rgba(215,0,21,.12);}
+body.day-mode .tarc-card.failed:hover{box-shadow:0 8px 24px rgba(215,0,21,.22);}
+body.day-mode .tc-when .tc-failed-badge{background:#d70015;color:#fff;border-color:#d70015;}
 .tarc-summary{max-width:1100px;margin:0 auto 14px;display:flex;flex-wrap:wrap;gap:10px;font-size:12.5px;color:var(--dim);}
 .tarc-summary .pill{padding:5px 14px;background:rgba(74,234,255,.1);border:1px solid var(--border-hi);border-radius:14px;color:var(--accent);}
 .tarc-summary .pill b{color:var(--text);font-weight:700;margin-left:4px;}
@@ -564,15 +579,20 @@ body.day-mode .tm-content-box{background:#fbfbfd;border-color:#e5e5ea;color:#1d1
 <!-- ══════ 💎 任務檔案 ══════ -->
 <div id="page-taskarchive" class="page">
   <div class="tarc-head">
-    <h2 class="tarc-h2">💎 任務完成檔案</h2>
-    <p class="tarc-sub">由你完成的所有任務 — 從中央指揮台、AI 顧問中心時間軸自動匯入。<b>活同步</b>：之後你或黃柏翰加新 Google 連結、改內容，這裡也會跟著更新。</p>
+    <h2 class="tarc-h2">💎 任務檔案</h2>
+    <p class="tarc-sub">所有完成的 ✅ 和被標記未達成的 ❌ 任務 — 從中央指揮台、AI 顧問中心時間軸自動匯入。<b>活同步</b>：之後你或主管加新 Google 連結、改內容，這裡也會跟著更新。</p>
+  </div>
+  <div class="tarc-filter-row" id="tarcFilterRow">
+    <button class="tarc-fbtn on" data-filter="all" onclick="setTarcFilter('all')">📋 全部</button>
+    <button class="tarc-fbtn" data-filter="done" onclick="setTarcFilter('done')">✅ 完成</button>
+    <button class="tarc-fbtn" data-filter="failed" onclick="setTarcFilter('failed')">❌ 未達成</button>
   </div>
   <div class="tarc-summary" id="tarcSummary"></div>
   <div class="tarc-grid" id="tarcGrid"></div>
   <div class="tarc-empty" id="tarcEmpty" style="display:none;">
     <div class="te-ico">🌱</div>
-    <div class="te-title">尚未有完成的任務</div>
-    <div class="te-sub">當你在「AI 顧問中心 → 時間軸」把任務改成 <b>✅ 完成</b>，或黃柏翰在「中央指揮台」把你的任務拖到「✅ 已完成」欄位時，這裡會自動記錄並永久保存。</div>
+    <div class="te-title">尚未有完成或未達成的任務</div>
+    <div class="te-sub">當你在「AI 顧問中心 → 時間軸」把任務改成 <b>✅ 完成</b>（主管確認後）、或主管在「中央指揮台」把過期任務按「❌ 確認未達成」時，這裡會自動記錄並永久保存。</div>
   </div>
 </div>
 
@@ -802,16 +822,51 @@ function save(){
   var sharedYt = { ytVideos: D.ytVideos||[], ytCategories: D.ytCategories||[] };
   var perCharD = Object.assign({}, D, {ytVideos:[]});  // 角色專屬不含影片，避免重複
 
-  // 立刻更新 cache
-  window._achCache = window._achCache || {};
-  window._achCache[SHARED_YT_SK] = sharedYt;
-  window._achCache[getSK()] = perCharD;
+  // ★★★ 修 cache 覆寫 bug:
+  //   task-archive.js (中央指揮台) 寫進 IDB 的 taskArchive 可能比 D.taskArchive 新。
+  //   若直接寫 perCharD,會把 IDB 中的新 entry 覆寫掉(因為本地 D.taskArchive 是 stale)。
+  //   修法:寫之前先從 IDB 讀最新 taskArchive,合併 (IDB 為基底 + D 中獨有的加進來,以 taskId 去重)。
+  _achOpenDB().then(function(db){
+    return new Promise(function(res){
+      try{
+        var tx = db.transaction(ACH_STORE,'readonly');
+        var g = tx.objectStore(ACH_STORE).get(getSK());
+        g.onsuccess = function(){ try{db.close();}catch(_){} res(g.result||null); };
+        g.onerror   = function(){ try{db.close();}catch(_){} res(null); };
+      }catch(e){ try{db.close();}catch(_){} res(null); }
+    });
+  }).catch(function(){return null;}).then(function(latest){
+    var idbArc = (latest && Array.isArray(latest.taskArchive)) ? latest.taskArchive : [];
+    var localArc = Array.isArray(perCharD.taskArchive) ? perCharD.taskArchive : [];
+    // 合併: IDB 為基底(因為 central-command 等地方剛寫進),D 中獨有的補進來,taskId 去重
+    var seen = {};
+    var merged = [];
+    idbArc.forEach(function(a){
+      if(!a) return;
+      var k = a.taskId || a.id || ('_'+merged.length);
+      if(seen[k]) return; seen[k] = 1;
+      merged.push(a);
+    });
+    localArc.forEach(function(a){
+      if(!a) return;
+      var k = a.taskId || a.id || ('_'+merged.length);
+      if(seen[k]) return; seen[k] = 1;
+      merged.push(a);
+    });
+    perCharD.taskArchive = merged;
+    D.taskArchive = merged;  // 同步更新記憶體
 
-  // async 寫 IDB
-  Promise.all([
-    _achSaveOne(SHARED_YT_SK, sharedYt),
-    _achSaveOne(getSK(), perCharD)
-  ]).then(function(){
+    // 立刻更新 cache
+    window._achCache = window._achCache || {};
+    window._achCache[SHARED_YT_SK] = sharedYt;
+    window._achCache[getSK()] = perCharD;
+
+    // async 寫 IDB
+    return Promise.all([
+      _achSaveOne(SHARED_YT_SK, sharedYt),
+      _achSaveOne(getSK(), perCharD)
+    ]);
+  }).then(function(){
     // 觸發 firebase push（IDB 也會同步雲端）
     try {
       var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;
@@ -907,17 +962,53 @@ const DIMS = [
 ];
 
 function getAssessmentScores(){
-  // 從 360度能力檢核 的 localStorage 讀取「自評」分數
+  // 從 360度能力檢核 讀分數
+  // ★ 修法 2026/05: 跟 人力發展.html 的 dashboard 一致 — 優先 _manager(主管打的)
+  //   → 然後 _self(自評) → 然後無後綴(舊資料) → 嘗試 parent LS 同樣順序
+  //   也每次重新讀 activeCharacterId(切角色時不會卡舊 ID)
+  function _pick(scores){
+    if(!scores) return null;
+    // 防禦:DIMS 用數字 1-6 當 id,但 360 寫入可能存成字串 "1"-"6" → 兼容
+    var out = {};
+    for(var i=1;i<=6;i++){
+      out[i] = scores[i] != null ? scores[i] : (scores[String(i)] != null ? scores[String(i)] : 0);
+    }
+    return out;
+  }
+  function _readChain(store, baseKey){
+    var keys = [baseKey+'_manager', baseKey+'_self', baseKey];
+    for(var i=0;i<keys.length;i++){
+      try{
+        var raw = store.getItem(keys[i]);
+        if(!raw) continue;
+        var state = JSON.parse(raw);
+        if(state && state.scores){
+          var picked = _pick(state.scores);
+          // 全 0 視為「沒分數」,繼續下一個 source
+          var nonZero = false;
+          for(var j=1;j<=6;j++) if(picked[j]>0){ nonZero=true; break; }
+          if(nonZero) return picked;
+        }
+      }catch(e){}
+    }
+    return null;
+  }
   try{
-    const cid=_cachedCharId;
-    const baseKey=cid!=null?'char_'+cid+'_appedu_leader_map_v1':'appedu_leader_map_v1';
-    // 讀自評分數，fallback 到舊的無後綴 key
-    const raw=localStorage.getItem(baseKey+'_self')||localStorage.getItem(baseKey);
-    if(raw){const state=JSON.parse(raw);if(state.scores)return state.scores;}
-    // 嘗試從 parent 取（因為是 iframe 嵌套）
-    const raw2=window.parent.localStorage.getItem(baseKey+'_self')||window.parent.localStorage.getItem(baseKey);
-    if(raw2){const state2=JSON.parse(raw2);if(state2.scores)return state2.scores;}
-  }catch(e){}
+    // 每次重讀 cid (主角切換後不會卡舊 ID)
+    var cid = localStorage.getItem('activeCharacterId') || _cachedCharId;
+    var baseKey = cid != null ? 'char_'+cid+'_appedu_leader_map_v1' : 'appedu_leader_map_v1';
+    // 自己 window LS
+    var s1 = _readChain(localStorage, baseKey);
+    if(s1) return s1;
+    // parent LS (iframe 嵌套時)
+    if(window.parent && window.parent !== window){
+      try{
+        var s2 = _readChain(window.parent.localStorage, baseKey);
+        if(s2) return s2;
+      }catch(e){}
+    }
+    console.warn('[radar] 找不到任何 360 分數 — cid='+cid+', baseKey='+baseKey);
+  }catch(e){ console.warn('[radar] getAssessmentScores 失敗', e); }
   return {1:0,2:0,3:0,4:0,5:0,6:0};
 }
 
@@ -1664,6 +1755,14 @@ function _ta_readLiveTask(sourceKey, taskId){
   return null;
 }
 var _taCachedRecords = []; // [{archive, live}]
+var _taFilter = 'all'; // 'all' | 'done' | 'failed'
+function setTarcFilter(f){
+  _taFilter = f;
+  document.querySelectorAll('.tarc-fbtn').forEach(function(b){
+    b.classList.toggle('on', b.dataset.filter === f);
+  });
+  _ta_renderNow();
+}
 
 // 強制從 IDB 重新讀取最新的 taskArchive(以防其他頁面剛寫入)
 async function _ta_reloadFromIDB(){
@@ -1697,8 +1796,8 @@ function renderTaskArchive(){
 
 function _ta_renderNow(){
   var arr = Array.isArray(D.taskArchive) ? D.taskArchive : [];
-  // 排序: completedAt desc
-  arr = arr.slice().sort(function(a,b){ return (b.completedAt||0) - (a.completedAt||0); });
+  // 排序: 未達成的(failedAt) + 完成的(completedAt) 都用 archivedAt desc 統一排
+  arr = arr.slice().sort(function(a,b){ return (b.archivedAt||b.completedAt||b.failedAt||0) - (a.archivedAt||a.completedAt||a.failedAt||0); });
   _taCachedRecords = arr.map(function(a){
     var live = _ta_readLiveTask(a.sourceKey, a.taskId);
     return { archive:a, live:live };
@@ -1716,31 +1815,71 @@ function _ta_renderNow(){
   }
   empty.style.display = 'none';
 
-  var deletedCnt=0, reopenedCnt=0;
+  // 判斷每筆「實際狀態」(活同步邏輯):
+  //   live 存在 → 用 live.status 為主 (因為主角後來做完了就 done,被改回就 pending/doing)
+  //   live 不存在 → 用 archive.failed 區分 failed/done
+  function _effState(r){
+    if(r.live && r.live.status){
+      if(r.live.status === 'done') return 'done';
+      if(r.live.status === 'failed') return 'failed';
+      return 'reopened';  // pending/doing/declared_done = 改回待辦
+    }
+    // 原任務已刪 → 用 archive 的記錄
+    return r.archive.failed ? 'failed' : 'done';
+  }
+
+  var doneCnt=0, failedCnt=0, reopenedCnt=0, deletedCnt=0;
   _taCachedRecords.forEach(function(r){
+    var st = _effState(r);
     if(!r.live) deletedCnt++;
-    else if(r.live.status && r.live.status !== 'done') reopenedCnt++;
+    if(st === 'done') doneCnt++;
+    else if(st === 'failed') failedCnt++;
+    else if(st === 'reopened') reopenedCnt++;
   });
   sum.innerHTML =
-    '<span class="pill">完成任務 <b>'+_taCachedRecords.length+'</b> 件</span>'
-    +(deletedCnt?'<span class="pill" style="background:rgba(255,107,107,.12);color:#ff8a8a;border-color:rgba(255,107,107,.35);">⚠️ 原任務已刪除 <b>'+deletedCnt+'</b></span>':'')
-    +(reopenedCnt?'<span class="pill" style="background:rgba(255,200,80,.12);color:#ffd97a;border-color:rgba(255,200,80,.35);">⚠️ 已被改回待辦 <b>'+reopenedCnt+'</b></span>':'');
+    '<span class="pill">✅ 完成 <b>'+doneCnt+'</b></span>'
+    +(failedCnt?'<span class="pill" style="background:rgba(239,68,68,.14);color:#ff8a8a;border-color:rgba(239,68,68,.4);">❌ 未達成 <b>'+failedCnt+'</b></span>':'')
+    +(reopenedCnt?'<span class="pill" style="background:rgba(255,200,80,.12);color:#ffd97a;border-color:rgba(255,200,80,.35);">⚠️ 已被改回待辦 <b>'+reopenedCnt+'</b></span>':'')
+    +(deletedCnt?'<span class="pill" style="background:rgba(255,107,107,.12);color:#ff8a8a;border-color:rgba(255,107,107,.35);">⚠️ 原任務已刪除 <b>'+deletedCnt+'</b></span>':'');
 
-  grid.innerHTML = _taCachedRecords.map(function(r, idx){
+  // 過濾(篩選鈕)
+  var filtered = _taCachedRecords.filter(function(r){
+    if(_taFilter === 'all') return true;
+    var st = _effState(r);
+    return st === _taFilter;
+  });
+
+  if(!filtered.length){
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--dim);">此分類下尚無資料</div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(function(r){
+    var idx = _taCachedRecords.indexOf(r);
     var src = r.live || r.archive.snapshot || {};
     var title = src.title || src.task || '(未命名)';
     var content = src.content || '';
     var evCount = (Array.isArray(src.evidenceLinks) ? src.evidenceLinks.length : 0);
     var admCount = (Array.isArray(src.adminLog) ? src.adminLog.length : 0);
-    var completedDate = new Date(r.archive.completedAt||0).toLocaleDateString('zh-TW');
+    var st = _effState(r);
+    var ts = r.archive.archivedAt || r.archive.completedAt || r.archive.failedAt || 0;
+    var dateStr = new Date(ts).toLocaleDateString('zh-TW');
+    var label = (st==='done')?'✅ 完成':(st==='failed')?'❌ 未達成':'⚠️ 已改回待辦';
     var deletedBadge = !r.live ? '<span class="tc-badge tc-deleted-badge">⚠️ 原任務已刪除</span>' : '';
-    var reopenedBadge = (r.live && r.live.status && r.live.status !== 'done') ? '<span class="tc-badge tc-reopen-badge">⚠️ 已改回 '+escTA({pending:'待辦',doing:'進行中'}[r.live.status]||r.live.status)+'</span>' : '';
-    var clsExtra = !r.live ? ' deleted' : (reopenedBadge ? ' reopened' : '');
+    var failedBadge = (st === 'failed') ? '<span class="tc-badge tc-failed-badge">❌ 未達成</span>' : '';
+    var reopenedBadge = (st === 'reopened') ? '<span class="tc-badge tc-reopen-badge">⚠️ 已改回 '+escTA({pending:'待辦',doing:'進行中',declared_done:'待主管確認'}[r.live.status]||r.live.status)+'</span>' : '';
+    var clsExtra = '';
+    if(st === 'failed') clsExtra = ' failed';
+    else if(!r.live) clsExtra = ' deleted';
+    else if(st === 'reopened') clsExtra = ' reopened';
+
+    var failedReason = (st==='failed' && r.archive.failedReason) ? '<div style="margin-top:6px;font-size:11.5px;color:#ff9b9b;background:rgba(239,68,68,.08);padding:6px 9px;border-radius:6px;border-left:3px solid #ef4444;">未達成原因: '+escTA(r.archive.failedReason)+'</div>' : '';
 
     return '<div class="tarc-card'+clsExtra+'" onclick="openTarcModal('+idx+')">'
-      + '<div class="tc-when">📅 '+escTA(completedDate)+'　完成'+deletedBadge+reopenedBadge+'</div>'
+      + '<div class="tc-when">📅 '+escTA(dateStr)+'　'+escTA(label)+failedBadge+deletedBadge+reopenedBadge+'</div>'
       + '<h3 class="tc-title">'+escTA(title)+'</h3>'
       + (content?'<div style="font-size:12px;color:var(--dim);margin-bottom:8px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">'+escTA(content)+'</div>':'')
+      + failedReason
       + '<div class="tc-meta">'
       +   (evCount?'<span class="chip ev">📎 '+evCount+'</span>':'')
       +   (admCount?'<span class="chip adm">📝 '+admCount+'</span>':'')
@@ -1758,13 +1897,27 @@ function openTarcModal(idx){
   var content = src.content || '';
   var evArr = Array.isArray(src.evidenceLinks) ? src.evidenceLinks : [];
   var admArr = Array.isArray(src.adminLog) ? src.adminLog : [];
-  var completedDate = new Date(r.archive.completedAt||0).toLocaleString('zh-TW',{hour12:false});
-  var statusInfo = !r.live ? '<div style="background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);padding:9px 12px;border-radius:8px;font-size:12px;color:#ff8a8a;margin-bottom:14px;">⚠️ 原任務已被刪除 — 以下為存檔當下凍結快照</div>'
-    : (r.live.status && r.live.status !== 'done') ? '<div style="background:rgba(255,200,80,.1);border:1px solid rgba(255,200,80,.35);padding:9px 12px;border-radius:8px;font-size:12px;color:#ffd97a;margin-bottom:14px;">⚠️ 原任務已被改回「'+escTA({pending:'待辦',doing:'進行中'}[r.live.status]||r.live.status)+'」狀態 — 成就記錄仍保留(曾完成過)</div>'
-    : '<div style="background:rgba(74,234,255,.08);border:1px solid rgba(74,234,255,.3);padding:9px 12px;border-radius:8px;font-size:12px;color:var(--accent);margin-bottom:14px;">✅ 活同步中 — 顯示原任務的最新內容</div>';
+  var isFailed = r.archive.failed && (!r.live || r.live.status === 'failed');
+  var isReopened = r.live && r.live.status && r.live.status !== 'done' && r.live.status !== 'failed';
+  var stampDate = new Date(r.archive.archivedAt || r.archive.completedAt || r.archive.failedAt || 0).toLocaleString('zh-TW',{hour12:false});
+  var stampLabel = isFailed ? '❌ 未達成於' : '📅 完成於';
+
+  var statusInfo;
+  if(isFailed){
+    statusInfo = '<div style="background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.4);padding:10px 14px;border-radius:8px;font-size:13px;color:#ff8a8a;margin-bottom:14px;font-weight:700;">❌ 未達成記錄'
+      + (r.archive.failedReason ? '<div style="font-size:12px;font-weight:400;margin-top:4px;opacity:0.9;">原因: '+escTA(r.archive.failedReason)+'</div>' : '')
+      + '<div style="font-size:11px;font-weight:400;margin-top:4px;opacity:0.7;">主管確認後存入此處,作為食言追蹤記錄。若任務後來完成 → 卡片會自動轉成綠色「✅ 完成」。</div>'
+      + '</div>';
+  } else if(!r.live){
+    statusInfo = '<div style="background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);padding:9px 12px;border-radius:8px;font-size:12px;color:#ff8a8a;margin-bottom:14px;">⚠️ 原任務已被刪除 — 以下為存檔當下凍結快照</div>';
+  } else if(isReopened){
+    statusInfo = '<div style="background:rgba(255,200,80,.1);border:1px solid rgba(255,200,80,.35);padding:9px 12px;border-radius:8px;font-size:12px;color:#ffd97a;margin-bottom:14px;">⚠️ 原任務已被改回「'+escTA({pending:'待辦',doing:'進行中',declared_done:'待主管確認'}[r.live.status]||r.live.status)+'」狀態 — 成就記錄仍保留</div>';
+  } else {
+    statusInfo = '<div style="background:rgba(74,234,255,.08);border:1px solid rgba(74,234,255,.3);padding:9px 12px;border-radius:8px;font-size:12px;color:var(--accent);margin-bottom:14px;">✅ 活同步中 — 顯示原任務的最新內容</div>';
+  }
 
   var html = statusInfo
-    + '<div style="font-size:11px;color:var(--dim);margin-bottom:4px;">📅 完成於 '+escTA(completedDate)+'</div>'
+    + '<div style="font-size:11px;color:var(--dim);margin-bottom:4px;">'+escTA(stampLabel)+' '+escTA(stampDate)+'</div>'
     + '<h2 style="font-size:20px;margin:0 0 12px;line-height:1.4;">'+escTA(title)+'</h2>';
 
   if(content){

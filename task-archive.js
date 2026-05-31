@@ -64,39 +64,29 @@
     }catch(e){}
   }
 
-  // === 對外 API ===
-  window.archiveTaskOnDone = async function(task, completerName){
+  // 內部:共用寫入邏輯(task + completerName + 是否 failed + 失敗理由)
+  async function _writeArchive(task, completerName, failedReason){
     if(!task || !task.id || !completerName) return false;
     var key = 'char_' + completerName + '_' + BASE_SK;
     var db;
     try{
       db = await openDB();
       var existing = await readKey(db, key);
-      // achievement-unlock.html 的資料結構是個物件,確保 taskArchive 在裡面
       if(!existing || typeof existing !== 'object') existing = {};
       if(!Array.isArray(existing.taskArchive)) existing.taskArchive = [];
 
-      // 去重: 同一 taskId 對同一完成者只存一次
+      // 去重: 同 taskId 對同人只存一次 (若已存在 → skip,等 live sync 反映新狀態)
       var already = existing.taskArchive.some(function(a){ return a && a.taskId === task.id; });
       if(already){ try{ db.close(); }catch(_){} return false; }
 
-      // sourceKey: 從哪讀原任務 (供活同步用)
       var sourceKey;
-      // 若任務本身有 _sourceKey (central-command 注入) → 直接用
-      if(task._sourceKey){
-        sourceKey = task._sourceKey;
-      } else if(task._isReceived || task._originalOwner){
-        // 受指派任務 (ai-advisor 端)
-        sourceKey = 'cross_task_' + task.id;
-      } else {
-        // 自己時間軸的任務
-        sourceKey = 'char_' + completerName + '_ai_timeline_v1';
-      }
+      if(task._sourceKey) sourceKey = task._sourceKey;
+      else if(task._isReceived || task._originalOwner) sourceKey = 'cross_task_' + task.id;
+      else sourceKey = 'char_' + completerName + '_ai_timeline_v1';
 
-      // snapshot 凍結當下完整狀態 (原任務刪除時 fallback 顯示)
       var snapshot = {};
       Object.keys(task).forEach(function(k){
-        if(k.charAt(0)==='_') return; // 過濾內部欄位 _ownerName / _sourceKey / _isCross 等
+        if(k.charAt(0)==='_') return;
         snapshot[k] = task[k];
       });
 
@@ -105,14 +95,17 @@
         taskId: task.id,
         ownerName: completerName,
         sourceKey: sourceKey,
-        completedAt: Date.now(),
+        completedAt: failedReason ? 0 : Date.now(),   // failed 沒有完成時間
+        failedAt: failedReason ? Date.now() : 0,
+        failed: !!failedReason,
+        failedReason: failedReason || '',
         archivedAt: Date.now(),
         snapshot: snapshot
       });
 
       await writeKey(db, key, existing);
       try{ db.close(); }catch(_){}
-      console.log('[task-archive] ✅ 已存入 '+completerName+' 的成就 store: '+task.id);
+      console.log('[task-archive] '+(failedReason?'❌ 未達成':'✅ 完成')+' 已存入 '+completerName+': '+task.id);
       triggerSync();
       return true;
     }catch(e){
@@ -120,5 +113,15 @@
       try{ db && db.close(); }catch(_){}
       return false;
     }
+  }
+
+  // === 對外 API ===
+  // ✅ 完成歸檔
+  window.archiveTaskOnDone = function(task, completerName){
+    return _writeArchive(task, completerName, '');
+  };
+  // ❌ 未達成歸檔 (黃柏翰確認後寫入,紅卡呈現)
+  window.archiveTaskAsFailed = function(task, completerName, reason){
+    return _writeArchive(task, completerName, reason || '未指定理由');
   };
 })();

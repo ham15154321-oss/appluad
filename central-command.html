@@ -250,6 +250,14 @@ body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkM
   background:rgba(167,139,250,0.20); color:#c7b9ff; border:1px solid rgba(167,139,250,0.4);
   animation: pulse 2.6s ease-in-out infinite;
 }
+.failed-chip {
+  font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px;
+  background:rgba(239,68,68,0.32); color:#fff; border:1px solid rgba(239,68,68,0.6);
+  text-shadow:0 0 4px rgba(239,68,68,0.5);
+}
+body.day-mode .failed-chip {
+  background:#d70015; color:#fff; border-color:#d70015; text-shadow:none;
+}
 @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.6;} }
 .recommit-chip {
   font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px;
@@ -708,6 +716,7 @@ body.day-mode .deny p { color:#6e6e73; }
           <option value="doing">🚀 進行中</option>
           <option value="declared_done">⏳ 主角宣告完成(待確認)</option>
           <option value="done">✅ 已完成</option>
+          <option value="failed">❌ 未達成 (黃柏翰確認失敗)</option>
         </select>
       </div>
       <div>
@@ -757,6 +766,7 @@ body.day-mode .deny p { color:#6e6e73; }
 
     <div class="modal-buttons">
       <button class="btn danger" onclick="deleteTask()">🗑 刪除任務</button>
+      <button class="btn" onclick="confirmFailed()" id="tmFailedBtn" style="background:rgba(239,68,68,0.18);border-color:rgba(239,68,68,0.5);color:#ff8a8a;font-weight:700;display:none;">❌ 確認未達成</button>
       <button class="btn ghost" onclick="closeModal('taskModal')">取消</button>
       <button class="btn primary" onclick="saveTask()">💾 儲存</button>
     </div>
@@ -805,9 +815,9 @@ body.day-mode .deny p { color:#6e6e73; }
 // ════════════════════════════════════════════════════════════════
 'use strict';
 
-var ADMINS = ['黃柏翰'];   // 只有黃柏翰能開中央指揮台
-// ★ 可以「確認主角宣告完成 / 確認重新宣告期限」的主管名單(黃柏翰 + 7 位學院主管)
+// ★ 黃柏翰 + 7 位學院主管 — 都可以進入中央指揮台、確認任務完成、確認重新宣告期限、標未達成
 var SUPERVISORS = ['黃柏翰', '王志軒', '楊雅晴', '洪士德', '黎禹歆', '林昭宏', '凃敏薰', '蔡青倚'];
+var ADMINS = SUPERVISORS;   // 8 人都能開中央指揮台
 function isSupervisor(name){ return SUPERVISORS.indexOf(name) >= 0; }
 
 // ── 跨環境 LS 存取（與 ai-advisor 一致）─────────
@@ -979,8 +989,8 @@ function renderBoard(){
   var overdueOnes = [];
   list.forEach(function(t){
     var st = t.status;
-    // ★ declared_done 不進主欄,只進 overdue 欄(待主管確認)
-    if(st === 'declared_done'){
+    // ★ declared_done / failed 不進主欄,只進 overdue 欄
+    if(st === 'declared_done' || st === 'failed'){
       overdueOnes.push(t);
       return;
     }
@@ -1016,13 +1026,15 @@ function renderBoard(){
   // 摘要列
   var total = TASKS.length, shown = list.length, overdue = overdueOnes.length;
   var declaredCnt = list.filter(function(x){return x.status==='declared_done';}).length;
+  var failedCnt = list.filter(function(x){return x.status==='failed';}).length;
   document.getElementById('summary').innerHTML =
     '<span>顯示 <b>'+shown+'</b> / 全部 <b>'+total+'</b></span>'
     +'<span>待辦 <b style="color:var(--pending);">'+byCol.pending.length+'</b></span>'
     +'<span>進行中 <b style="color:var(--doing);">'+byCol.doing.length+'</b></span>'
     +'<span>已完成 <b style="color:var(--done);">'+byCol.done.length+'</b></span>'
     +'<span>過期 <b style="color:var(--overdue);">'+overdue+'</b></span>'
-    +(declaredCnt>0?'<span>⏳ 待你確認 <b style="color:#c7b9ff;">'+declaredCnt+'</b></span>':'');
+    +(declaredCnt>0?'<span>⏳ 待你確認 <b style="color:#c7b9ff;">'+declaredCnt+'</b></span>':'')
+    +(failedCnt>0?'<span>❌ 未達成 <b style="color:#ff6b6b;">'+failedCnt+'</b></span>':'');
 
   // 側邊 badge
   var b = document.getElementById('navTasksBadge');
@@ -1045,6 +1057,9 @@ function buildCard(t, isEcho){
   // ★ declared_done → 「待主管確認」紫色 chip
   var declaredChip = t.status==='declared_done'
     ? '<span class="declared-chip" title="主角已宣告完成,等主管確認">⏳ 待主管確認</span>' : '';
+  // ★ failed → 「已標記未達成」紅色 chip(食言追蹤用)
+  var failedChip = t.status==='failed'
+    ? '<span class="failed-chip" title="黃柏翰已標記未達成">❌ 未達成</span>' : '';
   // ★ 主角宣告新期限,未被主管確認 → 黃色 chip
   var recommitPending = (t.recommitDeadline && !t.recommitConfirmedAt)
     ? '<span class="recommit-chip" title="主角宣告新期限,待主管確認">📅 主角宣告 '+esc(t.recommitDeadline)+'</span>' : '';
@@ -1063,7 +1078,7 @@ function buildCard(t, isEcho){
   d.innerHTML =
     '<div class="tcard-top">'
       +'<span class="owner-chip" style="background:'+ownerColor+'22;color:'+ownerColor+';border-color:'+ownerColor+'66;">'+esc(t._ownerName)+'</span>'
-      +crossLbl + overdue + declaredChip + recommitPending +
+      +crossLbl + overdue + declaredChip + failedChip + recommitPending +
     '</div>'
     +'<div class="tcard-title">'+esc(t.title||t.task||'(未命名任務)')+'</div>'
     +'<div class="tcard-meta">'+due
@@ -1164,7 +1179,7 @@ function changeStatus(t, newStatus){
   toast('✅ 已改成「'+statusLabel(newStatus)+'」');
 }
 function statusLabel(s){
-  return ({pending:'📋 待辦', doing:'🚀 進行中', declared_done:'⏳ 待主管確認', done:'✅ 已完成'})[s] || s;
+  return ({pending:'📋 待辦', doing:'🚀 進行中', declared_done:'⏳ 待主管確認', done:'✅ 已完成', failed:'❌ 未達成'})[s] || s;
 }
 
 // ── 觸發 firebase-sync 同步 ──────────────────────
@@ -1187,7 +1202,7 @@ function openTaskModal(t){
   document.getElementById('tmTitle').value   = t.title || t.task || '';
   document.getElementById('tmContent').value = t.content || '';
   var st = t.status;
-  if(['pending','doing','declared_done','done'].indexOf(st)<0) st = 'pending';
+  if(['pending','doing','declared_done','done','failed'].indexOf(st)<0) st = 'pending';
   document.getElementById('tmStatus').value  = st;
   document.getElementById('tmDeadline').value= t.deadline || '';
   document.getElementById('tmRecommitDeadline').value = t.recommitDeadline || '';
@@ -1200,6 +1215,12 @@ function openTaskModal(t){
   renderEditLog(t);
   renderDeclaredSection(t);
   renderRecommitSection(t);
+  // 過期 OR 已是失敗 OR 主角宣告完成 → 顯示「❌ 確認未達成」按鈕
+  var canFail = (t.status === 'failed')
+             || (t.status !== 'done' && isOverdueDate(t.deadline))
+             || (t.status === 'declared_done');
+  var fbtn = document.getElementById('tmFailedBtn');
+  if(fbtn) fbtn.style.display = canFail ? '' : 'none';
   document.getElementById('taskModal').classList.add('on');
 }
 
@@ -1288,6 +1309,34 @@ function confirmDone(){
   }
   closeModal('taskModal');
   toast('✅ 已確認完成');
+  EDITING_CARD = null;
+}
+// ❌ 黃柏翰確認任務未達成 → status='failed' + 觸發 archive as failed
+function confirmFailed(){
+  if(!EDITING_CARD) return;
+  var t = EDITING_CARD;
+  var me = currentAdminName();
+  if(!isSupervisor(me)){ toast('只有主管能標記未達成',true); return; }
+  if(t.status === 'failed'){
+    toast('這筆已是「❌ 未達成」狀態');
+    return;
+  }
+  var reason = prompt('未達成原因(會記入 log + 公開到主角時間軸 + 進主角成就檔案):','過期未完成,主角沒有重新宣告或宣告後仍未完成');
+  if(reason === null) return;
+  if(!confirm('確定把「'+(t.title||t.task||'(未命名)')+'」標記為「❌ 未達成」?\n會以紅卡寫入「'+t._ownerName+'」的 🏆 成就解鎖 任務檔案,讓你之後可以盤點食言記錄。')) return;
+  t.status = 'failed';
+  persistCard(t, '❌ 主管確認未達成: '+reason);
+  if(!Array.isArray(t.adminLog)) t.adminLog = [];
+  t.adminLog.push({ at: (new Date()).toLocaleString('zh-TW',{hour12:false}).replace(/\//g,'/'), who: me, note: '❌ 未達成: '+reason });
+  renderBoard();
+  triggerSync();
+  if(typeof window.archiveTaskAsFailed === 'function'){
+    window.archiveTaskAsFailed(t, t._ownerName, reason).then(function(ok){
+      if(ok) toast('❌ 已存入「'+t._ownerName+'」的未達成記錄');
+    });
+  }
+  closeModal('taskModal');
+  toast('❌ 已標記未達成');
   EDITING_CARD = null;
 }
 // 主管退回完成宣告 → status='doing'
@@ -1494,12 +1543,20 @@ function saveTask(){
       });
     }
   }
+  // ❌ failed → 自動 archive as failed (從 dropdown 改的話也會觸發)
+  if(t.status === 'failed' && oldStatus !== 'failed'){
+    if(typeof window.archiveTaskAsFailed === 'function'){
+      window.archiveTaskAsFailed(t, t._ownerName, '經由狀態下拉改為未達成').then(function(ok){
+        if(ok) toast('❌ 已存入「'+t._ownerName+'」的未達成記錄');
+      });
+    }
+  }
   closeModal('taskModal');
   toast(newMark?'✅ 已儲存並加註':'✅ 已儲存');
   EDITING_CARD = null;
 }
 function statusLabelShort(s){
-  return ({pending:'📋待辦', doing:'🚀進行中', declared_done:'⏳待確認', done:'✅已完成'})[s] || s;
+  return ({pending:'📋待辦', doing:'🚀進行中', declared_done:'⏳待確認', done:'✅已完成', failed:'❌未達成'})[s] || s;
 }
 function deleteTask(){
   if(!EDITING_CARD) return;

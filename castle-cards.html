@@ -1695,18 +1695,19 @@ function migrateCharDataToName(){
 }
 migrateCharDataToName();
 
-// ═══════ ONE-TIME FIX: 陳煒翔 → 范淯維 360 data swap ═══════
-(function fixSwap360(){
-  if(localStorage.getItem('fix_swap_陳煒翔_范淯維_done')) return;
-  const allKeys=Object.keys(localStorage);
-  // 把 char_陳煒翔_ 開頭的資料複製到 char_范淯維_
-  allKeys.forEach(k=>{
-    if(!k.startsWith('char_陳煒翔_')) return;
-    const newKey=k.replace('char_陳煒翔_','char_范淯維_');
-    try{localStorage.setItem(newKey,localStorage.getItem(k));}catch(e){}
-    try{localStorage.removeItem(k);}catch(e){}
-  });
-  try{localStorage.setItem('fix_swap_陳煒翔_范淯維_done','1');}catch(e){}
+// ═══════ ⚠️ 已停用 — 原本是「陳煒翔 → 范淯維」一次性 360 data swap ═══════
+//   原 IIFE 會把 char_陳煒翔_* 全部 LS keys 搬到 char_范淯維_* 並刪原本的。
+//   問題:每台新裝置/新瀏覽器都會跑一次,每次都把陳煒翔重新輸入的 360 資料搬走。
+//   修法:做成 no-op + 寫旗標永久標記「已處理過」,確保不會再執行。
+//   2026/05 by Claude
+(function fixSwap360_DISABLED(){
+  try{
+    // 對所有裝置寫入「已完成」旗標,讓未來無論程式怎樣都不會誤觸發
+    if(!localStorage.getItem('fix_swap_陳煒翔_范淯維_done')){
+      localStorage.setItem('fix_swap_陳煒翔_范淯維_done','1');
+    }
+  }catch(e){}
+  // 不做任何資料搬移!
 })();
 
 // ═══════ CHARACTER LOGIN ═══════
