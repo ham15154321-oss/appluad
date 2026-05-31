@@ -1485,7 +1485,7 @@ function renderAdminGrid(){
           <div><label>📊 達成率</label><span style="color:#fbbf24;font-weight:700;font-size:12px;">${c.groupTarget&&parseFloat(c.groupTarget)>0?Math.min(100,(parseFloat(c.groupRevenue||0)/parseFloat(c.groupTarget)*100)).toFixed(1)+'%':'—'}</span></div>
         </div>`}
         <div class="ac-row">
-          <div><label>${isAcademy(c.color)?'學院人數':'小組人數'}</label><input value="${esc(c.teamSize||'')}" onchange="cards[${i}].teamSize=this.value;saveCards();" placeholder="人數"></div>
+          <div><label>${isAcademy(c.color)?'學院人數':'小組人數'}${ACAD_BOSS_MAP[c.name]?' <span style="font-size:9px;color:#0071e3;">🔒 自動算</span>':''}</label><input value="${esc(c.teamSize||'')}" ${ACAD_BOSS_MAP[c.name]?'readonly title="此欄由業績數據中心 sheet3 自動計算(合計業績≥30k 才算)" style="background:#f0f0f3;color:#6e6e73;cursor:not-allowed;"':`onchange="cards[${i}].teamSize=this.value;saveCards();"`} placeholder="人數"></div>
           <div><label>${isAcademy(c.color)?'學院退費':'小組退費'}</label><input value="${esc(c.refund||'')}" onchange="cards[${i}].refund=this.value;saveCards();" placeholder="金額"></div>
         </div>
         <div class="ac-row" style="margin-top:4px;">
@@ -1991,8 +1991,8 @@ function openPersonalDashboard(idx){
     `}
     <div class="dashboard-row">
       <div>
-        <label>${isAcademy(card.color)?'學院人數':'小組人數'}</label>
-        <input id="db_teamSize" type="text" value="${esc(card.teamSize||'')}">
+        <label>${isAcademy(card.color)?'學院人數':'小組人數'}${ACAD_BOSS_MAP[card.name]?' <span style="font-size:10px;color:#0071e3;">🔒 自動算(合計業績≥30k)</span>':''}</label>
+        <input id="db_teamSize" type="text" value="${esc(card.teamSize||'')}" ${ACAD_BOSS_MAP[card.name]?'readonly title="此欄由 業績數據中心 sheet3 自動計算,不能手動改" style="background:#f0f0f3;color:#6e6e73;cursor:not-allowed;"':''}>
       </div>
       <div>
         <label>${isAcademy(card.color)?'學院退費':'小組退費'}</label>
@@ -2381,6 +2381,90 @@ async function loadPhotosFromSpaceBase(){
   }
 }
 
+// ════════════════════════════════════════════════════════════════
+// 7 主管 teamSize 自動同步 — 讀 mp_data_v1 → 最新月 sheet3 → 合計業績 ≥ 30k 的人頭
+//   2026/05/29 by Claude
+// ════════════════════════════════════════════════════════════════
+const ACAD_BOSS_MAP = {
+  '王志軒':'中壢二部','楊雅晴':'台中三部','洪士德':'中壢學院',
+  '黎禹歆':'高雄建國','林昭宏':'台中學院','凃敏薰':'台中二部','蔡青倚':'中壢三部'
+};
+const HEADCOUNT_THRESHOLD = 30000;
+function _numHC(v){v=String(v==null?'':v).replace(/[,，\s]/g,'');var n=parseFloat(v);return isNaN(n)?0:n;}
+
+async function _autoSyncAcademyHeadcount(){
+  try{
+    // 讀 mp_data_v1 from SpaceBaseDB.images
+    const mp = await new Promise(res=>{
+      try{
+        const req=indexedDB.open('SpaceBaseDB');
+        req.onsuccess=()=>{
+          const db=req.result;
+          if(!db.objectStoreNames.contains('images')){ try{db.close();}catch(_){} res(null); return; }
+          try{
+            const g=db.transaction('images','readonly').objectStore('images').get('mp_data_v1');
+            g.onsuccess=()=>{ try{db.close();}catch(_){} let v=g.result; if(typeof v==='string')try{v=JSON.parse(v);}catch(e){v=null;} res(v); };
+            g.onerror=()=>{ try{db.close();}catch(_){} res(null); };
+          }catch(e){ try{db.close();}catch(_){} res(null); }
+        };
+        req.onerror=()=>res(null);
+      }catch(e){ res(null); }
+    });
+    if(!mp){ console.log('[headcount] 沒 mp_data_v1, 跳過自動算人頭'); return; }
+
+    // 找最新有 sheet3 的月份
+    const months = Object.keys(mp).filter(m=>{
+      const s3=(mp[m]||{}).sheet3; return Array.isArray(s3)&&s3.length>0;
+    }).sort((a,b)=>Number(b)-Number(a));
+    if(!months.length){ console.log('[headcount] sheet3 全空,跳過'); return; }
+    const latest = months[0];
+    const sheet3 = mp[latest].sheet3;
+
+    // 偵測 sheet3 的欄位 (合計欄優先,沒有就加總所有業績欄)
+    const allCols = new Set();
+    sheet3.forEach(r=>Object.keys(r||{}).forEach(k=>allCols.add(k)));
+    const perfCols = Array.from(allCols).filter(c=>c.indexOf('業績')>=0);
+    const sumCol   = Array.from(allCols).find(c=>c.indexOf('合計')>=0);
+    function computeTotal(row){
+      if(sumCol && row[sumCol]!=null) return _numHC(row[sumCol]);
+      let t=0; perfCols.forEach(c=>{ t += _numHC(row[c]); }); return t;
+    }
+
+    // 算每位主管的學院人頭
+    let changed = 0;
+    const log = [];
+    Object.entries(ACAD_BOSS_MAP).forEach(([boss,acad])=>{
+      const rows = sheet3.filter(r=>String((r&&(r['學院']||r['區域']))||'').trim()===acad);
+      const seen={}; let qualified=0;
+      rows.forEach(r=>{
+        const nm=String((r['姓名']||r['業務員']||r['業務']||r['人員']||'')).trim();
+        if(!nm) return;
+        const total = computeTotal(r);
+        if(total >= HEADCOUNT_THRESHOLD && !seen[nm]){ seen[nm]=1; qualified++; }
+      });
+      // 找該主管的卡片並寫入
+      const cardIdx = cards.findIndex(c => c && c.name === boss);
+      if(cardIdx >= 0){
+        const newVal = String(qualified);
+        if(String(cards[cardIdx].teamSize||'') !== newVal){
+          cards[cardIdx].teamSize = newVal;
+          changed++;
+        }
+        log.push(`${boss}(${acad})=${qualified}`);
+      } else {
+        log.push(`${boss}(${acad})=${qualified} ★ 卡片不存在`);
+      }
+    });
+    console.log('[headcount] '+latest+'月 → '+log.join(' | ')+(changed?(' | 更新 '+changed+' 張卡片'):' | 無變動'));
+    if(changed > 0){
+      saveCards();
+      renderPyramid();
+    }
+  }catch(e){
+    console.warn('[headcount] 自動同步失敗', e);
+  }
+}
+
 // INIT
 migrateSfxToIDB().catch(()=>{});
 renderPyramid();
@@ -2388,6 +2472,8 @@ updateLoginStatus();
 updateFlipBanner(localStorage.getItem('castle_flip_mode')==='on');
 // ★ NEW: 補讀 SpaceBaseDB 裡的照片（不會 await，背景跑、完成後自動重繪）
 loadPhotosFromSpaceBase();
+// ★ 自動算 7 主管的學院人頭並寫進 teamSize（背景跑,完成後重繪）
+_autoSyncAcademyHeadcount();
 </script>
 <script src="./nav-home.js"></script>
 <script src="day-mode-init.js"></script>
