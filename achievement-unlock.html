@@ -1764,11 +1764,14 @@ function setTarcFilter(f){
   _ta_renderNow();
 }
 
-// 強制從 IDB 重新讀取最新的 taskArchive(以防其他頁面剛寫入)
+// ★★★ v3brute: 從 IDB + LS 鏡像 兩處讀取,合併(以 taskId 去重)
 async function _ta_reloadFromIDB(){
+  var idbArr = [];
+  var lsArr = [];
+  // (1) 讀 IDB
   try{
     var db = await _achOpenDB();
-    var arr = await new Promise(function(res){
+    var rec = await new Promise(function(res){
       try{
         var tx = db.transaction(ACH_STORE,'readonly');
         var g = tx.objectStore(ACH_STORE).get(getSK());
@@ -1777,22 +1780,72 @@ async function _ta_reloadFromIDB(){
       }catch(e){ res(null); }
     });
     try{ db.close(); }catch(_){}
-    if(arr && Array.isArray(arr.taskArchive)){
-      D.taskArchive = arr.taskArchive;
-      // 更新 cache 讓 save() 不會覆蓋
-      window._achCache = window._achCache || {};
-      var cached = window._achCache[getSK()] || {};
-      cached.taskArchive = arr.taskArchive;
-      window._achCache[getSK()] = cached;
-    }
+    if(rec && Array.isArray(rec.taskArchive)) idbArr = rec.taskArchive;
   }catch(e){ console.warn('[taskarchive] reload IDB 失敗',e); }
+
+  // (2) 讀 LS 鏡像 (task-archive.js v3brute 寫的備份)
+  try{
+    var cid = localStorage.getItem('activeCharacterId') || _cachedCharId || '';
+    var mirrorKey = cid ? ('char_' + cid + '_task_archive_v1') : '';
+    if(mirrorKey){
+      var raw = localStorage.getItem(mirrorKey);
+      if(!raw && window.parent && window.parent !== window){
+        try{ raw = window.parent.localStorage.getItem(mirrorKey); }catch(_){}
+      }
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(Array.isArray(parsed)) lsArr = parsed;
+      }
+    }
+  }catch(e){ console.warn('[taskarchive] reload LS mirror 失敗',e); }
+
+  // (3) 合併 — taskId 去重 (兩邊有重複以「failed 為主 / archivedAt 較新」優先)
+  var byKey = {};
+  function take(a){
+    if(!a) return;
+    var k = a.taskId || a.id;
+    if(!k) return;
+    var prev = byKey[k];
+    if(!prev) { byKey[k] = a; return; }
+    // failed 永遠 trump done (因為 failed 通常是後補的)
+    if(a.failed && !prev.failed) { byKey[k] = a; return; }
+    if(!a.failed && prev.failed) { return; }
+    // 都是同類型 → archivedAt 較新的勝
+    if((a.archivedAt||0) > (prev.archivedAt||0)) byKey[k] = a;
+  }
+  idbArr.forEach(take);
+  lsArr.forEach(take);
+  var merged = Object.keys(byKey).map(function(k){ return byKey[k]; });
+
+  D.taskArchive = merged;
+  window._achCache = window._achCache || {};
+  var cached = window._achCache[getSK()] || {};
+  cached.taskArchive = merged;
+  window._achCache[getSK()] = cached;
+
+  console.log('[taskarchive v3brute] 來源 IDB='+idbArr.length+' / LS='+lsArr.length+' / 合併後='+merged.length+' | cid='+(localStorage.getItem('activeCharacterId')||''));
 }
 
 function renderTaskArchive(){
-  // 先 sync render(用記憶體的 D),再 async 從 IDB 拉最新後重 render
-  _ta_renderNow();
-  _ta_reloadFromIDB().then(function(){ _ta_renderNow(); });
+  // ★★★ 粗暴做法: 永遠先 async 從 IDB 直接重讀(不信任 D.taskArchive),拉到後 render
+  //   先顯示 loading 防止 cache 殘留誤導
+  var grid = document.getElementById('tarcGrid');
+  if(grid && !_taCachedRecords.length) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--dim);">⏳ 從 IndexedDB 載入中…</div>';
+  _ta_reloadFromIDB().then(function(){
+    console.log('[taskarchive] 載入完成 — '+(D.taskArchive?D.taskArchive.length:0)+' 筆');
+    _ta_renderNow();
+  });
 }
+
+// ★ 監聽 task-archive.js 廣播的更新事件 → 立刻 reload(不用切 tab)
+window.addEventListener('storage', function(e){
+  if(e.key === '_taskarchive_updated'){
+    console.log('[taskarchive] 偵測到外部更新 → reload');
+    _ta_reloadFromIDB().then(function(){
+      if(document.getElementById('page-taskarchive').classList.contains('active')) _ta_renderNow();
+    });
+  }
+});
 
 function _ta_renderNow(){
   var arr = Array.isArray(D.taskArchive) ? D.taskArchive : [];
