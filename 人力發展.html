@@ -2873,6 +2873,12 @@ async function doAutoBackupNow(){
 }
 // ★ 頁面載入時檢查是否該自動備份
 async function checkAutoBackup(){
+  // ★ 線上版(github.io)不要自動備份 — 避免使用者每次開頁面被強迫下載備份檔
+  //   只在 localhost 或 file:// 開發環境跑(管理員自己操作)
+  if(location.hostname.indexOf('github.io') >= 0 || location.hostname.indexOf('ham15154321') >= 0){
+    console.log('[autoBackup] 線上版(github.io)略過自動備份');
+    return;
+  }
   var interval = getAutoBackupInterval();
   if(interval === 0) return;
   var lastTime = parseInt(localStorage.getItem('autoBackupLastTime') || '0');
