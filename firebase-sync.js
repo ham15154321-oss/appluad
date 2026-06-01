@@ -1913,6 +1913,33 @@ window.firebaseSync = {
     var d = snap.data();
     if (!d) return null;
     return { data: d.data || null, updatedAt: d.updatedAt || 0 };
+  },
+  // ★ 通用 global doc 寫入(避免 iframe 跨 realm 物件問題)
+  //   iframe 傳 collection/doc path 跟 JSON 字串,parent 用自家 Object 重建 payload
+  writeGlobalDoc: async function(collectionName, docId, jsonString, pushedBy){
+    if (!fsDb) throw new Error('Firestore 還沒初始化');
+    if (!collectionName || !docId) throw new Error('沒給 collection/doc 名稱');
+    var ref = fsDb.collection('users').doc('applaud').collection(String(collectionName)).doc(String(docId));
+    var ts = Date.now();
+    var payload = {
+      data: String(jsonString || ''),
+      updatedAt: ts,
+      pushedBy: String(pushedBy || '')
+    };
+    await ref.set(payload);
+    return { path: ref.path, updatedAt: ts, size: payload.data.length };
+  },
+  readGlobalDoc: async function(collectionName, docId){
+    if (!fsDb) throw new Error('Firestore 還沒初始化');
+    if (!collectionName || !docId) throw new Error('沒給 collection/doc 名稱');
+    var ref = fsDb.collection('users').doc('applaud').collection(String(collectionName)).doc(String(docId));
+    var snap;
+    try { snap = await ref.get({ source: 'server' }); }
+    catch(e){ snap = await ref.get(); }
+    if (!snap.exists) return null;
+    var d = snap.data();
+    if (!d) return null;
+    return { data: d.data || null, updatedAt: d.updatedAt || 0, pushedBy: d.pushedBy || '' };
   }
 };
 

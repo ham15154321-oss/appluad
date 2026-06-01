@@ -587,12 +587,12 @@
                 📥 匯入 Excel
             </button>
             <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileImport(event)">
-            <!-- ☁️ 強制同步全部業績資料(黃柏翰專屬) -->
-            <button class="cloud-sync-btn" id="cloudPushBtn" onclick="forcePushMpDataToCloud()" title="把全部業績資料(每月績效 + 各通路績效 + 每月講座 + 月/季比較)推送到雲端,繞過保護邏輯">
-                ☁️↑ 強制推送業績
+            <!-- ☁️ 強制同步全部公司資料(黃柏翰專屬) -->
+            <button class="cloud-sync-btn" id="cloudPushBtn" onclick="forcePushMpDataToCloud()" title="把全部公司資料(每月績效 + 各通路績效 + 每月講座 + 月/季比較 + AI 顧問知識庫)推送到雲端,繞過保護邏輯">
+                ☁️↑ 強制推送公司資料
             </button>
-            <button class="cloud-sync-btn pull" id="cloudPullBtn" onclick="forcePullMpDataFromCloud()" title="從雲端拉取全部業績資料,繞過保護邏輯">
-                ☁️↓ 強制拉取業績
+            <button class="cloud-sync-btn pull" id="cloudPullBtn" onclick="forcePullMpDataFromCloud()" title="從雲端拉取全部公司資料,繞過保護邏輯">
+                ☁️↓ 強制拉取公司資料
             </button>
         </div>
 
@@ -2545,6 +2545,57 @@
             }
             return keys;
         }
+        // 找最頂層的 firebaseSync 物件(parent helper 在那邊)
+        function _getParentFirebaseSync(){
+            try{
+                var w = window;
+                var depth = 0;
+                while(w && depth < 5){
+                    try{ if(w.firebaseSync && typeof w.firebaseSync.writeGlobalDoc === 'function') return w.firebaseSync; }catch(_){}
+                    if(w === w.parent) break;
+                    w = w.parent;
+                    depth++;
+                }
+            }catch(e){ console.warn('[cloud-sync] 找 firebaseSync 時錯',e); }
+            return null;
+        }
+        // 讀 KnowledgeBaseDB.kb (AI 顧問中心知識庫)
+        async function _readKnowledgeBase(){
+            try{
+                var db = await new Promise(function(res,rej){
+                    var q = indexedDB.open('KnowledgeBaseDB');
+                    q.onsuccess = function(){ res(q.result); };
+                    q.onerror = function(){ rej(q.error); };
+                });
+                if(!db.objectStoreNames.contains('kb')){ try{db.close();}catch(_){} return null; }
+                var v = await new Promise(function(res){
+                    var g = db.transaction('kb','readonly').objectStore('kb').get('knowledge_base_v1');
+                    g.onsuccess = function(){ res(g.result); };
+                    g.onerror = function(){ res(null); };
+                });
+                try{db.close();}catch(_){}
+                return v;
+            }catch(e){ console.warn('[cloud-sync] 讀 KnowledgeBaseDB 失敗',e); return null; }
+        }
+        // 寫 KnowledgeBaseDB.kb
+        async function _writeKnowledgeBase(kb){
+            if(!kb) return;
+            try{
+                var db = await new Promise(function(res,rej){
+                    var q = indexedDB.open('KnowledgeBaseDB');
+                    q.onsuccess = function(){ res(q.result); };
+                    q.onerror = function(){ rej(q.error); };
+                });
+                if(!db.objectStoreNames.contains('kb')){ try{db.close();}catch(_){} console.warn('[cloud-sync] kb store 不存在'); return; }
+                await new Promise(function(res){
+                    var tx = db.transaction('kb','readwrite');
+                    tx.objectStore('kb').put(kb, 'knowledge_base_v1');
+                    tx.oncomplete = function(){ res(); };
+                });
+                try{db.close();}catch(_){}
+            }catch(e){ console.warn('[cloud-sync] 寫 KnowledgeBaseDB 失敗',e); }
+        }
+
         async function forcePushMpDataToCloud(){
             var btn = document.getElementById('cloudPushBtn');
             try{
@@ -2569,11 +2620,15 @@
                 var lsKeys = _collectPerfLSKeys();
                 var lsBundle = {};
                 lsKeys.forEach(function(k){
-                    try{ lsBundle[k] = pLS.getItem(k); }catch(e){}
+                    try{ lsBundle[k] = String(pLS.getItem(k) || ''); }catch(e){}
                 });
 
-                if((!mp || !mpMonths.length) && !lsKeys.length){
-                    alert('❌ 本機沒有任何業績資料,請先匯入');
+                // 3) 讀知識庫 KnowledgeBaseDB.kb
+                var kb = await _readKnowledgeBase();
+                var kbItemCount = (kb && Array.isArray(kb.items)) ? kb.items.length : 0;
+
+                if((!mp || !mpMonths.length) && !lsKeys.length && !kb){
+                    alert('❌ 本機沒有任何公司資料,請先匯入');
                     return;
                 }
 
@@ -2584,24 +2639,26 @@
                     var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史'};
                     summary.push((labels[label]||label)+': ✓');
                 });
+                if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
-                if(!confirm('☁️ 把所有業績資料推送到雲端?\n\n'+summary.join('\n')+'\n\n注意:會覆蓋雲端版本。其他電腦下次按「強制拉取」就能拿到最新版。')){
+                if(!confirm('☁️ 把所有公司資料推送到雲端?\n\n'+summary.join('\n')+'\n\n注意:會覆蓋雲端版本。其他電腦下次按「強制拉取」就能拿到最新版。')){
                     return;
                 }
 
-                var fs = _getFirebaseDB();
-                if(!fs){ alert('❌ Firebase SDK 不存在'); return; }
-                var ref = fs.collection('users').doc('applaud').collection('_global_perf_data').doc('bundle');
-                var payload = {
+                // ★ 用 parent helper(避免 iframe cross-realm bug)
+                //   payload 在 iframe 組成 JSON string,傳給 parent 由 parent realm 重建物件
+                var fsync = _getParentFirebaseSync();
+                if(!fsync){ alert('❌ 找不到 firebaseSync.writeGlobalDoc(需在 parent)'); return; }
+                var bundle = {
                     mpData: mp ? JSON.stringify(mp) : '',
                     lsKeys: lsBundle,
-                    updatedAt: Date.now(),
-                    pushedBy: _getCurrentUserName()
+                    kb: kb || null,
+                    schema: 'company-bundle-v1'
                 };
-                var totalSize = (payload.mpData||'').length + Object.values(lsBundle).reduce(function(s,x){return s+((x||'').length);},0);
-                console.log('[cloud-sync] 推送 total size = '+(totalSize/1024).toFixed(1)+'KB | LS '+lsKeys.length+' keys + mp_data '+mpMonths.length+' 月');
-                await ref.set(payload);
-                showStatus('✅ 已推送 '+(mpMonths.length+lsKeys.length)+' 項業績資料到雲端', 'success');
+                var bundleJson = JSON.stringify(bundle);
+                console.log('[cloud-sync] 推送 size = '+(bundleJson.length/1024).toFixed(1)+'KB | LS '+lsKeys.length+' / mp '+mpMonths.length+' 月 / kb '+kbItemCount+' 份');
+                await fsync.writeGlobalDoc('_global_perf_data', 'bundle', bundleJson, _getCurrentUserName());
+                showStatus('✅ 已推送 '+(mpMonths.length+lsKeys.length+(kbItemCount?1:0))+' 項公司資料到雲端', 'success');
                 console.log('[cloud-sync] ✅ 推送成功');
             }catch(e){
                 console.error('[cloud-sync] 推送失敗', e);
@@ -2613,29 +2670,30 @@
                 }
             }finally{
                 btn.disabled = false;
-                btn.textContent = '☁️↑ 強制推送業績';
+                btn.textContent = '☁️↑ 強制推送公司資料';
             }
         }
         async function forcePullMpDataFromCloud(){
             var btn = document.getElementById('cloudPullBtn');
             try{
                 btn.disabled = true; btn.textContent = '☁️↓ 拉取中...';
-                var fs = _getFirebaseDB();
-                if(!fs){ alert('❌ Firebase SDK 不存在'); return; }
-                var ref = fs.collection('users').doc('applaud').collection('_global_perf_data').doc('bundle');
+                var fsync = _getParentFirebaseSync();
+                if(!fsync){ alert('❌ 找不到 firebaseSync.readGlobalDoc(需在 parent)'); return; }
                 console.log('[cloud-sync] 從 Firestore 讀 bundle...');
-                var snap = await ref.get({ source: 'server' });
-                if(!snap.exists){
-                    alert('❌ 雲端沒有業績 bundle,請先在主機按「強制推送業績」');
+                var doc = await fsync.readGlobalDoc('_global_perf_data', 'bundle');
+                if(!doc || !doc.data){
+                    alert('❌ 雲端沒有公司資料 bundle,請先在主機按「強制推送公司資料」');
                     return;
                 }
-                var dataObj = snap.data();
-                var mp = dataObj.mpData ? JSON.parse(dataObj.mpData) : null;
-                var lsBundle = dataObj.lsKeys || {};
+                var bundle = JSON.parse(doc.data);
+                var mp = bundle.mpData ? JSON.parse(bundle.mpData) : null;
+                var lsBundle = bundle.lsKeys || {};
+                var kb = bundle.kb || null;
                 var mpMonths = mp ? Object.keys(mp).sort(function(a,b){return Number(a)-Number(b);}) : [];
                 var lsKeyNames = Object.keys(lsBundle);
-                var pushedBy = dataObj.pushedBy || '未知';
-                var pushedAt = dataObj.updatedAt ? new Date(dataObj.updatedAt).toLocaleString('zh-TW') : '未知';
+                var kbItemCount = (kb && Array.isArray(kb.items)) ? kb.items.length : 0;
+                var pushedBy = doc.pushedBy || '未知';
+                var pushedAt = doc.updatedAt ? new Date(doc.updatedAt).toLocaleString('zh-TW') : '未知';
 
                 var summary = [];
                 if(mpMonths.length) summary.push('📅 每月績效: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
@@ -2644,8 +2702,9 @@
                     var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史'};
                     summary.push((labels[label]||label)+': ✓');
                 });
+                if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
-                if(!confirm('☁️ 把雲端所有業績資料覆蓋到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n注意:會覆蓋本機現有資料。')){
+                if(!confirm('☁️ 把雲端公司資料覆蓋到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n注意:會覆蓋本機現有資料。')){
                     return;
                 }
                 // 1) 寫 IDB mp_data_v1
@@ -2667,7 +2726,10 @@
                 lsKeyNames.forEach(function(k){
                     try{ pLS.setItem(k, lsBundle[k]); }catch(e){ console.warn('[cloud-sync] LS 寫入失敗',k,e); }
                 });
-                showStatus('✅ 已拉取 '+(mpMonths.length+lsKeyNames.length)+' 項業績資料,1.5 秒後重新整理', 'success');
+                // 3) 寫 KnowledgeBaseDB.kb
+                if(kb){ await _writeKnowledgeBase(kb); }
+
+                showStatus('✅ 已拉取 '+(mpMonths.length+lsKeyNames.length+(kbItemCount?1:0))+' 項公司資料,1.5 秒後重新整理', 'success');
                 console.log('[cloud-sync] ✅ 拉取成功');
                 setTimeout(function(){ location.reload(); }, 1500);
             }catch(e){
@@ -2675,7 +2737,7 @@
                 showStatus('❌ 拉取失敗: '+(e.message||e), 'error');
             }finally{
                 btn.disabled = false;
-                btn.textContent = '☁️↓ 強制拉取業績';
+                btn.textContent = '☁️↓ 強制拉取公司資料';
             }
         }
 
