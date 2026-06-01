@@ -2507,18 +2507,33 @@
             }
         }
         function _getFirebaseDB(){
-            // 優先用 parent 的 firebase 實例(同 origin 共享)
+            // ★ 一路往上找 firebase(monthly-performance 嵌套 2 層:人力發展→performance-compare→monthly-performance)
             try{
-                var p = (window.parent && window.parent !== window) ? window.parent : null;
-                if(p && p.firebase && p.firebase.firestore){ return p.firebase.firestore(); }
-            }catch(e){}
-            if(window.firebase && window.firebase.firestore){ return window.firebase.firestore(); }
+                var w = window;
+                var depth = 0;
+                while(w && depth < 5){
+                    try{
+                        if(w.firebase && w.firebase.firestore){ return w.firebase.firestore(); }
+                    }catch(_){}
+                    if(w === w.parent) break;
+                    w = w.parent;
+                    depth++;
+                }
+            }catch(e){ console.warn('[cloud-sync] 找 firebase 時錯',e); }
             return null;
         }
-        // 取 parent localStorage(因 iframe 內每月績效需讀寫業績數據中心的 LS keys)
+        // 取最頂層 localStorage(monthly-performance 嵌套 2 層, perf_compare_v1* LS 在 performance-compare.html 那層)
+        // 同 origin 下,localStorage 是共享的(任何層 window.localStorage 都是同一份),但為保險仍往上拿
         function _getParentLS(){
-            try{ return (window.parent && window.parent !== window) ? window.parent.localStorage : localStorage; }
-            catch(e){ return localStorage; }
+            try{
+                var w = window;
+                var depth = 0;
+                while(w && w !== w.parent && depth < 5){
+                    w = w.parent;
+                    depth++;
+                }
+                return w.localStorage;
+            }catch(e){ return localStorage; }
         }
         // 列出所有要打包的 perf_compare_v1* LS keys
         function _collectPerfLSKeys(){
