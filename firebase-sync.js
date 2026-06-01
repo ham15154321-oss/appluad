@@ -632,6 +632,36 @@ function idbPutEntries(db, storeName, entries){
           })(k, val);
           continue;
         }
+        // ★★★ 保護 knowledge_base_v1（AI 顧問中心知識庫）— 同 mp_data_v1 邏輯
+        //   問題：使用者在 localhost 加了 2 份新文件變 8 份,但雲端仍是 6 份(舊)
+        //         → pull 過來會把本機 8 份覆蓋成 6 份(新增的兩份消失)
+        //   修法：本機有資料且 items 數量 ≥ 雲端 → 跳過覆蓋(本機較新或同步)
+        //         本機空 / 比雲端少 → 用雲端(代表別台剛加了新文件,要同步進來)
+        if (storeName === 'kb' && db.name === 'KnowledgeBaseDB' && k === 'knowledge_base_v1') {
+          pendingChecks++;
+          (function(_k, _val){
+            var getReq = store.get(_k);
+            getReq.onsuccess = function(){
+              var local = getReq.result;
+              var localCount = 0, cloudCount = 0;
+              try {
+                var localObj = (typeof local === 'string') ? JSON.parse(local) : local;
+                if (localObj && Array.isArray(localObj.items)) localCount = localObj.items.length;
+                var cloudObj = (typeof _val === 'string') ? JSON.parse(_val) : _val;
+                if (cloudObj && Array.isArray(cloudObj.items)) cloudCount = cloudObj.items.length;
+              } catch(e){}
+              if (localCount > 0 && localCount >= cloudCount) {
+                console.log('[FirebaseSync] 保護 knowledge_base_v1: 本機'+localCount+'筆 ≥ 雲端'+cloudCount+'筆,跳過覆蓋');
+              } else {
+                store.put(_val, _k);
+                console.log('[FirebaseSync] knowledge_base_v1: 雲端'+cloudCount+'筆 > 本機'+localCount+'筆,接受雲端版本');
+              }
+              pendingChecks--;
+            };
+            getReq.onerror = function(){ pendingChecks--; };
+          })(k, val);
+          continue;
+        }
         // ★ MotivArchiveDB.archive 保護：每個月份是一個 entry（key='2026-04'，value 含 archivedAt）
         //   雲端比本地舊 → 不覆蓋；雲端較新或本地沒有 → 寫入
         if (storeName === 'archive' && db.name === 'MotivArchiveDB') {
