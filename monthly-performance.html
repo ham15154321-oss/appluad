@@ -94,6 +94,52 @@
             transform: translateY(0);
         }
 
+        /* ☁️ 強制同步按鈕(黃柏翰專屬) */
+        .cloud-sync-btn {
+            background: linear-gradient(135deg, rgba(74,234,255,0.18), rgba(167,139,250,0.12));
+            border: 1px solid rgba(74,234,255,0.5);
+            color: #4aeaff;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            display: none;  /* 預設隱藏,JS 偵測管理員身份後才顯示 */
+            align-items: center;
+            gap: 6px;
+            margin-left: 8px;
+        }
+        .cloud-sync-btn:hover {
+            background: linear-gradient(135deg, rgba(74,234,255,0.28), rgba(167,139,250,0.2));
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(74,234,255,0.3);
+        }
+        .cloud-sync-btn.pull {
+            background: linear-gradient(135deg, rgba(74,222,128,0.18), rgba(74,234,255,0.12));
+            border-color: rgba(74,222,128,0.5);
+            color: #4ade80;
+        }
+        .cloud-sync-btn.pull:hover {
+            background: linear-gradient(135deg, rgba(74,222,128,0.28), rgba(74,234,255,0.2));
+            box-shadow: 0 4px 12px rgba(74,222,128,0.3);
+        }
+        .cloud-sync-btn:disabled { opacity: 0.5; cursor: wait; }
+        /* 白天配色 */
+        body.day-mode .cloud-sync-btn {
+            background: rgba(0,113,227,0.12);
+            border-color: rgba(0,113,227,0.4);
+            color: #0050a8;
+        }
+        body.day-mode .cloud-sync-btn:hover {
+            background: rgba(0,113,227,0.2);
+        }
+        body.day-mode .cloud-sync-btn.pull {
+            background: rgba(52,199,89,0.12);
+            border-color: rgba(52,199,89,0.4);
+            color: #1f8a3a;
+        }
+
         #fileInput {
             display: none;
         }
@@ -541,6 +587,13 @@
                 📥 匯入 Excel
             </button>
             <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileImport(event)">
+            <!-- ☁️ 強制同步全部業績資料(黃柏翰專屬) -->
+            <button class="cloud-sync-btn" id="cloudPushBtn" onclick="forcePushMpDataToCloud()" title="把全部業績資料(每月績效 + 各通路績效 + 每月講座 + 月/季比較)推送到雲端,繞過保護邏輯">
+                ☁️↑ 強制推送業績
+            </button>
+            <button class="cloud-sync-btn pull" id="cloudPullBtn" onclick="forcePullMpDataFromCloud()" title="從雲端拉取全部業績資料,繞過保護邏輯">
+                ☁️↓ 強制拉取業績
+            </button>
         </div>
 
         <!-- Status Message -->
@@ -2428,6 +2481,187 @@
             initDataTabs();
             initAnalysisTabs();
             renderContent();
+            initCloudSyncButtons();   // ☁️ 強制同步按鈕(管理員專屬)
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // ☁️ 強制推/拉雲端 — 黃柏翰專屬,繞過 firebase-sync 的保護邏輯
+        // 直接讀寫 Firestore: users/applaud/_global_mp_data/mp_data_v1
+        // ════════════════════════════════════════════════════════════════
+        function _getCurrentUserName(){
+            try{
+                var pLS = (window.parent && window.parent !== window) ? window.parent.localStorage : localStorage;
+                return pLS.getItem('activeCharacterName') || pLS.getItem('activeCharacterId') || '';
+            }catch(e){
+                try{ return localStorage.getItem('activeCharacterName') || ''; }catch(_){ return ''; }
+            }
+        }
+        function initCloudSyncButtons(){
+            var me = _getCurrentUserName();
+            var ADMINS = ['黃柏翰'];
+            if(ADMINS.indexOf(me) >= 0){
+                var pushBtn = document.getElementById('cloudPushBtn');
+                var pullBtn = document.getElementById('cloudPullBtn');
+                if(pushBtn) pushBtn.style.display = 'flex';
+                if(pullBtn) pullBtn.style.display = 'flex';
+            }
+        }
+        function _getFirebaseDB(){
+            // 優先用 parent 的 firebase 實例(同 origin 共享)
+            try{
+                var p = (window.parent && window.parent !== window) ? window.parent : null;
+                if(p && p.firebase && p.firebase.firestore){ return p.firebase.firestore(); }
+            }catch(e){}
+            if(window.firebase && window.firebase.firestore){ return window.firebase.firestore(); }
+            return null;
+        }
+        // 取 parent localStorage(因 iframe 內每月績效需讀寫業績數據中心的 LS keys)
+        function _getParentLS(){
+            try{ return (window.parent && window.parent !== window) ? window.parent.localStorage : localStorage; }
+            catch(e){ return localStorage; }
+        }
+        // 列出所有要打包的 perf_compare_v1* LS keys
+        function _collectPerfLSKeys(){
+            var pLS = _getParentLS();
+            var keys = [];
+            for(var i=0;i<pLS.length;i++){
+                var k = pLS.key(i);
+                if(k && k.indexOf('perf_compare_v1') === 0) keys.push(k);
+            }
+            return keys;
+        }
+        async function forcePushMpDataToCloud(){
+            var btn = document.getElementById('cloudPushBtn');
+            try{
+                btn.disabled = true; btn.textContent = '☁️↑ 推送中...';
+                // 1) 讀本機 IDB.mp_data_v1
+                var db = await new Promise(function(res,rej){
+                    var q = indexedDB.open('SpaceBaseDB');
+                    q.onsuccess = function(){ res(q.result); };
+                    q.onerror = function(){ rej(q.error); };
+                });
+                var v = await new Promise(function(res){
+                    var g = db.transaction('images','readonly').objectStore('images').get('mp_data_v1');
+                    g.onsuccess = function(){ res(g.result); };
+                    g.onerror = function(){ res(null); };
+                });
+                db.close();
+                var mp = (typeof v === 'string') ? JSON.parse(v) : v;
+                var mpMonths = mp ? Object.keys(mp).sort(function(a,b){return Number(a)-Number(b);}) : [];
+
+                // 2) 讀本機 parent LS 的所有 perf_compare_v1* key
+                var pLS = _getParentLS();
+                var lsKeys = _collectPerfLSKeys();
+                var lsBundle = {};
+                lsKeys.forEach(function(k){
+                    try{ lsBundle[k] = pLS.getItem(k); }catch(e){}
+                });
+
+                if((!mp || !mpMonths.length) && !lsKeys.length){
+                    alert('❌ 本機沒有任何業績資料,請先匯入');
+                    return;
+                }
+
+                var summary = [];
+                if(mpMonths.length) summary.push('📅 每月績效: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
+                lsKeys.forEach(function(k){
+                    var label = k.replace('perf_compare_v1','').replace(/^_/,'')||'比較';
+                    var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史'};
+                    summary.push((labels[label]||label)+': ✓');
+                });
+
+                if(!confirm('☁️ 把所有業績資料推送到雲端?\n\n'+summary.join('\n')+'\n\n注意:會覆蓋雲端版本。其他電腦下次按「強制拉取」就能拿到最新版。')){
+                    return;
+                }
+
+                var fs = _getFirebaseDB();
+                if(!fs){ alert('❌ Firebase SDK 不存在'); return; }
+                var ref = fs.collection('users').doc('applaud').collection('_global_perf_data').doc('bundle');
+                var payload = {
+                    mpData: mp ? JSON.stringify(mp) : '',
+                    lsKeys: lsBundle,
+                    updatedAt: Date.now(),
+                    pushedBy: _getCurrentUserName()
+                };
+                var totalSize = (payload.mpData||'').length + Object.values(lsBundle).reduce(function(s,x){return s+((x||'').length);},0);
+                console.log('[cloud-sync] 推送 total size = '+(totalSize/1024).toFixed(1)+'KB | LS '+lsKeys.length+' keys + mp_data '+mpMonths.length+' 月');
+                await ref.set(payload);
+                showStatus('✅ 已推送 '+(mpMonths.length+lsKeys.length)+' 項業績資料到雲端', 'success');
+                console.log('[cloud-sync] ✅ 推送成功');
+            }catch(e){
+                console.error('[cloud-sync] 推送失敗', e);
+                var msg = e.message || String(e);
+                if(msg.indexOf('1048')>=0 || msg.indexOf('1 MB')>=0){
+                    showStatus('❌ 資料超過 Firestore 1MB 上限,請聯絡開發者拆分', 'error');
+                } else {
+                    showStatus('❌ 推送失敗: '+msg, 'error');
+                }
+            }finally{
+                btn.disabled = false;
+                btn.textContent = '☁️↑ 強制推送業績';
+            }
+        }
+        async function forcePullMpDataFromCloud(){
+            var btn = document.getElementById('cloudPullBtn');
+            try{
+                btn.disabled = true; btn.textContent = '☁️↓ 拉取中...';
+                var fs = _getFirebaseDB();
+                if(!fs){ alert('❌ Firebase SDK 不存在'); return; }
+                var ref = fs.collection('users').doc('applaud').collection('_global_perf_data').doc('bundle');
+                console.log('[cloud-sync] 從 Firestore 讀 bundle...');
+                var snap = await ref.get({ source: 'server' });
+                if(!snap.exists){
+                    alert('❌ 雲端沒有業績 bundle,請先在主機按「強制推送業績」');
+                    return;
+                }
+                var dataObj = snap.data();
+                var mp = dataObj.mpData ? JSON.parse(dataObj.mpData) : null;
+                var lsBundle = dataObj.lsKeys || {};
+                var mpMonths = mp ? Object.keys(mp).sort(function(a,b){return Number(a)-Number(b);}) : [];
+                var lsKeyNames = Object.keys(lsBundle);
+                var pushedBy = dataObj.pushedBy || '未知';
+                var pushedAt = dataObj.updatedAt ? new Date(dataObj.updatedAt).toLocaleString('zh-TW') : '未知';
+
+                var summary = [];
+                if(mpMonths.length) summary.push('📅 每月績效: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
+                lsKeyNames.forEach(function(k){
+                    var label = k.replace('perf_compare_v1','').replace(/^_/,'')||'比較';
+                    var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史'};
+                    summary.push((labels[label]||label)+': ✓');
+                });
+
+                if(!confirm('☁️ 把雲端所有業績資料覆蓋到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n注意:會覆蓋本機現有資料。')){
+                    return;
+                }
+                // 1) 寫 IDB mp_data_v1
+                if(mp){
+                    var db = await new Promise(function(res,rej){
+                        var q = indexedDB.open('SpaceBaseDB');
+                        q.onsuccess = function(){ res(q.result); };
+                        q.onerror = function(){ rej(q.error); };
+                    });
+                    await new Promise(function(res){
+                        var tx = db.transaction('images','readwrite');
+                        tx.objectStore('images').put(mp, 'mp_data_v1');
+                        tx.oncomplete = function(){ res(); };
+                    });
+                    db.close();
+                }
+                // 2) 寫 parent LS 所有 perf_compare_v1* keys
+                var pLS = _getParentLS();
+                lsKeyNames.forEach(function(k){
+                    try{ pLS.setItem(k, lsBundle[k]); }catch(e){ console.warn('[cloud-sync] LS 寫入失敗',k,e); }
+                });
+                showStatus('✅ 已拉取 '+(mpMonths.length+lsKeyNames.length)+' 項業績資料,1.5 秒後重新整理', 'success');
+                console.log('[cloud-sync] ✅ 拉取成功');
+                setTimeout(function(){ location.reload(); }, 1500);
+            }catch(e){
+                console.error('[cloud-sync] 拉取失敗', e);
+                showStatus('❌ 拉取失敗: '+(e.message||e), 'error');
+            }finally{
+                btn.disabled = false;
+                btn.textContent = '☁️↓ 強制拉取業績';
+            }
         }
 
         // Adjust layout if in iframe
