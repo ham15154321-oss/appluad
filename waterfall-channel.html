@@ -257,6 +257,77 @@ body.night .vbox{background:rgba(8,16,38,0.85);color:#e0e8ff;}
 body.night .abar-name{color:#e0e8ff;}
 body.night .abar-track{background:rgba(100,170,255,0.14);}
 body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-color:rgba(74,234,255,0.32);}
+
+/* ════════ 改版：流程引導條 / 分頁 / 範圍徽章（日夜雙套，盡量用 var 自動套色）════════ */
+.flow-strip{position:relative;z-index:1;max-width:1080px;margin:14px auto 0;padding:0 14px;display:flex;gap:8px;overflow-x:auto;}
+.flow-step{flex:1;min-width:148px;display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:11px 13px;cursor:pointer;transition:all .18s;}
+.flow-step:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,113,227,0.1);}
+body.night .flow-step:hover{box-shadow:0 8px 22px rgba(74,234,255,0.12);}
+.flow-num{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;}
+body.night .flow-num{background:linear-gradient(135deg,#2b8fff,#4aeaff);color:#03060f;}
+.flow-txt{font-size:12.5px;line-height:1.35;}
+.flow-txt b{display:block;color:var(--text);font-weight:700;}
+.flow-txt span{color:var(--dim);font-size:11px;}
+.flow-arrow{align-self:center;color:var(--dim);font-size:16px;flex-shrink:0;}
+
+.tabs{position:sticky;top:0;z-index:50;max-width:1080px;margin:16px auto 0;padding:8px 14px;display:flex;gap:8px;border-radius:16px;background:rgba(251,251,253,0.88);backdrop-filter:blur(10px);border:1px solid var(--border);}
+body.night .tabs{background:rgba(6,13,31,0.82);border-color:rgba(100,170,255,0.16);}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 8px;border-radius:12px;cursor:pointer;border:1px solid transparent;transition:all .15s;}
+.tab:hover{background:rgba(0,0,0,0.04);}
+body.night .tab:hover{background:rgba(20,32,66,0.6);}
+.tab.active{background:rgba(0,113,227,0.1);border-color:rgba(0,113,227,0.3);}
+body.night .tab.active{background:linear-gradient(135deg,rgba(43,143,255,0.22),rgba(74,234,255,0.14));border-color:rgba(74,234,255,0.4);}
+.tab .t-main{font-size:14px;font-weight:700;color:var(--text);}
+.tab.active .t-main{color:var(--accent);}
+.tab .t-scope{font-size:10px;padding:1px 8px;border-radius:10px;background:rgba(0,0,0,0.06);color:var(--dim);}
+body.night .tab .t-scope{background:rgba(100,170,255,0.12);}
+.tab.active .t-scope{background:rgba(0,113,227,0.15);color:var(--accent);}
+body.night .tab.active .t-scope{background:rgba(74,234,255,0.18);color:#bfe9ff;}
+
+.tabpane{display:none;}
+.tabpane.active{display:block;animation:wfFade .25s ease;}
+@keyframes wfFade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+.section-title .grow{flex:1;}
+.scope-badge{font-size:10px;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;}
+.scope-month{background:rgba(0,113,227,0.1);color:#0071e3;border:1px solid rgba(0,113,227,0.25);}
+.scope-long{background:rgba(160,115,0,0.1);color:#8a6200;border:1px solid rgba(160,115,0,0.25);}
+body.night .scope-month{background:rgba(43,143,255,0.18);color:#9ecbff;border-color:rgba(74,234,255,0.3);}
+body.night .scope-long{background:rgba(255,207,74,0.14);color:#ffdf8a;border-color:rgba(255,207,74,0.32);}
+.sub-note{font-size:11.5px;color:var(--dim);margin:-4px 0 12px;line-height:1.5;}
+
+/* hero 分流：上傳工具（藍）/ 典範案例（金）— hero 兩模式都是深色底 */
+.hero-tag{font-size:10px;font-weight:800;padding:2px 9px;border-radius:10px;letter-spacing:.5px;}
+.voice-hero .vh-btn{margin-left:auto;}
+.voice-hero.hero-upload{border-color:rgba(74,234,255,0.4);}
+.voice-hero.hero-good{border-color:rgba(255,207,74,0.45);}
+.hero-upload .hero-tag{background:rgba(74,234,255,0.2);color:#bff0ff;}
+.hero-good .hero-tag{background:rgba(255,207,74,0.2);color:#ffe6a3;}
+.hero-good .vh-btn{background:linear-gradient(135deg,#ffcf4a,#ffb347);color:#1a1203;box-shadow:0 0 18px rgba(255,207,74,0.5);}
+.hero-good .vh-btn:hover{box-shadow:0 0 26px rgba(255,207,74,0.85);}
+
+/* AI 素材來源視覺化 */
+.ai-box{background:rgba(0,0,0,0.03);border:1px solid rgba(0,113,227,0.2);border-radius:14px;padding:14px;margin-top:6px;}
+body.night .ai-box{background:rgba(8,16,38,0.6);border-color:rgba(74,234,255,0.25);}
+.ai-feeds{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;}
+.feed{font-size:11px;padding:4px 10px;border-radius:20px;}
+.feed.on{background:rgba(40,167,69,0.12);border:1px solid rgba(40,167,69,0.4);color:#1a7a32;}
+.feed.off{background:rgba(220,53,69,0.08);border:1px dashed rgba(220,53,69,0.45);color:#b02a37;}
+body.night .feed.on{background:rgba(62,224,160,0.14);border-color:rgba(62,224,160,0.4);color:#a8f0d0;}
+body.night .feed.off{background:rgba(255,107,107,0.1);border-color:rgba(255,107,107,0.4);color:#ffb0b0;}
+.ai-arrow{text-align:center;color:var(--dim);font-size:13px;margin:4px 0;}
+
+/* 改善空狀態 */
+.empty{border:1px dashed var(--border);border-radius:12px;padding:22px;text-align:center;}
+.empty .e-icon{font-size:28px;margin-bottom:8px;}
+.empty .e-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.empty .e-hint{font-size:11.5px;color:var(--dim);line-height:1.6;margin-bottom:10px;}
+
+.case-chip .cc-tag.sop{background:rgba(160,115,0,0.12);color:#8a6200;}
+body.night .case-chip .cc-tag.sop{background:rgba(255,207,74,0.16);color:#ffe6a3;}
+.btn.sm{padding:4px 9px;font-size:11px;}
+
+@media(max-width:620px){ .flow-strip{flex-wrap:wrap;} .flow-arrow{display:none;} .tab .t-scope{display:none;} }
 </style>
 <script src="./auth-check.js"></script>
 <script defer src="./firebase-sync.js"></script>
@@ -289,83 +360,126 @@ body.night .abar-total{color:#4aeaff;background:rgba(74,234,255,0.13);border-col
   <button onclick="changeMonth(1)">▶</button>
 </div>
 
+<!-- ══ 流程引導條 ══ -->
+<div class="flow-strip">
+  <div class="flow-step" onclick="goTab('rec')"><div class="flow-num">1</div><div class="flow-txt"><b>上傳錄音</b><span>轉逐字稿＋摘要</span></div></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step" onclick="goTab('battle')"><div class="flow-num">2</div><div class="flow-txt"><b>連結到名單</b><span>之星 / 待檢討</span></div></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step" onclick="goTab('battle')"><div class="flow-num">3</div><div class="flow-txt"><b>跑 AI 分析</b><span>對照 SOP 給建議</span></div></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step" onclick="goTab('battle')"><div class="flow-num">4</div><div class="flow-txt"><b>採納打包</b><span>送進時間軸</span></div></div>
+</div>
+
+<!-- ══ 分頁導覽 ══ -->
+<div class="tabs">
+  <div class="tab active" data-tab="battle" onclick="goTab('battle')"><span class="t-main">🎯 本月作戰</span><span class="t-scope">當月</span></div>
+  <div class="tab" data-tab="rec" onclick="goTab('rec')"><span class="t-main">🎙️ 錄音與案例</span><span class="t-scope">素材</span></div>
+  <div class="tab" data-tab="kb" onclick="goTab('kb')"><span class="t-main">📚 知識庫</span><span class="t-scope">長期共用</span></div>
+</div>
+
 <div class="container">
 
-  <!-- ══ 🎙️ 錄音轉摘要（置頂 Hero）══ -->
-  <div class="section section-bare">
-    <div class="voice-hero">
-      <div class="vh-row">
-        <div class="vh-title">🎙️ 錄音轉摘要</div>
-        <button class="vh-btn" onclick="openVoiceModal()">＋ 上傳錄音</button>
+  <!-- ════════ TAB 1：本月作戰（當月）════════ -->
+  <div class="tabpane active" id="pane-battle">
+
+    <!-- 📊 我小組的 A業績 -->
+    <div class="section">
+      <div class="section-title"><div class="icon" style="background:#f0f0f3;">📊</div><span class="grow" id="aChartLabel">我小組的 A業績（業績Ⓐ · 近三個月比較）</span><span class="scope-badge scope-month">當月視角</span></div>
+      <div id="aChart"></div>
+    </div>
+
+    <!-- Block 1 — 本月約訪之星 -->
+    <div class="section">
+      <div class="section-title"><div class="icon" style="background:#f0f0f3;">🏆</div><span class="grow">本月約訪之星</span><span class="scope-badge scope-month">當月</span></div>
+      <div class="award" id="block1"></div>
+    </div>
+
+    <!-- Block 2 — 本月待檢討錄音 -->
+    <div class="section">
+      <div class="section-title"><div class="icon" style="background:#f0f0f3;">🎧</div><span class="grow">本月待檢討錄音</span><span class="scope-badge scope-month">當月</span></div>
+      <div class="sub-note">挑出本月需要優化的通話，連結錄音案例後，AI 作戰分析會針對這些點對照 SOP 找問題。</div>
+      <div id="needGrid"></div>
+    </div>
+
+    <!-- Block 3 — 本月目標作戰計劃 -->
+    <div class="section">
+      <div class="section-title"><div class="icon" style="background:#f0f0f3;">📋</div><span class="grow">本月目標作戰計劃</span><span class="scope-badge scope-month">當月</span>
+        <button class="btn purple" onclick="goToAChannel()">🧠 連到 A通路研究院</button>
       </div>
-      <div class="vh-sub">上傳會議/通話錄音 → 自動逐字稿 + AI 摘要 → 存進案例（預設驗收電話，與 AI 顧問共用）。</div>
+      <div class="card" id="block3"></div>
     </div>
-  </div>
 
-  <!-- ══ 📊 我小組的 A業績 ══ -->
-  <div class="section">
-    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📊</div><span id="aChartLabel">我小組的 A業績（業績Ⓐ · 近三個月比較）</span></div>
-    <div id="aChart"></div>
-  </div>
-
-  <!-- ══ 📚 錄音案例庫 ══ -->
-  <div class="section">
-    <div class="section-title">
-      <div class="icon" style="background:#f0f0f3;">📚</div>
-      <span style="flex:1;">錄音案例庫（與 AI 顧問共用）</span>
-      <button class="btn purple" onclick="goToAiCaseDb()">📂 連到 AI 顧問 案例庫</button>
+    <!-- Block 4 — 當月話術與獵殺名單 -->
+    <div class="section">
+      <div class="section-title"><div class="icon" style="background:#f0f0f3;">📝</div><span class="grow">當月話術與獵殺名單</span><span class="scope-badge scope-month">當月</span></div>
+      <div class="subhead">🗣️ 話術 <button class="btn cyan" onclick="addLink('scripts')">＋ 新增</button></div>
+      <div id="scriptsList"></div>
+      <div class="subhead">🎯 獵殺名單 <button class="btn cyan" onclick="addLink('hunts')">＋ 新增</button></div>
+      <div id="huntsList"></div>
     </div>
-    <div id="caseLibList"></div>
+
   </div>
 
-  <!-- ══ Block 1 — 本月約訪之星 ══ -->
-  <div class="section">
-    <div class="section-title"><div class="icon" style="background:#f0f0f3;">🏆</div>本月約訪之星</div>
-    <div class="award" id="block1"></div>
-  </div>
+  <!-- ════════ TAB 2：錄音與案例（素材）════════ -->
+  <div class="tabpane" id="pane-rec">
 
-  <!-- ══ Block 2 — 需優化錄音 ══ -->
-  <div class="section">
-    <div class="section-title"><div class="icon" style="background:#f0f0f3;">🎧</div>需優化錄音 ×3</div>
-    <div id="needGrid"></div>
-  </div>
-
-  <!-- ══ Block 3 — 本月目標作戰計劃 ══ -->
-  <div class="section">
-    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📋</div>本月目標作戰計劃
-      <button class="btn purple" onclick="goToAChannel()">🧠 連到 A通路研究院</button>
-    </div>
-    <div class="card" id="block3"></div>
-  </div>
-
-  <!-- ══ Block 4 — 當月話術與獵殺名單 ══ -->
-  <div class="section">
-    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📝</div>當月話術與獵殺名單</div>
-    <div class="subhead">🗣️ 話術 <button class="btn cyan" onclick="addLink('scripts')">＋ 新增</button></div>
-    <div id="scriptsList"></div>
-    <div class="subhead">🎯 獵殺名單 <button class="btn cyan" onclick="addLink('hunts')">＋ 新增</button></div>
-    <div id="huntsList"></div>
-  </div>
-
-  <!-- ══ Block 5 — 話術檔案庫 ══ -->
-  <div class="section">
-    <div class="section-title"><div class="icon" style="background:#f0f0f3;">📂</div>話術檔案庫
-      <button class="btn purple" onclick="addFile()">＋ 新增</button>
-      <span style="font-size:11px;color:var(--dim);">（跨月累積、不清空）</span>
-    </div>
-    <div id="filesList"></div>
-  </div>
-
-  <!-- ══ 🏆 優秀錄音案例 ══ -->
-  <div class="section section-bare">
-    <div class="voice-hero">
-      <div class="vh-row">
-        <div class="vh-title">🏆 優秀錄音案例</div>
-        <button class="vh-btn" onclick="openGoodCases()">＋ 開啟案例庫</button>
-        <button class="vh-btn2" onclick="openSopModal()">📋 約訪流程 SOP</button>
+    <!-- 🎙️ 錄音轉摘要（上傳工具 · 藍）-->
+    <div class="section section-bare">
+      <div class="voice-hero hero-upload">
+        <div class="vh-row">
+          <span class="hero-tag">工具</span>
+          <div class="vh-title">🎙️ 錄音轉摘要</div>
+          <button class="vh-btn" onclick="openVoiceModal()">＋ 上傳錄音</button>
+        </div>
+        <div class="vh-sub">上傳會議/通話錄音 → 自動逐字稿 + AI 摘要 → 存進下方「錄音案例庫」（預設驗收電話，與 AI 顧問共用）。</div>
       </div>
-      <div class="vh-sub">收錄「好的長相」典範通話。AI 作戰分析會自動參考這裡與約訪流程 SOP — 內容越多,抓問題越準、建議越精確。全主角共用、不分月份。</div>
     </div>
+
+    <!-- 📚 錄音案例庫 -->
+    <div class="section">
+      <div class="section-title"><div class="icon" style="background:#f0f0f3;">📚</div><span class="grow">錄音案例庫</span><span class="scope-badge scope-long">長期共用</span>
+        <button class="btn purple" onclick="goToAiCaseDb()">📂 連到 AI 顧問</button>
+      </div>
+      <div class="sub-note">所有上傳過的錄音都在這。要連到「之星／待檢討」或設為「典範」都從這裡挑。與 AI 顧問同一份資料。</div>
+      <div id="caseLibList"></div>
+    </div>
+
+    <!-- 🏆 典範錄音案例（餵 AI · 金）-->
+    <div class="section section-bare">
+      <div class="voice-hero hero-good">
+        <div class="vh-row">
+          <span class="hero-tag">餵 AI 用</span>
+          <div class="vh-title">🏆 典範錄音案例</div>
+          <button class="vh-btn" onclick="openGoodCases()">＋ 開啟典範庫</button>
+        </div>
+        <div class="vh-sub">收錄「好的長相」典範通話。AI 作戰分析會自動把這裡當對照標準 — 內容越多，抓問題越準。全主角共用、不分月份。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════ TAB 3：知識庫（長期共用）════════ -->
+  <div class="tabpane" id="pane-kb">
+
+    <!-- 📋 約訪流程 SOP -->
+    <div class="section">
+      <div class="section-title"><div class="icon" style="background:#f0f0f3;">📋</div><span class="grow">約訪流程 SOP</span><span class="scope-badge scope-long">全公司共用</span>
+        <button class="btn purple" onclick="openSopModal()">＋ 管理 SOP</button>
+      </div>
+      <div class="sub-note">⭐ AI 作戰分析的「最高判準」。可分主題多檔（開場話術、反對問題、舊名單救援…）。在這裡補內容，本月作戰的 AI 分析就會更準。</div>
+      <div id="sopPreviewList"></div>
+    </div>
+
+    <!-- Block 5 — 話術檔案庫 -->
+    <div class="section">
+      <div class="section-title"><div class="icon" style="background:#f0f0f3;">📂</div><span class="grow">話術檔案庫</span><span class="scope-badge scope-long">跨月累積</span>
+        <button class="btn cyan" onclick="addFile()">＋ 新增</button>
+      </div>
+      <div class="sub-note">不分月份、持續累積的話術檔。切換月份不會清空。</div>
+      <div id="filesList"></div>
+    </div>
+
   </div>
 
 </div>
@@ -1192,6 +1306,7 @@ function loadSopFiles(){
 function saveSopFiles(arr){
   try{ localStorage.setItem('wf_appointment_sop',JSON.stringify(arr||[])); }
   catch(e){ toast('⚠ SOP 儲存失敗:'+e.message,true); }
+  try{ renderSopPreview(); }catch(_){}
 }
 // 舊 API 保留向下相容(其他地方還有人在用 loadSop)
 function loadSop(){
@@ -1398,8 +1513,14 @@ function renderBlock3(){
     +'<a class="link-open'+(safeUrl(d.meetingUrl)?'':' off')+'" href="'+escAttr(safeUrl(d.meetingUrl)||'#')+'" target="_blank">🔗 開啟</a></div>';
   html+='<div style="font-size:12px;color:var(--dim);margin:6px 0 3px;">會議記錄文字（給 AI 分析用）<button class="btn" style="margin-left:6px;" onclick="openCasePicker(\'meetingText\',0)">📋 從錄音案例帶入</button></div>';
   html+='<textarea class="tin" placeholder="貼上會議記錄文字，或從錄音案例帶入" oninput="md().battlePlan.meetingText=this.value;scheduleSave();">'+esc(d.meetingText)+'</textarea>';
-  html+='<div class="subhead">🤖 AI 作戰分析 <button class="battle-ai-btn" id="battleAiBtn" onclick="runBattleAnalysis()">🤖 分析並給建議</button></div>';
-  html+='<div class="voice-sub" style="margin-bottom:6px;">分析素材：小組 A業績Ⓐ + 已連結錄音案例 + 會議記錄 + 文字記錄 ＋ 約訪流程 SOP ＋ 🏆優秀錄音案例 ＋ AI 顧問知識庫。</div>';
+  html+='<div class="subhead">🤖 AI 作戰分析</div>';
+  html+='<div class="ai-box">';
+  html+='<div class="voice-sub">這次分析會吃以下素材（<span style="color:#1a7a32;font-weight:700;">綠＝有</span>、<span style="color:#b02a37;font-weight:700;">紅＝缺</span>，補齊越多越準）：</div>';
+  html+='<div class="ai-feeds">'+aiFeedStatus().map(function(f){ return '<span class="feed '+(f.on?'on':'off')+'">'+(f.on?'✓ ':'✕ ')+esc(f.label)+'</span>'; }).join('')+'</div>';
+  html+='<div class="ai-arrow">▼ 綜合判斷 ▼</div>';
+  html+='<button class="battle-ai-btn" id="battleAiBtn" style="width:100%;" onclick="runBattleAnalysis()">🤖 分析並給建議</button>';
+  html+='<div class="voice-sub" style="margin-top:8px;">缺「會議記錄」可在上方補；缺「SOP／典範案例／知識庫」到 📚 知識庫 與 🎙️ 錄音與案例 分頁補。</div>';
+  html+='</div>';
   html+='<div id="battleAiResult"></div>';
   html+='<div class="subhead">✅ 已採納建議</div><div id="battleAdopted"></div>';
   document.getElementById('block3').innerHTML=html;
@@ -1554,6 +1675,44 @@ function goToAChannel(){
   toast('請從首頁進入 AI 顧問中心 → A通路研究院');
 }
 
+// ════════ 改版：分頁切換 / AI 素材狀態 / SOP 預覽 ════════
+function goTab(id){
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.dataset.tab===id); });
+  document.querySelectorAll('.tabpane').forEach(function(p){ p.classList.toggle('active', p.id==='pane-'+id); });
+  try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){ window.scrollTo(0,0); }
+}
+var _kbHasData=false;  // 由 init 非同步載入 AI 顧問知識庫後設定
+function aiFeedStatus(){
+  var d=md().battlePlan||{}, members=getGroupMembers();
+  var linked=(md().star.caseIds||[]).length;
+  md().needImprove.forEach(function(it){ linked+=((it.caseIds||[]).length); });
+  return [
+    {label:'小組 A業績', on: !!(_mpData && members.length)},
+    {label:'連結錄音案例'+(linked?' ×'+linked:''), on: linked>0},
+    {label:'文字記錄', on: !!(d.notes && d.notes.trim())},
+    {label:'會議記錄', on: !!((d.meetingText && d.meetingText.trim())||(d.meetingUrl && d.meetingUrl.trim()))},
+    {label:'約訪流程 SOP', on: loadSopFiles().length>0},
+    {label:'典範錄音案例', on: loadGoodCases().length>0},
+    {label:'AI 顧問知識庫', on: !!_kbHasData}
+  ];
+}
+function renderSopPreview(){
+  var el=document.getElementById('sopPreviewList'); if(!el) return;
+  var arr=loadSopFiles();
+  if(!arr.length){
+    el.innerHTML='<div class="empty"><div class="e-icon">📋</div><div class="e-title">尚無 SOP</div>'
+      +'<div class="e-hint">SOP 是 AI 作戰分析的最高判準，建議至少放「開場話術」與「反對問題處理」兩份。</div>'
+      +'<button class="btn purple" onclick="openSopModal()">＋ 新增第一份 SOP</button></div>';
+    return;
+  }
+  el.innerHTML=arr.map(function(s){
+    return '<div class="case-chip" onclick="openSopModal()" style="cursor:pointer;">'
+      +'<span class="cc-tag sop">SOP</span>'
+      +'<span class="cc-title">'+esc(s.title||'(未命名 SOP)')+'</span>'
+      +'<span class="cc-link">管理</span></div>';
+  }).join('');
+}
+
 // ════════ 渲染 ════════
 function renderAll(){
   renderBlock1();
@@ -1562,6 +1721,7 @@ function renderAll(){
   renderLinkList('scripts');
   renderLinkList('hunts');
   renderFiles();
+  renderSopPreview();
 }
 
 // ════════ 初始化 ════════
@@ -1577,6 +1737,9 @@ function _applyWhoLabel(){
   renderAll();
   await loadMpData();
   renderBlock1(); renderBlock2(); // mp_data 載入後重畫選單與長條圖
+  renderBlock3();                 // mp_data 載入後刷新 AI 素材狀態（小組 A業績）
+  // 非同步確認 AI 顧問知識庫有沒有資料 → 刷新 AI 素材燈號
+  try{ var kb=await buildKbContext(); _kbHasData=!!(kb && kb.trim()); renderBlock3(); }catch(_){}
 })();
 
 // ★ 主角切換後自動重載 —— 避免顯示／儲存到別的主角的資料
