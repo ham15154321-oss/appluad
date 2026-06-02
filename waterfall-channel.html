@@ -362,13 +362,13 @@ body.night .case-chip .cc-tag.sop{background:rgba(255,207,74,0.16);color:#ffe6a3
 
 <!-- ══ 流程引導條 ══ -->
 <div class="flow-strip">
-  <div class="flow-step" onclick="goTab('rec')"><div class="flow-num">1</div><div class="flow-txt"><b>上傳錄音</b><span>轉逐字稿＋摘要</span></div></div>
+  <div class="flow-step" onclick="goTab('rec','#wfUploadHero')"><div class="flow-num">1</div><div class="flow-txt"><b>上傳錄音</b><span>轉逐字稿＋摘要</span></div></div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step" onclick="goTab('battle')"><div class="flow-num">2</div><div class="flow-txt"><b>連結到名單</b><span>之星 / 待檢討</span></div></div>
+  <div class="flow-step" onclick="goTab('battle','#block1')"><div class="flow-num">2</div><div class="flow-txt"><b>連結到名單</b><span>之星 / 待檢討</span></div></div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step" onclick="goTab('battle')"><div class="flow-num">3</div><div class="flow-txt"><b>跑 AI 分析</b><span>對照 SOP 給建議</span></div></div>
+  <div class="flow-step" onclick="goTab('battle','#block3')"><div class="flow-num">3</div><div class="flow-txt"><b>跑 AI 分析</b><span>到作戰計劃按鈕</span></div></div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step" onclick="goTab('battle')"><div class="flow-num">4</div><div class="flow-txt"><b>採納打包</b><span>送進時間軸</span></div></div>
+  <div class="flow-step" onclick="goTab('battle','#block3')"><div class="flow-num">4</div><div class="flow-txt"><b>採納打包</b><span>送進時間軸</span></div></div>
 </div>
 
 <!-- ══ 分頁導覽 ══ -->
@@ -425,7 +425,7 @@ body.night .case-chip .cc-tag.sop{background:rgba(255,207,74,0.16);color:#ffe6a3
   <div class="tabpane" id="pane-rec">
 
     <!-- 🎙️ 錄音轉摘要（上傳工具 · 藍）-->
-    <div class="section section-bare">
+    <div class="section section-bare" id="wfUploadHero">
       <div class="voice-hero hero-upload">
         <div class="vh-row">
           <span class="hero-tag">工具</span>
@@ -1676,9 +1676,13 @@ function goToAChannel(){
 }
 
 // ════════ 改版：分頁切換 / AI 素材狀態 / SOP 預覽 ════════
-function goTab(id){
+function goTab(id, sel){
   document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.dataset.tab===id); });
   document.querySelectorAll('.tabpane').forEach(function(p){ p.classList.toggle('active', p.id==='pane-'+id); });
+  if(sel){
+    var el=document.querySelector(sel);
+    if(el){ try{ el.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){ el.scrollIntoView(); } return; }
+  }
   try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){ window.scrollTo(0,0); }
 }
 var _kbHasData=false;  // 由 init 非同步載入 AI 顧問知識庫後設定
