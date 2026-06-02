@@ -899,6 +899,33 @@ body.day-mode .sub-tab.active{background:rgba(0,113,227,.1);border-color:#0071e3
 body.day-mode .cards-section-label{color:#6e6e73;}
 body.day-mode .ask-examples-mini{color:#0071e3;border-color:rgba(0,113,227,.3);}
 body.day-mode .ask-examples-mini:hover{background:rgba(0,113,227,.06);}
+
+/* ===== 資料中心「四個資料庫對照」可收合說明帶（日夜雙配色）===== */
+.data-info{display:none;padding:0 20px 10px;background:rgba(8,16,38,.45);border-bottom:1px solid rgba(100,170,255,.1);}
+.data-info.show{display:block;}
+.di-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-size:.78rem;color:#9ecbff;padding:9px 2px;}
+.di-caret{color:#7d9bd0;font-size:.7rem;}
+.di-body{padding-bottom:6px;}
+.di-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+.di-card{background:rgba(14,26,58,.6);border:1px solid rgba(100,170,255,.18);border-radius:12px;padding:12px;}
+.di-card h4{font-size:.85rem;color:#eaf1ff;margin-bottom:7px;}
+.di-card .l{font-size:.72rem;color:#7d9bd0;line-height:1.6;}
+.di-card .l b{color:#bfe9ff;font-weight:600;}
+.di-tags{margin-top:7px;display:flex;flex-wrap:wrap;gap:4px;}
+.di-tag{font-size:.62rem;font-weight:700;border-radius:8px;padding:1px 7px;}
+.di-tag.share{background:rgba(62,224,160,.14);color:#a8f0d0;border:1px solid rgba(62,224,160,.35);}
+.di-tag.priv{background:rgba(255,207,74,.14);color:#ffdf8a;border:1px solid rgba(255,207,74,.32);}
+.di-tag.ai{background:rgba(74,234,255,.14);color:#bfe9ff;border:1px solid rgba(74,234,255,.32);}
+body.day-mode .data-info{background:#f0f1f4;border-bottom-color:#d2d2d7;}
+body.day-mode .di-bar{color:#0071e3;}
+body.day-mode .di-caret{color:#6e6e73;}
+body.day-mode .di-card{background:#fff;border-color:#d2d2d7;}
+body.day-mode .di-card h4{color:#1d1d1f;}
+body.day-mode .di-card .l{color:#6e6e73;}
+body.day-mode .di-card .l b{color:#1d1d1f;}
+body.day-mode .di-tag.share{background:rgba(40,167,69,.12);color:#1a7a32;border-color:rgba(40,167,69,.35);}
+body.day-mode .di-tag.priv{background:rgba(160,115,0,.12);color:#8a6200;border-color:rgba(160,115,0,.3);}
+body.day-mode .di-tag.ai{background:rgba(0,113,227,.1);color:#0071e3;border-color:rgba(0,113,227,.3);}
 </style>
 <!-- CDN: pdf.js + SheetJS + JSZip -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -929,6 +956,33 @@ body.day-mode .ask-examples-mini:hover{background:rgba(0,113,227,.06);}
   <button class="sub-tab" data-view="rules" onclick="showView('rules')">📜 鐵律</button>
   <button class="sub-tab" data-view="casedb" onclick="showView('casedb')">📂 案例庫</button>
   <button class="sub-tab" data-view="pmemory" onclick="showView('pmemory')">🔐 私聊<span class="badge" id="pmemoryBadge">0</span></button>
+</div>
+<!-- 資料中心：四個資料庫對照（可收合）-->
+<div id="dataInfoBand" class="data-info">
+  <div class="di-bar" onclick="toggleDataInfo()">
+    <span>ℹ️ 這四個資料庫差在哪？（放什麼 · 誰看得到 · AI 會不會讀）</span>
+    <span class="di-caret" id="diCaret">▲</span>
+  </div>
+  <div class="di-body" id="diBody">
+    <div class="di-grid">
+      <div class="di-card"><h4>📚 知識庫</h4>
+        <div class="l"><b>放什麼：</b>公司教材、SOP、制度文件</div>
+        <div class="l"><b>誰看得到：</b>全公司共享</div>
+        <div class="di-tags"><span class="di-tag share">全公司共享</span><span class="di-tag ai">AI 會讀</span></div></div>
+      <div class="di-card"><h4>📜 鐵律</h4>
+        <div class="l"><b>放什麼：</b>團隊規則、不可違反的原則</div>
+        <div class="l"><b>誰看得到：</b>全公司共享</div>
+        <div class="di-tags"><span class="di-tag share">全公司共享</span><span class="di-tag ai">AI 必遵守</span></div></div>
+      <div class="di-card"><h4>📂 案例庫</h4>
+        <div class="l"><b>放什麼：</b>錄音案例、驗收電話逐字稿</div>
+        <div class="l"><b>誰看得到：</b>全公司共享</div>
+        <div class="di-tags"><span class="di-tag share">全公司共享</span><span class="di-tag ai">AI 會讀</span></div></div>
+      <div class="di-card"><h4>🔐 私聊</h4>
+        <div class="l"><b>放什麼：</b>你和 AI 的個人記憶 / 筆記</div>
+        <div class="l"><b>誰看得到：</b>只有你自己</div>
+        <div class="di-tags"><span class="di-tag priv">個人私密</span><span class="di-tag ai">AI 會讀</span></div></div>
+    </div>
+  </div>
 </div>
 
 <!-- ===== 1. 功能卡片 ===== -->
@@ -976,7 +1030,7 @@ body.day-mode .ask-examples-mini:hover{background:rgba(0,113,227,.06);}
   <div class="chat-left">
     <div class="chat-header">
       <span id="chatIcon">🎯</span>
-      <span class="ch-title" id="chatTitle">AI 教練</span>
+      <span class="ch-title" id="chatTitle">績效教練</span>
       <button class="back-wf-btn" id="backToWfBtn" onclick="backToWaterfall()" style="display:none;">🏔️ 回到瀑布</button>
       <div class="chat-tools">
         <button class="chat-tool-btn" id="fontBtn" onclick="toggleChatFontSize()" title="切換字體大小">字 A</button>
@@ -1241,12 +1295,12 @@ body.day-mode .ask-examples-mini:hover{background:rgba(0,113,227,.06);}
   </div>
   <label style="display:block;margin:10px 0 4px;font-size:12px;color:rgba(180,200,240,.7);font-weight:700;">🤖 哪個 AI 顧問？</label>
   <select id="aiErrFeature">
-    <option value="coach">🎯 AI 教練</option>
-    <option value="data">📊 AI 數據通</option>
-    <option value="task">✅ AI 小任務</option>
-    <option value="team">📣 AI 團隊宣言</option>
+    <option value="coach">🎯 績效教練</option>
+    <option value="data">📊 數據查詢</option>
+    <option value="task">✅ 任務指派</option>
+    <option value="team">📣 公司知識問答</option>
     <option value="mentor">🧠 A通路研究院</option>
-    <option value="cases">📚 專業與變革要精益求精</option>
+    <option value="cases">📚 案例與精進</option>
     <option value="other">🤷 其他/不確定</option>
   </select>
   <label style="display:block;margin:10px 0 4px;font-size:12px;color:rgba(180,200,240,.7);font-weight:700;">👤 你問了什麼？</label>
@@ -1264,17 +1318,17 @@ body.day-mode .ask-examples-mini:hover{background:rgba(0,113,227,.06);}
 <div class="add-modal-bg" id="pmemoryModal"><div class="add-modal add-modal--lg">
   <h3>＋ 新增個人記憶（只有你自己看得到）</h3>
   <div class="meta">
-    <span class="hint">這條記憶會自動帶入所有 AI 功能（教練/數據通/小任務/團隊宣言/A通路研究院/精益求精）的對話。寫越具體 AI 越懂你。</span>
+    <span class="hint">這條記憶會自動帶入所有 AI 顧問（績效教練/數據查詢/任務指派/公司知識問答/A通路研究院/案例與精進）的對話。寫越具體 AI 越懂你。</span>
     <span class="count" id="pmemoryCount">0 字</span>
   </div>
   <select id="pmemoryFeature" style="margin-bottom:8px;">
     <option value="manual">📝 一般記憶</option>
-    <option value="cards">🎯 AI 教練</option>
-    <option value="data">📊 AI 數據通</option>
-    <option value="tasks">✅ AI 小任務</option>
-    <option value="declaration">📣 AI 團隊宣言</option>
+    <option value="cards">🎯 績效教練</option>
+    <option value="data">📊 數據查詢</option>
+    <option value="tasks">✅ 任務指派</option>
+    <option value="declaration">📣 公司知識問答</option>
     <option value="mentor">🧠 A通路研究院</option>
-    <option value="cases">📚 專業與變革要精益求精</option>
+    <option value="cases">📚 案例與精進</option>
   </select>
   <textarea id="pmemoryText" placeholder="例：我這組目前最大的痛點是面談率只有 35%，主要卡在 ... 我希望 AI 之後的建議都圍繞「先把面談率拉到 60%」展開。" oninput="document.getElementById('pmemoryCount').textContent=this.value.length+' 字'"></textarea>
   <div class="btn-row"><button class="btn-cancel" onclick="closeModal('pmemoryModal')">取消</button><button class="btn-save" onclick="addPmemory()">＋ 儲存記憶</button></div>
@@ -1730,6 +1784,19 @@ function showGroup(grp){
   var def={ask:'cards',task:'timeline',data:'knowledge',challenge:'aierror'}[grp]||'cards';
   showView(def);
 }
+// 資料中心「四個資料庫對照」說明帶：收合狀態記在本機（預設第一次展開）
+function _diCollapsed(){ try{ return localStorage.getItem('kb_datainfo_collapsed')==='1'; }catch(e){ return false; } }
+function applyDataInfo(){
+  var b=document.getElementById('diBody'), c=document.getElementById('diCaret');
+  if(!b) return;
+  var col=_diCollapsed();
+  b.style.display = col ? 'none' : '';
+  if(c) c.textContent = col ? '▼' : '▲';
+}
+function toggleDataInfo(){
+  try{ localStorage.setItem('kb_datainfo_collapsed', _diCollapsed()?'0':'1'); }catch(e){}
+  applyDataInfo();
+}
 // ★ 首頁「直接問」→ 依關鍵字分流到對的顧問，並自動送出問題
 function routePersona(q){
   var s=String(q||'');
@@ -1762,6 +1829,8 @@ function showView(id){
   document.querySelectorAll('.grp-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.grp===grp); });
   document.querySelectorAll('.subnav').forEach(function(s){ s.classList.toggle('show', s.id==='subnav-'+grp); });
   document.querySelectorAll('.sub-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.view===id); });
+  var dib=document.getElementById('dataInfoBand'); if(dib){ dib.classList.toggle('show', grp==='data'); }
+  applyDataInfo();
   if(id==='timeline')renderTimeline();
   if(id==='knowledge')renderKnowledge();
   if(id==='rules')renderRules();
@@ -4117,7 +4186,7 @@ function addRule(){
 function delRule(id){SS(SK.rules,LS(SK.rules).filter(function(x){return x.id!==id;}));renderRules();}
 function renderRules(){
   var items=LS(SK.rules),el=document.getElementById('rulesBody');
-  if(!items.length){el.innerHTML='<div class="panel-empty">📜 尚無鐵律<br>新增團隊規則後，AI 團隊宣言的每次問答都會參考這些規則</div>';return;}
+  if(!items.length){el.innerHTML='<div class="panel-empty">📜 尚無鐵律<br>新增團隊規則後，「公司知識問答」的每次問答都會參考這些規則</div>';return;}
   el.innerHTML=items.map(function(r,i){
     return '<div class="rule-item"><div class="rule-num">'+(i+1)+'</div><div class="rule-text">'+esc(r.text)+'</div>'
       +'<span class="rule-del" onclick="delRule(\''+r.id+'\')">✕</span></div>';
