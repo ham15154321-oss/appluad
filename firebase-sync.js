@@ -1996,4 +1996,60 @@ window.addEventListener('storage', function(e){
   }
 });
 
+// ★ 一次性「已遷移 IDB 殘渣」清理 — LS 瘦身、加速同步
+//   只清「IDB key == LS key」可精確比對的 suffix；且只在 IndexedDB 確實已有同名資料時才刪 LS。
+//   驗證不過 → 保留 LS（零資料遺失風險）。只在最上層視窗跑一次，避免 iframe 重複執行。
+(function _cleanupMigratedResidue(){
+  try{
+    if (window.top !== window.self) return; // 只在頂層頁跑
+    var SAFE_MAP = [
+      { suf:'training_room_door_imgs',        db:'SpaceBaseDB',    store:'images' },
+      { suf:'achievement_unlock_data',        db:'AchievementDB',  store:'data' },
+      { suf:'achievement_shared_all_yt',      db:'AchievementDB',  store:'data' },
+      { suf:'achievement_shared_regional_yt', db:'AchievementDB',  store:'data' },
+      { suf:'knowledge_base_v1',              db:'KnowledgeBaseDB', store:'kb' }
+    ];
+    function matchSuf(k){
+      for (var i=0;i<SAFE_MAP.length;i++){
+        var s=SAFE_MAP[i];
+        if (k===s.suf) return s;
+        if (k.indexOf('char_')===0 && k.slice(-(s.suf.length+1))==='_'+s.suf) return s;
+      }
+      return null;
+    }
+    function idbHasKey(dbName, store, key){
+      return new Promise(function(resolve){
+        try{
+          var req=indexedDB.open(dbName);
+          req.onsuccess=function(){
+            var db=req.result;
+            if(!db.objectStoreNames.contains(store)){ try{db.close();}catch(_){} resolve(false); return; }
+            try{
+              var r=db.transaction(store,'readonly').objectStore(store).get(key);
+              r.onsuccess=function(){ var v=r.result; try{db.close();}catch(_){} resolve(v!==undefined && v!==null); };
+              r.onerror=function(){ try{db.close();}catch(_){} resolve(false); };
+            }catch(e){ try{db.close();}catch(_){} resolve(false); }
+          };
+          req.onerror=function(){ resolve(false); };
+        }catch(e){ resolve(false); }
+      });
+    }
+    async function run(){
+      try{
+        var keys=Object.keys(localStorage), removed=0, freed=0;
+        for (var i=0;i<keys.length;i++){
+          var k=keys[i]; var m=matchSuf(k);
+          if(!m) continue;
+          var val=localStorage.getItem(k)||'';
+          if(val.length < 4096) continue;             // 只清大殘渣，小的不冒險
+          var ok=await idbHasKey(m.db, m.store, k);    // IDB 確實有同名資料才刪
+          if(ok){ try{ _origRemove(k); removed++; freed+=val.length+k.length; }catch(_){} }
+        }
+        if(removed) console.log('[FirebaseSync] 已清理 IDB 殘渣 '+removed+' 筆，LS 釋放 '+Math.round(freed/1024)+'KB');
+      }catch(e){ console.warn('[FirebaseSync] 殘渣清理略過', e); }
+    }
+    setTimeout(run, 12000); // 等首次同步/IDB 連線穩定後再跑
+  }catch(e){ /* 任何意外都不影響主流程 */ }
+})();
+
 })();
