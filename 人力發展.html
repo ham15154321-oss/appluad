@@ -1292,7 +1292,7 @@
 
 </style>
 <script src="./auth-check.js?v=authfix"></script>
-<script defer src="./firebase-sync.js?v=v8kbbrute"></script>
+<script defer src="./firebase-sync.js?v=v9hidden"></script>
 <script defer src="./auth-firebase.js?v=v2"></script>
 </head>
 <body>
@@ -2832,7 +2832,10 @@ async function downloadBackup(){
 
 // ========== 🔄 自動定期備份 ==========
 function getAutoBackupInterval(){
-  return parseInt(localStorage.getItem('autoBackupInterval') || '10') || 10;
+  // ★ 2026/06 改:預設 20 天(原本 10 天太頻繁)。已設 10 天的也自動升級成 20 天
+  var v = localStorage.getItem('autoBackupInterval');
+  if (v === '10') { localStorage.setItem('autoBackupInterval','20'); v='20'; }
+  return parseInt(v || '20') || 20;
 }
 function saveAutoBackupSetting(){
   var val = document.getElementById('autoBackupInterval').value;
@@ -3739,6 +3742,46 @@ async function init(){
   checkAutoBackup();
 }
 init();
+
+// ════════════════════════════════════════════════════════════════
+// ★ 2026/06 加:防錯誤碼 5 (SBOX_FATAL_MEMORY_EXCEEDED)
+//   分頁長時間隱藏 → 釋放大型記憶體快取,避免 OS 砍 renderer
+// ════════════════════════════════════════════════════════════════
+var _hiddenSince = 0;
+var _memCleanupTimer = null;
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden) {
+    _hiddenSince = Date.now();
+    // 5 分鐘後還沒被切回來 → 強制釋放快取
+    if (_memCleanupTimer) clearTimeout(_memCleanupTimer);
+    _memCleanupTimer = setTimeout(function(){
+      try {
+        // 釋放卡片照片 in-memory cache
+        if (window._cardPhotoCache) window._cardPhotoCache = {};
+        // 釋放 ai 相關記憶體 cache
+        try { if (window.parent) {
+          ['_kbCache','_caseCache','_pmemoryCache','_motivCache'].forEach(function(k){
+            // 不刪,只清空陣列/物件以釋放 heap
+            try {
+              var iframes = document.querySelectorAll('iframe');
+              iframes.forEach(function(f){
+                try { if(f.contentWindow && f.contentWindow[k]){ f.contentWindow[k] = null; } }catch(_){}
+              });
+            }catch(_){}
+          });
+        }}catch(_){}
+        // 暫停 BGM 釋放 audio buffer
+        try { if(typeof stopBgm==='function') stopBgm(); }catch(_){}
+        console.log('[memCleanup] 分頁隱藏 5 分鐘 → 已釋放大型快取');
+      } catch(e){}
+    }, 5 * 60 * 1000);
+  } else {
+    _hiddenSince = 0;
+    if (_memCleanupTimer) { clearTimeout(_memCleanupTimer); _memCleanupTimer = null; }
+    // 切回來 → 重新讀 castle 卡片照片(因為剛剛清掉了)
+    try { if (typeof syncFromCastleCards === 'function') syncFromCastleCards(); }catch(_){}
+  }
+});
 
 // ★ 還原：清掉之前可能殘留的 simplified mode 旗標（避免使用者已經切換的人卡在簡化模式）
 try { localStorage.removeItem('appedu_ui_mode_simplified'); } catch(e){}

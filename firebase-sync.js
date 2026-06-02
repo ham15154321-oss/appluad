@@ -1650,10 +1650,14 @@ function setupRealtime(){
 
 // ★ 定期 pull 保險：每 90 秒額外拉一次（即使 onSnapshot 失效也保證資料會更新）
 //   不在 _pushing 中才 pull，避免衝突
+//   ★★★ 2026/06 加:頁面隱藏時跳過,避免閒置分頁累積記憶體被 Chrome 砍掉(錯誤碼 5)
 var PULL_INTERVAL_MS = 90 * 1000;
 function _startPeriodicPull(){
   setInterval(async function(){
     if (_pushing || _pullingFromCloud) return;
+    // ★ 頁面被隱藏(切到別 tab、最小化)→ 跳過,等使用者回來再 pull
+    //   避免閒置分頁背景跑導致記憶體累積 → renderer 被 OS 砍掉(SBOX_FATAL_MEMORY_EXCEEDED 錯誤碼 5)
+    if (typeof document !== 'undefined' && document.hidden) return;
     try {
       await pullFromCloud();
       window.dispatchEvent(new Event('firebase-sync-updated'));
@@ -1758,7 +1762,7 @@ async function _doInit(){
         ready = true;
         setupRealtime();
         _startPeriodicPull();   // ★ 每 90s 額外 pull 一次（onSnapshot 沒抓到也能補救）
-        if (!IS_ADMIN) setInterval(pushToCloud, SYNC_INTERVAL_MS);
+        if (!IS_ADMIN) setInterval(function(){ if(document.hidden) return; pushToCloud(); }, SYNC_INTERVAL_MS);  // 隱藏時跳過,省記憶體
         setBadge(IS_ADMIN ? '☁ 管理者' : badgeLabel, '#00ff88');
         setTimeout(() => { if (badgeEl) badgeEl.style.opacity = '0.3'; }, 2000);
         if (!IS_ADMIN) setTimeout(pushToCloud, 15000);
