@@ -818,6 +818,11 @@ body.day-mode #taskAssigneeChips span[style*="rgba(180,200,240,.5)"]{
 }
 body.day-mode #taskFileSummary{color:#86868b !important;}
 
+/* ★ 時間軸兩欄佈局：視窗較窄時改成單欄堆疊，避免右側詳情面板被推到畫面外（看不到查看/編輯/刪除）*/
+@media(max-width:820px){
+  #tlGrid{grid-template-columns:1fr !important;}
+  #tlGrid #timelineBody{max-height:none !important;}
+}
 </style>
 <!-- CDN: pdf.js + SheetJS + JSZip -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -913,9 +918,9 @@ body.day-mode #taskFileSummary{color:#86868b !important;}
 
 <!-- ===== 3. 時間軸 ===== -->
 <div class="view panel-view" id="v_timeline">
-  <div class="panel-header"><h2>📅 時間軸 — AI 任務追蹤</h2><button class="panel-add-btn" onclick="openAddTask()">＋ 新增任務</button></div>
+  <div class="panel-header"><h2>📅 時間軸 — AI 任務追蹤</h2><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="panel-add-btn" style="background:rgba(255,107,107,.15);color:#ff8a8a;" onclick="showDeletionLog()">🗑 刪除記錄</button><button class="panel-add-btn" onclick="openAddTask()">＋ 新增任務</button></div></div>
   <!-- 兩欄佈局：左邊任務列表、右邊預覽 -->
-  <div style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,1.2fr);gap:14px;padding:8px 0;align-items:flex-start;">
+  <div id="tlGrid" style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,1.2fr);gap:14px;padding:8px 0;align-items:flex-start;">
     <div class="panel-body" id="timelineBody" style="max-height:calc(100vh - 220px);overflow-y:auto;"></div>
     <div id="timelinePreview" style="background:rgba(74,234,255,.04);border:1px solid rgba(74,234,255,.18);border-radius:12px;padding:14px;min-height:200px;color:#dde6f0;font-size:.85rem;line-height:1.6;">
       <div style="text-align:center;color:rgba(180,200,240,.5);padding:40px 20px;">
@@ -1371,7 +1376,7 @@ var FEATURES={
 };
 
 var curView='cards', curFeature=null, curTopicId=null, pinPage=0;
-var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base',pmemory:'ai_pmemory_v1',aierror:'ai_error_reports_v1',knowledge:'knowledge_base_v1'};
+var SK={pins:'ai_pins_v1',closed:'ai_closed_v1',timeline:'ai_timeline_v1',rules:'ai_rules_v1',casedb:'ai_casedb_v1',teamkb:'appedu_team_knowledge_base',pmemory:'ai_pmemory_v1',aierror:'ai_error_reports_v1',knowledge:'knowledge_base_v1',dellog:'ai_task_dellog_v1'};
 // ★ 私聊記憶（pmemory）是「per character」儲存
 //   v3 架構：搬到 IndexedDB（AiAdvisorDB.pmemory），key=charId
 //   原因：LS 5MB 容易爆，IDB 50MB+ 永遠不會
@@ -3111,6 +3116,7 @@ function openPinsAdminDetail(charId, pinId){
 // ══════ 時間軸（新版：標題/內容/期限/指派人/受指派人/附件，含預覽）══════
 // 資料結構：{ id, title, content, deadline, status, assigner, assignees:[], attachments:[{name,size,dataURL}], createdAt, log:[{at, who, action}] }
 var _taskEditId = null;   // 編輯中的任務 id（null=新增）
+var _taskEditIsReceived = false; // ★ 編輯的是不是「受指派任務」（要寫回 cross_task）
 var _taskAssigneesTmp = []; // modal 暫存：選了哪些受指派人
 var _taskFilesTmp = [];     // modal 暫存：附加檔案
 
@@ -3135,6 +3141,7 @@ function _curCharName(){
 
 function openAddTask(){
   _taskEditId = null;
+  _taskEditIsReceived = false;
   _taskAssigneesTmp = [];
   _taskFilesTmp = [];
   document.getElementById('taskModalTitle').textContent = '＋ 新增任務';
@@ -3153,6 +3160,13 @@ function openAddTask(){
 function openEditTask(id){
   var items = LS(_timelineKey());
   var t = items.find(function(x){ return x.id === id; });
+  _taskEditIsReceived = false;
+  // ★ 不在自己時間軸 → 可能是受指派任務（從 cross_task 讀），一樣可編輯
+  if (!t){
+    var received = _readReceivedCrossTasks();
+    t = received.find(function(x){ return x.id === id; });
+    if (t) _taskEditIsReceived = true;
+  }
   if (!t) return;
   _taskEditId = id;
   _taskAssigneesTmp = (t.assignees || []).slice();
@@ -3331,6 +3345,7 @@ function _readReceivedCrossTasks(){
       try {
         var task = JSON.parse(store.getItem(k) || '{}');
         if (!task || !task.id) continue;
+        if (task._deleted) continue; // ★ 已被受指派人刪除（墓碑）→ 不顯示
         var assignees = _getAssigneeNames(task);
         var origOwner = task._originalOwner || task.assigner;
         // 我是受指派人 且 不是原作者本人 → 顯示為「受指派」
@@ -3345,6 +3360,24 @@ function _readReceivedCrossTasks(){
   return received;
 }
 
+// ★ 讀取所有「已被受指派人刪除」的 cross_task 墓碑 → {taskId: task}
+//   原作者端 renderTimeline 會用它把母本對應任務一起刪掉
+function _readCrossTombstones(){
+  var out = {};
+  try {
+    var store = (window.parent && window.parent.localStorage) || localStorage;
+    for (var i = 0; i < store.length; i++){
+      var k = store.key(i);
+      if (!k || k.indexOf('cross_task_') !== 0) continue;
+      try {
+        var task = JSON.parse(store.getItem(k) || '{}');
+        if (task && task.id && task._deleted){ out[task.id] = task; }
+      } catch(e){}
+    }
+  } catch(e){}
+  return out;
+}
+
 function addTask(){
   var name = document.getElementById('taskName').value.trim();
   if (!name) { alert('請輸入標題'); return; }
@@ -3355,8 +3388,23 @@ function addTask(){
   var items = LS(_timelineKey());
   var savedTask = null;
   var originalOwner = null;
-  if (_taskEditId){
-    // 編輯模式
+  if (_taskEditId && _taskEditIsReceived){
+    // ★ 編輯「受指派任務」→ 直接改 cross_task doc（同步給原作者與其他受指派人）
+    var received = _readReceivedCrossTasks();
+    var rt = received.find(function(x){ return x.id === _taskEditId; });
+    if (rt){
+      rt.title = name;
+      rt.task = name; // 向下相容
+      rt.content = content;
+      rt.deadline = dl;
+      rt.assignees = _taskAssigneesTmp.slice();
+      rt.attachments = _taskFilesTmp.slice();
+      rt.log = (rt.log || []).concat([{ at: now, who: assigner, action: '編輯任務（受指派人修改）' }]);
+      _writeCrossTask(rt, rt._originalOwner || rt.assigner);
+    }
+    // savedTask 保持 null → 不重複寫自己時間軸、不重複 sync
+  } else if (_taskEditId){
+    // 編輯模式（自己時間軸的任務）
     var t = items.find(function(x){ return x.id === _taskEditId; });
     if (t){
       t.title = name;
@@ -3644,22 +3692,52 @@ function supervisorRejectRecommit(taskId){
   try { var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync; if (fs && fs.push) fs.push(); } catch(e){}
 }
 
+// ★ 刪除稽核 log：誰、什麼時候、刪了哪筆、什麼身分 → 寫進全公司共享 key（會同步雲端）
+function _logTaskDeletion(task, who, role){
+  try{
+    var logs = LS(SK.dellog); if(!Array.isArray(logs)) logs=[];
+    logs.push({
+      id: 'del_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+      taskId: (task && task.id) || '',
+      title: (task && (task.title || task.task)) || '(未命名)',
+      deletedBy: who || '?',
+      role: role || '',
+      at: Date.now(),
+      atText: new Date().toLocaleString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),
+      originalOwner: (task && (task._originalOwner || task.assigner)) || ''
+    });
+    SS(SK.dellog, logs);
+    try{ var fs=(window.parent && window.parent.firebaseSync) || window.firebaseSync; if(fs && fs.push) fs.push(); }catch(e){}
+  }catch(e){ console.warn('[dellog] 寫入失敗', e); }
+}
+
 function delTask(id){
+  var who = _curCharName() || '?';
   var items = LS(_timelineKey());
   var t = items.find(function(x){ return x.id === id; });
   if (t){
     // 自己時間軸的任務
     if (!confirm('確定刪除此任務？')) return;
+    _logTaskDeletion(t, who, '建立者');
     // 若有指派給別人 → 同步刪除 cross_task doc（受指派人也看不到了）
     _removeTaskFromAssignees(t);
     SS(_timelineKey(), items.filter(function(x){ return x.id !== id; }));
   } else {
     // 受指派任務（不在自己時間軸）
-    if (!confirm('這是別人指派給你的任務，移除後你不會再看到，但原作者那邊仍然存在。確定移除？')) return;
-    // ★ 不刪除 cross_task doc（其他指派人可能還在）
-    //   只在 UI 本地暫時隱藏 — 但因為下次 pull 又會出現，先簡單處理：直接刪 cross_task
-    //   （比較粗暴，未來可改為「per-receiver 隱藏列表」）
-    _deleteCrossTask(id);
+    var received = _readReceivedCrossTasks();
+    var rt = received.find(function(x){ return x.id === id; });
+    if (!confirm('這是別人指派給你的任務。移除後你不會再看到，原指派人那邊也會一併刪除。此動作會被記錄到「🗑 刪除記錄」。確定移除？')) return;
+    _logTaskDeletion(rt || {id:id}, who, '受指派人');
+    // ★ 軟刪除：在共享檔打上墓碑（_deleted）。原作者端 render 時會連動刪掉母本，其他受指派人也看不到。
+    if (rt){
+      rt._deleted = true;
+      rt._deletedBy = who;
+      rt._deletedAt = Date.now();
+      rt.log = (rt.log || []).concat([{ at: Date.now(), who: who, action: '🗑 受指派人刪除任務（連動原作者）' }]);
+      _writeCrossTask(rt, rt._originalOwner || rt.assigner);
+    } else {
+      _deleteCrossTask(id);
+    }
   }
   renderTimeline();
   try {
@@ -3677,6 +3755,13 @@ function selectTask(id){
   _selectedTaskId = id;
   _renderTaskPreview(id);
   renderTimeline(); // 重繪以高亮選中項
+  // ★ 窄畫面（單欄堆疊）→ 詳情面板在下方，自動捲過去讓使用者看到查看/編輯/刪除
+  try{
+    if(window.matchMedia && window.matchMedia('(max-width:820px)').matches){
+      var pv=document.getElementById('timelinePreview');
+      if(pv) setTimeout(function(){ pv.scrollIntoView({behavior:'smooth',block:'start'}); },60);
+    }
+  }catch(e){}
 }
 
 function _renderTaskPreview(id){
@@ -3706,7 +3791,7 @@ function _renderTaskPreview(id){
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
     + '<div style="font-size:.74rem;color:rgba(180,200,240,.55);">' + labels[t.status||'pending'] + '</div>'
     + '<div style="display:flex;gap:6px;">'
-    + (t._isReceived ? '' : '<button onclick="openEditTask(\''+t.id+'\')" title="編輯" style="padding:4px 8px;border-radius:4px;border:1px solid rgba(180,200,240,.25);background:transparent;color:#dde6f0;cursor:pointer;font-size:.72rem;">✏️ 編輯</button>')
+    + '<button onclick="openEditTask(\''+t.id+'\')" title="編輯" style="padding:4px 8px;border-radius:4px;border:1px solid rgba(180,200,240,.25);background:transparent;color:#dde6f0;cursor:pointer;font-size:.72rem;">✏️ 編輯</button>'
     + '<button onclick="delTask(\''+t.id+'\')" title="刪除" style="padding:4px 8px;border-radius:4px;border:1px solid rgba(255,80,80,.3);background:transparent;color:#ff8a8a;cursor:pointer;font-size:.72rem;">🗑 '+(t._isReceived?'移除':'刪除')+'</button>'
     + '</div></div>'
     + '<h3 style="margin:0 0 12px;font-size:1.05rem;color:#dde6f0;">' + esc(t.title || t.task || '(未命名)') + '</h3>'
@@ -3814,6 +3899,16 @@ function _renderTaskPreview(id){
 
 function renderTimeline(){
   var ownItems = LS(_timelineKey());
+  // ★ 連動刪除：受指派人刪掉的任務（共享檔墓碑）→ 原作者母本也要一起清掉
+  var _tomb = _readCrossTombstones();
+  if (Object.keys(_tomb).length){
+    var _before = ownItems.length;
+    ownItems = ownItems.filter(function(x){ return !_tomb[x.id]; });
+    if (ownItems.length !== _before){
+      SS(_timelineKey(), ownItems);  // 只動自己的 key，避免跨角色同步覆寫
+      try{ var fs=(window.parent && window.parent.firebaseSync) || window.firebaseSync; if(fs && fs.push) fs.push(); }catch(e){}
+    }
+  }
   // ★ 跨主角任務：別人指派給我的任務（從 cross_task_* global keys 讀）
   var receivedItems = _readReceivedCrossTasks();
   // 去重：若 receivedItems 跟 ownItems 有同 id（我自己也是指派人之一）→ 以 own 為準
@@ -3846,6 +3941,29 @@ function renderTimeline(){
       + adminBadge
       + '</div></div>';
   }).join('');
+}
+
+// ══════ 🗑 刪除記錄檢視 ══════
+function showDeletionLog(){
+  var el = document.getElementById('timelinePreview'); if(!el) return;
+  var logs = LS(SK.dellog); if(!Array.isArray(logs)) logs=[];
+  var head = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+    + '<b style="color:#dde6f0;">🗑 刪除記錄（'+logs.length+'）</b>'
+    + '<button onclick="_closeDeletionLog()" style="padding:3px 9px;border-radius:5px;border:1px solid rgba(180,200,240,.25);background:transparent;color:#dde6f0;cursor:pointer;font-size:.72rem;">關閉</button></div>';
+  if(!logs.length){ el.innerHTML = head + '<div style="text-align:center;color:rgba(180,200,240,.5);padding:30px 20px;">尚無刪除記錄</div>'; return; }
+  var rows = logs.slice().reverse().map(function(L){
+    return '<div style="padding:8px 10px;border:1px solid rgba(255,107,107,.18);background:rgba(255,107,107,.06);border-radius:8px;margin-bottom:8px;font-size:.78rem;color:#dde6f0;line-height:1.6;">'
+      + '🗑 <b>'+esc(L.deletedBy||'?')+'</b>'+(L.role?'（'+esc(L.role)+'）':'')+' 刪除了「'+esc(L.title||'(未命名)')+'」'
+      + '<div style="color:rgba(180,200,240,.6);font-size:.7rem;margin-top:3px;">'+esc(L.atText||'')+(L.originalOwner?' · 原作者：'+esc(L.originalOwner):'')+'</div>'
+      + '</div>';
+  }).join('');
+  el.innerHTML = head + rows;
+}
+function _closeDeletionLog(){
+  _selectedTaskId = null;
+  var el = document.getElementById('timelinePreview');
+  if(el) el.innerHTML = '<div style="text-align:center;color:rgba(180,200,240,.5);padding:40px 20px;">👈 點任務看詳情</div>';
+  renderTimeline();
 }
 
 // ══════ 鐵律 ══════
