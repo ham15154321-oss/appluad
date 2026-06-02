@@ -912,6 +912,7 @@ function loadAllTasks(){
     try{
       var t = JSON.parse(lsGet(k)||'null');
       if(!t || !t.id) return;
+      if(t._deleted) return;   // ★ 已刪除（墓碑）→ 不顯示
       var origOwner = t._originalOwner || t.assigner;
       var assignees = (t.assignees||[]).map(function(a){ return (typeof a==='string')?a:(a&&a.name)||null; }).filter(Boolean);
       assignees.forEach(function(owner){
@@ -1564,7 +1565,15 @@ function deleteTask(){
   if(!confirm('確定刪除「'+(t.title||'(未命名)')+'」？此操作不可復原。')) return;
 
   if(t._sourceKey && t._sourceKey.indexOf('cross_task_')===0){
-    lsDel(t._sourceKey);
+    // ★ 用「墓碑」刪除：標記 _deleted 並寫回 → 會同步上雲、各頁載入時略過，
+    //   避免只刪本機 key、雲端那份又被同步拉回來（刪了又跑出來）。
+    try{
+      var obj = JSON.parse(lsGet(t._sourceKey)||'{}')||{};
+      obj._deleted = true;
+      obj._deletedBy = (typeof currentAdminName==='function' ? currentAdminName() : '') || '';
+      obj._deletedAt = Date.now();
+      lsSet(t._sourceKey, JSON.stringify(obj));
+    }catch(e){ lsDel(t._sourceKey); }
   } else if(t._sourceKey && t._sourceKey.indexOf('char_')===0){
     try{
       var arr = JSON.parse(lsGet(t._sourceKey)||'[]')||[];
