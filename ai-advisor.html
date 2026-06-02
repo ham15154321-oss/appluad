@@ -3951,6 +3951,25 @@ async function _kbBootInit(){
         if (d && d.items) fromLs = d;
       }
     } catch(_){}
+    // ★★★ 粗暴防線:LS 鏡像備份(_saveKb 每次寫入都會 mirror)
+    //   若 IDB 被 firebase pull 覆寫,LS mirror 仍有最新版,合併時 items 多的優先
+    try {
+      var pLS = (window.parent && window.parent.localStorage) || localStorage;
+      var mirrorRaw = pLS.getItem('knowledge_base_v1_mirror');
+      if (mirrorRaw) {
+        var mirror = JSON.parse(mirrorRaw);
+        if (mirror && Array.isArray(mirror.items)) {
+          var idbCnt = (fromIdb && fromIdb.items) ? fromIdb.items.length : 0;
+          var mirrorCnt = mirror.items.length;
+          // mirror 有 items 多於 IDB → 用 mirror 蓋回 IDB(代表 IDB 被覆寫過)
+          if (mirrorCnt > idbCnt) {
+            console.log('[kb] 🛡 LS mirror('+mirrorCnt+'筆) > IDB('+idbCnt+'筆),用 mirror 救回');
+            fromIdb = mirror;
+            try { await _kbSaveToIDB(mirror); } catch(_){}
+          }
+        }
+      }
+    } catch(e){ console.warn('[kb] LS mirror 讀取失敗',e); }
 
     // 合併策略：兩邊都有 → 合併 items（依 id 去重，updatedAt 較新者勝出）
     //           只有一邊 → 用那邊
@@ -4081,8 +4100,16 @@ function _saveKb(d){
   var data = d || { items: [] };
   // 1) 立刻寫 cache（下次 _loadKb 看得到）
   window._kbCache = data;
-  // 2) async 寫 IDB（不阻塞 UI）
+  // 2) ★★★ 粗暴 LS 鏡像備份(跟 task-archive.js 同套路)
+  //    就算 IDB 出意外、firebase pull 覆寫,LS 永遠是最新版的備份
+  //    開機 _kbBootInit 會比 IDB+LS,取較新的那份
+  try {
+    var pLS = (window.parent && window.parent.localStorage) || localStorage;
+    pLS.setItem('knowledge_base_v1_mirror', JSON.stringify(data));
+  } catch(e){ console.warn('[kb] LS 鏡像寫入失敗', e); }
+  // 3) async 寫 IDB（不阻塞 UI）
   _kbSaveToIDB(data).then(function(){
+    console.log('[kb] ✅ IDB 已寫入 '+(data.items?data.items.length:0)+' 筆');
     // 寫成功後觸發 firebase push（IDB 也會同步雲端）
     try {
       var fs = (window.parent && window.parent.firebaseSync) || window.firebaseSync;

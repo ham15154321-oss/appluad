@@ -632,29 +632,29 @@ function idbPutEntries(db, storeName, entries){
           })(k, val);
           continue;
         }
-        // ★★★ 保護 knowledge_base_v1（AI 顧問中心知識庫）— 同 mp_data_v1 邏輯
-        //   問題：使用者在 localhost 加了 2 份新文件變 8 份,但雲端仍是 6 份(舊)
-        //         → pull 過來會把本機 8 份覆蓋成 6 份(新增的兩份消失)
-        //   修法：本機有資料且 items 數量 ≥ 雲端 → 跳過覆蓋(本機較新或同步)
-        //         本機空 / 比雲端少 → 用雲端(代表別台剛加了新文件,要同步進來)
+        // ★★★ 粗暴保護 knowledge_base_v1（AI 顧問中心知識庫）
+        //   2026/06/01 修法:
+        //   舊版用「items 數比較」會出 bug,因為使用者新增完還沒 push,
+        //   firebase-sync 又拉雲端舊版,可能比較邏輯失效。
+        //   粗暴版:本機只要有任何 items,雲端 100% 不准覆蓋。
+        //   完全空才接受雲端(新裝置第一次同步用)。
+        //   跨機同步靠手動「強制拉取/推送公司資料」按鈕。
         if (storeName === 'kb' && db.name === 'KnowledgeBaseDB' && k === 'knowledge_base_v1') {
           pendingChecks++;
           (function(_k, _val){
             var getReq = store.get(_k);
             getReq.onsuccess = function(){
               var local = getReq.result;
-              var localCount = 0, cloudCount = 0;
+              var localCount = 0;
               try {
                 var localObj = (typeof local === 'string') ? JSON.parse(local) : local;
                 if (localObj && Array.isArray(localObj.items)) localCount = localObj.items.length;
-                var cloudObj = (typeof _val === 'string') ? JSON.parse(_val) : _val;
-                if (cloudObj && Array.isArray(cloudObj.items)) cloudCount = cloudObj.items.length;
               } catch(e){}
-              if (localCount > 0 && localCount >= cloudCount) {
-                console.log('[FirebaseSync] 保護 knowledge_base_v1: 本機'+localCount+'筆 ≥ 雲端'+cloudCount+'筆,跳過覆蓋');
+              if (localCount > 0) {
+                console.log('[FirebaseSync] 🔒 鎖定 knowledge_base_v1: 本機已有 '+localCount+' 筆,絕不讓雲端覆蓋(跨機同步請用手動按鈕)');
               } else {
                 store.put(_val, _k);
-                console.log('[FirebaseSync] knowledge_base_v1: 雲端'+cloudCount+'筆 > 本機'+localCount+'筆,接受雲端版本');
+                console.log('[FirebaseSync] knowledge_base_v1: 本機空,從雲端補入');
               }
               pendingChecks--;
             };
