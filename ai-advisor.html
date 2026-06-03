@@ -926,6 +926,25 @@ body.day-mode .di-card .l b{color:#1d1d1f;}
 body.day-mode .di-tag.share{background:rgba(40,167,69,.12);color:#1a7a32;border-color:rgba(40,167,69,.35);}
 body.day-mode .di-tag.priv{background:rgba(160,115,0,.12);color:#8a6200;border-color:rgba(160,115,0,.3);}
 body.day-mode .di-tag.ai{background:rgba(0,113,227,.1);color:#0071e3;border-color:rgba(0,113,227,.3);}
+
+/* ===== 自動分流「換顧問」提示帶（日夜雙配色）===== */
+.route-banner{position:relative;margin:8px 10px 0;padding:9px 34px 9px 12px;border-radius:10px;background:rgba(74,234,255,.08);border:1px solid rgba(74,234,255,.3);}
+.route-banner .rb-line{font-size:.78rem;color:#cfe0ff;margin-bottom:7px;}
+.route-banner .rb-line b{color:#eaf1ff;}
+.route-banner .rb-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.route-banner .rb-chip{font-size:.72rem;cursor:pointer;border-radius:16px;padding:4px 10px;background:rgba(20,32,66,.7);border:1px solid rgba(100,170,255,.25);color:#cfe0ff;font-family:inherit;}
+.route-banner .rb-chip:hover{border-color:rgba(74,234,255,.6);background:rgba(30,46,90,.85);}
+.route-banner .rb-x{position:absolute;top:7px;right:9px;background:transparent;border:none;color:#7d9bd0;font-size:.85rem;cursor:pointer;}
+body.day-mode .route-banner{background:rgba(0,113,227,.06);border-color:rgba(0,113,227,.3);}
+body.day-mode .route-banner .rb-line{color:#1d1d1f;}
+body.day-mode .route-banner .rb-line b{color:#0071e3;}
+body.day-mode .route-banner .rb-chip{background:#fff;border-color:#d2d2d7;color:#1d1d1f;}
+body.day-mode .route-banner .rb-chip:hover{border-color:#0071e3;background:rgba(0,113,227,.06);}
+body.day-mode .route-banner .rb-x{color:#6e6e73;}
+
+/* ☀️ 白天：內嵌淺紅色 inline 樣式的按鈕（＋新增挑戰 / 🗑刪除記錄 / 🗑清除）淺紅字落白底偏糊 → 加深 */
+body.day-mode .panel-add-btn[style*="#ff8a8a"]{ color:#c01020 !important; background:rgba(215,0,21,.08) !important; border-color:rgba(215,0,21,.4) !important; }
+body.day-mode .chat-tool-btn[style*="#ff8a8a"]{ color:#c01020 !important; }
 </style>
 <!-- CDN: pdf.js + SheetJS + JSZip -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -1039,6 +1058,7 @@ body.day-mode .di-tag.ai{background:rgba(0,113,227,.1);color:#0071e3;border-colo
       </div>
       <button class="pin-btn" id="pinBtn" onclick="pinTopic()">📌 釘選</button>
     </div>
+    <div class="route-banner" id="routeBanner" style="display:none;"></div>
     <div class="chat-msgs" id="chatMsgs"></div>
     <div class="suggest-bar" id="suggestBar"></div>
     <div class="file-status" id="fileStatus"></div>
@@ -1807,16 +1827,45 @@ function routePersona(q){
   if(/制度|公司|文化|鐵律|sop|流程|規則|價值觀|新人|宣言/i.test(s)) return 'team';
   return 'coach'; // 預設：問人/帶人/能力 → 績效教練
 }
+var _lastAskQuery='';
 function askRoute(){
   var inp=document.getElementById('askInput'); if(!inp) return;
   var q=(inp.value||'').trim(); if(!q) return;
   var fid=routePersona(q);
   inp.value='';
+  _lastAskQuery=q;
+  _routeFromAsk=true;            // 標記這次 openChat 來自「直接問」
   openChat(fid);
-  // openChat 後填入問題並自動送出
+  showRouteBanner(fid);          // 顯示「已轉到 X，可換顧問」
   setTimeout(function(){
     var ci=document.getElementById('chatInput');
     if(ci){ ci.value=q; if(typeof sendMsg==='function') sendMsg(); }
+  }, 120);
+}
+// 自動分流後的「換顧問」提示帶
+var _routeFromAsk=false;
+function showRouteBanner(fid){
+  var b=document.getElementById('routeBanner'); if(!b) return;
+  var f=FEATURES[fid]||{};
+  var others=['data','coach','task','team','mentor','cases'].filter(function(x){return x!==fid;});
+  var chips=others.map(function(x){
+    var ff=FEATURES[x]||{};
+    return '<button class="rb-chip" onclick="switchAsk(\''+x+'\')">'+(ff.icon||'')+' '+esc(ff.title||x)+'</button>';
+  }).join('');
+  b.innerHTML='<div class="rb-line">⚡ 已幫你轉到 <b>'+(f.icon||'')+' '+esc(f.title||fid)+'</b>，不是你要的？換：</div>'
+    +'<div class="rb-chips">'+chips+'</div>'
+    +'<button class="rb-x" onclick="hideRouteBanner()" title="關閉">✕</button>';
+  b.style.display='block';
+}
+function hideRouteBanner(){ var b=document.getElementById('routeBanner'); if(b) b.style.display='none'; }
+function switchAsk(fid){
+  _routeFromAsk=true;
+  openChat(fid);
+  showRouteBanner(fid);
+  var q=_lastAskQuery;
+  setTimeout(function(){
+    var ci=document.getElementById('chatInput');
+    if(ci && q){ ci.value=q; if(typeof sendMsg==='function') sendMsg(); }
   }, 120);
 }
 function showView(id){
@@ -2672,6 +2721,8 @@ function _clearChatHist(feature){
 function openChat(fid){
   curFeature=fid;
   var f=FEATURES[fid];
+  if(!_routeFromAsk){ hideRouteBanner(); }  // 手動開顧問 → 收起分流提示帶
+  _routeFromAsk=false;
   showView('chat');
   document.getElementById('chatIcon').textContent=f.icon;
   document.getElementById('chatTitle').textContent=f.title;
