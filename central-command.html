@@ -200,9 +200,26 @@ body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkM
 
 /* Kanban */
 .kanban {
-  display:grid; grid-template-columns: repeat(4, minmax(220px,1fr)); gap:14px; align-items:flex-start;
+  display:grid; grid-template-columns: repeat(3, minmax(220px,1fr)); gap:14px; align-items:flex-start;
 }
 @media (max-width: 1100px){ .kanban { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 760px){ .kanban { grid-template-columns: 1fr; } }
+/* 已完成：可收合區（預設收起，點開才展開）*/
+.done-wrap{ margin-top:16px; }
+.done-bar{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer;
+  padding:11px 14px; border:1px solid var(--border); border-radius:12px; background:var(--panel);
+  font-size:13px; font-weight:800; color:var(--done);
+}
+.done-bar:hover{ border-color:var(--done); }
+.done-bar .count{ padding:2px 9px; border-radius:10px; background:var(--panel2); font-size:11px; color:var(--dim); font-weight:700; margin-left:6px; }
+.done-caret{ color:var(--dim); font-size:12px; }
+#doneBody{ margin-top:10px; min-height:0; border:none; background:transparent; padding:0;
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+body.day-mode .done-bar{ background:#fff; border-color:#e5e5ea; color:#1f8a3a; }
+body.day-mode .done-bar:hover{ border-color:#1f8a3a; }
+body.day-mode .done-bar .count{ background:#f0f0f3; color:#86868b; }
+body.day-mode .done-caret{ color:#86868b; }
 .col {
   background:var(--panel); border:1px solid var(--border); border-radius:14px;
   padding:12px; min-height:300px; display:flex; flex-direction:column; gap:10px;
@@ -679,10 +696,17 @@ body.day-mode .deny p { color:#6e6e73; }
         </div>
 
         <div class="kanban" id="kanban">
+          <div class="col overdue"   data-col="overdue">  <div class="col-head">⚠️ 過期未完成 <span class="count" id="cnt-overdue">0</span></div></div>
           <div class="col pending"   data-col="pending">  <div class="col-head">📋 待辦 <span class="count" id="cnt-pending">0</span></div></div>
           <div class="col doing"     data-col="doing">    <div class="col-head">🚀 進行中 <span class="count" id="cnt-doing">0</span></div></div>
-          <div class="col done"      data-col="done">     <div class="col-head">✅ 已完成 <span class="count" id="cnt-done">0</span></div></div>
-          <div class="col overdue"   data-col="overdue">  <div class="col-head">⚠️ 過期未完成 <span class="count" id="cnt-overdue">0</span></div></div>
+        </div>
+        <!-- 已完成：可收合（預設收起，點開才看）-->
+        <div class="done-wrap" id="doneWrap">
+          <div class="done-bar" onclick="toggleDoneCol()">
+            <span>✅ 已完成 <span class="count" id="cnt-done">0</span></span>
+            <span class="done-caret" id="doneCaret">▸ 點開查看</span>
+          </div>
+          <div class="col done" data-col="done" id="doneBody" style="display:none;"></div>
         </div>
       </div>
     </div>
@@ -984,6 +1008,19 @@ function getFiltered(){
   });
 }
 
+// 已完成收合（預設收起；狀態記本機）
+function _doneCollapsed(){ try{ return localStorage.getItem('cc_done_collapsed')!=='0'; }catch(e){ return true; } }
+function applyDoneCol(){
+  var body=document.getElementById('doneBody'), car=document.getElementById('doneCaret');
+  if(!body) return;
+  var col=_doneCollapsed();
+  body.style.display = col ? 'none' : 'grid';
+  if(car) car.textContent = col ? '▸ 點開查看' : '▾ 收起';
+}
+function toggleDoneCol(){
+  try{ localStorage.setItem('cc_done_collapsed', _doneCollapsed()?'0':'1'); }catch(e){}
+  applyDoneCol();
+}
 function renderBoard(){
   var list = getFiltered();
   var byCol = { pending:[], doing:[], done:[] };
@@ -1023,6 +1060,8 @@ function renderBoard(){
       });
     }
   });
+
+  applyDoneCol();  // 維持「已完成」收合狀態（預設收起）
 
   // 摘要列
   var total = TASKS.length, shown = list.length, overdue = overdueOnes.length;
