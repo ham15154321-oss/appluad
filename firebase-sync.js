@@ -223,7 +223,10 @@ async function loadScriptRetry(src, retries){
 const urlParams = new URLSearchParams(location.search);
 const IS_ADMIN  = urlParams.get('admin') === '1';
 const SYNC_DEBOUNCE_MS = 10000;  // 10秒防抖：連續改動只觸發一次推送
-const SYNC_INTERVAL_MS = 60000;  // 60秒定時推送
+// ★ 效能粗暴版（2026/06）：定時推送 60秒 → 5分鐘。
+//   定時推送每輪都會把所有 IndexedDB 全量序列化（可能數 MB）,60 秒一次會持續卡住主執行緒。
+//   頁面存檔後本來就會立刻觸發 push,這個定時器只是保險,拉長到 5 分鐘不影響資料安全。
+const SYNC_INTERVAL_MS = 300000;
 const BATCH_LIMIT = 700 * 1024;  // 700KB（Firestore 文件上限 1MB；中文 UTF-8 約 3x string.length，需更多餘量）
 // ★ 用 UTF-8 實際 byte 量測（中文字 1 char = 3 bytes），避免低估 batch size 導致超過 Firestore 1 MB 上限
 function _utf8Bytes(s){
@@ -1651,7 +1654,7 @@ function setupRealtime(){
 // ★ 定期 pull 保險：每 90 秒額外拉一次（即使 onSnapshot 失效也保證資料會更新）
 //   不在 _pushing 中才 pull，避免衝突
 //   ★★★ 2026/06 加:頁面隱藏時跳過,避免閒置分頁累積記憶體被 Chrome 砍掉(錯誤碼 5)
-var PULL_INTERVAL_MS = 90 * 1000;
+var PULL_INTERVAL_MS = 180 * 1000;  // ★ 效能：90秒 → 3分鐘（每輪 pull 會解析大量 JSON,降頻減少前景卡頓）
 function _startPeriodicPull(){
   setInterval(async function(){
     if (_pushing || _pullingFromCloud) return;
@@ -1841,7 +1844,7 @@ async function startSyncAfterCode(){
     ready = true;
     setupRealtime();
     _startPeriodicPull();   // ★ 每 90s 額外 pull 一次（救援同步漏掉的更新）
-    if (!IS_ADMIN) setInterval(pushToCloud, SYNC_INTERVAL_MS);
+    if (!IS_ADMIN) setInterval(function(){ if (typeof document!=='undefined' && document.hidden) return; pushToCloud(); }, SYNC_INTERVAL_MS);  // ★ 背景分頁跳過（原本這條沒防護）
     var code = localStorage.getItem('firebase_sync_code') || '';
     setBadge(IS_ADMIN ? '☁ 管理者' : '☁ ' + code, '#00ff88');
     setTimeout(() => { if (badgeEl) badgeEl.style.opacity = '0.3'; }, 2000);

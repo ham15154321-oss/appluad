@@ -1290,9 +1290,13 @@
     .train-popup-item-name{ font-size:10px; }
   }
 
+/* ★ 效能粗暴版（2026/06）：全面停用毛玻璃模糊 —— 本頁有 23 處 backdrop-filter，
+   疊在動畫/半透明層上時 GPU 每次重繪都要重新模糊，是低階機器整頁卡頓主因之一。
+   !important 連 inline style 一起蓋掉。要復原刪掉這兩行即可。 */
+*{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
 </style>
 <script src="./auth-check.js?v=authfix"></script>
-<script defer src="./firebase-sync.js?v=v9hidden"></script>
+<script defer src="./firebase-sync.js?v=perf-lite-1"></script>
 <script defer src="./auth-firebase.js?v=v2"></script>
 </head>
 <body>
@@ -2029,31 +2033,23 @@ function compressToThumb(dataUrl, maxSize){
 function showToast(m){const t=document.getElementById('saveToast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
 
 // ========== 星空 ==========
+// ★ 效能粗暴版（2026/06）：星空改「靜態」— 只畫一次、不跑動畫迴圈。
+//   原本 30fps 持續重畫 260 顆星＋流星,在低階機器上是整頁（連其他分頁）卡頓的主因之一。
 (function(){
   const c=document.getElementById('stars-canvas'),ctx=c.getContext('2d');
-  function resize(){c.width=innerWidth;c.height=innerHeight}
-  resize();addEventListener('resize',resize);
-  const stars=Array.from({length:260},()=>({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.8+0.3,a:Math.random(),da:(Math.random()-0.5)*0.02}));
-  let ss=[];
-  // ★ 只在「星空真的看得到」時才畫 —— 白天模式隱形、被面板蓋住、分頁切走時都不畫,省 CPU
-  function starsVisible(){
-    if(document.hidden) return false;
-    if(document.body.classList.contains('day-mode')) return false;
-    if(document.querySelector('.page-overlay.active, .admin-overlay.active')) return false;
-    return true;
-  }
-  setInterval(()=>{ if(starsVisible()) ss.push({x:Math.random()*c.width,y:0,vx:(Math.random()-0.3)*6,vy:Math.random()*4+3,life:1,decay:0.015+Math.random()*0.01}); },4000);
-  let _starLast=0;
-  function frame(ts){
-    requestAnimationFrame(frame);
-    if(!starsVisible()) return;            // 看不到 → 不畫
-    if(ts-_starLast<32) return;            // 節流到約 30fps（眨眼星星不需要 60）
-    _starLast=ts;
+  function paint(){
+    c.width=innerWidth;c.height=innerHeight;
     ctx.clearRect(0,0,c.width,c.height);
-    for(const s of stars){s.a+=s.da;if(s.a>1||s.a<0.2)s.da*=-1;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(200,220,255,${s.a})`;ctx.fill()}
-    for(let i=ss.length-1;i>=0;i--){const s=ss[i];ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x-s.vx*8,s.y-s.vy*8);ctx.strokeStyle=`rgba(200,230,255,${s.life*0.6})`;ctx.lineWidth=2;ctx.stroke();s.x+=s.vx;s.y+=s.vy;s.life-=s.decay;if(s.life<=0)ss.splice(i,1)}
+    if(document.body.classList.contains('day-mode')) return; // 白天看不到 → 不畫
+    for(let i=0;i<260;i++){
+      const x=Math.random()*c.width,y=Math.random()*c.height,r=Math.random()*1.8+0.3,a=Math.random()*0.75+0.25;
+      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=`rgba(200,220,255,${a})`;ctx.fill();
+    }
   }
-  requestAnimationFrame(frame);
+  paint();
+  addEventListener('resize',paint);
+  // 白天/夜間切換時重畫（body class 變動）
+  try{ new MutationObserver(paint).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
 })();
 
 // ========== 日期 ==========
@@ -3129,6 +3125,7 @@ function closePlaza(){
 }
 
 // 廣場粒子效果
+// ★ 效能粗暴版（2026/06）：粒子改「靜態」— 畫一次就停,不跑 60fps 無限迴圈（原本無節流、無可見性防護）。
 let plazaAnimId=null;
 function initPlazaParticles(){
   const c=document.getElementById('plazaParticles');
@@ -3136,21 +3133,13 @@ function initPlazaParticles(){
   const ctx=c.getContext('2d');
   const map=document.getElementById('plazaMap');
   c.width=map.offsetWidth; c.height=map.offsetHeight;
-  const pts=Array.from({length:50},()=>({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*2+0.5,vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.3,a:Math.random()}));
-  if(plazaAnimId)cancelAnimationFrame(plazaAnimId);
-  function draw(){
-    ctx.clearRect(0,0,c.width,c.height);
-    for(const p of pts){
-      p.x+=p.vx;p.y+=p.vy;p.a+=0.01;
-      if(p.x<0)p.x=c.width;if(p.x>c.width)p.x=0;
-      if(p.y<0)p.y=c.height;if(p.y>c.height)p.y=0;
-      const alpha=0.3+Math.sin(p.a)*0.2;
-      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle=`rgba(150,200,255,${alpha})`;ctx.fill();
-    }
-    plazaAnimId=requestAnimationFrame(draw);
+  if(plazaAnimId){cancelAnimationFrame(plazaAnimId);plazaAnimId=null;}
+  ctx.clearRect(0,0,c.width,c.height);
+  for(let i=0;i<50;i++){
+    const x=Math.random()*c.width,y=Math.random()*c.height,r=Math.random()*2+0.5,a=0.3+Math.random()*0.2;
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(150,200,255,${a})`;ctx.fill();
   }
-  draw();
 }
 
 // ========== 子頁面 ==========
