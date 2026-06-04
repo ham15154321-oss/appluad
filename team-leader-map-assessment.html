@@ -1015,9 +1015,10 @@
   <div class="save-bar">
     <button class="save-btn primary" onclick="saveAll()" title="儲存所有設定到瀏覽器">💾 儲存</button>
     <button class="save-btn" onclick="loadAll()" title="載入上次儲存的設定">📂 載入</button>
-    <button class="save-btn" onclick="exportJSON()" title="匯出為檔案備份">📤 匯出</button>
-    <button class="save-btn" onclick="document.getElementById('importFile').click()" title="從備份檔案匯入">📥 匯入</button>
-    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importJSON(event)">
+    <button class="save-btn" onclick="exportRoleXlsx()" title="把目前角色的六維分數＋備註匯出成 Excel（評核紀錄格式）">📤 匯出</button>
+    <button class="save-btn" onclick="document.getElementById('xlsxImportInput').click()" title="匯入 Excel（評核紀錄格式）：依檔內【評核角色】自動更新各角色；文字回饋堆疊在原備註下方，不覆蓋">📥 匯入</button>
+    <button class="save-btn" onclick="downloadTemplateXlsx()" title="下載空白範本：自動帶入目前角色與六大指標（給評核人填分數/備註後再匯入）">📋 範本</button>
+    <input type="file" id="xlsxImportInput" accept=".xlsx,.xls" style="display:none" onchange="importXlsxFile(this.files[0]);this.value='';">
     <button class="save-btn danger" onclick="clearSave()" title="清除所有已儲存的資料">🗑️ 清除</button>
   </div>
   <h1><span>Applaud</span> 組長職能評估地圖</h1>
@@ -2895,6 +2896,197 @@ let _cachedCharId = localStorage.getItem('activeCharacterId');
 function getSK(){
   const base = _cachedCharId!=null ? 'char_'+_cachedCharId+'_'+BASE_KEY : BASE_KEY;
   return base + ROLE_SUFFIXES[currentRole];
+}
+function getSKFor(role){
+  const base = _cachedCharId!=null ? 'char_'+_cachedCharId+'_'+BASE_KEY : BASE_KEY;
+  return base + ROLE_SUFFIXES[role];
+}
+
+// ════════ 📥📤 Excel 匯入/匯出（「360度檢核-簡易版」評核紀錄格式）════════
+// 匯出：目前角色六維分數＋備註 → 一列一指標。
+// 匯入：依檔內【評核角色】欄自動分流更新各角色；同指標多筆分數取平均；
+//      文字回饋「堆疊」在原備註下一行（帶日期/評核人前綴），不覆蓋；同句重複匯入自動跳過。
+var _xlsxReady=null;
+function ensureXLSX(){
+  if(typeof XLSX!=='undefined') return Promise.resolve();
+  if(_xlsxReady) return _xlsxReady;
+  _xlsxReady=new Promise(function(res,rej){
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=function(){ res(); };
+    s.onerror=function(){ _xlsxReady=null; rej(new Error('Excel 元件載入失敗,請檢查網路後重試')); };
+    document.head.appendChild(s);
+  });
+  return _xlsxReady;
+}
+function _roleFromLabel(s){
+  s=String(s||'');
+  if(s.indexOf('區主管')>=0) return 'area_mgr';
+  if(s.indexOf('總經理')>=0) return 'gm';
+  if(s.indexOf('自評')>=0)   return 'self';
+  if(s.indexOf('同儕')>=0)   return 'peer';
+  if(s.indexOf('部屬')>=0)   return 'subordinate';
+  if(s.indexOf('主管')>=0)   return 'manager';
+  return null;
+}
+function _dimFromLabel(s){
+  s=String(s||'').split('(')[0].split('（')[0].trim();
+  for(var i=0;i<DIMS.length;i++){ if(DIMS[i].name===s) return DIMS[i]; }
+  return null;
+}
+function _normDate(s){
+  var m=String(s||'').match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if(!m) return '';
+  return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+}
+// 📤 匯出目前角色
+async function exportRoleXlsx(){
+  try{
+    await ensureXLSX();
+    var st=gatherState();
+    var dateStr=st.evaldate || new Date().toISOString().slice(0,10);
+    var who=st.name||'';
+    var roleLabel=ROLE_LABELS[currentRole];
+    var rows=[['日期','受評人','評核角色','評核人','評核指標','分數','備註／文字回饋']];
+    DIMS.forEach(function(d){
+      rows.push([dateStr, who, roleLabel, st.evaluator||'', d.name+'('+d.max+')',
+                 (st.scores&&st.scores[d.id])||0, (st.dimNotes&&st.dimNotes[d.id])||'']);
+    });
+    var wb=XLSX.utils.book_new();
+    var ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:12},{wch:12},{wch:12},{wch:12},{wch:16},{wch:6},{wch:60}];
+    XLSX.utils.book_append_sheet(wb,ws,'評核紀錄');
+    XLSX.writeFile(wb,'組長職能評估_'+(who||'未填名')+'_'+roleLabel.replace(/\s/g,'')+'_'+dateStr.replace(/\//g,'-')+'.xlsx');
+    showToast('📤 已匯出 '+roleLabel+' 的評估資料');
+  }catch(e){ showToast('⚠ 匯出失敗：'+(e.message||e), true); }
+}
+// 📋 下載空白範本：六個角色 × 六大指標 = 36 列全部排好（角色欄已帶入，免下拉免打字）
+//   評核人只填「分數」與 G 欄「備註／文字回饋」；沒填的列匯入時自動略過。
+async function downloadTemplateXlsx(){
+  try{
+    await ensureXLSX();
+    var who=((document.getElementById('name')||{}).value||'').trim();
+    var t=new Date(), dateStr=t.getFullYear()+'/'+(t.getMonth()+1)+'/'+t.getDate();
+    var ROLE_ORDER=['manager','area_mgr','gm','self','peer','subordinate'];
+    var rows=[['日期','受評人','評核角色','評核人','評核指標','分數','備註／文字回饋']];
+    ROLE_ORDER.forEach(function(role){
+      DIMS.forEach(function(d){
+        rows.push([dateStr, who, ROLE_LABELS[role], '', d.name+'('+d.max+')', '', '']);
+      });
+    });
+    var wb=XLSX.utils.book_new();
+    var ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:12},{wch:12},{wch:14},{wch:12},{wch:16},{wch:6},{wch:60}];
+    XLSX.utils.book_append_sheet(wb,ws,'評核紀錄');
+    // 說明頁
+    var guide=XLSX.utils.aoa_to_sheet([
+      ['📋 怎麼填'],
+      ['1. 六個角色 × 六個指標已全部排好（36 列），角色欄不用改。'],
+      ['2. 只要填「分數」和 G 欄「備註／文字回饋」；沒填的列匯入時自動略過。'],
+      ['3. 同一角色要多位評核人（例如多位同儕）→ 複製該角色那 6 列再填一份即可，分數會自動取平均。'],
+      ['4. 填好後回到評估地圖按「📥 匯入」，六個角色一次全部帶入；文字會堆疊在原備註下方，不會覆蓋。'],
+      ['5. 表頭名稱請勿修改。']
+    ]);
+    guide['!cols']=[{wch:80}];
+    XLSX.utils.book_append_sheet(wb,guide,'說明');
+    XLSX.writeFile(wb,'360度檢核範本_全角色_'+(who||'受評人')+'.xlsx');
+    showToast('📋 已下載全角色範本（36 列,角色欄已帶入'+(who?'、受評人 '+who:'')+'）');
+  }catch(e){ showToast('⚠ 範本下載失敗：'+(e.message||e), true); }
+}
+// 📥 匯入
+async function importXlsxFile(file){
+  if(!file) return;
+  try{
+    await ensureXLSX();
+    try{ saveAll(true); }catch(e){}   // 先把目前畫面存起來,堆疊才會接在最新內容後面
+    var buf=await file.arrayBuffer();
+    var wb=XLSX.read(buf,{type:'array'});
+    var ws=wb.Sheets['評核紀錄']||wb.Sheets[wb.SheetNames[0]];
+    var aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''});
+    if(aoa.length<2){ showToast('⚠ 檔案沒有資料列',true); return; }
+    var head=aoa[0].map(function(h){return String(h||'');});
+    function colOf(kw){ for(var i=0;i<head.length;i++){ if(head[i].indexOf(kw)>=0) return i; } return -1; }
+    var cDate=colOf('日期'),cWho=colOf('受評人'),cRole=colOf('角色'),cRater=colOf('評核人'),cDim=colOf('指標'),cScore=colOf('分數'),cNote=colOf('備註');
+    if(cRole<0||cDim<0||cScore<0){ showToast('⚠ 缺少「評核角色／評核指標／分數」欄,請用 360度檢核-簡易版 格式',true); return; }
+    // 收集有效列（跳過範例列）
+    var rows=[];
+    for(var r=1;r<aoa.length;r++){
+      var row=aoa[r]||[];
+      var who=String(cWho>=0?row[cWho]||'':'').trim();
+      if(who.indexOf('範例')>=0) continue;
+      var role=_roleFromLabel(row[cRole]), dim=_dimFromLabel(row[cDim]);
+      if(!role||!dim) continue;
+      var sc=parseFloat(String(row[cScore]||'').replace(/[^\d.\-]/g,''));
+      var noteTxt=String(cNote>=0?row[cNote]||'':'').trim();
+      if(isNaN(sc) && !noteTxt) continue;   // ★ 範本沒填的列（無分數也無文字）→ 自動略過
+      rows.push({who:who,role:role,dim:dim,score:isNaN(sc)?null:sc,
+                 note:noteTxt,
+                 date:String(cDate>=0?row[cDate]||'':'').trim(),
+                 rater:String(cRater>=0?row[cRater]||'':'').trim()});
+    }
+    if(!rows.length){ showToast('⚠ 沒有可匯入的資料列',true); return; }
+    // 受評人：檔內多人時 → 優先取與頁面姓名/登入主角相同者,否則請使用者指定
+    var names=[]; rows.forEach(function(x){ if(x.who && names.indexOf(x.who)<0) names.push(x.who); });
+    var pageName=((document.getElementById('name')||{}).value||'').trim();
+    var target='';
+    if(names.length<=1){ target=names[0]||''; }
+    else if(names.indexOf(pageName)>=0){ target=pageName; }
+    else if(names.indexOf(String(_cachedCharId||''))>=0){ target=String(_cachedCharId); }
+    else{
+      var pick=prompt('檔案裡有多位受評人：\n'+names.join('、')+'\n\n請輸入要匯入哪一位：', names[0]);
+      if(pick===null) return;
+      target=pick.trim();
+      if(names.indexOf(target)<0){ showToast('⚠ 檔內沒有「'+target+'」的資料',true); return; }
+    }
+    var use=rows.filter(function(x){ return !target || !x.who || x.who===target; });
+    // 依角色分組套用
+    var byRole={};
+    use.forEach(function(x){ (byRole[x.role]=byRole[x.role]||[]).push(x); });
+    var summary=[];
+    Object.keys(byRole).forEach(function(role){
+      var key=getSKFor(role);
+      var st=null; try{ st=JSON.parse(localStorage.getItem(key)||'null'); }catch(e){}
+      if(!st||typeof st!=='object') st={version:2};
+      st.scores=st.scores||{}; st.dimNotes=st.dimNotes||{};
+      // 分數：同指標多筆 → 平均,四捨五入,夾 0~滿分
+      var acc={};
+      byRole[role].forEach(function(x){ if(x.score!=null){ (acc[x.dim.id]=acc[x.dim.id]||[]).push(x.score); } });
+      var scoreCnt=0;
+      Object.keys(acc).forEach(function(id){
+        var arr=acc[id], avg=arr.reduce(function(a,b){return a+b;},0)/arr.length;
+        var d=null; for(var i=0;i<DIMS.length;i++){ if(String(DIMS[i].id)===String(id)) d=DIMS[i]; }
+        st.scores[id]=Math.max(0,Math.min(d?d.max:100,Math.round(avg)));
+        scoreCnt++;
+      });
+      // 文字：堆疊不覆蓋；同句已存在則跳過（避免重複匯入重複堆疊）
+      var noteCnt=0;
+      byRole[role].forEach(function(x){
+        if(!x.note) return;
+        var prefix=[x.date,x.rater].filter(Boolean).join(' ');
+        var line=(prefix?('（'+prefix+'）'):'')+x.note;
+        var old=st.dimNotes[x.dim.id]||'';
+        if(old.indexOf(line)>=0) return;
+        st.dimNotes[x.dim.id]= old ? (old+'\n'+line) : line;
+        noteCnt++;
+      });
+      // 基本欄位：原本是空的才補,不動既有內容
+      if(!st.name && target) st.name=target;
+      var raters=[]; byRole[role].forEach(function(x){ if(x.rater&&raters.indexOf(x.rater)<0) raters.push(x.rater); });
+      if(!st.evaluator && raters.length===1) st.evaluator=raters[0];
+      if(!st.evaldate){
+        var dates=byRole[role].map(function(x){return _normDate(x.date);}).filter(Boolean).sort();
+        if(dates.length) st.evaldate=dates[dates.length-1];
+      }
+      st.role=role; st.savedAt=new Date().toISOString();
+      var json=JSON.stringify(st);
+      try{ localStorage.setItem(key,json); }catch(e){ summary.push(ROLE_LABELS[role]+'：❌ 儲存失敗 '+e.message); return; }
+      try{ localStorage.setItem('_bak_'+key,json); }catch(e){}
+      summary.push(ROLE_LABELS[role]+'：分數更新 '+scoreCnt+' 項、文字堆疊 '+noteCnt+' 則');
+      if(role===currentRole){ try{ applyState(st); }catch(e){} }
+    });
+    try{ var fs=(window.parent&&window.parent.firebaseSync)||window.firebaseSync; if(fs&&fs.push) fs.push(); }catch(e){}
+    alert('📥 匯入完成（受評人：'+(target||'未指定')+'）\n\n'+summary.join('\n')+'\n\n※ 文字回饋採「堆疊」：新內容接在原備註下一行，不會覆蓋舊內容。');
+  }catch(e){ console.error('[xlsx import]',e); showToast('⚠ 匯入失敗：'+(e.message||e),true); }
 }
 
 // Backward compat: migrate old unsuffixed data → _self on first load
