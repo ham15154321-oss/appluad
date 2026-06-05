@@ -1294,12 +1294,190 @@
    疊在動畫/半透明層上時 GPU 每次重繪都要重新模糊，是低階機器整頁卡頓主因之一。
    !important 連 inline style 一起蓋掉。要復原刪掉這兩行即可。 */
 *{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+
+/* ════════════════════════════════════════════════════════════════
+   ✨ 簡約模式（body.minimal,預設）—— 純樣式皮層,不動任何 DOM/邏輯
+   展示模式 = 移除 .minimal class = 100% 今日原樣（內建回滾）
+   ════════════════════════════════════════════════════════════════ */
+/* 1) 隱藏裝飾：星雲/行星/吉祥物/泡泡/六角光暈/連接線/換圖鈕 */
+body.minimal .nebula,
+body.minimal .floating-planet,
+body.minimal .mascot-wrap,
+body.minimal .speech-bubble,
+body.minimal .hex-glow,
+body.minimal .connector,
+body.minimal .hex-change-btn{ display:none !important; }
+
+/* 2) 中央標題：眉標 + 大標（對齊示意稿） */
+body.minimal .center-title{
+  font-size:26px; letter-spacing:.04em; font-weight:700;
+  color:#f2f4f8; background:transparent; border:none; box-shadow:none; text-shadow:none;
+  padding:0; margin-bottom:38px; text-align:center;
+}
+body.minimal .center-title::before{
+  content:'APPLAUD SPACE HQ'; display:block;
+  font-size:13px; letter-spacing:.35em; text-indent:.35em;
+  color:#9aa3b2; font-weight:600; margin-bottom:8px;
+}
+body.day-mode.minimal .center-title{ color:#1d1d1f; }
+body.day-mode.minimal .center-title::before{ color:#6e6e73; }
+
+/* 3) 六角磚 → 統一質感卡片 */
+body.minimal .hex-grid{ gap:18px; align-items:stretch; }
+body.minimal .hex-building{
+  width:218px; height:auto; min-height:0;
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start;
+  padding:24px 20px 20px; border-radius:20px;
+  background:rgba(255,255,255,0.045); border:1px solid rgba(255,255,255,0.09);
+  box-shadow:0 1px 0 rgba(255,255,255,0.03) inset;
+  transition:transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s, border-color .22s;
+}
+body.minimal .hex-building:hover{
+  transform:translateY(-4px); box-shadow:0 10px 30px rgba(0,0,0,0.45);
+  border-color:rgba(125,150,200,0.3);
+}
+body.minimal .hex-building .hex-shape{
+  width:46px; height:46px; clip-path:none !important; border-radius:13px;
+  margin:0 0 14px; overflow:hidden;
+}
+body.minimal .hex-shape img{ display:none !important; }   /* 簡約：不顯示自訂大圖 */
+/* 圖示替換（只在簡約模式;原 span 文字保留,展示模式原樣）
+   ★ display:flex !important：自訂圖片載入時程式會把 span 設 inline display:none,這裡強制救回 */
+body.minimal .hex-icon{ display:flex !important; align-items:center; justify-content:center; font-size:0; filter:none; }
+body.minimal .hex-icon::before{ font-size:22px; line-height:1; }
+body.minimal .hex-building.training .hex-icon::before{ content:'🎓'; }
+body.minimal .hex-building.castle   .hex-icon::before{ content:'🏰'; }
+body.minimal .hex-building.plaza    .hex-icon::before{ content:'🌌'; }
+body.minimal .hex-building.perf     .hex-icon::before{ content:'📊'; }
+body.minimal .hex-building.ai       .hex-icon::before{ content:'✦'; color:#ffffff; font-size:24px; font-weight:700; }
+body.minimal .hex-label{
+  margin-top:0; font-size:16px; font-weight:700; letter-spacing:.02em;
+  text-shadow:none; text-align:left; color:#f2f4f8;
+}
+body.minimal .hex-label::after{
+  display:block; font-size:12px; font-weight:400; color:#9aa3b2;
+  margin-top:5px; line-height:1.55; letter-spacing:.01em; white-space:normal;
+}
+body.minimal .hex-building.training .hex-label::after{ content:'教材、訓練與能力驗收'; }
+body.minimal .hex-building.castle   .hex-label::after{ content:'角色卡與團隊指揮中心'; }
+body.minimal .hex-building.plaza    .hex-label::after{ content:'大海 · 法院 · 瀑布 · 藏寶庫 · 火種'; }
+body.minimal .hex-building.perf     .hex-label::after{ content:'報表、排名與跨月比較'; }
+body.minimal .hex-building.ai       .hex-label::after{ content:'直接問 AI · 任務 · 知識庫'; }
+/* 五個和諧色圖示塊（A 案）*/
+body.minimal .hex-building.training .hex-shape{ background:linear-gradient(135deg,#5e5ce6,#3634a3); }
+body.minimal .hex-building.castle   .hex-shape{ background:linear-gradient(135deg,#0a84ff,#0a5dc2); width:46px; height:46px; }
+body.minimal .hex-building.plaza    .hex-shape{ background:linear-gradient(135deg,#64d2ff,#2c9fd9); }
+body.minimal .hex-building.perf     .hex-shape{ background:linear-gradient(135deg,#30d158,#1f9d43); }
+body.minimal .hex-building.ai       .hex-shape{ background:linear-gradient(135deg,#bf5af2,#8b3dbd); }
+/* 待驗收訓練徽章：移到卡片右上,保持可點 */
+body.minimal .train-badge{ top:14px; right:14px; }
+/* 白天 */
+body.day-mode.minimal .hex-building{ background:#ffffff; border-color:#e8e8ed; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+body.day-mode.minimal .hex-building:hover{ box-shadow:0 8px 24px rgba(0,0,0,0.08); border-color:#d2d2d7; }
+body.day-mode.minimal .hex-label{ color:#1d1d1f; }
+body.day-mode.minimal .hex-label::after{ color:#6e6e73; }
+
+/* 4) 頂列收斂：日期/進度/圖示鈕 全部去霓虹、去發光 */
+body.minimal .date-cell{
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09);
+  box-shadow:none; text-shadow:none; color:#f2f4f8; border-radius:10px;
+}
+body.minimal .progress-bar{ height:5px; background:rgba(255,255,255,0.09); }
+body.minimal .progress-fill{ background:#0a84ff; box-shadow:none; }
+body.minimal .revenue-stats{ color:#9aa3b2; }
+body.minimal .revenue-stats .rv-val{ color:#f2f4f8; }
+body.minimal .icon-btn{
+  background:transparent; border:1px solid transparent; box-shadow:none; color:#9aa3b2;
+}
+body.minimal .icon-btn:hover{ background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.1); color:#f2f4f8; }
+body.minimal #fontSizeGroup{ background:rgba(255,255,255,0.05) !important; border-color:rgba(255,255,255,0.09) !important; }
+body.day-mode.minimal .date-cell{ background:#fff; border-color:#e8e8ed; color:#1d1d1f; }
+body.day-mode.minimal .progress-bar{ background:rgba(0,0,0,0.08); }
+body.day-mode.minimal .progress-fill{ background:#0071e3; }
+body.day-mode.minimal .revenue-stats{ color:#6e6e73; }
+body.day-mode.minimal .revenue-stats .rv-val{ color:#1d1d1f; }
+body.day-mode.minimal .icon-btn{ color:#6e6e73; }
+body.day-mode.minimal .icon-btn:hover{ background:rgba(0,0,0,0.04); border-color:#e8e8ed; color:#1d1d1f; }
+body.day-mode.minimal #fontSizeGroup{ background:#fff !important; border-color:#e8e8ed !important; }
+
+/* 5) 左下評核小卡：細條版 */
+body.minimal .bottom-left{
+  background:rgba(255,255,255,0.045); border:1px solid rgba(255,255,255,0.09);
+  border-radius:16px; box-shadow:none;
+}
+body.minimal .total-score-display{ text-shadow:none; color:#f2f4f8; }
+body.minimal .score-sub{ color:#9aa3b2; }
+body.minimal .upload-score-btn{
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12);
+  color:#9aa3b2; box-shadow:none;
+}
+body.minimal .upload-score-btn:hover{ box-shadow:none; color:#f2f4f8; border-color:rgba(255,255,255,0.25); }
+body.day-mode.minimal .bottom-left{ background:#fff; border-color:#e8e8ed; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+body.day-mode.minimal .total-score-display{ color:#1d1d1f; }
+body.day-mode.minimal .score-sub{ color:#6e6e73; }
+body.day-mode.minimal .upload-score-btn{ background:#fff; border-color:#d2d2d7; color:#6e6e73; }
+
+/* 6) 右下個人區：簡化呈現（照片+姓名保留,去發光） */
+body.minimal .profile-circle{ box-shadow:none; border:1px solid rgba(255,255,255,0.15); }
+body.minimal .profile-circle:hover{ transform:none; }
+body.minimal .profile-label{ text-shadow:none; }
+
+/* 7) 底部 nav 列（nav-home.js 注入）：收斂成安靜膠囊 */
+body.minimal #navFloatBar{ opacity:.85; }
+body.minimal #navFloatBar .nav-btn,
+body.minimal #navFloatBar button{
+  background:rgba(255,255,255,0.06) !important; border:1px solid rgba(255,255,255,0.12) !important;
+  color:#c9d2e0 !important; box-shadow:none !important; text-shadow:none !important;
+}
+body.day-mode.minimal #navFloatBar .nav-btn,
+body.day-mode.minimal #navFloatBar button{
+  background:#ffffff !important; border:1px solid #d2d2d7 !important; color:#1d1d1f !important;
+}
+
+/* 8) 貼近示意稿 v2：五卡一排 / hover 進入→ / 右下歡迎卡 / 頂列壓一行 */
+/* 五卡一排（窄螢幕自動換行）—— 用 display:contents 把兩排容器攤平進同一個 flex */
+body.minimal .center-stage{ display:flex; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:stretch; gap:18px; width:min(1240px,94vw); }
+body.minimal .center-title{ flex-basis:100%; }
+body.minimal .hex-grid{ display:contents !important; }
+body.minimal .center-stage > div[style*="margin-top"]{ display:contents !important; }
+/* hover 才浮出的「進入 →」 */
+body.minimal .hex-building::after{
+  content:'進入 →'; display:block; margin-top:14px;
+  font-size:12px; font-weight:600; color:#0a84ff;
+  opacity:0; transform:translateX(-4px); transition:all .2s;
+}
+body.minimal .hex-building:hover::after{ opacity:1; transform:none; }
+body.day-mode.minimal .hex-building::after{ color:#0071e3; }
+/* 右下：個人區變歡迎卡 */
+body.minimal .profile-area{
+  display:flex; align-items:center; gap:12px;
+  background:rgba(255,255,255,0.045); border:1px solid rgba(255,255,255,0.09);
+  border-radius:16px; padding:10px 16px;
+}
+body.minimal .profile-circle{ width:40px; height:40px; }
+body.minimal .profile-label{ font-size:13px; margin:0; color:#f2f4f8; }
+body.day-mode.minimal .profile-area{ background:#fff; border-color:#e8e8ed; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+body.day-mode.minimal .profile-label{ color:#1d1d1f; }
+/* 頂列：日期/進度/業績壓成一行,比例縮小 */
+body.minimal .top-left > div{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+body.minimal .date-block{ display:flex; gap:4px; }
+body.minimal .date-cell{ padding:4px 10px; font-size:12px; }
+body.minimal .progress-row{ margin-top:0; }
+body.minimal .revenue-stats{ margin-top:0; }
 </style>
 <script src="./auth-check.js?v=authfix"></script>
 <script defer src="./firebase-sync.js?v=perf-lite-1"></script>
 <script defer src="./auth-firebase.js?v=v2"></script>
 </head>
 <body>
+<script>
+/* ✨ 簡約/展示模式：盡早套 class 避免閃爍（預設＝簡約;展示模式＝移除 .minimal 即 100% 原樣）*/
+(function(){
+  try{
+    if((localStorage.getItem('ui_mode_v1')||'minimal')!=='showcase') document.body.classList.add('minimal');
+  }catch(e){ document.body.classList.add('minimal'); }
+})();
+</script>
 
 <canvas id="stars-canvas"></canvas>
 <div class="nebula nebula-1"></div>
@@ -1340,6 +1518,8 @@
     <button class="font-sz-btn active" data-size="md" title="中字" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(100,160,255,0.25);color:#c0dcff;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;">A</button>
     <button class="font-sz-btn" data-size="lg" title="大字" style="width:32px;height:32px;border:none;border-radius:50%;background:transparent;color:#8ab4ff;font-size:18px;font-weight:700;cursor:pointer;transition:all .2s;">A</button>
   </div>
+  <!-- 簡約/展示 -->
+  <div class="icon-btn" id="uiModeBtn" title="切換展示模式（簡報用）" onclick="toggleUiMode()">✨</div>
   <!-- 白天/黑夜 -->
   <div class="icon-btn" id="dayNightBtn" title="切換白天/黑夜">🌙</div>
   <div class="icon-btn" id="bellBtn" title="背景音樂">🔔<div class="badge" id="bellBadge" style="display:none;">♪</div></div>
@@ -2032,24 +2212,78 @@ function compressToThumb(dataUrl, maxSize){
 }
 function showToast(m){const t=document.getElementById('saveToast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
 
+// ════════ ✨ 簡約 / 展示 模式切換（偏好記本機,不上雲）════════
+function applyUiMode(){
+  var m='minimal';
+  try{ m=localStorage.getItem('ui_mode_v1')||'minimal'; }catch(e){}
+  var showcase=(m==='showcase');
+  document.body.classList.toggle('minimal', !showcase);
+  var b=document.getElementById('uiModeBtn');
+  if(b){
+    b.textContent = showcase ? '🔘' : '✨';
+    b.title = showcase ? '返回簡約模式' : '切換展示模式（簡報用）';
+  }
+  // 星空動畫：展示=啟動,簡約=停止並畫靜態
+  try{ if(window._starsSetMode) window._starsSetMode(showcase); }catch(e){}
+}
+function toggleUiMode(){
+  var cur='minimal';
+  try{ cur=localStorage.getItem('ui_mode_v1')||'minimal'; }catch(e){}
+  var next=(cur==='showcase')?'minimal':'showcase';
+  try{ localStorage.setItem('ui_mode_v1',next); }catch(e){}
+  applyUiMode();
+  showToast(next==='showcase' ? '✨ 展示模式（簡報用）' : '已返回簡約模式');
+}
+applyUiMode();
+
 // ========== 星空 ==========
-// ★ 效能粗暴版（2026/06）：星空改「靜態」— 只畫一次、不跑動畫迴圈。
-//   原本 30fps 持續重畫 260 顆星＋流星,在低階機器上是整頁（連其他分頁）卡頓的主因之一。
+// ★ 雙模式（2026/06）：簡約=靜態畫一次（零持續成本）;展示模式=閃爍+流星動畫（限定簡報時付出代價,離開即停）
 (function(){
   const c=document.getElementById('stars-canvas'),ctx=c.getContext('2d');
-  function paint(){
+  let stars=[], ss=[], animId=null, ssTimer=null, _last=0;
+  function makeStars(){ stars=Array.from({length:260},()=>({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.8+0.3,a:Math.random(),da:(Math.random()-0.5)*0.02})); }
+  function paintStatic(){
     c.width=innerWidth;c.height=innerHeight;
     ctx.clearRect(0,0,c.width,c.height);
-    if(document.body.classList.contains('day-mode')) return; // 白天看不到 → 不畫
+    if(document.body.classList.contains('day-mode')) return;
     for(let i=0;i<260;i++){
       const x=Math.random()*c.width,y=Math.random()*c.height,r=Math.random()*1.8+0.3,a=Math.random()*0.75+0.25;
       ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=`rgba(200,220,255,${a})`;ctx.fill();
     }
   }
-  paint();
-  addEventListener('resize',paint);
-  // 白天/夜間切換時重畫（body class 變動）
-  try{ new MutationObserver(paint).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
+  function visible(){
+    if(document.hidden) return false;
+    if(document.body.classList.contains('day-mode')) return false;
+    if(document.querySelector('.page-overlay.active, .admin-overlay.active')) return false;
+    return true;
+  }
+  function frame(ts){
+    if(!animId) return;
+    animId=requestAnimationFrame(frame);
+    if(!visible()) return;
+    if(ts-_last<32) return; _last=ts;
+    ctx.clearRect(0,0,c.width,c.height);
+    for(const s of stars){s.a+=s.da;if(s.a>1||s.a<0.2)s.da*=-1;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(200,220,255,${s.a})`;ctx.fill();}
+    for(let i=ss.length-1;i>=0;i--){const s=ss[i];ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.x-s.vx*8,s.y-s.vy*8);ctx.strokeStyle=`rgba(200,230,255,${s.life*0.6})`;ctx.lineWidth=2;ctx.stroke();s.x+=s.vx;s.y+=s.vy;s.life-=s.decay;if(s.life<=0)ss.splice(i,1);}
+  }
+  window._starsSetMode=function(showcase){
+    if(showcase){
+      if(animId) return;
+      c.width=innerWidth;c.height=innerHeight;
+      makeStars(); ss=[];
+      animId=requestAnimationFrame(frame);
+      ssTimer=setInterval(()=>{ if(visible()) ss.push({x:Math.random()*c.width,y:0,vx:(Math.random()-0.3)*6,vy:Math.random()*4+3,life:1,decay:0.015+Math.random()*0.01}); },4000);
+    }else{
+      if(animId){cancelAnimationFrame(animId);animId=null;}
+      if(ssTimer){clearInterval(ssTimer);ssTimer=null;}
+      paintStatic();
+    }
+  };
+  paintStatic();
+  addEventListener('resize',()=>{ if(animId){c.width=innerWidth;c.height=innerHeight;} else paintStatic(); });
+  try{ new MutationObserver(()=>{ if(!animId) paintStatic(); }).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(e){}
+  // 開機若已是展示模式 → 啟動動畫
+  if(!document.body.classList.contains('minimal')) window._starsSetMode(true);
 })();
 
 // ========== 日期 ==========
@@ -3125,7 +3359,7 @@ function closePlaza(){
 }
 
 // 廣場粒子效果
-// ★ 效能粗暴版（2026/06）：粒子改「靜態」— 畫一次就停,不跑 60fps 無限迴圈（原本無節流、無可見性防護）。
+// ★ 雙模式（2026/06）：簡約=靜態畫一次;展示模式=60fps 粒子動畫（限定簡報,關廣場即停）
 let plazaAnimId=null;
 function initPlazaParticles(){
   const c=document.getElementById('plazaParticles');
@@ -3134,12 +3368,31 @@ function initPlazaParticles(){
   const map=document.getElementById('plazaMap');
   c.width=map.offsetWidth; c.height=map.offsetHeight;
   if(plazaAnimId){cancelAnimationFrame(plazaAnimId);plazaAnimId=null;}
-  ctx.clearRect(0,0,c.width,c.height);
-  for(let i=0;i<50;i++){
-    const x=Math.random()*c.width,y=Math.random()*c.height,r=Math.random()*2+0.5,a=0.3+Math.random()*0.2;
-    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
-    ctx.fillStyle=`rgba(150,200,255,${a})`;ctx.fill();
+  if(document.body.classList.contains('minimal')){
+    // 簡約：靜態粒子
+    ctx.clearRect(0,0,c.width,c.height);
+    for(let i=0;i<50;i++){
+      const x=Math.random()*c.width,y=Math.random()*c.height,r=Math.random()*2+0.5,a=0.3+Math.random()*0.2;
+      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(150,200,255,${a})`;ctx.fill();
+    }
+    return;
   }
+  // 展示：動態粒子（原版效果）
+  const pts=Array.from({length:50},()=>({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*2+0.5,vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.3,a:Math.random()}));
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    for(const p of pts){
+      p.x+=p.vx;p.y+=p.vy;p.a+=0.01;
+      if(p.x<0)p.x=c.width;if(p.x>c.width)p.x=0;
+      if(p.y<0)p.y=c.height;if(p.y>c.height)p.y=0;
+      const alpha=0.3+Math.sin(p.a)*0.2;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(150,200,255,${alpha})`;ctx.fill();
+    }
+    plazaAnimId=requestAnimationFrame(draw);
+  }
+  draw();
 }
 
 // ========== 子頁面 ==========
@@ -3372,7 +3625,7 @@ async function syncFromCastleCards(){
 // ========== 指揮城堡 ==========
 function openCastle(){
   stopBgm();
-  document.getElementById('castleFrame').src='castle-cards.html?v=apple4';
+  document.getElementById('castleFrame').src='castle-cards.html?v=perf-lazy-1';
   document.getElementById('castleOverlay').classList.add('active');
 }
 async function closeCastle(){

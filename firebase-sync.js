@@ -248,6 +248,7 @@ const LOCAL_ONLY_KEYS = [
   '_fs_lastModified',  // ★ LWW: 本地時間戳 shadow map，純本地不同步
   // ★ 純 UI 狀態 keys — 不該同步雲端（避免每次切 tab/重整都觸發備份 banner）
   'perf_last_tab',     // 業績數據中心最後使用的 tab
+  'ui_mode_v1',        // ✨ 簡約/展示模式偏好（每台裝置各自記,不同步）
   'motiv_sel_year',    // 激勵年/月選單最後選的年
   'motiv_sel_month',   // 激勵年/月選單最後選的月
   'mp_data_v1_summary' // 月績效摘要（給 AI ctx 用，每次重算就好不用同步）

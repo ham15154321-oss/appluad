@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>太空指揮部 — 質感改版示意稿</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0c11; --bg2:#0e1118;
+  --card:rgba(255,255,255,0.045); --card-border:rgba(255,255,255,0.09);
+  --text:#f2f4f8; --text2:#9aa3b2; --text3:#5d6675;
+  --accent:#0a84ff; --hairline:rgba(255,255,255,0.08);
+  --shadow:0 10px 30px rgba(0,0,0,0.45);
+}
+body.day{
+  --bg:#f5f5f7; --bg2:#fafafc;
+  --card:#ffffff; --card-border:#e8e8ed;
+  --text:#1d1d1f; --text2:#6e6e73; --text3:#aeaeb2;
+  --accent:#0071e3; --hairline:rgba(0,0,0,0.08);
+  --shadow:0 8px 24px rgba(0,0,0,0.06);
+  color:#1d1d1f; /* 明確色：避免瀏覽器對 body 繼承＋變數的解析怪癖 */
+}
+html,body{height:100%;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro TC','PingFang TC','Noto Sans TC',sans-serif;
+  background:radial-gradient(1200px 700px at 50% -10%, var(--bg2), var(--bg));
+  color:var(--text);
+  min-height:100vh; display:flex; flex-direction:column;
+  transition:background .4s;
+  letter-spacing:.01em;
+}
+/* 夜間：極淡靜態星點（3% 存在感,畫龍點睛而非搶戲）*/
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;opacity:.5;transition:opacity .4s;
+  background:
+    radial-gradient(1px 1px at 12% 22%, rgba(255,255,255,.35), transparent),
+    radial-gradient(1px 1px at 33% 64%, rgba(255,255,255,.22), transparent),
+    radial-gradient(1.3px 1.3px at 58% 18%, rgba(255,255,255,.3), transparent),
+    radial-gradient(1px 1px at 76% 48%, rgba(255,255,255,.2), transparent),
+    radial-gradient(1px 1px at 88% 76%, rgba(255,255,255,.25), transparent),
+    radial-gradient(1px 1px at 22% 86%, rgba(255,255,255,.2), transparent);
+}
+body.day::before{opacity:0;}
+
+.proto-flag{background:linear-gradient(90deg,#7c3aed,#2563eb);color:#fff;text-align:center;font-size:12px;font-weight:600;padding:6px;letter-spacing:.05em;}
+
+/* ───── 頂列：一條搞定 身分/日期/業績/控制 ───── */
+.topbar{
+  display:flex;align-items:center;gap:16px;
+  padding:14px 28px;border-bottom:1px solid var(--hairline);
+}
+.id{display:flex;align-items:center;gap:12px;min-width:0;}
+.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#3a3f4b,#21242c);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1px solid var(--card-border);}
+body.day .avatar{background:linear-gradient(135deg,#e8e8ed,#d8d8de);}
+.id .who{font-size:14px;font-weight:600;}
+.id .date{font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums;}
+.kpi{flex:1;display:flex;align-items:center;gap:14px;min-width:0;justify-content:center;}
+.kpi .label{font-size:12px;color:var(--text2);white-space:nowrap;}
+.kpi .nums{font-size:13px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.kpi .bar{width:180px;max-width:26vw;height:5px;border-radius:3px;background:var(--hairline);overflow:hidden;}
+.kpi .bar i{display:block;height:100%;width:22.6%;border-radius:3px;background:var(--accent);}
+.kpi .pct{font-size:12px;color:var(--accent);font-weight:700;}
+.ctrl{display:flex;align-items:center;gap:6px;}
+.icon-btn{
+  width:34px;height:34px;border-radius:10px;border:1px solid transparent;background:transparent;
+  color:var(--text2);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;font-family:inherit;position:relative;
+}
+.icon-btn:hover{background:var(--card);border-color:var(--card-border);color:var(--text);}
+.icon-btn .dot{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:#ff453a;}
+.logout{font-size:12.5px;color:var(--text2);padding:0 12px;width:auto;}
+
+/* ───── 主舞台 ───── */
+.stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px 28px;}
+.hq-title{font-size:13px;letter-spacing:.35em;text-indent:.35em;color:var(--text2);font-weight:600;margin-bottom:6px;}
+.hq-sub{font-size:26px;font-weight:700;letter-spacing:.04em;margin-bottom:42px;}
+.grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,210px));
+  gap:18px;justify-content:center;width:100%;max-width:1180px;
+}
+.tile{
+  background:var(--card);border:1px solid var(--card-border);border-radius:20px;
+  padding:26px 20px 22px;cursor:pointer;text-align:left;
+  transition:transform .22s cubic-bezier(.2,.7,.3,1),box-shadow .22s,border-color .22s;
+  box-shadow:0 1px 0 rgba(255,255,255,0.03) inset;
+}
+.tile:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:rgba(125,150,200,0.3);}
+body.day .tile:hover{border-color:#d2d2d7;}
+.glyph{
+  width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+  font-size:22px;margin-bottom:16px;
+  background:linear-gradient(135deg, var(--g1), var(--g2));
+}
+.tile h3{font-size:16px;font-weight:700;margin-bottom:5px;letter-spacing:.02em;}
+.tile p{font-size:12px;color:var(--text2);line-height:1.55;}
+.tile .go{margin-top:14px;font-size:12px;color:var(--accent);font-weight:600;opacity:0;transform:translateX(-4px);transition:all .2s;}
+.tile:hover .go{opacity:1;transform:none;}
+
+/* ───── 底列 ───── */
+.bottombar{
+  display:flex;align-items:flex-end;gap:16px;padding:18px 28px 22px;
+}
+.scorecard{
+  background:var(--card);border:1px solid var(--card-border);border-radius:16px;
+  padding:14px 16px;min-width:230px;
+}
+.scorecard .sc-head{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;}
+.scorecard .sc-num{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;}
+.scorecard .sc-num span{font-size:12px;color:var(--text3);font-weight:600;}
+.scorecard .sc-tag{font-size:10px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%, transparent);border-radius:8px;padding:2px 8px;}
+.sc-row{display:flex;align-items:center;gap:8px;margin:5px 0;}
+.sc-row .n{font-size:10.5px;color:var(--text2);width:46px;flex-shrink:0;}
+.sc-row .t{flex:1;height:4px;border-radius:2px;background:var(--hairline);overflow:hidden;}
+.sc-row .t i{display:block;height:100%;border-radius:2px;background:var(--accent);opacity:.85;}
+.sc-row .v{font-size:10px;color:var(--text3);width:36px;text-align:right;font-variant-numeric:tabular-nums;}
+.spacer{flex:1;}
+.greet{
+  display:flex;align-items:center;gap:12px;background:var(--card);
+  border:1px solid var(--card-border);border-radius:16px;padding:10px 16px;
+}
+.greet img-ph{display:none;}
+.greet .gp{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#7a8699,#4d5666);flex-shrink:0;}
+.greet .gt{font-size:12.5px;color:var(--text2);line-height:1.5;}
+.greet .gt b{display:block;color:var(--text);font-size:13px;}
+
+.toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-60px);background:var(--card);border:1px solid var(--card-border);color:var(--text);padding:10px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:99;opacity:0;transition:all .3s;box-shadow:var(--shadow);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:760px){
+  .kpi .label{display:none;}
+  .hq-sub{font-size:21px;margin-bottom:28px;}
+  .grid{grid-template-columns:repeat(2,minmax(150px,1fr));}
+  .bottombar{flex-direction:column;align-items:stretch;}
+}
+</style>
+</head>
+<body>
+<div class="proto-flag">🎨 首頁質感改版示意稿 — 獨立檔案，未動正式首頁；點右上 ☀︎/☾ 切換日夜</div>
+
+<!-- 頂列：身分 ＋ 業績 KPI ＋ 控制，全部收進一條 -->
+<div class="topbar">
+  <div class="id">
+    <div class="avatar">🦊</div>
+    <div>
+      <div class="who">楊雅筑</div>
+      <div class="date">2026 年 6 月 5 日</div>
+    </div>
+  </div>
+  <div class="kpi">
+    <span class="label">組 461 萬／目標 2040 萬</span>
+    <span class="bar"><i></i></span>
+    <span class="pct">22.6%</span>
+  </div>
+  <div class="ctrl">
+    <button class="icon-btn" onclick="toast('（示意）字級切換')" title="字級">A</button>
+    <button class="icon-btn" id="modeBtn" onclick="toggleMode()" title="日夜切換">☾</button>
+    <button class="icon-btn" onclick="toast('（示意）通知')" title="通知">🔔<span class="dot"></span></button>
+    <button class="icon-btn" onclick="toast('（示意）後台管理')" title="後台">⚙︎</button>
+    <button class="icon-btn" onclick="toast('（示意）總覽')" title="總覽">▤</button>
+    <button class="icon-btn logout" onclick="toast('（示意）登出')">登出</button>
+  </div>
+</div>
+
+<!-- 主舞台：標題 ＋ 五個入口（統一卡片語言,不再五張撞色圖）-->
+<div class="stage">
+  <div class="hq-title">APPLAUD SPACE HQ</div>
+  <div class="hq-sub">太空指揮部</div>
+  <div class="grid">
+    <div class="tile" style="--g1:#5e5ce6;--g2:#3634a3;" onclick="toast('進入：練功坊')">
+      <div class="glyph">🎓</div>
+      <h3>練功坊</h3>
+      <p>教材、訓練與能力驗收</p>
+      <div class="go">進入 →</div>
+    </div>
+    <div class="tile" style="--g1:#0a84ff;--g2:#0a5dc2;" onclick="toast('進入：指揮城堡')">
+      <div class="glyph">🏰</div>
+      <h3>指揮城堡</h3>
+      <p>角色卡與團隊指揮中心</p>
+      <div class="go">進入 →</div>
+    </div>
+    <div class="tile" style="--g1:#64d2ff;--g2:#2c9fd9;" onclick="toast('進入：星際廣場')">
+      <div class="glyph">🌌</div>
+      <h3>星際廣場</h3>
+      <p>大海 · 法院 · 瀑布 · 藏寶庫 · 火種</p>
+      <div class="go">進入 →</div>
+    </div>
+    <div class="tile" style="--g1:#30d158;--g2:#1f9d43;" onclick="toast('進入：業績數據中心')">
+      <div class="glyph">📊</div>
+      <h3>業績數據中心</h3>
+      <p>報表、排名與跨月比較</p>
+      <div class="go">進入 →</div>
+    </div>
+    <div class="tile" style="--g1:#bf5af2;--g2:#8b3dbd;" onclick="toast('進入：AI 顧問')">
+      <div class="glyph">✦</div>
+      <h3>AI 顧問</h3>
+      <p>直接問 AI · 任務 · 知識庫</p>
+      <div class="go">進入 →</div>
+    </div>
+  </div>
+</div>
+
+<!-- 底列：評核摘要（左）＋ 歡迎（右）-->
+<div class="bottombar">
+  <div class="scorecard">
+    <div class="sc-head">
+      <span class="sc-num">71<span>/100</span></span>
+      <span class="sc-tag">達標 Pass</span>
+      <span style="flex:1;"></span>
+      <span style="font-size:11px;color:var(--text3);">組長評核</span>
+    </div>
+    <div class="sc-row"><span class="n">會議</span><span class="t"><i style="width:80%"></i></span><span class="v">20/25</span></div>
+    <div class="sc-row"><span class="n">績效管理</span><span class="t"><i style="width:50%"></i></span><span class="v">15/30</span></div>
+    <div class="sc-row"><span class="n">人員管理</span><span class="t"><i style="width:87%"></i></span><span class="v">13/15</span></div>
+    <div class="sc-row"><span class="n">日常輔導</span><span class="t"><i style="width:93%"></i></span><span class="v">14/15</span></div>
+    <div class="sc-row"><span class="n">小組發展</span><span class="t"><i style="width:50%"></i></span><span class="v">5/10</span></div>
+    <div class="sc-row"><span class="n">宣誓</span><span class="t"><i style="width:80%"></i></span><span class="v">4/5</span></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="greet">
+    <div class="gp"></div>
+    <div class="gt"><b>歡迎回來，楊雅筑</b>今天一起提升團隊戰力 🚀</div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓</div>
+<script>
+function toggleMode(){
+  document.body.classList.toggle('day');
+  document.getElementById('modeBtn').textContent=document.body.classList.contains('day')?'☀︎':'☾';
+}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},1600);}
+</script>
+</body>
+</html>
