@@ -823,13 +823,16 @@
 
   /* ── SAVE BAR ── */
   .save-bar {
-    position: absolute;
-    top: 16px;
-    right: 16px;
     display: flex;
     gap: 8px;
-    z-index: 10;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    margin-top: 14px;
   }
+  .sb-group { display: inline-flex; gap: 8px; align-items: center; }
+  .sb-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.15); margin: 0 4px; }
+  .sb-hint { font-size: 11px; color: #64748b; white-space: nowrap; }
   .save-btn {
     display: inline-flex;
     align-items: center;
@@ -1004,6 +1007,35 @@
   .link-card-remove:hover {
     color: #fca5a5;
   }
+
+/* ════════ UX 優化（2026/06）：角色徽章 / 總覽 chips / 數字框 / 雷達圖例 / 表格捲動 ════════ */
+.role-score{display:inline-block;min-width:26px;text-align:center;font-size:11px;font-weight:800;border-radius:10px;padding:1px 7px;margin-left:4px;background:rgba(255,255,255,0.08);color:#64748b;}
+.role-score.has-score{background:rgba(46,168,106,0.22);color:#4ade80;}
+.role-overview{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:12px;}
+.ro-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 11px;border-radius:16px;cursor:pointer;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#94a3b8;transition:all .15s;}
+.ro-chip b{color:#f1f5f9;}
+.ro-chip:hover{border-color:rgba(46,168,106,0.6);}
+.ro-chip.cur{background:rgba(46,168,106,0.18);border-color:rgba(46,168,106,0.55);color:#d9fbe9;}
+.ro-chip.empty b{color:#64748b;}
+.score-num{width:58px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:6px 6px;color:#f1f5f9;font-size:13px;text-align:center;outline:none;font-family:inherit;margin-left:6px;}
+.score-num:focus{border-color:#2ea86a;}
+.radar-legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px;}
+.rl-item{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#94a3b8;cursor:pointer;padding:3px 9px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);}
+.rl-item.cur{color:#f1f5f9;border-color:rgba(255,255,255,0.3);font-weight:700;}
+.rl-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+#reportPathsTable,#indicatorsTable{overflow-x:auto;}
+#reportPathsTable table,#indicatorsTable table{min-width:520px;}
+/* ☀️ 白天模式 */
+body.day-mode .role-score{background:#f0f0f3;color:#86868b;}
+body.day-mode .role-score.has-score{background:rgba(31,138,58,0.12);color:#1f8a3a;}
+body.day-mode .ro-chip{background:#fff;border-color:#d2d2d7;color:#515154;}
+body.day-mode .ro-chip b{color:#1d1d1f;}
+body.day-mode .ro-chip.cur{background:rgba(31,138,58,0.1);border-color:#1f8a3a;color:#1f8a3a;}
+body.day-mode .score-num{background:#fff;border-color:#d2d2d7;color:#1d1d1f;}
+body.day-mode .rl-item{color:#515154;border-color:#d2d2d7;}
+body.day-mode .rl-item.cur{color:#1d1d1f;border-color:#86868b;}
+body.day-mode .sb-sep{background:#d2d2d7;}
+body.day-mode .sb-hint{color:#86868b;}
 </style>
 <script src="./auth-check.js"></script>
 <script defer src="./firebase-sync.js?v=perf-lite-1"></script>
@@ -1012,19 +1044,29 @@
 <body>
 
 <div class="header">
-  <div class="save-bar">
-    <button class="save-btn primary" onclick="saveAll()" title="儲存所有設定到瀏覽器">💾 儲存</button>
-    <button class="save-btn" onclick="loadAll()" title="載入上次儲存的設定">📂 載入</button>
-    <button class="save-btn" onclick="exportRoleXlsx()" title="把目前角色的六維分數＋備註匯出成 Excel（評核紀錄格式）">📤 匯出</button>
-    <button class="save-btn" onclick="document.getElementById('xlsxImportInput').click()" title="匯入 Excel（評核紀錄格式）：依檔內【評核角色】自動更新各角色；文字回饋堆疊在原備註下方，不覆蓋">📥 匯入</button>
-    <button class="save-btn" onclick="downloadTemplateXlsx()" title="下載空白範本：自動帶入目前角色與六大指標（給評核人填分數/備註後再匯入）">📋 範本</button>
-    <input type="file" id="xlsxImportInput" accept=".xlsx,.xls" style="display:none" onchange="importXlsxFile(this.files[0]);this.value='';">
-    <button class="save-btn danger" onclick="clearSave()" title="清除所有已儲存的資料">🗑️ 清除</button>
-  </div>
   <h1><span>Applaud</span> 組長職能評估地圖</h1>
   <p>赫綠設計學院 · 正式六大考評維度 · 領先指標追蹤系統</p>
   <div class="badge">2026 版本</div>
   <div class="autosave-indicator" id="autosaveStatus"></div>
+  <!-- 工具列：標題下方,三組分區（一般 ｜ Excel 流程 ｜ 危險動作隔離）-->
+  <div class="save-bar">
+    <span class="sb-group">
+      <button class="save-btn primary" onclick="saveAll()" title="儲存所有設定到瀏覽器">💾 儲存</button>
+      <button class="save-btn" onclick="loadAll()" title="載入上次儲存的設定">📂 載入</button>
+    </span>
+    <span class="sb-sep"></span>
+    <span class="sb-group">
+      <button class="save-btn" onclick="downloadTemplateXlsx()" title="下載全角色空白範本（六角色×六指標已排好,給評核人填分數/備註）">📋 範本</button>
+      <button class="save-btn" onclick="document.getElementById('xlsxImportInput').click()" title="匯入 Excel：依檔內【評核角色】自動更新各角色；文字回饋堆疊在原備註下方,不覆蓋">📥 匯入</button>
+      <button class="save-btn" onclick="exportRoleXlsx()" title="把目前角色的六維分數＋備註匯出成 Excel">📤 匯出</button>
+      <span class="sb-hint">範本 → 填寫 → 匯入</span>
+      <input type="file" id="xlsxImportInput" accept=".xlsx,.xls" style="display:none" onchange="importXlsxFile(this.files[0]);this.value='';">
+    </span>
+    <span class="sb-sep"></span>
+    <span class="sb-group">
+      <button class="save-btn danger" onclick="clearSave()" title="只清除「目前角色」已儲存的評估資料">🗑️ 清除（目前角色）</button>
+    </span>
+  </div>
 </div>
 <div class="save-toast" id="saveToast">✓ 已儲存</div>
 
@@ -1032,12 +1074,12 @@
 
   <!-- ROLE SELECTOR -->
   <div class="role-selector" id="roleSelector">
-    <button class="role-btn active" data-role="manager" onclick="switchRole('manager',this)">👔 主管</button>
-    <button class="role-btn" data-role="area_mgr" onclick="switchRole('area_mgr',this)">🏢 區主管</button>
-    <button class="role-btn" data-role="gm" onclick="switchRole('gm',this)">🏛️ 總經理</button>
-    <button class="role-btn" data-role="self" onclick="switchRole('self',this)">📝 自評</button>
-    <button class="role-btn" data-role="peer" onclick="switchRole('peer',this)">🤝 同儕</button>
-    <button class="role-btn" data-role="subordinate" onclick="switchRole('subordinate',this)">👥 部屬</button>
+    <button class="role-btn active" data-role="manager" onclick="switchRole('manager',this)">👔 主管 <span class="role-score" id="roleScore_manager">—</span></button>
+    <button class="role-btn" data-role="area_mgr" onclick="switchRole('area_mgr',this)">🏢 區主管 <span class="role-score" id="roleScore_area_mgr">—</span></button>
+    <button class="role-btn" data-role="gm" onclick="switchRole('gm',this)">🏛️ 總經理 <span class="role-score" id="roleScore_gm">—</span></button>
+    <button class="role-btn" data-role="self" onclick="switchRole('self',this)">📝 自評 <span class="role-score" id="roleScore_self">—</span></button>
+    <button class="role-btn" data-role="peer" onclick="switchRole('peer',this)">🤝 同儕 <span class="role-score" id="roleScore_peer">—</span></button>
+    <button class="role-btn" data-role="subordinate" onclick="switchRole('subordinate',this)">👥 部屬 <span class="role-score" id="roleScore_subordinate">—</span></button>
   </div>
   <div class="role-indicator" id="roleIndicator">目前身份：<span id="roleLabel">👔 主管</span></div>
 
@@ -1054,12 +1096,40 @@
   ═══════════════════════════════════════════════ -->
   <div id="tab-assessment" class="tab-panel active">
 
+    <!-- 👤 基本資訊（置頂：範本帶入與匯入比對的關鍵欄位）-->
+    <div class="card">
+      <div class="card-title">
+        <div class="icon" style="background:rgba(74,234,255,0.18);">👤</div>
+        基本資訊
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+        <div>
+          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">姓名（受評人）</label>
+          <input id="name" type="text" placeholder="輸入組長姓名" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
+        </div>
+        <div>
+          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">組別</label>
+          <input id="group" type="text" placeholder="如：中堰一部A組" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
+        </div>
+        <div>
+          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">評估者</label>
+          <input id="evaluator" type="text" placeholder="主管/HR/自評" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
+        </div>
+        <div>
+          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">評估日期</label>
+          <input id="evaldate" type="date" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
+        </div>
+      </div>
+    </div>
+
     <!-- Total Score -->
     <div class="total-card">
       <div style="font-size:13px; color:#64748b; margin-bottom:4px;">總評分</div>
       <div class="total-score-big" id="totalScore">0<span>/100</span></div>
       <div class="total-label">六大維度加總</div>
       <div class="total-grade" id="gradeLabel" style="background:rgba(100,116,139,0.2); color:#94a3b8;">尚未評分</div>
+      <!-- 六角色分數對照（點 chip 直接切角色）-->
+      <div class="role-overview" id="roleOverview"></div>
     </div>
 
     <!-- Bar Chart Overview -->
@@ -1081,6 +1151,7 @@
       </div>
       <div class="radar-container">
         <svg class="radar-svg" width="320" height="320" id="radarSvg"><!-- JS --></svg>
+        <div id="radarLegend" class="radar-legend"></div>
       </div>
     </div>
 
@@ -1094,26 +1165,6 @@
       <div class="card-title">
         <div class="icon" style="background:rgba(46,168,106,0.2);">📋</div>
         重新評估紀錄
-      </div>
-
-      <!-- Basic Info Fields -->
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:16px;">
-        <div>
-          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">姓名</label>
-          <input id="name" type="text" placeholder="輸入組長姓名" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
-        </div>
-        <div>
-          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">組別</label>
-          <input id="group" type="text" placeholder="如：中堰一部A組" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
-        </div>
-        <div>
-          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">評估者</label>
-          <input id="evaluator" type="text" placeholder="主管/HR/自評" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
-        </div>
-        <div>
-          <label style="font-size:12px; color:#64748b; display:block; margin-bottom:4px;">評估日期</label>
-          <input id="evaldate" type="date" style="width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 10px; color:#f1f5f9; font-size:14px; outline:none; font-family:inherit;">
-        </div>
       </div>
 
       <!-- New Evaluation Round Button -->
@@ -1686,6 +1737,8 @@ function buildDimGrid() {
               style="accent-color:${d.color};">
           </div>
           <div class="score-val" id="dimVal${d.id}">0</div>
+          <input type="number" class="score-num" id="dimNum${d.id}" min="0" max="${d.max}" value="0"
+            oninput="updateDimFromNum(${d.id}, this.value)" title="直接輸入分數（0～${d.max}）">
         </div>
         <div style="margin-top:12px; border-top:1px solid rgba(255,255,255,0.07); padding-top:12px;">
           <div style="font-size:11px; color:#475569; margin-bottom:6px;">評估重點</div>
@@ -1863,10 +1916,21 @@ function updateDim(id, val) {
   SCORES[id] = val;
   document.getElementById('dimScore'+id).innerHTML = val + `<span>/${DIMS[id-1].max}</span>`;
   document.getElementById('dimVal'+id).textContent = val;
+  var numEl=document.getElementById('dimNum'+id);
+  if(numEl && String(numEl.value)!==String(val)) numEl.value = val;   // 同步數字框
   updateTotal();
   updateBarChart();
   updateRadar();
   scheduleAutoSave();
+  scheduleBadgeRefresh();
+}
+// 數字框 → 滑桿（夾在 0~滿分）
+function updateDimFromNum(id, val) {
+  var max = DIMS[id-1].max;
+  var v = Math.max(0, Math.min(max, parseInt(val)||0));
+  var slider = document.querySelector('.dim-card[data-dim="'+id+'"] input[type="range"]');
+  if(slider) slider.value = v;
+  updateDim(id, v);
 }
 
 // ── 自動儲存（防抖） ──
@@ -2060,8 +2124,15 @@ function updateBarChart() {
 // ════════════════════════════════════════════════
 function buildRadar() { updateRadar(); }
 
+// ★ 360 雷達圖：疊加所有「已有資料」的角色（目前角色＝實心粗線,其他角色＝虛線細線）
+const ROLE_COLORS={manager:'#2ea86a',area_mgr:'#8b5cf6',gm:'#ef4444',self:'#f59e0b',peer:'#06b6d4',subordinate:'#ec4899'};
+function _radarScoresFor(role){
+  if(role===currentRole) return SCORES;
+  try{ var st=JSON.parse(localStorage.getItem(getSKFor(role))||'null'); return (st&&st.scores)||null; }catch(e){ return null; }
+}
 function updateRadar() {
   const svg = document.getElementById('radarSvg');
+  if(!svg) return;
   const cx = 160, cy = 160, r = 120;
   const n = DIMS.length;
   const angles = DIMS.map((_, i) => (i / n) * 2 * Math.PI - Math.PI/2);
@@ -2075,25 +2146,46 @@ function updateRadar() {
     `<line x1="${cx}" y1="${cy}" x2="${cx + r*Math.cos(a)}" y2="${cy + r*Math.sin(a)}" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>`
   ).join('');
 
-  const scorePoints = DIMS.map((d, i) => {
-    const pct = SCORES[d.id] / d.max;
-    return `${cx + r*pct*Math.cos(angles[i])},${cy + r*pct*Math.sin(angles[i])}`;
-  }).join(' ');
-
   const labels = DIMS.map((d, i) => {
     const lx = cx + (r + 20) * Math.cos(angles[i]);
     const ly = cy + (r + 20) * Math.sin(angles[i]);
     return `<text x="${lx}" y="${ly + 4}" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="sans-serif">${d.name}</text>`;
   }).join('');
 
-  svg.innerHTML = gridLines + axisLines + labels +
-    `<polygon points="${scorePoints}" fill="rgba(46,168,106,0.25)" stroke="#2ea86a" stroke-width="2"/>` +
-    DIMS.map((d, i) => {
-      const pct = SCORES[d.id] / d.max;
-      const px = cx + r*pct*Math.cos(angles[i]);
-      const py = cy + r*pct*Math.sin(angles[i]);
-      return `<circle cx="${px}" cy="${py}" r="4" fill="${d.color}" stroke="#1a1a2e" stroke-width="2"/>`;
+  const ROLE_ORDER=['manager','area_mgr','gm','self','peer','subordinate'];
+  let polys='', dots='', legend=[];
+  ROLE_ORDER.forEach(function(role){
+    const sc=_radarScoresFor(role);
+    if(!sc) return;
+    let has=false; DIMS.forEach(function(d){ if((parseInt(sc[d.id])||0)>0) has=true; });
+    const cur=(role===currentRole);
+    if(!has && !cur) return;   // 沒資料的其他角色不畫
+    const col=ROLE_COLORS[role];
+    const pts=DIMS.map((d,i)=>{
+      const pct=(parseInt(sc[d.id])||0)/d.max;
+      return `${cx + r*pct*Math.cos(angles[i])},${cy + r*pct*Math.sin(angles[i])}`;
+    }).join(' ');
+    polys += cur
+      ? `<polygon points="${pts}" fill="${col}40" stroke="${col}" stroke-width="2.5"/>`
+      : `<polygon points="${pts}" fill="none" stroke="${col}" stroke-width="1.3" stroke-dasharray="4 3" opacity="0.85"/>`;
+    if(cur){
+      dots=DIMS.map((d,i)=>{
+        const pct=(parseInt(sc[d.id])||0)/d.max;
+        const px=cx + r*pct*Math.cos(angles[i]), py=cy + r*pct*Math.sin(angles[i]);
+        return `<circle cx="${px}" cy="${py}" r="4" fill="${d.color}" stroke="#1a1a2e" stroke-width="2"/>`;
+      }).join('');
+    }
+    legend.push({role:role,col:col,cur:cur});
+  });
+  svg.innerHTML = gridLines + axisLines + labels + polys + dots;
+
+  const lg=document.getElementById('radarLegend');
+  if(lg){
+    lg.innerHTML = legend.length<=1 ? '' : legend.map(function(L){
+      return '<span class="rl-item'+(L.cur?' cur':'')+'" onclick="switchRoleByName(\''+L.role+'\')" title="點擊切換到此角色">'
+        +'<span class="rl-dot" style="background:'+L.col+';"></span>'+ROLE_LABELS[L.role]+(L.cur?'（目前）':'')+'</span>';
     }).join('');
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -2902,6 +2994,53 @@ function getSKFor(role){
   return base + ROLE_SUFFIXES[role];
 }
 
+// ════════ 角色分數徽章 + 六角色總覽（一眼看出哪些角色已評）════════
+function switchRoleByName(role){
+  var b=document.querySelector('.role-btn[data-role="'+role+'"]');
+  if(b) switchRole(role,b);
+}
+function _roleTotalFor(role){
+  try{
+    if(role===currentRole){
+      var t=0,has=false;
+      DIMS.forEach(function(d){ var v=parseInt(SCORES[d.id])||0; if(v>0)has=true; t+=v; });
+      return has?t:null;
+    }
+    var st=JSON.parse(localStorage.getItem(getSKFor(role))||'null');
+    if(!st||!st.scores) return null;
+    var t2=0,has2=false;
+    Object.keys(st.scores).forEach(function(k){ var v=parseInt(st.scores[k])||0; if(v>0)has2=true; t2+=v; });
+    return has2?t2:null;
+  }catch(e){ return null; }
+}
+function refreshRoleBadges(){
+  var ROLE_ORDER=['manager','area_mgr','gm','self','peer','subordinate'];
+  ROLE_ORDER.forEach(function(role){
+    var el=document.getElementById('roleScore_'+role); if(!el) return;
+    var t=_roleTotalFor(role);
+    el.textContent=(t==null?'—':t);
+    el.classList.toggle('has-score', t!=null);
+  });
+  var ov=document.getElementById('roleOverview');
+  if(ov){
+    ov.innerHTML=ROLE_ORDER.map(function(role){
+      var t=_roleTotalFor(role);
+      return '<span class="ro-chip'+(role===currentRole?' cur':'')+(t==null?' empty':'')
+        +'" onclick="switchRoleByName(\''+role+'\')" title="點擊切換到此角色">'
+        +ROLE_LABELS[role]+' <b>'+(t==null?'—':t)+'</b></span>';
+    }).join('');
+  }
+}
+var _badgeTimer=null;
+function scheduleBadgeRefresh(){ clearTimeout(_badgeTimer); _badgeTimer=setTimeout(refreshRoleBadges,300); }
+// 姓名自動帶入登入主角（欄位為空時才補）
+function autofillName(){
+  try{
+    var el=document.getElementById('name');
+    if(el && !el.value.trim() && _cachedCharId) el.value=_cachedCharId;
+  }catch(e){}
+}
+
 // ════════ 📥📤 Excel 匯入/匯出（「360度檢核-簡易版」評核紀錄格式）════════
 // 匯出：目前角色六維分數＋備註 → 一列一指標。
 // 匯入：依檔內【評核角色】欄自動分流更新各角色；同指標多筆分數取平均；
@@ -3085,6 +3224,7 @@ async function importXlsxFile(file){
       if(role===currentRole){ try{ applyState(st); }catch(e){} }
     });
     try{ var fs=(window.parent&&window.parent.firebaseSync)||window.firebaseSync; if(fs&&fs.push) fs.push(); }catch(e){}
+    refreshRoleBadges();
     alert('📥 匯入完成（受評人：'+(target||'未指定')+'）\n\n'+summary.join('\n')+'\n\n※ 文字回饋採「堆疊」：新內容接在原備註下一行，不會覆蓋舊內容。');
   }catch(e){ console.error('[xlsx import]',e); showToast('⚠ 匯入失敗：'+(e.message||e),true); }
 }
@@ -3278,6 +3418,7 @@ function switchRole(role, btn){
   updateBarChart();
   updateRadar();
   _setSwitchingRole(false);
+  refreshRoleBadges();
 }
 
 function resetUI(){
@@ -3502,6 +3643,7 @@ function saveAll(silent) {
       showToast('✓ 已儲存 [' + ROLE_LABELS[currentRole] + ']（' + timeStr + '）');
       updateAutosaveLabel('上次儲存 [' + ROLE_LABELS[currentRole] + ']：' + timeStr);
     }
+    scheduleBadgeRefresh();
   } catch(e) {
     if(!silent) showToast('⚠ 儲存失敗：' + e.message, true);
     console.error('[saveAll] failed:', e);
@@ -3649,10 +3791,11 @@ function importJSON(event) {
 
 // 🗑️ 清除儲存
 function clearSave() {
-  if (confirm('確定要清除所有已儲存的資料嗎？這個動作無法復原。')) {
+  if (confirm('確定要清除【目前角色：' + ROLE_LABELS[currentRole] + '】已儲存的評估資料嗎？\n其他角色不受影響。此動作無法復原。')) {
     localStorage.removeItem(getSK());
-    showToast('✓ 已清除儲存資料');
+    showToast('✓ 已清除 ' + ROLE_LABELS[currentRole] + ' 的儲存資料');
     updateAutosaveLabel('');
+    refreshRoleBadges();
   }
 }
 
@@ -3690,6 +3833,8 @@ function clearSave() {
       }
     }
   } catch(e) { console.error('[autoLoad] failed:', e); }
+  // ★ 開機：姓名自動帶入登入主角（空欄才補）+ 角色徽章/總覽初始化
+  setTimeout(function(){ try{ autofillName(); refreshRoleBadges(); }catch(e){} }, 400);
 })();
 
 // ── 全域自動儲存監聽：所有 input/textarea/select 變動時自動存 ──
