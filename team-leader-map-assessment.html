@@ -1038,7 +1038,7 @@ body.day-mode .sb-sep{background:#d2d2d7;}
 body.day-mode .sb-hint{color:#86868b;}
 </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=perf-lite-1"></script>
+<script defer src="./firebase-sync.js?v=assess-guard-1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -2057,9 +2057,9 @@ function _tryRecoverDraft(){
           });
         }
 
-        // 立即存入 localStorage 確保恢復的資料不再遺失
+        // 立即存入 localStorage 確保恢復的資料不再遺失（全空則不覆蓋）
         var state = gatherState();
-        localStorage.setItem(getSK(), JSON.stringify(state));
+        _safeSetItem(getSK(), JSON.stringify(state));
         _clearDraft();
 
         var draftTime = new Date(draft.ts).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -3164,68 +3164,66 @@ async function importXlsxFile(file){
                  rater:String(cRater>=0?row[cRater]||'':'').trim()});
     }
     if(!rows.length){ showToast('⚠ 沒有可匯入的資料列',true); return; }
-    // 受評人：檔內多人時 → 優先取與頁面姓名/登入主角相同者,否則請使用者指定
-    var names=[]; rows.forEach(function(x){ if(x.who && names.indexOf(x.who)<0) names.push(x.who); });
-    var pageName=((document.getElementById('name')||{}).value||'').trim();
-    var target='';
-    if(names.length<=1){ target=names[0]||''; }
-    else if(names.indexOf(pageName)>=0){ target=pageName; }
-    else if(names.indexOf(String(_cachedCharId||''))>=0){ target=String(_cachedCharId); }
-    else{
-      var pick=prompt('檔案裡有多位受評人：\n'+names.join('、')+'\n\n請輸入要匯入哪一位：', names[0]);
-      if(pick===null) return;
-      target=pick.trim();
-      if(names.indexOf(target)<0){ showToast('⚠ 檔內沒有「'+target+'」的資料',true); return; }
-    }
-    var use=rows.filter(function(x){ return !target || !x.who || x.who===target; });
-    // 依角色分組套用
-    var byRole={};
-    use.forEach(function(x){ (byRole[x.role]=byRole[x.role]||[]).push(x); });
-    var summary=[];
-    Object.keys(byRole).forEach(function(role){
-      var key=getSKFor(role);
-      var st=null; try{ st=JSON.parse(localStorage.getItem(key)||'null'); }catch(e){}
-      if(!st||typeof st!=='object') st={version:2};
-      st.scores=st.scores||{}; st.dimNotes=st.dimNotes||{};
-      // 分數：同指標多筆 → 平均,四捨五入,夾 0~滿分
-      var acc={};
-      byRole[role].forEach(function(x){ if(x.score!=null){ (acc[x.dim.id]=acc[x.dim.id]||[]).push(x.score); } });
-      var scoreCnt=0;
-      Object.keys(acc).forEach(function(id){
-        var arr=acc[id], avg=arr.reduce(function(a,b){return a+b;},0)/arr.length;
-        var d=null; for(var i=0;i<DIMS.length;i++){ if(String(DIMS[i].id)===String(id)) d=DIMS[i]; }
-        st.scores[id]=Math.max(0,Math.min(d?d.max:100,Math.round(avg)));
-        scoreCnt++;
+    // ★★★ 依「受評人 × 角色」分組,把每一列寫進「那個受評人自己的 key」
+    //   （不再寫到登入主角底下 — 這是「匯入有內容、打開卻沒有」的根因）
+    //   一個大 Excel 可一次匯入所有人、所有角色,不管現在登入誰都會歸位正確。
+    var groups={}; // who -> role -> [rows]
+    rows.forEach(function(x){
+      var who=x.who || String(_cachedCharId||'');   // 受評人空白 → 退回目前登入主角
+      if(!who) return;
+      (groups[who]=groups[who]||{});
+      (groups[who][x.role]=groups[who][x.role]||[]).push(x);
+    });
+    var whoList=Object.keys(groups);
+    if(!whoList.length){ showToast('⚠ 找不到「受評人」,無法判斷要寫到誰',true); return; }
+    var summary=[], totalPeople=0, totalRoles=0, blocked=0;
+    whoList.forEach(function(who){
+      var roleParts=[];
+      Object.keys(groups[who]).forEach(function(role){
+        var key='char_'+who+'_'+BASE_KEY+ROLE_SUFFIXES[role];   // ★ 寫到受評人自己的 key
+        var st=null; try{ st=JSON.parse(localStorage.getItem(key)||'null'); }catch(e){}
+        if(!st||typeof st!=='object') st={version:2};
+        st.scores=st.scores||{}; st.dimNotes=st.dimNotes||{};
+        // 分數：同指標多筆 → 平均,四捨五入,夾 0~滿分
+        var acc={};
+        groups[who][role].forEach(function(x){ if(x.score!=null){ (acc[x.dim.id]=acc[x.dim.id]||[]).push(x.score); } });
+        var scoreCnt=0;
+        Object.keys(acc).forEach(function(id){
+          var arr=acc[id], avg=arr.reduce(function(a,b){return a+b;},0)/arr.length;
+          var d=null; for(var i=0;i<DIMS.length;i++){ if(String(DIMS[i].id)===String(id)) d=DIMS[i]; }
+          st.scores[id]=Math.max(0,Math.min(d?d.max:100,Math.round(avg)));
+          scoreCnt++;
+        });
+        // 文字：堆疊不覆蓋；同句已存在則跳過
+        var noteCnt=0;
+        groups[who][role].forEach(function(x){
+          if(!x.note) return;
+          var prefix=[x.date,x.rater].filter(Boolean).join(' ');
+          var line=(prefix?('（'+prefix+'）'):'')+x.note;
+          var old=st.dimNotes[x.dim.id]||'';
+          if(old.indexOf(line)>=0) return;
+          st.dimNotes[x.dim.id]= old ? (old+'\n'+line) : line;
+          noteCnt++;
+        });
+        if(!st.name) st.name=who;
+        var raters=[]; groups[who][role].forEach(function(x){ if(x.rater&&raters.indexOf(x.rater)<0) raters.push(x.rater); });
+        if(!st.evaluator && raters.length===1) st.evaluator=raters[0];
+        if(!st.evaldate){ var dates=groups[who][role].map(function(x){return _normDate(x.date);}).filter(Boolean).sort(); if(dates.length) st.evaldate=dates[dates.length-1]; }
+        st.role=role; st.savedAt=new Date().toISOString();
+        var json=JSON.stringify(st);
+        if(!_guardWrite(key,json)){ blocked++; return; }   // 防空覆蓋（保險）
+        try{ localStorage.setItem(key,json); }catch(e){ return; }
+        try{ if(_guardWrite('_bak_'+key,json)) localStorage.setItem('_bak_'+key,json); }catch(e){}
+        totalRoles++;
+        roleParts.push(ROLE_LABELS[role]+'(分'+scoreCnt+'/文'+noteCnt+')');
+        // 若正好是目前畫面的人＋角色 → 即時刷新
+        if(who===String(_cachedCharId||'') && role===currentRole){ try{ applyState(st); }catch(e){} }
       });
-      // 文字：堆疊不覆蓋；同句已存在則跳過（避免重複匯入重複堆疊）
-      var noteCnt=0;
-      byRole[role].forEach(function(x){
-        if(!x.note) return;
-        var prefix=[x.date,x.rater].filter(Boolean).join(' ');
-        var line=(prefix?('（'+prefix+'）'):'')+x.note;
-        var old=st.dimNotes[x.dim.id]||'';
-        if(old.indexOf(line)>=0) return;
-        st.dimNotes[x.dim.id]= old ? (old+'\n'+line) : line;
-        noteCnt++;
-      });
-      // 基本欄位：原本是空的才補,不動既有內容
-      if(!st.name && target) st.name=target;
-      var raters=[]; byRole[role].forEach(function(x){ if(x.rater&&raters.indexOf(x.rater)<0) raters.push(x.rater); });
-      if(!st.evaluator && raters.length===1) st.evaluator=raters[0];
-      if(!st.evaldate){
-        var dates=byRole[role].map(function(x){return _normDate(x.date);}).filter(Boolean).sort();
-        if(dates.length) st.evaldate=dates[dates.length-1];
-      }
-      st.role=role; st.savedAt=new Date().toISOString();
-      var json=JSON.stringify(st);
-      try{ localStorage.setItem(key,json); }catch(e){ summary.push(ROLE_LABELS[role]+'：❌ 儲存失敗 '+e.message); return; }
-      try{ localStorage.setItem('_bak_'+key,json); }catch(e){}
-      summary.push(ROLE_LABELS[role]+'：分數更新 '+scoreCnt+' 項、文字堆疊 '+noteCnt+' 則');
-      if(role===currentRole){ try{ applyState(st); }catch(e){} }
+      if(roleParts.length){ totalPeople++; summary.push('• '+who+'：'+roleParts.join('、')); }
     });
     try{ var fs=(window.parent&&window.parent.firebaseSync)||window.firebaseSync; if(fs&&fs.push) fs.push(); }catch(e){}
     refreshRoleBadges();
-    alert('📥 匯入完成（受評人：'+(target||'未指定')+'）\n\n'+summary.join('\n')+'\n\n※ 文字回饋採「堆疊」：新內容接在原備註下一行，不會覆蓋舊內容。');
+    alert('📥 匯入完成：'+totalPeople+' 位受評人、'+totalRoles+' 個角色資料'+(blocked?'（'+blocked+' 筆全空已略過）':'')+'\n\n'+summary.join('\n')+'\n\n※ 各列已依「受評人」寫到各自的資料；文字採堆疊、不覆蓋。');
   }catch(e){ console.error('[xlsx import]',e); showToast('⚠ 匯入失敗：'+(e.message||e),true); }
 }
 
@@ -3305,7 +3303,32 @@ function _freeStorageSpace(){
 }
 
 // ★ 安全寫入 localStorage（quota 滿時自動清理後重試）
+// ★ 內容量測 + 防空覆蓋：全空(分數0且無文字)的狀態,絕不覆蓋已有內容的存檔
+function _assessContent(jsonOrObj){
+  var s=jsonOrObj; try{ if(typeof s==='string') s=JSON.parse(s); }catch(e){ return 0; }
+  if(!s||typeof s!=='object') return 0;
+  var n=0;
+  if(s.scores) for(var id in s.scores){ n+=parseInt(s.scores[id])||0; }
+  if(s.dimNotes) for(var id2 in s.dimNotes){ if(String(s.dimNotes[id2]||'').trim()) n+=1000; }
+  if(s.evalNotes && String(s.evalNotes).trim()) n+=500;
+  if(s.meetingNotes && String(s.meetingNotes).trim()) n+=200;
+  return n;
+}
+// 回傳 true=允許寫入；false=擋下(會洗掉資料)
+function _guardWrite(key, json){
+  try{
+    if(_assessContent(json)===0){
+      var ex=localStorage.getItem(key);
+      if(ex && _assessContent(ex)>0){
+        console.warn('[assess] 阻擋全空覆蓋,保留既有資料：', key);
+        return false;
+      }
+    }
+  }catch(e){}
+  return true;
+}
 function _safeSetItem(key, json){
+  if(!_guardWrite(key, json)) return;   // ★ 全空不覆蓋
   try{
     localStorage.setItem(key, json);
   }catch(e){

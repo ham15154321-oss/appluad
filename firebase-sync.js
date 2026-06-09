@@ -372,6 +372,21 @@ function _isRealCardsData(val){
   } catch(e){ return false; }
 }
 
+// ★ 評估資料（appedu_leader_map_v1）內容量：分數總和 + 文字維度數(權重高) + 評估筆記
+//   用來判斷「哪一份比較豐富」,讓同步只能補內容、不能洗掉內容
+function _assessContentFS(jsonStr){
+  if (!jsonStr) return 0;
+  var s; try{ s = (typeof jsonStr==='string') ? JSON.parse(jsonStr) : jsonStr; }catch(e){ return 0; }
+  if (!s || typeof s!=='object') return 0;
+  var n = 0;
+  if (s.scores) for (var id in s.scores){ n += parseInt(s.scores[id])||0; }
+  if (s.dimNotes) for (var id2 in s.dimNotes){ if (String(s.dimNotes[id2]||'').trim()) n += 1000; }
+  if (s.evalNotes && String(s.evalNotes).trim()) n += 500;
+  if (s.meetingNotes && String(s.meetingNotes).trim()) n += 200;
+  return n;
+}
+function _isAssessmentKey(k){ return k && k.indexOf('char_')===0 && k.indexOf('_appedu_leader_map_v1_')>=0; }
+
 // 判斷 key 是否為本機專屬（不同步到雲端）
 function isLocalOnlyKey(k){
   if (LOCAL_ONLY_KEYS.includes(k)) return true;
@@ -1439,6 +1454,24 @@ async function pullFromCloud(){
         }
 
         if (isLocalOnlyKey(k)) continue;
+
+        // ★★★ 評估資料粗暴保護：雲端只能「補內容」,不能「減內容」
+        //   防止跨站（localhost / GitHub Pages）的空草稿互相覆蓋洗掉分數與文字。
+        //   規則：雲端版本內容量 > 本機才覆蓋；否則一律保留本機。完全不看時間戳。
+        if (_isAssessmentKey(k)){
+          if (existingVal !== null && existingVal !== ''){
+            if (_assessContentFS(v) > _assessContentFS(existingVal)){
+              try { _origSet(k, v); _localTsMap[k] = Date.now(); totalLS++; _overwriteCount++; }
+              catch(qe){ _quotaSkipCount++; _quotaSkipKeys.push(k); }
+            } else {
+              _skipCount++;
+            }
+          } else {
+            // 本機空 → 雲端有就補入
+            try { _origSet(k, v); _localTsMap[k] = Date.now(); totalLS++; } catch(qe){ _quotaSkipCount++; }
+          }
+          continue;
+        }
 
         var cTs = cloudTs[k] || 0;
         var lTs = _localTsMap[k] || 0;
