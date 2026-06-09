@@ -280,6 +280,7 @@ const GLOBAL_LS_KEY_PATTERNS = [
   /^pr_attr_/,             // 星際法院 歸屬爭議：規則 MD / 判例庫 / 爭議清單（全公司共用一份）
   /^wf_good_cases$/,       // 瀑布 優秀錄音案例庫（全主角共用、不分月份）
   /^wf_appointment_sop$/,  // 瀑布 約訪流程 SOP（全公司共用一份）
+  /^char_.*_appedu_leader_map_v1_/, // ★ 360 度職能評核（全公司共享：登入該主角即可看到自己被評的分數/評語，不再因「誰登入時推送」而被鎖在別人的格子裡）
 ];
 function isGlobalLsKey(k){
   if (!k) return false;
