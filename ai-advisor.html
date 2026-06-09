@@ -5396,10 +5396,10 @@ function openPmemoryDetail(id){
   document.getElementById('caseDetailModal').classList.add('open');
 }
 
-// ★ 黃柏翰專屬：查看所有主角的私聊資料庫
+// ★ 黃柏翰 + 7 位學院主管：查看所有主角的私聊資料庫
 function openPmemoryAdmin(){
   var name=localStorage.getItem('activeCharacterName')||'';
-  if(name!=='黃柏翰'){ alert('只有黃柏翰可以查看所有主角的私聊資料庫。'); return; }
+  if(!(typeof _SUPERVISORS!=='undefined' && _SUPERVISORS.indexOf(name)>=0)){ alert('只有主管可以查看所有主角的私聊資料庫。'); return; }
 
   var body=document.getElementById('pmemoryAdminBody');
   // 掃 localStorage 找所有 char_*_ai_pmemory_v1 的 key
