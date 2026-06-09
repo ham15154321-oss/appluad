@@ -701,6 +701,24 @@ function idbPutEntries(db, storeName, entries){
           })(k, val);
           continue;
         }
+        // ★★★ AiAdvisorDB.pmemory 私聊記憶：依 id「合併（聯集）」而非整包覆蓋
+        //   每個 key=charId,value=陣列 of {id,...}。雲端與本地各自的記憶都保留,絕不互相洗掉。
+        if (storeName === 'pmemory' && db.name === 'AiAdvisorDB') {
+          pendingChecks++;
+          (function(_k, _val){
+            var getReq = store.get(_k);
+            getReq.onsuccess = function(){
+              var local = getReq.result;
+              var merged=[], seen={};
+              function add(a){ if(Array.isArray(a)) a.forEach(function(x){ if(!x) return; var id=x.id||('_'+merged.length); if(!seen[id]){ seen[id]=1; merged.push(x); } }); }
+              add(local); add(_val);   // 本地優先,雲端補本地沒有的 → 聯集,不遺失
+              try{ store.put(merged, _k); }catch(e){}
+              pendingChecks--;
+            };
+            getReq.onerror = function(){ pendingChecks--; };
+          })(k, val);
+          continue;
+        }
         if (hasKeyPath) {
           // 有 keyPath 的 store（如 scores），值本身包含 key
           if (typeof val === 'object' && val !== null) store.put(val);
