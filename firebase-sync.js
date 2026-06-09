@@ -607,24 +607,28 @@ function idbPutEntries(db, storeName, entries){
         //   原因：使用者匯入 1 月後，雲端可能還是舊版（沒有 1 月）；如果讓雲端覆蓋會把 1 月吃掉
         //   策略：本地有任何月份資料 → 跳過覆蓋；本地完全空才用雲端版本
         if (storeName === 'images' && k === 'mp_data_v1') {
+          // ★★★ 依「月份」合併（union）而非整包覆蓋/整包跳過
+          //   舊版「本地有月份就整包跳過」→ 一旦某站缺某月,永遠補不回來(例:GitHub 掉了 5 月)
+          //   新版：本地有的月份保留,雲端有而本地沒有的月份補進來 → 不再遺失任何月份
           pendingChecks++;
           (function(_k, _val){
             var getReq = store.get(_k);
             getReq.onsuccess = function(){
               var local = getReq.result;
-              var localHasMonths = false;
-              try {
-                var localObj = (typeof local === 'string') ? JSON.parse(local) : local;
-                if (localObj && typeof localObj === 'object' && Object.keys(localObj).length > 0) {
-                  localHasMonths = true;
-                }
-              } catch(e){}
-              if (localHasMonths) {
-                _mpProtectCount++;
+              var localObj = {}, cloudObj = {};
+              try { localObj = (typeof local === 'string') ? (JSON.parse(local)||{}) : (local||{}); } catch(e){ localObj = {}; }
+              try { cloudObj = (typeof _val === 'string') ? (JSON.parse(_val)||{}) : (_val||{}); } catch(e){ cloudObj = {}; }
+              if (!localObj || typeof localObj !== 'object') localObj = {};
+              if (!cloudObj || typeof cloudObj !== 'object') cloudObj = {};
+              var merged = {}, added = 0;
+              Object.keys(cloudObj).forEach(function(m){ merged[m] = cloudObj[m]; });       // 先放雲端
+              Object.keys(localObj).forEach(function(m){ merged[m] = localObj[m]; });        // 本地覆蓋(本地優先)
+              Object.keys(cloudObj).forEach(function(m){ if(!localObj[m]) added++; });        // 雲端補了幾個月
+              if (added > 0) {
+                try { store.put(merged, _k); _mpWriteCount++; } catch(e){}
+                console.log('[FirebaseSync] mp_data_v1 合併：本地 '+Object.keys(localObj).length+' 月 + 雲端補 '+added+' 月 = '+Object.keys(merged).length+' 月');
               } else {
-                // 本地空 → 用雲端版本補入（fresh device 第一次 pull 用）
-                store.put(_val, _k);
-                _mpWriteCount++;
+                _mpProtectCount++;   // 雲端沒有本地缺的月份 → 不動本地
               }
               pendingChecks--;
             };

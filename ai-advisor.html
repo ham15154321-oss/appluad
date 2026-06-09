@@ -3858,6 +3858,8 @@ function _aiCopyEv(url){
 
 // ════════ 宣告完成 / 主管確認 / 重新宣告期限 (含完整 log) ════════
 var _SUPERVISORS = ['黃柏翰','王志軒','楊雅晴','洪士德','黎禹歆','林昭宏','凃敏薰','蔡青倚'];
+// ★ 可「查看所有主角私聊」的名單 = 7 位主管 + 黃柏翰 + 許傑森（許傑森只多這個權限,不算主管,不影響時間軸等）
+var _PMEMORY_VIEWERS = _SUPERVISORS.concat(['許傑森']);
 function _isSup(name){ return _SUPERVISORS.indexOf(name) >= 0; }
 
 // 主角宣告完成 → status='declared_done'
@@ -5362,9 +5364,9 @@ function renderPmemory(){
   // badge
   var badge=document.getElementById('pmemoryBadge');
   if(badge) badge.textContent=arr.length;
-  // 黃柏翰 + 7 位學院主管 才看得到「查看所有主角」按鈕
+  // 黃柏翰 + 7 位學院主管 + 許傑森 才看得到「查看所有主角」按鈕
   var adminBtn=document.getElementById('pmemoryAdminBtn');
-  if(adminBtn) adminBtn.style.display = (typeof _SUPERVISORS!=='undefined' && _SUPERVISORS.indexOf(name)>=0) ? 'inline-block' : 'none';
+  if(adminBtn) adminBtn.style.display = (typeof _PMEMORY_VIEWERS!=='undefined' && _PMEMORY_VIEWERS.indexOf(name)>=0) ? 'inline-block' : 'none';
 
   var el=document.getElementById('pmemoryBody');
   if(!arr.length){
@@ -5399,7 +5401,7 @@ function openPmemoryDetail(id){
 // ★ 黃柏翰 + 7 位學院主管：查看所有主角的私聊資料庫
 function openPmemoryAdmin(){
   var name=localStorage.getItem('activeCharacterName')||'';
-  if(!(typeof _SUPERVISORS!=='undefined' && _SUPERVISORS.indexOf(name)>=0)){ alert('只有主管可以查看所有主角的私聊資料庫。'); return; }
+  if(!(typeof _PMEMORY_VIEWERS!=='undefined' && _PMEMORY_VIEWERS.indexOf(name)>=0)){ alert('只有主管可以查看所有主角的私聊資料庫。'); return; }
 
   var body=document.getElementById('pmemoryAdminBody');
   // 掃 localStorage 找所有 char_*_ai_pmemory_v1 的 key

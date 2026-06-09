@@ -574,7 +574,7 @@
         }
     </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=pmem-merge-1"></script>
+<script defer src="./firebase-sync.js?v=mp-merge-1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -2704,19 +2704,33 @@
                 });
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
-                if(!confirm('☁️ 把雲端公司資料覆蓋到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n注意:會覆蓋本機現有資料。')){
+                if(!confirm('☁️ 把雲端公司資料合併到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n說明:依月份合併 — 雲端會更新/補上月份,但不會刪掉本機已有的月份。')){
                     return;
                 }
-                // 1) 寫 IDB mp_data_v1
+                // 1) 寫 IDB mp_data_v1（★依月份合併,不整包覆蓋 → 拉到舊 bundle 也不會把本機較新月份洗掉）
                 if(mp){
                     var db = await new Promise(function(res,rej){
                         var q = indexedDB.open('SpaceBaseDB');
                         q.onsuccess = function(){ res(q.result); };
                         q.onerror = function(){ rej(q.error); };
                     });
+                    // 先讀本機現有 mp_data
+                    var localMp = await new Promise(function(res){
+                        try{ var g = db.transaction('images','readonly').objectStore('images').get('mp_data_v1');
+                            g.onsuccess = function(){ var v=g.result; try{ if(typeof v==='string') v=JSON.parse(v); }catch(e){ v=null; } res(v); };
+                            g.onerror = function(){ res(null); };
+                        }catch(e){ res(null); }
+                    });
+                    if(!localMp || typeof localMp!=='object') localMp = {};
+                    // union：先本機,再用雲端覆蓋同月/補新月 → 任一邊獨有的月份都保留,不遺失
+                    var mergedMp = {};
+                    Object.keys(localMp).forEach(function(m){ mergedMp[m]=localMp[m]; });
+                    Object.keys(mp).forEach(function(m){ mergedMp[m]=mp[m]; });
+                    var mergedMonths = Object.keys(mergedMp).sort(function(a,b){return Number(a)-Number(b);});
+                    console.log('[cloud-sync] mp_data 合併：本機 '+Object.keys(localMp).length+' 月 + 雲端 '+mpMonths.length+' 月 = '+mergedMonths.length+' 月 ('+mergedMonths.join(',')+')');
                     await new Promise(function(res){
                         var tx = db.transaction('images','readwrite');
-                        tx.objectStore('images').put(mp, 'mp_data_v1');
+                        tx.objectStore('images').put(mergedMp, 'mp_data_v1');
                         tx.oncomplete = function(){ res(); };
                     });
                     db.close();
