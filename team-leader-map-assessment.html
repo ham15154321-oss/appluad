@@ -2024,7 +2024,25 @@ function _tryRecoverDraft(){
       }catch(e){}
     }
 
-    // 草稿比正式存檔新超過 2 秒才恢復（避免誤判）
+    // ★ 內容比較：草稿內容必須「比已存檔多」才恢復，避免空草稿/舊草稿洗掉雲端真資料
+    function _draftContent(obj){
+      if(!obj) return 0; var s=0;
+      if(obj.scores) Object.keys(obj.scores).forEach(function(k){ s += (parseInt(obj.scores[k])||0); });
+      if(obj.dimNotes) Object.keys(obj.dimNotes).forEach(function(k){ if(String(obj.dimNotes[k]||'').trim()) s += 1000; });
+      if(obj.evalNotes && String(obj.evalNotes).trim()) s += 500;
+      if(obj.meetingNotes && String(obj.meetingNotes).trim()) s += 200;
+      return s;
+    }
+    var _savedObj = null; try{ _savedObj = savedRaw ? JSON.parse(savedRaw) : null; }catch(e){}
+    var _draftC = _draftContent(draft), _savedC = _draftContent(_savedObj);
+    if(_draftC <= _savedC){
+      // 草稿沒有比較多內容 → 視為過時/空草稿，直接清掉，絕不覆蓋
+      console.log('[crashRecovery] 草稿內容('+_draftC+') ≤ 已存檔('+_savedC+')，不還原、清除草稿');
+      _clearDraft();
+      return false;
+    }
+
+    // 草稿比正式存檔新超過 2 秒、且內容更多才恢復（避免誤判）
     if(draft.ts > savedTs + 2000){
       // 恢復草稿內容到 DOM
       if(draft.role === currentRole){
