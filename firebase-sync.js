@@ -1352,14 +1352,27 @@ localStorage.setItem = function(k, v){
 localStorage.removeItem = function(k){ _origRemove(k); if(!isLocalOnlyKey(k)) schedulePush(); };
 
 // === 拉取 ============================================================
-async function pullFromCloud(){
+async function pullFromCloud(opts){
+  var _light = !!(opts && opts.light);   // ★ 輕量模式：只拉「目前登入者 + 全公司共享」，不掃全部 40 幾個人（防記憶體爆掉 / 錯誤 5）
   _pullingFromCloud = true; // ★ 阻擋 push 在 pull 期間競賽（避免覆蓋雲端真資料）
   try {
   // 用 user-scoped 路徑拉取
   var baseRef = currentUserUid
     ? fsDb.collection('users').doc(currentUserUid).collection('characters')
     : fsDb.collection('characters');
-  const allSnap = await baseRef.get();
+  // ★ 決定這輪要拉哪些 character：輕量=只拉自己；完整=全部
+  var _charDocs;
+  if (_light){
+    var _me = (typeof getCharacterId === 'function') ? getCharacterId() : null;
+    if (_me){
+      try { var _meSnap = await baseRef.doc(_me).get(); _charDocs = _meSnap.exists ? [_meSnap] : []; }
+      catch(e){ _charDocs = []; }
+    } else { _charDocs = []; }
+    console.log('[FirebaseSync] 🪶 輕量拉取：只拉登入者 [' + (_me||'?') + '] + 全公司共享（不掃全部人）');
+  } else {
+    const allSnap = await baseRef.get();
+    _charDocs = allSnap.docs;
+  }
   let totalLS = 0, totalIDB = 0;
 
   // ★ 一次 pull 內 cache IDB 連線：避免每個 character × store 都重開 + 被擋升版反覆重試
@@ -1383,7 +1396,7 @@ async function pullFromCloud(){
     }
   }
 
-  for (const charDoc of allSnap.docs){
+  for (const charDoc of _charDocs){
     const charId = charDoc.id;
     const charRef = baseRef.doc(charId);
 
@@ -1591,6 +1604,8 @@ async function pullFromCloud(){
         }
       }
     }
+    // ★ 記憶體保護：完整拉取時每處理一個人就讓出主執行緒一小段，給 GC 時間回收，壓低記憶體尖峰（避免錯誤碼 5）
+    if (!_light){ try { await delay(60); } catch(_e){} }
   }
 
   // ★ 關閉本輪 cache 起來的所有 IDB 連線
@@ -1697,8 +1712,8 @@ function setupRealtime(){
         while (_pushing && maxWait-- > 0){
           await new Promise(function(r){ setTimeout(r, 500); });
         }
-        await pullFromCloud();
-        console.log('[FirebaseSync] ✅ realtime pull 完成');
+        await pullFromCloud({light:true});   // ★ 即時更新走輕量（只拉登入者＋共享），不掃全部人
+        console.log('[FirebaseSync] ✅ realtime pull 完成（輕量）');
         // pull 完才發事件 — 確保監聽端讀到的是新資料
         window.dispatchEvent(new Event('firebase-sync-updated'));
       } catch(e){
@@ -1719,7 +1734,7 @@ function _startPeriodicPull(){
     //   避免閒置分頁背景跑導致記憶體累積 → renderer 被 OS 砍掉(SBOX_FATAL_MEMORY_EXCEEDED 錯誤碼 5)
     if (typeof document !== 'undefined' && document.hidden) return;
     try {
-      await pullFromCloud();
+      await pullFromCloud({light:true});   // ★ 定期保險也走輕量（只拉登入者＋共享）→ 大幅降低記憶體，避免錯誤碼 5
       window.dispatchEvent(new Event('firebase-sync-updated'));
     } catch(e){ /* 失敗就靜默忽略，下個週期再試 */ }
   }, PULL_INTERVAL_MS);
