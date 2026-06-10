@@ -3,7 +3,7 @@
 每行一個主題，格式：主題名稱|關鍵字（逗號分隔）|網址
 （# 開頭的行和空行會被忽略。要新增知識：丟新 .md 上 GitHub，然後在下面加一行。檔名建議用英文，避免中文檔名出錯。）
 
-AI平面QA|AI平面,平面設計,品牌課,接案,行情,就業,作品集,免費資源,免費影片,YouTube,81小時,基礎功,昱安,Hammer,施國漢,TA,受眾,創業,設計小白,天花板,年資,in-house|https://raw.githubusercontent.com/ham15154321-oss/appluad/main/AI%E5%B9%B3%E9%9D%A2QA%E9%9B%86.md
+AI平面QA|AI平面,平面設計,品牌課,接案,行情,就業,作品集,免費資源,免費影片,YouTube,81小時,基礎功,昱安,Hammer,施國漢,TA,受眾,創業,設計小白,天花板,年資,in-house|https://raw.githubusercontent.com/ham15154321-oss/appluad/main/graphic-qa.md
 
 消費者旅程|消費者旅程,退費,預防退費,保溫,7日,21日,金句,暖心,簡訊,約訪,報名,註冊,結業,契約書,20880,愛心卡,OKBOM,通路,班務,轉介紹,異議處理,黃金30秒|https://raw.githubusercontent.com/ham15154321-oss/appluad/main/consumer-journey.md
 
