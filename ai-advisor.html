@@ -5054,6 +5054,8 @@ async function _voiceNotify(text){
 
 async function startVoiceProcess(){
   if (_voiceBusy || !_voiceFiles.length) return;
+  // 已有轉譯完成待儲存的結果 → 不重複處理，直接顯示編輯面板
+  if (_voicePending && _voicePending.units && _voicePending.units.length){ _voiceRenderEditPanel(); return; }
   _voiceBusy = true;
   document.getElementById('voiceStartBtn').disabled = true;
   document.getElementById('voiceResult').style.display = 'none';
@@ -5182,6 +5184,8 @@ function voiceSaveEdited(){
     savedTitles.push(title);
   }
   _voicePending = null;
+  _voiceFiles = [];
+  var _sb2 = document.getElementById('voiceStartBtn'); if (_sb2){ _sb2.style.display = 'none'; _sb2.disabled = true; }
   var destLabel = dest==='kb' ? '知識庫' : (dest==='voice' ? '案例資料庫 · 錄音學習' : '案例資料庫 · 驗收電話');
   document.getElementById('voiceResultBody').innerHTML =
     '<div style="text-align:center;padding:18px;color:#7be0c8;font-weight:700;font-size:.95rem;">✅ 已儲存 ' + savedTitles.length + ' 筆到「' + destLabel + '」</div>'
