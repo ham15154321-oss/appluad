@@ -4927,7 +4927,7 @@ function openVoiceModal(){
   document.getElementById('voiceMergeRow').style.display = 'none';
   document.getElementById('voiceStatus').style.display = 'none';
   document.getElementById('voiceResult').style.display = 'none';
-  document.getElementById('voiceStartBtn').disabled = true;
+  var sb = document.getElementById('voiceStartBtn'); sb.disabled = true; sb.style.display = '';
 }
 
 function voicePickFiles(files){
@@ -5131,13 +5131,19 @@ async function startVoiceProcess(){
     _voiceSetStatus('❌ ' + (e && e.message || e), null);
   }
   _voiceBusy = false;
-  document.getElementById('voiceStartBtn').disabled = false;
+  if (_voicePending && _voicePending.units && _voicePending.units.length){
+    // 已轉譯完成 → 隱藏「開始處理」，避免重複處理（下次重開 modal 會重置）
+    document.getElementById('voiceStartBtn').style.display = 'none';
+  } else {
+    document.getElementById('voiceStartBtn').disabled = false;
+  }
 }
 
 // 顯示可編輯的結果面板（標題 + 內容 textarea + 存到選單 + 儲存鈕）
 function _voiceRenderEditPanel(){
   var p = _voicePending;
   if (!p || !p.units || !p.units.length) return;
+  var _sb = document.getElementById('voiceStartBtn'); if (_sb) _sb.style.display = 'none';
   var dest = p.dest || 'voice';
   var html = '<div class="voice-sub" style="margin-bottom:10px;color:#7be0c8;font-weight:700;">✅ 轉譯完成！確認或修改下面內容，選好要存到哪，再按「💾 儲存」。</div>';
   html += '<div style="margin-bottom:12px;"><span class="voice-sub">存到：</span> '
