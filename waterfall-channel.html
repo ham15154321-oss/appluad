@@ -168,6 +168,17 @@ body.night .modal-xrow{background:#0c1730;border-bottom-color:rgba(100,170,255,0
 .vh-sub{position:relative;color:#a1a1a6;font-size:12px;line-height:1.7;margin-top:10px;}
 .vh-btn2{background:rgba(255,255,255,0.09);color:#dfe7f5;border:1px solid rgba(150,190,255,0.4);border-radius:980px;padding:9px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;}
 .vh-btn2:hover{background:rgba(255,255,255,0.18);}
+/* ════ 收合卡片（progressive disclosure）════ */
+.section.collapsible>.section-title{cursor:pointer;user-select:none;}
+.sec-chev{margin-left:6px;font-size:11px;color:var(--dim);transition:transform .18s ease;display:inline-block;}
+.section.collapsed .sec-chev{transform:rotate(-90deg);}
+.section.collapsed>.sec-body{display:none;}
+.sec-sum{font-size:11px;color:var(--dim);font-weight:400;margin-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%;}
+.ai-chip{font-size:10px;font-weight:700;color:#1a7a32;background:rgba(26,122,50,.10);padding:2px 7px;border-radius:9px;margin-left:6px;vertical-align:1px;white-space:nowrap;}
+.bp-steps{display:flex;gap:6px;margin-bottom:12px;}
+.bp-step{flex:1;background:#f5f5f7;border:1px solid #e8e8ed;border-radius:8px;padding:6px 8px;text-align:center;}
+.bp-step .n{display:block;font-size:10px;color:#86868b;}
+.bp-step .t{display:block;font-size:12px;font-weight:600;color:#1d1d1f;}
 /* 作戰分析按鈕 — Apple Swift 黑底發光 */
 .battle-ai-btn{background:linear-gradient(135deg,#1a1a1f,#000);color:#fff;font-weight:800;font-size:13px;border:1px solid #2c2c2e;border-radius:980px;padding:9px 20px;cursor:pointer;font-family:inherit;box-shadow:0 0 16px rgba(130,175,255,0.5),0 0 36px rgba(255,255,255,0.14);transition:all .2s;}
 .battle-ai-btn:hover{box-shadow:0 0 24px rgba(130,175,255,0.85),0 0 52px rgba(255,255,255,0.24);transform:translateY(-1px);}
@@ -387,40 +398,52 @@ body.night .case-chip .cc-tag.sop{background:rgba(255,207,74,0.16);color:#ffe6a3
   <!-- ════════ TAB 1：本月作戰（當月）════════ -->
   <div class="tabpane active" id="pane-battle">
 
+    <!-- 🤖 AI 作戰分析（獨立區塊，置頂：錄音轉完字馬上分析）-->
+    <div class="section" id="battleAiSection">
+      <div class="section-title"><div class="icon" style="background:#f0f0f3;">🤖</div><span class="grow">AI 作戰分析</span><span class="scope-badge scope-month">當月</span></div>
+      <div class="sub-note">選「分析對象」→ 勾要分析的錄音 → 按分析。分析對象選新人時，AI 不會評論歷史業績。</div>
+      <div class="card" id="battleAiBox"></div>
+    </div>
+
+    <!-- Block 3 — 本月目標作戰計劃（緊貼分析區：補素材不用找）-->
+    <div class="section collapsible" id="secPlan">
+      <div class="section-title" onclick="toggleSec('secPlan')"><div class="icon" style="background:#f0f0f3;">📋</div><span class="grow">本月目標作戰計劃<span class="ai-chip">🤖 會帶入分析</span></span><span class="sec-sum" id="planSum"></span><span class="scope-badge scope-month">當月</span>
+        <button class="btn purple" onclick="event.stopPropagation();goToAChannel()">🧠 連到 A通路研究院</button>
+        <span class="sec-chev">▼</span>
+      </div>
+      <div class="sec-body"><div class="card" id="block3"></div></div>
+    </div>
+
     <!-- 📊 我小組的 A業績 -->
-    <div class="section">
-      <div class="section-title"><div class="icon" style="background:#f0f0f3;">📊</div><span class="grow" id="aChartLabel">我小組的 A業績（業績Ⓐ · 近三個月比較）</span><span class="scope-badge scope-month">當月視角</span></div>
-      <div id="aChart"></div>
+    <div class="section collapsible" id="secAChart">
+      <div class="section-title" onclick="toggleSec('secAChart')"><div class="icon" style="background:#f0f0f3;">📊</div><span class="grow" id="aChartLabel">我小組的 A業績（業績Ⓐ · 近三個月比較）</span><span class="sec-sum" id="aChartSum"></span><span class="scope-badge scope-month">當月視角</span><span class="sec-chev">▼</span></div>
+      <div class="sec-body"><div id="aChart"></div></div>
     </div>
 
     <!-- Block 1 — 本月約訪之星 -->
-    <div class="section">
-      <div class="section-title"><div class="icon" style="background:#f0f0f3;">🏆</div><span class="grow">本月約訪之星</span><span class="scope-badge scope-month">當月</span></div>
-      <div class="award" id="block1"></div>
+    <div class="section collapsible" id="secStar">
+      <div class="section-title" onclick="toggleSec('secStar')"><div class="icon" style="background:#f0f0f3;">🏆</div><span class="grow">本月約訪之星</span><span class="sec-sum" id="starSum"></span><span class="scope-badge scope-month">當月</span><span class="sec-chev">▼</span></div>
+      <div class="sec-body"><div class="award" id="block1"></div></div>
     </div>
 
     <!-- Block 2 — 本月待檢討錄音 -->
-    <div class="section">
-      <div class="section-title"><div class="icon" style="background:#f0f0f3;">🎧</div><span class="grow">本月待檢討錄音</span><span class="scope-badge scope-month">當月</span></div>
-      <div class="sub-note">挑出本月需要優化的通話，連結錄音案例後，AI 作戰分析會針對這些點對照 SOP 找問題。</div>
-      <div id="needGrid"></div>
-    </div>
-
-    <!-- Block 3 — 本月目標作戰計劃 -->
-    <div class="section">
-      <div class="section-title"><div class="icon" style="background:#f0f0f3;">📋</div><span class="grow">本月目標作戰計劃</span><span class="scope-badge scope-month">當月</span>
-        <button class="btn purple" onclick="goToAChannel()">🧠 連到 A通路研究院</button>
+    <div class="section collapsible" id="secNeed">
+      <div class="section-title" onclick="toggleSec('secNeed')"><div class="icon" style="background:#f0f0f3;">🎧</div><span class="grow">本月待檢討錄音</span><span class="sec-sum" id="needSum"></span><span class="scope-badge scope-month">當月</span><span class="sec-chev">▼</span></div>
+      <div class="sec-body">
+        <div class="sub-note">挑出本月需要優化的通話，連結錄音案例後，AI 作戰分析會針對這些點對照 SOP 找問題。</div>
+        <div id="needGrid"></div>
       </div>
-      <div class="card" id="block3"></div>
     </div>
 
     <!-- Block 4 — 當月話術與獵殺名單 -->
-    <div class="section">
-      <div class="section-title"><div class="icon" style="background:#f0f0f3;">📝</div><span class="grow">當月話術與獵殺名單</span><span class="scope-badge scope-month">當月</span></div>
-      <div class="subhead">🗣️ 話術 <button class="btn cyan" onclick="addLink('scripts')">＋ 新增</button></div>
-      <div id="scriptsList"></div>
-      <div class="subhead">🎯 獵殺名單 <button class="btn cyan" onclick="addLink('hunts')">＋ 新增</button></div>
-      <div id="huntsList"></div>
+    <div class="section collapsible" id="secScripts">
+      <div class="section-title" onclick="toggleSec('secScripts')"><div class="icon" style="background:#f0f0f3;">📝</div><span class="grow">當月話術與獵殺名單</span><span class="sec-sum" id="scriptsSum"></span><span class="scope-badge scope-month">當月</span><span class="sec-chev">▼</span></div>
+      <div class="sec-body">
+        <div class="subhead">🗣️ 話術 <button class="btn cyan" onclick="addLink('scripts')">＋ 新增</button></div>
+        <div id="scriptsList"></div>
+        <div class="subhead">🎯 獵殺名單 <button class="btn cyan" onclick="addLink('hunts')">＋ 新增</button></div>
+        <div id="huntsList"></div>
+      </div>
     </div>
 
   </div>
@@ -441,12 +464,15 @@ body.night .case-chip .cc-tag.sop{background:rgba(255,207,74,0.16);color:#ffe6a3
     </div>
 
     <!-- 📚 錄音案例庫 -->
-    <div class="section">
-      <div class="section-title"><div class="icon" style="background:#f0f0f3;">📚</div><span class="grow">錄音案例庫</span><span class="scope-badge scope-long">長期共用</span>
-        <button class="btn purple" onclick="goToAiCaseDb()">📂 連到 AI 顧問</button>
+    <div class="section collapsible" id="secCaseLib">
+      <div class="section-title" onclick="toggleSec('secCaseLib')"><div class="icon" style="background:#f0f0f3;">📚</div><span class="grow">錄音案例庫</span><span class="sec-sum" id="caseLibSum"></span><span class="scope-badge scope-long">長期共用</span>
+        <button class="btn purple" onclick="event.stopPropagation();goToAiCaseDb()">📂 連到 AI 顧問</button>
+        <span class="sec-chev">▼</span>
       </div>
-      <div class="sub-note">所有上傳過的錄音都在這。要連到「之星／待檢討」或設為「典範」都從這裡挑。與 AI 顧問同一份資料。</div>
-      <div id="caseLibList"></div>
+      <div class="sec-body">
+        <div class="sub-note">所有上傳過的錄音都在這。要連到「之星／待檢討」或設為「典範」都從這裡挑。與 AI 顧問同一份資料。</div>
+        <div id="caseLibList"></div>
+      </div>
     </div>
 
     <!-- 🏆 典範錄音案例（餵 AI · 金）-->
@@ -601,7 +627,7 @@ function defaultMonth(){
   return {
     star:{ name:'', reason:'', photoUrl:'', caseIds:[] },
     needImprove:[ {driveUrl:'',name:'',note:'',caseIds:[]}, {driveUrl:'',name:'',note:'',caseIds:[]}, {driveUrl:'',name:'',note:'',caseIds:[]} ],
-    battlePlan:{ notes:'', suggestions:[], meetingUrl:'', meetingText:'' },
+    battlePlan:{ notes:'', suggestions:[], meetingUrl:'', meetingText:'', target:{mode:'group',name:''}, extraCaseIds:[] },
     scripts:[], hunts:[]
   };
 }
@@ -621,6 +647,7 @@ function scheduleSave(){
   _saveTimer=setTimeout(function(){
     if(_charMismatch()) return;
     try{ localStorage.setItem(SK(), JSON.stringify(allData)); }catch(e){ toast('⚠ 儲存失敗：'+e.message,true); }
+    try{ if(typeof updateSecSums==='function') updateSecSums(); }catch(e){}
   }, 700);
 }
 function saveAll(){
@@ -994,11 +1021,50 @@ function renderCaseLib(){
     var tg=c.type==='acceptance'?'acceptance':'voice'; var lbl=tg==='acceptance'?'📞 驗收電話':'🎙️ 錄音學習';
     return '<div class="case-chip"><span class="cc-tag '+tg+'">'+lbl+'</span>'
       +'<span class="cc-title">'+esc(caseTitle(c))+'</span>'
-      +'<span class="cc-link">AI 顧問連動</span><button class="btn" onclick="viewCase(\''+c.id+'\')">看</button></div>';
+      +'<span class="cc-link">AI 顧問連動</span><button class="btn" onclick="viewCase(\''+c.id+'\')">看</button>'
+      +'<button class="btn danger" onclick="deleteCase(\''+escAttr(c.id)+'\')">🗑</button></div>';
   }).join('')+(cases.length>30?'<div class="voice-sub">…共 '+cases.length+' 則,只顯示最近 30</div>':'');
+}
+// 🗑 直接刪除錄音案例（與 AI 顧問同一份資料）
+function deleteCase(id){
+  var c=caseById(id); if(!c) return;
+  if(!confirm('刪除「'+caseTitle(c)+'」？\n此錄音與 AI 顧問共用，刪了那邊也會消失。')) return;
+  var arr=loadCases().filter(function(x){ return x.id!==id; });
+  window._caseCache=arr; window._caseCacheReady=true;
+  if(typeof _caseSaveToIDB==='function'){
+    _caseSaveToIDB(arr).catch(function(e){ toast('⚠ 刪除儲存失敗：'+(e&&e.message||e),true); });
+  } else {
+    try{ localStorage.setItem('ai_casedb_v1',JSON.stringify(arr)); }catch(e){ toast('⚠ 刪除儲存失敗：'+e.message,true); }
+  }
+  // 清掉所有月份對這筆的引用（之星/待檢討/分析勾選）
+  try{
+    Object.keys(allData||{}).forEach(function(k){
+      var m=allData[k]; if(!m) return;
+      if(m.star&&Array.isArray(m.star.caseIds)) m.star.caseIds=m.star.caseIds.filter(function(x){ return x!==id; });
+      (m.needImprove||[]).forEach(function(it){ if(Array.isArray(it.caseIds)) it.caseIds=it.caseIds.filter(function(x){ return x!==id; }); });
+      if(m.battlePlan&&Array.isArray(m.battlePlan.extraCaseIds)) m.battlePlan.extraCaseIds=m.battlePlan.extraCaseIds.filter(function(x){ return x!==id; });
+    });
+    scheduleSave();
+  }catch(e){}
+  renderBlock2();
+  toast('✅ 已刪除');
 }
 function _num(v){ v=String(v==null?'':v).replace(/[,，\s]/g,''); var n=parseFloat(v); return isNaN(n)?0:n; }
 function _fmt(n){ n=Math.round(n); return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+// 自訂分析對象：查名字是否存在於業績表（任一月份 sheet3）
+function _perfNameExists(name){
+  if(!_mpData||!name) return false;
+  var months=Object.keys(_mpData);
+  for(var mi=0;mi<months.length;mi++){
+    var s3=(_mpData[months[mi]]||{}).sheet3||[];
+    for(var i=0;i<s3.length;i++){
+      var row=s3[i]||{};
+      var nm=String(row['姓名']||row['業務員']||row['業務']||row['人員']||'').trim();
+      if(nm===name) return true;
+    }
+  }
+  return false;
+}
 function getAPerf(monthNum,name){
   if(!_mpData) return 0;
   var s3=(_mpData[String(monthNum)]||{}).sheet3||[];
@@ -1061,7 +1127,7 @@ function renderAChart(){
       +(_aChartExpanded?'▲ 收合（只看前 3 名）':'▼ 展開查看全部 '+allCount+' 人')+'</button></div>';
   }
 }
-function renderBlock2(){ renderNeedCards(); renderCaseLib(); renderAChart(); }
+function renderBlock2(){ renderNeedCards(); renderCaseLib(); renderAChart(); try{ renderBattleBox(); }catch(e){} }
 
 // ════════ 🎙️ 錄音轉摘要（移植自 AI 顧問）════════
 var PROXY_BASE='https://anthropic-proxy.ivanapplaud.workers.dev';
@@ -1257,27 +1323,32 @@ function voiceSaveEdited(){
   if(!_voicePending||!_voicePending.units||!_voicePending.units.length) return;
   var de=document.getElementById('voiceEditDest');
   var dest=(de&&de.value)||_voicePending.dest||'acceptance';
-  var titles=[];
+  var titles=[], savedIds=[];
   _voicePending.units.forEach(function(u,idx){
     var te=document.getElementById('voiceEditTitle_'+idx), be=document.getElementById('voiceEditText_'+idx);
     var title=(te&&te.value.trim())||u.title||'錄音';
     var body=be?be.value:(u.body||'');
-    _voiceCommitUnit(dest,title,body);
+    var nid=_voiceCommitUnit(dest,title,body);
+    if(nid) savedIds.push(nid);
     titles.push(title);
   });
   _voicePending=null;
   _voiceFiles=[];
+  window._lastSavedCaseIds=savedIds;
   var _sb2=document.getElementById('voiceStartBtn'); if(_sb2){ _sb2.style.display='none'; _sb2.disabled=true; }
   var lbl=dest==='voice'?'錄音學習':'驗收電話';
-  document.getElementById('voiceResultBody').innerHTML='<div style="text-align:center;padding:14px;color:#1d1d1f;font-weight:700;">✅ 已儲存 '+titles.length+' 筆到「'+lbl+'」</div>';
+  document.getElementById('voiceResultBody').innerHTML='<div style="text-align:center;padding:14px;color:#1d1d1f;font-weight:700;">✅ 已儲存 '+titles.length+' 筆到「'+lbl+'」</div>'
+    +'<button class="battle-ai-btn" style="width:100%;padding:10px;margin-top:6px;" onclick="wfQuickAnalyze()">🤖 立即作戰分析這 '+titles.length+' 筆</button>'
+    +'<div class="voice-sub" style="text-align:center;margin-top:4px;">會自動勾進分析素材、跳到「本月作戰 → AI 作戰分析」，選好分析對象就能按分析。</div>';
   _voiceSetStatus('✅ 已儲存到「'+lbl+'」。',100);
   _voiceNotify('✅ 錄音已儲存到「'+lbl+'」,共 '+titles.length+' 筆：\n'+titles.map(function(t){return '• '+t;}).join('\n'));
   renderBlock2();
 }
 function _voiceCommitUnit(dest,title,body){
   var now=Date.now()+Math.floor(Math.random()*100000);
+  var newId='c_'+now;
   var arr=loadCases();
-  arr.push({ id:'c_'+now, type:(dest==='voice'?'voice':'acceptance'), text:title+'\n'+(body||''), marquee:false, isVoice:true, createdAt:now });
+  arr.push({ id:newId, type:(dest==='voice'?'voice':'acceptance'), text:title+'\n'+(body||''), marquee:false, isVoice:true, createdAt:now });
   // 寫到 IndexedDB(不再用 LS,避免被 quota 清理清掉)
   window._caseCache = arr;
   window._caseCacheReady = true;
@@ -1286,6 +1357,18 @@ function _voiceCommitUnit(dest,title,body){
   } else {
     try{ localStorage.setItem('ai_casedb_v1',JSON.stringify(arr)); }catch(e){ toast('⚠ 案例儲存失敗：'+e.message,true); }
   }
+  return newId;
+}
+// 🤖 錄音剛存完 → 一鍵帶進作戰分析
+function wfQuickAnalyze(){
+  var ids=window._lastSavedCaseIds||[];
+  var d=_bpEnsure();
+  ids.forEach(function(id){ if(d.extraCaseIds.indexOf(id)<0) d.extraCaseIds.push(id); });
+  scheduleSave();
+  closeModal('voiceModal');
+  renderBattleBox();
+  goTab('battle','#battleAiSection');
+  toast('✅ 已勾進分析素材，選好「分析對象」按分析');
 }
 
 // ════════ 🏆 優秀錄音案例 + 📋 約訪流程 SOP（全主角共用、不分月份）════════
@@ -1520,25 +1603,89 @@ function renderBlock3(){
   var d=md().battlePlan;
   if(!d.suggestions) d.suggestions=[];
   var html='';
-  html+='<div class="subhead">📝 文字記錄（本月目標 / 作戰計劃）</div>';
-  html+='<textarea class="tin" placeholder="寫本月 A通路目標與作戰計劃…" oninput="md().battlePlan.notes=this.value;scheduleSave();">'+esc(d.notes)+'</textarea>';
-  html+='<div class="subhead">🗂️ 會議記錄</div>';
+  html+='<div class="subhead">📝 文字記錄（本月目標 / 作戰計劃）<span class="ai-chip">🤖 會帶入 AI 分析</span></div>';
+  html+='<textarea class="tin" placeholder="寫本月 A通路目標與作戰計劃…（填了會自動餵給上方 AI 作戰分析）" oninput="md().battlePlan.notes=this.value;scheduleSave();">'+esc(d.notes)+'</textarea>';
+  html+='<div class="subhead">🗂️ 會議記錄<span class="ai-chip">🤖 會帶入 AI 分析</span></div>';
   html+='<div class="edit-row"><label>雲端連結</label><input class="tin" value="'+escAttr(d.meetingUrl)+'" placeholder="會議記錄 Google 雲端硬碟連結" oninput="md().battlePlan.meetingUrl=this.value;scheduleSave();_syncOpen(this);">'
     +'<a class="link-open'+(safeUrl(d.meetingUrl)?'':' off')+'" href="'+escAttr(safeUrl(d.meetingUrl)||'#')+'" target="_blank">🔗 開啟</a></div>';
   html+='<div style="font-size:12px;color:var(--dim);margin:6px 0 3px;">會議記錄文字（給 AI 分析用）<button class="btn" style="margin-left:6px;" onclick="openCasePicker(\'meetingText\',0)">📋 從錄音案例帶入</button></div>';
-  html+='<textarea class="tin" placeholder="貼上會議記錄文字，或從錄音案例帶入" oninput="md().battlePlan.meetingText=this.value;scheduleSave();">'+esc(d.meetingText)+'</textarea>';
-  html+='<div class="subhead">🤖 AI 作戰分析</div>';
+  html+='<textarea class="tin" placeholder="貼上會議記錄文字，或從錄音案例帶入（填了會自動餵給上方 AI 作戰分析）" oninput="md().battlePlan.meetingText=this.value;scheduleSave();">'+esc(d.meetingText)+'</textarea>';
+  document.getElementById('block3').innerHTML=html;
+  renderBattleBox();
+}
+// ════════ 🤖 AI 作戰分析（獨立區塊）════════
+function _bpEnsure(){
+  var d=md().battlePlan;
+  if(!d.target) d.target={mode:'group',name:''};
+  if(!d.extraCaseIds) d.extraCaseIds=[];
+  return d;
+}
+function bpTargetName(){
+  var d=_bpEnsure(), t=d.target;
+  if(t.mode==='member') return (t.name||'').trim()||charName();
+  if(t.mode==='custom') return (t.name||'').trim()||'未命名人員';
+  return charName()+' 小組';
+}
+function bpSetTarget(v){
+  var d=_bpEnsure();
+  if(v==='group'){ d.target.mode='group'; d.target.name=''; }
+  else if(v==='__custom__'){ d.target.mode='custom'; d.target.name=''; }
+  else { d.target.mode='member'; d.target.name=v; }
+  scheduleSave(); renderBattleBox();
+}
+function bpSetCustomName(v){ var d=_bpEnsure(); d.target.name=v; scheduleSave(); }
+function bpToggleExtra(id,on){
+  var d=_bpEnsure(), i=d.extraCaseIds.indexOf(id);
+  if(on&&i<0) d.extraCaseIds.push(id);
+  if(!on&&i>=0) d.extraCaseIds.splice(i,1);
+  scheduleSave();
+}
+function renderBattleBox(){
+  var el=document.getElementById('battleAiBox'); if(!el) return;
+  var d=_bpEnsure(), t=d.target, members=getGroupMembers();
+  var html='';
+  // 0) 三步驟引導
+  html+='<div class="bp-steps">'
+    +'<div class="bp-step"><span class="n">步驟 1</span><span class="t">🎯 選分析對象</span></div>'
+    +'<div class="bp-step"><span class="n">步驟 2</span><span class="t">🎙️ 勾錄音素材</span></div>'
+    +'<div class="bp-step"><span class="n">步驟 3</span><span class="t">🤖 分析 → 採納 → 打包</span></div>'
+    +'</div>';
+  // 1) 分析對象
+  html+='<div class="subhead">🎯 分析對象</div>';
+  html+='<div class="edit-row"><label>對象</label><select class="tin" onchange="bpSetTarget(this.value)">';
+  html+='<option value="group"'+(t.mode==='group'?' selected':'')+'>👥 整個小組（含小組業績）</option>';
+  members.forEach(function(n){ html+='<option value="'+escAttr(n)+'"'+(t.mode==='member'&&t.name===n?' selected':'')+'>🧑 '+esc(n)+'（只看這個人的業績）</option>'; });
+  html+='<option value="__custom__"'+(t.mode==='custom'?' selected':'')+'>✍️ 新人 / 其他（自行輸入名字）</option>';
+  html+='</select></div>';
+  if(t.mode==='custom'){
+    html+='<div class="edit-row"><label>名字</label><input class="tin" value="'+escAttr(t.name||'')+'" placeholder="輸入新人 / 分析對象的名字" oninput="bpSetCustomName(this.value)"></div>';
+    html+='<div class="voice-sub">名字若對得上業績表 → 會帶他本人的三個月業績一起評；對不上（純新人）→ AI 不評論業績，火力集中在錄音話術 × SOP 對照。</div>';
+  }
+  // 2) 勾選最近錄音
+  var cases=loadCases().slice(-10).reverse();
+  html+='<div class="subhead">🎙️ 這次要分析的錄音 <span style="font-weight:400;font-size:11px;color:var(--dim);">（最近 10 筆，打勾納入；連到之星／待檢討的也會自動納入）</span></div>';
+  if(!cases.length){
+    html+='<div class="voice-sub">案例庫還沒有錄音。到「🎙️ 錄音與案例」分頁上傳，轉完字回來馬上分析。</div>';
+  } else {
+    html+=cases.map(function(c){
+      var on=d.extraCaseIds.indexOf(c.id)>=0;
+      return '<label class="lrow" style="cursor:pointer;align-items:center;gap:8px;"><input type="checkbox"'+(on?' checked':'')+' onchange="bpToggleExtra(\''+escAttr(c.id)+'\',this.checked)"><span style="flex:1;font-size:12px;line-height:1.4;">'+esc(caseTitle(c))+'</span></label>';
+    }).join('');
+  }
+  // 3) 素材狀態 + 分析按鈕
   html+='<div class="ai-box">';
   html+='<div class="voice-sub">這次分析會吃以下素材（<span style="color:#1a7a32;font-weight:700;">綠＝有</span>、<span style="color:#b02a37;font-weight:700;">紅＝缺</span>，補齊越多越準）：</div>';
-  html+='<div class="ai-feeds">'+aiFeedStatus().map(function(f){ return '<span class="feed '+(f.on?'on':'off')+'">'+(f.on?'✓ ':'✕ ')+esc(f.label)+'</span>'; }).join('')+'</div>';
+  html+='<div class="ai-feeds">'+aiFeedStatus().map(function(f){ return '<span class="feed '+(f.on?'on':'off')+'"'+(f.go?' style="cursor:pointer;" title="點我跳到填寫處" onclick="'+f.go+'"':'')+'>'+(f.on?'✓ ':'✕ ')+esc(f.label)+'</span>'; }).join('')+'</div>';
+  html+='<div class="voice-sub" style="margin-top:2px;">紅色標籤可以直接點 → 跳到該素材的填寫處。</div>';
   html+='<div class="ai-arrow">▼ 綜合判斷 ▼</div>';
-  html+='<button class="battle-ai-btn" id="battleAiBtn" style="width:100%;" onclick="runBattleAnalysis()">🤖 分析並給建議</button>';
-  html+='<div class="voice-sub" style="margin-top:8px;">缺「會議記錄」可在上方補；缺「SOP／典範案例／知識庫」到 📚 知識庫 與 🎙️ 錄音與案例 分頁補。</div>';
+  html+='<button class="battle-ai-btn" id="battleAiBtn" style="width:100%;" onclick="runBattleAnalysis()">🤖 分析「'+esc(bpTargetName())+'」並給建議</button>';
+  html+='<div class="voice-sub" style="margin-top:8px;">缺「會議記錄」到下方「本月目標作戰計劃」補；缺「SOP／典範案例／知識庫」到 📚 知識庫 與 🎙️ 錄音與案例 分頁補。</div>';
   html+='</div>';
   html+='<div id="battleAiResult"></div>';
   html+='<div class="subhead">✅ 已採納建議</div><div id="battleAdopted"></div>';
-  document.getElementById('block3').innerHTML=html;
+  el.innerHTML=html;
   renderAdopted();
+  try{ updateSecSums(); }catch(e){}
 }
 var _justPackaged=false;
 function renderAdopted(){
@@ -1588,13 +1735,14 @@ function packageBattleAsTask(){
   var key = 'char_'+cid+'_ai_timeline_v1';
   var arr=[]; try{ var r=localStorage.getItem(key); arr=r?(JSON.parse(r)||[]):[]; if(!Array.isArray(arr)) arr=[]; }catch(e){ arr=[]; }
   var who = charName() || '我';
+  var targetName = bpTargetName();
   var monthLabel = currentYear+'/'+currentMonth;
-  var content = '【來源】瀑布 A通路作戰分析\n【主角】'+who+'　【月份】'+monthLabel+'\n\n'
+  var content = '【來源】瀑布 A通路作戰分析\n【主角】'+who+'　【分析對象】'+targetName+'　【月份】'+monthLabel+'\n\n'
     +'【採納建議】\n'+sg.map(function(s,i){ return (i+1)+'. '+s.text; }).join('\n');
   var now=Date.now();
   arr.push({
     id:'tl_'+now,
-    title:'🤖 作戰分析 — '+monthLabel+'（'+who+'）',
+    title:'🤖 作戰分析 — '+monthLabel+'（'+targetName+'）',
     content:content,
     task:'🤖 作戰分析 — '+monthLabel,
     status:'pending',
@@ -1620,23 +1768,45 @@ async function runBattleAnalysis(){
   var res=document.getElementById('battleAiResult');
   if(res) res.innerHTML='<div class="voice-sub">🤖 AI 分析中…（約 20~40 秒）</div>';
   try{
-    var d=md().battlePlan, members=getGroupMembers();
+    var d=_bpEnsure(), members=getGroupMembers(), t=d.target, targetName=bpTargetName();
     var mo=[_wrapMonth(currentMonth-1),_wrapMonth(currentMonth-2),_wrapMonth(currentMonth-3)];
-    var perfLines=members.map(function(n){ return '  '+n+'：'+mo[2]+'月 '+_fmt(getAPerf(mo[2],n))+' → '+mo[1]+'月 '+_fmt(getAPerf(mo[1],n))+' → '+mo[0]+'月 '+_fmt(getAPerf(mo[0],n)); });
-    var ids=[]; (md().star.caseIds||[]).forEach(function(x){ ids.push(x); });
-    md().needImprove.forEach(function(it){ (it.caseIds||[]).forEach(function(x){ ids.push(x); }); });
+    // 業績段：依分析對象決定帶誰的
+    var perfTxt='', targetLine='';
+    if(t.mode==='custom'){
+      var cn=(t.name||'').trim();
+      if(cn&&_perfNameExists(cn)){
+        // 名字對得到業績表 → 帶他本人的業績，可以評論
+        perfTxt='  '+cn+'：'+mo[2]+'月 '+_fmt(getAPerf(mo[2],cn))+' → '+mo[1]+'月 '+_fmt(getAPerf(mo[1],cn))+' → '+mo[0]+'月 '+_fmt(getAPerf(mo[0],cn));
+        targetLine='【分析對象】本次分析的是「'+cn+'」個人，資料由組長「'+charName()+'」提供。業績只引用「'+cn+'」本人的數據，不要混到其他人（包含組長）。';
+      } else {
+        perfTxt='（分析對象「'+targetName+'」為新人/非固定成員，無歷史業績資料）';
+        targetLine='【分析對象】本次分析的是「'+targetName+'」（新人/非固定成員），資料由組長「'+charName()+'」提供。\n'
+          +'⚠️ 此人沒有歷史業績資料 — 禁止評論任何業績趨勢、禁止引用其他人（包含組長）的業績數字。所有建議只能根據錄音逐字稿、會議記錄與 SOP 落差，且每一條都要針對「'+targetName+'」本人。';
+      }
+    } else if(t.mode==='member'){
+      var n=(t.name||'').trim();
+      perfTxt='  '+n+'：'+mo[2]+'月 '+_fmt(getAPerf(mo[2],n))+' → '+mo[1]+'月 '+_fmt(getAPerf(mo[1],n))+' → '+mo[0]+'月 '+_fmt(getAPerf(mo[0],n));
+      targetLine='【分析對象】本次分析的是組長「'+charName()+'」小組的成員「'+n+'」個人。請只針對這位成員做分析，業績只引用他本人的數據，不要混到小組其他人。';
+    } else {
+      perfTxt=members.map(function(n2){ return '  '+n2+'：'+mo[2]+'月 '+_fmt(getAPerf(mo[2],n2))+' → '+mo[1]+'月 '+_fmt(getAPerf(mo[1],n2))+' → '+mo[0]+'月 '+_fmt(getAPerf(mo[0],n2)); }).join('\n');
+      targetLine='【分析對象】這是組長「'+charName()+'」的 A通路資料，請針對這位組長與其小組做分析，不要混到別的主角。';
+    }
+    var ids=[]; (md().star.caseIds||[]).forEach(function(x){ if(ids.indexOf(x)<0) ids.push(x); });
+    md().needImprove.forEach(function(it){ (it.caseIds||[]).forEach(function(x){ if(ids.indexOf(x)<0) ids.push(x); }); });
+    (d.extraCaseIds||[]).forEach(function(x){ if(ids.indexOf(x)<0) ids.push(x); });
     var caseTxt=ids.map(function(cid){ var c=caseById(cid); return c?('— '+caseTitle(c)+'\n'+String(c.text||'').substring(0,1500)):''; }).filter(Boolean).join('\n\n');
-    var material='【分析對象】這是組長「'+charName()+'」的 A通路資料，請只針對這位組長與其小組做分析，不要混到別的主角。\n\n'
-      +'【小組 A業績Ⓐ（近三個月）】\n'+(perfLines.join('\n')||'（無業績資料）')
-      +'\n\n【已連結的錄音案例（逐字稿/摘要節錄）】\n'+(caseTxt||'（尚未連結錄音案例）')
+    var material=targetLine+'\n\n'
+      +'【A業績Ⓐ（近三個月）】\n'+(perfTxt||'（無業績資料）')
+      +'\n\n【要分析的錄音案例（逐字稿/摘要節錄）】\n'+(caseTxt||'（尚未勾選或連結錄音案例）')
       +'\n\n【會議記錄文字】\n'+(d.meetingText||'（無）')
       +'\n\n【組長的文字記錄】\n'+(d.notes||'（無）');
     var sopTxt=loadSop();
     var goodTxt=buildGoodCasesContext();
     var kbTxt=await buildKbContext();
     var sys='你是赫綵的「A通路作戰顧問」。根據組長提供的資料,給出本月 A通路作戰計劃的具體建議。\n'
-      +'★ 主要判準：以下《約訪流程 SOP》是你抓問題、給建議的最高依據,務必逐項對照組長小組的執行落差,並盡量指出違反 SOP 的哪一條。\n'
-      +'★ 典範對照：《優秀錄音案例》是「好的長相」,用來對照組長小組哪裡做得不到位。\n'
+      +'★ 對象鎖定：所有建議都必須針對【分析對象】指明的人或小組；若材料註明無業績資料,嚴禁評論業績趨勢或引用他人業績。\n'
+      +'★ 主要判準：以下《約訪流程 SOP》是你抓問題、給建議的最高依據,務必逐項對照分析對象的執行落差,並盡量指出違反 SOP 的哪一條。\n'
+      +'★ 典範對照：《優秀錄音案例》是「好的長相」,用來對照分析對象哪裡做得不到位。\n'
       +'要求：條列 5-8 點,每點一句話、可立刻執行,聚焦在「話術調整、錄音優化、撥打量、音調、約訪轉換」。\n'
       +'判斷有沒有因話術/錄音調整而提升業績；若沒提升,點出可能是音調或撥打量問題。\n'
       +'只輸出建議清單,每點開頭用「- 」,不要其他說明文字。\n\n'
@@ -1654,7 +1824,7 @@ async function runBattleAnalysis(){
     console.error('[battle]',e);
     if(res) res.innerHTML='<div class="voice-sub" style="color:#1d1d1f;">❌ '+esc(e&&e.message||e)+'</div>';
   }
-  if(btn){ btn.disabled=false; btn.textContent='🤖 分析並給建議'; }
+  if(btn){ btn.disabled=false; btn.textContent='🤖 分析「'+bpTargetName()+'」並給建議'; }
 }
 function renderBattleAi(){
   var el=document.getElementById('battleAiResult');
@@ -1695,22 +1865,71 @@ function goTab(id, sel){
   document.querySelectorAll('.tabpane').forEach(function(p){ p.classList.toggle('active', p.id==='pane-'+id); });
   if(sel){
     var el=document.querySelector(sel);
-    if(el){ try{ el.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){ el.scrollIntoView(); } return; }
+    if(el){
+      // 目標在收合卡片裡 → 自動展開再捲過去
+      var sec=el.closest?el.closest('.section.collapsible'):null;
+      if(sec&&sec.classList.contains('collapsed')) setSec(sec.id,true);
+      try{ el.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){ el.scrollIntoView(); } return;
+    }
   }
   try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){ window.scrollTo(0,0); }
+}
+// ════════ 收合卡片：開合 + localStorage 記憶 ════════
+var SEC_LS='wf_sec_collapse_v1';
+function _secState(){ try{ return JSON.parse(localStorage.getItem(SEC_LS))||{}; }catch(e){ return {}; } }
+function setSec(id,open){
+  var el=document.getElementById(id); if(!el) return;
+  el.classList.toggle('collapsed',!open);
+  var st=_secState(); st[id]=open?1:0;
+  try{ localStorage.setItem(SEC_LS,JSON.stringify(st)); }catch(e){}
+}
+function toggleSec(id){
+  var el=document.getElementById(id); if(!el) return;
+  setSec(id, el.classList.contains('collapsed'));
+}
+function initSecs(){
+  // 預設全收合（AI 作戰分析不收合、不在名單內）
+  var defaults={secPlan:0,secAChart:0,secStar:0,secNeed:0,secScripts:0,secCaseLib:0};
+  var st=_secState();
+  Object.keys(defaults).forEach(function(id){
+    var el=document.getElementById(id); if(!el) return;
+    var open=(id in st)?!!st[id]:!!defaults[id];
+    el.classList.toggle('collapsed',!open);
+  });
+}
+// 收合狀態下標題列的摘要文字
+function updateSecSums(){
+  var m=md();
+  function set(id,txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
+  set('starSum',(m.star&&m.star.name)?('⭐ '+m.star.name):'未設定');
+  var needN=0; (m.needImprove||[]).forEach(function(it){ if((it.name&&it.name.trim())||(it.note&&it.note.trim())||((it.caseIds||[]).length)) needN++; });
+  set('needSum',needN?(needN+' 筆'):'無');
+  var d=m.battlePlan||{};
+  set('planSum','文字記錄 '+((d.notes&&d.notes.trim())?'✓':'✕')+'・會議記錄 '+(((d.meetingText&&d.meetingText.trim())||(d.meetingUrl&&d.meetingUrl.trim()))?'✓':'✕'));
+  set('scriptsSum','話術 '+((m.scripts||[]).length)+'・名單 '+((m.hunts||[]).length));
+  set('caseLibSum',loadCases().length+' 筆');
+  var members=getGroupMembers();
+  if(_mpData&&members.length){
+    var lm=_wrapMonth(currentMonth-1), tot=0;
+    members.forEach(function(n){ tot+=getAPerf(lm,n); });
+    set('aChartSum',lm+'月小組 '+_fmt(tot));
+  } else set('aChartSum','');
 }
 var _kbHasData=false;  // 由 init 非同步載入 AI 顧問知識庫後設定
 function aiFeedStatus(){
   var d=md().battlePlan||{}, members=getGroupMembers();
-  var linked=(md().star.caseIds||[]).length;
-  md().needImprove.forEach(function(it){ linked+=((it.caseIds||[]).length); });
+  var seen={};
+  (md().star.caseIds||[]).forEach(function(x){ seen[x]=1; });
+  md().needImprove.forEach(function(it){ (it.caseIds||[]).forEach(function(x){ seen[x]=1; }); });
+  (d.extraCaseIds||[]).forEach(function(x){ seen[x]=1; });
+  var linked=Object.keys(seen).length;
   return [
     {label:'小組 A業績', on: !!(_mpData && members.length)},
-    {label:'連結錄音案例'+(linked?' ×'+linked:''), on: linked>0},
-    {label:'文字記錄', on: !!(d.notes && d.notes.trim())},
-    {label:'會議記錄', on: !!((d.meetingText && d.meetingText.trim())||(d.meetingUrl && d.meetingUrl.trim()))},
-    {label:'約訪流程 SOP', on: loadSopFiles().length>0},
-    {label:'典範錄音案例', on: loadGoodCases().length>0},
+    {label:'錄音素材'+(linked?' ×'+linked:''), on: linked>0, go:"goTab('rec','#wfUploadHero')"},
+    {label:'文字記錄', on: !!(d.notes && d.notes.trim()), go:"goTab('battle','#block3')"},
+    {label:'會議記錄', on: !!((d.meetingText && d.meetingText.trim())||(d.meetingUrl && d.meetingUrl.trim())), go:"goTab('battle','#block3')"},
+    {label:'約訪流程 SOP', on: loadSopFiles().length>0, go:"goTab('kb','#sopPreviewList')"},
+    {label:'典範錄音案例', on: loadGoodCases().length>0, go:"openGoodCases()"},
     {label:'AI 顧問知識庫', on: !!_kbHasData}
   ];
 }
@@ -1740,6 +1959,8 @@ function renderAll(){
   renderLinkList('hunts');
   renderFiles();
   renderSopPreview();
+  initSecs();
+  try{ updateSecSums(); }catch(e){}
 }
 
 // ════════ 初始化 ════════

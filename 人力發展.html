@@ -215,6 +215,17 @@
   .hex-building.ai .hex-glow { background:rgba(167,139,250,0.3); }
   .hex-icon { font-size:52px; z-index:2; filter:drop-shadow(0 0 10px rgba(255,255,255,0.3)); }
   .hex-label { margin-top:10px; font-size:16px; font-weight:700; letter-spacing:3px; text-shadow:0 0 10px rgba(100,180,255,0.5); }
+  .hex-sub { margin-top:4px; font-size:11px; letter-spacing:1px; color:rgba(170,200,255,0.75); }
+  body.day-mode .hex-sub { color:#6e6e73; }
+  body.minimal .hex-sub { display:none; }
+  /* ⚡ 快速啟動列 */
+  .quick-bar { display:flex; gap:8px; justify-content:center; align-items:center; flex-wrap:wrap; margin-top:20px; }
+  .quick-bar-label { font-size:12px; color:rgba(170,200,255,0.7); letter-spacing:2px; margin-right:2px; }
+  .quick-pill { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:18px; background:rgba(15,25,60,0.55); border:1px solid rgba(100,160,255,0.25); color:#cfe2ff; font-size:13px; font-weight:600; cursor:pointer; backdrop-filter:blur(8px); transition:transform .15s,background .15s; }
+  .quick-pill:hover { background:rgba(40,70,140,0.6); transform:translateY(-2px); }
+  body.day-mode .quick-bar-label { color:#6e6e73; }
+  body.day-mode .quick-pill { background:#fff; border-color:#d2d2d7; color:#1d1d1f; box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+  body.day-mode .quick-pill:hover { background:#f5f5f7; }
   .hex-change-btn {
     position:absolute; bottom:30px; right:10px; z-index:5;
     width:32px; height:32px; border-radius:50%;
@@ -1589,6 +1600,7 @@ body.minimal .revenue-stats{ margin-top:0; }
       <div class="hex-glow"></div>
       <div class="hex-shape" id="plazaHex"><img id="plazaImg"><span class="hex-icon" id="plazaIcon">🌌</span></div>
       <div class="hex-label">星際廣場</div>
+      <div class="hex-sub">360檢核 · 法院 · 瀑布 · 成就 · 火種</div>
       <div class="hex-change-btn" title="更換圖片">📷<input type="file" accept="image/*" onchange="changeHexImg('plaza',this)"></div>
     </div>
   </div>
@@ -1597,7 +1609,7 @@ body.minimal .revenue-stats{ margin-top:0; }
     <div class="hex-building perf" onclick="openPerformance()">
       <div class="hex-glow"></div>
       <div class="hex-shape" id="perfHex"><img id="perfImg"><span class="hex-icon" id="perfIcon">📊</span></div>
-      <div class="hex-label">業績數據中心</div>
+      <div class="hex-label">業績數據中心<span id="perfLockBadge" style="display:none;margin-left:5px;font-size:13px;" title="已設定密碼，進入需輸入">🔒</span></div>
       <div class="hex-change-btn" title="更換圖片">📷<input type="file" accept="image/*" onchange="changeHexImg('perf',this)"></div>
     </div>
     <div class="connector"></div>
@@ -1607,6 +1619,15 @@ body.minimal .revenue-stats{ margin-top:0; }
       <div class="hex-label">AI 顧問</div>
       <div class="hex-change-btn" title="更換圖片">📷<input type="file" accept="image/*" onchange="changeHexImg('ai',this)"></div>
     </div>
+  </div>
+  <!-- ⚡ 快速啟動列：常用功能一鍵直達，不用先進廣場 -->
+  <div class="quick-bar">
+    <span class="quick-bar-label">⚡ 快速啟動</span>
+    <span class="quick-pill" onclick="openWaterfall()">🏔️ 瀑布通路</span>
+    <span class="quick-pill" onclick="open360Assessment()">🎯 360 檢核</span>
+    <span class="quick-pill" onclick="openPerformanceTab(3)">📅 每月績效</span>
+    <span class="quick-pill" onclick="openPerformanceTab(4)">🏆 激勵</span>
+    <span class="quick-pill" onclick="openAchievement()">🎖️ 成就解鎖</span>
   </div>
   <div class="add-zone" title="新增區域">＋</div>
 </div>
@@ -3352,6 +3373,17 @@ document.getElementById('mergeRestoreInput').addEventListener('change',async fun
 
 // ========== 廣場頁面 ==========
 function openPlaza(){stopBgm();document.getElementById('plazaOverlay').classList.add('active');initPlazaParticles()}
+// 🔒 業績中心密碼標示 + 子頁「← 返回基地」postMessage 監聽
+(function(){
+  try{ if(localStorage.getItem('perf_password')){ var b=document.getElementById('perfLockBadge'); if(b) b.style.display='inline'; } }catch(e){}
+  window.addEventListener('message',function(e){
+    var d=e&&e.data;
+    if(d&&d.type==='backToBase'){
+      document.querySelectorAll('.page-overlay.active').forEach(function(o){ o.classList.remove('active'); });
+      try{ document.querySelectorAll('.page-overlay.open').forEach(function(o){ o.classList.remove('open'); }); }catch(_){}
+    }
+  });
+})();
 function closePlaza(){
   document.getElementById('plazaOverlay').classList.remove('active');
   // ★ 停掉粒子動畫迴圈 —— 否則關掉後它會在隱形畫面上永遠 60fps 空轉,拖慢整頁
@@ -3657,7 +3689,7 @@ async function closeCastle(){
 // ========== 瀑布 ==========
 function openWaterfall(){
   stopBgm();
-  document.getElementById('waterfallFrame').src='waterfall-channel.html?v=voicefix20260611';
+  document.getElementById('waterfallFrame').src='waterfall-channel.html?v=ux20260611b';
   document.getElementById('waterfallOverlay').classList.add('active');
 }
 function closeWaterfall(){
@@ -4128,6 +4160,17 @@ window.addEventListener('message',async function(e){
 });
 
 // ========== 業績數據中心 ==========
+// ⚡ 快速啟動：直接開到業績中心的指定 tab（3=每月績效、4=激勵）
+function openPerformanceTab(n){
+  try{ localStorage.setItem('perf_last_tab', String(n)); }catch(e){}
+  openPerformance();
+  setTimeout(function(){
+    try{
+      var f=document.getElementById('perfFrame');
+      if(f&&f.contentWindow&&typeof f.contentWindow.switchTab==='function') f.contentWindow.switchTab(n);
+    }catch(e){}
+  },600);
+}
 function openPerformance(){
   stopBgm();
   const pw=localStorage.getItem('perf_password');
