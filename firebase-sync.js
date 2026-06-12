@@ -1446,6 +1446,19 @@ async function pullFromCloud(opts){
           }
         }
 
+        // ★★★ v5.3 即時同步資料保護（motiv_academy_v1 / sales / 小組 / 報到 / 個人績效 / 通路）：
+        //     這些是「擴充剛從 EIP 同步寫入的最新資料」，但擴充在隔離環境寫入時不會更新本地時間戳，
+        //     導致 LWW 誤判本地較舊、被雲端的舊資料蓋回去（症狀：同步當下對、過一下又變錯）。
+        //     規則：本地有值 → 一律以本地為準（雲端只在本地空時才補）。同 motiv_archive 的本地優先精神。
+        if (/(?:^|_)motiv_(?:academy|sales|group_performance|reserve_performance|perfp|channel|checkin)(?:_v1|_meta)?$/.test(k) || /(?:^|_)motiv_updated_at$/.test(k)){
+          if (existingVal !== null && existingVal !== ''){
+            _skipCount++;            // 本地有值 → 保留本地（不讓雲端舊資料覆蓋）
+          } else {
+            try { _origSet(k, v); _localTsMap[k] = cloudTs[k] || Date.now(); totalLS++; } catch(qe){ _quotaSkipCount++; }
+          }
+          continue;
+        }
+
         // ★★★ motiv_archive 特殊保護：MERGE 而非覆蓋（避免雲端舊版把本地新存的月份吃掉）
         //     雲端永遠只能「新增本地沒有的月份」，絕對不能刪除或覆蓋本地已有的月份
         //     涵蓋：新版全局 'motiv_archive' + 舊版 'char_<id>_motiv_archive'

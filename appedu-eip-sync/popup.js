@@ -780,6 +780,9 @@ async function injectData(academyData, salesData, groupData, reserveData, year, 
         if (window._motivReservePerfMeta !== undefined) window._motivReservePerfMeta = periodMeta || {};
       }
 
+      // ★ v5.3：重寫即時 key 以更新 firebase 本地時間戳，避免雲端舊資料蓋回（隔離環境寫入不會觸發頁面 wrapper）
+      if (typeof window._motivBumpLocalTs === 'function'){ try{ window._motivBumpLocalTs(); }catch(e){} }
+
       // 3) 重新渲染
       if (typeof window.motivRenderAll === 'function') window.motivRenderAll();
       // ★ v4.9：報到排名 / 當月績效 分頁重新渲染

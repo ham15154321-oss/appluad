@@ -1384,6 +1384,22 @@
     }
     .hdr-sync-btn:hover { filter: brightness(1.15); box-shadow: 0 4px 16px rgba(37, 99, 235, .5); }
     .hdr-sync-btn:disabled { opacity: .65; cursor: wait; }
+    .hdr-save-btn {
+      padding: 9px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: .9rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #fff;
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+      border: 1px solid rgba(74, 222, 128, .6);
+      box-shadow: 0 2px 12px rgba(22, 163, 74, .3);
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .hdr-save-btn:hover { filter: brightness(1.12); box-shadow: 0 4px 16px rgba(22, 163, 74, .45); }
 
     .ck-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
     .ck-region-btn {
@@ -1811,7 +1827,10 @@
       <div class="header-title">📊 業績數據中心</div>
       <button class="back-btn" onclick="goBack()">◀ 返回</button>
     </div>
-    <button id="hdrSyncBtn" class="hdr-sync-btn" onclick="motivTriggerEipSync()" title="從 EIP 同步全部資料（激勵排行、報到排名、當月績效、各通路績效）">🔄 同步資料</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="hdrSaveBtn" class="hdr-save-btn" onclick="motivSaveCurrentToArchive()" title="把目前畫面的資料覆蓋鎖進本月封存（即使 EIP 登出 / 同步失敗也不會跑掉）">💾 儲存(覆蓋)</button>
+      <button id="hdrSyncBtn" class="hdr-sync-btn" onclick="motivTriggerEipSync()" title="從 EIP 同步全部資料（激勵排行、報到排名、當月績效、各通路績效）">🔄 同步資料</button>
+    </div>
   </header>
 
   <div class="tabs-container">
@@ -5084,6 +5103,24 @@
     }
 
     // ★ 重新從 localStorage 載入（同步完成後呼叫）
+    // ★ v5.3：擴充在隔離環境寫入這些即時 key 時不會更新 firebase 的本地時間戳，
+    //   導致雲端舊資料把剛同步的正確資料蓋回去。這裡用「頁面自己的」localStorage.setItem
+    //   把同樣的值重寫一次 → 觸發 firebase 的 _recordLocalTs + 推送，確保本地最新、會上雲。
+    function _motivBumpLocalTs(){
+      try {
+        var cid = '';
+        try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
+        var bases = ['motiv_academy_v1','motiv_sales_v1','motiv_group_performance_v1','motiv_group_performance_meta',
+          'motiv_reserve_performance_v1','motiv_reserve_performance_meta','motiv_updated_at',
+          'motiv_checkin_v1','motiv_perfp_v1','motiv_channel_v1'];
+        bases.forEach(function(b){
+          var k = cid + b;
+          var val = localStorage.getItem(k);
+          if (val !== null && val !== '') localStorage.setItem(k, val); // 重寫一次走頁面 wrapper → 更新時間戳
+        });
+      } catch(e){ console.warn('[motiv] _motivBumpLocalTs 失敗', e); }
+    }
+
     function motivLoadData(){
       try {
         var cid = '';
@@ -5566,18 +5603,11 @@
       // ★ v3：IDB cache
       var archive = _motivGetArchive();
 
-      // ★ 該月份已有存檔 → 問使用者是否覆蓋（不要默默蓋掉）
+      // ★ v5.3：EIP 同步＝該月唯一正確來源，同步完成一律直接覆蓋封存（不再跳「要覆蓋嗎」）
+      //   原因：之前修正前存進去的舊封存若不覆蓋，會在重整／點月份卡／雲端合併時又蓋回畫面，導致數字跑掉。
+      //   同步是自動抓 EIP 最新資料，必定比舊封存新且正確，所以放心覆蓋。
       if (archive[key]){
-        var oldStamp = archive[key].archivedAt || '?';
-        var confirmMsg = '⚠️ ' + key + ' 已經有儲存過的資料\n'
-                      + '（儲存於 ' + oldStamp + '）\n\n'
-                      + '要用剛剛同步的新資料覆蓋舊資料嗎？\n\n'
-                      + '✅ 確定 = 覆蓋（新資料蓋掉舊的）\n'
-                      + '❌ 取消 = 保留舊資料（剛剛同步的新資料會被丟掉）';
-        if (!confirm(confirmMsg)){
-          console.log('[motiv] 使用者選擇不覆蓋 ' + key + '，新同步資料未存入 archive');
-          return;
-        }
+        console.log('[motiv] ' + key + ' 已有封存，以最新同步資料覆蓋（archivedAt=' + (archive[key].archivedAt || '?') + '）');
       }
 
       var now = new Date();
@@ -6137,6 +6167,7 @@
         var d = e.data;
         if (d.type === 'done'){
           window.removeEventListener('message', onMsg);
+          try { _motivBumpLocalTs(); } catch(e2){}
           motivLoadData(); motivRenderAll();
           // ★ v5.0：各通路績效自動套用 + 報到排名/當月績效刷新
           try { if (typeof chApplyAutoSync === 'function') chApplyAutoSync(); } catch(e2){}
@@ -6152,6 +6183,7 @@
           if (btn){ btn.disabled = false; btn.textContent = '🔄 同步資料'; }
         } else if (d.type === 'partial'){
           // ★ v5.2：核心資料（學院/業務/小組）先到先更新，不等後面的報到/通路慢活
+          try { _motivBumpLocalTs(); } catch(e2){}
           motivLoadData(); motivRenderAll();
           if (info){ info.textContent = '⏳ ' + (d.msg || '核心資料已更新，繼續同步...'); info.style.color = '#e6a817'; }
         } else if (d.type === 'error'){

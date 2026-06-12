@@ -3318,7 +3318,7 @@ async function sendMsg(){
   try{
     var resp=await fetch(PROXY_BASE+'/v1/messages',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-opus-4-7',max_tokens:4096,system:f.system,messages:apiMsgs})});
+      body:JSON.stringify({model:'claude-opus-4-8',max_tokens:4096,system:f.system,messages:apiMsgs})});
     typing.remove();
     if(!resp.ok){var errBody='';try{errBody=await resp.text();}catch(e){}throw new Error('API錯誤('+resp.status+'): '+errBody.substring(0,150));}
     var data=await resp.json();addMsg('ai',data.content[0].text);autoSavePin();
@@ -5099,7 +5099,7 @@ async function _voiceSummarize(transcript){
   var resp = await _voiceFetch(PROXY_BASE + '/v1/messages', { method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-opus-4-7', max_tokens: 1500, system: sys,
+      model: 'claude-opus-4-8', max_tokens: 1500, system: sys,
       messages: [{ role: 'user', content: '以下是逐字稿：\n\n' + transcript }]
     }) }, 180000);
   if (!resp.ok){
@@ -5931,7 +5931,7 @@ async function autoAnalyzeFile(fileName,text){
   try{
     var resp=await fetch(PROXY_BASE+'/v1/messages',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-opus-4-7',max_tokens:3000,system:f.system+'\n\n你正在分析用戶上傳的檔案，請仔細閱讀並提供深入分析。',messages:apiMsgs})});
+      body:JSON.stringify({model:'claude-opus-4-8',max_tokens:3000,system:f.system+'\n\n你正在分析用戶上傳的檔案，請仔細閱讀並提供深入分析。',messages:apiMsgs})});
     typing.remove();
     if(!resp.ok){var errBody='';try{errBody=await resp.text();}catch(e){}throw new Error('API錯誤('+resp.status+')');}
     var data=await resp.json();
