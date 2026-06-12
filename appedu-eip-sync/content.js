@@ -109,6 +109,19 @@
     var rows = getDirectRows(table);
     var data = [], seenNames = {};
 
+    // ★ v5.1：依表頭文字定位「學院」「業績」欄（EIP 欄位增減也不會抓錯）
+    var ths = getDirectCells(rows[0]);
+    var colAcad = -1, colVal = -1, hasRegion = false;
+    for (var hc = 0; hc < ths.length; hc++){
+      var ht = ths[hc].textContent.trim();
+      if (ht.indexOf('區域') >= 0) hasRegion = true;
+      if (colAcad < 0 && ht === '學院') colAcad = hc;
+      if (ht === '合計業績') colVal = hc;
+      if (colVal < 0 && ht === '業績') colVal = hc;
+    }
+    var headerBased = (colAcad >= 0 && colVal >= 0);
+    console.log('[EIP Content] 學院表頭定位: 學院欄=' + colAcad + ' 業績欄=' + colVal + ' 區域=' + hasRegion + (headerBased ? '' : '（找不到，退回固定索引）'));
+
     for (var i = 1; i < rows.length; i++){
       var allCells = getDirectCells(rows[i]);
       var tdOnly = [];
@@ -125,13 +138,20 @@
 
       var name, valStr;
 
-      if (firstTd.getAttribute('rowspan')){
-        // 型態 A：td[1]=學院, td[12]=業績
+      if (headerBased){
+        // 型態 B（無區域 td、被 rowspan 合併）整列往左移 1 格
+        var offset = (hasRegion && !firstTd.getAttribute('rowspan')) ? -1 : 0;
+        var ni = colAcad + offset, vi = colVal + offset;
+        if (ni < 0 || vi < 0 || ni >= tdOnly.length || vi >= tdOnly.length) continue;
+        name = tdOnly[ni].textContent.trim();
+        valStr = tdOnly[vi].textContent.trim();
+      } else if (firstTd.getAttribute('rowspan')){
+        // 舊邏輯型態 A：td[1]=學院, td[12]=業績
         if (tdOnly.length < 13) continue;
         name = tdOnly[1].textContent.trim();
         valStr = tdOnly[12].textContent.trim();
       } else {
-        // 型態 B：td[0]=學院, td[11]=業績
+        // 舊邏輯型態 B：td[0]=學院, td[11]=業績
         if (tdOnly.length < 12) continue;
         name = tdOnly[0].textContent.trim();
         valStr = tdOnly[11].textContent.trim();
@@ -492,6 +512,170 @@
 
   function pad2(n){ return String(n).padStart(2, '0'); }
 
+  // ══════════════════════════════════════
+  //  ★ v5.0 新增：個人收支業績查詢（business_money）→ 各通路績效
+  //  剔除規則：①狀態備註含「不計業績」 ②負向且入帳日期早於當月1號
+  // ══════════════════════════════════════
+  function buildMoneyQuery(monthStart){
+    var keys = ['q1','q2','q3','q4','q5','q6','q7','q8','q25','q26','q27','q9','q10','q11','q23','q29','q12','q13','q14','q15','q18','q19','q20','q21'];
+    var parts = [];
+    keys.forEach(function(k){ parts.push(k + '=' + (k === 'q1' ? encodeURIComponent(monthStart) : '')); });
+    parts.push('btnq=%E6%9F%A5%E8%A9%A2');
+    return parts.join('&');
+  }
+
+  function moneyRowsFromCSV(text, monthStart){
+    var rows = parseCSV(text);
+    if (!rows.length) return null;
+    var hIdx = -1, col = {};
+    var NEED = { org:'組織', owner:'業績承辦人', main:'通路來源主類別', sub:'通路來源副類別', note:'狀態備註', item:'收支項目', perf:'業績合計', inDate:'入帳日期' };
+    for (var r = 0; r < Math.min(rows.length, 5); r++){
+      var found = {};
+      for (var c = 0; c < rows[r].length; c++){
+        var h = String(rows[r][c]).trim();
+        for (var k in NEED){ if (found[k] === undefined && h.indexOf(NEED[k]) >= 0) found[k] = c; }
+      }
+      if (found.org !== undefined && found.owner !== undefined && found.perf !== undefined && found.main !== undefined){
+        hIdx = r; col = found; break;
+      }
+    }
+    if (hIdx < 0) return null;
+    var out = [], skipNote = 0, skipOld = 0;
+    var startCmp = monthStart.replace(/\//g, '-'); // YYYY-MM-DD 字串比較
+    for (var i = hIdx + 1; i < rows.length; i++){
+      var row = rows[i];
+      if (row.length <= col.perf) continue;
+      function cell(k){ return col[k] !== undefined && row[col[k]] !== undefined ? String(row[col[k]]).trim() : ''; }
+      var note = cell('note');
+      if (note.indexOf('不計業績') >= 0){ skipNote++; continue; }
+      var val = parseFloat(cell('perf').replace(/,/g, '').replace(/\s/g, '')) || 0;
+      var inDate = cell('inDate').replace(/\//g, '-');
+      if (val < 0 && inDate && inDate.slice(0, 10) < startCmp){ skipOld++; continue; }
+      out.push({ org: cell('org'), owner: cell('owner'), main: cell('main'), sub: cell('sub'), item: cell('item'), value: val });
+    }
+    console.log('[EIP Content] 收支明細: 取 ' + out.length + ' 筆（剔除 不計業績=' + skipNote + ' 非當月負向=' + skipOld + '）');
+    return out;
+  }
+
+  function moneyRowsFromHtml(html, monthStart, acc){
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var tables = doc.querySelectorAll('table');
+    var table = null, col = null;
+    var NEED = { org:'組織', owner:'業績承辦人', main:'通路來源主類別', sub:'通路來源副類別', note:'狀態備註', item:'收支項目', perf:'業績合計', inDate:'入帳日期' };
+    for (var t = 0; t < tables.length; t++){
+      var rs = getDirectRows(tables[t]);
+      if (rs.length < 1) continue;
+      var ths = getDirectCells(rs[0]);
+      var found = {};
+      for (var c = 0; c < ths.length; c++){
+        var h = ths[c].textContent.trim();
+        for (var k in NEED){ if (found[k] === undefined && h.indexOf(NEED[k]) >= 0) found[k] = c; }
+      }
+      if (found.org !== undefined && found.owner !== undefined && found.perf !== undefined && found.main !== undefined){
+        table = tables[t]; col = found; break;
+      }
+    }
+    if (!table) return 0;
+    var startCmp = monthStart.replace(/\//g, '-');
+    var trs = getDirectRows(table), n = 0;
+    for (var i = 1; i < trs.length; i++){
+      var tds = getDirectCells(trs[i]);
+      if (tds.length <= col.perf) continue;
+      function cell(k){ return col[k] !== undefined && tds[col[k]] ? tds[col[k]].textContent.trim() : ''; }
+      var note = cell('note');
+      if (note.indexOf('不計業績') >= 0) continue;
+      var val = parseFloat(cell('perf').replace(/,/g, '').replace(/\s/g, '')) || 0;
+      var inDate = cell('inDate').replace(/\//g, '-');
+      if (val < 0 && inDate && inDate.slice(0, 10) < startCmp) continue;
+      acc.push({ org: cell('org'), owner: cell('owner'), main: cell('main'), sub: cell('sub'), item: cell('item'), value: val });
+      n++;
+    }
+    return n;
+  }
+
+  async function fetchMoneyRows(year, month){
+    var monthStart = year + '/' + month + '/01';
+    var qs = buildMoneyQuery(monthStart);
+    notify('status', { msg: '正在同步收支明細（各通路績效）...' });
+    // 1) CSV
+    try {
+      var csv = await fetchViaBackground('http://eip.appedu.com.tw/class/report/performance/business_money_csv.php?' + qs);
+      if (csv && csv.indexOf('<html') < 0 && csv.indexOf('<!DOCTYPE') < 0){
+        var rows = moneyRowsFromCSV(csv, monthStart);
+        if (rows && rows.length > 0) return rows;
+      }
+      console.warn('[EIP Content] 收支 CSV 解析無結果，改用 HTML 分頁');
+    } catch(e){
+      console.warn('[EIP Content] 收支 CSV 失敗: ' + e.message + '，改用 HTML 分頁');
+    }
+    // 2) HTML 分頁備援
+    var acc = [];
+    var first = await fetchViaBackground('http://eip.appedu.com.tw/class/report/performance/business_money.php?' + qs + '&pg=1');
+    moneyRowsFromHtml(first, monthStart, acc);
+    var m = first.match(/共\s*(\d+)\s*頁/);
+    var pages = m ? Math.min(parseInt(m[1], 10), 150) : 1;
+    for (var p = 2; p <= pages; p++){
+      notify('status', { msg: '正在同步收支明細 第 ' + p + '/' + pages + ' 頁...' });
+      var html = await fetchViaBackground('http://eip.appedu.com.tw/class/report/performance/business_money.php?' + qs + '&pg=' + p);
+      moneyRowsFromHtml(html, monthStart, acc);
+    }
+    console.log('[EIP Content] 收支明細 HTML 分頁: ' + acc.length + ' 筆');
+    return acc;
+  }
+
+  // 六通路分類 + 班務追回（業績 − 業績Ⓐ − 學員加購）
+  var CH_ORG_RENAME = { '台中學院': '台中一部' }; // 各通路績效畫面用「台中一部」命名
+  function computeChannels(moneyRows, perfPData, year, month){
+    function renameOrg(o){ return CH_ORG_RENAME[o] || o; }
+    var ch = { net:{}, purchase:{}, event:{}, referral:{}, cash:{}, admin:{} };   // 個人
+    var ac = { net:{}, purchase:{}, event:{}, referral:{}, cash:{}, admin:{} };   // 學院
+    function add(bucket, key, v){ if (!key) return; bucket[key] = (bucket[key] || 0) + v; }
+
+    (moneyRows || []).forEach(function(r){
+      var keys = [];
+      if (r.main === '網際網路') keys.push('net');
+      if (r.main === '展場活動') keys.push('event');
+      if (r.sub === '學員加購') keys.push('purchase');
+      if (r.sub === '學員介紹') keys.push('referral');
+      var it = r.item || '';
+      if (it === '現金' || it === '匯款' || it.indexOf('一卡通') >= 0 || it.indexOf('綠界') >= 0 || it.indexOf('Line Pay') >= 0) keys.push('cash');
+      var org = renameOrg(r.org);
+      keys.forEach(function(k){
+        add(ch[k], r.owner, r.value);
+        add(ac[k], org, r.value);
+      });
+    });
+
+    // 班務追回：靠個人績效（business、new_perf）− 個人學員加購
+    if (perfPData && perfPData.orgs){
+      for (var orgName in perfPData.orgs){
+        var orgOut = renameOrg(orgName);
+        perfPData.orgs[orgName].forEach(function(p){
+          var nm = p.employee_name;
+          if (!nm) return;
+          var biz = parseFloat(String(p.business).replace(/,/g, '')) || 0;
+          var bizA = parseFloat(String(p.new_perf).replace(/,/g, '')) || 0;
+          var purchase = ch.purchase[nm] || 0;
+          var adminVal = biz - bizA - purchase;
+          add(ch.admin, nm, adminVal);
+          add(ac.admin, orgOut, adminVal);
+        });
+      }
+    }
+
+    function toRanking(map){
+      return Object.keys(map)
+        .map(function(n){ return { name: n, value: Math.round(map[n]) }; })
+        .filter(function(x){ return x.value !== 0; })
+        .sort(function(a, b){ return b.value - a.value; });
+    }
+    var out = { meta: { year: year, month: month }, channels: {} };
+    ['net','purchase','event','referral','admin','cash'].forEach(function(k){
+      out.channels[k] = { ranking: toRanking(ch[k]), academies: toRanking(ac[k]) };
+    });
+    return out;
+  }
+
   async function fetchCheckin(year, month){
     var monthStart = year + '/' + month + '/01';
     var lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
@@ -575,6 +759,15 @@
         console.warn('[EIP Content] 個人績效同步失敗: ' + e.message);
       }
 
+      // ★ v5.0 新增：收支明細 → 各通路績效（六通路個人排名 + 學院金額）
+      var channelData = null;
+      try {
+        var moneyRows = await fetchMoneyRows(year, month);
+        channelData = computeChannels(moneyRows, perfPData, year, month);
+      } catch(e){
+        console.warn('[EIP Content] 各通路績效同步失敗: ' + e.message);
+      }
+
       var checkinTotal = checkinData ? checkinData.formal.total : 0;
       var perfPTotal = 0;
       if (perfPData){ for (var po in perfPData.orgs) perfPTotal += perfPData.orgs[po].length; }
@@ -608,6 +801,7 @@
       ];
       if (checkinData) pairs.push([cid + 'motiv_checkin_v1', JSON.stringify(checkinData)]);
       if (perfPData) pairs.push([cid + 'motiv_perfp_v1', JSON.stringify(perfPData)]);
+      if (channelData) pairs.push([cid + 'motiv_channel_v1', JSON.stringify(channelData)]);
       pairs.forEach(function(p){ if (_safeSet(p[0], p[1])) ok++; else fail++; });
       console.log('[EIP Content] ★ localStorage 寫入：成功 ' + ok + ' / 失敗 ' + fail + (fail > 0 ? ' ⚠️ 有資料沒存進去！' : ''));
 
@@ -620,10 +814,12 @@
         reserveMeta: { year: year, month: month },
         checkin: checkinData,
         perfP: perfPData,
+        channel: channelData,
         updateTime: timeStr,
         msg: '同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆、正式小組 ' + groupData.length + ' 組、儲備小組 ' + reserveData.length + ' 組'
           + (checkinData ? '、報到 ' + checkinData.formal.total + '/' + checkinData.net.total + '/' + checkinData.rs.total + ' 筆' : '、報到同步失敗')
           + (perfPData ? '、個人績效 ' + perfPTotal + ' 人' : '、個人績效同步失敗')
+          + (channelData ? '、通路績效 ✓' : '、通路績效同步失敗')
       });
 
     } catch(err){

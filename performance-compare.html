@@ -1367,6 +1367,24 @@
     }
 
     /* ===== 報到排名 / 當月績效 ===== */
+    .hdr-sync-btn {
+      padding: 9px 22px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: .9rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #fff;
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      border: 1px solid rgba(96, 165, 250, .6);
+      box-shadow: 0 2px 12px rgba(37, 99, 235, .35);
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .hdr-sync-btn:hover { filter: brightness(1.15); box-shadow: 0 4px 16px rgba(37, 99, 235, .5); }
+    .hdr-sync-btn:disabled { opacity: .65; cursor: wait; }
+
     .ck-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
     .ck-region-btn {
       padding:7px 16px; border-radius:20px; cursor:pointer; font-family:inherit;
@@ -1379,6 +1397,23 @@
       border-color:var(--border-hi); color:var(--accent);
     }
     .ck-update-info { margin-left:auto; font-size:.75rem; color:var(--dim); }
+    .ck-year-sel {
+      background:rgba(255,255,255,.05); border:1px solid var(--border); border-radius:8px;
+      color:var(--text); font-family:inherit; font-size:.82rem; font-weight:700; padding:5px 8px; outline:none; cursor:pointer;
+    }
+    .ck-period-chip {
+      padding:5px 11px; border-radius:16px; cursor:pointer; font-family:inherit;
+      background:rgba(255,255,255,.03); border:1px solid var(--border); color:var(--dim);
+      font-size:.78rem; font-weight:700; transition:all .15s; opacity:.55;
+    }
+    .ck-period-chip.has-data { opacity:1; color:var(--text); border-color:rgba(74,234,255,.25); }
+    .ck-period-chip:hover { color:var(--accent); }
+    .ck-period-chip.active {
+      background:linear-gradient(135deg,rgba(74,234,255,.22),rgba(100,165,250,.12));
+      border-color:var(--border-hi); color:var(--accent); opacity:1;
+    }
+    .ck-q-chip.has-data { color:var(--gold); border-color:rgba(255,215,0,.3); }
+    .ck-q-chip.active { color:var(--gold); background:linear-gradient(135deg,rgba(255,215,0,.18),rgba(255,160,40,.08)); border-color:rgba(255,215,0,.5); }
     .ck-body { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
     .ck-chart-card { width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px 18px 14px; }
     .ck-chart-title { font-size:.9rem; font-weight:800; color:var(--accent); margin-bottom:12px; }
@@ -1776,6 +1811,7 @@
       <div class="header-title">📊 業績數據中心</div>
       <button class="back-btn" onclick="goBack()">◀ 返回</button>
     </div>
+    <button id="hdrSyncBtn" class="hdr-sync-btn" onclick="motivTriggerEipSync()" title="從 EIP 同步全部資料（激勵排行、報到排名、當月績效、各通路績效）">🔄 同步資料</button>
   </header>
 
   <div class="tabs-container">
@@ -1830,6 +1866,7 @@
           <button class="ck-region-btn" data-region="all" onclick="ckSwitchRegion('all')">🏆 全省七家</button>
           <span class="ck-update-info" id="ckUpdateInfo"></span>
         </div>
+        <div class="ck-toolbar" id="ckPeriodBar"></div>
         <div id="ckBody" class="ck-body"></div>
       </div>
 
@@ -3557,8 +3594,55 @@
       return sum;
     }
 
+    // ★ 各通路績效自動同步：把擴充算好的 motiv_channel_v1 套進 chData[月]
+    //   來源：EIP 個人收支業績查詢（剔除不計業績 + 非當月負向）+ 班務追回公式
+    function chApplyAutoSync(skipRender) {
+      try {
+        var cid = '';
+        try { var aid = localStorage.getItem('activeCharacterId'); if (aid) cid = 'char_' + aid + '_'; } catch(e){}
+        var s = localStorage.getItem(cid + 'motiv_channel_v1');
+        if (!s) return false;
+        var data = JSON.parse(s);
+        if (!data || !data.meta || !data.channels) return false;
+        var m = parseInt(data.meta.month, 10);
+        if (!m || m < 1 || m > 12) return false;
+        if (!chData || Object.keys(chData).length === 0) loadChData();
+        if (!chData[m]) chData[m] = {};
+        var changed = false;
+        CH_CHANNELS.forEach(function(chDef) {
+          var src = data.channels[chDef.key];
+          if (!src) return;
+          var cur = chData[m][chDef.key] || { target: chDef.target, targetType: chDef.targetType, ranking: [], academies: [] };
+          // 學院：預設七家保底（沒值補 0），有額外學院也收進來，按金額排序
+          var amap = {};
+          (src.academies || []).forEach(function(a) { amap[a.name] = a.value; });
+          var academies = DEFAULT_ACADEMIES.map(function(n) { return { name: n, value: amap[n] || 0 }; });
+          (src.academies || []).forEach(function(a) {
+            if (DEFAULT_ACADEMIES.indexOf(a.name) < 0) academies.push({ name: a.name, value: a.value });
+          });
+          academies.sort(function(a, b) { return b.value - a.value; });
+          var next = { target: cur.target, targetType: cur.targetType, ranking: src.ranking || [], academies: academies };
+          if (JSON.stringify(chData[m][chDef.key]) !== JSON.stringify(next)) {
+            chData[m][chDef.key] = next;
+            changed = true;
+          }
+        });
+        if (changed) {
+          saveChData();
+          console.log('[ch] 自動同步套用 ' + data.meta.year + '/' + m + ' 月各通路績效');
+          if (!skipRender && typeof renderChMonths === 'function') { try { renderChMonths(); } catch(e){} }
+        }
+        return changed;
+      } catch(e) {
+        console.warn('[ch] 自動同步套用失敗', e);
+        return false;
+      }
+    }
+    window.chApplyAutoSync = chApplyAutoSync;
+
     // Month card: show academy totals per channel
     function renderChMonths() {
+      try { chApplyAutoSync(true); } catch(e){}
       const container = document.getElementById('channelMonthsGrid');
       if (!container) return;
       let html = '';
@@ -6000,9 +6084,21 @@
       alert('⚠️ CSV 格式暫不支援，請使用 .xlsx 或 .numbers 檔案');
     }
 
+    // ★ 同步按鈕群組：激勵分頁的按鈕 + 右上角藍色按鈕，狀態一起更新
+    function _syncBtnGroup(){
+      var btns = [document.getElementById('motivSyncBtn'), document.getElementById('hdrSyncBtn')].filter(function(b){ return !!b; });
+      if (!btns.length) return null;
+      return {
+        get disabled(){ return btns[0].disabled; },
+        set disabled(v){ btns.forEach(function(b){ b.disabled = v; }); },
+        get textContent(){ return btns[0].textContent; },
+        set textContent(v){ btns.forEach(function(b){ b.textContent = v; }); }
+      };
+    }
+
     function motivTriggerEipSync(){
       // ★ 用明確 ID 抓「同步資料」按鈕（不要用 querySelector 抓第一個 .motiv-import-btn — 那個現在是 🔍 查詢按鈕了）
-      var btn = document.getElementById('motivSyncBtn');
+      var btn = _syncBtnGroup();
       var info = document.getElementById('motivUpdateInfo');
       console.log('[motiv] motivTriggerEipSync 觸發, btn=', btn ? '✓ 找到' : '✗ 找不到');
       if (btn){ btn.disabled = true; btn.textContent = '⏳ 偵測中...'; }
@@ -6042,6 +6138,10 @@
         if (d.type === 'done'){
           window.removeEventListener('message', onMsg);
           motivLoadData(); motivRenderAll();
+          // ★ v5.0：各通路績效自動套用 + 報到排名/當月績效刷新
+          try { if (typeof chApplyAutoSync === 'function') chApplyAutoSync(); } catch(e2){}
+          try { if (typeof ckRenderAll === 'function') ckRenderAll(); } catch(e2){}
+          try { if (typeof ppRenderAll === 'function') ppRenderAll(); } catch(e2){}
           // ★ 同步完成自動儲存到 archive — 解決「忘了按💾儲存導致下次同步覆蓋」的痛點
           try{
             _motivAutoSaveAfterSync();
@@ -6124,6 +6224,177 @@
       try { localStorage.setItem('ck_region', r); } catch(e){}
       ckRenderAll();
     }
+
+    // ── 月/季封存（像「年度月/季比較」一樣可回看 1~12 月 + Q1~Q4） ──
+    function _ckPad2(n){ return String(n).padStart(2, '0'); }
+    function ckGetArchive(){
+      try { return JSON.parse(localStorage.getItem(_ckCid() + 'ck_archive_v1') || '{}'); } catch(e){ return {}; }
+    }
+    // 每次有最新同步資料就自動封存到該月（同月覆蓋 = 永遠保留最新）
+    function ckArchiveCurrent(){
+      var live = ckGetCheckin();
+      if (!live || !live.meta || !live.meta.year || !live.meta.month) return;
+      var ym = live.meta.year + '-' + _ckPad2(parseInt(live.meta.month, 10));
+      try {
+        var arch = ckGetArchive();
+        var rec = { checkin: live, perfp: ppGetData(), savedAt: new Date().toISOString() };
+        // 內容相同就不重寫（省 localStorage 寫入）
+        if (arch[ym] && JSON.stringify(arch[ym].checkin) === JSON.stringify(live) &&
+            JSON.stringify(arch[ym].perfp) === JSON.stringify(rec.perfp)) return;
+        arch[ym] = rec;
+        localStorage.setItem(_ckCid() + 'ck_archive_v1', JSON.stringify(arch));
+      } catch(e){ console.warn('[ck] 封存失敗', e); }
+    }
+
+    // 目前選擇的期間 {year:2026, period:'M6' 或 'Q2'}；null = 跟著最新同步
+    var ckSel = (function(){ try { return JSON.parse(localStorage.getItem('ck_sel_v1') || 'null'); } catch(e){ return null; } })();
+    function ckSetPeriod(year, period){
+      ckSel = { year: parseInt(year, 10), period: period };
+      try { localStorage.setItem('ck_sel_v1', JSON.stringify(ckSel)); } catch(e){}
+      ckRenderAll();
+    }
+    function ckSetYear(y){
+      ckSetPeriod(y, (ckSel && ckSel.period) || 'M' + (new Date().getMonth() + 1));
+    }
+
+    function _ckLiveYm(){
+      var live = ckGetCheckin();
+      return (live && live.meta && live.meta.year) ? live.meta.year + '-' + _ckPad2(parseInt(live.meta.month, 10)) : null;
+    }
+    function _ckRecFor(ym){
+      if (ym === _ckLiveYm()) return { checkin: ckGetCheckin(), perfp: ppGetData() };
+      return ckGetArchive()[ym] || null;
+    }
+
+    function _ckMergeCounts(list){
+      var out = { byKey: {}, byAcademy: {}, total: 0 };
+      list.forEach(function(c){
+        if (!c) return;
+        for (var k in c.byKey) out.byKey[k] = (out.byKey[k] || 0) + c.byKey[k];
+        for (var a in c.byAcademy) out.byAcademy[a] = (out.byAcademy[a] || 0) + c.byAcademy[a];
+        out.total += c.total || 0;
+      });
+      return out;
+    }
+    function _ckMergePerfp(list){
+      var acc = {}; // org -> name -> sums
+      list.forEach(function(pp){
+        if (!pp || !pp.orgs) return;
+        for (var org in pp.orgs){
+          if (!acc[org]) acc[org] = {};
+          pp.orgs[org].forEach(function(r){
+            var nm = r.employee_name; if (!nm) return;
+            if (!acc[org][nm]) acc[org][nm] = { employee_name: nm, hr_department_name: r.hr_department_name || '', count1:0, count2:0, count3:0, count4:0, new_perf:0, business:0, goal:0, pay_back:0 };
+            var t = acc[org][nm];
+            t.count1 += _ckNum(r.count1); t.count2 += _ckNum(r.count2); t.count3 += _ckNum(r.count3); t.count4 += _ckNum(r.count4);
+            t.new_perf += _ckNum(r.new_perf); t.business += _ckNum(r.business);
+            t.goal += _ckNum(r.goal); t.pay_back += _ckNum(r.pay_back);
+            if (r.hr_department_name) t.hr_department_name = r.hr_department_name;
+          });
+        }
+      });
+      var orgs = {};
+      for (var org2 in acc){
+        orgs[org2] = Object.keys(acc[org2]).map(function(nm){
+          var t = acc[org2][nm];
+          t.rate1 = t.count1 > 0 ? Math.round(t.count2 / t.count1 * 100) : 0;
+          t.rate2 = t.count1 > 0 ? Math.round(t.count3 / t.count1 * 100) : 0;
+          t.rate3 = Math.round(t.rate1 * t.rate2 / 100);
+          t.rate4 = t.goal > 0 ? Math.round(t.business / t.goal * 100) : 0;
+          return t;
+        });
+      }
+      return { orgs: orgs, meta: null };
+    }
+
+    // 取出目前選定期間的資料（單月直接用、季 = 三個月加總）
+    function ckResolveData(){
+      var sel = ckSel;
+      if (!sel){
+        var liveYm = _ckLiveYm();
+        if (liveYm){
+          sel = { year: parseInt(liveYm.slice(0, 4), 10), period: 'M' + parseInt(liveYm.slice(5), 10) };
+        } else {
+          var keys = Object.keys(ckGetArchive()).sort();
+          if (!keys.length) return { ck: null, pp: null, label: '', savedAt: '' };
+          var last = keys[keys.length - 1];
+          sel = { year: parseInt(last.slice(0, 4), 10), period: 'M' + parseInt(last.slice(5), 10) };
+        }
+      }
+      if (sel.period.charAt(0) === 'M'){
+        var m = parseInt(sel.period.slice(1), 10);
+        var rec = _ckRecFor(sel.year + '-' + _ckPad2(m));
+        return {
+          ck: rec ? rec.checkin : null, pp: rec ? rec.perfp : null,
+          label: sel.year + '年 ' + m + '月', sel: sel,
+          savedAt: rec && rec.savedAt ? rec.savedAt.slice(0, 10) : ''
+        };
+      }
+      var q = parseInt(sel.period.slice(1), 10);
+      var months = [q * 3 - 2, q * 3 - 1, q * 3];
+      var cks = [], pps = [], got = [];
+      months.forEach(function(m){
+        var rec = _ckRecFor(sel.year + '-' + _ckPad2(m));
+        if (rec && (rec.checkin || rec.perfp)){
+          got.push(m + '月');
+          if (rec.checkin) cks.push(rec.checkin);
+          if (rec.perfp) pps.push(rec.perfp);
+        }
+      });
+      var ckm = null;
+      if (cks.length){
+        ckm = {
+          formal: _ckMergeCounts(cks.map(function(c){ return c.formal; })),
+          net: _ckMergeCounts(cks.map(function(c){ return c.net; })),
+          rs: _ckMergeCounts(cks.map(function(c){ return c.rs; })),
+          meta: { year: sel.year, month: 'Q' + q }
+        };
+      }
+      return {
+        ck: ckm, pp: pps.length ? _ckMergePerfp(pps) : null,
+        label: sel.year + '年 Q' + q + (got.length ? '（' + got.join('+') + '）' : ''), sel: sel,
+        savedAt: ''
+      };
+    }
+
+    // 期間切換列（年份 + 1~12月 + Q1~Q4，有資料的月份亮起）
+    function ckRenderPeriodBar(resolved){
+      var bar = document.getElementById('ckPeriodBar');
+      if (!bar) return;
+      var arch = ckGetArchive();
+      var liveYm = _ckLiveYm();
+      var sel = resolved.sel;
+      if (!sel){ bar.innerHTML = ''; return; }
+      var years = {};
+      Object.keys(arch).forEach(function(k){ years[parseInt(k.slice(0, 4), 10)] = 1; });
+      if (liveYm) years[parseInt(liveYm.slice(0, 4), 10)] = 1;
+      years[new Date().getFullYear()] = 1;
+      years[sel.year] = 1;
+      var yearList = Object.keys(years).map(Number).sort(function(a, b){ return b - a; });
+      function hasYm(y, m){
+        var ym = y + '-' + _ckPad2(m);
+        return !!arch[ym] || ym === liveYm;
+      }
+      var html = '<select class="ck-year-sel" onchange="ckSetYear(this.value)">';
+      yearList.forEach(function(y){
+        html += '<option value="' + y + '"' + (y === sel.year ? ' selected' : '') + '>' + y + '</option>';
+      });
+      html += '</select>';
+      for (var m = 1; m <= 12; m++){
+        var pid = 'M' + m;
+        var active = sel.period === pid;
+        var has = hasYm(sel.year, m);
+        html += '<button class="ck-period-chip' + (active ? ' active' : '') + (has ? ' has-data' : '') + '" onclick="ckSetPeriod(' + sel.year + ',\'' + pid + '\')">' + m + '月</button>';
+      }
+      html += '<span style="width:6px;"></span>';
+      for (var q = 1; q <= 4; q++){
+        var qid = 'Q' + q;
+        var qActive = sel.period === qid;
+        var qHas = [q*3-2, q*3-1, q*3].some(function(m2){ return hasYm(sel.year, m2); });
+        html += '<button class="ck-period-chip ck-q-chip' + (qActive ? ' active' : '') + (qHas ? ' has-data' : '') + '" onclick="ckSetPeriod(' + sel.year + ',\'' + qid + '\')">' + qid + '</button>';
+      }
+      bar.innerHTML = html;
+    }
     function ckSortBy(col){
       if (ckSortCol === col) ckSortDir *= -1;
       else { ckSortCol = col; ckSortDir = -1; }
@@ -6133,8 +6404,7 @@
     function _ckNum(v){ var n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? 0 : n; }
 
     // 把 checkin byKey（'學院|承辦人'）+ perfp 員工合併成 region 名單
-    function ckBuildRows(orgs){
-      var ck = ckGetCheckin(), pp = ppGetData();
+    function ckBuildRows(orgs, ck, pp){
       var map = {};
       function ensure(org, name){
         if (!name) return null;
@@ -6173,22 +6443,27 @@
       });
 
       var region = CK_REGIONS[ckRegion] || CK_REGIONS.central;
-      var ck = ckGetCheckin(), pp = ppGetData();
       var body = document.getElementById('ckBody');
       var info = document.getElementById('ckUpdateInfo');
       if (!body) return;
 
+      // ★ 自動封存最新同步的月份 + 解析選定期間 + 期間切換列
+      try { ckArchiveCurrent(); } catch(e){}
+      var resolved = ckResolveData();
+      var ck = resolved.ck, pp = resolved.pp;
+      try { ckRenderPeriodBar(resolved); } catch(e){ console.warn('[ck] period bar', e); }
+
       // 更新時間資訊
       if (info){
         var bits = [];
-        if (ck && ck.meta) bits.push(ck.meta.year + '/' + ck.meta.month + ' 報到');
+        if (resolved.label) bits.push('📅 ' + resolved.label);
         if (ck && ck.meta && ck.meta.rsStart) bits.push('到月底:' + ck.meta.rsStart + '→' + ck.meta.rsEnd);
         try { var u = localStorage.getItem(_ckCid() + 'motiv_updated_at'); if (u) bits.push('同步於 ' + u); } catch(e){}
         info.textContent = bits.join(' · ');
       }
 
       if (!ck && !pp){
-        body.innerHTML = '<div class="ck-empty">尚無資料 — 請到「🏆 激勵」分頁按「🔄 同步資料」（需更新擴充至 v4.8 並登入 EIP）</div>';
+        body.innerHTML = '<div class="ck-empty">' + (resolved.label ? resolved.label + ' 沒有封存資料 — 該月有同步過才會留下記錄' : '尚無資料 — 請到「🏆 激勵」分頁按「🔄 同步資料」（需更新擴充至 v4.9 並登入 EIP）') + '</div>';
         return;
       }
 
@@ -6225,7 +6500,7 @@
       left += '</div>';
 
       // ── 右側：個人排名表 ──
-      var rows = ckBuildRows(region.orgs);
+      var rows = ckBuildRows(region.orgs, ck, pp);
       rows.sort(function(a, b){
         var d = (b[ckSortCol] || 0) - (a[ckSortCol] || 0);
         if (d === 0) d = (b.total || 0) - (a.total || 0);
