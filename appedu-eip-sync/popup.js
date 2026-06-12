@@ -738,7 +738,7 @@ function computeChannels(moneyRows, perfPData, year, month){
 }
 
 // ── 注入資料到目前開啟的頁面 ──
-async function injectData(academyData, salesData, groupData, reserveData, year, month, checkinData, perfPData, channelData){
+async function injectData(academyData, salesData, groupData, reserveData, year, month, checkinData, perfPData, channelData, isPartial){
   var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tabs || tabs.length === 0) throw new Error('找不到目前頁面');
 
@@ -748,7 +748,7 @@ async function injectData(academyData, salesData, groupData, reserveData, year, 
 
   await chrome.scripting.executeScript({
     target: { tabId: tabs[0].id, allFrames: true }, // ★ v4.9：業績數據中心在 iframe 內，allFrames 才能即時重新渲染
-    func: function(academy, sales, groupPerf, reservePerf, periodMeta, updateTime, checkin, perfP, channelData){
+    func: function(academy, sales, groupPerf, reservePerf, periodMeta, updateTime, checkin, perfP, channelData, isPartial){
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
 
@@ -788,12 +788,12 @@ async function injectData(academyData, salesData, groupData, reserveData, year, 
       // ★ v5.0：各通路績效 自動套用 + 重新渲染
       if (typeof window.chApplyAutoSync === 'function'){ try{ window.chApplyAutoSync(); }catch(e){} }
 
-      // 4) ★ 自動儲存到 archive（解決「忘了存」的痛點）
-      if (typeof window._motivAutoSaveAfterSync === 'function') {
+      // 4) ★ 自動儲存到 archive（解決「忘了存」的痛點）— 先行注入(isPartial)時不儲存，避免覆蓋對話框跳兩次
+      if (!isPartial && typeof window._motivAutoSaveAfterSync === 'function') {
         try{ window._motivAutoSaveAfterSync(); }catch(e){}
       }
     },
-    args: [academyData, salesData, groupData || [], reserveData || [], { year: year, month: month }, timeStr, checkinData || null, perfPData || null]
+    args: [academyData, salesData, groupData || [], reserveData || [], { year: year, month: month }, timeStr, checkinData || null, perfPData || null, channelData || null, !!isPartial]
   });
 }
 
@@ -846,6 +846,12 @@ async function doSync(){
     var rUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_d2.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
     var rHtml = await fetchEipPage(rUrl);
     var reserveData = extractGroupPerformance(rHtml);
+
+    // ★ v5.2：核心資料（學院/業務/小組）抓完先立即注入頁面，避免後面慢活拖久 / popup 被關掉導致學院排名沒更新
+    setStatus('⏳ 學院/業務/小組已更新，繼續同步報到與通路績效...');
+    try {
+      await injectData(academyData, salesData, groupData, reserveData, year, month, null, null, null, true);
+    } catch(e){ console.warn('[EIP] 核心資料先行注入失敗: ' + e.message); }
 
     // 5. ★ v4.9：報到統計（已報到/網路/到月底）
     var checkinData = null;

@@ -6150,6 +6150,10 @@
             if (info){ info.textContent = '✅ ' + d.msg + ' · ⚠️ 自動儲存失敗（請手動點 💾）'; info.style.color = '#e6a817'; }
           }
           if (btn){ btn.disabled = false; btn.textContent = '🔄 同步資料'; }
+        } else if (d.type === 'partial'){
+          // ★ v5.2：核心資料（學院/業務/小組）先到先更新，不等後面的報到/通路慢活
+          motivLoadData(); motivRenderAll();
+          if (info){ info.textContent = '⏳ ' + (d.msg || '核心資料已更新，繼續同步...'); info.style.color = '#e6a817'; }
         } else if (d.type === 'error'){
           window.removeEventListener('message', onMsg);
           if (info){ info.textContent = '❌ ' + d.msg; info.style.color = '#ff6b6b'; }
@@ -6178,10 +6182,11 @@
           window.removeEventListener('message', onMsg);
           btn.disabled = false; btn.textContent = '🔄 同步資料';
           if (info && info.textContent.indexOf('⏳') >= 0){
-            info.textContent = '⚠️ 同步逾時，請確認已登入 EIP'; info.style.color = '#ff6b6b';
+            // ★ v5.2：核心資料（學院/業務/小組）已在 partial 階段先寫入，逾時也不影響學院排名
+            info.textContent = '⚠️ 報到/通路績效同步較久或逾時，但學院/業務排名已更新'; info.style.color = '#e6a817';
           }
         }
-      }, 120000); // ★ v4.8 同步項目變多（報到 3 查詢 + 7 學院績效），逾時放寬到 2 分鐘
+      }, 300000); // ★ v5.2 報到 38 頁 + 收支 47 頁可能較久，逾時放寬到 5 分鐘
     }
 
     // ========== 報到排名（tab-6）+ 當月績效（tab-7） ==========

@@ -743,6 +743,28 @@
       var rHtml = await fetchViaBackground(rUrl);
       var reserveData = extractGroupPerformance(rHtml);
 
+      // ★ v5.2：核心資料（學院/業務/小組）抓完先立即寫入 + 通知頁面更新
+      //   避免後面報到/收支等慢活拖久或逾時，導致學院排名一直停在舊資料
+      (function(){
+        var cid0 = '';
+        try { var aid0 = localStorage.getItem('activeCharacterId'); if (aid0) cid0 = 'char_' + aid0 + '_'; } catch(e){}
+        try { localStorage.setItem(cid0 + 'motiv_academy_v1', JSON.stringify(academyData)); } catch(e){}
+        try { localStorage.setItem(cid0 + 'motiv_sales_v1', JSON.stringify(salesData)); } catch(e){}
+        try { localStorage.setItem(cid0 + 'motiv_group_performance_v1', JSON.stringify(groupData)); } catch(e){}
+        try { localStorage.setItem(cid0 + 'motiv_group_performance_meta', JSON.stringify({ year: year, month: month })); } catch(e){}
+        try { localStorage.setItem(cid0 + 'motiv_reserve_performance_v1', JSON.stringify(reserveData)); } catch(e){}
+        try { localStorage.setItem(cid0 + 'motiv_reserve_performance_meta', JSON.stringify({ year: year, month: month })); } catch(e){}
+      })();
+      notify('partial', {
+        academy: academyData,
+        sales: salesData,
+        groupPerformance: groupData,
+        groupMeta: { year: year, month: month },
+        reservePerformance: reserveData,
+        reserveMeta: { year: year, month: month },
+        msg: '學院/業務/小組已更新，繼續同步報到與通路績效...'
+      });
+
       // ★ v4.8 新增：報到統計（已報到 / 網路已報到 / 到月底預約報到）
       var checkinData = null;
       try {
