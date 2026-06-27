@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏆 通路王嘉許牆</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{ --maxw:420px; }
+  html{ scroll-snap-type:y proximity; scroll-padding-top:118px; scroll-behavior:smooth; }
+  body{
+    font-family:'PingFang TC','Microsoft JhengHei',sans-serif; color:#fff;
+    background:#07070e; min-height:100vh; padding-bottom:80px;
+    transition:background .5s;
+  }
+  /* ===== theme page backgrounds ===== */
+  body.theme-a{ background:radial-gradient(ellipse at 50% -5%,#21264d,#080a16 65%); }
+  body.theme-b{ background:#06060f; }
+  body.theme-b::before{ content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,230,255,.022) 3px 4px);}
+  body.theme-c{ background:radial-gradient(ellipse at 50% 30%,#171109,#050402 75%); }
+  body.theme-d{ background:#0a0612; }
+  body.theme-d::before{ content:'';position:fixed;top:50%;left:50%;width:160vw;height:160vw;transform:translate(-50%,-50%);background:conic-gradient(from 0deg,#ff5cc8,#ffd35c,#5cff9e,#5cc8ff,#a05cff,#ff5cc8);opacity:.08;animation:spin 16s linear infinite;filter:blur(20px);pointer-events:none;z-index:0;}
+  @keyframes spin{ to{ transform:translate(-50%,-50%) rotate(360deg);} }
+
+  /* ===== header ===== */
+  header{ position:sticky; top:0; z-index:20; backdrop-filter:blur(14px); background:rgba(10,10,20,.72); border-bottom:1px solid rgba(255,255,255,.08); }
+  .hwrap{ max-width:var(--maxw); margin:0 auto; padding:10px 14px 8px; }
+  .htop{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .htitle{ font-size:1.05rem; font-weight:800; letter-spacing:1px; background:linear-gradient(90deg,#ffd35c,#ff7ac0,#7ad0ff);-webkit-background-clip:text;background-clip:text;color:transparent; }
+  .month-pill{ font-size:.72rem; padding:4px 11px; border-radius:20px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); color:#ffe; cursor:pointer; white-space:nowrap; }
+  .switch-row{ display:flex; gap:6px; margin-top:9px; }
+  .tbtn{ flex:1; font-size:.7rem; padding:7px 2px; border-radius:9px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:#bcbcd4; cursor:pointer; font-weight:700; transition:.2s; text-align:center; line-height:1.25; }
+  .tbtn b{ display:block; font-size:.82rem; }
+  .tbtn.on{ color:#fff; border-color:transparent; }
+  body.theme-a .tbtn.on{ background:linear-gradient(135deg,#ffd35c,#ff9a3c); color:#1a1a1a; }
+  body.theme-b .tbtn.on{ background:linear-gradient(135deg,#00e6ff,#7a5cff); }
+  body.theme-c .tbtn.on{ background:linear-gradient(135deg,#e7c97a,#9c7a30); color:#1a1a1a; }
+  body.theme-d .tbtn.on{ background:linear-gradient(135deg,#ff5cc8,#ffd35c); color:#1a1a1a; }
+  .auto-tag{ font-size:.6rem; color:#8a8aa6; text-align:center; margin-top:6px; }
+  .auto-tag span{ color:#ffd35c; }
+
+  /* month sheet */
+  .msheet{ display:none; position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); }
+  .msheet.open{ display:block; }
+  .msheet-inner{ position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:100%; max-width:var(--maxw); background:#14141f; border-radius:18px 18px 0 0; padding:18px 16px 30px; }
+  .msheet-inner h3{ font-size:.92rem; margin-bottom:12px; color:#ffd35c; }
+  .mgrid{ display:flex; flex-wrap:wrap; gap:8px; }
+  .mopt{ font-size:.78rem; padding:8px 13px; border-radius:10px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13); color:#ddd; cursor:pointer; }
+  .mopt.on{ background:linear-gradient(135deg,#ffd35c,#ff9a3c); color:#1a1a1a; border-color:transparent; font-weight:800; }
+  .mclose{ display:block; width:100%; margin-top:16px; padding:11px; border:none; border-radius:11px; background:rgba(255,255,255,.1); color:#fff; font-size:.85rem; cursor:pointer; }
+
+  /* ===== sections & cards ===== */
+  main{ width:100%; margin:0 auto; padding:0; position:relative; z-index:1; }
+  .ind-section{ max-width:var(--maxw); margin:0 auto; padding:18px 16px 0; }
+  .acad-section{ max-width:1180px; margin:0 auto; padding:6px 14px 0; }
+  .acad-grid{ display:grid; gap:14px; grid-template-columns:repeat(2,1fr); align-items:start; }
+  @media(min-width:560px){ .acad-grid{ grid-template-columns:repeat(3,1fr); } }
+  @media(min-width:880px){ .acad-grid{ grid-template-columns:repeat(5,1fr); } }
+  /* 學院卡：縮小成可一次看到五張的網格版（不影響個人王大卡） */
+  body.theme-a .acad-grid .king-card, body.theme-b .acad-grid .king-card,
+  body.theme-c .acad-grid .king-card, body.theme-d .acad-grid .king-card{ max-width:none !important; width:auto !important; padding:16px 11px 13px !important; }
+  .acad-grid .king-card{ margin:0; scroll-snap-align:none; }
+  .acad-grid .kc-photo-wrap{ width:70px; height:70px; margin:0 auto 8px; }
+  .acad-grid .kc-photo{ width:70px; height:70px; }
+  .acad-grid .kc-ch{ font-size:.6rem; letter-spacing:1px; }
+  .acad-grid .kc-title{ font-size:.98rem; margin:3px 0 8px; }
+  .acad-grid .kc-name{ font-size:.9rem; }
+  .acad-grid .kc-val{ font-size:1.18rem; margin:0 0 4px; }
+  .acad-grid .kc-stamp{ display:none; }
+  .acad-grid .stars{ display:none !important; }
+  .acad-grid .kc-runners{ padding-top:8px; margin-top:4px; }
+  .acad-grid .kc-runner{ font-size:.68rem; padding:3px 2px; gap:5px; }
+  .acad-grid .kc-runner .rk{ width:15px; height:15px; font-size:.56rem; }
+  .acad-grid .photo-edit,.acad-grid .photo-clear{ width:24px; height:24px; font-size:.62rem; }
+  .acad-grid .ssr-stamp{ font-size:.6rem; padding:2px 7px; top:8px; right:8px; }
+  .sec-title{ text-align:center; font-size:.92rem; letter-spacing:3px; color:#cfcfe6; margin:26px 0 18px; position:relative; }
+  .sec-title::before,.sec-title::after{ content:''; display:inline-block; width:34px; height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,.4)); vertical-align:middle; margin:0 10px; }
+  .sec-title::after{ background:linear-gradient(90deg,rgba(255,255,255,.4),transparent); }
+
+  .king-card{ position:relative; margin:0 auto 30px; scroll-snap-align:center; overflow:hidden; }
+  .kc-fx{ position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:2; }
+
+  .kc-body{ position:relative; z-index:3; }
+  .kc-ch{ text-align:center; font-size:.74rem; letter-spacing:3px; }
+  .kc-ico{ font-size:1rem; margin-right:4px; }
+  .kc-title{ text-align:center; font-weight:900; font-size:1.5rem; margin:4px 0 16px; }
+  .kc-photo{ width:118px; height:118px; margin:0 auto 12px; border-radius:50%; display:grid; place-items:center; font-size:3rem; overflow:hidden; }
+  .kc-photo img{ width:100%; height:100%; object-fit:cover; }
+  .kc-name{ text-align:center; font-weight:800; font-size:1.35rem; }
+  .kc-val{ text-align:center; font-size:2.5rem; font-weight:900; letter-spacing:1px; margin:2px 0 4px; }
+  .kc-stamp{ text-align:center; margin-bottom:12px; }
+  .kc-runners{ list-style:none; border-top:1px dashed rgba(255,255,255,.14); padding-top:12px; margin-top:6px; }
+  .kc-runner{ display:flex; align-items:center; gap:9px; font-size:.86rem; padding:6px 4px; }
+  .kc-runner .rk{ width:20px; height:20px; border-radius:50%; background:rgba(255,255,255,.13); display:grid; place-items:center; font-size:.68rem; flex-shrink:0; }
+  .kc-runner .rn{ flex-shrink:0; }
+  .kc-runner .meter{ flex:1; height:6px; border-radius:3px; background:rgba(255,255,255,.08); overflow:hidden; display:none; }
+  .kc-runner .meter i{ display:block; height:100%; border-radius:3px; }
+  .kc-runner .rv{ margin-left:auto; font-weight:700; }
+  .no-photo-emoji{ filter:grayscale(.2); }
+  .kc-photo-wrap{ position:relative; width:118px; height:118px; margin:0 auto 12px; }
+  .kc-photo-wrap .kc-photo{ margin:0; }
+  .photo-edit,.photo-clear{ position:absolute; border:none; cursor:pointer; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:.78rem; z-index:6; box-shadow:0 2px 8px rgba(0,0,0,.5); }
+  .photo-edit{ right:-4px; bottom:-4px; background:rgba(20,20,30,.82); color:#fff; border:1px solid rgba(255,255,255,.35); }
+  .photo-edit:active{ transform:scale(.9); }
+  .photo-clear{ right:-4px; top:-4px; background:rgba(220,70,70,.92); color:#fff; }
+  /* 輸出版不顯示編輯鈕 */
+  .export-banner ~ main .photo-edit, .export-banner ~ main .photo-clear{ display:none; }
+
+  /* ============ THEME A : 體育場冠軍聚光燈 ============ */
+  body.theme-a .king-card{ width:100%; max-width:360px; background:linear-gradient(180deg,#1b2046,#0f1228); border:1.5px solid rgba(255,210,120,.4); border-radius:20px; padding:26px 22px 22px; box-shadow:0 12px 50px rgba(255,200,110,.16); }
+  body.theme-a .king-card::before{ content:''; position:absolute; top:-50%; left:50%; width:60%; height:160%; transform:translateX(-50%); background:conic-gradient(from 180deg at 50% 0,transparent 76deg,rgba(255,225,150,.14) 90deg,transparent 104deg); }
+  body.theme-a .kc-ch{ color:#c7c2ff; }
+  body.theme-a .kc-title{ color:#ffd35c; text-shadow:0 0 18px rgba(255,200,90,.5); }
+  body.theme-a .kc-photo{ background:radial-gradient(circle,#3a3f6e,#1a1d3a); border:4px solid #ffd35c; box-shadow:0 0 30px rgba(255,205,90,.5); animation:floaty 3.4s ease-in-out infinite; }
+  @keyframes floaty{ 50%{ transform:translateY(-7px);} }
+  body.theme-a .kc-val{ color:#ffd35c; text-shadow:0 0 20px rgba(255,200,90,.4); }
+  body.theme-a .kc-runner .rv{ color:#ffd99a; }
+  .confetti{ position:absolute; width:8px; height:9px; opacity:.9; animation:fall linear infinite; }
+  @keyframes fall{ 0%{ transform:translateY(-20px) rotate(0); } 100%{ transform:translateY(560px) rotate(540deg); opacity:0; } }
+
+  /* ============ THEME B : 電競霓虹排行榜 ============ */
+  body.theme-b .king-card{ width:100%; max-width:360px; background:linear-gradient(160deg,#0d1530,#0a0a1a); border-radius:16px; padding:24px 20px 20px; clip-path:polygon(0 0,100% 0,100% 94%,94% 100%,0 100%); border:1px solid rgba(0,230,255,.45); box-shadow:0 0 36px rgba(0,200,255,.22),inset 0 0 26px rgba(255,0,200,.07); }
+  body.theme-b .king-card::after{ content:''; position:absolute; inset:0; box-shadow:inset 0 0 0 1px rgba(0,230,255,.6); clip-path:polygon(0 0,100% 0,100% 94%,94% 100%,0 100%); animation:pulseB 1.8s ease-in-out infinite; pointer-events:none; }
+  @keyframes pulseB{ 50%{ opacity:.3; } }
+  body.theme-b .kc-ch{ color:#ff5cc8; }
+  body.theme-b .kc-title{ color:#00e6ff; text-shadow:0 0 16px rgba(0,230,255,.7); }
+  body.theme-b .kc-photo{ border-radius:14px; background:linear-gradient(135deg,#1a2350,#10132b); border:1.5px solid rgba(0,230,255,.55); box-shadow:0 0 22px rgba(0,230,255,.4); }
+  body.theme-b .kc-val{ color:#fff; text-shadow:0 0 18px rgba(0,230,255,.8); }
+  body.theme-b .kc-runner .meter{ display:block; }
+  body.theme-b .kc-runner .meter i{ background:linear-gradient(90deg,#00e6ff,#7a5cff); }
+  body.theme-b .kc-runner .rv{ color:#7ad0ff; }
+  body.theme-b .kc-runner .rn{ color:#9fb6d6; }
+
+  /* ============ THEME C : 金色奧斯卡尊榮 ============ */
+  body.theme-c .king-card{ width:100%; max-width:350px; background:linear-gradient(180deg,#15110a,#0c0a06); border:1px double rgba(220,180,100,.55); border-radius:8px; padding:28px 22px 24px; box-shadow:0 0 46px rgba(200,160,80,.14); }
+  body.theme-c .king-card::before{ content:''; position:absolute; inset:8px; border:1px solid rgba(220,180,100,.3); border-radius:4px; pointer-events:none; }
+  body.theme-c .kc-ch{ color:#9c8a64; letter-spacing:5px; }
+  body.theme-c .kc-title{ font-family:Georgia,'Songti TC',serif; letter-spacing:5px; background:linear-gradient(180deg,#fbe7a8,#c79a45);-webkit-background-clip:text;background-clip:text;color:transparent; }
+  body.theme-c .kc-photo{ background:radial-gradient(circle,#2a2114,#140f08); border:2px solid #d9b76a; box-shadow:0 0 0 5px rgba(217,183,106,.12),0 0 26px rgba(217,183,106,.4); }
+  body.theme-c .kc-name{ font-family:Georgia,'Songti TC',serif; color:#f4e3b6; letter-spacing:2px; }
+  body.theme-c .kc-val{ color:#e7c97a; }
+  body.theme-c .kc-runners{ border-top:1px solid transparent; border-image:linear-gradient(90deg,transparent,rgba(217,183,106,.5),transparent) 1; }
+  body.theme-c .kc-runner .rk{ background:rgba(217,183,106,.18); color:#e7c97a; }
+  body.theme-c .kc-runner .rv{ color:#d9b76a; }
+  body.theme-c .kc-runner .rn{ color:#b6a884; }
+  .dust{ position:absolute; width:3px; height:3px; border-radius:50%; background:#e7c97a; opacity:.6; animation:rise linear infinite; }
+  @keyframes rise{ 0%{ transform:translateY(40px); opacity:0;} 30%{opacity:.7;} 100%{ transform:translateY(-420px); opacity:0; } }
+
+  /* ============ THEME D : 抽卡 SSR 召喚 ============ */
+  body.theme-d .king-card{ width:100%; max-width:340px; border-radius:20px; padding:3px; background:linear-gradient(135deg,#ff5cc8,#ffd35c,#5cc8ff,#a05cff); background-size:300% 300%; animation:holo 5s ease infinite; box-shadow:0 8px 50px rgba(255,150,230,.4); }
+  @keyframes holo{ 50%{ background-position:100% 100%; } }
+  body.theme-d .kc-inner{ background:linear-gradient(180deg,#160d24,#0c0716); border-radius:17px; padding:24px 20px 22px; position:relative; overflow:hidden; }
+  body.theme-d .kc-inner::before{ content:''; position:absolute; top:-60%; left:-40%; width:55%; height:230%; background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent); transform:rotate(20deg); animation:sheen 4s ease-in-out infinite; pointer-events:none; }
+  @keyframes sheen{ 0%,68%{ left:-45%;} 100%{ left:135%;} }
+  body.theme-d .kc-ch{ color:#b69adf; }
+  body.theme-d .kc-title{ background:linear-gradient(90deg,#ffd35c,#ff9ad2,#9ad2ff);-webkit-background-clip:text;background-clip:text;color:transparent; }
+  body.theme-d .kc-photo{ border-radius:18px; background:radial-gradient(circle,#2a1d44,#140b22); border:2px solid rgba(255,210,120,.7); box-shadow:0 0 30px rgba(255,150,230,.6); }
+  body.theme-d .kc-val{ color:#ffd35c; text-shadow:0 0 20px rgba(255,200,90,.7); }
+  body.theme-d .kc-runner .rk{ background:rgba(255,210,120,.18); color:#ffd35c; }
+  body.theme-d .kc-runner .rv{ color:#ffce8a; }
+  body.theme-d .kc-runner .rn{ color:#c3b0e0; }
+  .ssr-stamp{ position:absolute; top:14px; right:14px; z-index:4; font-size:.78rem; font-weight:900; color:#160d24; background:linear-gradient(90deg,#ffd35c,#ff9ad2); padding:3px 11px; border-radius:20px; letter-spacing:1px; box-shadow:0 0 14px rgba(255,210,90,.7); }
+  .stars{ text-align:center; color:#ffd35c; font-size:.95rem; letter-spacing:3px; margin:-2px 0 8px; }
+
+  /* default stamp text per theme (set via JS adds class) */
+  .gold-stamp{ display:inline-block; font-size:.72rem; font-weight:800; letter-spacing:2px; padding:3px 12px; border-radius:6px; }
+  body.theme-a .gold-stamp{ background:rgba(255,210,120,.15); color:#ffd35c; border:1px solid rgba(255,210,120,.4); }
+  body.theme-b .gold-stamp{ background:linear-gradient(90deg,#00e6ff,#7a5cff); color:#06060f; }
+  body.theme-c .gold-stamp{ background:transparent; color:#d9b76a; letter-spacing:6px; }
+  body.theme-d .stamp-hide{ display:none; }
+
+  .export-btn{ display:block; width:100%; margin-top:9px; padding:10px; border:none; border-radius:11px; font-size:.84rem; font-weight:800; letter-spacing:1px; cursor:pointer; color:#1a1a1a; background:linear-gradient(90deg,#ffd35c,#ff9ad2); box-shadow:0 4px 16px rgba(255,160,200,.3); }
+  .export-banner{ max-width:var(--maxw); margin:0 auto; padding:20px 16px 4px; text-align:center; font-size:1.2rem; font-weight:800; letter-spacing:1px; background:linear-gradient(90deg,#ffd35c,#ff7ac0,#7ad0ff);-webkit-background-clip:text;background-clip:text;color:transparent; position:relative; z-index:1; }
+  .empty{ max-width:var(--maxw); margin:60px auto; padding:0 24px; text-align:center; color:#9a9ab0; line-height:2; font-size:.92rem; }
+  .empty b{ color:#ffd35c; }
+
+  .topbtn{ position:fixed; right:16px; bottom:18px; z-index:30; width:46px; height:46px; border-radius:50%; border:none; background:rgba(255,255,255,.12); backdrop-filter:blur(8px); color:#fff; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,.4); }
+</style>
+</head>
+<body>
+  <header>
+    <div class="hwrap">
+      <div class="htop">
+        <div class="htitle">🏆 通路王嘉許牆</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <div class="month-pill" id="refreshBtn" onclick="reloadData()" title="重新抓資料">🔄</div>
+          <div class="month-pill" id="monthPill" onclick="openMonth()">📅 載入中</div>
+        </div>
+      </div>
+      <div class="switch-row" id="switchRow">
+        <button class="tbtn" data-t="a" onclick="setTheme('a',true)"><b>A</b>冠軍聚光</button>
+        <button class="tbtn" data-t="b" onclick="setTheme('b',true)"><b>B</b>電競霓虹</button>
+        <button class="tbtn" data-t="c" onclick="setTheme('c',true)"><b>C</b>奧斯卡金</button>
+        <button class="tbtn" data-t="d" onclick="setTheme('d',true)"><b>D</b>抽卡SSR</button>
+      </div>
+      <div class="auto-tag" id="autoTag"></div>
+      <button class="export-btn" onclick="exportHTML()">📤 輸出這個版本（鎖定目前風格＋月份，給人看 / 分享用）</button>
+    </div>
+  </header>
+
+  <main id="main"></main>
+
+  <div class="msheet" id="msheet">
+    <div class="msheet-inner">
+      <h3>📅 選擇月份 / 季度</h3>
+      <div class="mgrid" id="mgrid"></div>
+      <button class="mclose" onclick="closeMonth()">關閉</button>
+    </div>
+  </div>
+
+  <button class="topbtn" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+  <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="onPhotoFile(this)">
+
+<script>
+/* ======================= 資料來源（與績效對比頁同一 localStorage）======================= */
+const CH = [
+  { key:'net',      name:'網際網路', icon:'🌐' },
+  { key:'purchase', name:'學員加購', icon:'🛒' },
+  { key:'event',    name:'展場活動', icon:'🎪' },
+  { key:'referral', name:'學員介紹', icon:'🤝' },
+  { key:'admin',    name:'班務追回', icon:'📋' },
+  { key:'cash',     name:'現＋刷',   icon:'💳' }
+];
+const KING_TITLES = { net:'網路王', purchase:'加購王', event:'展場王', referral:'介紹王', admin:'班務王', cash:'現金王' };
+const ACAD_TITLES = { net:'學院網路王', purchase:'學院加購王', event:'學院展場王', referral:'學院介紹王', admin:'學院班務王' };
+
+function readJSON(k, fb){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):fb; }catch(e){ return fb; } }
+const DEFAULT_ACADEMIES=['高雄建國','中壢學院','中壢二部','台中一部','中壢三部','台中三部','台中二部'];
+
+/* ---- 自動掃描整個 localStorage，找出所有「通路績效」資料，不靠固定 key 名稱 ---- */
+function isMotivShape(o){ return !!(o && o.meta && o.channels && parseInt(o.meta.month,10)>=1 && parseInt(o.meta.month,10)<=12); }
+function isChDataShape(o){ if(!o||typeof o!=='object'||Array.isArray(o)) return false;
+  for(const k of Object.keys(o)){ const m=parseInt(k,10); if(m>=1&&m<=12 && o[k]&&typeof o[k]==='object' && CH.some(ch=>o[k][ch.key])) return true; }
+  return false; }
+function motivToChannels(data){ const out={};
+  CH.forEach(ch=>{ const src=data.channels[ch.key];
+    if(!src){ out[ch.key]={ranking:[],academies:[]}; return; }
+    const amap={}; (src.academies||[]).forEach(a=>{amap[a.name]=a.value;});
+    const acs=DEFAULT_ACADEMIES.map(n=>({name:n,value:amap[n]||0}));
+    (src.academies||[]).forEach(a=>{ if(DEFAULT_ACADEMIES.indexOf(a.name)<0) acs.push({name:a.name,value:a.value}); });
+    acs.sort((a,b)=>b.value-a.value);
+    out[ch.key]={ ranking:src.ranking||[], academies:acs };
+  });
+  return out;
+}
+let _scan=null;
+function scanSources(){
+  const master={}, sources=[], allKeys=[];
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i); allKeys.push(key);
+    let val; try{ val=JSON.parse(localStorage.getItem(key)); }catch(e){ continue; }
+    // 1) 歷史/同步型（{ 月:{ 通路:{ranking,academies} } }）先鋪底
+    if(isChDataShape(val)){
+      let mhit=[];
+      Object.keys(val).forEach(k=>{ const m=parseInt(k,10); if(m>=1&&m<=12){ master[m]=master[m]||{}; CH.forEach(ch=>{ if(val[k][ch.key]&&!master[m][ch.key]) master[m][ch.key]=val[k][ch.key]; }); mhit.push(m); } });
+      if(mhit.length) sources.push({key,type:'歷史/同步',months:[...new Set(mhit)].sort((a,b)=>a-b)});
+    }
+  }
+  // 2) EIP 當月型（{meta:{month},channels:{...}}）後蓋，優先級高
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i); let val; try{ val=JSON.parse(localStorage.getItem(key)); }catch(e){ continue; }
+    if(isMotivShape(val)){ const m=parseInt(val.meta.month,10); const per=motivToChannels(val);
+      master[m]=master[m]||{}; CH.forEach(ch=>{ master[m][ch.key]=per[ch.key]; });
+      sources.push({key,type:'EIP當月',months:[m]}); }
+  }
+  _scan={master,sources,allKeys};
+  return _scan;
+}
+function getScan(){ return _scan || scanSources(); }
+function getChData(){ return getScan().master; }
+function getMotivOverlay(){ const s=getScan().sources.filter(x=>x.type==='EIP當月'); if(!s.length) return null; return { month:s[s.length-1].months[0] }; }
+function getCastle(){ return readJSON('castle_cards_v1', []); }
+function getAssign(){ const a=readJSON('perf_compare_v1_honor_assign_v1', {individual:{},academy:{}}); a.individual=a.individual||{}; a.academy=a.academy||{}; return a; }
+
+function fmtComma(n){ return (n||0).toString().replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function fmtWan(n){ if(!n) return '—'; return fmtComma(Math.round(n/10000))+'萬'; }
+
+function findCastleCard(name){ if(!name) return null; const cs=getCastle(); return cs.find(c=>c.name && c.name.trim()===name.trim() && c.photo) || null; }
+function cardById(id){ if(id==null) return null; const cs=getCastle(); return cs.find(c=>String(c.id)===String(id) && c.photo) || null; }
+function matchAcademyCard(acadName){ if(!acadName) return null;
+  const cs=getCastle().filter(c=>c.photo && ['yellow','purple','black','blue'].includes(c.color) && c.name);
+  let m=cs.find(c=>c.name.trim()===acadName.trim()); if(m) return m;
+  m=cs.find(c=>c.name.includes(acadName)); if(m) return m;
+  let best=null,bl=0; cs.forEach(c=>{ if(acadName.includes(c.name.trim()) && c.name.trim().length>bl){bl=c.name.trim().length;best=c;} });
+  return best;
+}
+
+/* ======================= 月份 / 季度偵測與聚合 ======================= */
+function monthHasData(d,m){ if(!d[m]) return false; return CH.some(ch=>{ const x=d[m][ch.key]||{}; return (x.ranking||[]).length>0 || (x.academies||[]).some(a=>a.value>0); }); }
+function availableMonths(){ const d=getChData(); const out=[]; for(let m=1;m<=12;m++){ if(monthHasData(d,m)) out.push(m); } return out; }
+const QUARTERS=[{q:1,ms:[1,2,3]},{q:2,ms:[4,5,6]},{q:3,ms:[7,8,9]},{q:4,ms:[10,11,12]}];
+function availableQuarters(){ const d=getChData(); return QUARTERS.filter(Q=>Q.ms.some(m=>monthHasData(d,m))); }
+
+function channelsForMonth(m){ const d=getChData();
+  return CH.map(ch=>{ const x=d[m]?.[ch.key]||{};
+    return { chKey:ch.key, chName:ch.name, icon:ch.icon,
+      ranking:[...(x.ranking||[])].sort((a,b)=>b.value-a.value),
+      academies:[...(x.academies||[])].sort((a,b)=>b.value-a.value) }; });
+}
+function channelsForQuarter(ms){ const d=getChData();
+  return CH.map(ch=>{ const pm={},am={};
+    ms.forEach(m=>{ (d[m]?.[ch.key]?.ranking||[]).forEach(p=>{pm[p.name]=(pm[p.name]||0)+p.value;});
+                    (d[m]?.[ch.key]?.academies||[]).forEach(a=>{ if(a.value) am[a.name]=(am[a.name]||0)+a.value; }); });
+    return { chKey:ch.key, chName:ch.name, icon:ch.icon,
+      ranking:Object.entries(pm).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value),
+      academies:Object.entries(am).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value) }; });
+}
+
+/* ======================= 目前選取狀態 ======================= */
+let current = null; // {label, channels}
+function selectMonth(m){ current={ label:m+'月', channels:channelsForMonth(m) }; document.getElementById('monthPill').textContent='📅 '+m+'月'; markMonthSel('m'+m); render(); closeMonth(); }
+function selectQuarter(Q){ current={ label:'Q'+Q.q, channels:channelsForQuarter(Q.ms) }; document.getElementById('monthPill').textContent='📅 '+Q.ms.join('+')+'月'; markMonthSel('q'+Q.q); render(); closeMonth(); }
+
+/* ======================= 卡片渲染 ======================= */
+/* ---- 第一名照片：本頁專屬覆寫（不影響人力發展/城堡卡），依「人名/學院名」記憶 ---- */
+function getPhotoOverrides(){ return readJSON('kingwall_photos', {}); }
+function savePhotoOverride(name, dataURL){ const o=getPhotoOverrides(); o[name]=dataURL;
+  try{ localStorage.setItem('kingwall_photos', JSON.stringify(o)); return true; }
+  catch(e){ alert('照片存不下了（瀏覽器空間已滿）。試試換小一點的圖，或先移除其他自訂照片。'); return false; } }
+function clearPhotoOverride(name){ const o=getPhotoOverrides(); delete o[name]; localStorage.setItem('kingwall_photos', JSON.stringify(o)); }
+function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+
+function photoBlock(name, card, fallbackIcon){
+  const ov=getPhotoOverrides()[name];
+  const src = ov || (card && card.photo) || null;
+  const inner = src ? `<img src="${src}" alt="">` : `<span class="no-photo-emoji">${fallbackIcon||'👤'}</span>`;
+  return `<div class="kc-photo-wrap" data-name="${escAttr(name)}">
+      <div class="kc-photo">${inner}</div>
+      <button class="photo-edit" onclick="pickPhoto(event)" title="換照片">📷</button>
+      ${ov?`<button class="photo-clear" onclick="resetPhoto(event)" title="移除自訂照片">✕</button>`:''}
+    </div>`;
+}
+
+/* 縮圖後存（最長邊 460px、JPEG 0.82），避免塞爆 localStorage */
+function fileToThumb(file, cb){
+  const r=new FileReader();
+  r.onload=()=>{ const img=new Image(); img.onload=()=>{
+    const max=460; let w=img.width, h=img.height; const sc=Math.min(1, max/Math.max(w,h));
+    w=Math.max(1,Math.round(w*sc)); h=Math.max(1,Math.round(h*sc));
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    try{ cb(c.toDataURL('image/jpeg',0.82)); }catch(e){ cb(r.result); }
+  }; img.onerror=()=>cb(r.result); img.src=r.result; };
+  r.readAsDataURL(file);
+}
+let _editingName=null;
+function pickPhoto(e){ e.stopPropagation(); const wrap=e.target.closest('.kc-photo-wrap'); if(!wrap) return; _editingName=wrap.dataset.name; document.getElementById('photoInput').click(); }
+function resetPhoto(e){ e.stopPropagation(); const wrap=e.target.closest('.kc-photo-wrap'); if(!wrap) return; clearPhotoOverride(wrap.dataset.name); render(); }
+function onPhotoFile(input){ const f=input.files&&input.files[0]; input.value=''; if(!f||!_editingName) return;
+  fileToThumb(f, dataURL=>{ if(savePhotoOverride(_editingName, dataURL)) render(); }); }
+function runnersHTML(rows, kingVal, fmt){
+  return rows.map((r,i)=>{ const pct=kingVal?Math.max(8,Math.round(r.value/kingVal*100)):0;
+    return `<li class="kc-runner"><span class="rk">${i+2}</span><span class="rn">${r.name}</span><span class="meter"><i style="width:${pct}%"></i></span><span class="rv">${fmt(r.value)}</span></li>`;
+  }).join('');
+}
+function stampHTML(){ // theme-aware label; D handled separately
+  return `<div class="kc-stamp"><span class="gold-stamp stamp-hide">CHANNEL · KING</span></div>`;
+}
+function cardInner(ch, who, title, val, photoCard, fbIcon, runners, fmt){
+  return `
+    <span class="ssr-stamp" style="display:none">SSR</span>
+    <div class="kc-body">
+      <div class="kc-ch"><span class="kc-ico">${ch.icon}</span>${title.includes('學院')?ch.chName+' 學院':ch.chName}</div>
+      <div class="kc-title">👑 ${title}</div>
+      ${photoBlock(who, photoCard, fbIcon)}
+      <div class="stars" style="display:none">★★★★★</div>
+      <div class="kc-name">${who}</div>
+      <div class="kc-val">${val}</div>
+      ${stampHTML()}
+      ${runners ? `<ul class="kc-runners">${runners}</ul>` : ''}
+    </div>`;
+}
+function buildIndividualCard(ch){
+  const top5=ch.ranking.slice(0,5); if(top5.length===0) return '';
+  const king=top5[0]; const assign=getAssign();
+  const photoCard = assign.individual[ch.chKey] ? cardById(assign.individual[ch.chKey]) : findCastleCard(king.name);
+  const title=KING_TITLES[ch.chKey]||ch.chName+'王';
+  const runners=runnersHTML(top5.slice(1), king.value, fmtWan);
+  const inner=cardInner(ch, king.name, title, fmtWan(king.value), photoCard, '👤', runners, fmtWan);
+  return `<div class="king-card" data-ch="${ch.chKey}"><div class="kc-fx"></div><div class="kc-inner">${inner}</div></div>`;
+}
+function buildAcademyCard(ch){
+  if(ch.chKey==='cash') return '';
+  const sorted=ch.academies.filter(a=>a.value>0); if(sorted.length===0) return '';
+  const top=sorted[0]; const assign=getAssign();
+  let card = assign.academy[ch.chKey] ? cardById(assign.academy[ch.chKey]) : matchAcademyCard(top.name);
+  const title=ACAD_TITLES[ch.chKey]||'學院'+ch.chName+'王';
+  const runners=runnersHTML(sorted.slice(1,5), top.value, fmtComma);
+  const inner=cardInner(ch, top.name, title, fmtComma(top.value), card, '🏫', runners, fmtComma);
+  return `<div class="king-card" data-ch="${ch.chKey}"><div class="kc-fx"></div><div class="kc-inner">${inner}</div></div>`;
+}
+
+function render(){
+  const main=document.getElementById('main');
+  if(!current){ main.innerHTML=emptyDiagnostic(); return; }
+  let ind='', acad='';
+  current.channels.forEach(ch=>{ ind+=buildIndividualCard(ch); });
+  current.channels.forEach(ch=>{ acad+=buildAcademyCard(ch); });
+  let html='';
+  if(ind) html+=`<div class="ind-section"><div class="sec-title">👤 個人通路王</div>${ind}</div>`;
+  if(acad) html+=`<div class="acad-section"><div class="sec-title">🏫 學院通路王</div><div class="acad-grid">${acad}</div></div>`;
+  if(!html) html=emptyDiagnostic();
+  main.innerHTML=html;
+  applyThemeFx();
+}
+
+/* ======================= 主題（四風格 + 每日自動輪替）======================= */
+let activeTheme='a';
+const THEME_LIST=['a','b','c','d'];
+function dayIndex(){ const d=new Date(); const s=new Date(d.getFullYear(),0,0); return Math.floor((d-s)/86400000)%4; }
+function autoTheme(){ return THEME_LIST[dayIndex()]; }
+
+function setTheme(t, manual){
+  activeTheme=t;
+  document.body.className='theme-'+t;
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
+  const autoT=autoTheme();
+  document.getElementById('autoTag').innerHTML = (t===autoT && !manual)
+    ? `今日自動風格 → <span>${labelOf(t)}</span>（可手動切換）`
+    : `目前風格：<span>${labelOf(t)}</span> ｜ 今日推薦：${labelOf(autoT)}`;
+  if(manual){ try{ localStorage.setItem('kingwall_theme', JSON.stringify({date:todayStr(), t})); }catch(e){} }
+  applyThemeFx();
+}
+function labelOf(t){ return {a:'A 冠軍聚光',b:'B 電競霓虹',c:'C 奧斯卡金',d:'D 抽卡SSR'}[t]; }
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+
+function applyThemeFx(){
+  document.querySelectorAll('.king-card').forEach(card=>{
+    const fx=card.querySelector('.kc-fx'); if(fx) fx.innerHTML='';
+    const ssr=card.querySelector('.ssr-stamp'); const stars=card.querySelector('.stars');
+    if(ssr) ssr.style.display = activeTheme==='d' ? 'block':'none';
+    if(stars) stars.style.display = activeTheme==='d' ? 'block':'none';
+    if(activeTheme==='a') makeConfetti(fx);
+    if(activeTheme==='c') makeDust(fx);
+  });
+}
+function makeConfetti(fx){ if(!fx) return; const cols=['#ffd35c','#ff7ac0','#7ad0ff','#7aff9e','#fff'];
+  for(let i=0;i<16;i++){ const c=document.createElement('div'); c.className='confetti';
+    c.style.left=(Math.random()*100)+'%'; c.style.background=cols[i%cols.length];
+    c.style.animationDuration=(2.4+Math.random()*1.8)+'s'; c.style.animationDelay=(Math.random()*3)+'s';
+    c.style.borderRadius=Math.random()>.5?'50%':'1px'; fx.appendChild(c); } }
+function makeDust(fx){ if(!fx) return;
+  for(let i=0;i<14;i++){ const d=document.createElement('div'); d.className='dust';
+    d.style.left=(Math.random()*100)+'%'; d.style.bottom='0';
+    d.style.animationDuration=(3.5+Math.random()*2.5)+'s'; d.style.animationDelay=(Math.random()*4)+'s'; fx.appendChild(d); } }
+
+/* ======================= 月份選單 ======================= */
+function openMonth(){ buildMonthSheet(); document.getElementById('msheet').classList.add('open'); }
+function closeMonth(){ document.getElementById('msheet').classList.remove('open'); }
+function buildMonthSheet(){
+  const g=document.getElementById('mgrid'); let h='';
+  availableMonths().forEach(m=>{ h+=`<div class="mopt" id="opt-m${m}" onclick="selectMonth(${m})">${m}月</div>`; });
+  availableQuarters().forEach(Q=>{ h+=`<div class="mopt" id="opt-q${Q.q}" onclick='selectQuarter(${JSON.stringify(Q)})'>Q${Q.q}（${Q.ms.join('+')}月）</div>`; });
+  if(!h) h='<div style="color:#999;font-size:.85rem;">尚未偵測到任何月份資料</div>';
+  g.innerHTML=h;
+  if(curSel) markMonthSel(curSel);
+}
+let curSel=null;
+function markMonthSel(id){ curSel=id; document.querySelectorAll('.mopt').forEach(o=>o.classList.remove('on')); const el=document.getElementById('opt-'+id); if(el) el.classList.add('on'); }
+
+/* ======================= 輸出鎖定版（無切換、資料內嵌、可離線/分享）======================= */
+function exportHTML(){
+  if(!current || !document.querySelector('.king-card')){ alert('目前沒有可輸出的卡片，先選到有資料的月份再輸出 🙂'); return; }
+  const css = document.querySelector('style').innerHTML;          // 沿用本頁全部樣式
+  const theme = activeTheme;                                       // 鎖定目前風格
+  const label = current.label;                                     // 鎖定目前月份
+  const clone = document.getElementById('main').cloneNode(true);   // 內嵌目前已渲染的卡片（含照片、彩帶等）
+  clone.querySelectorAll('.photo-edit,.photo-clear').forEach(b=>b.remove()); // 移除編輯鈕
+  const cardsHTML = clone.innerHTML;
+  const doc =
+'<!DOCTYPE html>\n<html lang="zh-Hant">\n<head>\n<meta charset="UTF-8">\n'+
+'<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n'+
+'<title>🏆 通路王嘉許牆 '+label+'</title>\n<style>'+css+'</style>\n</head>\n'+
+'<body class="theme-'+theme+'">\n'+
+'<div class="export-banner">🏆 通路王嘉許牆 · '+label+'</div>\n'+
+'<main>'+cardsHTML+'</main>\n'+
+'<button class="topbtn" onclick="window.scrollTo({top:0,behavior:\'smooth\'})">↑</button>\n'+
+'</body>\n</html>';
+  const fname = '通路王-'+label+'-'+labelOf(theme).replace(/\s/g,'')+'.html';
+  const blob = new Blob([doc], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+}
+
+/* ======================= 啟動 ======================= */
+function pickDefaultMonth(){
+  const months=availableMonths();
+  const ov=getMotivOverlay();              // 1) 有 EIP 當月即時資料 → 優先選那個月（例如六月）
+  if(ov && months.includes(ov.month)){ selectMonth(ov.month); return; }
+  const nowM=new Date().getMonth()+1;        // 2) 本月有資料 → 本月
+  if(months.includes(nowM)){ selectMonth(nowM); return; }
+  if(months.length){ selectMonth(months[months.length-1]); return; } // 3) 最後一個有資料的月
+  const qs=availableQuarters(); if(qs.length){ selectQuarter(qs[0]); return; } // 4) 第一個有資料的季
+  render(); // 5) 完全沒資料 → 顯示提示
+}
+function reloadData(){ _scan=null; curSel=null; scanSources(); pickDefaultMonth(); }
+function emptyDiagnostic(){
+  const sc=getScan();
+  const found=sc.sources.length
+    ? sc.sources.map(s=>`<div style="color:#7aff9e;">✓ ${s.key}　<span style="color:#9a9ab0;">(${s.type}｜${s.months.join(',')}月)</span></div>`).join('')
+    : '<div style="color:#ff7a7a;">✗ 沒有偵測到任何通路績效資料</div>';
+  const sample=sc.allKeys.slice(0,40).map(k=>`<div style="color:#888;">${k}</div>`).join('');
+  return `<div class="empty" style="text-align:left;">
+    <div style="text-align:center;font-size:1.1rem;color:#ffd35c;margin-bottom:14px;">🔍 資料診斷</div>
+    <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;font-size:.8rem;line-height:1.9;">
+      <b style="color:#fff;">偵測到的通路資料來源：</b>${found}
+    </div>
+    <div style="margin-top:14px;font-size:.82rem;color:#bcbcd4;line-height:1.8;">
+      若上面是「✗ 沒有偵測到」，代表這個瀏覽器還沒有六月的資料。<br>
+      請先在<b style="color:#ffd35c;">同一台、同一個瀏覽器、同一個 localhost:8000</b> 開啟你的「績效對比／通路績效」頁面，
+      讓它跑一次 EIP 同步，再回來按右上角 🔄。
+    </div>
+    <details style="margin-top:14px;"><summary style="color:#888;font-size:.78rem;cursor:pointer;">看全部 localStorage 鍵名（給開發者除錯）</summary>
+      <div style="margin-top:8px;font-size:.68rem;max-height:240px;overflow:auto;">${sample||'（空）'}</div>
+    </details>
+  </div>`;
+}
+(function init(){
+  // 主題：今天手動選過就沿用，否則用每日自動
+  let t=autoTheme(); try{ const s=JSON.parse(localStorage.getItem('kingwall_theme')||'null'); if(s && s.date===todayStr()){ t=s.t; } }catch(e){}
+  setTheme(t, false);
+  pickDefaultMonth();
+})();
+</script>
+</body>
+</html>

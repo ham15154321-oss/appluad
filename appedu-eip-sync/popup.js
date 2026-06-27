@@ -35,8 +35,23 @@ document.addEventListener('DOMContentLoaded', function(){
     selM.appendChild(o);
   }
 
-  document.getElementById('btnSync').addEventListener('click', doSync);
+  var bm = document.getElementById('btnSync_motiv');
+  if (bm) bm.addEventListener('click', function(){ doSync('motiv'); });
+  // ★ v5.6：報到 = 先激勵再報到（讓業績欄也最新）
+  var bc = document.getElementById('btnSync_checkin');
+  if (bc) bc.addEventListener('click', async function(){ await doSync('motiv'); await doSync('checkin'); });
+  var bch = document.getElementById('btnSync_channel');
+  if (bch) bch.addEventListener('click', function(){ doSync('channel'); });
 });
+
+// EIP 請求節流（避免一次灌爆，0.4 秒間隔）
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+var EIP_THROTTLE_MS = 400;
+function _setBusy(disabled){
+  ['motiv','checkin','channel'].forEach(function(mode){
+    var b = document.getElementById('btnSync_' + mode); if (b) b.disabled = disabled;
+  });
+}
 
 function setStatus(msg, type){
   var el = document.getElementById('status');
@@ -419,23 +434,40 @@ function extractPerfRows(html){
   try { return JSON.parse(html.slice(s, j)); } catch(e){ console.warn('[EIP] perfRows JSON 解析失敗', e); return null; }
 }
 
-async function fetchPerfP(year, month){
+var PERF_ORG_NAMES = PERF_ORGS.map(function(o){ return o.name; });
+
+// ★ v5.5：從「全學院 performance_p」那一頁的 perfRows 直接分組出七學院個人績效（不再多打 7 個請求）
+function perfPFromAllOrg(html, year, month){
+  var result = { orgs: {}, meta: { year: year, month: month } };
+  PERF_ORG_NAMES.forEach(function(n){ result.orgs[n] = []; });
+  var rows = extractPerfRows(html);
+  if (!rows) return null;
+  var total = 0;
+  for (var key in rows){
+    if (!rows.hasOwnProperty(key)) continue;
+    var r = rows[key];
+    var org = r.hr_organize_name || '';
+    if (result.orgs[org]){ result.orgs[org].push(r); total++; }
+  }
+  var got = PERF_ORG_NAMES.filter(function(n){ return result.orgs[n].length > 0; }).length;
+  console.log('[EIP] 個人績效（單頁分組）: ' + total + ' 人，涵蓋 ' + got + '/7 學院');
+  return { data: result, total: total, covered: got };
+}
+
+// 備援：逐學院抓（只有單頁分組失敗時才用，含節流）
+async function fetchPerfPPerOrg(year, month){
   var result = { orgs: {}, meta: { year: year, month: month } };
   for (var k = 0; k < PERF_ORGS.length; k++){
     var org = PERF_ORGS[k];
-    setStatus('⏳ 個人績效 ' + org.name + ' (' + (k+1) + '/' + PERF_ORGS.length + ')...');
+    if (k > 0) await sleep(EIP_THROTTLE_MS);
+    setStatus('⏳ 補抓個人績效 ' + org.name + ' (' + (k+1) + '/' + PERF_ORGS.length + ')...');
     var url = 'http://eip.appedu.com.tw/working/report/performance/performance_p.php?q1=' + year + '&q2=' + month + '&q3=' + org.id + '&q4=&q5=&btnq=%E6%9F%A5%E8%A9%A2';
     try {
-      var html = await fetchEipPage(url);
-      var rows = extractPerfRows(html);
+      var rows = extractPerfRows(await fetchEipPage(url));
       var arr = [];
       if (rows){ for (var key in rows){ if (rows.hasOwnProperty(key)) arr.push(rows[key]); } }
       result.orgs[org.name] = arr;
-      console.log('[EIP] 個人績效 ' + org.name + ': ' + arr.length + ' 人');
-    } catch(e){
-      result.orgs[org.name] = [];
-      console.warn('[EIP] 個人績效 ' + org.name + ' 失敗: ' + e.message);
-    }
+    } catch(e){ result.orgs[org.name] = []; }
   }
   return result;
 }
@@ -537,31 +569,15 @@ function countsFromListHtml(html, counts){
 
 async function fetchListCounts(params, label){
   var qs = buildTotalQuery(params);
-  try {
-    var csv = await fetchEipPage('http://eip.appedu.com.tw/outlet/list/total_csv.php?' + qs);
-    if (csv && csv.indexOf('<html') < 0 && csv.indexOf('<!DOCTYPE') < 0){
-      var counts = countsFromCSV(csv);
-      if (counts && counts.total > 0){
-        console.log('[EIP] ' + label + ' CSV: ' + counts.total + ' 筆');
-        return counts;
-      }
-    }
-    console.warn('[EIP] ' + label + ' CSV 解析無結果，改用 HTML 分頁');
-  } catch(e){
-    console.warn('[EIP] ' + label + ' CSV 失敗: ' + e.message + '，改用 HTML 分頁');
+  // ★ v5.4：只走 CSV。失敗就停下來，絕不退回逐頁狂掃拖垮 EIP。
+  var csv = await fetchEipPage('http://eip.appedu.com.tw/outlet/list/total_csv.php?' + qs);
+  if (!csv || csv.indexOf('<html') >= 0 || csv.indexOf('<!DOCTYPE') >= 0){
+    throw new Error(label + '：EIP 回傳網頁而非 CSV — 多半是未登入或忙線，請稍後再試（不逐頁抓以免拖垮 EIP）');
   }
-  var counts2 = emptyCounts();
-  var first = await fetchEipPage('http://eip.appedu.com.tw/outlet/list/total.php?' + qs + '&pg=1');
-  countsFromListHtml(first, counts2);
-  var m = first.match(/共\s*(\d+)\s*頁/);
-  var pages = m ? Math.min(parseInt(m[1], 10), 100) : 1;
-  for (var p = 2; p <= pages; p++){
-    setStatus('⏳ ' + label + ' 第 ' + p + '/' + pages + ' 頁...');
-    var html = await fetchEipPage('http://eip.appedu.com.tw/outlet/list/total.php?' + qs + '&pg=' + p);
-    countsFromListHtml(html, counts2);
-  }
-  console.log('[EIP] ' + label + ' HTML 分頁: ' + counts2.total + ' 筆');
-  return counts2;
+  var counts = countsFromCSV(csv);
+  if (!counts) counts = emptyCounts(); // 有 CSV 但無表頭（可能該查詢 0 筆）→ 當 0
+  console.log('[EIP] ' + label + ' CSV: ' + counts.total + ' 筆');
+  return counts;
 }
 
 function pad2(n){ return String(n).padStart(2, '0'); }
@@ -576,8 +592,10 @@ async function fetchCheckin(year, month){
 
   setStatus('⏳ 已報到名單 (1/3)...');
   var formal = await fetchListCounts({ q7: monthStart, q16: 'formal' }, '已報到');
+  await sleep(EIP_THROTTLE_MS);
   setStatus('⏳ 網路已報到 (2/3)...');
   var net = await fetchListCounts({ q7: monthStart, q16: 'formal', q13: '3' }, '網路已報到');
+  await sleep(EIP_THROTTLE_MS);
   setStatus('⏳ 到月底預約報到 (3/3)...');
   var rs = await fetchListCounts({ q7: rsStart, q8: monthEnd, q16: '2' }, '預約報到');
 
@@ -596,7 +614,7 @@ function buildMoneyQuery(monthStart){
 }
 
 function _moneyColMap(headers){
-  var NEED = { org:'組織', owner:'業績承辦人', main:'通路來源主類別', sub:'通路來源副類別', note:'狀態備註', item:'收支項目', perf:'業績合計', inDate:'入帳日期' };
+  var NEED = { org:'組織', owner:'業績承辦人', main:'通路來源主類別', sub:'通路來源副類別', course:'課程名稱', note:'狀態備註', item:'收支項目', perf:'業績合計', inDate:'入帳日期' };
   var found = {};
   for (var c = 0; c < headers.length; c++){
     var h = String(headers[c]).trim();
@@ -625,7 +643,7 @@ function moneyRowsFromCSV(text, monthStart){
     var val = parseFloat(cell('perf').replace(/,/g, '').replace(/\s/g, '')) || 0;
     var inDate = cell('inDate').replace(/\//g, '-');
     if (val < 0 && inDate && inDate.slice(0, 10) < startCmp) continue;
-    out.push({ org: cell('org'), owner: cell('owner'), main: cell('main'), sub: cell('sub'), item: cell('item'), value: val });
+    out.push({ org: cell('org'), owner: cell('owner'), main: cell('main'), sub: cell('sub'), course: cell('course'), item: cell('item'), value: val });
   }
   console.log('[EIP] 收支明細 CSV: ' + out.length + ' 筆');
   return out;
@@ -663,28 +681,14 @@ async function fetchMoneyRows(year, month){
   var monthStart = year + '/' + month + '/01';
   var qs = buildMoneyQuery(monthStart);
   setStatus('⏳ 收支明細（各通路績效）...');
-  try {
-    var csv = await fetchEipPage('http://eip.appedu.com.tw/class/report/performance/business_money_csv.php?' + qs);
-    if (csv && csv.indexOf('<html') < 0 && csv.indexOf('<!DOCTYPE') < 0){
-      var rows = moneyRowsFromCSV(csv, monthStart);
-      if (rows && rows.length > 0) return rows;
-    }
-    console.warn('[EIP] 收支 CSV 解析無結果，改用 HTML 分頁');
-  } catch(e){
-    console.warn('[EIP] 收支 CSV 失敗: ' + e.message + '，改用 HTML 分頁');
+  // ★ v5.4：只走 CSV。失敗就停下來，絕不退回逐頁狂掃 47 頁拖垮 EIP。
+  var csv = await fetchEipPage('http://eip.appedu.com.tw/class/report/performance/business_money_csv.php?' + qs);
+  if (!csv || csv.indexOf('<html') >= 0 || csv.indexOf('<!DOCTYPE') >= 0){
+    throw new Error('收支明細：EIP 回傳網頁而非 CSV — 多半是未登入或忙線，請稍後再試（不逐頁抓以免拖垮 EIP）');
   }
-  var acc = [];
-  var first = await fetchEipPage('http://eip.appedu.com.tw/class/report/performance/business_money.php?' + qs + '&pg=1');
-  moneyRowsFromHtml(first, monthStart, acc);
-  var m = first.match(/共\s*(\d+)\s*頁/);
-  var pages = m ? Math.min(parseInt(m[1], 10), 150) : 1;
-  for (var p = 2; p <= pages; p++){
-    setStatus('⏳ 收支明細 第 ' + p + '/' + pages + ' 頁...');
-    var html = await fetchEipPage('http://eip.appedu.com.tw/class/report/performance/business_money.php?' + qs + '&pg=' + p);
-    moneyRowsFromHtml(html, monthStart, acc);
-  }
-  console.log('[EIP] 收支明細 HTML 分頁: ' + acc.length + ' 筆');
-  return acc;
+  var rows = moneyRowsFromCSV(csv, monthStart);
+  if (rows === null) throw new Error('收支明細 CSV 解析失敗（找不到表頭）— 請稍後再試');
+  return rows;
 }
 
 var CH_ORG_RENAME = { '台中學院': '台中一部' };
@@ -737,10 +741,34 @@ function computeChannels(moneyRows, perfPData, year, month){
   return out;
 }
 
+// ★ v5.8：課程銷售分析 — 各學院×課程業績（區域＝頁面端把該區學院相加）
+var COURSE_ACADEMIES = ['站前學院','站二學院','館前學院','板橋學院','站前二部','東區二部','中壢學院','中壢二部','中壢三部','台中學院','台中二部','台中三部','高雄建國'];
+function computeCourses(moneyRows, year, month){
+  var byOrg = {};
+  (moneyRows || []).forEach(function(r){
+    var org = (r.org || '').trim();
+    if (COURSE_ACADEMIES.indexOf(org) < 0) return;
+    var course = (r.course || '').trim();
+    if (!course) return;
+    if (!byOrg[org]) byOrg[org] = {};
+    if (!byOrg[org][course]) byOrg[org][course] = { value: 0, count: 0 };
+    byOrg[org][course].value += r.value;
+    byOrg[org][course].count += 1;
+  });
+  var out = { meta: { year: year, month: month }, byOrg: {} };
+  Object.keys(byOrg).forEach(function(org){
+    out.byOrg[org] = Object.keys(byOrg[org])
+      .map(function(c){ return { name: c, value: Math.round(byOrg[org][c].value), count: byOrg[org][c].count }; })
+      .filter(function(x){ return x.value !== 0; });
+  });
+  return out;
+}
+
 // ── 注入資料到目前開啟的頁面 ──
-async function injectData(academyData, salesData, groupData, reserveData, year, month, checkinData, perfPData, channelData, isPartial){
+async function injectData(academyData, salesData, groupData, reserveData, year, month, checkinData, perfPData, channelData, isPartial, syncMode, courseData){
   var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tabs || tabs.length === 0) throw new Error('找不到目前頁面');
+  syncMode = syncMode || 'motiv';
 
   var now = new Date();
   var timeStr = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate()
@@ -748,142 +776,143 @@ async function injectData(academyData, salesData, groupData, reserveData, year, 
 
   await chrome.scripting.executeScript({
     target: { tabId: tabs[0].id, allFrames: true }, // ★ v4.9：業績數據中心在 iframe 內，allFrames 才能即時重新渲染
-    func: function(academy, sales, groupPerf, reservePerf, periodMeta, updateTime, checkin, perfP, channelData, isPartial){
+    func: function(academy, sales, groupPerf, reservePerf, periodMeta, updateTime, checkin, perfP, channelData, isPartial, syncMode, courseData){
       var cid = '';
       try { var aid = localStorage.getItem('activeCharacterId'); if(aid) cid = 'char_' + aid + '_'; } catch(e){}
 
-      // 1) 寫入 localStorage（資料 + meta）
-      localStorage.setItem(cid + 'motiv_academy_v1', JSON.stringify(academy));
-      localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(sales));
-      localStorage.setItem(cid + 'motiv_group_performance_v1', JSON.stringify(groupPerf || []));
-      localStorage.setItem(cid + 'motiv_group_performance_meta', JSON.stringify(periodMeta || {}));
-      localStorage.setItem(cid + 'motiv_reserve_performance_v1', JSON.stringify(reservePerf || []));
-      localStorage.setItem(cid + 'motiv_reserve_performance_meta', JSON.stringify(periodMeta || {}));
-      localStorage.setItem(cid + 'motiv_updated_at', updateTime);
-      // ★ v4.9：報到統計 + 七學院個人績效
-      try { if (checkin) localStorage.setItem(cid + 'motiv_checkin_v1', JSON.stringify(checkin)); } catch(e){}
-      try { if (perfP) localStorage.setItem(cid + 'motiv_perfp_v1', JSON.stringify(perfP)); } catch(e){}
-      // ★ v5.0：各通路績效
-      try { if (channelData) localStorage.setItem(cid + 'motiv_channel_v1', JSON.stringify(channelData)); } catch(e){}
-
-      // 2) ★ 改呼叫 motivLoadData()（會把 meta 也載入到 window 變數）
-      //    之前只手動賦值資料 globals，漏掉 meta globals → 標題顯示舊月份
-      if (typeof window.motivLoadData === 'function'){
-        window.motivLoadData();
-      } else {
-        // fallback：頁面沒有 motivLoadData → 至少更新資料 globals
-        if (window._motivAcademy !== undefined) window._motivAcademy = academy;
-        if (window._motivSales !== undefined) window._motivSales = sales;
-        if (window._motivGroupPerf !== undefined) window._motivGroupPerf = groupPerf || [];
-        if (window._motivReservePerf !== undefined) window._motivReservePerf = reservePerf || [];
-        if (window._motivGroupPerfMeta !== undefined) window._motivGroupPerfMeta = periodMeta || {};
-        if (window._motivReservePerfMeta !== undefined) window._motivReservePerfMeta = periodMeta || {};
+      // 1) 寫入 localStorage — ★ v5.4：只寫該模式相關的 key，不存在的資料不要寫（避免用 null 蓋掉別模式的資料）
+      if (syncMode === 'motiv'){
+        localStorage.setItem(cid + 'motiv_academy_v1', JSON.stringify(academy || []));
+        localStorage.setItem(cid + 'motiv_sales_v1', JSON.stringify(sales || []));
+        localStorage.setItem(cid + 'motiv_group_performance_v1', JSON.stringify(groupPerf || []));
+        localStorage.setItem(cid + 'motiv_group_performance_meta', JSON.stringify(periodMeta || {}));
+        localStorage.setItem(cid + 'motiv_reserve_performance_v1', JSON.stringify(reservePerf || []));
+        localStorage.setItem(cid + 'motiv_reserve_performance_meta', JSON.stringify(periodMeta || {}));
+        if (perfP) localStorage.setItem(cid + 'motiv_perfp_v1', JSON.stringify(perfP));
+        localStorage.setItem(cid + 'motiv_synced_motiv', updateTime);
+      } else if (syncMode === 'checkin'){
+        if (checkin) localStorage.setItem(cid + 'motiv_checkin_v1', JSON.stringify(checkin));
+        localStorage.setItem(cid + 'motiv_synced_checkin', updateTime);
+      } else if (syncMode === 'channel'){
+        if (channelData) localStorage.setItem(cid + 'motiv_channel_v1', JSON.stringify(channelData));
+        if (courseData) localStorage.setItem(cid + 'motiv_course_v1', JSON.stringify(courseData));
+        localStorage.setItem(cid + 'motiv_synced_channel', updateTime);
       }
+      localStorage.setItem(cid + 'motiv_updated_at', updateTime);
 
-      // ★ v5.3：重寫即時 key 以更新 firebase 本地時間戳，避免雲端舊資料蓋回（隔離環境寫入不會觸發頁面 wrapper）
+      // 2) 載入資料到 window 變數 + 更新時間戳
+      if (typeof window.motivLoadData === 'function') window.motivLoadData();
       if (typeof window._motivBumpLocalTs === 'function'){ try{ window._motivBumpLocalTs(); }catch(e){} }
 
-      // 3) 重新渲染
-      if (typeof window.motivRenderAll === 'function') window.motivRenderAll();
-      // ★ v4.9：報到排名 / 當月績效 分頁重新渲染
-      if (typeof window.ckRenderAll === 'function'){ try{ window.ckRenderAll(); }catch(e){} }
-      if (typeof window.ppRenderAll === 'function'){ try{ window.ppRenderAll(); }catch(e){} }
-      // ★ v5.0：各通路績效 自動套用 + 重新渲染
-      if (typeof window.chApplyAutoSync === 'function'){ try{ window.chApplyAutoSync(); }catch(e){} }
-
-      // 4) ★ 自動儲存到 archive（解決「忘了存」的痛點）— 先行注入(isPartial)時不儲存，避免覆蓋對話框跳兩次
-      if (!isPartial && typeof window._motivAutoSaveAfterSync === 'function') {
-        try{ window._motivAutoSaveAfterSync(); }catch(e){}
+      // 3) 依模式重新渲染對應分頁
+      if (syncMode === 'motiv'){
+        if (typeof window.motivRenderAll === 'function') window.motivRenderAll();
+        if (typeof window.ppRenderAll === 'function'){ try{ window.ppRenderAll(); }catch(e){} }
+        if (!isPartial && typeof window._motivAutoSaveAfterSync === 'function'){ try{ window._motivAutoSaveAfterSync(); }catch(e){} }
+      } else if (syncMode === 'checkin'){
+        if (typeof window.ckRenderAll === 'function'){ try{ window.ckRenderAll(); }catch(e){} }
+      } else if (syncMode === 'channel'){
+        if (typeof window.chApplyAutoSync === 'function'){ try{ window.chApplyAutoSync(); }catch(e){} }
+        if (typeof window.crApplyAutoSync === 'function'){ try{ window.crApplyAutoSync(); }catch(e){} } // 課程銷售分析
       }
+      // 更新三顆同步按鈕的「上次同步」標籤
+      if (typeof window.refreshSyncBtnLabels === 'function'){ try{ window.refreshSyncBtnLabels(); }catch(e){} }
     },
-    args: [academyData, salesData, groupData || [], reserveData || [], { year: year, month: month }, timeStr, checkinData || null, perfPData || null, channelData || null, !!isPartial]
+    args: [academyData, salesData, groupData || [], reserveData || [], { year: year, month: month }, timeStr, checkinData || null, perfPData || null, channelData || null, !!isPartial, syncMode, courseData || null]
   });
 }
 
-// ── 主要同步流程 ──
-async function doSync(){
-  var btn = document.getElementById('btnSync');
-  btn.disabled = true;
-  btn.textContent = '⏳ 同步中...';
-  document.getElementById('result').innerHTML = '';
+// ── 讀目前頁面快取的 perfP（給 channel 模式算班務追回用） ──
+async function _readCachedPerfP(){
+  try {
+    var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tabs || !tabs.length) return null;
+    var res = await chrome.scripting.executeScript({
+      target: { tabId: tabs[0].id },
+      func: function(){
+        var cid = '';
+        try { var aid = localStorage.getItem('activeCharacterId'); if (aid) cid = 'char_' + aid + '_'; } catch(e){}
+        try { return localStorage.getItem(cid + 'motiv_perfp_v1'); } catch(e){ return null; }
+      }
+    });
+    var raw = res && res[0] && res[0].result;
+    return raw ? JSON.parse(raw) : null;
+  } catch(e){ return null; }
+}
 
+// ── 主要同步流程（三模式分開） ──
+async function doSync(mode){
+  mode = mode || 'motiv';
+  _setBusy(true);
+  document.getElementById('result').innerHTML = '';
   var year = document.getElementById('selYear').value;
   var month = document.getElementById('selMonth').value;
 
   try {
-    console.log('[EIP popup] ★ 同步開始 year=' + year + ' month=' + month);
-    // 1. 學院排名（★ 加 btnq=查詢，強制 EIP 用我們傳的月份）
-    setStatus('⏳ 正在同步學院排名...');
-    var aUrl = 'http://eip.appedu.com.tw/class/report/performance/performance_at.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
-    console.log('[EIP popup] 學院 URL:', aUrl);
-    var aHtml = await fetchEipPage(aUrl);
-    var academyData = extractAcademyDirect(aHtml);
+    console.log('[EIP popup] ★ 同步開始 year=' + year + ' month=' + month + ' mode=' + mode);
 
-    if (academyData.length <= 1){
-      aUrl = aUrl.replace('q3=&', 'q3=0&');
-      console.log('[EIP popup] 學院 fallback URL:', aUrl);
-      aHtml = await fetchEipPage(aUrl);
-      academyData = extractAcademyDirect(aHtml);
-    }
+    if (mode === 'motiv'){
+      // 激勵：學院 + 業務 + 正式組 + 儲備組 + 七學院個人績效（當月績效）
+      setStatus('⏳ 正在同步學院排名...');
+      var aUrl = 'http://eip.appedu.com.tw/class/report/performance/performance_at.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
+      var aHtml = await fetchEipPage(aUrl);
+      var academyData = extractAcademyDirect(aHtml);
+      if (academyData.length <= 1){ aHtml = await fetchEipPage(aUrl.replace('q3=&','q3=0&')); academyData = extractAcademyDirect(aHtml); }
 
-    // 2. 業務排名
-    setStatus('⏳ 正在同步業務排名...');
-    var sUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_p.php?q1=' + year + '&q2=' + month + '&q3=&q4=&q5=&btnq=%E6%9F%A5%E8%A9%A2';
-    var sHtml = await fetchEipPage(sUrl);
-    var salesData = extractSalesDirect(sHtml);
+      await sleep(EIP_THROTTLE_MS);
+      setStatus('⏳ 正在同步業務排名...');
+      var sUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_p.php?q1=' + year + '&q2=' + month + '&q3=&q4=&q5=&btnq=%E6%9F%A5%E8%A9%A2';
+      var sHtml = await fetchEipPage(sUrl);
+      var salesData = extractSalesDirect(sHtml);
+      if (salesData.length <= 1){ sHtml = await fetchEipPage(sUrl.replace('q3=&','q3=0&')); salesData = extractSalesDirect(sHtml); }
 
-    if (salesData.length <= 1){
-      sUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_p.php?q1=' + year + '&q2=' + month + '&q3=0&q4=&q5=&btnq=%E6%9F%A5%E8%A9%A2';
-      sHtml = await fetchEipPage(sUrl);
-      salesData = extractSalesDirect(sHtml);
-    }
+      await sleep(EIP_THROTTLE_MS);
+      setStatus('⏳ 正在同步正式小組績效表...');
+      var gHtml = await fetchEipPage('http://eip.appedu.com.tw/working/report/performance/performance_d.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2');
+      var groupData = extractGroupPerformance(gHtml);
 
-    // 3. 正式小組績效表（performance_d.php）
-    setStatus('⏳ 正在同步正式小組績效表...');
-    var gUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_d.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
-    var gHtml = await fetchEipPage(gUrl);
-    var groupData = extractGroupPerformance(gHtml);
+      await sleep(EIP_THROTTLE_MS);
+      setStatus('⏳ 正在同步儲備小組績效表...');
+      var rHtml = await fetchEipPage('http://eip.appedu.com.tw/working/report/performance/performance_d2.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2');
+      var reserveData = extractGroupPerformance(rHtml);
 
-    // 4. 儲備小組績效表（performance_d2.php，結構同上，重用 parser）
-    setStatus('⏳ 正在同步儲備小組績效表...');
-    var rUrl = 'http://eip.appedu.com.tw/working/report/performance/performance_d2.php?q1=' + year + '&q2=' + month + '&q3=&btnq=%E6%9F%A5%E8%A9%A2';
-    var rHtml = await fetchEipPage(rUrl);
-    var reserveData = extractGroupPerformance(rHtml);
+      // ★ v5.5：七學院個人績效直接從上面「全學院業務頁」的 perfRows 分組（不再多打 7 個請求）
+      var perfPData = null;
+      var grouped = perfPFromAllOrg(sHtml, year, month);
+      if (grouped && grouped.total > 0 && grouped.covered >= 4){
+        perfPData = grouped.data;
+      } else {
+        console.warn('[EIP] 單頁分組個人績效不足，改逐學院補抓');
+        await sleep(EIP_THROTTLE_MS);
+        perfPData = await fetchPerfPPerOrg(year, month);
+      }
+      var perfPTotal = 0;
+      if (perfPData){ for (var po in perfPData.orgs) perfPTotal += perfPData.orgs[po].length; }
 
-    // ★ v5.2：核心資料（學院/業務/小組）抓完先立即注入頁面，避免後面慢活拖久 / popup 被關掉導致學院排名沒更新
-    setStatus('⏳ 學院/業務/小組已更新，繼續同步報到與通路績效...');
-    try {
-      await injectData(academyData, salesData, groupData, reserveData, year, month, null, null, null, true);
-    } catch(e){ console.warn('[EIP] 核心資料先行注入失敗: ' + e.message); }
+      setStatus('⏳ 正在寫入激勵排行榜...');
+      await injectData(academyData, salesData, groupData, reserveData, year, month, null, perfPData, null, false, 'motiv');
+      setStatus('✅ 🏆 激勵同步完成！學院 ' + academyData.length + ' / 業務 ' + salesData.length + ' / 正式 ' + groupData.length + ' 組 / 儲備 ' + reserveData.length + ' 組 / 個人績效 ' + perfPTotal + ' 人', 'ok');
+      showResult(academyData, salesData, groupData, reserveData, null, perfPData, perfPTotal, null);
 
-    // 5. ★ v4.9：報到統計（已報到/網路/到月底）
-    var checkinData = null;
-    try { checkinData = await fetchCheckin(year, month); }
-    catch(e){ console.warn('[EIP] 報到統計失敗: ' + e.message); }
+    } else if (mode === 'checkin'){
+      var checkinData = await fetchCheckin(year, month);
+      await injectData(null, null, null, null, year, month, checkinData, null, null, false, 'checkin');
+      setStatus('✅ 🚪 報到排名同步完成！已報到 ' + checkinData.formal.total + ' / 網路 ' + checkinData.net.total + ' / 到月底 ' + checkinData.rs.total + ' 筆', 'ok');
+      showResult([], [], null, null, checkinData, null, 0, null);
 
-    // 6. ★ v4.9：七學院個人績效
-    var perfPData = null;
-    try { perfPData = await fetchPerfP(year, month); }
-    catch(e){ console.warn('[EIP] 個人績效失敗: ' + e.message); }
-    var perfPTotal = 0;
-    if (perfPData){ for (var po in perfPData.orgs) perfPTotal += perfPData.orgs[po].length; }
-
-    // 7. ★ v5.0：收支明細 → 各通路績效
-    var channelData = null;
-    try {
+    } else if (mode === 'channel'){
+      var perfPData2 = await _readCachedPerfP();
+      if (!perfPData2 || !perfPData2.orgs || Object.keys(perfPData2.orgs).length === 0){
+        throw new Error('找不到個人績效快取 — 班務追回需要它，請先按一次「🏆 同步激勵」再做通路績效');
+      }
       var moneyRows = await fetchMoneyRows(year, month);
-      channelData = computeChannels(moneyRows, perfPData, year, month);
-    } catch(e){ console.warn('[EIP] 各通路績效失敗: ' + e.message); }
-
-    // 8. 注入
-    setStatus('⏳ 正在寫入激勵排行榜...');
-    await injectData(academyData, salesData, groupData, reserveData, year, month, checkinData, perfPData, channelData);
-
-    setStatus('✅ 同步完成！學院 ' + academyData.length + ' 筆、業務 ' + salesData.length + ' 筆、正式小組 ' + groupData.length + ' 組、儲備小組 ' + reserveData.length + ' 組'
-      + (checkinData ? '、報到 ' + checkinData.formal.total + '/' + checkinData.net.total + '/' + checkinData.rs.total : '、報到失敗')
-      + (perfPData ? '、個人績效 ' + perfPTotal + ' 人' : '、個人績效失敗')
-      + (channelData ? '、通路績效 ✓' : '、通路績效失敗'), 'ok');
-    showResult(academyData, salesData, groupData, reserveData, checkinData, perfPData, perfPTotal, channelData);
+      var channelData = computeChannels(moneyRows, perfPData2, year, month);
+      var courseData = computeCourses(moneyRows, year, month); // ★ v5.7：課程銷售分析
+      await injectData(null, null, null, null, year, month, null, null, channelData, false, 'channel', courseData);
+      var nChan = 0; for (var ck in channelData.channels){ if (channelData.channels[ck].ranking.length) nChan++; }
+      setStatus('✅ 📋 各通路績效同步完成！' + nChan + '/6 通路、共 ' + moneyRows.length + ' 筆收支（含課程銷售分析）', 'ok');
+      showResult([], [], null, null, null, null, 0, channelData);
+    }
 
   } catch(err){
     console.error('[EIP] 同步失敗:', err);
@@ -892,7 +921,6 @@ async function doSync(){
     else if (msg.indexOf('401') >= 0 || msg.indexOf('403') >= 0) setStatus('❌ 請先登入 EIP 系統再試', 'err');
     else setStatus('❌ ' + msg, 'err');
   } finally {
-    btn.disabled = false;
-    btn.textContent = '🔄 同步資料';
+    _setBusy(false);
   }
 }

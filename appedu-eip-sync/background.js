@@ -13,7 +13,18 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
 });
 
 async function doFetch(url){
-  var resp = await fetch(url, { credentials: 'include' });
+  // ★ v5.6：加 30 秒逾時 — EIP 沒回應時自動中斷，避免按鈕無限轉圈圈
+  var ctrl = new AbortController();
+  var timer = setTimeout(function(){ ctrl.abort(); }, 30000);
+  var resp;
+  try {
+    resp = await fetch(url, { credentials: 'include', signal: ctrl.signal });
+  } catch(e){
+    clearTimeout(timer);
+    if (e && e.name === 'AbortError') throw new Error('EIP 逾時無回應（30 秒）— 可能忙線，請稍後再試');
+    throw e;
+  }
+  clearTimeout(timer);
   if (!resp.ok) throw new Error('HTTP ' + resp.status + ' — 可能未登入 EIP');
   var buf = await resp.arrayBuffer();
 

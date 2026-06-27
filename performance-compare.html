@@ -1367,39 +1367,30 @@
     }
 
     /* ===== 報到排名 / 當月績效 ===== */
-    .hdr-sync-btn {
-      padding: 9px 22px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: .9rem;
-      font-weight: 800;
-      letter-spacing: 1px;
-      color: #fff;
-      background: linear-gradient(135deg, #2563eb, #3b82f6);
-      border: 1px solid rgba(96, 165, 250, .6);
-      box-shadow: 0 2px 12px rgba(37, 99, 235, .35);
-      transition: all .2s;
-      white-space: nowrap;
+    .hdr-sync-group { display: flex; align-items: stretch; gap: 7px; }
+    .hdr-mode-btn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 5px 14px; border-radius: 10px; cursor: pointer; font-family: inherit;
+      color: #fff; border: 1px solid rgba(255,255,255,.25); transition: all .2s; white-space: nowrap; line-height: 1.25;
     }
-    .hdr-sync-btn:hover { filter: brightness(1.15); box-shadow: 0 4px 16px rgba(37, 99, 235, .5); }
-    .hdr-sync-btn:disabled { opacity: .65; cursor: wait; }
+    .hdr-mode-btn .hmb-line1 { font-size: .88rem; font-weight: 800; letter-spacing: 1px; }
+    .hdr-mode-btn .hmb-line2 { font-size: .62rem; opacity: .85; font-weight: 600; margin-top: 1px; }
+    .hdr-mode-btn.motiv   { background: linear-gradient(135deg, #2563eb, #3b82f6); box-shadow: 0 2px 10px rgba(37,99,235,.3); }
+    .hdr-mode-btn.checkin { background: linear-gradient(135deg, #d97706, #f59e0b); box-shadow: 0 2px 10px rgba(217,119,6,.3); }
+    .hdr-mode-btn.channel { background: linear-gradient(135deg, #7c3aed, #a855f7); box-shadow: 0 2px 10px rgba(124,58,237,.3); }
+    .hdr-mode-btn:hover { filter: brightness(1.13); }
+    .hdr-mode-btn:disabled { opacity: .6; cursor: wait; }
+    .hdr-mode-btn.due { animation: hmbDue 1.4s ease-in-out infinite; }
+    .hdr-mode-btn.due .hmb-line2 { color: #fff; opacity: 1; font-weight: 800; }
+    @keyframes hmbDue { 0%,100% { box-shadow: 0 0 0 0 rgba(255,80,80,.5); } 50% { box-shadow: 0 0 0 4px rgba(255,80,80,0); } }
     .hdr-save-btn {
-      padding: 9px 18px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: .9rem;
-      font-weight: 800;
-      letter-spacing: 1px;
-      color: #fff;
+      padding: 5px 14px; border-radius: 10px; cursor: pointer; font-family: inherit;
+      font-size: .88rem; font-weight: 800; letter-spacing: 1px; color: #fff;
       background: linear-gradient(135deg, #16a34a, #22c55e);
-      border: 1px solid rgba(74, 222, 128, .6);
-      box-shadow: 0 2px 12px rgba(22, 163, 74, .3);
-      transition: all .2s;
-      white-space: nowrap;
+      border: 1px solid rgba(74, 222, 128, .6); box-shadow: 0 2px 10px rgba(22, 163, 74, .3);
+      transition: all .2s; white-space: nowrap;
     }
-    .hdr-save-btn:hover { filter: brightness(1.12); box-shadow: 0 4px 16px rgba(22, 163, 74, .45); }
+    .hdr-save-btn:hover { filter: brightness(1.12); }
 
     .ck-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
     .ck-region-btn {
@@ -1430,6 +1421,15 @@
     }
     .ck-q-chip.has-data { color:var(--gold); border-color:rgba(255,215,0,.3); }
     .ck-q-chip.active { color:var(--gold); background:linear-gradient(135deg,rgba(255,215,0,.18),rgba(255,160,40,.08)); border-color:rgba(255,215,0,.5); }
+    .ck-h-chip.has-data { color:#4ade80; border-color:rgba(74,222,128,.35); }
+    .ck-h-chip.active { color:#4ade80; background:linear-gradient(135deg,rgba(74,222,128,.18),rgba(34,197,94,.08)); border-color:rgba(74,222,128,.55); }
+    .cr-org-btn {
+      padding:4px 11px; border-radius:14px; cursor:pointer; font-family:inherit;
+      background:rgba(255,255,255,.03); border:1px solid var(--border); color:var(--dim);
+      font-size:.76rem; font-weight:700; transition:all .15s;
+    }
+    .cr-org-btn:hover { color:var(--text); border-color:var(--border-hi); }
+    .cr-org-btn.active { background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1)); border-color:rgba(167,139,250,.5); color:#c4b5fd; }
     .ck-body { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
     .ck-chart-card { width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px 18px 14px; }
     .ck-chart-title { font-size:.9rem; font-weight:800; color:var(--accent); margin-bottom:12px; }
@@ -1789,6 +1789,14 @@
       border-color: rgba(255,215,0,.5);
       box-shadow: 0 0 20px rgba(255,215,0,.12);
     }
+    .ch-half-card {
+      border-color: rgba(74,222,128,.3);
+      background: linear-gradient(135deg, rgba(74,222,128,.05), rgba(34,197,94,.02));
+    }
+    .ch-half-card:hover {
+      border-color: rgba(74,222,128,.55);
+      box-shadow: 0 0 20px rgba(74,222,128,.14);
+    }
 
     @media (max-width: 1100px) {
       .ch-tables-grid, .ch-academy-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1827,9 +1835,17 @@
       <div class="header-title">📊 業績數據中心</div>
       <button class="back-btn" onclick="goBack()">◀ 返回</button>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <button id="hdrSaveBtn" class="hdr-save-btn" onclick="motivSaveCurrentToArchive()" title="把目前畫面的資料覆蓋鎖進本月封存（即使 EIP 登出 / 同步失敗也不會跑掉）">💾 儲存(覆蓋)</button>
-      <button id="hdrSyncBtn" class="hdr-sync-btn" onclick="motivTriggerEipSync()" title="從 EIP 同步全部資料（激勵排行、報到排名、當月績效、各通路績效）">🔄 同步資料</button>
+    <div class="hdr-sync-group" id="hdrSyncGroup">
+      <button id="syncBtn_motiv"   class="hdr-mode-btn motiv"   onclick="motivTriggerEipSync('motiv')"   title="同步『激勵』+『當月績效』（學院/業務/小組/七學院個人績效）。建議每天。輕量。">
+        <span class="hmb-line1">🏆 激勵</span><span class="hmb-line2" id="syncTime_motiv">未同步</span>
+      </button>
+      <button id="syncBtn_checkin" class="hdr-mode-btn checkin" onclick="motivSyncSeq(['motiv','checkin'])" title="同步『報到排名』：會先同步激勵（更新業績/個人績效），再抓報到名單，讓報到排名的業績欄也是最新。建議每週、非尖峰時段。">
+        <span class="hmb-line1">🚪 報到</span><span class="hmb-line2" id="syncTime_checkin">未同步</span>
+      </button>
+      <button id="syncBtn_channel" class="hdr-mode-btn channel" onclick="motivTriggerEipSync('channel')" title="同步『各通路績效』（收支明細）。建議每 15 天。較耗能，請非尖峰時段。">
+        <span class="hmb-line1">📋 通路</span><span class="hmb-line2" id="syncTime_channel">未同步</span>
+      </button>
+      <button id="hdrSaveBtn" class="hdr-save-btn" onclick="motivSaveCurrentToArchive()" title="把目前畫面的資料覆蓋鎖進本月封存（即使 EIP 登出 / 同步失敗也不會跑掉）">💾 鎖定</button>
     </div>
   </header>
 
@@ -1837,6 +1853,7 @@
     <button class="tab-btn active" data-tab="0" onclick="switchTab(0)">📈 年度月/季比較</button>
     <button class="tab-btn" data-tab="1" onclick="switchTab(1)">📊 每月講座成績表現</button>
     <button class="tab-btn" data-tab="2" onclick="switchTab(2)">📋 各通路績效</button>
+    <button class="tab-btn" data-tab="8" onclick="switchTab(8)">🎓 課程銷售分析</button>
     <button class="tab-btn" data-tab="6" onclick="switchTab(6)">🚪 報到排名</button>
     <button class="tab-btn" data-tab="7" onclick="switchTab(7)">📆 當月績效</button>
     <button class="tab-btn" data-tab="3" onclick="switchTab(3)">📅 每月績效</button>
@@ -1894,6 +1911,21 @@
         <div class="ck-toolbar" id="ppOrgBar"></div>
         <div id="ppBody"></div>
       </div>
+
+      <!-- Tab 8: 課程銷售分析（五區課程排名） -->
+      <div class="tab-content" id="tab-8">
+        <div class="ck-toolbar">
+          <button class="ck-region-btn active" data-cr="north1" onclick="crSwitchRegion('north1')">🏙️ 北一區</button>
+          <button class="ck-region-btn" data-cr="north2" onclick="crSwitchRegion('north2')">🌆 北二區</button>
+          <button class="ck-region-btn" data-cr="tao" onclick="crSwitchRegion('tao')">🌸 桃區</button>
+          <button class="ck-region-btn" data-cr="central" onclick="crSwitchRegion('central')">🏯 中區</button>
+          <button class="ck-region-btn" data-cr="south" onclick="crSwitchRegion('south')">🌊 南區</button>
+          <span class="ck-update-info" id="crUpdateInfo"></span>
+        </div>
+        <div class="ck-toolbar" id="crOrgBar"></div>
+        <div class="ck-toolbar" id="crPeriodBar"></div>
+        <div id="crBody"></div>
+      </div>
       <div class="tab-content" id="tab-3">
         <div id="mp-iframe-wrap" style="width:calc(100% + 40px);margin-left:-20px;margin-top:-20px;height:calc(100vh - 60px);overflow:hidden;">
           <iframe id="mp-iframe" src="" style="width:100%;height:100%;border:none;background:transparent;" allow="clipboard-write"></iframe>
@@ -1911,7 +1943,7 @@
           <button class="motiv-import-btn" onclick="motivQueryByYearMonth()" title="把年/月選單對應的已儲存資料載入到 4 個排行榜。沒存過就提示要先同步。" style="background:linear-gradient(135deg,rgba(74,234,255,.20),rgba(167,139,250,.10));border-color:rgba(74,234,255,.5);color:#4aeaff;font-weight:800;">🔍 查詢</button>
           <button class="motiv-import-btn" onclick="motivSaveCurrentToArchive()" title="一鍵把目前畫面 4 個排行榜永久儲存。重整、同步其他月份都不會丟。" style="background:linear-gradient(135deg,rgba(74,222,128,.18),rgba(74,234,255,.08));border-color:rgba(74,222,128,.5);color:#4ade80;font-weight:800;">💾 儲存</button>
           <button class="motiv-import-btn" onclick="motivImportToReportCard()" title="把目前 4 個排行榜（學院、業務、正式組、儲備組）凍結成「該月份成績單」存檔。AI 顧問可調閱歷史資料。" style="background:linear-gradient(135deg,rgba(255,200,80,.15),rgba(255,160,40,.08));border-color:rgba(255,200,80,.4);color:#ffc850;">📥 匯入成績單</button>
-          <button id="motivSyncBtn" class="motiv-import-btn" onclick="motivTriggerEipSync()" title="從 EIP 同步指定年月的資料（學院、業務、正式小組、儲備小組）">🔄 同步資料</button>
+          <button id="motivSyncBtn" class="motiv-import-btn" onclick="motivTriggerEipSync('motiv')" title="同步『激勵』+『當月績效』（學院/業務/小組/七學院個人績效）。報到排名、各通路績效請用右上角各自的按鈕分開同步。">🏆 同步激勵</button>
           <label class="motiv-import-btn" style="font-size:.75rem;opacity:.7;">📥 匯入檔案
             <input type="file" accept=".xlsx,.xls,.numbers,.csv" style="display:none" onchange="motivImportFile(event)">
           </label>
@@ -2189,6 +2221,9 @@
       loadChData();
       renderChMonths();
       initReportCard();
+      try { refreshSyncBtnLabels(); } catch(e){}
+      // 每分鐘更新一次「幾天前 / 該同步」提示
+      try { setInterval(function(){ try { refreshSyncBtnLabels(); } catch(e){} }, 60000); } catch(e){}
     }
 
     // Load data from localStorage
@@ -3189,7 +3224,7 @@
       loadData();
       renderComparison();
 
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 9; i++) {
         var el = document.getElementById('tab-' + i);
         if (el) el.classList.remove('active');
       }
@@ -3247,9 +3282,10 @@
         renderReportCard();
       }
 
-      // ★ 報到排名 / 當月績效
+      // ★ 報到排名 / 當月績效 / 課程銷售分析
       if (tabIndex === 6) { try { ckRenderAll(); } catch(e){ console.warn('ckRenderAll', e); } }
       if (tabIndex === 7) { try { ppRenderAll(); } catch(e){ console.warn('ppRenderAll', e); } }
+      if (tabIndex === 8) { try { crLoadMpData(function(){ try{ crRenderAll(); }catch(e){} }); } catch(e){ console.warn('crLoadMpData', e); try{ crRenderAll(); }catch(e2){} } }
 
       // ★ 持久化當前 tab，重整後可自動還原（不用每次重點業績數據中心 → 激勵）
       try{ localStorage.setItem('perf_last_tab', String(tabIndex)); }catch(e){}
@@ -3260,7 +3296,7 @@
       setTimeout(function(){
         try{
           var lastTab = parseInt(localStorage.getItem('perf_last_tab'));
-          if (!isNaN(lastTab) && lastTab >= 0 && lastTab < 8 && lastTab !== 0){
+          if (!isNaN(lastTab) && lastTab >= 0 && lastTab < 9 && lastTab !== 0){
             // Tab 0 是預設值，不用切；其他 tab 才需要切
             if (typeof switchTab === 'function') switchTab(lastTab);
           }
@@ -3666,6 +3702,25 @@
       if (!container) return;
       let html = '';
 
+      // ★ 半年/全年合計卡（H1 上半年、H2 下半年、全年）
+      const halves = [
+        { label: 'H1 上半年', months: [1, 2, 3, 4, 5, 6] },
+        { label: 'H2 下半年', months: [7, 8, 9, 10, 11, 12] },
+        { label: '全年合計', months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }
+      ];
+      halves.forEach(h => {
+        html += `<div class="ch-month-card ch-half-card" onclick="openChQuarter('${h.label}', [${h.months}])">
+          <div class="lec-month-title" style="font-size:1.05rem;color:#4ade80;">${h.label}</div>`;
+        CH_CHANNELS.forEach(ch => {
+          const total = getChQuarterTotal(ch.key, h.months);
+          html += `<div class="lec-month-row">
+            <span class="lec-month-region" style="font-size:.78rem;">${ch.name}</span>
+            <span class="lec-month-val" style="font-size:.78rem;">${total > 0 ? fmtWan(total) : '—'}</span>
+          </div>`;
+        });
+        html += `<div class="lec-hint">點擊查看詳情 →</div></div>`;
+      });
+
       // Q1-Q4 cards first row
       const quarters = [
         { label: 'Q1', months: [1, 2, 3] },
@@ -3728,17 +3783,28 @@
       renderChQuarterModal();
     }
 
+    // 該期間裡實際有資料的月份（有幾個月就算幾個月）
+    function chMonthsWithData(months) {
+      return months.filter(m => CH_CHANNELS.some(ch => {
+        const d = chData[m]?.[ch.key];
+        return d && ((d.ranking && d.ranking.length > 0) || (d.academies && d.academies.some(a => a.value)));
+      }));
+    }
+
     function renderChQuarterModal() {
       const { label, months } = chQuarterView;
       const body = document.getElementById('chModalBody');
       const titleEl = document.getElementById('chModalTitle');
+      const isHalf = months.length > 3; // H1/H2/全年
+      const allLabel = isHalf ? (label + ' 全部') : (label + ' 整季');
+      const dataMonths = chMonthsWithData(months);
 
       // ── 上方月份快速切換列 ──
       let navHtml = '<div class="ch-q-nav">';
-      // 整季按鈕
-      navHtml += `<button class="ch-q-nav-btn${chQViewMonth === null ? ' active' : ''}" onclick="chQSwitchTo(null)">📊 ${label} 整季</button>`;
-      // 各月按鈕
-      months.forEach(m => {
+      // 整期按鈕
+      navHtml += `<button class="ch-q-nav-btn${chQViewMonth === null ? ' active' : ''}" onclick="chQSwitchTo(null)">📊 ${allLabel}</button>`;
+      // 各月按鈕（只列有資料的月份，避免一排空月）
+      (dataMonths.length ? dataMonths : months).forEach(m => {
         navHtml += `<button class="ch-q-nav-btn${chQViewMonth === m ? ' active' : ''}" onclick="chQSwitchTo(${m})">${m}月</button>`;
       });
       navHtml += '</div>';
@@ -3746,8 +3812,9 @@
       let contentHtml = '';
 
       if (chQViewMonth === null) {
-        // ── 整季合計（原有邏輯） ──
-        titleEl.textContent = '📋 ' + label + ' 各通路績效（' + months.map(m => m + '月').join('+') + '）';
+        // ── 整期合計（標題註明實際合了哪幾月） ──
+        const monthsTxt = dataMonths.length ? dataMonths.map(m => m + '月').join('+') : '尚無資料';
+        titleEl.textContent = '📋 ' + label + ' 各通路績效（' + monthsTxt + '）';
         contentHtml = buildChQuarterHtml(months);
       } else {
         // ── 單月檢視 ──
@@ -6114,32 +6181,92 @@
       alert('⚠️ CSV 格式暫不支援，請使用 .xlsx 或 .numbers 檔案');
     }
 
-    // ★ 同步按鈕群組：激勵分頁的按鈕 + 右上角藍色按鈕，狀態一起更新
-    function _syncBtnGroup(){
-      var btns = [document.getElementById('motivSyncBtn'), document.getElementById('hdrSyncBtn')].filter(function(b){ return !!b; });
-      if (!btns.length) return null;
-      return {
-        get disabled(){ return btns[0].disabled; },
-        set disabled(v){ btns.forEach(function(b){ b.disabled = v; }); },
-        get textContent(){ return btns[0].textContent; },
-        set textContent(v){ btns.forEach(function(b){ b.textContent = v; }); }
-      };
+    // ★ v5.4：三模式分開同步（避免一次抓三塊灌爆 EIP）
+    //   motiv=激勵+當月績效(每天) / checkin=報到排名(每週) / channel=各通路績效(每15天)
+    var SYNC_MODES = {
+      motiv:   { label:'🏆 激勵', line1:'🏆 激勵', tsKey:'motiv_synced_motiv',   dueDays:1.5, busy:false },
+      checkin: { label:'🚪 報到', line1:'🚪 報到', tsKey:'motiv_synced_checkin', dueDays:7,   busy:false },
+      channel: { label:'📋 通路', line1:'📋 通路', tsKey:'motiv_synced_channel', dueDays:15,  busy:false }
+    };
+    function _syncCid(){ try{ var a=localStorage.getItem('activeCharacterId'); return a?'char_'+a+'_':''; }catch(e){ return ''; } }
+
+    function _setModeBtn(mode, line1, line2, disabled){
+      var b = document.getElementById('syncBtn_' + mode);
+      if (!b) return;
+      if (typeof disabled === 'boolean') b.disabled = disabled;
+      var l1 = b.querySelector('.hmb-line1'), l2 = b.querySelector('.hmb-line2');
+      if (l1 && line1 != null) l1.textContent = line1;
+      if (l2 && line2 != null) l2.textContent = line2;
     }
 
-    function motivTriggerEipSync(){
-      // ★ 用明確 ID 抓「同步資料」按鈕（不要用 querySelector 抓第一個 .motiv-import-btn — 那個現在是 🔍 查詢按鈕了）
-      var btn = _syncBtnGroup();
-      var info = document.getElementById('motivUpdateInfo');
-      console.log('[motiv] motivTriggerEipSync 觸發, btn=', btn ? '✓ 找到' : '✗ 找不到');
-      if (btn){ btn.disabled = true; btn.textContent = '⏳ 偵測中...'; }
+    // 重整三顆按鈕的「上次同步時間 + 是否該同步」提示
+    function refreshSyncBtnLabels(){
+      var cid = _syncCid();
+      Object.keys(SYNC_MODES).forEach(function(mode){
+        var m = SYNC_MODES[mode];
+        if (m.busy) return;
+        var ts = '';
+        try { ts = localStorage.getItem(cid + m.tsKey) || ''; } catch(e){}
+        var b = document.getElementById('syncBtn_' + mode);
+        if (!b) return;
+        if (!ts){ _setModeBtn(mode, m.line1, '未同步'); b.classList.add('due'); return; }
+        // 解析 "YYYY/M/D HH:MM"
+        var dm = ts.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/);
+        var when = dm ? new Date(+dm[1], +dm[2]-1, +dm[3], +dm[4], +dm[5]) : null;
+        var line2 = ts, due = false;
+        if (when){
+          var days = (Date.now() - when.getTime()) / 86400000;
+          var dStr = days < 1 ? '今天' : (Math.floor(days) + '天前');
+          line2 = (dm[2]+'/'+dm[3]) + ' (' + dStr + ')';
+          due = days >= m.dueDays;
+        }
+        _setModeBtn(mode, m.line1, line2);
+        b.classList.toggle('due', due);
+      });
+    }
 
-      // ★ 先 ping 偵測 content script 是否可用（2秒超時）
+    function _anySyncBusy(){ return Object.keys(SYNC_MODES).some(function(k){ return SYNC_MODES[k].busy; }); }
+
+    // ★ v5.6：依序同步多個模式（例：按「報到」= 先激勵再報到，讓業績欄也是最新）
+    function motivSyncSeq(modes){
+      if (_anySyncBusy()){
+        var info0 = document.getElementById('motivUpdateInfo');
+        if (info0){ info0.textContent = '⏳ 已有同步進行中，請等它跑完再按'; info0.style.color = '#e6a817'; }
+        return;
+      }
+      var i = 0;
+      function next(){
+        if (i >= modes.length) return;
+        var mode = modes[i++];
+        motivTriggerEipSync(mode, function(){ setTimeout(next, 600); }); // 模式之間隔 0.6 秒
+      }
+      next();
+    }
+
+    function motivTriggerEipSync(mode, onComplete){
+      mode = mode || 'motiv';
+      var m = SYNC_MODES[mode];
+      if (!m){ if (onComplete) onComplete(false); return; }
+      if (m.busy){ if (onComplete) onComplete(false); return; }
+      // ★ v5.5：全域單一同步 — 有任何模式在跑就不准再開新的（避免同時抓 EIP）
+      if (_anySyncBusy()){
+        var info0 = document.getElementById('motivUpdateInfo');
+        if (info0){ info0.textContent = '⏳ 已有同步進行中，請等它跑完再按'; info0.style.color = '#e6a817'; }
+        if (onComplete) onComplete(false);
+        return;
+      }
+      var info = document.getElementById('motivUpdateInfo');
+      _setModeBtn(mode, m.line1, '偵測中…', true);
+      m.busy = true;
+      var done = false;
+      function settle(ok){ if (done) return; done = true; if (onComplete) onComplete(ok); }
+
       var pingOk = false;
       function onPong(e){
         if (e.data && e.data.channel === 'appedu-eip-sync' && e.data.action === 'pong'){
           pingOk = true;
           window.removeEventListener('message', onPong);
-          _motivStartSync(btn, info);
+          _motivStartSync(mode, info, settle);
         }
       }
       window.addEventListener('message', onPong);
@@ -6148,77 +6275,72 @@
       setTimeout(function(){
         if (!pingOk){
           window.removeEventListener('message', onPong);
-          if (btn){ btn.disabled = false; btn.textContent = '🔄 同步資料'; }
-          if (info){
-            info.innerHTML = '⚠️ 擴充包沒回應 — 確認 chrome://extensions 已啟用「Appedu EIP 激勵同步」並重新載入';
-            info.style.color = '#ff6b6b';
-          }
-          console.warn('[motiv] ⚠️ ping 2 秒沒收到 pong — content.js 沒在這個 frame 載入');
+          m.busy = false;
+          _setModeBtn(mode, m.line1, '擴充無回應', false);
+          if (info){ info.innerHTML = '⚠️ 擴充包沒回應 — 請把本頁重新整理（Cmd+R），並確認 chrome://extensions 已啟用「Appedu EIP 激勵同步」'; info.style.color = '#ff6b6b'; }
+          settle(false);
         }
       }, 2000);
     }
 
-    function _motivStartSync(btn, info){
-      if (btn){ btn.textContent = '⏳ 同步中...'; }
-      if (info){ info.textContent = '⏳ 正在同步中...'; info.style.color = '#e6a817'; }
+    function _motivStartSync(mode, info, settle){
+      var m = SYNC_MODES[mode];
+      _setModeBtn(mode, m.line1, '同步中…', true);
+      if (info){ info.textContent = '⏳ 正在同步 ' + m.label + '...'; info.style.color = '#e6a817'; }
+
+      var settled = false;
+      function finish(ok){ if (settled) return; settled = true; m.busy = false; refreshSyncBtnLabels(); if (settle) settle(!!ok); }
 
       function onMsg(e){
         if (!e.data || e.data.channel !== 'appedu-eip-sync' || e.data.action !== 'result') return;
         var d = e.data;
+        if (d.mode && d.mode !== mode) return; // 只處理本模式的訊息
         if (d.type === 'done'){
           window.removeEventListener('message', onMsg);
           try { _motivBumpLocalTs(); } catch(e2){}
           motivLoadData(); motivRenderAll();
-          // ★ v5.0：各通路績效自動套用 + 報到排名/當月績效刷新
-          try { if (typeof chApplyAutoSync === 'function') chApplyAutoSync(); } catch(e2){}
-          try { if (typeof ckRenderAll === 'function') ckRenderAll(); } catch(e2){}
-          try { if (typeof ppRenderAll === 'function') ppRenderAll(); } catch(e2){}
-          // ★ 同步完成自動儲存到 archive — 解決「忘了按💾儲存導致下次同步覆蓋」的痛點
-          try{
-            _motivAutoSaveAfterSync();
-            if (info){ info.textContent = '✅ ' + d.msg + ' · 已自動儲存'; info.style.color = '#4ade80'; }
-          }catch(e2){
-            if (info){ info.textContent = '✅ ' + d.msg + ' · ⚠️ 自動儲存失敗（請手動點 💾）'; info.style.color = '#e6a817'; }
+          // 依模式刷新對應分頁
+          if (mode === 'motiv'){
+            try { ppRenderAll(); } catch(e2){}
+            try { _motivAutoSaveAfterSync(); } catch(e2){}   // 激勵四榜存進封存
+          } else if (mode === 'checkin'){
+            try { ckRenderAll(); } catch(e2){}                // 內含 ckArchiveCurrent 自動封存
+          } else if (mode === 'channel'){
+            try { chApplyAutoSync(); } catch(e2){}            // 套進各通路績效月資料
+            try { crApplyAutoSync(); } catch(e2){}            // 課程銷售分析（同一份收支明細）
           }
-          if (btn){ btn.disabled = false; btn.textContent = '🔄 同步資料'; }
-        } else if (d.type === 'partial'){
-          // ★ v5.2：核心資料（學院/業務/小組）先到先更新，不等後面的報到/通路慢活
-          try { _motivBumpLocalTs(); } catch(e2){}
-          motivLoadData(); motivRenderAll();
-          if (info){ info.textContent = '⏳ ' + (d.msg || '核心資料已更新，繼續同步...'); info.style.color = '#e6a817'; }
+          if (info){ info.textContent = '✅ ' + d.msg; info.style.color = '#4ade80'; }
+          finish(true);
         } else if (d.type === 'error'){
           window.removeEventListener('message', onMsg);
-          if (info){ info.textContent = '❌ ' + d.msg; info.style.color = '#ff6b6b'; }
-          if (btn){ btn.disabled = false; btn.textContent = '🔄 同步資料'; }
+          var em = d.msg || '';
+          if (em.indexOf('context invalidated') >= 0 || em.indexOf('Extension context') >= 0)
+            em = '擴充剛更新過 — 請把本頁重新整理（Cmd+R）一次再同步';
+          if (info){ info.textContent = '❌ ' + em; info.style.color = '#ff6b6b'; }
+          finish(false);
         } else if (d.type === 'status'){
           if (info){ info.textContent = '⏳ ' + d.msg; info.style.color = '#e6a817'; }
         }
       }
       window.addEventListener('message', onMsg);
 
-      // ★ 從年/月選單取值（預設當月）
       var ys = document.getElementById('motivYearSelect');
       var ms = document.getElementById('motivMonthSelect');
       var now = new Date();
       var year = (ys && ys.value) ? parseInt(ys.value, 10) : now.getFullYear();
       var month = (ms && ms.value) ? ms.value : String(now.getMonth() + 1).padStart(2, '0');
 
-      window.postMessage({
-        channel: 'appedu-eip-sync', action: 'request',
-        year: year,
-        month: month
-      }, '*');
+      window.postMessage({ channel: 'appedu-eip-sync', action: 'request', year: year, month: month, mode: mode }, '*');
 
       setTimeout(function(){
-        if (btn && btn.disabled){
+        if (m.busy){
           window.removeEventListener('message', onMsg);
-          btn.disabled = false; btn.textContent = '🔄 同步資料';
           if (info && info.textContent.indexOf('⏳') >= 0){
-            // ★ v5.2：核心資料（學院/業務/小組）已在 partial 階段先寫入，逾時也不影響學院排名
-            info.textContent = '⚠️ 報到/通路績效同步較久或逾時，但學院/業務排名已更新'; info.style.color = '#e6a817';
+            info.textContent = '⚠️ ' + m.label + ' 同步逾時，請確認已登入 EIP 後再試'; info.style.color = '#ff6b6b';
           }
+          finish(false);
         }
-      }, 300000); // ★ v5.2 報到 38 頁 + 收支 47 頁可能較久，逾時放寬到 5 分鐘
+      }, 60000); // ★ v5.6 背景已有 30 秒抓取逾時，頁面端 60 秒兜底即可（不用等 3 分鐘）
     }
 
     // ========== 報到排名（tab-6）+ 當月績效（tab-7） ==========
@@ -6367,8 +6489,9 @@
           savedAt: rec && rec.savedAt ? rec.savedAt.slice(0, 10) : ''
         };
       }
-      var q = parseInt(sel.period.slice(1), 10);
-      var months = [q * 3 - 2, q * 3 - 1, q * 3];
+      // ★ 多月合併期間：Q1~Q4、H1/H2 上下半年、Y 全年
+      var months = _ckPeriodMonths(sel.period);
+      var pLabel = _ckPeriodLabel(sel.period);
       var cks = [], pps = [], got = [];
       months.forEach(function(m){
         var rec = _ckRecFor(sel.year + '-' + _ckPad2(m));
@@ -6384,14 +6507,30 @@
           formal: _ckMergeCounts(cks.map(function(c){ return c.formal; })),
           net: _ckMergeCounts(cks.map(function(c){ return c.net; })),
           rs: _ckMergeCounts(cks.map(function(c){ return c.rs; })),
-          meta: { year: sel.year, month: 'Q' + q }
+          meta: { year: sel.year, month: sel.period }
         };
       }
       return {
         ck: ckm, pp: pps.length ? _ckMergePerfp(pps) : null,
-        label: sel.year + '年 Q' + q + (got.length ? '（' + got.join('+') + '）' : ''), sel: sel,
+        label: sel.year + '年 ' + pLabel + (got.length ? '（' + got.join('+') + '）' : ''), sel: sel,
         savedAt: ''
       };
+    }
+
+    // 期間代碼 → 月份清單 / 顯示名稱
+    function _ckPeriodMonths(period){
+      if (period === 'H1') return [1,2,3,4,5,6];
+      if (period === 'H2') return [7,8,9,10,11,12];
+      if (period === 'Y')  return [1,2,3,4,5,6,7,8,9,10,11,12];
+      if (period.charAt(0) === 'Q'){ var q = parseInt(period.slice(1),10); return [q*3-2, q*3-1, q*3]; }
+      if (period.charAt(0) === 'M') return [parseInt(period.slice(1),10)];
+      return [];
+    }
+    function _ckPeriodLabel(period){
+      if (period === 'H1') return 'H1 上半年';
+      if (period === 'H2') return 'H2 下半年';
+      if (period === 'Y')  return '全年合計';
+      return period; // Q1~Q4
     }
 
     // 期間切換列（年份 + 1~12月 + Q1~Q4，有資料的月份亮起）
@@ -6430,6 +6569,14 @@
         var qHas = [q*3-2, q*3-1, q*3].some(function(m2){ return hasYm(sel.year, m2); });
         html += '<button class="ck-period-chip ck-q-chip' + (qActive ? ' active' : '') + (qHas ? ' has-data' : '') + '" onclick="ckSetPeriod(' + sel.year + ',\'' + qid + '\')">' + qid + '</button>';
       }
+      // ★ 半年 / 全年合計
+      html += '<span style="width:6px;"></span>';
+      [['H1','H1'],['H2','H2'],['Y','全年']].forEach(function(p){
+        var pid = p[0];
+        var pActive = sel.period === pid;
+        var pHas = _ckPeriodMonths(pid).some(function(m3){ return hasYm(sel.year, m3); });
+        html += '<button class="ck-period-chip ck-h-chip' + (pActive ? ' active' : '') + (pHas ? ' has-data' : '') + '" onclick="ckSetPeriod(' + sel.year + ',\'' + pid + '\')">' + p[1] + '</button>';
+      });
       bar.innerHTML = html;
     }
     function ckSortBy(col){
@@ -6691,6 +6838,272 @@
           var s2 = orgSums(rows2);
           html += rowHtml('合計', ppOrg, s2.c1, s2.c2, s2.c3, s2.bizA, s2.r1 + '%', s2.r2 + '%', s2.r3 + '%', s2.c4, s2.bizB, s2.goal, s2.biz, s2.r4 + '%', s2.payback, true, null);
         }
+      }
+      html += '</tbody></table></div>';
+      body.innerHTML = html;
+    }
+
+    // ========== 課程銷售分析（tab-8）==========
+    //   底層：各學院×課程業績。區域＝該區學院相加；點區域可展開看單一學院。
+    //   資料來源（混合）：EIP 當月（motiv_course_v1.byOrg + 封存）＋ 每月績效第8表歷史（SpaceBaseDB sheet8）。
+    var CR_REGIONS = [
+      { key:'north1', name:'北一區', orgs:['站前學院','站二學院','館前學院','板橋學院'] },
+      { key:'north2', name:'北二區', orgs:['站前二部','東區二部'] },
+      { key:'tao',    name:'桃區',   orgs:['中壢學院','中壢二部','中壢三部'] },
+      { key:'central',name:'中區',   orgs:['台中學院','台中二部','台中三部'] },
+      { key:'south',  name:'南區',   orgs:['高雄建國'] }
+    ];
+    var CR_REGION_BY_KEY = {}; CR_REGIONS.forEach(function(r){ CR_REGION_BY_KEY[r.key] = r; });
+    var CR_ALL_ORGS = CR_REGIONS.reduce(function(a,r){ return a.concat(r.orgs); }, []);
+    var CR_TOP_N = 10;
+    // scope = {type:'region'|'org', key}
+    var crScope = (function(){ try{ return JSON.parse(localStorage.getItem('cr_scope_v1') || 'null') || { type:'region', key:'north1' }; }catch(e){ return { type:'region', key:'north1' }; } })();
+    var crSel = (function(){ try{ return JSON.parse(localStorage.getItem('cr_sel_v1') || 'null'); }catch(e){ return null; } })();
+    var _crMpCache = null; // 每月績效資料快取（從 SpaceBaseDB 讀）
+
+    function _crCid(){ try{ var a=localStorage.getItem('activeCharacterId'); return a?'char_'+a+'_':''; }catch(e){ return ''; } }
+    function crGetCourse(){ try{ var s=localStorage.getItem(_crCid()+'motiv_course_v1'); return s?JSON.parse(s):null; }catch(e){ return null; } }
+    function crGetArchive(){ try{ return JSON.parse(localStorage.getItem(_crCid()+'cr_archive_v2')||'{}'); }catch(e){ return {}; } }
+    function _crEipLiveYm(){ var c=crGetCourse(); return (c&&c.meta&&c.meta.year&&c.byOrg)?(c.meta.year+'-'+_ckPad2(parseInt(c.meta.month,10))):null; }
+
+    // 同步通路 → 把 EIP 當月 byOrg 封存
+    function crArchiveCurrent(){
+      var live = crGetCourse();
+      if (!live || !live.meta || !live.meta.year || !live.byOrg) return;
+      var ym = live.meta.year + '-' + _ckPad2(parseInt(live.meta.month,10));
+      try {
+        var arch = crGetArchive();
+        if (arch[ym] && JSON.stringify(arch[ym].byOrg) === JSON.stringify(live.byOrg)) return;
+        arch[ym] = { byOrg: live.byOrg, savedAt: new Date().toISOString() };
+        localStorage.setItem(_crCid()+'cr_archive_v2', JSON.stringify(arch));
+      } catch(e){ console.warn('[cr] 封存失敗', e); }
+    }
+    function crApplyAutoSync(){ try{ crArchiveCurrent(); }catch(e){} try{ crRenderAll(); }catch(e){} }
+    window.crApplyAutoSync = crApplyAutoSync;
+
+    // ── 讀「每月績效」第8表（SpaceBaseDB / images / mp_data_v1）→ 快取成 { 'YYYY-MM': byOrg } ──
+    function crLoadMpData(cb){
+      try {
+        var req = indexedDB.open('SpaceBaseDB');
+        req.onerror = function(){ _crMpCache = _crMpCache || {}; if (cb) cb(); };
+        req.onsuccess = function(){
+          var db = req.result;
+          if (!db.objectStoreNames.contains('images')){ _crMpCache = {}; if (cb) cb(); return; }
+          try {
+            var g = db.transaction('images','readonly').objectStore('images').get('mp_data_v1');
+            g.onsuccess = function(){
+              var raw = g.result;
+              var mp = null;
+              try { mp = (typeof raw === 'string') ? JSON.parse(raw) : raw; } catch(e){ mp = null; }
+              _crMpCache = _crMpParse(mp);
+              if (cb) cb();
+            };
+            g.onerror = function(){ _crMpCache = {}; if (cb) cb(); };
+          } catch(e){ _crMpCache = {}; if (cb) cb(); }
+        };
+      } catch(e){ _crMpCache = {}; if (cb) cb(); }
+    }
+    // mp_data: { '1':{sheet8:[rows]}, ... } → { 'YYYY-MM': { 學院:[{name,value,count}] } }
+    function _crMpParse(mp){
+      var out = {};
+      if (!mp || typeof mp !== 'object') return out;
+      var year = (crSel && crSel.year) || new Date().getFullYear();
+      Object.keys(mp).forEach(function(mKey){
+        var md = mp[mKey]; if (!md) return;
+        var rows = md.sheet8 || md['sheet8']; if (!Array.isArray(rows) || !rows.length) return;
+        var mNum = parseInt(mKey, 10); if (!mNum || mNum < 1 || mNum > 12) return;
+        var headers = Object.keys(rows[0] || {});
+        var courseCol = headers[0]; // 第一欄＝課程名稱
+        var byOrg = {};
+        rows.forEach(function(r){
+          var course = String(r[courseCol] || '').trim();
+          if (!course || course === '合計' || course === '總計' || course === '小計') return;
+          CR_ALL_ORGS.forEach(function(org){
+            if (!(org in r)) return;
+            var v = parseFloat(String(r[org]).replace(/,/g,'')) || 0;
+            if (v === 0) return;
+            if (!byOrg[org]) byOrg[org] = {};
+            byOrg[org][course] = (byOrg[org][course] || 0) + v;
+          });
+        });
+        var packed = {};
+        Object.keys(byOrg).forEach(function(org){
+          packed[org] = Object.keys(byOrg[org]).map(function(c){ return { name:c, value:Math.round(byOrg[org][c]), count:0 }; });
+        });
+        out[year + '-' + _ckPad2(mNum)] = packed;
+      });
+      return out;
+    }
+
+    // 取某月的 byOrg（混合：EIP 當月/封存 優先，否則每月績效歷史）
+    function _crMonthByOrg(ym){
+      if (ym === _crEipLiveYm()){ var c = crGetCourse(); if (c && c.byOrg) return c.byOrg; }
+      var arch = crGetArchive();
+      if (arch[ym] && arch[ym].byOrg) return arch[ym].byOrg;
+      if (_crMpCache && _crMpCache[ym]) return _crMpCache[ym];
+      return null;
+    }
+    function _crHasYm(ym){ return !!_crMonthByOrg(ym); }
+
+    function crSwitchScope(type, key){ crScope = { type:type, key:key }; try{localStorage.setItem('cr_scope_v1',JSON.stringify(crScope));}catch(e){} crRenderAll(); }
+    function crSwitchRegion(r){ crSwitchScope('region', r); }
+    function crSwitchOrg(o){ crSwitchScope('org', o); }
+    function crSetPeriod(year, period){ crSel={year:parseInt(year,10),period:period}; try{localStorage.setItem('cr_sel_v1',JSON.stringify(crSel));}catch(e){} crLoadMpData(function(){ crRenderAll(); }); }
+    function crSetYear(y){ crSetPeriod(y, (crSel&&crSel.period)||'M'+(new Date().getMonth()+1)); }
+
+    // 目前 scope 涵蓋哪些學院
+    function _crScopeOrgs(){
+      if (crScope.type === 'org') return [crScope.key];
+      var r = CR_REGION_BY_KEY[crScope.key] || CR_REGIONS[0];
+      return r.orgs;
+    }
+    function _crScopeName(){
+      if (crScope.type === 'org') return crScope.key;
+      return (CR_REGION_BY_KEY[crScope.key] || CR_REGIONS[0]).name;
+    }
+
+    // 解析期間 → 目前 scope 的課程排名（跨月＋跨該 scope 學院加總）
+    function crResolveData(){
+      var sel = crSel;
+      if (!sel){
+        var liveYm = _crEipLiveYm();
+        var arch = crGetArchive();
+        var allYms = Object.keys(arch).concat(_crMpCache ? Object.keys(_crMpCache) : []);
+        if (liveYm) allYms.push(liveYm);
+        allYms = allYms.sort();
+        if (!allYms.length) return { rows:null, label:'', sel:null };
+        var last = allYms[allYms.length-1];
+        sel = { year:parseInt(last.slice(0,4),10), period:'M'+parseInt(last.slice(5),10) };
+      }
+      var months = _ckPeriodMonths(sel.period);
+      var isSingle = (sel.period.charAt(0) === 'M');
+      var orgs = _crScopeOrgs();
+      var merged = {}; // course -> value
+      var got = [];
+      months.forEach(function(m){
+        var ym = sel.year + '-' + _ckPad2(m);
+        var byOrg = _crMonthByOrg(ym);
+        if (!byOrg) return;
+        var monthHas = false;
+        orgs.forEach(function(org){
+          (byOrg[org] || []).forEach(function(c){
+            merged[c.name] = (merged[c.name] || 0) + (c.value || 0);
+            monthHas = true;
+          });
+        });
+        if (monthHas) got.push(m + '月');
+      });
+      var rows = Object.keys(merged)
+        .map(function(n){ return { name:n, value:Math.round(merged[n]) }; })
+        .filter(function(x){ return x.value !== 0; })
+        .sort(function(a,b){ return b.value - a.value; });
+      var label = sel.year + '年 ' + (isSingle ? (months[0]+'月') : (_ckPeriodLabel(sel.period) + (got.length ? '（'+got.join('+')+'）' : '')));
+      return { rows: rows, label: label, sel: sel, hasData: got.length > 0 };
+    }
+
+    function crRenderPeriodBar(resolved){
+      var bar = document.getElementById('crPeriodBar');
+      if (!bar) return;
+      var sel = resolved.sel;
+      if (!sel){ bar.innerHTML=''; return; }
+      // 收集有資料的年份
+      var arch = crGetArchive();
+      var years = {};
+      Object.keys(arch).forEach(function(k){ years[parseInt(k.slice(0,4),10)]=1; });
+      if (_crMpCache) Object.keys(_crMpCache).forEach(function(k){ years[parseInt(k.slice(0,4),10)]=1; });
+      var liveYm = _crEipLiveYm(); if (liveYm) years[parseInt(liveYm.slice(0,4),10)]=1;
+      years[new Date().getFullYear()]=1; years[sel.year]=1;
+      var yearList = Object.keys(years).map(Number).sort(function(a,b){ return b-a; });
+      function hasYm(y,m){ return _crHasYm(y+'-'+_ckPad2(m)); }
+      var html = '<select class="ck-year-sel" onchange="crSetYear(this.value)">';
+      yearList.forEach(function(y){ html += '<option value="'+y+'"'+(y===sel.year?' selected':'')+'>'+y+'</option>'; });
+      html += '</select>';
+      for (var m=1;m<=12;m++){
+        var pid='M'+m, act=sel.period===pid, has=hasYm(sel.year,m);
+        html += '<button class="ck-period-chip'+(act?' active':'')+(has?' has-data':'')+'" onclick="crSetPeriod('+sel.year+',\''+pid+'\')">'+m+'月</button>';
+      }
+      html += '<span style="width:6px;"></span>';
+      for (var q=1;q<=4;q++){
+        var qid='Q'+q, qact=sel.period===qid, qhas=[q*3-2,q*3-1,q*3].some(function(x){return hasYm(sel.year,x);});
+        html += '<button class="ck-period-chip ck-q-chip'+(qact?' active':'')+(qhas?' has-data':'')+'" onclick="crSetPeriod('+sel.year+',\''+qid+'\')">'+qid+'</button>';
+      }
+      html += '<span style="width:6px;"></span>';
+      [['H1','H1'],['H2','H2'],['Y','全年']].forEach(function(p){
+        var act=sel.period===p[0], has=_ckPeriodMonths(p[0]).some(function(x){return hasYm(sel.year,x);});
+        html += '<button class="ck-period-chip ck-h-chip'+(act?' active':'')+(has?' has-data':'')+'" onclick="crSetPeriod('+sel.year+',\''+p[0]+'\')">'+p[1]+'</button>';
+      });
+      bar.innerHTML = html;
+    }
+
+    // 第二排：目前選定區域的學院子按鈕（點區域→可再點學院看單一學院）
+    function crRenderOrgBar(){
+      var bar = document.getElementById('crOrgBar');
+      if (!bar) return;
+      var regionKey = crScope.type === 'region' ? crScope.key : _crOrgRegionKey(crScope.key);
+      var r = CR_REGION_BY_KEY[regionKey];
+      if (!r){ bar.innerHTML = ''; return; }
+      var html = '<span style="font-size:.72rem;color:var(--dim);align-self:center;margin-right:2px;">' + r.name + '：</span>';
+      html += '<button class="cr-org-btn' + (crScope.type==='region' ? ' active' : '') + '" onclick="crSwitchRegion(\'' + r.key + '\')">全區合計</button>';
+      r.orgs.forEach(function(org){
+        html += '<button class="cr-org-btn' + (crScope.type==='org' && crScope.key===org ? ' active' : '') + '" onclick="crSwitchOrg(\'' + org + '\')">' + org + '</button>';
+      });
+      bar.innerHTML = html;
+    }
+    function _crOrgRegionKey(org){
+      for (var i=0;i<CR_REGIONS.length;i++){ if (CR_REGIONS[i].orgs.indexOf(org)>=0) return CR_REGIONS[i].key; }
+      return 'north1';
+    }
+
+    function crRenderAll(){
+      // 區域按鈕 active（依目前 scope 所屬區域）
+      var activeRegion = crScope.type === 'region' ? crScope.key : _crOrgRegionKey(crScope.key);
+      document.querySelectorAll('.ck-region-btn[data-cr]').forEach(function(b){
+        b.classList.toggle('active', b.getAttribute('data-cr') === activeRegion);
+      });
+      try { crRenderOrgBar(); } catch(e){ console.warn('[cr] org bar', e); }
+
+      var resolved = crResolveData();
+      try { crRenderPeriodBar(resolved); } catch(e){ console.warn('[cr] period bar', e); }
+      var info = document.getElementById('crUpdateInfo');
+      var body = document.getElementById('crBody');
+      if (!body) return;
+
+      if (info){
+        var bits = [];
+        if (resolved.label) bits.push('📅 ' + resolved.label);
+        bits.push('來源：EIP當月 + 每月績效歷史');
+        info.textContent = bits.join(' · ');
+      }
+
+      if (!resolved.rows){
+        body.innerHTML = '<div class="ck-empty">尚無資料 — 過去月份請先在「📅 每月績效」匯入，當月可按「📋 通路」同步</div>';
+        return;
+      }
+      var top = resolved.rows.slice(0, CR_TOP_N);
+      var scopeTotal = resolved.rows.reduce(function(s,c){ return s + c.value; }, 0);
+      var maxV = top.length ? top[0].value : 1;
+      var scopeName = _crScopeName();
+
+      var html = '<div class="ck-table-wrap" style="max-width:760px;"><table class="ck-table"><thead><tr>'
+        + '<th style="width:54px;">排名</th><th>課程名稱（' + scopeName + '）</th>'
+        + '<th style="width:140px;">業績</th></tr></thead><tbody>';
+      if (top.length === 0){
+        html += '<tr><td colspan="3" class="ck-empty">此範圍此期間尚無課程銷售</td></tr>';
+      } else {
+        top.forEach(function(c, i){
+          var medal = i===0?'🥇':(i===1?'🥈':(i===2?'🥉':(i+1)));
+          var barW = Math.max(Math.round(c.value / maxV * 100), 3);
+          html += '<tr>'
+            + '<td style="font-weight:800;">' + medal + '</td>'
+            + '<td style="text-align:left;position:relative;">'
+            +   '<div style="position:absolute;left:0;top:3px;bottom:3px;width:' + barW + '%;background:linear-gradient(90deg,rgba(74,234,255,.10),rgba(167,139,250,.04));border-radius:5px;"></div>'
+            +   '<span style="position:relative;font-weight:600;">' + c.name + '</span></td>'
+            + '<td class="ck-biz-hi">' + fmtComma(c.value) + '</td>'
+            + '</tr>';
+        });
+        html += '<tr style="background:rgba(255,215,0,.06);font-weight:800;">'
+          + '<td colspan="2">' + scopeName + ' 合計（' + resolved.rows.length + ' 門課）</td>'
+          + '<td>' + fmtComma(scopeTotal) + '</td></tr>';
       }
       html += '</tbody></table></div>';
       body.innerHTML = html;
