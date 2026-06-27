@@ -1430,6 +1430,8 @@
     }
     .cr-org-btn:hover { color:var(--text); border-color:var(--border-hi); }
     .cr-org-btn.active { background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.1)); border-color:rgba(167,139,250,.5); color:#c4b5fd; }
+    .ck-period-chip.cr-est.has-data { color:#fb923c; border-color:rgba(251,146,60,.4); }
+    .cr-est-badge { display:inline-block; font-size:.66rem; font-weight:800; color:#fb923c; background:rgba(251,146,60,.12); border:1px solid rgba(251,146,60,.35); border-radius:10px; padding:1px 8px; margin-left:6px; vertical-align:middle; }
     .ck-body { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
     .ck-chart-card { width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px 18px 14px; }
     .ck-chart-title { font-size:.9rem; font-weight:800; color:var(--accent); margin-bottom:12px; }
@@ -6935,15 +6937,17 @@
       return out;
     }
 
-    // 取某月的 byOrg（混合：EIP 當月/封存 優先，否則每月績效歷史）
-    function _crMonthByOrg(ym){
-      if (ym === _crEipLiveYm()){ var c = crGetCourse(); if (c && c.byOrg) return c.byOrg; }
+    // 取某月的 byOrg + 來源（★ 每月績效官方優先，沒有才用 EIP 暫估）
+    function _crMonthSource(ym){
+      if (_crMpCache && _crMpCache[ym]) return { byOrg: _crMpCache[ym], src: 'mp' };   // 官方優先
       var arch = crGetArchive();
-      if (arch[ym] && arch[ym].byOrg) return arch[ym].byOrg;
-      if (_crMpCache && _crMpCache[ym]) return _crMpCache[ym];
+      if (arch[ym] && arch[ym].byOrg) return { byOrg: arch[ym].byOrg, src: 'eip' };     // EIP 封存（暫估）
+      if (ym === _crEipLiveYm()){ var c = crGetCourse(); if (c && c.byOrg) return { byOrg: c.byOrg, src: 'eip' }; }
       return null;
     }
-    function _crHasYm(ym){ return !!_crMonthByOrg(ym); }
+    function _crMonthByOrg(ym){ var r = _crMonthSource(ym); return r ? r.byOrg : null; }
+    function _crMonthSrc(ym){ var r = _crMonthSource(ym); return r ? r.src : null; }
+    function _crHasYm(ym){ return !!_crMonthSource(ym); }
 
     function crSwitchScope(type, key){ crScope = { type:type, key:key }; try{localStorage.setItem('cr_scope_v1',JSON.stringify(crScope));}catch(e){} crRenderAll(); }
     function crSwitchRegion(r){ crSwitchScope('region', r); }
@@ -6979,11 +6983,12 @@
       var isSingle = (sel.period.charAt(0) === 'M');
       var orgs = _crScopeOrgs();
       var merged = {}; // course -> value
-      var got = [];
+      var got = [], estMonths = [];
       months.forEach(function(m){
         var ym = sel.year + '-' + _ckPad2(m);
-        var byOrg = _crMonthByOrg(ym);
-        if (!byOrg) return;
+        var srcRec = _crMonthSource(ym);
+        if (!srcRec) return;
+        var byOrg = srcRec.byOrg;
         var monthHas = false;
         orgs.forEach(function(org){
           (byOrg[org] || []).forEach(function(c){
@@ -6991,14 +6996,14 @@
             monthHas = true;
           });
         });
-        if (monthHas) got.push(m + '月');
+        if (monthHas){ got.push(m + '月'); if (srcRec.src === 'eip') estMonths.push(m + '月'); }
       });
       var rows = Object.keys(merged)
         .map(function(n){ return { name:n, value:Math.round(merged[n]) }; })
         .filter(function(x){ return x.value !== 0; })
         .sort(function(a,b){ return b.value - a.value; });
       var label = sel.year + '年 ' + (isSingle ? (months[0]+'月') : (_ckPeriodLabel(sel.period) + (got.length ? '（'+got.join('+')+'）' : '')));
-      return { rows: rows, label: label, sel: sel, hasData: got.length > 0 };
+      return { rows: rows, label: label, sel: sel, hasData: got.length > 0, estMonths: estMonths };
     }
 
     function crRenderPeriodBar(resolved){
@@ -7020,7 +7025,8 @@
       html += '</select>';
       for (var m=1;m<=12;m++){
         var pid='M'+m, act=sel.period===pid, has=hasYm(sel.year,m);
-        html += '<button class="ck-period-chip'+(act?' active':'')+(has?' has-data':'')+'" onclick="crSetPeriod('+sel.year+',\''+pid+'\')">'+m+'月</button>';
+        var est = has && (_crMonthSrc(sel.year+'-'+_ckPad2(m)) === 'eip'); // EIP 暫估月份
+        html += '<button class="ck-period-chip'+(act?' active':'')+(has?' has-data':'')+(est?' cr-est':'')+'" onclick="crSetPeriod('+sel.year+',\''+pid+'\')">'+m+'月'+(est?'•':'')+'</button>';
       }
       html += '<span style="width:6px;"></span>';
       for (var q=1;q<=4;q++){
@@ -7068,10 +7074,12 @@
       var body = document.getElementById('crBody');
       if (!body) return;
 
+      var est = (resolved.estMonths && resolved.estMonths.length) ? resolved.estMonths : [];
       if (info){
         var bits = [];
         if (resolved.label) bits.push('📅 ' + resolved.label);
-        bits.push('來源：EIP當月 + 每月績效歷史');
+        if (est.length) bits.push('⚠️ ' + est.join('、') + ' 為 EIP 暫估（每月績效尚未匯入）');
+        else if (resolved.hasData) bits.push('✅ 每月績效官方數字');
         info.textContent = bits.join(' · ');
       }
 
@@ -7083,9 +7091,10 @@
       var scopeTotal = resolved.rows.reduce(function(s,c){ return s + c.value; }, 0);
       var maxV = top.length ? top[0].value : 1;
       var scopeName = _crScopeName();
+      var estBadge = est.length ? ' <span class="cr-est-badge">暫估 ' + est.join('+') + '</span>' : '';
 
       var html = '<div class="ck-table-wrap" style="max-width:760px;"><table class="ck-table"><thead><tr>'
-        + '<th style="width:54px;">排名</th><th>課程名稱（' + scopeName + '）</th>'
+        + '<th style="width:54px;">排名</th><th>課程名稱（' + scopeName + '）' + estBadge + '</th>'
         + '<th style="width:140px;">業績</th></tr></thead><tbody>';
       if (top.length === 0){
         html += '<tr><td colspan="3" class="ck-empty">此範圍此期間尚無課程銷售</td></tr>';
