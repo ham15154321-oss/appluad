@@ -809,6 +809,7 @@ async function injectData(academyData, salesData, groupData, reserveData, year, 
         if (typeof window.motivRenderAll === 'function') window.motivRenderAll();
         if (typeof window.ppRenderAll === 'function'){ try{ window.ppRenderAll(); }catch(e){} }
         if (!isPartial && typeof window._motivAutoSaveAfterSync === 'function'){ try{ window._motivAutoSaveAfterSync(); }catch(e){} }
+        if (!isPartial && typeof window.motivShowSaveReminder === 'function'){ try{ window.motivShowSaveReminder(); }catch(e){} }
       } else if (syncMode === 'checkin'){
         if (typeof window.ckRenderAll === 'function'){ try{ window.ckRenderAll(); }catch(e){} }
       } else if (syncMode === 'channel'){
