@@ -1468,32 +1468,33 @@ async function pullFromCloud(opts){
             try { if (existingVal) localObj = JSON.parse(existingVal) || {}; } catch(e1){}
             var cloudObj = {};
             try { cloudObj = (typeof v === 'string') ? (JSON.parse(v) || {}) : (v || {}); } catch(e2){}
-            // Merge：本地優先（本地有的月份保留），雲端只補本地沒有的
-            var merged = {};
-            // 先複製雲端的（補進可能缺的月份）
-            Object.keys(cloudObj).forEach(function(mk){ merged[mk] = cloudObj[mk]; });
-            // 再複製本地的（覆蓋雲端，本地永遠優先）
-            var addedFromCloud = 0;
+            // ★ v5.9：逐月「誰的 archivedAt 較新就用誰」（取代舊的「本地永遠優先」）
+            //   原因：兩個網站（localhost / GitHub Pages）各有舊封存時，本地優先會讓壞資料卡死、
+            //   重新同步也蓋不掉對方。改成比時間 → 重新同步(時間最新)就能傳遞到所有網站、覆蓋舊的。
+            function _archTs(e){
+              var s = (e && e.archivedAt) || '';
+              var m = String(s).match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/);
+              return m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]).getTime() : 0;
+            }
+            var merged = {}, changed = 0, fromCloud = 0;
             Object.keys(localObj).forEach(function(mk){ merged[mk] = localObj[mk]; });
-            // 計算雲端補了幾個本地沒有的月份
-            Object.keys(cloudObj).forEach(function(mk){ if (!localObj[mk]) addedFromCloud++; });
-
-            var localKeys = Object.keys(localObj).length;
-            var mergedKeys = Object.keys(merged).length;
-
-            if (mergedKeys > localKeys) {
-              // 雲端有本地沒有的月份 → 寫回 merged 版本
+            Object.keys(cloudObj).forEach(function(mk){
+              if (!merged[mk]){ merged[mk] = cloudObj[mk]; fromCloud++; changed++; return; }
+              // 兩邊都有 → 新的贏（時間相同則保留本地）
+              if (_archTs(cloudObj[mk]) > _archTs(merged[mk])){ merged[mk] = cloudObj[mk]; changed++; }
+            });
+            if (changed > 0){
               try {
                 _origSet(k, JSON.stringify(merged));
                 _localTsMap[k] = Date.now();
-                console.log('[FirebaseSync] motiv_archive 合併：本地 '+localKeys+' 個月，雲端補 '+addedFromCloud+' 個月，合計 '+mergedKeys+' 個月');
+                console.log('[FirebaseSync] motiv_archive 合併(時間新者勝)：更新 '+changed+' 個月（雲端補 '+fromCloud+'），合計 '+Object.keys(merged).length+' 個月');
                 totalLS++;
               } catch(qe2){
                 _quotaSkipCount++;
                 _quotaSkipKeys.push(k + '(merge)');
               }
             } else {
-              console.log('[FirebaseSync] motiv_archive 保護：本地已有全部 '+localKeys+' 個月份，跳過雲端覆蓋');
+              console.log('[FirebaseSync] motiv_archive：本地皆為最新，無需更新');
             }
             continue;
           } catch(eMerge){
