@@ -270,6 +270,115 @@
   .warn b{color:#8a6d10;}
   .warn ul{margin:6px 0 0 18px;}
 
+  /* ===== KEY NUMBERS 同步列 ＋ 目標按鈕 ===== */
+  .khead{display:flex; align-items:center; gap:9px; margin-bottom:9px; flex-wrap:wrap;}
+  .khead .blk-h{margin:0;}
+  .sync-badge{font-size:10.5px; font-weight:700; padding:4px 11px; border-radius:11px; cursor:pointer; user-select:none;
+    background:var(--g100); color:var(--g500); border:1px solid var(--g200); white-space:nowrap;}
+  .sync-badge.ok{background:#EAF4EE; color:var(--green); border-color:#cfe3d6;}
+  .sync-badge.warn2{background:#FFF6E0; color:#8a6d10; border-color:#F0DFA8;}
+  .sync-badge.err{background:#FAE9EA; color:var(--accent); border-color:#f0c8cc;}
+  .kbtn{font-family:inherit; font-size:10.5px; font-weight:700; padding:5px 11px; border-radius:11px;
+    border:1px solid var(--g300); background:var(--white); color:var(--ink); cursor:pointer; white-space:nowrap;}
+  .kbtn:hover{background:var(--g100);}
+  .kbtn.target{background:var(--accent); border-color:var(--accent); color:#fff; font-size:11.5px; padding:6px 15px;
+    box-shadow:0 3px 10px rgba(192,32,47,.28); letter-spacing:.5px;}
+  .kbtn.target:hover{filter:brightness(1.12); background:var(--accent);}
+  .metric input.autofill{background:#F0F7F2; border-color:#cfe3d6;}
+  .metric .mt .custom{color:var(--accent); font-weight:800;}
+
+  /* ===== 彈窗（目標設定／同步明細）===== */
+  .tmask{position:fixed; inset:0; z-index:500; background:rgba(14,14,14,.45); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; padding:20px;}
+  .tmask.open{display:flex;}
+  .tmodal{background:var(--white); border-radius:18px; box-shadow:0 24px 80px rgba(0,0,0,.35);
+    width:640px; max-width:96vw; max-height:88vh; overflow:auto; padding:24px 28px;}
+  .tmodal h3{font-size:17px; font-weight:800; margin-bottom:4px;}
+  .tmodal .tsub{font-size:11px; color:var(--g500); font-weight:400; margin-left:8px;}
+  .tmodal .tdesc{font-size:11.5px; color:var(--g700); margin:4px 0 14px; line-height:1.5;}
+  table.ttab{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.ttab th{text-align:left; font-size:10px; letter-spacing:1px; color:var(--g500); font-weight:700; padding:6px 8px; border-bottom:1.5px solid var(--g200);}
+  table.ttab td{padding:6px 8px; border-bottom:1px solid var(--g100); vertical-align:middle;}
+  table.ttab td.std{font-family:var(--num); color:var(--g500);}
+  table.ttab input{font-family:var(--num); width:100px; font-size:13px; text-align:right; padding:5px 8px; border:1px solid var(--g300); border-radius:7px;}
+  table.ttab input:focus{outline:none; border-color:var(--accent);}
+  table.ttab input.diff{border-color:var(--accent); background:#FDF3F4; font-weight:700;}
+  .tbtns{display:flex; gap:10px; margin-top:16px;}
+  .tbtns button{font-family:inherit; font-size:12.5px; font-weight:700; padding:9px 18px; border-radius:10px; border:none; cursor:pointer;}
+  .tbtns .save{background:var(--accent); color:#fff;}
+  .tbtns .plain{background:var(--g100); color:var(--ink);}
+  .tbtns .plain:hover{background:var(--g200);}
+  .sd-sec{margin-top:12px;}
+  .sd-sec h4{font-size:11px; letter-spacing:1px; color:var(--g500); font-weight:700; margin-bottom:5px;}
+  .sd-sec .sd-row{font-size:12px; padding:3px 0; border-bottom:1px dashed var(--g100); display:flex; justify-content:space-between;}
+  .sd-sec .sd-row .v{font-family:var(--num); font-weight:700;}
+  .sd-sec .sd-row.low .v,.sd-sec .sd-row.low{color:var(--accent);}
+  .sd-names{font-size:11.5px; color:var(--g700); line-height:1.6;}
+  .sd-names b{color:var(--ink);}
+
+  /* ═══════ 🏆 遊戲化放大檢視 ═══════ */
+  .kbtn.zoom{background:var(--black); border-color:var(--black); color:#FFD700; font-size:11.5px; padding:6px 15px; letter-spacing:.5px;
+    box-shadow:0 3px 10px rgba(0,0,0,.3);}
+  .kbtn.zoom:hover{background:#222;}
+  .zmask{position:fixed; inset:0; z-index:600; display:none; overflow:auto;
+    background:radial-gradient(ellipse at 50% 12%, #1a2547 0%, #0b1128 55%, #05081a 100%); color:#e8ecf7;}
+  .zmask.open{display:block;}
+  .zwrap{max-width:1240px; margin:0 auto; padding:26px 24px 80px;}
+  .zhead{display:flex; align-items:center; gap:14px; margin-bottom:20px;}
+  .zhead .zt{font-size:22px; font-weight:900; letter-spacing:1px;
+    background:linear-gradient(135deg,#FFD700,#FFA940); -webkit-background-clip:text; -webkit-text-fill-color:transparent;}
+  .zhead .zs{font-size:12px; color:#8fa3d0;}
+  .zhead .zx{margin-left:auto; width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,.22);
+    background:rgba(255,255,255,.06); color:#cdd8f2; font-size:17px; cursor:pointer;}
+  .zhead .zx:hover{background:rgba(255,80,80,.28); color:#ff9a9a;}
+  .zrow{display:grid; grid-template-columns:300px 1fr 300px; gap:16px; margin-bottom:16px;}
+  .zcard{background:rgba(255,255,255,.045); border:1px solid rgba(140,170,255,.16); border-radius:18px; padding:18px 18px 16px;
+    box-shadow:0 8px 30px rgba(0,0,0,.35);}
+  .zcard h4{font-size:11px; letter-spacing:2px; color:#8fa3d0; font-weight:700; margin-bottom:10px;}
+  /* gauge */
+  .zgauge{display:flex; flex-direction:column; align-items:center;}
+  .zgauge .gnum{font-family:var(--num); font-size:34px; font-weight:900; fill:#fff;}
+  .zgauge .gsub{font-size:12px; fill:#8fa3d0;}
+  .zbadge{margin-top:10px; text-align:center;}
+  .zbadge .be{font-size:38px; line-height:1; filter:drop-shadow(0 0 14px rgba(255,215,0,.5)); animation:zfloat 2.6s ease-in-out infinite;}
+  .zbadge .bt{font-size:17px; font-weight:900; letter-spacing:2px; margin-top:5px;
+    background:linear-gradient(135deg,#FFD700,#FF8C42); -webkit-background-clip:text; -webkit-text-fill-color:transparent;}
+  .zbadge .bs{font-size:10.5px; color:#8fa3d0; margin-top:3px;}
+  @keyframes zfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  /* lights grid */
+  .zlights{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px;}
+  .zlight{border-radius:15px; padding:14px 15px; background:rgba(255,255,255,.04); border:1.5px solid rgba(140,170,255,.14);
+    cursor:default; position:relative; transition:.2s; animation:zpop .45s ease backwards;}
+  .zlight.green{border-color:rgba(61,220,132,.55); background:rgba(61,220,132,.08); box-shadow:0 0 22px rgba(61,220,132,.22);}
+  .zlight.amber{border-color:rgba(255,196,66,.5); background:rgba(255,196,66,.07);}
+  .zlight.red{border-color:rgba(255,92,108,.55); background:rgba(255,92,108,.08); box-shadow:0 0 18px rgba(255,92,108,.15); cursor:pointer;}
+  .zlight.amber{cursor:pointer;}
+  .zlight .ln{font-size:13px; font-weight:800;}
+  .zlight .lv{font-family:var(--num); font-size:24px; font-weight:900; margin:4px 0 1px;}
+  .zlight.green .lv{color:#3ddc84;} .zlight.amber .lv{color:#ffc442;} .zlight.red .lv{color:#ff5c6c;} .zlight.empty .lv{color:#5a6b96;}
+  .zlight .lt{font-size:10px; color:#8fa3d0;}
+  .zlight .lgood{position:absolute; top:10px; right:12px; font-size:15px;}
+  .zlight .lbad{position:absolute; top:10px; right:12px; font-size:10px; font-weight:800; color:#ff5c6c; letter-spacing:.5px;}
+  .zlight .ztip{display:none; margin-top:9px; font-size:11px; line-height:1.55; color:#ffd9dd; background:rgba(255,92,108,.1);
+    border-left:2px solid #ff5c6c; padding:8px 10px; border-radius:0 8px 8px 0;}
+  .zlight.tipopen .ztip{display:block;}
+  @keyframes zpop{from{opacity:0; transform:scale(.85) translateY(10px);} to{opacity:1; transform:none;}}
+  /* rank bars */
+  .zrank .rr{display:flex; align-items:center; gap:8px; margin-bottom:7px; font-size:12px;}
+  .zrank .rr .rn{flex:0 0 82px; color:#aab8dd; white-space:nowrap; overflow:hidden;}
+  .zrank .rr.me .rn{color:#FFD700; font-weight:900;}
+  .zrank .rr .rbar{flex:1; height:13px; border-radius:7px; background:rgba(255,255,255,.07); overflow:hidden;}
+  .zrank .rr .rbar i{display:block; height:100%; border-radius:7px; background:linear-gradient(90deg,#4a7cff,#7ba4ff);}
+  .zrank .rr.me .rbar i{background:linear-gradient(90deg,#FFD700,#FFA940); box-shadow:0 0 10px rgba(255,215,0,.5);}
+  .zrank .rr .rv{flex:0 0 34px; font-family:var(--num); font-weight:800; text-align:right;}
+  .zrank .rr.me .rv{color:#FFD700;}
+  /* trend */
+  .ztrend-empty{font-size:11.5px; color:#8fa3d0; text-align:center; padding:24px 0;}
+  /* confetti */
+  .zconf{position:fixed; top:-14px; border-radius:2px; z-index:650; pointer-events:none; animation:zfall linear forwards;}
+  @keyframes zfall{to{transform:translateY(105vh) rotate(720deg); opacity:.15;}}
+  svg text{font-family:var(--font);}
+
   @media print{
     @page{size:A4 landscape; margin:0;}
     html,body{background:#fff;}
@@ -355,7 +464,13 @@
       <div class="sub" style="margin-bottom:6px">上半：填本月實際值，紅綠燈自己亮（職級分標）。下半：點格子＝該月已驗收，紅框＝里程碑。</div>
       <div class="rule" style="margin:8px 0"></div>
 
-      <div class="blk-h">KEY NUMBERS ／ 必背數字體檢（填實際值 → 自動紅綠燈）</div>
+      <div class="khead">
+        <div class="blk-h">KEY NUMBERS ／ 必背數字體檢（填實際值 → 自動紅綠燈）</div>
+        <span id="syncBadge" class="sync-badge" onclick="toggleSyncDetails(true)">同步狀態載入中…</span>
+        <button class="kbtn" onclick="forceResync()" title="強制重抓上月每月績效數據（會覆蓋手動修改過的自動項目）">↻ 重新同步</button>
+        <button class="kbtn target" onclick="openTargetModal()">🎯 修改目標</button>
+        <button class="kbtn zoom" onclick="openZoom()">🏆 放大檢視</button>
+      </div>
       <div class="dgrid f-dash" id="dash"></div>
 
       <div class="blk-h" style="margin-top:11px">ANNUAL BOARD ／ 11 項職能 × 12 月・年度驗收</div>
@@ -427,6 +542,31 @@
     <div class="kbar" style="margin-top:10px"><button class="add" onclick="addRow()">＋ 新增一筆</button></div>
   </div>
 </div>
+
+<!-- 🎯 目標設定彈窗 -->
+<div id="tmask" class="tmask" onclick="if(event.target===this)closeTargetModal()">
+  <div class="tmodal">
+    <h3>🎯 我的目標設定<span class="tsub" id="tmodalWho"></span></h3>
+    <div class="tdesc">每位主角各自一份客製目標（雲端同步）。留空＝使用公司標準。改完儲存後，前台紅綠燈立刻改用你的目標判定，AI 顧問也會以你的目標分析。</div>
+    <table class="ttab">
+      <thead><tr><th>指標</th><th>方向</th><th style="width:110px">公司標準</th><th style="width:120px">我的目標</th></tr></thead>
+      <tbody id="ttabBody"></tbody>
+    </table>
+    <div class="tbtns">
+      <button class="save" onclick="saveTargets()">儲存並套用</button>
+      <button class="plain" onclick="resetTargets()">還原公司標準</button>
+      <button class="plain" onclick="closeTargetModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🔄 同步明細彈窗 -->
+<div id="dmask" class="tmask" onclick="if(event.target===this)toggleSyncDetails(false)">
+  <div class="tmodal" id="syncDetailBody"></div>
+</div>
+
+<!-- 🏆 遊戲化放大檢視 -->
+<div id="zmask" class="zmask"><div class="zwrap" id="zwrap"></div></div>
 
 <script>
 const ALL=[1,2,3,4,5,6,7,8,9,10,11,12];
@@ -519,22 +659,26 @@ const NODES=[
 const CATS=['會議','展場','結算','檢討','巡點','單元課','講座','訓練','網路','班務','目標'];
 const CRIT_CAT=['結算','檢討','巡點'];
 
-// ═════════ 主角（per-character）— 每一位主角各自一份 PDR 資料 ═════════
-// 儲存 key：char_<主角id>_pdr_focus_v1（firebase-sync.js 會自動按主角同步雲端）
-// 變更紀錄：char_<主角id>_pdr_log_v1（AI 顧問據此判讀「這次新增了什麼」）
-function getCards(){
-  try{
-    var cards=JSON.parse(localStorage.getItem('castle_cards_v1')||'[]');
-    return cards.filter(function(c){ return c && c.id && c.name && !/^角色 \d+$/.test(c.name); });
-  }catch(e){ return []; }
-}
+// ═════════ 主角（per-character）— 每一位主管各自一份 PDR 資料 ═════════
+// 儲存 key：char_<主角姓名>_pdr_focus_v1（firebase-sync.js 會自動按主角同步雲端）
+// 變更紀錄：char_<主角姓名>_pdr_log_v1（AI 顧問據此判讀「這次新增了什麼」）
+// ★ 轄下 7 位學院主管（固定名單＋學院對應）— 只有這七人有 PDR
+const MANAGERS=[
+  {name:'楊雅晴',academy:'台中三部'},
+  {name:'凃敏薰',academy:'台中二部'},
+  {name:'林昭宏',academy:'台中學院'},
+  {name:'王志軒',academy:'中壢二部'},
+  {name:'蔡青倚',academy:'中壢三部'},
+  {name:'黎禹歆',academy:'高雄建國'},
+  {name:'洪士德',academy:'中壢學院'},
+];
+// ★ 全站主角識別＝姓名（activeCharacterId 存的是姓名，char_ 前綴 key 也用姓名）
 let curCharId = localStorage.getItem('activeCharacterId') || '';
-let curCharName = localStorage.getItem('activeCharacterName') || '';
+let curCharName = localStorage.getItem('activeCharacterName') || curCharId || '';
 (function initChar(){
-  const cards=getCards();
-  if(!curCharId && cards.length){ curCharId=cards[0].id; curCharName=cards[0].name; }
-  if(!curCharId){ curCharId='default'; curCharName=curCharName||'未登入'; }
-  if(!curCharName){ const c=cards.find(c=>c.id===curCharId); curCharName=c?c.name:String(curCharId); }
+  // 登入者若是七位主管之一 → 預設看自己；否則（如督導者）預設看第一位
+  if(!MANAGERS.some(m=>m.name===curCharName)){ curCharId=MANAGERS[0].name; curCharName=MANAGERS[0].name; }
+  else { curCharId=curCharName; }
 })();
 function KEY(){ return 'char_'+curCharId+'_pdr_focus_v1'; }
 function LOGKEY(){ return 'char_'+curCharId+'_pdr_log_v1'; }
@@ -555,6 +699,11 @@ function loadStore(){
   if(!store.plans[store.activeMonth]) store.plans[store.activeMonth]={goal:'',entries:[],tasks:[{},{},{}]};
   if(store.tension==null) store.tension=5;
   store.folder=store.folder||''; store.demoDate=store.demoDate||'';
+  store.metricsManual=store.metricsManual||{};   // 手動改過的指標（自動同步不覆蓋）
+  store.targets=store.targets||{};               // 客製目標（空＝公司標準）
+  store.autoSync=store.autoSync||null;           // 上次自動同步資訊
+  store.academyManual=store.academyManual||'';   // 手動指定學院（自動判定失敗時）
+  store.scoreHistory=store.scoreHistory||{};     // 每月總分快照（放大檢視趨勢圖用）
 }
 function save(){ localStorage.setItem(KEY(),JSON.stringify(store)); }
 
@@ -584,16 +733,11 @@ function curTasks(){let p=store.plans[store.activeMonth];
 
 // ── 主角切換器 ──
 function renderCharSel(){
-  const sel=document.getElementById('charSel'); const cards=getCards();
-  let opts=cards.map(c=>`<option value="${escAttr(String(c.id))}" ${String(c.id)===String(curCharId)?'selected':''}>${esc(c.name)}</option>`).join('');
-  if(!cards.some(c=>String(c.id)===String(curCharId))){
-    opts=`<option value="${escAttr(String(curCharId))}" selected>${esc(curCharName)}</option>`+opts;
-  }
-  sel.innerHTML=opts;
+  const sel=document.getElementById('charSel');
+  sel.innerHTML=MANAGERS.map(m=>`<option value="${escAttr(m.name)}" ${m.name===curCharName?'selected':''}>${esc(m.name)}（${esc(m.academy)}）</option>`).join('');
 }
 document.getElementById('charSel').onchange=function(e){
-  const c=getCards().find(x=>String(x.id)===String(e.target.value));
-  curCharId=e.target.value; curCharName=c?c.name:String(e.target.value);
+  curCharId=e.target.value; curCharName=e.target.value;
   loadStore(); initUI();
   showToast('👤 切換至 '+curCharName+' 的 PDR');
 };
@@ -759,17 +903,256 @@ function prog(){ITEMS.forEach(it=>{const id='it'+it.n;
   const el=document.getElementById(id+'_p'); if(el)el.innerHTML=`<span class="pct">${tot?Math.round(done/tot*100):0}%</span>`;});}
 
 // dash
+// 有效目標：客製優先，留空用公司標準
+function tgt(k){ const d=METRICS.find(m=>m.k===k);
+  const c=store.targets&&store.targets[k];
+  return (c!=null&&c!==''&&!isNaN(c))?parseFloat(c):d.target; }
+function isCustomTgt(k){ const d=METRICS.find(m=>m.k===k); const t=tgt(k); return t!==d.target; }
 function renderDash(){const dash=document.getElementById('dash'); dash.innerHTML='';
   METRICS.forEach(mt=>{const row=document.createElement('div'); row.className='metric';
-    row.innerHTML=`<div><span class="mn">${mt.nm}</span> <span class="mt">${mt.goal||'目標'} ${mt.dir==='down'?'≤':'≥'}${mt.target}${mt.unit}</span></div>`;
+    const t=tgt(mt.k), cus=isCustomTgt(mt.k);
+    row.innerHTML=`<div><span class="mn">${mt.nm}</span> <span class="mt">${mt.goal||'目標'} ${mt.dir==='down'?'≤':'≥'}${t}${mt.unit}${cus?' <span class="custom" title="公司標準 '+(mt.dir==='down'?'≤':'≥')+mt.target+mt.unit+'">客製</span>':''}</span></div>`;
     const inp=document.createElement('input'); inp.type='number'; inp.value=store.metrics[mt.k]??''; inp.placeholder='實際';
+    if(store.autoSync&&store.autoSync.applied&&store.autoSync.applied[mt.k]!=null&&!store.metricsManual[mt.k]){
+      inp.classList.add('autofill'); inp.title='↻ 同步自 '+store.autoSync.month+'月 每月績效（'+(store.autoSync.academy||'')+'）— 手動修改後不再被自動覆蓋';
+    }
     const dot=document.createElement('div'); dot.className='vdot2';
     function light(){vlight2(dot,inp.value,mt);}
-    inp.oninput=()=>{store.metrics[mt.k]=inp.value; save(); light();
-      logChange('必背數字','『'+mt.nm+'』填入實際值 '+inp.value+mt.unit+'（標準 '+(mt.dir==='down'?'≤':'≥')+mt.target+mt.unit+'）','m_'+mt.k);};
+    inp.oninput=()=>{store.metrics[mt.k]=inp.value; store.metricsManual[mt.k]=true; inp.classList.remove('autofill'); save(); light();
+      logChange('必背數字','『'+mt.nm+'』手動填入實際值 '+inp.value+mt.unit+'（目標 '+(mt.dir==='down'?'≤':'≥')+tgt(mt.k)+mt.unit+'）','m_'+mt.k);};
     row.appendChild(inp); row.appendChild(dot); dash.appendChild(row); light();});}
-function vlight2(dot,val,mt){dot.className='vdot2'; if(val===''||isNaN(val))return; const v=parseFloat(val); let s;
-  if(mt.dir==='up')s=v>=mt.target?'green':(v>=mt.target*0.9?'amber':'red'); else s=v<=mt.target?'green':(v<=mt.target*1.3?'amber':'red'); dot.classList.add(s);}
+function vlight2(dot,val,mt){dot.className='vdot2'; if(val===''||isNaN(val))return; const v=parseFloat(val); const t=tgt(mt.k); let s;
+  if(mt.dir==='up')s=v>=t?'green':(v>=t*0.9?'amber':'red'); else s=v<=t?'green':(v<=t*1.3?'amber':'red'); dot.classList.add(s);}
+
+// ═════════ 🎯 目標設定（每主角各自一份）═════════
+function openTargetModal(){
+  document.getElementById('tmodalWho').textContent='　'+curCharName;
+  const tb=document.getElementById('ttabBody'); tb.innerHTML='';
+  METRICS.forEach(mt=>{
+    const c=store.targets[mt.k];
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${mt.nm}</td><td>${mt.dir==='down'?'≤ 越低越好':'≥ 越高越好'}</td>
+      <td class="std">${mt.target}${mt.unit}</td>
+      <td><input type="number" data-k="${mt.k}" value="${(c!=null&&c!=='')?c:''}" placeholder="${mt.target}"></td>`;
+    const inp=tr.querySelector('input');
+    function mark(){ inp.classList.toggle('diff', inp.value!==''&&parseFloat(inp.value)!==mt.target); }
+    inp.oninput=mark; mark();
+    tb.appendChild(tr);
+  });
+  // ★ 業務人力門檻（平均口徑用）
+  const fr=document.createElement('tr');
+  const fv=store.targets.salesFloor;
+  fr.innerHTML=`<td><b>業務人力門檻</b><br><span style="font-size:10px;color:var(--g500)">合計業績達此值才計入「業務個人業績」平均</span></td>
+    <td>≥ 才算人力</td><td class="std">${SALES_FLOOR_DEF}萬</td>
+    <td><input type="number" data-k="salesFloor" value="${(fv!=null&&fv!=='')?fv:''}" placeholder="${SALES_FLOOR_DEF}"></td>`;
+  const finp=fr.querySelector('input');
+  function fmark(){ finp.classList.toggle('diff', finp.value!==''&&parseFloat(finp.value)!==SALES_FLOOR_DEF); }
+  finp.oninput=fmark; fmark();
+  tb.appendChild(fr);
+  document.getElementById('tmask').classList.add('open');
+}
+function closeTargetModal(){ document.getElementById('tmask').classList.remove('open'); }
+function saveTargets(){
+  const changes=[]; let floorChanged=false;
+  document.querySelectorAll('#ttabBody input').forEach(inp=>{
+    const k=inp.dataset.k;
+    const v=inp.value.trim();
+    const old=store.targets[k];
+    if(k==='salesFloor'){ // 人力門檻（非 12 項指標）
+      if(v===''||parseFloat(v)===SALES_FLOOR_DEF){ if(old!=null&&old!=='') {changes.push('業務人力門檻→還原'+SALES_FLOOR_DEF+'萬'); floorChanged=true;} delete store.targets[k]; }
+      else { if(String(old)!==String(v)){ changes.push('業務人力門檻→'+v+'萬（預設'+SALES_FLOOR_DEF+'）'); floorChanged=true; } store.targets[k]=v; }
+      return;
+    }
+    const mt=METRICS.find(m=>m.k===k); if(!mt) return;
+    if(v===''||parseFloat(v)===mt.target){ if(old!=null&&old!=='') changes.push(mt.nm+'→還原'+mt.target+mt.unit); delete store.targets[k]; }
+    else { if(String(old)!==String(v)) changes.push(mt.nm+'→'+v+mt.unit+'（標準'+mt.target+'）'); store.targets[k]=v; }
+  });
+  save();
+  if(floorChanged&&!store.metricsManual.sales){ autoSyncFromMp(false); }  // 門檻變了 → 平均重算
+  renderDash(); renderSyncBadge(); closeTargetModal();
+  if(changes.length){ logChange('目標設定','修改客製目標：'+changes.join('、')); showToast('🎯 目標已更新，紅綠燈重新判定'); }
+  else showToast('目標無變更');
+}
+function resetTargets(){
+  if(!confirm('把「'+curCharName+'」的全部目標還原成公司標準？')) return;
+  store.targets={}; save(); renderDash(); closeTargetModal();
+  logChange('目標設定','全部目標還原公司標準');
+  showToast('已還原公司標準');
+}
+
+// ═════════ 🔄 上月數據自動同步（來源：業績數據中心 → 每月績效 mp_data_v1）═════════
+const AUTO_KEYS=['acad','group','leader','sales','face','reg','stay','recruit','refund']; // promote/attend/conv 一律手動
+// ★ 每月績效完整資料在 IndexedDB（SpaceBaseDB.images → 'mp_data_v1'），localStorage 只是容量受限的備份
+let _mpCache=null;
+function _mpFromIDB(){
+  return new Promise(resolve=>{
+    try{
+      const req=indexedDB.open('SpaceBaseDB');
+      req.onsuccess=()=>{
+        const db=req.result;
+        if(!db.objectStoreNames.contains('images')){ try{db.close();}catch(_){}; resolve(null); return; }
+        try{
+          const r=db.transaction('images','readonly').objectStore('images').get('mp_data_v1');
+          r.onsuccess=()=>{ try{db.close();}catch(_){};
+            try{ const v=r.result; resolve(v?(typeof v==='string'?JSON.parse(v):v):null); }catch(e){ resolve(null); } };
+          r.onerror=()=>{ try{db.close();}catch(_){}; resolve(null); };
+        }catch(e){ try{db.close();}catch(_){}; resolve(null); }
+      };
+      req.onerror=()=>resolve(null);
+    }catch(e){ resolve(null); }
+  });
+}
+function _readMp(){
+  if(_mpCache) return _mpCache;
+  try{ return JSON.parse(localStorage.getItem('mp_data_v1')||'null'); }catch(e){ return null; }
+}
+function _numv(v){ if(v==null||v==='')return null; v=parseFloat(String(v).replace(/,/g,'')); return isNaN(v)?null:v; }
+function _wan(v){ v=_numv(v); return v==null?null:Math.round(v/1000)/10; }              // 元 → 萬（1位小數）
+function _pctv(v){ v=_numv(v); if(v==null)return null; if(v<=1.5)v*=100; return Math.round(v*10)/10; } // 0.42 → 42%
+function _roster(mdata,ac){ // 該學院業務名單（❸ 業務個人績效，部門含「業務」，排除主管的營業部門）
+  return ((mdata&&mdata.sheet3)||[]).filter(r=>String(r['學院']||'').trim()===ac&&String(r['部門']||'').indexOf('業務')>=0)
+    .map(r=>({name:String(r['姓名']||'').trim(), total:_wan(r['合計業績'])})).filter(p=>p.name);
+}
+// ★ 業務人力門檻（平均口徑）：合計業績 ≥ 門檻才計入人力，預設 15 萬，可在 🎯 目標設定調整
+const SALES_FLOOR_DEF=15;
+function _salesFloor(){ const v=store.targets&&store.targets.salesFloor;
+  return (v!=null&&v!==''&&!isNaN(v))?parseFloat(v):SALES_FLOOR_DEF; }
+// ★ 核心計算（給自動同步＋七人排名共用）：由某月資料算出某學院的各項指標
+function computeVals(mp,src,pp,ac,floor){
+  const md=mp[src]||{};
+  const s5=((md.sheet5)||[]).find(r=>String(r['學院']||'').trim()===ac);
+  const g4=((md.sheet4)||[]).filter(r=>String(r['學院']||'').trim()===ac);
+  const roster=_roster(md,ac);
+  const vals={}, details={};
+  // 學院單月業績
+  if(s5){ vals.acad=_wan(s5['業績'])??_wan((_numv(s5['業績Ⓐ'])||0)+(_numv(s5['業績Ⓑ'])||0)); }
+  // 小組（抽最低組）／組長（抽最低組長）— 標準是底線，綠燈＝全員過標
+  if(g4.length){
+    const groups=g4.map(r=>({name:String(r['正式組別']||'').trim(),val:_wan(r['總業績'])})).filter(g=>g.val!=null);
+    const leaders=g4.map(r=>({name:String(r['組長']||'').trim(),val:_wan(r['業績'])})).filter(g=>g.name&&g.val!=null);
+    if(groups.length){ groups.sort((a,b)=>a.val-b.val); vals.group=groups[0].val; details.group=groups; }
+    if(leaders.length){ leaders.sort((a,b)=>a.val-b.val); vals.leader=leaders[0].val; details.leader=leaders; }
+  }
+  // 業務個人＝「有效人力平均」：合計業績 ≥ 門檻者的平均（未達者分子分母都排除）
+  if(roster.length){
+    const withVal=roster.filter(p=>p.total!=null).sort((a,b)=>a.total-b.total);
+    const valid=withVal.filter(p=>p.total>=floor);
+    if(valid.length) vals.sales=Math.round(valid.reduce((s,p)=>s+p.total,0)/valid.length*10)/10;
+    details.sales=withVal.map(p=>({name:p.name,val:p.total,excluded:p.total<floor}));
+    details.salesMeta={floor:floor, valid:valid.length, totalPeople:withVal.length, avg:vals.sales==null?null:vals.sales};
+  }
+  // 面率／面談註冊率／退費率
+  if(s5){ vals.face=_pctv(s5['面談率']); vals.reg=_pctv(s5['註冊率']);
+    const rev=_numv(s5['業績'])||((_numv(s5['業績Ⓐ'])||0)+(_numv(s5['業績Ⓑ'])||0));
+    const rf=_numv(s5['退費金額']);
+    if(rev&&rf!=null) vals.refund=Math.round(rf/rev*1000)/10;
+  }
+  // 留任率／增員報到（照舊：比對兩個月「全部業務名單」，不受門檻影響）
+  if(pp!=null){
+    const prevNames=new Set(_roster(mp[pp],ac).map(p=>p.name));
+    const curNames=new Set(roster.map(p=>p.name));
+    if(prevNames.size){
+      const stayed=[...prevNames].filter(n=>curNames.has(n));
+      vals.stay=Math.round(stayed.length/prevNames.size*1000)/10;
+      details.lost=[...prevNames].filter(n=>!curNames.has(n));
+    }
+    details.newcomers=[...curNames].filter(n=>!prevNames.has(n));
+    vals.recruit=(details.newcomers||[]).length;
+  }
+  return {vals:vals, details:details};
+}
+function _detectAcademy(mp,months){
+  if(store.academyManual) return store.academyManual;
+  const mgr=MANAGERS.find(m=>m.name===curCharName);          // ★ 七位主管固定對應
+  if(mgr) return mgr.academy;
+  for(let i=months.length-1;i>=0;i--){
+    const s3=(mp[months[i]]||{}).sheet3||[];
+    const row=s3.find(r=>String(r['姓名']||'').trim()===curCharName);
+    if(row&&row['學院']) return String(row['學院']).trim();
+  }
+  return '';
+}
+function autoSyncFromMp(force){
+  const mp=_readMp();
+  if(!mp){ store.autoSync={err:'nodata',at:Date.now()}; save(); return; }
+  const months=Object.keys(mp).map(Number).filter(n=>!isNaN(n)&&mp[n]).sort((a,b)=>a-b);
+  if(!months.length){ store.autoSync={err:'nodata',at:Date.now()}; save(); return; }
+  const want=(new Date().getMonth()+1)-1||12;                     // 上月（1月→12）
+  const src=months.includes(want)?want:months[months.length-1];   // 沒有上月 → 最近有資料的月
+  const prevs=months.filter(m=>m<src);
+  const pp=prevs.length?prevs[prevs.length-1]:null;               // 上上月（算留任/增員用）
+  const ac=_detectAcademy(mp,months);
+  if(!ac){ store.autoSync={err:'noacad',month:src,at:Date.now()}; save(); return; }
+  const cv=computeVals(mp,src,pp,ac,_salesFloor());
+  const vals=cv.vals, details=cv.details;
+  // 套用（手動優先；force 時覆寫並清手動旗標）
+  const applied={}; let changed=0;
+  AUTO_KEYS.forEach(k=>{
+    const v=vals[k]; if(v==null||isNaN(v)) return;
+    if(!force&&store.metricsManual[k]) return;
+    if(force) delete store.metricsManual[k];
+    if(String(store.metrics[k])!==String(v)){ changed++; }
+    store.metrics[k]=v; applied[k]=v;
+  });
+  store.autoSync={month:src, prevMonth:pp, academy:ac, at:Date.now(), applied, details,
+    fallback:src!==want, wantMonth:want, err:''};
+  save();
+  if(changed) logChange('必背數字','↻ 自動同步 '+src+'月每月績效（'+ac+'）帶入/更新 '+changed+' 項'+(force?'（強制覆寫手動值）':''));
+}
+function renderSyncBadge(){
+  const b=document.getElementById('syncBadge'); if(!b) return;
+  const s=store.autoSync;
+  b.className='sync-badge';
+  if(!s||s.err==='nodata'){ b.classList.add('err'); b.textContent='✗ 找不到每月績效資料（先到業績數據中心匯入）'; return; }
+  if(s.err==='noacad'){ b.classList.add('err'); b.textContent='⚠ 判定不到 '+curCharName+' 的學院 — 點此指定'; return; }
+  if(s.fallback){ b.classList.add('warn2'); b.textContent='⚠ 已同步 '+s.month+'月（'+s.academy+'）— '+s.wantMonth+'月未匯入，點此看明細'; }
+  else { b.classList.add('ok'); b.textContent='✓ 已同步 '+s.month+'月・'+s.academy+'　點此看明細'; }
+}
+function forceResync(){
+  if(!confirm('強制重新同步會用上月每月績效覆蓋「自動同步項目」（含你手動改過的）。\n出席率、行銷轉換率、晉升門檻等手動項目不受影響。確定？')) return;
+  autoSyncFromMp(true); renderDash(); renderSyncBadge();
+  showToast('↻ 已重新同步');
+}
+function toggleSyncDetails(open){
+  const m=document.getElementById('dmask');
+  if(open===false){ m.classList.remove('open'); return; }
+  const s=store.autoSync;
+  if(s&&s.err==='noacad'){ // 學院判不到 → 直接讓使用者指定
+    const mp=_readMp()||{}; const acads=[...new Set(Object.values(mp).flatMap(md=>((md&&md.sheet5)||[]).map(r=>String(r['學院']||'').trim())).filter(Boolean))];
+    const pick=prompt('每月績效裡找不到「'+curCharName+'」— 請輸入所屬學院：\n'+acads.join('、'), acads[0]||'');
+    if(pick&&pick.trim()){ store.academyManual=pick.trim(); save(); autoSyncFromMp(false); renderDash(); renderSyncBadge();
+      logChange('必背數字','手動指定學院：'+pick.trim()); }
+    return;
+  }
+  const body=document.getElementById('syncDetailBody');
+  if(!s||!s.month){ body.innerHTML='<h3>🔄 同步明細</h3><div class="tdesc">尚無同步資料。</div>'; m.classList.add('open'); return; }
+  const NMK={}; METRICS.forEach(mt=>NMK[mt.k]=mt);
+  let h='<h3>🔄 同步明細<span class="tsub">'+s.month+'月・'+s.academy+(s.prevMonth?('（留任/增員對比 '+s.prevMonth+'月名單）'):'')+'</span></h3>';
+  h+='<div class="tdesc">小組/組長/業務抽「該學院最低值」判燈 — 綠燈才代表全員過標。手動改過的格子不會被自動同步覆蓋（可按「↻ 重新同步」強制覆寫）。</div>';
+  h+='<div class="sd-sec"><h4>帶入的數字</h4>';
+  Object.keys(s.applied||{}).forEach(k=>{ const mt=NMK[k];
+    h+='<div class="sd-row"><span>'+mt.nm+'</span><span class="v">'+s.applied[k]+mt.unit+'</span></div>'; });
+  h+='</div>';
+  const d=s.details||{};
+  function listSec(title,arr,unit){ if(!arr||!arr.length)return'';
+    let x='<div class="sd-sec"><h4>'+title+'（低→高，紅字＝抽入判燈）</h4>';
+    arr.forEach((g,i)=>{ x+='<div class="sd-row'+(i===0?' low':'')+'"><span>'+esc(g.name)+'</span><span class="v">'+g.val+unit+'</span></div>'; });
+    return x+'</div>'; }
+  h+=listSec('小組業績明細',d.group,'萬');
+  h+=listSec('組長個人業績明細',d.leader,'萬');
+  if(d.salesMeta){
+    h+='<div class="sd-sec"><h4>業務個人業績（平均口徑：合計業績 ≥'+d.salesMeta.floor+'萬 才計人力）— 有效人力 '
+      +d.salesMeta.valid+'／'+d.salesMeta.totalPeople+' 人・平均 '+(d.salesMeta.avg==null?'—':d.salesMeta.avg+'萬')+'</h4>';
+    (d.sales||[]).forEach(p=>{
+      h+='<div class="sd-row'+(p.excluded?' low':'')+'"><span>'+esc(p.name)+(p.excluded?'　＜'+d.salesMeta.floor+'萬・不計人力':'')+'</span><span class="v">'+p.val+'萬</span></div>';
+    });
+    h+='</div>';
+  }
+  if(d.lost&&d.lost.length) h+='<div class="sd-sec"><h4>離開名單（'+(s.prevMonth)+'月有、'+s.month+'月沒有）</h4><div class="sd-names">'+d.lost.map(esc).join('、')+'</div></div>';
+  if(d.newcomers&&d.newcomers.length) h+='<div class="sd-sec"><h4>新進名單（增員報到）</h4><div class="sd-names">'+d.newcomers.map(esc).join('、')+'</div></div>';
+  h+='<div class="tbtns"><button class="plain" onclick="toggleSyncDetails(false)">關閉</button></div>';
+  body.innerHTML=h; m.classList.add('open');
+}
 
 // nodes
 document.getElementById('nodes').innerHTML=NODES.map(n=>`<div class="node ${n.crit?'crit':''}">
@@ -818,6 +1201,142 @@ document.getElementById('taskApply').onclick=()=>{
   if(s1) s1.scrollIntoView({behavior:'smooth',block:'center'});
 };
 
+// ═════════ 🏆 遊戲化放大檢視 ═════════
+const SHORT_NM={acad:'學院',group:'小組',leader:'組長',sales:'業務均',promote:'晉升',face:'面率',reg:'註冊率',attend:'出席',stay:'留任',recruit:'增員',conv:'轉換',refund:'退費'};
+const COACH_MAP={acad:1,group:5,leader:5,sales:2,promote:7,face:1,reg:1,attend:3,stay:4,recruit:4,conv:10,refund:8};
+function statusOf(mt){ const v=store.metrics[mt.k]; if(v===''||v==null||isNaN(v))return null;
+  const val=parseFloat(v), t=tgt(mt.k);
+  if(mt.dir==='up')return val>=t?'green':(val>=t*0.9?'amber':'red');
+  return val<=t?'green':(val<=t*1.3?'amber':'red'); }
+function scoreNow(){ let g=0,f=0,a=0; METRICS.forEach(mt=>{ const s=statusOf(mt); if(!s)return; f++; if(s==='green')g++; if(s==='amber')a++; }); return {g:g,f:f,a:a}; }
+function gradeOf(g){ return g>=12?{t:'S',n:'傳說主管',e:'👑'}:g>=10?{t:'A',n:'王牌主管',e:'🏆'}:g>=8?{t:'B',n:'精銳主管',e:'🥇'}:g>=6?{t:'C',n:'成長主管',e:'🥈'}:g>=4?{t:'D',n:'蓄力主管',e:'🥉'}:{t:'E',n:'開局主管',e:'🌱'}; }
+function _achv(mt){ const v=store.metrics[mt.k]; if(v===''||v==null||isNaN(v))return 0;
+  const val=parseFloat(v), t=tgt(mt.k);
+  let a; if(mt.dir==='up')a=t?val/t:0; else a=(val<=0)?1.2:(t/val);
+  return Math.max(0,Math.min(1.2,a)); }
+function _snapshotScore(){ // 每月快照（趨勢圖）
+  const ym=new Date().toISOString().slice(0,7);
+  const s=scoreNow();
+  const old=store.scoreHistory[ym];
+  if(!old||old.g!==s.g||old.f!==s.f){ store.scoreHistory[ym]={g:s.g,f:s.f,at:Date.now()}; save(); }
+}
+function _mgrScore(name,academy){ // 七人排名：沒填過 PDR 的主管直接用每月績效算自動項目
+  let st=null; try{ st=JSON.parse(localStorage.getItem('char_'+name+'_pdr_focus_v1')||'null'); }catch(e){}
+  let metrics=(st&&st.metrics)||{}; const targets=(st&&st.targets)||{};
+  const has=Object.keys(metrics).some(k=>metrics[k]!==''&&metrics[k]!=null);
+  if(!has){ const mp=_readMp();
+    if(mp){ const months=Object.keys(mp).map(Number).filter(n=>!isNaN(n)&&mp[n]).sort((x,y)=>x-y);
+      if(months.length){ const want=(new Date().getMonth()+1)-1||12;
+        const src=months.includes(want)?want:months[months.length-1];
+        const prevs=months.filter(m=>m<src); const pp=prevs.length?prevs[prevs.length-1]:null;
+        const fl=(targets.salesFloor!=null&&targets.salesFloor!==''&&!isNaN(targets.salesFloor))?parseFloat(targets.salesFloor):SALES_FLOOR_DEF;
+        metrics=computeVals(mp,src,pp,academy,fl).vals; } } }
+  let g=0,f=0;
+  METRICS.forEach(mt=>{ const v=metrics[mt.k]; if(v===''||v==null||isNaN(v))return; f++;
+    let t=mt.target; const ct=targets[mt.k]; if(ct!=null&&ct!==''&&!isNaN(ct))t=parseFloat(ct);
+    const val=parseFloat(v); if(mt.dir==='up'?val>=t:val<=t)g++; });
+  return {g:g,f:f};
+}
+function openZoom(){
+  _snapshotScore();
+  const sc=scoreNow(); const g=sc.g,f=sc.f,a=sc.a; const gr=gradeOf(g);
+  // ── 總分圓環 ──
+  const R=74,C=2*Math.PI*R, frac=g/12;
+  const gauge=`<svg width="200" height="200" viewBox="0 0 200 200">
+    <circle cx="100" cy="100" r="${R}" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="15"/>
+    <circle cx="100" cy="100" r="${R}" fill="none" stroke="url(#zg1)" stroke-width="15" stroke-linecap="round"
+      stroke-dasharray="${(C*frac).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 100 100)"/>
+    <defs><linearGradient id="zg1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3ddc84"/><stop offset="100%" stop-color="#FFD700"/></linearGradient></defs>
+    <text x="100" y="97" text-anchor="middle" class="gnum" fill="#fff" font-size="34" font-weight="900">${g}/12</text>
+    <text x="100" y="121" text-anchor="middle" fill="#8fa3d0" font-size="12">綠燈過標${a?'・黃燈'+a+'項接近':''}</text></svg>`;
+  // ── 雷達圖 ──
+  const cx=190,cy=150,RR=104,N=METRICS.length;
+  function pt(i,rr){ const ang=-Math.PI/2+i*2*Math.PI/N; return [(cx+rr*Math.cos(ang)).toFixed(1),(cy+rr*Math.sin(ang)).toFixed(1)]; }
+  let rings=''; [0.33,0.66,1].forEach(k=>{ rings+='<polygon points="'+METRICS.map((m,i)=>pt(i,RR*k).join(',')).join(' ')+'" fill="none" stroke="rgba(140,170,255,.16)"/>'; });
+  let axes='',labels='';
+  METRICS.forEach((mt,i)=>{ const p=pt(i,RR); axes+=`<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="rgba(140,170,255,.12)"/>`;
+    const lp=pt(i,RR+19); const s=statusOf(mt);
+    const col=s==='green'?'#3ddc84':s==='amber'?'#ffc442':s==='red'?'#ff5c6c':'#5a6b96';
+    labels+=`<text x="${lp[0]}" y="${lp[1]}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="700" fill="${col}">${SHORT_NM[mt.k]}</text>`; });
+  const poly=METRICS.map((mt,i)=>pt(i,RR*(_achv(mt)/1.2)).join(',')).join(' ');
+  const tpoly=METRICS.map((m,i)=>pt(i,RR*(1/1.2)).join(',')).join(' ');
+  const radar=`<svg width="380" height="300" viewBox="0 0 380 300">${rings}${axes}
+    <polygon points="${tpoly}" fill="none" stroke="rgba(255,215,0,.45)" stroke-dasharray="4 4"/>
+    <polygon points="${poly}" fill="rgba(74,124,255,.28)" stroke="#7ba4ff" stroke-width="2"/>${labels}</svg>
+    <div style="font-size:10px;color:#8fa3d0;text-align:center;margin-top:2px">金色虛線＝目標線・藍色面積＝目前表現，貼齊或超出虛線＝過標</div>`;
+  // ── 七人戰區（匿名排名）──
+  const rows=MANAGERS.map(m=>{ if(m.name===curCharName) return {name:m.name,g:g,f:f};
+    const r=_mgrScore(m.name,m.academy); return {name:m.name,g:r.g,f:r.f}; });
+  rows.sort((x,y)=>y.g-x.g);
+  const myRank=rows.findIndex(r=>r.name===curCharName)+1;
+  let alpha=0; const AL='ABCDEF';
+  const rank=rows.map((r,i)=>{ const me=r.name===curCharName;
+    const label=me?('你・'+esc(r.name)):('主管'+AL[alpha++]);
+    return `<div class="rr${me?' me':''}"><span class="rn">${i+1}. ${label}</span><div class="rbar"><i style="width:${Math.max(4,r.g/12*100)}%"></i></div><span class="rv">${r.g}</span></div>`; }).join('');
+  const gapUp=myRank>1?(rows[myRank-2].g-g+1):0;
+  // ── 12 顆大燈 ──
+  const lights=METRICS.map((mt,i)=>{
+    const s=statusOf(mt)||'empty';
+    const v=store.metrics[mt.k];
+    const t=tgt(mt.k);
+    const coach=ITEMS.find(x=>x.n===COACH_MAP[mt.k]);
+    const clickable=(s==='red'||s==='amber');
+    return `<div class="zlight ${s}" style="animation-delay:${(i*0.05).toFixed(2)}s" ${clickable?'onclick="this.classList.toggle(\'tipopen\')"':''}>
+      ${s==='green'?'<span class="lgood">🎉</span>':(s==='red'?'<span class="lbad">⚠ 盲點・點我</span>':(s==='amber'?'<span class="lbad" style="color:#ffc442">差一點・點我</span>':''))}
+      <div class="ln">${mt.nm}</div>
+      <div class="lv">${(v===''||v==null||isNaN(v))?'—':v+mt.unit}</div>
+      <div class="lt">目標 ${mt.dir==='down'?'≤':'≥'}${t}${mt.unit}${isCustomTgt(mt.k)?'（客製）':''}</div>
+      ${(clickable&&coach)?`<div class="ztip">💡 對應職能 ${coach.n}「${coach.nm}」輔導提問：<br>${esc(coach.coach)}</div>`:''}
+    </div>`; }).join('');
+  // ── 月趨勢 ──
+  const hist=Object.entries(store.scoreHistory||{}).sort((x,y)=>x[0]<y[0]?-1:1).slice(-12);
+  let trend='';
+  if(hist.length<2){ trend='<div class="ztrend-empty">每個月打開一次放大檢視就會存下當月快照 — 下個月起就看得到自己的成長曲線 📈（本月已記錄：'+g+'/12）</div>'; }
+  else{
+    const W=1140,H=150,P=40;
+    const xs=i=>P+i*(W-2*P)/(hist.length-1);
+    const ys=v=>H-20-(v/12)*(H-48);
+    const pts=hist.map((e,i)=>xs(i).toFixed(1)+','+ys(e[1].g).toFixed(1)).join(' ');
+    let dots='';
+    hist.forEach((e,i)=>{ dots+=`<circle cx="${xs(i).toFixed(1)}" cy="${ys(e[1].g).toFixed(1)}" r="4.5" fill="#FFD700"/>
+      <text x="${xs(i).toFixed(1)}" y="${(ys(e[1].g)-11).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#FFD700">${e[1].g}</text>
+      <text x="${xs(i).toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="10" fill="#8fa3d0">${e[0].slice(2)}</text>`; });
+    trend=`<svg width="100%" viewBox="0 0 ${W} ${H}">
+      <defs><linearGradient id="zg2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4a7cff"/><stop offset="100%" stop-color="#FFD700"/></linearGradient></defs>
+      <polyline points="${pts}" fill="none" stroke="url(#zg2)" stroke-width="2.5"/>${dots}</svg>`;
+  }
+  document.getElementById('zwrap').innerHTML=`
+    <div class="zhead"><span style="font-size:26px">${gr.e}</span>
+      <div><div class="zt">${esc(curCharName)}・本月體檢戰績</div>
+      <div class="zs">${(store.autoSync&&store.autoSync.month)?('數據：'+store.autoSync.month+'月每月績效・'+esc(store.autoSync.academy||'')+'　'):''}等級：🌱E→🥉D→🥈C→🥇B→🏆A→👑S，綠燈越多級越高</div></div>
+      <button class="zx" onclick="closeZoom()">✕</button></div>
+    <div class="zrow">
+      <div class="zcard zgauge"><h4>TOTAL ／ 總分</h4>${gauge}
+        <div class="zbadge"><div class="be">${gr.e}</div><div class="bt">${gr.t} 級・${gr.n}</div>
+        <div class="bs">${g>=12?'滿燈！全學院的標竿！':g>=10?'再 '+(12-g)+' 顆綠燈就封王 👑':g>=8?'離 A 級只差 '+(10-g)+' 顆，穩住！':g>=6?'一半以上點亮了，衝！':'每點亮一顆綠燈就升一步'}</div></div></div>
+      <div class="zcard"><h4>RADAR ／ 12 項指標強弱形狀</h4><div style="text-align:center">${radar}</div></div>
+      <div class="zcard zrank"><h4>ARENA ／ 七人戰區（匿名）</h4>${rank}
+        <div style="font-size:10.5px;color:#8fa3d0;margin-top:8px">你目前第 ${myRank} 名${myRank===1?'・守住王座！👑':'・再點亮 '+gapUp+' 顆綠燈就超車上一名 🔥'}</div></div>
+    </div>
+    <div class="zlights">${lights}</div>
+    <div class="zcard"><h4>TREND ／ 每月總分趨勢（自動快照）</h4>${trend}</div>`;
+  document.getElementById('zmask').classList.add('open');
+  if(g>=1) _confetti(Math.min(80,g*8+(g>=8?30:0)));
+}
+function closeZoom(){ document.getElementById('zmask').classList.remove('open'); }
+function _confetti(n){
+  const colors=['#FFD700','#3ddc84','#7ba4ff','#ff8c42','#ff5c6c','#a78bfa'];
+  for(let i=0;i<n;i++){
+    const d=document.createElement('div'); d.className='zconf';
+    const size=5+Math.random()*7;
+    d.style.cssText='left:'+(Math.random()*100)+'vw;width:'+size+'px;height:'+(size*0.55)+'px;background:'+colors[i%colors.length]
+      +';animation-duration:'+(2.2+Math.random()*2.4)+'s;animation-delay:'+(Math.random()*0.9)+'s;';
+    document.body.appendChild(d);
+    setTimeout(()=>{ try{d.remove();}catch(e){} },5200);
+  }
+}
+
 // ---------- init ----------
 function initUI(){
   renderWho();
@@ -825,10 +1344,16 @@ function initUI(){
   fl.value=store.folder;
   if(store.folder){fo.classList.remove('off');fo.href=store.folder;}else{fo.classList.add('off');fo.href='#';}
   document.getElementById('demoDate').value=store.demoDate||'';
+  autoSyncFromMp(false);   // ↻ 開頁自動抓上月每月績效（手動改過的不覆蓋）
   renderFrontHeader(); renderTasks(); renderPass(); renderTenDay();
   renderGantt(); renderDash(); refreshMonthSel(); renderKbody(); renderTaskDefs();
+  renderSyncBadge(); _snapshotScore();
 }
 loadStore(); renderCharSel(); initUI();
+// ★ IndexedDB 的完整每月績效載入後，再同步一次（拿得到最新月份）
+_mpFromIDB().then(d=>{
+  if(d && Object.keys(d).length){ _mpCache=d; autoSyncFromMp(false); renderDash(); renderSyncBadge(); }
+});
 
 // 雲端 pull 完成後（badge 顯示✓）資料可能更新 — 監聽 storage 事件刷新畫面
 window.addEventListener('storage', function(ev){
