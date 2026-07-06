@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>主管養成・PDR 聚焦系統</title>
+<script src="./auth-check.js"></script>
+<script defer src="./firebase-sync.js?v=pdr1"></script>
+<style>
+  :root{
+    --black:#0E0E0E; --ink:#1A1A1A; --g700:#4A4A4A; --g500:#8A8A8A; --g400:#A8A8A8;
+    --g300:#C8C8C8; --g200:#E4E4E2; --g100:#EDEDEA; --paper:#FAFAF8; --white:#FFFFFF;
+    --accent:#C0202F; --green:#2E7D4F; --amber:#C9921E; --red:#C0202F;
+    --radius:14px;
+    --font:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+    --num:"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased;}
+  html,body{background:#D9D9D6; font-family:var(--font); color:var(--ink);}
+  .num{font-family:var(--num); font-feature-settings:"tnum";}
+
+  /* toolbar */
+  .toolbar{position:sticky; top:0; z-index:100; background:rgba(14,14,14,.96); backdrop-filter:blur(10px);
+    color:#fff; display:flex; align-items:center; gap:12px; padding:11px 22px; font-size:13px; flex-wrap:wrap;}
+  .toolbar .ttl{font-weight:700; letter-spacing:.3px;}
+  .toolbar .sub{color:#9a9a9a; font-size:11.5px;}
+  .toolbar .sp{flex:1;}
+  .toolbar .charlab{font-size:11px; color:#9a9a9a; letter-spacing:1px;}
+  .toolbar select#charSel{font-family:inherit; font-size:12.5px; font-weight:700; color:#fff; background:#262626;
+    border:1px solid #444; border-radius:16px; padding:6px 12px; cursor:pointer; max-width:170px;}
+  .seg{display:flex; background:#262626; border-radius:20px; padding:3px;}
+  .seg button{font-family:inherit; font-size:12px; font-weight:600; letter-spacing:.5px; color:#bbb;
+    background:transparent; border:none; padding:7px 16px; border-radius:16px; cursor:pointer; transition:.18s;}
+  .seg button.on{background:#fff; color:#0E0E0E;}
+  .toolbar .pbtn{font-family:inherit; font-size:12px; font-weight:600; letter-spacing:.5px; color:#fff;
+    background:transparent; border:1px solid #444; padding:7px 14px; border-radius:16px; cursor:pointer; text-decoration:none;}
+  .toolbar .pbtn:hover{background:#222;}
+  .toolbar .pbtn.ai{border-color:#7c5cff; background:linear-gradient(135deg,#5b3df0,#8b5cf6); font-weight:700;}
+  .toolbar .pbtn.ai:hover{filter:brightness(1.15);}
+  #toast{position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-12px); background:var(--green);
+    color:#fff; font-size:13px; font-weight:700; letter-spacing:.3px; padding:10px 20px; border-radius:22px;
+    box-shadow:0 10px 34px rgba(0,0,0,.22); opacity:0; pointer-events:none; transition:.25s; z-index:200;}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  body.mode-front .stage-back{display:none;}
+  body.mode-back  .stage-front{display:none;}
+
+  /* ===== FRONT stage : 16:9 slides ===== */
+  .stage-front{display:flex; flex-direction:column; align-items:center; gap:26px; padding:28px 16px 70px;}
+  .slide{position:relative; width:1280px; height:720px; background:var(--white);
+    box-shadow:0 12px 50px rgba(0,0,0,.16); border-radius:6px; overflow:hidden; flex:0 0 auto;}
+  .pad{position:absolute; inset:0; padding:44px 54px;}
+  .pill{display:inline-block; background:var(--black); color:#fff; font-size:10.5px; font-weight:700;
+    letter-spacing:2.5px; padding:5px 13px; border-radius:13px;}
+  .brand{position:absolute; top:30px; right:54px; font-size:10px; letter-spacing:1.4px; color:var(--g500);
+    text-align:right; line-height:1.5;}
+  .pgno{position:absolute; bottom:22px; right:54px; font-size:11px; letter-spacing:1.4px; color:var(--g400);}
+  .h1{font-size:30px; font-weight:800; line-height:1.16; margin:12px 0 3px; letter-spacing:-.6px;}
+  .h1 .ac{color:var(--accent);}
+  .sub{font-size:12.5px; color:var(--g700); line-height:1.5;}
+  .rule{height:1px; background:var(--g200); margin:14px 0;}
+
+  /* front page1 layout */
+  .f1{display:grid; grid-template-columns:1fr 392px; gap:34px; height:548px; margin-top:8px;}
+  .blk-h{font-size:10px; letter-spacing:1.6px; color:var(--g500); font-weight:700; margin-bottom:9px;}
+  /* tension */
+  .tension{display:flex; align-items:center; gap:14px; background:var(--paper); border:1px solid var(--g200);
+    border-radius:var(--radius); padding:10px 16px; margin-bottom:11px;}
+  .tension label{font-size:12px; font-weight:700; white-space:nowrap;}
+  .tension input[type=range]{flex:1; accent-color:var(--accent);}
+  .tension .tv{font-family:var(--num); font-size:20px; font-weight:800; width:30px; text-align:right;}
+  .tension .thint{font-size:10px; color:var(--g500); white-space:nowrap;}
+  /* task cards */
+  .tasks{display:flex; flex-direction:column; gap:8px;}
+  .tcard{border:1px solid var(--g200); border-radius:var(--radius); padding:9px 14px; background:var(--white);
+    display:grid; grid-template-columns:26px 1fr; gap:11px; align-items:start; transition:.18s;}
+  .tcard.done{background:#F4F8F5; border-color:#cfe3d6;}
+  .tcheck{width:24px; height:24px; border-radius:50%; border:2px solid var(--g300); cursor:pointer; margin-top:2px;
+    display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; transition:.15s;}
+  .tcard.done .tcheck{background:var(--green); border-color:var(--green);}
+  .trow1{display:flex; gap:8px; margin-bottom:5px;}
+  .trow1 select{font-family:inherit; font-size:11px; font-weight:700; color:var(--ink); border:1px solid var(--g200);
+    border-radius:8px; padding:5px 8px; background:var(--paper); cursor:pointer;}
+  .trow1 .tnum{font-family:var(--num); font-size:11px; font-weight:800; color:var(--g400); align-self:center;}
+  .tcard input.taction{width:100%; font-family:inherit; font-size:13.5px; font-weight:600; border:none;
+    border-bottom:1.5px solid var(--g200); padding:3px 0 5px; color:var(--ink);}
+  .tcard input.taction:focus{outline:none; border-color:var(--accent);}
+  .tcard input.taction::placeholder{color:var(--g400); font-weight:400;}
+  .tlink{display:flex; align-items:center; gap:6px; margin-top:5px;}
+  .tlink input{flex:1; font-family:inherit; font-size:10.5px; color:var(--g700); border:1px solid var(--g200);
+    border-radius:7px; padding:4px 8px; background:var(--paper);}
+  .tlink input:focus{outline:none; border-color:var(--g400);}
+  .tlink a{font-size:10px; font-weight:700; letter-spacing:.5px; color:#fff; background:var(--ink);
+    padding:4px 9px; border-radius:7px; text-decoration:none; white-space:nowrap;}
+  .tlink a.off{background:var(--g300); pointer-events:none;}
+  .tlink input:disabled{background:var(--g100); color:var(--g400);}
+  /* front read-only task (defined in backstage) */
+  .tcomp{font-size:11px; font-weight:700; color:var(--ink); background:var(--paper); border:1px solid var(--g200); border-radius:8px; padding:4px 9px;}
+  .tundef{font-size:11px; color:var(--g400);}
+  .taction-ro{font-size:13.5px; font-weight:600; color:var(--ink); padding:4px 0 2px;}
+  .taction-ro.muted{color:var(--g400);}
+  .tcard.undef{opacity:.9;}
+  .tcard.undef .tundef{color:var(--g500);}
+  /* backstage task defs */
+  .tddef{padding-bottom:12px; margin-bottom:12px; border-bottom:1px solid var(--g100);}
+  .tddef:last-child{border-bottom:none; margin-bottom:0;}
+  .tdrow{display:grid; grid-template-columns:34px 210px 1fr; gap:10px; align-items:center;}
+  .tdrow .tdn{font-family:var(--num); font-weight:800; color:var(--g400); text-align:center;}
+  .tdrow select,.tdrow input{font-family:inherit; font-size:12.5px; padding:8px 10px; border:1px solid var(--g300); border-radius:9px;}
+  .acc.inline{margin:10px 0 0 44px;}
+  .acc.inline summary{padding:9px 13px; font-size:12px;}
+  .acc.inline .abody{padding:12px 14px;}
+  /* pass bar */
+  .passbar{margin-top:11px; display:flex; align-items:center; gap:14px; padding:11px 18px; border-radius:var(--radius);
+    background:var(--black); color:#fff;}
+  .passbar .pct{font-family:var(--num); font-size:30px; font-weight:800; line-height:1;}
+  .passbar .ptxt{font-size:12px; line-height:1.4;}
+  .passbar.pass{background:var(--green);}
+  .quote{margin-top:9px; font-size:10.5px; color:var(--g500); line-height:1.45; font-style:italic;
+    border-left:2px solid var(--accent); padding-left:10px;}
+  /* folder link header */
+  .folder{display:flex; align-items:center; gap:7px; margin-bottom:13px;}
+  .folder span{font-size:10px; letter-spacing:1.4px; color:var(--g500); font-weight:700; white-space:nowrap;}
+  .folder input{flex:1; font-family:inherit; font-size:10.5px; color:var(--g700); border:1px solid var(--g200);
+    border-radius:8px; padding:6px 10px; background:var(--paper);}
+  .folder a{font-size:10px; font-weight:700; color:#fff; background:var(--ink); padding:6px 11px; border-radius:8px; text-decoration:none;}
+  .folder a.off{background:var(--g300); pointer-events:none;}
+  /* ten-day */
+  .tenwrap{background:var(--paper); border:1px solid var(--g200); border-radius:var(--radius); padding:15px 16px; height:100%; display:flex; flex-direction:column;}
+  .tenwrap .tdhd{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;}
+  .tenwrap .tdhd .rng{font-family:var(--num); font-size:11px; color:var(--g500);}
+  .tengoal{font-size:11px; color:var(--accent); font-weight:700; margin-bottom:10px;}
+  .tenlist{display:flex; flex-direction:column; gap:8px; overflow:auto;}
+  .ten{display:grid; grid-template-columns:42px 1fr auto; gap:10px; align-items:center; padding-bottom:8px; border-bottom:1px solid var(--g200);}
+  .ten .dt{font-family:var(--num); font-weight:800; font-size:14px; text-align:center; line-height:1;}
+  .ten .dt small{display:block; font-size:8px; color:var(--g500); font-weight:600; letter-spacing:1px;}
+  .ten .tt{font-size:12.5px; font-weight:600; line-height:1.25;}
+  .ten .cat{font-size:9px; font-weight:700; letter-spacing:.5px; padding:2px 7px; border-radius:9px; white-space:nowrap;
+    background:var(--g100); color:var(--g700);}
+  .ten.crit .dt{color:var(--accent);}
+  .ten.crit .cat{background:#FAE9EA; color:var(--accent);}
+  .ten-empty{font-size:11px; color:var(--g400); text-align:center; padding:30px 0;}
+
+  /* front page2 season */
+  .f2{margin-top:10px;}
+  .lit{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:16px;}
+  .litcard{border:1px solid var(--g200); border-radius:var(--radius); padding:16px 16px 14px; background:var(--white); position:relative;}
+  .litcard .ln{font-family:var(--num); font-size:11px; font-weight:800; color:var(--accent); letter-spacing:1px;}
+  .litcard .lnm{font-size:18px; font-weight:800; margin:3px 0 7px;}
+  .litcard .lstd{font-size:10.5px; color:var(--g700); line-height:1.4;}
+  .litcard .trend{position:absolute; top:14px; right:14px; font-size:18px; cursor:pointer; user-select:none; color:var(--g400);}
+  .litcard .trend.up{color:var(--green);} .litcard .trend.dn{color:var(--accent);}
+  .dim{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;}
+  .dim span{font-size:11px; color:var(--g400); background:var(--g100); border-radius:9px; padding:5px 11px;}
+  .dim span b{color:var(--g500); font-weight:700;}
+  .vitals{display:flex; gap:14px; align-items:stretch;}
+  .vital{flex:0 0 200px; border:1px solid var(--g200); border-radius:var(--radius); padding:13px 16px; background:var(--paper);}
+  .vital .vn{font-size:11px; color:var(--g700); font-weight:700;}
+  .vital .vrow{display:flex; align-items:center; gap:10px; margin-top:7px;}
+  .vital input{font-family:var(--num); width:74px; font-size:16px; font-weight:700; text-align:right; padding:4px 7px; border:1px solid var(--g300); border-radius:7px;}
+  .vital input:focus{outline:none; border-color:var(--black);}
+  .vital .tgt{font-size:9.5px; color:var(--g500);}
+  .vdot{width:13px; height:13px; border-radius:50%; background:var(--g300);}
+  .vdot.green{background:var(--green);} .vdot.amber{background:var(--amber);} .vdot.red{background:var(--red);}
+  .vnote{align-self:center; font-size:10px; color:var(--g500); line-height:1.5; flex:1;}
+  .nextq{margin-top:16px; font-size:12px; color:var(--ink); background:var(--paper); border:1px dashed var(--g300);
+    border-radius:var(--radius); padding:12px 16px;}
+  .nextq b{color:var(--accent);}
+
+  /* ===== BACK stage ===== */
+  .stage-back{max-width:1180px; margin:0 auto; padding:30px 24px 90px;}
+  .bcard{background:#fff; border:1px solid var(--g200); border-radius:18px; padding:26px 30px; margin-bottom:22px; box-shadow:0 4px 20px rgba(0,0,0,.04);}
+  .bcard > .bh{display:flex; align-items:baseline; gap:12px; margin-bottom:4px;}
+  .bcard .btag{font-size:10px; letter-spacing:1.8px; color:var(--g500); font-weight:700;}
+  .bcard h2{font-size:21px; font-weight:800; letter-spacing:-.4px;}
+  .bcard .bdesc{font-size:12px; color:var(--g700); margin:6px 0 18px; line-height:1.5;}
+
+  /* monthly plan key-in */
+  .kbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px;}
+  .kbar select,.kbar input{font-family:inherit; font-size:12.5px; padding:7px 10px; border:1px solid var(--g300); border-radius:9px;}
+  .kbar input.num{font-family:var(--num); width:130px;}
+  .kbar .lab{font-size:11px; color:var(--g500); font-weight:700;}
+  .kbar button{font-family:inherit; font-size:12px; font-weight:700; padding:7px 14px; border-radius:9px; border:none; cursor:pointer;}
+  .kbar .save{background:var(--black); color:#fff;} .kbar .save:hover{background:#333;}
+  .kbar .add{background:var(--g100); color:var(--ink);}
+  .kbar .add:hover{background:var(--g200);}
+  table.ktab{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.ktab th{text-align:left; font-size:10px; letter-spacing:1px; color:var(--g500); font-weight:700; padding:6px 8px; border-bottom:1.5px solid var(--g200);}
+  table.ktab td{padding:5px 8px; border-bottom:1px solid var(--g100); vertical-align:middle;}
+  table.ktab input,table.ktab select{font-family:inherit; font-size:12.5px; width:100%; border:1px solid var(--g200); border-radius:7px; padding:6px 8px;}
+  table.ktab input.dt{font-family:var(--num); }
+  table.ktab .del{cursor:pointer; color:var(--g400); font-weight:800; text-align:center; font-size:15px;}
+  table.ktab .del:hover{color:var(--accent);}
+  .ksaved{font-size:11px; color:var(--green); font-weight:700; margin-left:6px;}
+
+  /* gantt (reused) */
+  .gwrap{display:grid; grid-template-columns:262px 1fr 56px; font-size:12px;}
+  .ghd{font-size:10px; letter-spacing:.8px; color:var(--g500); font-weight:700; align-self:end; padding-bottom:8px;}
+  .qband{display:grid; grid-template-columns:repeat(4,1fr); gap:3px; margin-bottom:2px;}
+  .qband span{font-size:9px; letter-spacing:1px; color:var(--g500); text-align:center; border-bottom:1px solid var(--g200); padding-bottom:2px; font-weight:700;}
+  .months{display:grid; grid-template-columns:repeat(12,1fr); gap:3px;}
+  .mh{font-size:10px; text-align:center; color:var(--g700); font-weight:700; padding-bottom:4px;}
+  .mh.cur{color:var(--accent);}
+  .ritem{border-top:1px solid var(--g200); padding:6px 8px 6px 0; display:flex; gap:8px; align-items:flex-start;}
+  .gno{flex:0 0 19px; height:19px; border-radius:50%; background:var(--black); color:#fff; font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px;}
+  .ritem .nm{font-size:12.5px; font-weight:700; line-height:1.12;}
+  .ritem .std{font-size:9px; color:var(--g500); line-height:1.2; margin-top:2px;}
+  .gcells{border-top:1px solid var(--g200); padding:6px 0; display:grid; grid-template-columns:repeat(12,1fr); gap:3px;}
+  .cell{height:23px; border-radius:3px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:9px; user-select:none; transition:.12s;}
+  .cell.plan{background:var(--g100); border:1px solid var(--g200);}
+  .cell.plan:hover{background:var(--g200);}
+  .cell.done{background:var(--black); color:#fff;}
+  .cell.done::after{content:"✓"; font-size:12px;}
+  .cell.none{background:repeating-linear-gradient(45deg,#fff,#fff 3px,#f3f3f1 3px,#f3f3f1 6px); cursor:default;}
+  .cell.mark{border:1.5px solid var(--accent); color:var(--accent); font-weight:700; background:#fff;}
+  .cell.mark.done{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .cell.mark.done::after{content:"";}
+  .cell.cur{box-shadow:0 0 0 2px var(--accent) inset;}
+  .gprog{border-top:1px solid var(--g200); padding:6px 0 6px 6px; font-size:11px; display:flex; align-items:center; justify-content:flex-end;}
+  .gprog .pct{font-family:var(--num); font-weight:800; font-size:13px;}
+
+  /* vitals dashboard back */
+  .dgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:6px 30px;}
+  .metric{display:grid; grid-template-columns:1fr 80px 16px; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--g200);}
+  .metric .mn{font-size:12.5px; font-weight:600;}
+  .metric .mt{font-size:9.5px; color:var(--g500);}
+  .metric input{font-family:var(--num); width:80px; font-size:13px; text-align:right; padding:4px 6px; border:1px solid var(--g300); border-radius:6px;}
+  .metric input:focus{outline:none; border-color:var(--black);}
+  .vdot2{width:13px; height:13px; border-radius:50%; background:var(--g300); justify-self:center;}
+  .vdot2.green{background:var(--green);} .vdot2.amber{background:var(--amber);} .vdot2.red{background:var(--red);}
+  /* front page2 compaction (數字＋驗收盤同頁) */
+  .f-dash{grid-template-columns:repeat(3,1fr); gap:1px 24px;}
+  .f-dash .metric{padding:4px 0; grid-template-columns:1fr 66px 14px;}
+  .f-dash .metric .mn{font-size:11.5px;}
+  .f-dash .metric .mt{font-size:9px;}
+  .f-dash .metric input{width:66px; font-size:12px; padding:3px 5px;}
+  .f-dash .vdot2{width:12px; height:12px;}
+  .f-gantt .ritem{padding:3px 8px 3px 0;}
+  .f-gantt .ritem .nm{font-size:11.5px;}
+  .f-gantt .ritem .std{font-size:8.5px;}
+  .f-gantt .gcells{padding:3px 0;}
+  .f-gantt .cell{height:19px;}
+  .f-gantt .gprog{padding:3px 0 3px 6px;}
+
+  /* nodes */
+  .nodes{display:grid; grid-template-columns:repeat(6,1fr); gap:9px;}
+  .node{border:1px solid var(--g200); border-top:3px solid var(--black); border-radius:9px; padding:11px 11px; background:var(--paper); position:relative;}
+  .node.crit{border-top-color:var(--accent);}
+  .node .nd{font-family:var(--num); font-size:14px; font-weight:800;}
+  .node.crit .nd{color:var(--accent);}
+  .node .nt{font-size:12px; font-weight:700; margin:3px 0;}
+  .node .ns{font-size:9.5px; color:var(--g700); line-height:1.3;}
+
+  /* accordion review */
+  .acc{border:1px solid var(--g200); border-radius:11px; margin-bottom:8px; overflow:hidden;}
+  .acc summary{cursor:pointer; list-style:none; padding:13px 16px; display:flex; align-items:center; gap:11px; font-weight:700; font-size:13.5px;}
+  .acc summary::-webkit-details-marker{display:none;}
+  .acc summary .an{width:22px; height:22px; border-radius:50%; background:var(--black); color:#fff; font-size:11px; display:flex; align-items:center; justify-content:center; flex:0 0 22px;}
+  .acc summary .ag{font-size:9.5px; color:var(--g500); font-weight:700; letter-spacing:.5px; margin-left:auto;}
+  .acc[open] summary{border-bottom:1px solid var(--g200); background:var(--paper);}
+  .acc .abody{padding:14px 16px 16px; display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .acc .sec h4{font-size:10px; letter-spacing:1px; color:var(--g500); margin-bottom:6px; font-weight:700;}
+  .acc .sec li{font-size:11.5px; color:var(--ink); line-height:1.5; margin-left:15px; margin-bottom:3px;}
+  .acc .sec.assess li{color:var(--accent); font-weight:600;}
+  .acc .coach{grid-column:1/3; background:var(--paper); border-radius:9px; padding:11px 13px;}
+  .acc .coach h4{color:var(--accent);}
+  .acc .coach p{font-size:11.5px; color:var(--g700); line-height:1.5; margin-left:4px;}
+
+  .warn{background:#FFF8E6; border:1px solid #F0DFA8; border-radius:12px; padding:14px 18px; font-size:12px; color:#6b5a1e; line-height:1.6;}
+  .warn b{color:#8a6d10;}
+  .warn ul{margin:6px 0 0 18px;}
+
+  @media print{
+    @page{size:A4 landscape; margin:0;}
+    html,body{background:#fff;}
+    .toolbar{display:none;}
+    .stage-front{padding:0; gap:0;}
+    .slide{box-shadow:none; border-radius:0; page-break-after:always; width:100%; height:100vh;}
+    body.mode-back .stage-back{display:block;} body.mode-back .stage-front{display:none;}
+  }
+</style>
+</head>
+<body class="mode-front">
+
+<div class="toolbar">
+  <a class="pbtn" id="backLink" href="./training-room.html">← 練功坊</a>
+  <span class="ttl">主管養成・PDR 聚焦系統</span>
+  <span class="sub" id="who"></span>
+  <span class="sp"></span>
+  <span class="charlab">主角</span>
+  <select id="charSel"></select>
+  <div class="seg">
+    <button id="bf" class="on" onclick="setMode('front')">前台・主管版</button>
+    <button id="bb" onclick="setMode('back')">後台・督導版</button>
+  </div>
+  <button class="pbtn ai" onclick="openAiAdvisor()">🤖 AI 顧問分析</button>
+  <button class="pbtn" onclick="window.print()">列印 / 存 PDF</button>
+  <button class="pbtn" onclick="resetAll()">清除本人</button>
+</div>
+<div id="toast"></div>
+
+<!-- ============================ FRONT ============================ -->
+<div class="stage-front">
+
+  <!-- FRONT PAGE 1 -->
+  <section class="slide">
+    <div class="pad">
+      <span class="pill">THIS MONTH ／ 本月聚焦</span>
+      <div class="brand">赫綵設計學院 ／ 主管聚焦卡<br><span id="fmonth"></span></div>
+      <h1 class="h1">這個月，<span class="ac">我只要點亮這幾件事</span></h1>
+      <div class="sub">本月鎖定的事如下——做完一件點亮一格，三格全亮就是 100% 給過。你只要打勾、貼上連結；沒設定的也能打勾，沒勾就代表還要做。</div>
+      <div class="rule"></div>
+
+      <div class="folder">
+        <span>本月資料夾</span>
+        <input id="folderLink" placeholder="貼上 Google 雲端資料夾連結（存放本月所有執行紀錄）">
+        <a id="folderOpen" class="off" target="_blank">開啟</a>
+      </div>
+
+      <div class="f1">
+        <div>
+          <div class="tension">
+            <label>本月張力</label>
+            <input id="tension" type="range" min="1" max="10" step="1" value="5">
+            <span class="tv num" id="tv">5</span>
+            <span class="thint">1 太鬆沒動力・10 太緊壓垮（5–7 剛好）</span>
+          </div>
+          <div class="blk-h">本月我選 1–3 件事</div>
+          <div class="tasks" id="tasks"></div>
+          <div class="passbar" id="passbar">
+            <span class="pct num" id="passpct">0%</span>
+            <span class="ptxt" id="passtxt">選好就開始打勾，選的事全部完成＝本月 100% 給過。</span>
+          </div>
+          <div class="quote">用陽光灑在大地，跟用放大鏡聚焦的差別——一個只讓人感到溫度，一個可以燃燒起來。</div>
+        </div>
+
+        <div>
+          <div class="tenwrap">
+            <div class="blk-h" style="margin-bottom:2px">近十天作戰重點</div>
+            <div class="tdhd"><span class="tengoal" id="tengoal"></span><span class="rng num" id="tenrange"></span></div>
+            <div class="tenlist" id="tenlist"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pgno num">前台 01 ／ 02</div>
+  </section>
+
+  <!-- FRONT PAGE 2 -->
+  <section class="slide">
+    <div class="pad">
+      <span class="pill">DASHBOARD ／ 本月體檢・年度驗收</span>
+      <div class="brand">赫綵設計學院 ／ 主管聚焦卡<br><span id="fmonth2"></span></div>
+      <h1 class="h1" style="font-size:25px">數字會說話，<span class="ac">格子會交代進度</span></h1>
+      <div class="sub" style="margin-bottom:6px">上半：填本月實際值，紅綠燈自己亮（職級分標）。下半：點格子＝該月已驗收，紅框＝里程碑。</div>
+      <div class="rule" style="margin:8px 0"></div>
+
+      <div class="blk-h">KEY NUMBERS ／ 必背數字體檢（填實際值 → 自動紅綠燈）</div>
+      <div class="dgrid f-dash" id="dash"></div>
+
+      <div class="blk-h" style="margin-top:11px">ANNUAL BOARD ／ 11 項職能 × 12 月・年度驗收</div>
+      <div class="gwrap f-gantt">
+        <div class="ghd">績效項目 ／ 評估標準</div>
+        <div><div class="qband"><span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span></div><div class="months" id="mhead"></div></div>
+        <div class="ghd" style="text-align:right">進度</div>
+      </div>
+      <div class="gwrap f-gantt" id="gantt"></div>
+    </div>
+    <div class="pgno num">前台 02 ／ 02</div>
+  </section>
+</div>
+
+<!-- ============================ BACK ============================ -->
+<div class="stage-back">
+
+  <!-- monthly focus task defs -->
+  <div class="bcard">
+    <div class="bh"><span class="btag">FOCUS TASKS ／ 本月聚焦任務設定 ＋ 職能複習</span></div>
+    <h2>選好本月的 1–3 件事 → 前台自動同步（選了職能可即時複習）</h2>
+    <div class="bdesc">由主管選定職能＋寫下具體動作；選了職能後，下方會展開該職能的「職責 × 評估 × 技能 × 輔導提問」可即時複習研究。前台只負責「打勾完成」與「貼上 Google 執行紀錄連結」。留空的格子前台一樣可以打勾——沒勾就代表還要做。</div>
+    <div id="taskdefs"></div>
+    <div class="kbar" style="margin-top:8px"><button class="save" id="taskApply">儲存並預覽前台 →</button><span class="ksaved" id="taskSaved"></span></div>
+  </div>
+
+  <div class="bcard">
+    <div class="bh"><span class="btag">MONTHLY RHYTHM ／ 每月日常提醒</span></div>
+    <h2>業績節點鐵則 — 行事曆鎖死</h2>
+    <div class="bdesc">這 6 個日期每月固定，是主管的日常節奏（缺一次整月循環就斷）。固定不變，所以放後台提醒，不佔前台。</div>
+    <div class="nodes" id="nodes"></div>
+  </div>
+
+  <div class="bcard">
+    <div class="bh"><span class="btag">TO CONFIRM ／ 待確認</span></div>
+    <h2>數字一致性（展示先沿用，待你定版）</h2>
+    <div class="warn">
+      <b>修訂版內標註、尚待統一的數字：</b>
+      <ul>
+        <li>單月 3000 萬：轄區學院數 × 400 萬是否對得上？（已決定<b>不進前台</b>，對主管太遙遠）</li>
+        <li>45／50／60 萬三標準：本系統採「業務底線 45・晉升/舉績門檻 50・組長 60」，前台只露學院 400・組長 60。</li>
+        <li>小組 150 萬 × 2 組 ＝ 300 萬 vs 學院 400 萬：100 萬缺口由誰承擔待定。</li>
+        <li>出席率 70% 以外的 20%（請假等）定義待補。</li>
+        <li>兩個正式組長：建議補時限（如年度內完成）。</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- monthly plan key-in (移到最下面) -->
+  <div class="bcard">
+    <div class="bh"><span class="btag">MONTHLY PLAN ／ 月作戰計劃</span></div>
+    <h2>把當月作戰計劃鍵進來 → 前台自動長出「近十天」</h2>
+    <div class="bdesc">逐筆輸入「日期＋事件＋類別」。每月不同、各自存檔，可切月份復盤。前台只撈出展示日往後十天的重點，主管看到的永遠乾淨。</div>
+    <div class="kbar">
+      <span class="lab">月份</span>
+      <select id="planMonth"></select>
+      <button class="add" onclick="addMonth()">＋ 新月份</button>
+      <span class="lab" style="margin-left:8px">小組目標</span>
+      <input id="planGoal" placeholder="例：100萬（每日入帳3萬）" style="width:230px">
+      <span class="lab" style="margin-left:8px">展示用「今天」</span>
+      <input id="demoDate" class="num" type="date">
+      <button class="save" onclick="savePlan()">儲存本月</button>
+      <span class="ksaved" id="ksaved"></span>
+    </div>
+    <table class="ktab">
+      <thead><tr><th style="width:130px">日期</th><th>事件</th><th style="width:130px">類別</th><th style="width:36px"></th></tr></thead>
+      <tbody id="kbody"></tbody>
+    </table>
+    <div class="kbar" style="margin-top:10px"><button class="add" onclick="addRow()">＋ 新增一筆</button></div>
+  </div>
+</div>
+
+<script>
+const ALL=[1,2,3,4,5,6,7,8,9,10,11,12];
+const today=new Date();
+const CUR_MONTH=today.getMonth()+1;
+
+const ITEMS=[
+ {n:1,g:'業績引擎',nm:'績效管理',std:'學院400萬／面率>20%・註冊20–25%',plan:ALL,
+  duty:['每日檢查己面談未註冊處理','通路撥打日/週並調錄音、監視器巡視','10號與16號未達檢討會','考試驗收各職級技能','講座前7/3/1天監督約訪、當日報到提醒','13:40固定開會、月計劃佈達','業績節點：10號100萬→15號隔天10:30→20號隔天見總經理→月底作戰計畫'],
+  assess:['學院單月400萬','每週進度800萬','面率>20%・面談註冊率20–25%'],
+  skill:['EIP六張關鍵報表判讀','數據拆解（人頭/分帳/主聊、當月/非當月退費、A/B佔比）','跨部門資源整合'],
+  coach:'「昨日面談幾人、前天幾人？這落差告訴我們什麼？」「今天 X 號，離 10 號 100 萬還差多少？剩下天數怎麼分配？」'},
+ {n:2,g:'會議營運',nm:'召開助理會議',std:'退費≤10%・業務全員≥45萬',plan:ALL,
+  duty:['每月兩次行政管理會議','出缺勤、公文函、線上兌換、增員計分板','週檢討報到與面談、挑最差業務當面檢討','低於45萬者對當月目標明確承諾','退費週檢討、註冊未消耗週檢討'],
+  assess:['退費控制10%以下','業務全員不可低於45萬'],
+  skill:['會議流程安排','叫業務進來檢討與追蹤','mail通知相關人','與顧行部搭配'],
+  coach:'「低於 45 萬的是誰？他的承諾是什麼、哪一天驗收？」「註冊未消耗名單這週處理了幾筆？」'},
+ {n:3,g:'會議營運',nm:'召開客服會議',std:'出席>70%・曠課<10%',plan:ALL,
+  duty:['每月兩次行政管理會議','班級出席狀況、登記最差業務揪出','第一堂曠課人數報告、曠課學生業務回報','發表會/結班報告、優秀作品展示'],
+  assess:['出席率超過70%','曠課率低於10%・請假低於20%'],
+  skill:['會議流程安排與追蹤','與行銷部、產品部搭配'],
+  coach:'「第一堂曠課的學生，業務回報了嗎？下一步是什麼？」「出席率最差的班，開講座救得回來嗎？」'},
+ {n:4,g:'人才發展',nm:'學院人力發展',std:'留任>60%・增員報到2人/月',plan:ALL,
+  duty:['增員與面談話術流程、新人進來面談','前三個月星光班、新人銜接訓練檢核','晉升/離職面談、考核人員追蹤','增員計分板與特攻隊、每月設增員目標','開除標準：能力(補訓)或意願(去留)、給期限、該換快換'],
+  assess:['留任率超過60%','每月增員面試報到達標'],
+  skill:['講解面試簡報','晉升簡報與儀式','各職級驗收追蹤','能力/意願判斷與開除談話'],
+  coach:'「這個人是能力問題還是意願問題？依據是什麼？」「改善期限訂哪一天？到期沒改善你的決定是什麼？」'},
+ {n:5,g:'人才發展',nm:'組長能力提升',std:'小組150萬・組長≥60萬',plan:ALL,
+  duty:['每週組長報告上週小組、核對小組日開','小組週會陪同、檢核組長看績效找問題','增員/教育訓練能力、班級老師衝班想法','檢核面談前沙盤推演＋面談後覆盤、30分鐘計時','檢核數據拆解、是否放任互補分帳'],
+  assess:['每月小組150萬','組長個人業績不可低於60萬'],
+  skill:['會議流程安排','組長評核會議舉辦','核對組長日誌並立即教育'],
+  coach:'「你的組長分得出退費是當月還是非當月嗎？」「上週你陪了哪一場沙盤推演？覆盤結論是什麼？」'},
+ {n:6,g:'人才發展',nm:'主管能力提升',std:'學院穩定400萬・2正式組長/年',plan:ALL,mark:{1:'輪替',7:'輪替'},
+  duty:['營業每日對面談、週進度、下班總結、報到檢測','班務/結業/衝班、負評+Google評論、滿意度、出勤、退費','各大主委運作（講座主委、軍長、教育主委）','月底月排程、月初設變革/流程/策略/追蹤','接班人培養：建立可複製的管理梯隊'],
+  assess:['學院穩定400萬','兩個正式組長（年度內完成）','各大主委每半年輪替一次'],
+  skill:['月會議召開檢視','核對主管日誌、週計劃落實','教練式對話：先觀察→拋問題→可驗收承諾'],
+  coach:'「你的接班人是誰？他現在最缺的一項能力是什麼？」「主委半年輪替，下一輪你打算怎麼排？」'},
+ {n:7,g:'業績引擎',nm:'招生大流程舉辦',std:'舉績率50萬・每季3名晉升',plan:[4,11],mark:{4:'流程',11:'流程'},
+  duty:['每年4月與11月舉辦','透過成績檢視留任','統一教育品質','檢驗新人對反對問題/突發狀況','檢視組長是否落實訓練'],
+  assess:['每人舉績率50萬水準','每季每家學院3名晉升正式，直到全員50萬以上'],
+  skill:['活動舉辦能力','跨單位部門協調','考評會評量適任'],
+  coach:'「這次大流程，哪幾個新人撐得住反對問題？」「哪位組長的訓練落實度，這場看得出來？」'},
+ {n:8,g:'會議營運',nm:'退費管理',std:'退費≤10%・客訴48hr',plan:ALL,
+  duty:['每週執行註冊未消耗','檢視助理電訪、資料未齊直接key退','檢視業務放人服務標準','退費高業務主管下去扮演註冊組','當月vs非當月退費拆解、超標者落實預防退費'],
+  assess:['退費控制10%以下','客訴48小時內進入處理流程'],
+  skill:['行政管理會議檢視','確認助理二照','退費高業務評量適任'],
+  coach:'「這個月退費是當月還是非當月居多？根因是什麼？」「客訴 48 小時的流程，這週有沒有破例？」'},
+ {n:9,g:'人才發展',nm:'訓練輔導',std:'舉績≥50萬・每月手稿錄影',plan:ALL,
+  duty:['50萬磨練＋星光班','反對問題劇本、專業提升計畫、新人訓優化','每業務每月獵人頭5人','讀書會價值觀同步','業務/主管/區主管分層訓練'],
+  assess:['每月檢視主管對單位手稿錄影','舉績率每人達50萬以上'],
+  skill:['自己創造成功案例','驗收','每月20號排好下月排程'],
+  coach:'「你最近一次親自示範成功案例是什麼時候？」「下個月排程 20 號前排好了嗎？」'},
+ {n:10,g:'總部協調',nm:'總部溝通協調',std:'轉換20%・講座≥50萬・客訴<5%',plan:ALL,
+  duty:['從總部MOM發現區域問題並解決','行銷部通路+活動是否落實','發掘產品部優秀老師','與財管/收支/顧行/Data合作找問題'],
+  assess:['行銷部轉換率20%','講座績效基本50萬以上','客訴處理低於5%'],
+  skill:['人和','到現場檢討','與老師溝通業務需求','晉升調降溝通協調','預防措施'],
+  coach:'「總部 MOM 這月點出的問題，你解到哪一步？」「行銷部給的通路，落地轉換多少？」'},
+ {n:11,g:'自我精進',nm:'自我提升',std:'年度訓練・每季示範・評核逐季升',plan:[3,6,9,12],mark:{3:'示範',6:'示範',9:'示範',12:'示範'},
+  duty:['卡內基經理人班、優勢銷售訓練按排程','周哈里窗：評核錄影/錄音回看面對盲目我','建立主力招牌、定期公開示範（簽件/加購/講座）','報告提早先給總經理過目','讀書會帶頭示範價值觀同步'],
+  assess:['年度完成指定訓練課程','每季至少一次親自示範成功案例','評核分數逐季提升'],
+  skill:['自我覺察（周哈里窗）','時間管理','講師級表達能力'],
+  coach:'「上一次你站上台親自示範是哪一場？效果如何？」「這季你最想補的盲目我是什麼？」'},
+];
+
+// metrics (no 3000萬)
+const METRICS=[
+ {k:'acad',nm:'學院單月業績',unit:'萬',target:400,dir:'up'},
+ {k:'group',nm:'小組單月業績',unit:'萬',target:150,dir:'up'},
+ {k:'leader',nm:'組長個人業績',unit:'萬',target:60,dir:'up'},
+ {k:'sales',nm:'業務個人業績',unit:'萬',target:45,dir:'up',goal:'全員目標'},
+ {k:'promote',nm:'晉升/舉績門檻',unit:'萬',target:50,dir:'up'},
+ {k:'face',nm:'面率',unit:'%',target:20,dir:'up'},
+ {k:'reg',nm:'面談註冊率',unit:'%',target:20,dir:'up'},
+ {k:'attend',nm:'班級出席率',unit:'%',target:70,dir:'up'},
+ {k:'stay',nm:'新人留任率',unit:'%',target:60,dir:'up'},
+ {k:'recruit',nm:'增員面試報到',unit:'人',target:2,dir:'up'},
+ {k:'conv',nm:'行銷部轉換率',unit:'%',target:20,dir:'up'},
+ {k:'refund',nm:'退費率',unit:'%',target:10,dir:'down'},
+];
+
+const NODES=[
+ {d:'5號前',t:'月計畫交出',s:'月排程＋變革/流程/策略/追蹤'},
+ {d:'10號',t:'學院100萬',s:'未達=紅燈→沙盤推演＋第1次檢討會',crit:1},
+ {d:'15號隔天',t:'10:30檢討會',s:'第2次檢討・主管到位'},
+ {d:'16號',t:'未達檢討會',s:'對照10號・追蹤改善承諾'},
+ {d:'20號隔天',t:'面見總經理',s:'帶數據檢討・缺席=紅燈',crit:1},
+ {d:'28-30號',t:'隔月作戰計畫',s:'定3關鍵戰役・分配資源'},
+];
+
+const CATS=['會議','展場','結算','檢討','巡點','單元課','講座','訓練','網路','班務','目標'];
+const CRIT_CAT=['結算','檢討','巡點'];
+
+// ═════════ 主角（per-character）— 每一位主角各自一份 PDR 資料 ═════════
+// 儲存 key：char_<主角id>_pdr_focus_v1（firebase-sync.js 會自動按主角同步雲端）
+// 變更紀錄：char_<主角id>_pdr_log_v1（AI 顧問據此判讀「這次新增了什麼」）
+function getCards(){
+  try{
+    var cards=JSON.parse(localStorage.getItem('castle_cards_v1')||'[]');
+    return cards.filter(function(c){ return c && c.id && c.name && !/^角色 \d+$/.test(c.name); });
+  }catch(e){ return []; }
+}
+let curCharId = localStorage.getItem('activeCharacterId') || '';
+let curCharName = localStorage.getItem('activeCharacterName') || '';
+(function initChar(){
+  const cards=getCards();
+  if(!curCharId && cards.length){ curCharId=cards[0].id; curCharName=cards[0].name; }
+  if(!curCharId){ curCharId='default'; curCharName=curCharName||'未登入'; }
+  if(!curCharName){ const c=cards.find(c=>c.id===curCharId); curCharName=c?c.name:String(curCharId); }
+})();
+function KEY(){ return 'char_'+curCharId+'_pdr_focus_v1'; }
+function LOGKEY(){ return 'char_'+curCharId+'_pdr_log_v1'; }
+
+function defaultStore(){
+  const ym=new Date().toISOString().slice(0,7);
+  const st={ cells:{}, metrics:{}, vitals:{}, plans:{}, activeMonth:ym, demoDate:'', tension:5, folder:'' };
+  st.plans[ym]={goal:'',entries:[],tasks:[{},{},{}]};
+  return st;
+}
+let store=null;
+function loadStore(){
+  let s=null; try{ s=JSON.parse(localStorage.getItem(KEY())||'null'); }catch(e){}
+  store=s||defaultStore();
+  store.cells=store.cells||{}; store.metrics=store.metrics||{}; store.vitals=store.vitals||{};
+  store.plans=store.plans||{};
+  if(!store.activeMonth) store.activeMonth=new Date().toISOString().slice(0,7);
+  if(!store.plans[store.activeMonth]) store.plans[store.activeMonth]={goal:'',entries:[],tasks:[{},{},{}]};
+  if(store.tension==null) store.tension=5;
+  store.folder=store.folder||''; store.demoDate=store.demoDate||'';
+}
+function save(){ localStorage.setItem(KEY(),JSON.stringify(store)); }
+
+// ── 變更紀錄：每次新增/修改都記一筆，AI 顧問讀取後可針對「這次新增的內容」分析 ──
+function readLog(){ try{ return JSON.parse(localStorage.getItem(LOGKEY())||'[]'); }catch(e){ return []; } }
+let _logTimers={};
+function logChange(section, summary, debounceKey){
+  const write=()=>{
+    try{
+      const arr=readLog();
+      arr.push({at:new Date().toISOString(), month:store.activeMonth, section:section, summary:summary});
+      while(arr.length>150) arr.shift();
+      localStorage.setItem(LOGKEY(), JSON.stringify(arr));
+    }catch(e){}
+  };
+  if(debounceKey){ clearTimeout(_logTimers[debounceKey]); _logTimers[debounceKey]=setTimeout(write,1600); }
+  else write();
+}
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function escAttr(s){return esc(s).replace(/"/g,'&quot;');}
+function curTasks(){let p=store.plans[store.activeMonth];
+  if(!p){p={goal:'',entries:[],tasks:[{},{},{}]}; store.plans[store.activeMonth]=p;}
+  if(!p.tasks)p.tasks=[{},{},{}];
+  while(p.tasks.length<3)p.tasks.push({});
+  return p.tasks;}
+
+// ── 主角切換器 ──
+function renderCharSel(){
+  const sel=document.getElementById('charSel'); const cards=getCards();
+  let opts=cards.map(c=>`<option value="${escAttr(String(c.id))}" ${String(c.id)===String(curCharId)?'selected':''}>${esc(c.name)}</option>`).join('');
+  if(!cards.some(c=>String(c.id)===String(curCharId))){
+    opts=`<option value="${escAttr(String(curCharId))}" selected>${esc(curCharName)}</option>`+opts;
+  }
+  sel.innerHTML=opts;
+}
+document.getElementById('charSel').onchange=function(e){
+  const c=getCards().find(x=>String(x.id)===String(e.target.value));
+  curCharId=e.target.value; curCharName=c?c.name:String(e.target.value);
+  loadStore(); initUI();
+  showToast('👤 切換至 '+curCharName+' 的 PDR');
+};
+function renderWho(){
+  const isLogin = String(curCharId)===String(localStorage.getItem('activeCharacterId')||'');
+  document.getElementById('who').textContent='當前主角：'+curCharName+(isLogin?'（登入本人）':'（檢視他人）');
+}
+
+// ── AI 顧問分析：跳轉 AI 顧問（context 已自動帶入本人 PDR 資料＋最近變更）──
+function openAiAdvisor(){
+  const loginId=localStorage.getItem('activeCharacterId')||'';
+  if(String(curCharId)!==String(loginId)){
+    if(!confirm('AI 顧問以「登入主角」為分析對象。\n目前檢視的是「'+curCharName+'」的 PDR，要以登入主角身分前往 AI 顧問嗎？')) return;
+  }
+  // 在練功坊 iframe 內時，改導最上層視窗（避免頁中頁）
+  try{ (window.top||window).location.href='./人力發展.html?ai=1'; }
+  catch(e){ location.href='./人力發展.html?ai=1'; }
+}
+// 在練功坊主管門的 iframe 內時，隱藏自己的返回鈕（外層已有 ◀ 返回）
+try{ if(window.parent!==window){ document.addEventListener('DOMContentLoaded',function(){ var b=document.getElementById('backLink'); if(b)b.style.display='none'; }); } }catch(e){}
+
+// ---------- mode ----------
+function setMode(m){document.body.className='mode-'+m;
+  document.getElementById('bf').classList.toggle('on',m==='front');
+  document.getElementById('bb').classList.toggle('on',m==='back');}
+function showToast(msg){const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900);}
+
+// ================= FRONT =================
+function quarterOf(mo){return Math.floor((mo-1)/3)+1;}
+function renderFrontHeader(){
+  const am=store.activeMonth;
+  document.getElementById('fmonth').textContent=am.replace('-','．')+'　'+curCharName+'・主管聚焦';
+  const f2=document.getElementById('fmonth2'); if(f2)f2.textContent=am.replace('-','．')+'　'+curCharName+'・體檢・驗收';
+}
+
+// tasks
+// FRONT：任務內容由後台設定，這裡唯讀；主管只能打勾＋貼連結
+function renderTasks(){
+  const wrap=document.getElementById('tasks'); wrap.innerHTML='';
+  curTasks().forEach((t,i)=>{
+    const defined=t.comp&&t.action&&t.action.trim();
+    const comp=t.comp?(ITEMS.find(x=>x.n==t.comp)||{}):null;
+    const card=document.createElement('div'); card.className='tcard'+(t.done?' done':'')+(defined?'':' undef');
+    card.innerHTML=`
+      <div class="tcheck">${t.done?'✓':''}</div>
+      <div>
+        <div class="trow1"><span class="tnum">#${i+1}</span>${defined?`<span class="tcomp">${comp.n}. ${comp.nm}</span>`:'<span class="tundef">後台尚未設定這一件</span>'}</div>
+        <div class="taction-ro${defined?'':' muted'}">${defined?esc(t.action):'（未設定，沒勾代表還要做）'}</div>
+        <div class="tlink">
+          <input class="tl" placeholder="貼上這件事的 Google 執行紀錄連結" value="${t.link?escAttr(t.link):''}">
+          <a target="_blank" class="${t.link?'':'off'}" href="${t.link||'#'}">開啟</a>
+        </div>
+      </div>`;
+    card.querySelector('.tcheck').onclick=()=>{ t.done=!t.done; save(); renderTasks(); renderPass();
+      logChange('本月聚焦','#'+(i+1)+(comp&&comp.nm?'「職能'+comp.n+'.'+comp.nm+'」':'')+(t.done?' ✅ 打勾完成':' ↩️ 取消完成')+(t.action?'：'+t.action:'')); };
+    const li=card.querySelector('.tl');
+    li.oninput=e=>{t.link=e.target.value.trim(); save();
+      logChange('本月聚焦','#'+(i+1)+' 貼上執行紀錄連結','tlink'+i);
+      const a=card.querySelector('.tlink a'); if(t.link){a.classList.remove('off');a.href=t.link;}else{a.classList.add('off');a.href='#';}};
+    wrap.appendChild(card);
+  });
+}
+// 內嵌複習內容
+function studyHTML(it){
+  return `<div class="abody">
+    <div class="sec"><h4>職責／工作內容</h4><ul>${it.duty.map(d=>`<li>${d}</li>`).join('')}</ul></div>
+    <div class="sec assess"><h4>評估標準（會被怎麼驗收）</h4><ul>${it.assess.map(d=>`<li>${d}</li>`).join('')}</ul>
+      <h4 style="margin-top:10px">關鍵技能／知識</h4><ul>${it.skill.map(d=>`<li>${d}</li>`).join('')}</ul></div>
+    <div class="coach"><h4>輔導提問 — 準備好你的答案</h4><p>${it.coach}</p></div>
+  </div>`;
+}
+// BACK：設定本月 1–3 件事（選職能即內嵌複習）
+function renderTaskDefs(){
+  const wrap=document.getElementById('taskdefs'); if(!wrap)return; wrap.innerHTML='';
+  curTasks().forEach((t,i)=>{
+    const box=document.createElement('div'); box.className='tddef';
+    const opts='<option value="">— 選職能 —</option>'+ITEMS.map(it=>`<option value="${it.n}" ${t.comp==it.n?'selected':''}>${it.n}. ${it.nm}</option>`).join('');
+    const it=t.comp?ITEMS.find(x=>x.n==t.comp):null;
+    box.innerHTML=`<div class="tdrow"><span class="tdn num">#${i+1}</span><select>${opts}</select><input class="tda" placeholder="自填一句可執行的具體動作…" value="${t.action?escAttr(t.action):''}"></div>`+
+      (it?`<details class="acc inline"><summary><span class="an num">${it.n}</span>複習：${it.nm}<span class="ag">${it.g}</span></summary>${studyHTML(it)}</details>`:'');
+    box.querySelector('select').onchange=e=>{t.comp=e.target.value; save(); renderTasks(); renderPass(); renderTaskDefs();
+      const sel=ITEMS.find(x=>x.n==t.comp);
+      logChange('聚焦任務設定','#'+(i+1)+' 選定職能：'+(sel?sel.n+'.'+sel.nm:'（清空）'));};
+    box.querySelector('.tda').oninput=e=>{t.action=e.target.value; save(); renderTasks(); renderPass();
+      logChange('聚焦任務設定','#'+(i+1)+' 具體動作：'+e.target.value,'tda'+i);};
+    wrap.appendChild(box);
+  });
+}
+function renderPass(){
+  // 固定除以 3：勾了就算一件（含未設定的格子，沒勾＝還要做）
+  const done=curTasks().filter(t=>t.done).length;
+  const pct=Math.round(done/3*100);
+  document.getElementById('passpct').textContent=pct+'%';
+  const bar=document.getElementById('passbar'); const txt=document.getElementById('passtxt');
+  if(done>=3){bar.classList.add('pass'); txt.textContent='三件全部點亮 — 100% 給過。聚焦，所以燒得起來。';}
+  else{bar.classList.remove('pass'); txt.textContent=`已點亮 ${done} / 3 件。三件全做完＝本月 100% 給過。`;}
+}
+// tension
+const tnsl=document.getElementById('tension'), tv=document.getElementById('tv');
+tnsl.oninput=()=>{tv.textContent=tnsl.value; store.tension=+tnsl.value; save();
+  logChange('本月張力','調整為 '+tnsl.value+'/10','tension');};
+// folder
+const fl=document.getElementById('folderLink'), fo=document.getElementById('folderOpen');
+fl.oninput=()=>{store.folder=fl.value.trim(); save();
+  logChange('本月資料夾','更新雲端資料夾連結','folder');
+  if(store.folder){fo.classList.remove('off');fo.href=store.folder;}else{fo.classList.add('off');fo.href='#';}};
+
+// ten-day
+function renderTenDay(){
+  const plan=store.plans[store.activeMonth]; const list=document.getElementById('tenlist');
+  const goalEl=document.getElementById('tengoal'); const rngEl=document.getElementById('tenrange');
+  list.innerHTML='';
+  const base=store.demoDate?new Date(store.demoDate+'T00:00:00'):new Date();
+  const end=new Date(base); end.setDate(end.getDate()+10);
+  const f=d=>`${d.getMonth()+1}/${d.getDate()}`;
+  rngEl.textContent=f(base)+' – '+f(end);
+  goalEl.textContent=plan&&plan.goal?'小組目標：'+plan.goal:'';
+  if(!plan||!plan.entries){list.innerHTML='<div class="ten-empty">後台尚未鍵入本月作戰計劃</div>';return;}
+  const items=plan.entries.map(e=>({...e,d:new Date(e.date+'T00:00:00')}))
+    .filter(e=>e.d>=base&&e.d<=end).sort((a,b)=>a.d-b.d);
+  if(!items.length){list.innerHTML='<div class="ten-empty">這十天沒有排定事件——調整上方「展示用今天」或後台補件</div>';return;}
+  const wd=['日','一','二','三','四','五','六'];
+  items.forEach(e=>{
+    const crit=CRIT_CAT.includes(e.cat);
+    const row=document.createElement('div'); row.className='ten'+(crit?' crit':'');
+    row.innerHTML=`<div class="dt num">${e.d.getDate()}<small>${e.d.getMonth()+1}月・${wd[e.d.getDay()]}</small></div>
+      <div class="tt">${esc(e.title)}</div><div class="cat">${e.cat}</div>`;
+    list.appendChild(row);
+  });
+}
+
+// ================= FRONT PAGE2 = dashboard + board =================
+// gantt
+document.getElementById('mhead').innerHTML=ALL.map(m=>`<div class="mh ${m===CUR_MONTH?'cur':''}">${m}月</div>`).join('');
+function renderGantt(){
+  const g=document.getElementById('gantt'); g.innerHTML='';
+  ITEMS.forEach(it=>{
+    const id='it'+it.n;
+    const item=document.createElement('div'); item.className='ritem';
+    item.innerHTML=`<div class="gno num">${it.n}</div><div><div class="nm">${it.nm}</div><div class="std">${it.std}</div></div>`;
+    const cells=document.createElement('div'); cells.className='gcells';
+    ALL.forEach(m=>{
+      const planned=it.plan.includes(m), mk=it.mark&&it.mark[m];
+      const done=store.cells[id+'_'+m]; let cls='cell ';
+      if(mk)cls+='mark '; else if(planned)cls+='plan '; else cls+='none ';
+      if((planned||mk)&&done)cls+='done '; if(m===CUR_MONTH&&(planned||mk))cls+='cur ';
+      const c=document.createElement('div'); c.className=cls.trim();
+      if(mk)c.textContent=done?'✓':mk;
+      if(planned||mk){c.onclick=()=>{store.cells[id+'_'+m]=!store.cells[id+'_'+m]; save();
+        const nd=store.cells[id+'_'+m]; c.classList.toggle('done',nd); if(mk)c.textContent=nd?'✓':mk; prog();
+        logChange('年度驗收','『'+it.n+'.'+it.nm+'』'+m+'月 '+(nd?'✓ 標記已驗收':'取消驗收'));};}
+      cells.appendChild(c);
+    });
+    const p=document.createElement('div'); p.className='gprog'; p.id=id+'_p';
+    g.appendChild(item); g.appendChild(cells); g.appendChild(p);
+  });
+  prog();
+}
+function prog(){ITEMS.forEach(it=>{const id='it'+it.n;
+  const seen=new Set(); let tot=0,done=0;
+  it.plan.forEach(m=>{seen.add(m);tot++;if(store.cells[id+'_'+m])done++;});
+  if(it.mark)Object.keys(it.mark).forEach(m=>{if(!seen.has(+m)){tot++;if(store.cells[id+'_'+m])done++;}});
+  const el=document.getElementById(id+'_p'); if(el)el.innerHTML=`<span class="pct">${tot?Math.round(done/tot*100):0}%</span>`;});}
+
+// dash
+function renderDash(){const dash=document.getElementById('dash'); dash.innerHTML='';
+  METRICS.forEach(mt=>{const row=document.createElement('div'); row.className='metric';
+    row.innerHTML=`<div><span class="mn">${mt.nm}</span> <span class="mt">${mt.goal||'目標'} ${mt.dir==='down'?'≤':'≥'}${mt.target}${mt.unit}</span></div>`;
+    const inp=document.createElement('input'); inp.type='number'; inp.value=store.metrics[mt.k]??''; inp.placeholder='實際';
+    const dot=document.createElement('div'); dot.className='vdot2';
+    function light(){vlight2(dot,inp.value,mt);}
+    inp.oninput=()=>{store.metrics[mt.k]=inp.value; save(); light();
+      logChange('必背數字','『'+mt.nm+'』填入實際值 '+inp.value+mt.unit+'（標準 '+(mt.dir==='down'?'≤':'≥')+mt.target+mt.unit+'）','m_'+mt.k);};
+    row.appendChild(inp); row.appendChild(dot); dash.appendChild(row); light();});}
+function vlight2(dot,val,mt){dot.className='vdot2'; if(val===''||isNaN(val))return; const v=parseFloat(val); let s;
+  if(mt.dir==='up')s=v>=mt.target?'green':(v>=mt.target*0.9?'amber':'red'); else s=v<=mt.target?'green':(v<=mt.target*1.3?'amber':'red'); dot.classList.add(s);}
+
+// nodes
+document.getElementById('nodes').innerHTML=NODES.map(n=>`<div class="node ${n.crit?'crit':''}">
+  <div class="nd num">${n.d}</div><div class="nt">${n.t}</div><div class="ns">${n.s}</div></div>`).join('');
+
+// ---------- monthly plan key-in ----------
+function refreshMonthSel(){const sel=document.getElementById('planMonth');
+  sel.innerHTML=Object.keys(store.plans).sort().map(m=>`<option value="${m}" ${m===store.activeMonth?'selected':''}>${m}</option>`).join('');}
+function renderKbody(){const tb=document.getElementById('kbody'); tb.innerHTML='';
+  const plan=store.plans[store.activeMonth]; if(!plan)return;
+  document.getElementById('planGoal').value=plan.goal||'';
+  plan.entries.forEach((e,i)=>{const tr=document.createElement('tr');
+    const catopts=CATS.map(c=>`<option ${c===e.cat?'selected':''}>${c}</option>`).join('');
+    tr.innerHTML=`<td><input class="dt" type="date" value="${e.date}"></td>
+      <td><input class="ti" value="${(e.title||'').replace(/"/g,'&quot;')}"></td>
+      <td><select>${catopts}</select></td><td class="del">×</td>`;
+    tr.querySelector('.dt').onchange=ev=>{e.date=ev.target.value; save(); renderTenDay();};
+    tr.querySelector('.ti').oninput=ev=>{e.title=ev.target.value; save(); renderTenDay();};
+    tr.querySelector('select').onchange=ev=>{e.cat=ev.target.value; save(); renderTenDay();};
+    tr.querySelector('.del').onclick=()=>{plan.entries.splice(i,1); save(); renderKbody(); renderTenDay();};
+    tb.appendChild(tr);});}
+function addRow(){const plan=store.plans[store.activeMonth]; plan.entries.push({date:store.activeMonth+'-01',title:'',cat:'班務'}); renderKbody();}
+function addMonth(){const m=prompt('輸入新月份（格式 YYYY-MM）：',store.activeMonth.slice(0,5)+String(((+store.activeMonth.split('-')[1])%12)+1).padStart(2,'0'));
+  if(!m||!/^\d{4}-\d{2}$/.test(m)){if(m)alert('格式需為 YYYY-MM');return;}
+  if(!store.plans[m])store.plans[m]={goal:'',entries:[],tasks:[{},{},{}]}; store.activeMonth=m; save();
+  logChange('月作戰計劃','新增/切換月份 '+m);
+  refreshMonthSel(); renderKbody(); syncFront();}
+function savePlan(){const plan=store.plans[store.activeMonth]; plan.goal=document.getElementById('planGoal').value;
+  store.demoDate=document.getElementById('demoDate').value||store.demoDate; save();
+  logChange('月作戰計劃','儲存 '+store.activeMonth+' 月計劃（目標：'+(plan.goal||'未填')+'，事件 '+plan.entries.length+' 筆）');
+  const s=document.getElementById('ksaved'); s.textContent='✓ 已儲存 '+store.activeMonth; setTimeout(()=>s.textContent='',2500);
+  syncFront();}
+document.getElementById('planMonth').onchange=e=>{store.activeMonth=e.target.value; save(); renderKbody(); syncFront();};
+document.getElementById('demoDate').onchange=e=>{store.demoDate=e.target.value; save(); renderTenDay();};
+document.getElementById('planGoal').oninput=e=>{const p=store.plans[store.activeMonth]; if(p){p.goal=e.target.value; save(); renderTenDay();
+  logChange('月作戰計劃','小組目標：'+e.target.value,'goal');}};
+
+// sync front after plan changes
+function syncFront(){renderFrontHeader(); renderTasks(); renderPass(); renderTenDay(); renderTaskDefs();}
+document.getElementById('taskApply').onclick=()=>{
+  save(); renderTasks(); renderPass();
+  logChange('聚焦任務設定','儲存本月聚焦任務設定並套用前台');
+  showToast('✓ 已儲存並套用到前台');
+  setMode('front');
+  const s1=document.querySelectorAll('.stage-front .slide')[0];
+  if(s1) s1.scrollIntoView({behavior:'smooth',block:'center'});
+};
+
+// ---------- init ----------
+function initUI(){
+  renderWho();
+  tnsl.value=store.tension; tv.textContent=store.tension;
+  fl.value=store.folder;
+  if(store.folder){fo.classList.remove('off');fo.href=store.folder;}else{fo.classList.add('off');fo.href='#';}
+  document.getElementById('demoDate').value=store.demoDate||'';
+  renderFrontHeader(); renderTasks(); renderPass(); renderTenDay();
+  renderGantt(); renderDash(); refreshMonthSel(); renderKbody(); renderTaskDefs();
+}
+loadStore(); renderCharSel(); initUI();
+
+// 雲端 pull 完成後（badge 顯示✓）資料可能更新 — 監聽 storage 事件刷新畫面
+window.addEventListener('storage', function(ev){
+  if(ev.key===KEY()){ loadStore(); initUI(); }
+});
+
+function resetAll(){
+  if(!confirm('確定清除「'+curCharName+'」的 PDR 資料（含月作戰計劃、勾選、數字、變更紀錄）？\n只會清這位主角，不影響其他人。')) return;
+  localStorage.removeItem(KEY()); localStorage.removeItem(LOGKEY());
+  loadStore(); initUI(); showToast('已清除 '+curCharName+' 的 PDR 資料');
+}
+</script>
+<script src="./nav-home.js"></script>
+</body>
+</html>
