@@ -175,6 +175,36 @@
   .empty b{ color:#ffd35c; }
 
   .topbtn{ position:fixed; right:16px; bottom:18px; z-index:30; width:46px; height:46px; border-radius:50%; border:none; background:rgba(255,255,255,.12); backdrop-filter:blur(8px); color:#fff; font-size:1.1rem; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,.4); }
+
+  /* ===== 榮譽宴分頁 ===== */
+  .honor-hero{ text-align:center; margin:22px 0 8px; }
+  .hh-kicker{ font-size:.62rem; letter-spacing:6px; color:#8a8aa6; }
+  .hh-title{ font-size:1.5rem; font-weight:900; margin:6px 0 4px; background:linear-gradient(90deg,#ffd35c,#ff7ac0,#7ad0ff);-webkit-background-clip:text;background-clip:text;color:transparent; }
+  .hh-sub{ font-size:.76rem; color:#bcbcd4; letter-spacing:1px; line-height:1.7; }
+  .bar-badge{ display:inline-block; font-size:.64rem; padding:2px 9px; border-radius:12px; border:1px solid rgba(255,211,92,.45); color:#ffd35c; margin-left:6px; vertical-align:middle; }
+  .honor .kc-val{ font-size:2.05rem; }
+  .rank-stamp{ text-align:center; margin:2px 0 10px; }
+  .rank-stamp span{ display:inline-block; font-size:.8rem; font-weight:900; letter-spacing:1px; padding:4px 14px; border-radius:20px; color:#1a1a1a; background:linear-gradient(90deg,#ffd35c,#ff9a3c); box-shadow:0 0 18px rgba(255,205,90,.55); animation:stampPulse 2.2s ease-in-out infinite; }
+  .rank-stamp.top3 span{ background:linear-gradient(90deg,#ff5cc8,#ffd35c); }
+  @keyframes stampPulse{ 50%{ transform:scale(1.06); box-shadow:0 0 30px rgba(255,205,90,.85);} }
+  .nat-box{ border-top:1px dashed rgba(255,255,255,.16); margin-top:10px; padding-top:10px; }
+  .nat-head{ text-align:center; font-size:.68rem; letter-spacing:3px; color:#9a9ab0; margin-bottom:7px; }
+  .nat-row{ display:flex; align-items:center; gap:8px; font-size:.82rem; padding:4px 7px; border-radius:9px; color:#c9c9dd; margin-bottom:2px; }
+  .nat-row .nr{ width:20px; height:20px; border-radius:50%; background:rgba(255,255,255,.12); display:grid; place-items:center; font-size:.66rem; flex-shrink:0; }
+  .nat-row .nn{ flex:1; }
+  .nat-row .nv{ font-weight:700; }
+  .nat-row.me{ background:linear-gradient(90deg,rgba(255,211,92,.2),rgba(255,122,192,.12)); border:1px solid rgba(255,211,92,.6); box-shadow:0 0 16px rgba(255,211,92,.3); color:#fff; font-weight:800; animation:mePulse 2.4s ease-in-out infinite; }
+  .nat-row.me .nr{ background:#ffd35c; color:#1a1a1a; font-weight:900; }
+  .nat-row.me2{ border:1px dashed rgba(255,211,92,.4); color:#ffe9bb; }
+  @keyframes mePulse{ 50%{ box-shadow:0 0 26px rgba(255,211,92,.55);} }
+  .nat-dots{ text-align:center; color:#63637e; font-size:.66rem; letter-spacing:5px; padding:1px 0; }
+  .chase{ margin-top:9px; text-align:center; font-size:.76rem; color:#ffd99a; line-height:1.6; }
+  .chase b{ font-size:.9rem; }
+  .chase-meter{ height:8px; border-radius:4px; background:rgba(255,255,255,.09); overflow:hidden; margin-top:6px; }
+  .chase-meter i{ display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,#ffd35c,#ff7ac0); box-shadow:0 0 10px rgba(255,180,120,.6); }
+  .chase-pct{ font-size:.64rem; color:#8a8aa6; margin-top:3px; text-align:right; }
+  .king-card.ph{ border-style:dashed !important; opacity:.9; }
+  .ph-note{ text-align:center; font-size:.74rem; color:#9a9ab0; letter-spacing:1px; margin-top:6px; line-height:1.7; }
 </style>
 </head>
 <body>
@@ -186,6 +216,10 @@
           <div class="month-pill" id="refreshBtn" onclick="reloadData()" title="重新抓資料">🔄</div>
           <div class="month-pill" id="monthPill" onclick="openMonth()">📅 載入中</div>
         </div>
+      </div>
+      <div class="switch-row" id="viewRow">
+        <button class="tbtn on" data-v="king" onclick="setView('king')"><b>👑</b>通路王嘉許牆</button>
+        <button class="tbtn" data-v="honor" onclick="setView('honor')"><b>🎖️</b>上半年榮譽宴</button>
       </div>
       <div class="switch-row" id="switchRow">
         <button class="tbtn" data-t="a" onclick="setTheme('a',true)"><b>A</b>冠軍聚光</button>
@@ -390,8 +424,113 @@ function buildAcademyCard(ch){
   return `<div class="king-card" data-ch="${ch.chKey}"><div class="kc-fx"></div><div class="kc-inner">${inner}</div></div>`;
 }
 
+/* ======================= 🎖️ 2026 上半年榮譽宴（資料固定內嵌）======================= */
+const HONOR_AWARDS=[
+ { icon:'🏆', title:'業績王', bar:'低標 200萬',
+   winner:{name:'楊雅晴',val:4245738,natRank:7}, second:{name:'凃敏薰',val:3995202,natRank:13},
+   nat:[{r:1,name:'林庭',val:6680342},{r:2,name:'王采璇',val:5952075},{r:3,name:'陳怡雯',val:5140162}] },
+ { icon:'🌐', title:'網路王', bar:'一季低標 70萬',
+   winner:{name:'吳昀璇',val:796745,natRank:16}, second:{name:'李幼綾',val:544769,natRank:36},
+   nat:[{r:1,name:'鄧凱文',val:1348124},{r:2,name:'林庭輝',val:1241052},{r:3,name:'邱柏翔',val:1228898}] },
+ { icon:'💳', title:'現金王（含刷卡）', bar:'一季低標 45萬',
+   winner:{name:'胡榮芳',val:723454}, second:{name:'宋和樹',val:444543},
+   nat:null, note:'💪 中區現金雙雄（本獎項不做全省比對）' },
+ { icon:'🛒', title:'加購王', bar:'一季低標 60萬',
+   winner:{name:'楊雅晴',val:3654216,natRank:3}, second:{name:'凃敏薰',val:3394439,natRank:5},
+   nat:[{r:1,name:'林庭',val:4382580},{r:2,name:'王采璇',val:4032871},{r:3,name:'楊雅晴',val:3654216}] },
+ { icon:'🙋', title:'報到王', bar:'一季 50 人', placeholder:true },
+ { icon:'🌱', title:'新人王（未滿一年）', bar:'低標 120萬', placeholder:true }
+];
+function gapWan(n){ const w=n/10000; return (w>=100? Math.round(w).toString() : w.toFixed(1).replace(/\.0$/,''))+'萬'; }
+function natListHTML(a){
+  const map={}; a.nat.forEach(x=>{ map[x.r]={...x}; });
+  [['me',a.winner],['me2',a.second]].forEach(([cls,p])=>{
+    if(p && p.natRank){ if(map[p.natRank]) map[p.natRank].me=cls; else map[p.natRank]={r:p.natRank,name:p.name,val:p.val,me:cls}; }
+  });
+  const ranks=Object.keys(map).map(Number).sort((x,y)=>x-y);
+  let html='',prev=0;
+  ranks.forEach(r=>{ if(prev && r>prev+1) html+='<div class="nat-dots">・・・</div>';
+    const x=map[r];
+    html+=`<div class="nat-row ${x.me||''}"><span class="nr">${r}</span><span class="nn">${x.me?'⭐ ':''}${x.name}</span><span class="nv">${fmtComma(x.val)}</span></div>`;
+    prev=r; });
+  return html;
+}
+function buildHonorCard(a){
+  if(a.placeholder){
+    return `<div class="king-card ph"><div class="kc-fx"></div><div class="kc-inner"><div class="kc-body">
+      <div class="kc-ch"><span class="kc-ico">${a.icon}</span>2026 上半年 · 中區 <span class="bar-badge">${a.bar}</span></div>
+      <div class="kc-title">👑 ${a.title}</div>
+      <div class="kc-photo-wrap"><div class="kc-photo"><span class="no-photo-emoji">❔</span></div></div>
+      <div class="kc-name" style="color:#9a9ab0;">虛位以待</div>
+      <div class="kc-val" style="opacity:.4;">— — —</div>
+      <div class="ph-note">榮譽宴保留席・達標即入席<br>下一個傳奇就是你 🔥</div>
+    </div></div></div>`;
+  }
+  const w=a.winner;
+  let rankStamp='';
+  if(a.nat && w.natRank){
+    rankStamp = w.natRank<=3
+      ? `<div class="rank-stamp top3"><span>🔥 全省第 ${w.natRank} 名 🔥</span></div>`
+      : `<div class="rank-stamp"><span>全省第 ${w.natRank} 名</span></div>`;
+  }
+  const second=a.second?`<ul class="kc-runners"><li class="kc-runner"><span class="rk">2</span><span class="rn">${a.second.name}</span><span class="rv">${fmtComma(a.second.val)}</span></li></ul>`:'';
+  let nat='';
+  if(a.nat){
+    const t1=a.nat[0].val, t3=a.nat[2].val;
+    const pct=Math.min(100,Math.round(w.val/t1*100));
+    const chase = w.natRank<=3
+      ? `已站上全省前三！距全省第一只差 <b>${gapWan(t1-w.val)}</b> 👑`
+      : `距全省前三只差 <b>${gapWan(t3-w.val)}</b>｜距全省第一 <b>${gapWan(t1-w.val)}</b> 🔥`;
+    nat=`<div class="nat-box">
+      <div class="nat-head">🇹🇼 全 台 對 決 榜</div>
+      ${natListHTML(a)}
+      <div class="chase">${chase}
+        <div class="chase-meter"><i style="width:${pct}%"></i></div>
+        <div class="chase-pct">已達全省第一的 ${pct}%</div>
+      </div>
+    </div>`;
+  } else if(a.note){
+    nat=`<div class="ph-note" style="margin-top:10px;">${a.note}</div>`;
+  }
+  return `<div class="king-card"><div class="kc-fx"></div><div class="kc-inner">
+    <span class="ssr-stamp" style="display:none">SSR</span>
+    <div class="kc-body">
+      <div class="kc-ch"><span class="kc-ico">${a.icon}</span>2026 上半年 · 中區 <span class="bar-badge">${a.bar}</span></div>
+      <div class="kc-title">👑 ${a.title}</div>
+      ${photoBlock(w.name, findCastleCard(w.name), '🏅')}
+      <div class="stars" style="display:none">★★★★★</div>
+      <div class="kc-name">${w.name}</div>
+      <div class="kc-val">${fmtComma(w.val)}</div>
+      ${rankStamp}
+      ${second}
+      ${nat}
+    </div></div></div>`;
+}
+function renderHonorHTML(){
+  return `<div class="ind-section honor">
+    <div class="honor-hero">
+      <div class="hh-kicker">HONOR BANQUET</div>
+      <div class="hh-title">🎖️ 2026 上半年榮譽宴</div>
+      <div class="hh-sub">中區英雄榜 × 全台對決<br>每一個王，都有下一座要攻的山 ⛰️</div>
+    </div>
+    ${HONOR_AWARDS.map(buildHonorCard).join('')}
+  </div>`;
+}
+
+/* ======================= 分頁切換 ======================= */
+let view='king';
+function setView(v){
+  view=v;
+  document.querySelectorAll('#viewRow .tbtn').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
+  const mp=document.getElementById('monthPill'); if(mp) mp.style.display = v==='honor' ? 'none' : '';
+  const rf=document.getElementById('refreshBtn'); if(rf) rf.style.display = v==='honor' ? 'none' : '';
+  render();
+  window.scrollTo({top:0});
+}
+
 function render(){
   const main=document.getElementById('main');
+  if(view==='honor'){ main.innerHTML=renderHonorHTML(); applyThemeFx(); return; }
   if(!current){ main.innerHTML=emptyDiagnostic(); return; }
   let ind='', acad='';
   current.channels.forEach(ch=>{ ind+=buildIndividualCard(ch); });
@@ -413,7 +552,7 @@ function autoTheme(){ return THEME_LIST[dayIndex()]; }
 function setTheme(t, manual){
   activeTheme=t;
   document.body.className='theme-'+t;
-  document.querySelectorAll('.tbtn').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
+  document.querySelectorAll('#switchRow .tbtn').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
   const autoT=autoTheme();
   document.getElementById('autoTag').innerHTML = (t===autoT && !manual)
     ? `今日自動風格 → <span>${labelOf(t)}</span>（可手動切換）`
@@ -460,23 +599,23 @@ function markMonthSel(id){ curSel=id; document.querySelectorAll('.mopt').forEach
 
 /* ======================= 輸出鎖定版（無切換、資料內嵌、可離線/分享）======================= */
 function exportHTML(){
-  if(!current || !document.querySelector('.king-card')){ alert('目前沒有可輸出的卡片，先選到有資料的月份再輸出 🙂'); return; }
+  if(!document.querySelector('.king-card')){ alert('目前沒有可輸出的卡片，先選到有資料的月份再輸出 🙂'); return; }
   const css = document.querySelector('style').innerHTML;          // 沿用本頁全部樣式
   const theme = activeTheme;                                       // 鎖定目前風格
-  const label = current.label;                                     // 鎖定目前月份
+  const label = view==='honor' ? '2026上半年榮譽宴' : (current?current.label:'');   // 鎖定目前分頁/月份
   const clone = document.getElementById('main').cloneNode(true);   // 內嵌目前已渲染的卡片（含照片、彩帶等）
   clone.querySelectorAll('.photo-edit,.photo-clear').forEach(b=>b.remove()); // 移除編輯鈕
   const cardsHTML = clone.innerHTML;
   const doc =
 '<!DOCTYPE html>\n<html lang="zh-Hant">\n<head>\n<meta charset="UTF-8">\n'+
 '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n'+
-'<title>🏆 通路王嘉許牆 '+label+'</title>\n<style>'+css+'</style>\n</head>\n'+
+'<title>'+(view==='honor'?'🎖️ 2026 上半年榮譽宴':'🏆 通路王嘉許牆 '+label)+'</title>\n<style>'+css+'</style>\n</head>\n'+
 '<body class="theme-'+theme+'">\n'+
-'<div class="export-banner">🏆 通路王嘉許牆 · '+label+'</div>\n'+
+'<div class="export-banner">'+(view==='honor'?'🎖️ 2026 上半年榮譽宴':'🏆 通路王嘉許牆 · '+label)+'</div>\n'+
 '<main>'+cardsHTML+'</main>\n'+
 '<button class="topbtn" onclick="window.scrollTo({top:0,behavior:\'smooth\'})">↑</button>\n'+
 '</body>\n</html>';
-  const fname = '通路王-'+label+'-'+labelOf(theme).replace(/\s/g,'')+'.html';
+  const fname = (view==='honor'?'榮譽宴-':'通路王-')+label+'-'+labelOf(theme).replace(/\s/g,'')+'.html';
   const blob = new Blob([doc], {type:'text/html;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = fname;

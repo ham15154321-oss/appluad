@@ -637,13 +637,13 @@ const METRICS=[
  {k:'group',nm:'小組單月業績',unit:'萬',target:150,dir:'up'},
  {k:'leader',nm:'組長個人業績',unit:'萬',target:60,dir:'up'},
  {k:'sales',nm:'業務個人業績',unit:'萬',target:45,dir:'up',goal:'全員目標'},
- {k:'promote',nm:'晉升/舉績門檻',unit:'萬',target:50,dir:'up'},
+ {k:'promote',nm:'名單成功率',unit:'%',target:8,dir:'up'},
  {k:'face',nm:'面率',unit:'%',target:20,dir:'up'},
  {k:'reg',nm:'面談註冊率',unit:'%',target:20,dir:'up'},
- {k:'attend',nm:'班級出席率',unit:'%',target:70,dir:'up'},
+ {k:'attend',nm:'A單佔比',unit:'%',target:35,dir:'up'},
  {k:'stay',nm:'新人留任率',unit:'%',target:60,dir:'up'},
  {k:'recruit',nm:'增員面試報到',unit:'人',target:2,dir:'up'},
- {k:'conv',nm:'行銷部轉換率',unit:'%',target:20,dir:'up'},
+ {k:'conv',nm:'名單面談率',unit:'%',target:20,dir:'up'},
  {k:'refund',nm:'退費率',unit:'%',target:10,dir:'down'},
 ];
 
@@ -704,6 +704,12 @@ function loadStore(){
   store.autoSync=store.autoSync||null;           // 上次自動同步資訊
   store.academyManual=store.academyManual||'';   // 手動指定學院（自動判定失敗時）
   store.scoreHistory=store.scoreHistory||{};     // 每月總分快照（放大檢視趨勢圖用）
+  // ★ 一次性遷移 v2：promote/attend/conv 換定義（名單成功率/A單佔比/名單面談率）
+  //   清掉舊定義下的手動旗標與客製目標，讓新算法自動帶入；格子與月快照歷史保留不中斷
+  if(!store._migV2){
+    ['promote','attend','conv'].forEach(k=>{ delete store.metricsManual[k]; delete store.targets[k]; });
+    store._migV2=1;
+  }
 }
 function save(){ localStorage.setItem(KEY(),JSON.stringify(store)); }
 
@@ -908,8 +914,23 @@ function tgt(k){ const d=METRICS.find(m=>m.k===k);
   const c=store.targets&&store.targets[k];
   return (c!=null&&c!==''&&!isNaN(c))?parseFloat(c):d.target; }
 function isCustomTgt(k){ const d=METRICS.find(m=>m.k===k); const t=tgt(k); return t!==d.target; }
+// ★ 大白話說明（滑鼠移上格子顯示；有同步數字就帶真實數字）
+function metricTip(k){
+  const c=(store.autoSync&&store.autoSync.details&&store.autoSync.details.calc)||{};
+  if(k==='conv'){ const d=c.conv;
+    return d?('行銷部丟來的 '+d.leads+' 筆名單，真的打成面談的有 '+d.meet+' 筆＝'+d.pct+'% — 名單有沒有被打好打滿，看這裡')
+      :'名單面談率＝面談數 ÷ 名單總數。行銷部給的名單有沒有被打好打滿，看這裡'; }
+  if(k==='promote'){ const d=c.promote;
+    return d?(d.leads+' 筆名單最後 '+d.regA+' 筆變成註冊＝'+d.pct+'% — 每筆名單都是行銷費，這數字就是名單換錢的效率')
+      :'名單成功率＝註冊Ⓐ ÷ 名單總數。每筆名單都是行銷費，這數字就是名單換錢的效率'; }
+  if(k==='attend'){ const d=c.attend;
+    return d?('這個月 '+d.totalWan+' 萬裡有 '+d.aWan+' 萬是新客(Ⓐ)＝'+d.pct+'% — 太低代表在吃舊單老本，衝新客的引擎熄火了')
+      :'A單佔比＝業績Ⓐ ÷ 合計業績。太低代表在吃舊單老本，衝新客的引擎熄火了'; }
+  return '';
+}
 function renderDash(){const dash=document.getElementById('dash'); dash.innerHTML='';
   METRICS.forEach(mt=>{const row=document.createElement('div'); row.className='metric';
+    const tip=metricTip(mt.k); if(tip) row.title=tip;
     const t=tgt(mt.k), cus=isCustomTgt(mt.k);
     row.innerHTML=`<div><span class="mn">${mt.nm}</span> <span class="mt">${mt.goal||'目標'} ${mt.dir==='down'?'≤':'≥'}${t}${mt.unit}${cus?' <span class="custom" title="公司標準 '+(mt.dir==='down'?'≤':'≥')+mt.target+mt.unit+'">客製</span>':''}</span></div>`;
     const inp=document.createElement('input'); inp.type='number'; inp.value=store.metrics[mt.k]??''; inp.placeholder='實際';
@@ -981,7 +1002,7 @@ function resetTargets(){
 }
 
 // ═════════ 🔄 上月數據自動同步（來源：業績數據中心 → 每月績效 mp_data_v1）═════════
-const AUTO_KEYS=['acad','group','leader','sales','face','reg','stay','recruit','refund']; // promote/attend/conv 一律手動
+const AUTO_KEYS=['acad','group','leader','sales','face','reg','stay','recruit','refund','promote','attend','conv']; // 12 項全自動（手動填過的不覆蓋）
 // ★ 每月績效完整資料在 IndexedDB（SpaceBaseDB.images → 'mp_data_v1'），localStorage 只是容量受限的備份
 let _mpCache=null;
 function _mpFromIDB(){
@@ -1046,6 +1067,24 @@ function computeVals(mp,src,pp,ac,floor){
     const rev=_numv(s5['業績'])||((_numv(s5['業績Ⓐ'])||0)+(_numv(s5['業績Ⓑ'])||0));
     const rf=_numv(s5['退費金額']);
     if(rev&&rf!=null) vals.refund=Math.round(rf/rev*1000)/10;
+  }
+  // ★ 名單三兄弟：名單面談率(conv)／名單成功率(promote)／A單佔比(attend)
+  //   名單數＝sheet1 通路名單「總計」列的該學院數字（重複列只取第一筆）
+  details.calc={};
+  const totRow=((md.sheet1)||[]).find(r=>String(r['通路來源']||'').trim()==='總計');
+  const leads=totRow?_numv(totRow[ac]):null;
+  if(leads&&s5){
+    const meet=_numv(s5['面談']), regA=_numv(s5['註冊Ⓐ']);
+    if(meet!=null){ vals.conv=Math.round(meet/leads*1000)/10;
+      details.calc.conv={leads:leads, meet:meet, pct:vals.conv}; }
+    if(regA!=null){ vals.promote=Math.round(regA/leads*1000)/10;
+      details.calc.promote={leads:leads, regA:regA, pct:vals.promote}; }
+  }
+  if(s5){
+    const aRev=_numv(s5['業績Ⓐ']);
+    const rev2=_numv(s5['業績'])||((_numv(s5['業績Ⓐ'])||0)+(_numv(s5['業績Ⓑ'])||0));
+    if(aRev!=null&&rev2){ vals.attend=Math.round(aRev/rev2*1000)/10;
+      details.calc.attend={aWan:Math.round(aRev/1000)/10, totalWan:Math.round(rev2/1000)/10, pct:vals.attend}; }
   }
   // 留任率／增員報到（照舊：比對兩個月「全部業務名單」，不受門檻影響）
   if(pp!=null){
@@ -1202,8 +1241,8 @@ document.getElementById('taskApply').onclick=()=>{
 };
 
 // ═════════ 🏆 遊戲化放大檢視 ═════════
-const SHORT_NM={acad:'學院',group:'小組',leader:'組長',sales:'業務均',promote:'晉升',face:'面率',reg:'註冊率',attend:'出席',stay:'留任',recruit:'增員',conv:'轉換',refund:'退費'};
-const COACH_MAP={acad:1,group:5,leader:5,sales:2,promote:7,face:1,reg:1,attend:3,stay:4,recruit:4,conv:10,refund:8};
+const SHORT_NM={acad:'學院',group:'小組',leader:'組長',sales:'業務均',promote:'名單成交',face:'面率',reg:'註冊率',attend:'A單比',stay:'留任',recruit:'增員',conv:'名單面談',refund:'退費'};
+const COACH_MAP={acad:1,group:5,leader:5,sales:2,promote:10,face:1,reg:1,attend:1,stay:4,recruit:4,conv:1,refund:8};
 function statusOf(mt){ const v=store.metrics[mt.k]; if(v===''||v==null||isNaN(v))return null;
   const val=parseFloat(v), t=tgt(mt.k);
   if(mt.dir==='up')return val>=t?'green':(val>=t*0.9?'amber':'red');
@@ -1287,6 +1326,7 @@ function openZoom(){
       <div class="ln">${mt.nm}</div>
       <div class="lv">${(v===''||v==null||isNaN(v))?'—':v+mt.unit}</div>
       <div class="lt">目標 ${mt.dir==='down'?'≤':'≥'}${t}${mt.unit}${isCustomTgt(mt.k)?'（客製）':''}</div>
+      ${metricTip(mt.k)?`<div class="lt" style="margin-top:5px;color:#aab8dd;line-height:1.5">${esc(metricTip(mt.k))}</div>`:''}
       ${(clickable&&coach)?`<div class="ztip">💡 對應職能 ${coach.n}「${coach.nm}」輔導提問：<br>${esc(coach.coach)}</div>`:''}
     </div>`; }).join('');
   // ── 月趨勢 ──
