@@ -203,8 +203,28 @@
   .chase-meter{ height:8px; border-radius:4px; background:rgba(255,255,255,.09); overflow:hidden; margin-top:6px; }
   .chase-meter i{ display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,#ffd35c,#ff7ac0); box-shadow:0 0 10px rgba(255,180,120,.6); }
   .chase-pct{ font-size:.64rem; color:#8a8aa6; margin-top:3px; text-align:right; }
+  .duo-wrap{ display:flex; gap:10px; justify-content:center; margin-bottom:6px; }
+  .duo-col{ flex:1; min-width:0; text-align:center; }
+  .duo-col .kc-photo-wrap,.duo-col .kc-photo{ width:96px; height:96px; }
+  .duo-col .kc-photo-wrap{ margin:0 auto 8px; }
+  .duo-tag{ display:inline-block; font-size:.62rem; font-weight:800; letter-spacing:1px; padding:2px 8px; border-radius:12px; margin-bottom:4px; }
+  .duo-tag.king{ background:linear-gradient(90deg,#ffd35c,#ff9a3c); color:#1a1a1a; }
+  .duo-tag.rep{ background:linear-gradient(90deg,#ff7ac0,#a05cff); color:#fff; }
+  .duo-name{ font-weight:800; font-size:1.02rem; }
+  .duo-val{ font-weight:900; font-size:1.18rem; color:#ffd35c; margin-top:1px; }
+  .duo-rank{ font-size:.64rem; color:#ffd99a; margin-top:2px; }
+  .forum-banner{ margin:6px auto 26px; padding:18px 16px; border-radius:16px; text-align:center; border:1.5px solid rgba(255,211,92,.5); background:linear-gradient(160deg,rgba(255,211,92,.1),rgba(255,122,192,.07)); box-shadow:0 0 28px rgba(255,205,90,.15); }
+  .fb-kicker{ font-size:.68rem; letter-spacing:3px; color:#ffd35c; margin-bottom:6px; }
+  .fb-title{ font-size:1.12rem; font-weight:900; letter-spacing:1px; background:linear-gradient(90deg,#ffd35c,#ff7ac0);-webkit-background-clip:text;background-clip:text;color:transparent; margin-bottom:8px; }
+  .fb-text{ font-size:.8rem; color:#d8d8ea; line-height:1.9; }
+  .fb-text b{ color:#ffd35c; }
   .king-card.ph{ border-style:dashed !important; opacity:.9; }
   .ph-note{ text-align:center; font-size:.74rem; color:#9a9ab0; letter-spacing:1px; margin-top:6px; line-height:1.7; }
+  .bench-sec{ padding-bottom:20px; }
+  .bench-embed{ position:relative; width:100%; aspect-ratio:16/9; border-radius:16px; overflow:hidden; border:1.5px solid rgba(155,123,255,.5); box-shadow:0 10px 44px rgba(103,52,255,.3); }
+  .bench-embed iframe{ position:absolute; inset:0; width:100%; height:100%; border:none; background:#070512; }
+  .bench-tip{ text-align:center; font-size:.74rem; color:#9a9ab0; margin-top:8px; }
+  .bench-tip a{ color:#c7b3ff; font-weight:700; }
 </style>
 </head>
 <body>
@@ -218,8 +238,8 @@
         </div>
       </div>
       <div class="switch-row" id="viewRow">
-        <button class="tbtn on" data-v="king" onclick="setView('king')"><b>👑</b>通路王嘉許牆</button>
-        <button class="tbtn" data-v="honor" onclick="setView('honor')"><b>🎖️</b>上半年榮譽宴</button>
+        <button class="tbtn on" data-v="honor" onclick="setView('honor')"><b>🎖️</b>上半年榮譽宴</button>
+        <button class="tbtn" data-v="king" onclick="setView('king')"><b>👑</b>通路王嘉許牆</button>
       </div>
       <div class="switch-row" id="switchRow">
         <button class="tbtn" data-t="a" onclick="setTheme('a',true)"><b>A</b>冠軍聚光</button>
@@ -428,6 +448,8 @@ function buildAcademyCard(ch){
 const HONOR_AWARDS=[
  { icon:'🏆', title:'業績王', bar:'低標 200萬',
    winner:{name:'楊雅晴',val:4245738,natRank:7}, second:{name:'凃敏薰',val:3995202,natRank:13},
+   duo:true, winnerTag:'👑 雙冠王', secondTag:'🍽️ 代表出席榮譽宴',
+   dupNote:'楊雅晴同時榮登 🛒 加購王，業績王席次由第二名凃敏薰代表出席 🎉',
    nat:[{r:1,name:'林庭',val:6680342},{r:2,name:'王采璇',val:5952075},{r:3,name:'陳怡雯',val:5140162}] },
  { icon:'🌐', title:'網路王', bar:'一季低標 70萬',
    winner:{name:'吳昀璇',val:796745,natRank:16}, second:{name:'李幼綾',val:544769,natRank:36},
@@ -438,8 +460,12 @@ const HONOR_AWARDS=[
  { icon:'🛒', title:'加購王', bar:'一季低標 60萬',
    winner:{name:'楊雅晴',val:3654216,natRank:3}, second:{name:'凃敏薰',val:3394439,natRank:5},
    nat:[{r:1,name:'林庭',val:4382580},{r:2,name:'王采璇',val:4032871},{r:3,name:'楊雅晴',val:3654216}] },
- { icon:'🙋', title:'報到王', bar:'一季 50 人', placeholder:true },
- { icon:'🌱', title:'新人王（未滿一年）', bar:'低標 120萬', placeholder:true }
+ { icon:'🙋', title:'報到王', bar:'一季 50 人', unit:'人',
+   winner:{name:'范淯維',val:77}, second:{name:'林詩婕',val:74},
+   nat:null, note:'🙌 把人帶進教室，就是把未來帶進赫綵' },
+ { icon:'🌱', title:'新人王（未滿一年）', bar:'低標 120萬',
+   winner:{name:'宋和樹',val:2459453}, second:{name:'林詩婕',val:2354862},
+   nat:null, note:'⭐ 宋和樹今年 6 月到職剛好滿一年，用最後資格衝上新人王 🔥' }
 ];
 function gapWan(n){ const w=n/10000; return (w>=100? Math.round(w).toString() : w.toFixed(1).replace(/\.0$/,''))+'萬'; }
 function natListHTML(a){
@@ -473,7 +499,22 @@ function buildHonorCard(a){
       ? `<div class="rank-stamp top3"><span>🔥 全省第 ${w.natRank} 名 🔥</span></div>`
       : `<div class="rank-stamp"><span>全省第 ${w.natRank} 名</span></div>`;
   }
-  const second=a.second?`<ul class="kc-runners"><li class="kc-runner"><span class="rk">2</span><span class="rn">${a.second.name}</span><span class="rv">${fmtComma(a.second.val)}</span></li></ul>`:'';
+  const fv=v=>fmtComma(v)+(a.unit?' '+a.unit:'');
+  const second=a.second?`<ul class="kc-runners"><li class="kc-runner"><span class="rk">2</span><span class="rn">${a.second.name}</span><span class="rv">${fv(a.second.val)}</span></li></ul>`:'';
+  let mid;
+  if(a.duo && a.second){
+    const rk=p=>p.natRank?`<div class="duo-rank">全省第 ${p.natRank} 名</div>`:'';
+    const col=(p,tag,cls)=>`<div class="duo-col">${photoBlock(p.name, findCastleCard(p.name), '🏅')}<div class="duo-tag ${cls}">${tag}</div><div class="duo-name">${p.name}</div><div class="duo-val">${fmtComma(p.val)}</div>${rk(p)}</div>`;
+    mid=`<div class="duo-wrap">${col(w, a.winnerTag||'👑 王', 'king')}${col(a.second, a.secondTag||'🍽️ 代表出席', 'rep')}</div>`
+       +(a.dupNote?`<div class="ph-note">${a.dupNote}</div>`:'');
+  } else {
+    mid=`${photoBlock(w.name, findCastleCard(w.name), '🏅')}
+      <div class="stars" style="display:none">★★★★★</div>
+      <div class="kc-name">${w.name}</div>
+      <div class="kc-val">${fv(w.val)}</div>
+      ${rankStamp}
+      ${second}`;
+  }
   let nat='';
   if(a.nat){
     const t1=a.nat[0].val, t3=a.nat[2].val;
@@ -497,12 +538,7 @@ function buildHonorCard(a){
     <div class="kc-body">
       <div class="kc-ch"><span class="kc-ico">${a.icon}</span>2026 上半年 · 中區 <span class="bar-badge">${a.bar}</span></div>
       <div class="kc-title">👑 ${a.title}</div>
-      ${photoBlock(w.name, findCastleCard(w.name), '🏅')}
-      <div class="stars" style="display:none">★★★★★</div>
-      <div class="kc-name">${w.name}</div>
-      <div class="kc-val">${fmtComma(w.val)}</div>
-      ${rankStamp}
-      ${second}
+      ${mid}
       ${nat}
     </div></div></div>`;
 }
@@ -514,11 +550,21 @@ function renderHonorHTML(){
       <div class="hh-sub">中區英雄榜 × 全台對決<br>每一個王，都有下一座要攻的山 ⛰️</div>
     </div>
     ${HONOR_AWARDS.map(buildHonorCard).join('')}
+    <div class="forum-banner">
+      <div class="fb-kicker">🎤 獲獎者限定企劃</div>
+      <div class="fb-title">北區各通路前三名・對話論壇</div>
+      <div class="fb-text">本次榮譽宴將安排與<b>北區各通路前三名</b>的對話論壇企劃<br><b>只有獲獎的人</b>，才有這個安排——上榜，就是入場券 🎟️</div>
+    </div>
+  </div>
+  <div class="acad-section bench-sec">
+    <div class="sec-title">🏔 全台前三・我們要學的人</div>
+    <div class="bench-embed"><iframe src="季會議簡報.html?step=2&reveal=all" loading="lazy" allowfullscreen></iframe></div>
+    <div class="bench-tip"><a href="季會議簡報.html?step=2&reveal=all" target="_blank">🔍 全螢幕開啟標竿牆</a></div>
   </div>`;
 }
 
 /* ======================= 分頁切換 ======================= */
-let view='king';
+let view='honor';
 function setView(v){
   view=v;
   document.querySelectorAll('#viewRow .tbtn').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
@@ -660,7 +706,8 @@ function emptyDiagnostic(){
   // 主題：今天手動選過就沿用，否則用每日自動
   let t=autoTheme(); try{ const s=JSON.parse(localStorage.getItem('kingwall_theme')||'null'); if(s && s.date===todayStr()){ t=s.t; } }catch(e){}
   setTheme(t, false);
-  pickDefaultMonth();
+  pickDefaultMonth();   // 先備好通路王資料（current／月份）
+  setView('honor');     // 預設顯示上半年榮譽宴
 })();
 </script>
 </body>

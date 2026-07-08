@@ -2103,9 +2103,9 @@ body.minimal .revenue-stats{ margin-top:0; }
           <select id="autoBackupInterval" style="padding:8px 12px;border:1px solid rgba(100,180,255,0.25);background:rgba(15,20,60,0.85);color:#4aeaff;border-radius:8px;font-size:13px;cursor:pointer;" onchange="saveAutoBackupSetting()">
             <option value="0">關閉</option>
             <option value="7">每 7 天</option>
-            <option value="10" selected>每 10 天</option>
+            <option value="10">每 10 天</option>
             <option value="14">每 14 天</option>
-            <option value="30">每 30 天</option>
+            <option value="30" selected>每 30 天（每月一次）</option>
           </select>
           <button class="admin-save-btn" style="width:auto;padding:10px 16px;font-size:13px;background:linear-gradient(135deg,#00695c,#00897b);" onclick="doAutoBackupNow()">📦 立即備份</button>
         </div>
@@ -3083,10 +3083,10 @@ async function downloadBackup(){
 
 // ========== 🔄 自動定期備份 ==========
 function getAutoBackupInterval(){
-  // ★ 2026/06 改:預設 20 天(原本 10 天太頻繁)。已設 10 天的也自動升級成 20 天
+  // ★ 2026/07 改:預設 30 天(每月一次)。舊設定 10/14/20 天的自動升級成 30 天
   var v = localStorage.getItem('autoBackupInterval');
-  if (v === '10') { localStorage.setItem('autoBackupInterval','20'); v='20'; }
-  return parseInt(v || '20') || 20;
+  if (v === '10' || v === '14' || v === '20') { localStorage.setItem('autoBackupInterval','30'); v='30'; }
+  return parseInt(v || '30') || 30;
 }
 function saveAutoBackupSetting(){
   var val = document.getElementById('autoBackupInterval').value;
@@ -3116,6 +3116,8 @@ async function doAutoBackupNow(){
     var backup = await buildBackupData();
     triggerBackupDownload(backup, '太空基地自動備份');
     localStorage.setItem('autoBackupLastTime', String(Date.now()));
+    // ★ 純本機影子時間戳（firebase_sync_ 前綴不會上雲）— 防止雲端拉取把時間蓋回舊值造成每次開頁都備份
+    localStorage.setItem('firebase_sync_autoBackupLast', String(Date.now()));
     var count = parseInt(localStorage.getItem('autoBackupCount') || '0') + 1;
     localStorage.setItem('autoBackupCount', String(count));
     updateAutoBackupStatus();
@@ -3135,7 +3137,10 @@ async function checkAutoBackup(){
   }
   var interval = getAutoBackupInterval();
   if(interval === 0) return;
-  var lastTime = parseInt(localStorage.getItem('autoBackupLastTime') || '0');
+  // ★ 取「同步值」與「純本機影子值」較新者 — 雲端舊資料蓋回來也不會重複備份
+  var lastTime = Math.max(
+    parseInt(localStorage.getItem('autoBackupLastTime') || '0'),
+    parseInt(localStorage.getItem('firebase_sync_autoBackupLast') || '0'));
   var now = Date.now();
   var elapsed = now - lastTime;
   var threshold = interval * 86400000; // 天 → 毫秒
