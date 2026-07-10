@@ -1459,6 +1459,34 @@ async function pullFromCloud(opts){
           continue;
         }
 
+        // ★★★ PDR 聚焦系統（char_*_pdr_focus_v1 / char_*_pdr_log_v1）：
+        //     用「資料內嵌時間戳」比新舊（pdr_focus 存 _ts；pdr_log 看最後一筆的 at），
+        //     不依賴 _fs_lastModified 時間戳表（多分頁會互相清掉那張表，導致雲端舊資料吃掉本地新資料）。
+        //     鐵則：本地內容較新（或一樣新）→ 絕對保留本地；只有雲端內容確實較新才覆蓋。
+        if (/_pdr_focus_v1$/.test(k) || /_pdr_log_v1$/.test(k)){
+          try {
+            var _pdrTs = function(o){
+              if (!o) return 0;
+              if (o._ts) return Number(o._ts) || 0;
+              if (Array.isArray(o) && o.length){
+                var last = o[o.length - 1];
+                return (last && last.at) ? (Date.parse(last.at) || 0) : 0;
+              }
+              return 0;
+            };
+            var _lvP = null, _cvP = null;
+            try { if (existingVal) _lvP = JSON.parse(existingVal); } catch(e1){}
+            try { _cvP = (typeof v === 'string') ? JSON.parse(v) : v; } catch(e2){}
+            if (existingVal !== null && existingVal !== '' && _pdrTs(_lvP) >= _pdrTs(_cvP)){
+              _skipCount++;   // 本地較新或同步過 → 保留本地
+              continue;
+            }
+          } catch(ePdr){ if (existingVal !== null && existingVal !== ''){ _skipCount++; continue; } }
+          // 雲端確實較新（或本地沒有）→ 用雲端
+          try { _origSet(k, v); _localTsMap[k] = cloudTs[k] || Date.now(); totalLS++; _overwriteCount++; } catch(qe){ _quotaSkipCount++; }
+          continue;
+        }
+
         // ★★★ motiv_archive 特殊保護：MERGE 而非覆蓋（避免雲端舊版把本地新存的月份吃掉）
         //     雲端永遠只能「新增本地沒有的月份」，絕對不能刪除或覆蓋本地已有的月份
         //     涵蓋：新版全局 'motiv_archive' + 舊版 'char_<id>_motiv_archive'

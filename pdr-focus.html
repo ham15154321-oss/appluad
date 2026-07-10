@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>主管養成・PDR 聚焦系統</title>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=pdr1"></script>
+<script defer src="./firebase-sync.js?v=pdrsafe1"></script>
 <style>
   :root{
     --black:#0E0E0E; --ink:#1A1A1A; --g700:#4A4A4A; --g500:#8A8A8A; --g400:#A8A8A8;
@@ -379,6 +379,38 @@
   @keyframes zfall{to{transform:translateY(105vh) rotate(720deg); opacity:.15;}}
   svg text{font-family:var(--font);}
 
+  /* ═══════ 📖 全部展開複習模式 ═══════ */
+  .studybtn{font-family:inherit; font-size:12px; font-weight:800; letter-spacing:.5px; color:#fff; background:var(--accent);
+    border:none; border-radius:16px; padding:8px 18px; cursor:pointer; box-shadow:0 3px 12px rgba(192,32,47,.32); white-space:nowrap;}
+  .studybtn:hover{filter:brightness(1.12);}
+  .studybtn.mini{font-size:10px; padding:4px 11px; border-radius:11px; box-shadow:0 2px 8px rgba(192,32,47,.28);}
+  .smask{position:fixed; inset:0; z-index:620; display:none; overflow:auto;
+    background:radial-gradient(ellipse at 50% 10%, #1a2547 0%, #0b1128 55%, #05081a 100%); color:#e8ecf7;}
+  .smask.open{display:block;}
+  .swrap{max-width:1000px; margin:0 auto; padding:16px 26px 90px;}
+  .shead{position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px; padding:14px 0;
+    background:rgba(10,16,38,.92); backdrop-filter:blur(8px);}
+  .shead .st{font-size:20px; font-weight:900;
+    background:linear-gradient(135deg,#FFD700,#FF8C42); -webkit-background-clip:text; -webkit-text-fill-color:transparent;}
+  .shead .shint{font-size:11px; color:#8fa3d0;}
+  .shead .sx{margin-left:auto; width:36px; height:36px; border-radius:50%; border:1px solid rgba(255,255,255,.22);
+    background:rgba(255,255,255,.06); color:#cdd8f2; font-size:16px; cursor:pointer;}
+  .shead .sx:hover{background:rgba(255,80,80,.28); color:#ff9a9a;}
+  .sitem{background:rgba(255,255,255,.045); border:1px solid rgba(140,170,255,.16); border-radius:16px; padding:20px 24px; margin-top:16px;}
+  .sitem .sh{display:flex; align-items:baseline; gap:10px; margin-bottom:12px; flex-wrap:wrap;}
+  .sitem .sn{width:30px; height:30px; border-radius:50%; background:var(--accent); color:#fff; font-weight:800;
+    display:flex; align-items:center; justify-content:center; flex:0 0 30px; font-size:14px;}
+  .sitem .snm{font-size:19px; font-weight:900;}
+  .sitem .sg{font-size:11px; color:#8fa3d0; letter-spacing:1px;}
+  .sitem .sstd{font-size:12px; color:#ffc442; margin-left:auto; font-weight:700;}
+  .sgrid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .scol h5{font-size:11px; letter-spacing:1.5px; color:#8fa3d0; font-weight:800; margin-bottom:6px;}
+  .scol li{font-size:13.5px; line-height:1.65; margin-left:17px; margin-bottom:4px; color:#dfe6f7;}
+  .scol.assess>ul li{color:#ff9aa5; font-weight:600;}
+  .scoach{grid-column:1/3; background:rgba(255,215,0,.07); border-left:3px solid #FFD700; border-radius:0 10px 10px 0; padding:12px 15px;}
+  .scoach h5{color:#FFD700; font-size:11px; letter-spacing:1.5px; margin-bottom:5px; font-weight:800;}
+  .scoach p{font-size:13.5px; line-height:1.65;}
+
   @media print{
     @page{size:A4 landscape; margin:0;}
     html,body{background:#fff;}
@@ -434,7 +466,8 @@
             <span class="tv num" id="tv">5</span>
             <span class="thint">1 太鬆沒動力・10 太緊壓垮（5–7 剛好）</span>
           </div>
-          <div class="blk-h">本月我選 1–3 件事</div>
+          <div class="blk-h" style="display:flex;align-items:center;gap:10px;">本月我選 1–3 件事
+            <button class="studybtn mini" onclick="openStudy()">📖 全部展開複習</button></div>
           <div class="tasks" id="tasks"></div>
           <div class="passbar" id="passbar">
             <span class="pct num" id="passpct">0%</span>
@@ -490,7 +523,8 @@
 
   <!-- monthly focus task defs -->
   <div class="bcard">
-    <div class="bh"><span class="btag">FOCUS TASKS ／ 本月聚焦任務設定 ＋ 職能複習</span></div>
+    <div class="bh"><span class="btag">FOCUS TASKS ／ 本月聚焦任務設定 ＋ 職能複習</span>
+      <button class="studybtn" style="margin-left:auto" onclick="openStudy()">📖 全部展開複習（全螢幕）</button></div>
     <h2>選好本月的 1–3 件事 → 前台自動同步（選了職能可即時複習）</h2>
     <div class="bdesc">由主管選定職能＋寫下具體動作；選了職能後，下方會展開該職能的「職責 × 評估 × 技能 × 輔導提問」可即時複習研究。前台只負責「打勾完成」與「貼上 Google 執行紀錄連結」。留空的格子前台一樣可以打勾——沒勾就代表還要做。</div>
     <div id="taskdefs"></div>
@@ -533,6 +567,7 @@
       <span class="lab" style="margin-left:8px">展示用「今天」</span>
       <input id="demoDate" class="num" type="date">
       <button class="save" onclick="savePlan()">儲存本月</button>
+      <button class="add" id="gsPullBtn" onclick="fetchGSheetPlan(false)" style="display:none;background:#1a7340;color:#fff;">📗 從試算表更新</button>
       <span class="ksaved" id="ksaved"></span>
     </div>
     <table class="ktab">
@@ -567,6 +602,9 @@
 
 <!-- 🏆 遊戲化放大檢視 -->
 <div id="zmask" class="zmask"><div class="zwrap" id="zwrap"></div></div>
+
+<!-- 📖 全部展開複習模式 -->
+<div id="smask" class="smask"><div class="swrap" id="swrap"></div></div>
 
 <script>
 const ALL=[1,2,3,4,5,6,7,8,9,10,11,12];
@@ -711,7 +749,16 @@ function loadStore(){
     store._migV2=1;
   }
 }
-function save(){ localStorage.setItem(KEY(),JSON.stringify(store)); }
+let _lastSaveAt=0;  // ★ 記下自己最後一次存檔時間 — storage 事件的「自我回音」用它過濾
+function save(){
+  store._ts=Date.now();  // ★ 資料內嵌時間戳：雲端同步比這個，舊資料永遠蓋不掉新資料
+  _lastSaveAt=Date.now();
+  localStorage.setItem(KEY(),JSON.stringify(store));
+}
+// ★ 存檔一律「即時」寫入（打字每個字都直接存，絕不延遲 — 切頁/關頁零遺失）
+//   只有「畫面重繪」用防抖（重繪才是卡頓來源，存檔本身很便宜）
+function saveSoon(){ save(); }
+let _tenT=null; function renderTenDaySoon(){ clearTimeout(_tenT); _tenT=setTimeout(renderTenDay,450); }
 
 // ── 變更紀錄：每次新增/修改都記一筆，AI 顧問讀取後可針對「這次新增的內容」分析 ──
 function readLog(){ try{ return JSON.parse(localStorage.getItem(LOGKEY())||'[]'); }catch(e){ return []; } }
@@ -743,6 +790,8 @@ function renderCharSel(){
   sel.innerHTML=MANAGERS.map(m=>`<option value="${escAttr(m.name)}" ${m.name===curCharName?'selected':''}>${esc(m.name)}（${esc(m.academy)}）</option>`).join('');
 }
 document.getElementById('charSel').onchange=function(e){
+  // 切換主角前：清掉尚未觸發的變更紀錄計時器（避免記到別人的帳上）
+  try{ Object.keys(_logTimers).forEach(k=>clearTimeout(_logTimers[k])); _logTimers={}; }catch(err){}
   curCharId=e.target.value; curCharName=e.target.value;
   loadStore(); initUI();
   showToast('👤 切換至 '+curCharName+' 的 PDR');
@@ -800,7 +849,7 @@ function renderTasks(){
     card.querySelector('.tcheck').onclick=()=>{ t.done=!t.done; save(); renderTasks(); renderPass();
       logChange('本月聚焦','#'+(i+1)+(comp&&comp.nm?'「職能'+comp.n+'.'+comp.nm+'」':'')+(t.done?' ✅ 打勾完成':' ↩️ 取消完成')+(t.action?'：'+t.action:'')); };
     const li=card.querySelector('.tl');
-    li.oninput=e=>{t.link=e.target.value.trim(); save();
+    li.oninput=e=>{t.link=e.target.value.trim(); saveSoon();
       logChange('本月聚焦','#'+(i+1)+' 貼上執行紀錄連結','tlink'+i);
       const a=card.querySelector('.tlink a'); if(t.link){a.classList.remove('off');a.href=t.link;}else{a.classList.add('off');a.href='#';}};
     wrap.appendChild(card);
@@ -816,18 +865,23 @@ function studyHTML(it){
   </div>`;
 }
 // BACK：設定本月 1–3 件事（選職能即內嵌複習）
-function renderTaskDefs(){
-  const wrap=document.getElementById('taskdefs'); if(!wrap)return; wrap.innerHTML='';
+function renderTaskDefs(openIdx){
+  const wrap=document.getElementById('taskdefs'); if(!wrap)return;
+  // ★ 記住每格複習面板的展開狀態 — 重繪後照樣開著（不會因為選別格而收回）
+  const prevOpen={};
+  wrap.querySelectorAll('details[data-i]').forEach(d=>{ prevOpen[d.dataset.i]=d.open; });
+  wrap.innerHTML='';
   curTasks().forEach((t,i)=>{
     const box=document.createElement('div'); box.className='tddef';
     const opts='<option value="">— 選職能 —</option>'+ITEMS.map(it=>`<option value="${it.n}" ${t.comp==it.n?'selected':''}>${it.n}. ${it.nm}</option>`).join('');
     const it=t.comp?ITEMS.find(x=>x.n==t.comp):null;
+    const isOpen=(openIdx===i)||prevOpen[i];
     box.innerHTML=`<div class="tdrow"><span class="tdn num">#${i+1}</span><select>${opts}</select><input class="tda" placeholder="自填一句可執行的具體動作…" value="${t.action?escAttr(t.action):''}"></div>`+
-      (it?`<details class="acc inline"><summary><span class="an num">${it.n}</span>複習：${it.nm}<span class="ag">${it.g}</span></summary>${studyHTML(it)}</details>`:'');
-    box.querySelector('select').onchange=e=>{t.comp=e.target.value; save(); renderTasks(); renderPass(); renderTaskDefs();
+      (it?`<details class="acc inline" data-i="${i}" ${isOpen?'open':''}><summary><span class="an num">${it.n}</span>複習：${it.nm}<span class="ag">${it.g}</span></summary>${studyHTML(it)}</details>`:'');
+    box.querySelector('select').onchange=e=>{t.comp=e.target.value; save(); renderTasks(); renderPass(); renderTaskDefs(i);
       const sel=ITEMS.find(x=>x.n==t.comp);
       logChange('聚焦任務設定','#'+(i+1)+' 選定職能：'+(sel?sel.n+'.'+sel.nm:'（清空）'));};
-    box.querySelector('.tda').oninput=e=>{t.action=e.target.value; save(); renderTasks(); renderPass();
+    box.querySelector('.tda').oninput=e=>{t.action=e.target.value; saveSoon(); renderTasks(); renderPass();
       logChange('聚焦任務設定','#'+(i+1)+' 具體動作：'+e.target.value,'tda'+i);};
     wrap.appendChild(box);
   });
@@ -843,11 +897,11 @@ function renderPass(){
 }
 // tension
 const tnsl=document.getElementById('tension'), tv=document.getElementById('tv');
-tnsl.oninput=()=>{tv.textContent=tnsl.value; store.tension=+tnsl.value; save();
+tnsl.oninput=()=>{tv.textContent=tnsl.value; store.tension=+tnsl.value; saveSoon();
   logChange('本月張力','調整為 '+tnsl.value+'/10','tension');};
 // folder
 const fl=document.getElementById('folderLink'), fo=document.getElementById('folderOpen');
-fl.oninput=()=>{store.folder=fl.value.trim(); save();
+fl.oninput=()=>{store.folder=fl.value.trim(); saveSoon();
   logChange('本月資料夾','更新雲端資料夾連結','folder');
   if(store.folder){fo.classList.remove('off');fo.href=store.folder;}else{fo.classList.add('off');fo.href='#';}};
 
@@ -1111,17 +1165,32 @@ function _detectAcademy(mp,months){
   }
   return '';
 }
+// autoSync 簽名（排除 at 時間戳）— 沒變化就不寫入 localStorage，避免跨分頁互相觸發
+function _autoSig(o){ o=o||{}; return JSON.stringify([o.err||'',o.month||0,o.prevMonth||0,o.academy||'',!!o.fallback,o.applied||{}]); }
 function autoSyncFromMp(force){
+  const prevSig=_autoSig(store.autoSync);
   const mp=_readMp();
-  if(!mp){ store.autoSync={err:'nodata',at:Date.now()}; save(); return; }
+  if(!mp||!Object.keys(mp).length){
+    store.autoSync={err:'nodata',at:Date.now()};
+    if(_autoSig(store.autoSync)!==prevSig) save();
+    return;
+  }
   const months=Object.keys(mp).map(Number).filter(n=>!isNaN(n)&&mp[n]).sort((a,b)=>a-b);
-  if(!months.length){ store.autoSync={err:'nodata',at:Date.now()}; save(); return; }
+  if(!months.length){
+    store.autoSync={err:'nodata',at:Date.now()};
+    if(_autoSig(store.autoSync)!==prevSig) save();
+    return;
+  }
   const want=(new Date().getMonth()+1)-1||12;                     // 上月（1月→12）
   const src=months.includes(want)?want:months[months.length-1];   // 沒有上月 → 最近有資料的月
   const prevs=months.filter(m=>m<src);
   const pp=prevs.length?prevs[prevs.length-1]:null;               // 上上月（算留任/增員用）
   const ac=_detectAcademy(mp,months);
-  if(!ac){ store.autoSync={err:'noacad',month:src,at:Date.now()}; save(); return; }
+  if(!ac){
+    store.autoSync={err:'noacad',month:src,at:Date.now()};
+    if(_autoSig(store.autoSync)!==prevSig) save();
+    return;
+  }
   const cv=computeVals(mp,src,pp,ac,_salesFloor());
   const vals=cv.vals, details=cv.details;
   // 套用（手動優先；force 時覆寫並清手動旗標）
@@ -1135,7 +1204,8 @@ function autoSyncFromMp(force){
   });
   store.autoSync={month:src, prevMonth:pp, academy:ac, at:Date.now(), applied, details,
     fallback:src!==want, wantMonth:want, err:''};
-  save();
+  // ★ 只有真的有變化才寫入
+  if(changed||_autoSig(store.autoSync)!==prevSig) save();
   if(changed) logChange('必背數字','↻ 自動同步 '+src+'月每月績效（'+ac+'）帶入/更新 '+changed+' 項'+(force?'（強制覆寫手動值）':''));
 }
 function renderSyncBadge(){
@@ -1208,9 +1278,9 @@ function renderKbody(){const tb=document.getElementById('kbody'); tb.innerHTML='
     tr.innerHTML=`<td><input class="dt" type="date" value="${e.date}"></td>
       <td><input class="ti" value="${(e.title||'').replace(/"/g,'&quot;')}"></td>
       <td><select>${catopts}</select></td><td class="del">×</td>`;
-    tr.querySelector('.dt').onchange=ev=>{e.date=ev.target.value; save(); renderTenDay();};
-    tr.querySelector('.ti').oninput=ev=>{e.title=ev.target.value; save(); renderTenDay();};
-    tr.querySelector('select').onchange=ev=>{e.cat=ev.target.value; save(); renderTenDay();};
+    tr.querySelector('.dt').onchange=ev=>{e.date=ev.target.value; saveSoon(); renderTenDaySoon();};
+    tr.querySelector('.ti').oninput=ev=>{e.title=ev.target.value; saveSoon(); renderTenDaySoon();};
+    tr.querySelector('select').onchange=ev=>{e.cat=ev.target.value; saveSoon(); renderTenDaySoon();};
     tr.querySelector('.del').onclick=()=>{plan.entries.splice(i,1); save(); renderKbody(); renderTenDay();};
     tb.appendChild(tr);});}
 function addRow(){const plan=store.plans[store.activeMonth]; plan.entries.push({date:store.activeMonth+'-01',title:'',cat:'班務'}); renderKbody();}
@@ -1226,7 +1296,7 @@ function savePlan(){const plan=store.plans[store.activeMonth]; plan.goal=documen
   syncFront();}
 document.getElementById('planMonth').onchange=e=>{store.activeMonth=e.target.value; save(); renderKbody(); syncFront();};
 document.getElementById('demoDate').onchange=e=>{store.demoDate=e.target.value; save(); renderTenDay();};
-document.getElementById('planGoal').oninput=e=>{const p=store.plans[store.activeMonth]; if(p){p.goal=e.target.value; save(); renderTenDay();
+document.getElementById('planGoal').oninput=e=>{const p=store.plans[store.activeMonth]; if(p){p.goal=e.target.value; saveSoon(); renderTenDaySoon();
   logChange('月作戰計劃','小組目標：'+e.target.value,'goal');}};
 
 // sync front after plan changes
@@ -1377,17 +1447,161 @@ function _confetti(n){
   }
 }
 
+// ═════════ 📖 全部展開複習模式（前後台都可開，Esc 關閉）═════════
+function openStudy(){
+  const wrap=document.getElementById('swrap');
+  wrap.innerHTML='<div class="shead"><span style="font-size:24px">📖</span><span class="st">11 項職能・全部展開複習</span>'
+    +'<span class="shint">職責 × 評估 × 技能 × 輔導提問　｜　捲動複習・按 Esc 或 ✕ 關閉</span>'
+    +'<button class="sx" onclick="closeStudy()">✕</button></div>'
+    +ITEMS.map(it=>`<div class="sitem">
+      <div class="sh"><span class="sn num">${it.n}</span><span class="snm">${it.nm}</span><span class="sg">${it.g}</span><span class="sstd">${it.std}</span></div>
+      <div class="sgrid">
+        <div class="scol"><h5>職責／工作內容</h5><ul>${it.duty.map(d=>`<li>${d}</li>`).join('')}</ul></div>
+        <div class="scol assess"><h5>評估標準（會被怎麼驗收）</h5><ul>${it.assess.map(d=>`<li>${d}</li>`).join('')}</ul>
+          <h5 style="margin-top:12px">關鍵技能／知識</h5><ul>${it.skill.map(d=>`<li style="color:#cdd8f2">${d}</li>`).join('')}</ul></div>
+        <div class="scoach"><h5>輔導提問 — 準備好你的答案</h5><p>${it.coach}</p></div>
+      </div></div>`).join('');
+  document.getElementById('smask').classList.add('open');
+  document.getElementById('smask').scrollTop=0;
+}
+function closeStudy(){ document.getElementById('smask').classList.remove('open'); }
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){ closeStudy(); closeZoom(); toggleSyncDetails(false); closeTargetModal(); }
+});
+
+// ═════════ 📗 Google 試算表連動（月作戰計劃・開頁自動拉＋手動鈕・合併去重）═════════
+// 試算表需開「知道連結的人可檢視」。目前只設定楊雅晴，其他主管之後補 gid 即可。
+const GSHEET_PLAN={
+  '楊雅晴':{ sheetId:'15_odzFIQFEAav5AIqUA8S7oj-tWM3v0lmTaKCEpfxlw', gid:'1058978814', block:'台中三部' }
+};
+function _csvParse(text){ // 支援引號內逗號/換行的 CSV 解析
+  const rows=[]; let row=[],cell='',q=false;
+  for(let i=0;i<text.length;i++){ const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; } else cell+=c; }
+    else if(c==='"')q=true;
+    else if(c===','){row.push(cell);cell='';}
+    else if(c==='\n'){row.push(cell);rows.push(row);row=[];cell='';}
+    else if(c!=='\r')cell+=c;
+  }
+  if(cell!==''||row.length){row.push(cell);rows.push(row);}
+  return rows;
+}
+const GS_CATS=[['訓練','訓練'],['活動','展場'],['展場','展場'],['設計單門','單元課'],['單門','單元課'],['單元','單元課'],['開班','班務'],['CIS','班務'],['結業','班務'],['其他','班務'],['備註','班務']];
+function _gsCat(label){ for(const p of GS_CATS){ if(label.indexOf(p[0])>=0) return p[1]; } return null; }
+function _gsDate(s){ // 「2026/7/1」「7/1」「7月1日」→ {y,mo,d}
+  s=String(s||'').trim(); if(!s) return null;
+  let m=s.match(/(\d{4})[\/\-\.年](\d{1,2})[\/\-\.月](\d{1,2})/);
+  if(m) return {y:+m[1],mo:+m[2],d:+m[3]};
+  m=s.match(/^(\d{1,2})[\/\-月](\d{1,2})日?$/);
+  if(m&&+m[1]>=1&&+m[1]<=12&&+m[2]>=1&&+m[2]<=31) return {y:new Date().getFullYear(),mo:+m[1],d:+m[2]};
+  return null;
+}
+async function fetchGSheetPlan(silent){
+  const cfg=GSHEET_PLAN[curCharName];
+  if(!cfg){ if(!silent)showToast('⚠ '+curCharName+' 尚未設定試算表連動'); return; }
+  const btn=document.getElementById('gsPullBtn'); if(btn){btn.disabled=true;btn.textContent='📗 抓取中…';}
+  try{
+    const urls=[
+      'https://docs.google.com/spreadsheets/d/'+cfg.sheetId+'/gviz/tq?tqx=out:csv&gid='+cfg.gid,
+      'https://docs.google.com/spreadsheets/d/'+cfg.sheetId+'/export?format=csv&gid='+cfg.gid
+    ];
+    let text=null,lastErr='';
+    for(const u of urls){
+      try{ const r=await fetch(u);
+        if(!r.ok){ lastErr='HTTP '+r.status; continue; }
+        const t=await r.text();
+        if(/<html|<!DOCTYPE/i.test(t.slice(0,300))){ lastErr='權限未開（拿到登入頁）'; continue; }
+        text=t; break;
+      }catch(e){ lastErr=e.message||String(e); }
+    }
+    if(!text) throw new Error(lastErr||'無法連線');
+    const grid=_csvParse(text);
+    // ★ 實際版面（2026/07 校準）：月曆式排班/作戰表
+    //   表頭某格有「2026.07」→ 年月；某一列是 1~31 日號；A 欄是列標籤
+    //   分類列（訓練/開班CIS/班級結業/活動展場/設計單門/其他/備註）可能一個分類佔多列（下面空白列同屬該分類）
+    //   碰到非分類的 A 欄文字（人名/統計）就離開分類區
+    // 1) 年月
+    let yy=new Date().getFullYear(), mm=new Date().getMonth()+1, ymFound=false;
+    for(let r=0;r<Math.min(6,grid.length)&&!ymFound;r++){
+      for(const cell of grid[r]){
+        const m=String(cell||'').match(/(20\d{2})\s*[.\/年]\s*(\d{1,2})\s*月?/);
+        if(m){ yy=+m[1]; mm=+m[2]; ymFound=true; break; }
+      }
+    }
+    // 2) 日號列：一列裡 ≥15 格是 1~31 純數字
+    let dateRow=-1; const dateMap={};
+    for(let r=0;r<Math.min(10,grid.length);r++){
+      const map={}; let cnt=0;
+      (grid[r]||[]).forEach((cell,c)=>{ const s=String(cell||'').trim();
+        if(/^\d{1,2}$/.test(s)&&+s>=1&&+s<=31){ map[c]=+s; cnt++; } });
+      if(cnt>=15){ dateRow=r; Object.assign(dateMap,map); break; }
+    }
+    if(dateRow<0) throw new Error('找不到日號列（1~31 那一列）');
+    // 3) 掃分類列
+    const found=[]; let goal=''; let curCat=null;
+    for(let r=dateRow+1;r<grid.length;r++){
+      const rowArr=grid[r]||[];
+      const label=String(rowArr[0]||'').trim();
+      if(label) curCat=_gsCat(label);   // A欄有字：是分類就切換，不是（人名/統計）就離開分類區
+      rowArr.forEach(x=>{ const s=String(x||'').trim();
+        const m2=s.match(/目標[:：]?\s*([0-9,.]+\s*[萬wW].*)/); if(m2&&!goal) goal=m2[1].trim(); });
+      if(!curCat) continue;
+      Object.keys(dateMap).forEach(c=>{
+        const cell=String(rowArr[c]||'').trim(); if(!cell) return;
+        const date=yy+'-'+String(mm).padStart(2,'0')+'-'+String(dateMap[c]).padStart(2,'0');
+        // 同一格的多行內容＝同一件事（例：「星光班\n柏翰\n16」→「星光班 柏翰 16」）
+        const title=cell.replace(/\s*\n+\s*/g,' ').trim();
+        if(title) found.push({date:date,title:title,cat:curCat});
+      });
+    }
+    if(!found.length) throw new Error('分類區（訓練/開班CIS/結業/活動展場/設計單門…）沒抓到任何事件');
+    // 4) 合併：同日期＋同事件不重複；照事件月份放進對應月計劃
+    let added=0; const touched=new Set();
+    found.forEach(ev=>{
+      const ym=ev.date.slice(0,7);
+      if(!store.plans[ym]) store.plans[ym]={goal:'',entries:[],tasks:[{},{},{}]};
+      const p=store.plans[ym]; if(!p.entries) p.entries=[];
+      if(!p.entries.some(e=>e.date===ev.date&&String(e.title).trim()===ev.title)){
+        p.entries.push({date:ev.date,title:ev.title,cat:ev.cat}); added++; touched.add(ym);
+      }
+    });
+    let goalSet=false;
+    if(goal){ const p=store.plans[store.activeMonth]; if(p&&!p.goal){ p.goal=goal; goalSet=true; } }
+    if(added||goalSet) save();   // ★ 沒新東西就不寫入（防跨分頁乒乓）
+    if(added){
+      logChange('月作戰計劃','📗 從 Google 試算表合併 '+added+' 筆事件（'+Array.from(touched).join('、')+'）');
+      refreshMonthSel(); renderKbody(); renderTenDay();
+    }
+    showToast(added?('📗 已從試算表合併 '+added+' 筆事件'):'📗 試算表沒有新事件（都已存在）');
+  }catch(e){
+    console.warn('[gsheet] 抓取失敗:',e);
+    if(!silent) alert('📗 試算表抓取失敗：'+(e.message||e)+'\n\n最常見原因：試算表還沒開權限。\n請持有帳號開啟「共用」→ 一般存取權 → 知道連結的任何人（檢視者），再按一次「📗 從試算表更新」。');
+    else showToast('📗 試算表自動抓取失敗（權限或格式）');
+  }
+  if(btn){btn.disabled=false;btn.textContent='📗 從試算表更新';}
+}
+
 // ---------- init ----------
-function initUI(){
+// ★ renderAll＝純畫面（不寫入 localStorage）；initUI＝畫面＋自動同步等會寫入的動作
+//   storage 事件只跑 renderAll — 否則兩個分頁同開同一位主管時會互相觸發存檔，無限乒乓直接凍死
+function renderAll(){
   renderWho();
   tnsl.value=store.tension; tv.textContent=store.tension;
   fl.value=store.folder;
   if(store.folder){fo.classList.remove('off');fo.href=store.folder;}else{fo.classList.add('off');fo.href='#';}
   document.getElementById('demoDate').value=store.demoDate||'';
-  autoSyncFromMp(false);   // ↻ 開頁自動抓上月每月績效（手動改過的不覆蓋）
   renderFrontHeader(); renderTasks(); renderPass(); renderTenDay();
   renderGantt(); renderDash(); refreshMonthSel(); renderKbody(); renderTaskDefs();
-  renderSyncBadge(); _snapshotScore();
+  renderSyncBadge();
+}
+function initUI(){
+  autoSyncFromMp(false);   // ↻ 開頁自動抓上月每月績效（手動改過的不覆蓋；沒變化不寫入）
+  renderAll();
+  _snapshotScore();        // 有變化才寫入
+  // 📗 試算表連動：有設定的主管顯示按鈕＋開頁靜默自動拉（合併去重；沒新事件不寫入）
+  const gb=document.getElementById('gsPullBtn');
+  if(gb) gb.style.display=GSHEET_PLAN[curCharName]?'':'none';
+  if(GSHEET_PLAN[curCharName]&&navigator.onLine){ fetchGSheetPlan(true); }
 }
 loadStore(); renderCharSel(); initUI();
 // ★ IndexedDB 的完整每月績效載入後，再同步一次（拿得到最新月份）
@@ -1395,9 +1609,23 @@ _mpFromIDB().then(d=>{
   if(d && Object.keys(d).length){ _mpCache=d; autoSyncFromMp(false); renderDash(); renderSyncBadge(); }
 });
 
-// 雲端 pull 完成後（badge 顯示✓）資料可能更新 — 監聽 storage 事件刷新畫面
+// 雲端 pull／其他分頁更新本主角資料 → 只重畫，不觸發任何寫入（防跨分頁乒乓）
+// ★ 兩道防護：①自己剛存的檔在 iframe 代理下會被誤判成別人寫的（自我回音）→ 忽略
+//            ②使用者正在輸入框打字時絕不重繪 → 焦點不會被搶走
+let _stgT=null;
+function _remoteRefresh(){
+  const ae=document.activeElement;
+  if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT')){
+    _stgT=setTimeout(_remoteRefresh,2000);  // 還在打字 → 延後重畫，不搶焦點
+    return;
+  }
+  loadStore(); renderAll();
+}
 window.addEventListener('storage', function(ev){
-  if(ev.key===KEY()){ loadStore(); initUI(); }
+  if(ev.key!==KEY()) return;
+  if(Date.now()-_lastSaveAt<1500) return;  // 自我回音，忽略
+  clearTimeout(_stgT);
+  _stgT=setTimeout(_remoteRefresh,350);
 });
 
 function resetAll(){
