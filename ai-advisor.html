@@ -1125,8 +1125,12 @@ body.day-mode .chat-tool-btn[style*="#ff8a8a"]{ color:#c01020 !important; }
 <!-- ===== 知識庫（全公司共享，AI 每次對話自動參考啟用的文件） ===== -->
 <div class="view panel-view" id="v_knowledge">
   <div class="panel-header">
-    <h2>📚 知識庫 <span style="font-size:.74rem;font-weight:400;color:rgba(180,200,240,.6);margin-left:8px;">全公司共享 · AI 對話時自動參考啟用文件</span></h2>
-    <button class="panel-add-btn" onclick="openAddKnowledge()">＋ 新增文件</button>
+    <h2>📚 知識庫 <span style="font-size:.74rem;font-weight:400;color:rgba(180,200,240,.6);margin-left:8px;">全公司共享 · 以 GitHub 為唯一來源 · AI 依提問關鍵字自動載入</span></h2>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="panel-add-btn" style="background:linear-gradient(135deg,#2ea043,#238636);" onclick="kbSyncFromGithub()" id="kbGhSyncBtn" title="從 hegrn-kb repo 抓最新文件（含子資料夾）">🔄 從 GitHub 同步</button>
+      <button class="panel-add-btn" style="background:rgba(120,140,200,.22);" onclick="kbConfigGithub().then(function(ok){if(ok)kbSyncFromGithub();})" title="設定 / 更換 repo 與 token">⚙️ repo 設定</button>
+      <button class="panel-add-btn" onclick="openAddKnowledge()">＋ 新增文件</button>
+    </div>
   </div>
   <div class="panel-body" id="knowledgeBody"></div>
 </div>
@@ -1757,6 +1761,7 @@ _pmemoryBootInit();
 // sync 讀（從 cache）
 function _loadPmemory(charId){
   charId = charId || localStorage.getItem('activeCharacterId') || '';
+  if (!window._pmemoryCache || typeof window._pmemoryCache !== 'object') window._pmemoryCache = {};
   return (window._pmemoryCache && window._pmemoryCache[charId]) ? window._pmemoryCache[charId].slice() : [];
 }
 
@@ -1764,6 +1769,8 @@ function _loadPmemory(charId){
 function _savePmemory(arr, charId){
   charId = charId || localStorage.getItem('activeCharacterId') || '';
   if (!charId) throw new Error('找不到當前主角，無法儲存私聊記憶');
+  // ★ 防呆：cache 若意外變成 null/undefined（例如被其他腳本清掉或還沒初始化）就補建，避免 "Cannot set properties of null"
+  if (!window._pmemoryCache || typeof window._pmemoryCache !== 'object') window._pmemoryCache = {};
   // 立即更新 cache（讓 UI 立刻看到）
   window._pmemoryCache[charId] = arr || [];
   // async 寫 IDB（不會 quota）
@@ -3376,6 +3383,8 @@ async function sendMsg(){
   // ★ 必須等 mp_data 從 IDB 載入完成（否則 AI 看不到使用者剛剛在「業績數據中心」匯入的資料）
   //   _refreshMpDataCache 是 async；之前是 fire-and-forget，會用到舊的 cache → AI 誤答「看不到」
   try{ await _refreshMpDataCache(); }catch(e){}
+  // ★ 記錄本次提問 → 知識庫依關鍵字漸進式載入（只帶命中的文件，省 context）
+  window._kbQuery = text;
   // ★ 全站數據上下文 — 360評估+備註+火種+業績+通路+成就+其他主角+鐵律+案例庫+月績效
   var ctx=getFullContext();
 
@@ -4442,6 +4451,199 @@ function renderRules(){
 var _kbEditId = null;
 var kbFilter = 'all';  // 'all' | 'enabled' | 'disabled' | tag name
 var kbCat = 'all';     // ★ 分類篩選：'all' | 分類名稱 | '__none__'(未分類)
+var _kbFolderCollapsed = {}; // ★ 資料夾折疊狀態（key=folder → true 折疊）
+
+// ══════════════════════════════════════════════════════════════
+//  🔄 GitHub 同步（hegrn-kb repo = n8n + AI 顧問知識庫的「唯一來源」）
+//  更新 GitHub 一個地方 → 這裡按同步 → 全公司 AI 顧問一起更新
+// ══════════════════════════════════════════════════════════════
+var KB_GH_REPO_KEY = 'kb_github_repo';   // 例如 "ivan/hegrn-kb"（owner/repo）
+var KB_GH_TOKEN_KEY = 'kb_github_token'; // 私有 repo 才需要（選填）
+var KB_GH_BRANCH_KEY = 'kb_github_branch';
+// ★ 全公司預設 repo：同事第一次打開、瀏覽器沒設定過時，也會自動從這裡同步（不用各自手動設定）
+var KB_GH_REPO_DEFAULT = 'ham15154321-oss/hegrn-kb';
+
+function _kbGhRepo(){ try{ return ((localStorage.getItem(KB_GH_REPO_KEY)||'').trim()) || KB_GH_REPO_DEFAULT; }catch(e){ return KB_GH_REPO_DEFAULT; } }
+function _kbGhBranch(){ try{ return (localStorage.getItem(KB_GH_BRANCH_KEY)||'main').trim()||'main'; }catch(e){ return 'main'; } }
+function _kbGhToken(){ try{ return (localStorage.getItem(KB_GH_TOKEN_KEY)||'').trim(); }catch(e){ return ''; } }
+
+// 從 SKILL.md 的 frontmatter description（或內文）抽取觸發關鍵字
+//   本 repo 的 description 大量用「」中文引號包關鍵字 → 全部撈出來當 keywords
+function _kbParseKeywords(text, extra){
+  var kw = {};
+  var add = function(s){ s=(s||'').trim(); if(s && s.length<=40) kw[s]=1; };
+  // ① 「...」中文引號內的詞
+  var m, re=/「([^」]{1,40})」/g;
+  while((m=re.exec(text||''))!==null){ add(m[1]); }
+  // ② frontmatter 的 name: 與 description: 開頭幾個詞
+  var nameM=(text||'').match(/^\s*name:\s*(.+)$/m); if(nameM) add(nameM[1]);
+  // ③ 額外（title / tags / folder）
+  (extra||[]).forEach(add);
+  return Object.keys(kw);
+}
+
+// 解析單一 .md 檔 → { title, keywords, hasFrontmatter }
+function _kbParseMd(path, raw){
+  var title='', kws=[], fmDesc='';
+  var fnBase = path.split('/').pop().replace(/\.md$/i,'');
+  var fmName='';
+  // frontmatter（--- ... ---）
+  var fm = raw.match(/^---\s*[\r\n]([\s\S]*?)[\r\n]---/);
+  if(fm){
+    var body=fm[1];
+    var nm=body.match(/^\s*name:\s*(.+)$/m); if(nm) fmName=nm[1].trim();
+    var dm=body.match(/description:\s*([\s\S]*?)(?:\n[a-zA-Z_]+:\s|\n?$)/); if(dm) fmDesc=dm[1];
+  }
+  // 標題：優先用第一個 # 中文標題（好讀）→ frontmatter name（多半是英文 slug）→ 檔名
+  var h=raw.match(/^#\s+(.+)$/m); if(h) title=h[1].trim();
+  //   若 frontmatter name 不是純英文 slug（含中文），它比較好讀 → 用它
+  if(!title && fmName) title=fmName;
+  if(title && fmName && !/[一-鿿]/.test(title) && /[一-鿿]/.test(fmName)) title=fmName;
+  if(!title) title=fmName || fnBase;
+  kws = _kbParseKeywords(fmDesc || raw, [title, fnBase]);
+  return { title:title, keywords:kws };
+}
+
+// GitHub API 呼叫（帶 optional token）
+async function _kbGhFetch(url, asJson){
+  var headers={};
+  var tok=_kbGhToken();
+  if(tok) headers['Authorization']='Bearer '+tok;
+  var r=await fetch(url,{headers:headers});
+  if(!r.ok){ var t=''; try{t=await r.text();}catch(e){} var err=new Error('GitHub '+r.status+': '+t.substring(0,120)); err.status=r.status; throw err; }
+  return asJson ? r.json() : r.text();
+}
+
+async function kbConfigGithub(){
+  var cur=_kbGhRepo();
+  var repo=prompt('請輸入 GitHub 知識庫 repo（格式 owner/repo，例如 ivan/hegrn-kb）：', cur||'');
+  if(repo===null) return false;
+  repo=repo.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/+$/,'');
+  if(!/^[^\/]+\/[^\/]+$/.test(repo)){ alert('格式不對，要像 owner/repo（例如 ivan/hegrn-kb）'); return false; }
+  try{ localStorage.setItem(KB_GH_REPO_KEY, repo); }catch(e){}
+  var br=prompt('分支名稱（一般是 main，直接按確定即可）：', _kbGhBranch());
+  if(br!==null){ try{ localStorage.setItem(KB_GH_BRANCH_KEY, br.trim()||'main'); }catch(e){} }
+  return true;
+}
+
+// 等 KB 開機載入完成，避免同步時操作到還沒 ready 的空 cache、之後被開機流程蓋掉
+function _kbWaitReady(maxMs){
+  maxMs = maxMs || 8000;
+  return new Promise(function(resolve){
+    if (window._kbCacheReady) return resolve();
+    var t0=Date.now();
+    var iv=setInterval(function(){
+      if (window._kbCacheReady || Date.now()-t0>maxMs){ clearInterval(iv); resolve(); }
+    }, 100);
+  });
+}
+
+async function kbSyncFromGithub(opts){
+  opts = opts || {};
+  var silent = !!opts.silent;   // 背景自動同步：不彈視窗、不動按鈕、失敗就安靜用本機快取
+  var btn=document.getElementById('kbGhSyncBtn');
+  var repo=_kbGhRepo();
+  if(!repo){ if(silent) return; var ok=await kbConfigGithub(); if(!ok) return; repo=_kbGhRepo(); if(!repo) return; }
+  var branch=_kbGhBranch();
+  var setBtn=function(txt,dis){ if(!silent && btn){ btn.textContent=txt; btn.disabled=!!dis; } };
+  await _kbWaitReady();   // ★ 先等開機載入完成，避免競態把同步結果蓋掉
+  setBtn('⏳ 同步中…', true);
+  try{
+    // ① 抓 repo tree（recursive → 含所有子資料夾）
+    var treeUrl='https://api.github.com/repos/'+repo+'/git/trees/'+encodeURIComponent(branch)+'?recursive=1';
+    var tree;
+    try{ tree=await _kbGhFetch(treeUrl, true); }
+    catch(e){
+      if(e.status===404){
+        // 分支名可能不是 main → 試 master
+        if(branch!=='master'){ try{ tree=await _kbGhFetch('https://api.github.com/repos/'+repo+'/git/trees/master?recursive=1', true); branch='master'; try{localStorage.setItem(KB_GH_BRANCH_KEY,'master');}catch(_){}}catch(e2){ throw e; } }
+        else throw e;
+      } else if(e.status===403 || e.status===401){
+        if(silent) throw e;   // 背景同步遇到額度/權限問題 → 安靜放棄，用本機快取
+        setBtn('🔄 從 GitHub 同步', false);
+        var tk=prompt('這個 repo 可能是私有的，或 GitHub API 額度用完了。\n請貼上 GitHub Personal Access Token（選填，僅存本機；私有 repo 必填）：', _kbGhToken());
+        if(tk===null) throw e;
+        try{ localStorage.setItem(KB_GH_TOKEN_KEY, tk.trim()); }catch(_){}
+        setBtn('⏳ 同步中…', true);
+        tree=await _kbGhFetch(treeUrl, true);
+      } else throw e;
+    }
+    var blobs=(tree.tree||[]).filter(function(n){ return n.type==='blob' && /\.md$/i.test(n.path); });
+    // 排除常見非知識檔
+    blobs=blobs.filter(function(n){ return !/^(README|readme|LICENSE|CHANGELOG)\.md$/i.test(n.path.split('/').pop()); });
+    if(!blobs.length){ if(!silent) alert('這個 repo（'+repo+'@'+branch+'）裡找不到任何 .md 文件。'); setBtn('🔄 從 GitHub 同步', false); return; }
+
+    // ② 逐檔 raw fetch（節流，避免一次太多）
+    var d=_loadKb();
+    if(!Array.isArray(d.items)) d.items=[];
+    var byPath={};
+    d.items.forEach(function(it){ if(it.githubPath) byPath[it.githubPath]=it; });
+    var seen={}, added=0, updated=0;
+    for(var i=0;i<blobs.length;i++){
+      var b=blobs[i];
+      var rawUrl='https://raw.githubusercontent.com/'+repo+'/'+branch+'/'+b.path.split('/').map(encodeURIComponent).join('/');
+      var raw;
+      try{ raw=await _kbGhFetch(rawUrl, false); }
+      catch(e){ console.warn('[kb-gh] 讀取失敗 '+b.path, e); continue; }
+      seen[b.path]=1;
+      var parts=b.path.split('/');
+      var folder = parts.length>1 ? parts[0] : '（根目錄）';
+      var meta=_kbParseMd(b.path, raw);
+      var kwExtra=[folder]; if(folder && /^hegrn-/.test(folder)) kwExtra.push(folder.replace(/^hegrn-/,''));
+      var keywords=meta.keywords.concat(kwExtra).filter(function(v,idx,a){ return a.indexOf(v)===idx; });
+      var ex=byPath[b.path];
+      if(ex){
+        // 更新內容/關鍵字/資料夾，保留使用者的 enabled / category
+        ex.content=raw; ex.title=meta.title; ex.folder=folder; ex.keywords=keywords;
+        ex.sha=b.sha; ex.size=raw.length; ex.source='github'; ex.updatedAt=Date.now();
+        updated++;
+      } else {
+        d.items.push({
+          id:'kbgh_'+b.sha.substring(0,12)+'_'+Date.now().toString(36)+i,
+          title:meta.title, content:raw, folder:folder, keywords:keywords,
+          tags:[], category:'', enabled:true, source:'github',
+          githubPath:b.path, sha:b.sha, size:raw.length,
+          createdAt:Date.now(), updatedAt:Date.now()
+        });
+        added++;
+      }
+      if(btn) btn.textContent='⏳ 同步中… '+(i+1)+'/'+blobs.length;
+      await new Promise(function(r){ setTimeout(r, 120); }); // 節流
+    }
+    // ③ 移除 GitHub 上已刪除的 github 來源文件
+    var removed=0;
+    d.items=d.items.filter(function(it){
+      if(it.source==='github' && it.githubPath && !seen[it.githubPath]){ removed++; return false; }
+      return true;
+    });
+    _saveKb(d);
+    try{ localStorage.setItem('kb_github_last_sync', Date.now().toString()); }catch(e){}
+    try{ if(typeof renderKnowledge==='function') renderKnowledge(); }catch(e){}
+    setBtn('🔄 從 GitHub 同步', false);
+    if(!silent) alert('✅ GitHub 知識庫同步完成\n\nrepo：'+repo+' @'+branch+'\n新增 '+added+' 份、更新 '+updated+' 份、移除 '+removed+' 份\n共 '+blobs.length+' 份文件。');
+    else console.log('[kb-gh] 背景自動同步完成：新增 '+added+'、更新 '+updated+'、移除 '+removed);
+  }catch(e){
+    console.error('[kb-gh] 同步失敗', e);
+    setBtn('🔄 從 GitHub 同步', false);
+    if(!silent) alert('❌ GitHub 同步失敗：'+(e.message||e)+'\n\n可到「⚙️ repo 設定」重設 repo / token。');
+  }
+}
+
+// ★ 開網頁時：若已設定 repo 且距上次同步夠久，背景自動從 GitHub 拉最新知識庫
+//   這讓「GitHub 改一次 → 全公司下次打開自動更新」，不需手動上傳/下拉。
+//   失敗（離線 / 額度）不影響使用，直接沿用本機已存的知識庫。
+var KB_AUTOSYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;  // 每 6 小時最多自動同步一次
+function kbAutoSyncIfStale(){
+  try{
+    if(!_kbGhRepo()) return;                       // 沒設定 repo → 不自動同步
+    var last = parseInt(localStorage.getItem('kb_github_last_sync')||'0', 10) || 0;
+    if(Date.now() - last < KB_AUTOSYNC_INTERVAL_MS) return;  // 還很新 → 這次先用本機快取
+    // 背景靜默同步（等開機載入完成後再跑）
+    _kbWaitReady().then(function(){
+      setTimeout(function(){ kbSyncFromGithub({ silent:true }); }, 1500);
+    });
+  }catch(e){ console.warn('[kb-gh] auto-sync 檢查失敗', e); }
+}
 // ★ 知識庫分類：預設 6 類，可新增/改名/刪除；存在 KB 物件 d.categories（隨知識庫一起同步）
 function _kbDefaultCats(){ return [
   {name:'管理',color:'#b18cff'},{name:'推銷',color:'#ffcf4a'},{name:'專業',color:'#4aeaff'},
@@ -4625,6 +4827,8 @@ async function _kbBootInit(){
 }
 // 立刻啟動 boot
 _kbBootInit();
+// ★ 開機後：若已設定 GitHub repo 且資料夠舊，背景自動同步（全公司自動保持最新）
+kbAutoSyncIfStale();
 
 // ════════════════════════════════════════════════════════════════
 // 案例庫 ai_casedb_v1 → AiCasedbDB.cases.data
@@ -4908,7 +5112,7 @@ function renderKnowledge(){
   }
   // 依更新時間倒序
   filtered.sort(function(a,b){ return (b.updatedAt||0) - (a.updatedAt||0); });
-  el.innerHTML = catBar + filterBar + filtered.map(function(it){
+  var _kbItemHtml = function(it){
     var sz = it.size || (it.content||'').length;
     var tagsHtml = (it.tags || []).map(function(t){
       return '<span class="kb-tag">#' + esc(t) + '</span>';
@@ -4937,23 +5141,71 @@ function renderKnowledge(){
       +   '<button class="kb-act kb-del" onclick="delKnowledge(\''+it.id+'\')">🗑 刪除</button>'
       + '</div>'
       + '</div>';
-  }).join('');
+  };
+
+  // ★ 依「資料夾（folder）」分組顯示 — 鏡射 GitHub repo 結構、可折疊
+  var groups = {}, order = [];
+  filtered.forEach(function(it){
+    var f = it.folder || '（未分組 / 手動新增）';
+    if (!groups[f]){ groups[f] = []; order.push(f); }
+    groups[f].push(it);
+  });
+  order.sort(function(a,b){ return String(a).localeCompare(String(b), 'zh-Hant'); });
+  var singleUngrouped = (order.length === 1 && !filtered[0].folder);
+  var html = catBar + filterBar;
+  order.forEach(function(f){
+    var arr = groups[f];
+    var en = arr.filter(function(x){ return x.enabled; }).length;
+    var collapsed = !!_kbFolderCollapsed[f];
+    if (!singleUngrouped){
+      html += '<div class="kb-folder-hd" onclick="kbToggleFolder(\''+escAttr(f).replace(/'/g,"\\'")+'\')" '
+        + 'style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:16px 0 8px;padding:9px 12px;'
+        + 'background:rgba(46,160,67,.10);border:1px solid rgba(46,160,67,.28);border-radius:8px;">'
+        + '<span style="font-size:.82rem;width:14px;">'+(collapsed?'▶':'▼')+'</span>'
+        + '<span style="font-weight:600;color:#7ee0a0;">📁 '+esc(f)+'</span>'
+        + '<span style="font-size:.73rem;color:rgba(180,200,240,.6);margin-left:auto;">'+arr.length+' 份 · ⚡'+en+' 啟用</span>'
+        + '</div>';
+    }
+    if (!collapsed) html += arr.map(_kbItemHtml).join('');
+  });
+  el.innerHTML = html;
+}
+function kbToggleFolder(f){ _kbFolderCollapsed[f] = !_kbFolderCollapsed[f]; renderKnowledge(); }
+
+// ★ 依提問關鍵字，判斷一份文件要不要帶進 AI context（漸進式載入，省 token）
+//   命中規則：文件 keywords / title / folder 任一詞出現在提問中 → 命中
+//   沒有 keywords 的文件（手動新增、核心文件）→ 一律帶入（維持舊行為、不漏接）
+function _kbDocHits(it, q){
+  if (!it.keywords || !it.keywords.length) return true; // 無關鍵字 = 核心文件，恆帶
+  if (!q) return true; // 沒有提問（例如非對話呼叫）→ 保守全帶
+  for (var i=0;i<it.keywords.length;i++){
+    var k = String(it.keywords[i]||'').trim();
+    if (k.length>=2 && q.indexOf(k) >= 0) return true;
+  }
+  // 標題本身也算一個關鍵字
+  if (it.title && it.title.length>=2 && q.indexOf(it.title) >= 0) return true;
+  return false;
 }
 
-// ★ AI 對話自動帶入啟用的知識文件
+// ★ AI 對話自動帶入啟用的知識文件（依提問關鍵字漸進式載入）
 function getKnowledgeBaseCtx(){
   var d = _loadKb();
   var enabled = (d.items || []).filter(function(it){ return it.enabled; });
   if (!enabled.length) return '';
-  // 一般文件全部帶入；錄音摘要只帶最近 40 筆（避免累積上百筆拖慢 AI、暴增 token）
-  // 錄音摘要的完整逐字稿（transcript 欄位）永遠不進 AI context，只有 content（摘要）會。
+  var q = (window._kbQuery || '').trim();
   var VOICE_LIMIT = 40;
-  var docs = enabled.filter(function(it){ return !it.isVoiceNote; });
+  var docsAll = enabled.filter(function(it){ return !it.isVoiceNote; });
+  // 依關鍵字篩：命中的文件 + 所有核心（無關鍵字）文件
+  var docs = docsAll.filter(function(it){ return _kbDocHits(it, q); });
+  // 安全網：若整個知識庫都有關鍵字、但這題一份都沒命中 → 退回全帶，避免 AI 完全沒知識
+  if (!docs.length && docsAll.length) docs = docsAll;
+  var skipped = docsAll.length - docs.length;
   var voiceNotes = enabled.filter(function(it){ return it.isVoiceNote; });
   voiceNotes.sort(function(a,b){ return (b.updatedAt||0) - (a.updatedAt||0); });
   var voiceForCtx = voiceNotes.slice(0, VOICE_LIMIT);
   var used = docs.concat(voiceForCtx);
   var parts = ['📚 知識庫 — 公司核心知識文件（全公司共享，啟用中文件，回答時優先參考這些知識）】'];
+  if (skipped > 0) parts.push('（已依你的提問關鍵字自動篩選，另有 '+skipped+' 份不相關文件本次未載入；如需請直接點名主題。）');
   used.forEach(function(it){
     var tags = (it.tags || []).length ? '（tags: ' + it.tags.join(', ') + '）' : '';
     var icon = it.isVoiceNote ? '🎙️' : '📄';
