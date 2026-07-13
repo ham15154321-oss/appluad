@@ -4632,7 +4632,9 @@ async function kbSyncFromGithub(opts){
 // ★ 開網頁時：若已設定 repo 且距上次同步夠久，背景自動從 GitHub 拉最新知識庫
 //   這讓「GitHub 改一次 → 全公司下次打開自動更新」，不需手動上傳/下拉。
 //   失敗（離線 / 額度）不影響使用，直接沿用本機已存的知識庫。
-var KB_AUTOSYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;  // 每 6 小時最多自動同步一次
+// ★ 每次登入／開頁就自動同步一次（讓其他角色一登入就是最新，不用自己按）。
+//   設 3 分鐘的小節流：只是避免同一次操作內連續重整狂打 GitHub，不影響「登入拿最新」。
+var KB_AUTOSYNC_INTERVAL_MS = 3 * 60 * 1000;
 function kbAutoSyncIfStale(){
   try{
     if(!_kbGhRepo()) return;                       // 沒設定 repo → 不自動同步
