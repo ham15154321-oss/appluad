@@ -4618,6 +4618,7 @@ async function kbSyncFromGithub(opts){
     });
     _saveKb(d);
     try{ localStorage.setItem('kb_github_last_sync', Date.now().toString()); }catch(e){}
+    try{ _kbSessionStore().setItem('kb_synced_this_session','1'); }catch(e){}  // ★ 標記這次登入已抓過 → 之後切頁不再重抓
     try{ if(typeof renderKnowledge==='function') renderKnowledge(); }catch(e){}
     setBtn('🔄 從 GitHub 同步', false);
     if(!silent) alert('✅ GitHub 知識庫同步完成\n\nrepo：'+repo+' @'+branch+'\n新增 '+added+' 份、更新 '+updated+' 份、移除 '+removed+' 份\n共 '+blobs.length+' 份文件。');
@@ -4635,11 +4636,16 @@ async function kbSyncFromGithub(opts){
 // ★ 每次登入／開頁就自動同步一次（讓其他角色一登入就是最新，不用自己按）。
 //   設 3 分鐘的小節流：只是避免同一次操作內連續重整狂打 GitHub，不影響「登入拿最新」。
 var KB_AUTOSYNC_INTERVAL_MS = 3 * 60 * 1000;
+function _kbSessionStore(){ try{ return (window.parent && window.parent.sessionStorage) || window.sessionStorage; }catch(e){ return window.sessionStorage; } }
 function kbAutoSyncIfStale(){
   try{
     if(!_kbGhRepo()) return;                       // 沒設定 repo → 不自動同步
+    // ★ 一次登入（同一個分頁 session）只自動抓一次。抓成功後就存著，站內來回切頁都用本機資料、不再重抓。
+    //   關掉分頁 / 重新登入 = 新 session → 才會再抓一次（確保「登入即最新」）。
+    var ss = _kbSessionStore();
+    if(ss.getItem('kb_synced_this_session') === '1') return;   // 這次登入已抓過 → 直接用本機，不再抓
     var last = parseInt(localStorage.getItem('kb_github_last_sync')||'0', 10) || 0;
-    if(Date.now() - last < KB_AUTOSYNC_INTERVAL_MS) return;  // 還很新 → 這次先用本機快取
+    if(Date.now() - last < 30*1000) return;        // 30 秒去重（防同一次載入重複觸發）
     // 背景靜默同步（等開機載入完成後再跑）
     _kbWaitReady().then(function(){
       setTimeout(function(){ kbSyncFromGithub({ silent:true }); }, 1500);
