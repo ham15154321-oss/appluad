@@ -1062,6 +1062,7 @@ body.day-mode .chat-tool-btn[style*="#ff8a8a"]{ color:#c01020 !important; }
       <span class="ch-title" id="chatTitle">績效教練</span>
       <button class="back-wf-btn" id="backToWfBtn" onclick="backToWaterfall()" style="display:none;">🏔️ 回到瀑布</button>
       <div class="chat-tools">
+        <button class="chat-tool-btn" id="modelBtn" onclick="cycleChatModel()" title="切換 AI 模型（省錢／均衡／深入）">⚖️均衡</button>
         <button class="chat-tool-btn" id="fontBtn" onclick="toggleChatFontSize()" title="切換字體大小">字 A</button>
         <button class="chat-tool-btn" id="fullscreenBtn" onclick="toggleChatFullscreen()" title="全螢幕">⛶</button>
         <button class="chat-tool-btn" id="clearChatBtn" onclick="clearChatHistory()" title="清除這個顧問的對話歷史" style="color:#ff8a8a;">🗑 清除</button>
@@ -1837,6 +1838,34 @@ function _saveClosed(arr,charId){ try{ localStorage.setItem(_closedKey(charId), 
 
 // ★ Anthropic API Proxy（部署在 Cloudflare Workers，後端帶 key）
 var PROXY_BASE = 'https://anthropic-proxy.ivanapplaud.workers.dev';
+
+// ★ 模型分層（降本）：日常用便宜模型，需要深入分析才切 Opus。選擇記在 localStorage。
+var AI_CHAT_MODELS = [
+  { id:'claude-haiku-4-5-20251001', label:'⚡快省', note:'Haiku 4.5 · 最省，日常問答' },
+  { id:'claude-sonnet-4-6',         label:'⚖️均衡', note:'Sonnet 4.6 · 均衡（預設）' },
+  { id:'claude-opus-4-8',           label:'🧠深入', note:'Opus 4.8 · 最貴，深度管理分析' }
+];
+function _chatModelIdx(){ try{ var v=parseInt(localStorage.getItem('ai_chat_model_idx'),10); return (v===0||v===1||v===2)?v:1; }catch(e){ return 1; } }
+function _chatModel(){ return AI_CHAT_MODELS[_chatModelIdx()].id; }
+function _updateModelBtn(){ var b=document.getElementById('modelBtn'); if(b){ var m=AI_CHAT_MODELS[_chatModelIdx()]; b.textContent=m.label; b.title='AI 模型：'+m.note+'（點擊切換 省/均衡/深入）'; } }
+function cycleChatModel(){ var i=(_chatModelIdx()+1)%AI_CHAT_MODELS.length; try{ localStorage.setItem('ai_chat_model_idx', String(i)); }catch(e){} _updateModelBtn(); }
+try{ document.addEventListener('DOMContentLoaded', _updateModelBtn); }catch(e){}
+
+// ★ 組請求 body（降本）：把「穩定大背景」放進 system 並加 cache_control → 同一次對話追問走 1 折快取。
+//   ctx = getFullContext() 的大背景；sysText = 該顧問的人設 system prompt。
+function _buildChatBody(sysText, ctx, apiMsgs, maxTokens){
+  var system;
+  if (ctx && ctx.length > 20){
+    // 人設 + 大背景合成可快取前綴；cache_control 打在大背景這塊（≥1024 token 才會真的快取，否則自動忽略）
+    system = [
+      { type:'text', text: sysText || '' },
+      { type:'text', text: ctx, cache_control:{ type:'ephemeral' } }
+    ];
+  } else {
+    system = sysText || '';
+  }
+  return JSON.stringify({ model:_chatModel(), max_tokens:maxTokens||4096, system:system, messages:apiMsgs });
+}
 
 // ── Storage helpers ──
 function LS(k){
@@ -2802,6 +2831,10 @@ function getPdrCtx(){
 }
 function getFullContext(){
   var parts=[];
+  // ★ 降本：依提問只帶「相關」的情境類區塊（案例庫/其他主角/結案/挑戰/團隊庫）；
+  //   核心績效資料（業績/月績效/通路/PDR/私聊/知識庫）一律保留，避免 AI 說「看不到資料」。
+  var _q=(window._kbQuery||'');
+  var _rel=function(re){ return !_q || re.test(_q); };  // 沒有提問文字時保守全帶
   // 0️⃣ 永遠把「當前主角 header」放最前面（不依賴其他模組是否有資料）
   var userHeader = getCurrentUserHeader();
   if (userHeader) parts.push(userHeader);
@@ -2814,21 +2847,25 @@ function getFullContext(){
   var pdrc=getPdrCtx();if(pdrc)parts.push(pdrc);
   var achieve=getAchieveCtx();if(achieve)parts.push(achieve);
   var rules=getRulesCtx();if(rules)parts.push(rules);
-  var cases=getCaseDbCtx();if(cases)parts.push(cases);
+  // 案例庫：問到「案例／怎麼處理／類似／以前處理／客訴／參考」時才帶（情境類，非核心）
+  var cases=getCaseDbCtx();if(cases && _rel(/案例|怎麼處理|如何處理|類似|以前|之前處理|處理過|客訴|範例|參考|遇到/))parts.push(cases);
   if(curFeature==='mentor'){ var wf=getWaterfallCtx(); if(wf)parts.push(wf); }
   var mp=getMonthlyPerfCtx();if(mp)parts.push(mp);
   var pmem=getPmemoryCtx();if(pmem)parts.push(pmem);
   var tl=getTimelineCtx();if(tl)parts.push(tl);
-  var others=getOtherCharsCtx();if(others)parts.push(others);
-  var kb=localStorage.getItem(SK.teamkb);if(kb)parts.push('📣 團隊知識庫\n'+kb);
+  // 其他主角：問到比較／別人／團隊／全部／誰最…時才帶（核心「業績排名」已含）
+  var others=getOtherCharsCtx();if(others && _rel(/其他人|別人|大家|團隊|比較|對比|全部|所有人|誰最|誰的|排名|前幾名|墊底/))parts.push(others);
+  // 團隊知識庫：只在 team 顧問或問到相關時帶，且截尾避免無限膨脹
+  var kb=localStorage.getItem(SK.teamkb);if(kb && (curFeature==='team' || _rel(/團隊知識|大家問過|常見問題|共用/)))parts.push('📣 團隊知識庫\n'+String(kb).slice(-4000));
   // ★ 新增三類 context（讓 AI 更聰明）：
   //   - 釘選話題：該主角自己的重要對話歷史
   //   - 結案紀錄：該主角已處理過的話題
   //   - 我要挑戰AI的論點：使用者對 AI 過去回答的質疑（讓 AI 自我修正）
   var pinsCtx=getPinsCtx();if(pinsCtx)parts.push(pinsCtx);
-  var closedCtx=getClosedCtx();if(closedCtx)parts.push(closedCtx);
-  var errCtx=getAiErrorCtx();if(errCtx)parts.push(errCtx);
-  var kbCtx=getKnowledgeBaseCtx();if(kbCtx)parts.push(kbCtx);
+  // 結案紀錄／挑戰AI論點：情境類，問到相關時才帶
+  var closedCtx=getClosedCtx();if(closedCtx && _rel(/結案|歸檔|處理過的|之前的話題|以前談過/))parts.push(closedCtx);
+  var errCtx=getAiErrorCtx();if(errCtx && _rel(/你之前|你上次|你錯|修正|為什麼你說|質疑|挑戰|不同意/))parts.push(errCtx);
+  var kbCtx=getKnowledgeBaseCtx();if(kbCtx)parts.push(kbCtx);   // 知識庫已自帶關鍵字漸進式載入
   if(!parts.length)return '';
   // ★ 結尾再次強調當前主角，雙重保險（AI 容易看頭看尾）
   var cName = localStorage.getItem('activeCharacterName') || '';
@@ -3389,9 +3426,8 @@ async function sendMsg(){
   var ctx=getFullContext();
 
   var history=collectHistory();
-  var apiMsgs=history.map(function(m,i){
-    return{role:m.role,content:i===history.length-1&&m.role==='user'?m.content+ctx:m.content};
-  });
+  // ★ 降本：大背景不再附在每則 user 訊息，改放進可快取的 system；user 訊息保持乾淨
+  var apiMsgs=history.map(function(m){ return { role:m.role, content:m.content }; });
   var typing=document.createElement('div');typing.className='typing';
   typing.innerHTML='<span>●</span><span>●</span><span>●</span> 思考中...';
   document.getElementById('chatMsgs').appendChild(typing);
@@ -3400,7 +3436,7 @@ async function sendMsg(){
   try{
     var resp=await fetch(PROXY_BASE+'/v1/messages',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-opus-4-8',max_tokens:4096,system:f.system,messages:apiMsgs})});
+      body:_buildChatBody(f.system, ctx, apiMsgs, 4096)});
     typing.remove();
     if(!resp.ok){var errBody='';try{errBody=await resp.text();}catch(e){}throw new Error('API錯誤('+resp.status+'): '+errBody.substring(0,150));}
     var data=await resp.json();addMsg('ai',data.content[0].text);autoSavePin();
@@ -5432,7 +5468,7 @@ async function _voiceSummarize(transcript){
   var resp = await _voiceFetch(PROXY_BASE + '/v1/messages', { method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-opus-4-8', max_tokens: 1500, system: sys,
+      model: 'claude-haiku-4-5-20251001', max_tokens: 1500, system: sys,
       messages: [{ role: 'user', content: '以下是逐字稿：\n\n' + transcript }]
     }) }, 180000);
   if (!resp.ok){
@@ -6254,8 +6290,9 @@ async function autoAnalyzeFile(fileName,text){
     +'3. 最後加上 **📋 建議行動** 區塊\n\n'
     +'═══ 檔案內容 ═══\n'+text.substring(0,5000)+'\n═══════════════';
 
+  window._kbQuery = prompt;
   var ctx=getFullContext();
-  var apiMsgs=[{role:'user',content:prompt+ctx}];
+  var apiMsgs=[{role:'user',content:prompt}];   // ★ 大背景改放可快取 system，user 訊息只留檔案內容
   var typing=document.createElement('div');typing.className='typing';
   typing.innerHTML='<span>●</span><span>●</span><span>●</span> AI 正在分析檔案...';
   document.getElementById('chatMsgs').appendChild(typing);
@@ -6264,7 +6301,7 @@ async function autoAnalyzeFile(fileName,text){
   try{
     var resp=await fetch(PROXY_BASE+'/v1/messages',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-opus-4-8',max_tokens:3000,system:f.system+'\n\n你正在分析用戶上傳的檔案，請仔細閱讀並提供深入分析。',messages:apiMsgs})});
+      body:_buildChatBody(f.system+'\n\n你正在分析用戶上傳的檔案，請仔細閱讀並提供深入分析。', ctx, apiMsgs, 3000)});
     typing.remove();
     if(!resp.ok){var errBody='';try{errBody=await resp.text();}catch(e){}throw new Error('API錯誤('+resp.status+')');}
     var data=await resp.json();

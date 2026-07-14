@@ -528,7 +528,7 @@
     var rows = parseCSV(text);
     if (!rows.length) return null;
     var hIdx = -1, col = {};
-    var NEED = { org:'組織', owner:'業績承辦人', main:'通路來源主類別', sub:'通路來源副類別', course:'課程名稱', note:'狀態備註', item:'收支項目', perf:'業績合計', inDate:'入帳日期' };
+    var NEED = { org:'組織', owner:'業績承辦人', main:'通路來源主類別', sub:'通路來源副類別', course:'課程名稱', note:'狀態備註', item:'收支項目', perf:'業績合計', inDate:'入帳日期', stu:'學員' };
     for (var r = 0; r < Math.min(rows.length, 5); r++){
       var found = {};
       for (var c = 0; c < rows[r].length; c++){
@@ -551,9 +551,11 @@
       var val = parseFloat(cell('perf').replace(/,/g, '').replace(/\s/g, '')) || 0;
       var inDate = cell('inDate').replace(/\//g, '-');
       if (val < 0 && inDate && inDate.slice(0, 10) < startCmp){ skipOld++; continue; }
-      out.push({ org: cell('org'), owner: cell('owner'), main: cell('main'), sub: cell('sub'), course: cell('course'), item: cell('item'), value: val });
+      out.push({ org: cell('org'), owner: cell('owner'), main: cell('main'), sub: cell('sub'), course: cell('course'), item: cell('item'), stu: cell('stu'), value: val });
     }
-    console.log('[EIP Content] 收支明細: 取 ' + out.length + ' 筆（剔除 不計業績=' + skipNote + ' 非當月負向=' + skipOld + '）');
+    console.log('[EIP Content] 收支明細: 取 ' + out.length + ' 筆（剔除 不計業績=' + skipNote + ' 非當月負向=' + skipOld + '）'
+      + (col.stu !== undefined ? '，學員欄=第' + col.stu + '欄' : '，⚠️ 沒找到學員欄'));
+    out._hasStuCol = (col.stu !== undefined);
     return out;
   }
 
@@ -665,21 +667,45 @@
   // ★ v5.8：課程銷售分析 — 用收支明細算「各學院×課程」業績（區域＝頁面端把該區學院相加）
   var COURSE_ACADEMIES = ['站前學院','站二學院','館前學院','板橋學院','站前二部','東區二部','中壢學院','中壢二部','中壢三部','台中學院','台中二部','台中三部','高雄建國'];
   function computeCourses(moneyRows, year, month){
-    var byOrg = {}; // 學院 -> 課程 -> { value, count }
+    var byOrg = {}; // 學院 -> 課程 -> { value, count, stuMap:{承辦人|學員: 總額}, owners:{承辦人:{value,count}} }
     (moneyRows || []).forEach(function(r){
       var org = (r.org || '').trim();
       if (COURSE_ACADEMIES.indexOf(org) < 0) return;   // 只收五區的 13 家學院
       var course = (r.course || '').trim();
       if (!course) return;                              // 無課程名稱（介紹費等）略過
       if (!byOrg[org]) byOrg[org] = {};
-      if (!byOrg[org][course]) byOrg[org][course] = { value: 0, count: 0 };
-      byOrg[org][course].value += r.value;
-      byOrg[org][course].count += 1;
+      if (!byOrg[org][course]) byOrg[org][course] = { value: 0, count: 0, stuMap: {}, _anon: 0, owners: {} };
+      var e = byOrg[org][course];
+      e.value += r.value;
+      e.count += 1;
+      var ow = (r.owner || '').trim();
+      // ★ v5.11：學員別總繳（同學員多筆收支加總 → 頁面端依門檻算 1 / 0.5 / 0 套）
+      var stu = (r.stu || '').trim();
+      var stuKey = ow + '|' + (stu || ('#row' + (e._anon++)));   // 沒有學員欄就每筆各自算
+      e.stuMap[stuKey] = (e.stuMap[stuKey] || 0) + r.value;
+      // ★ v5.10：個人明細 — 業績承辦人 × 課程
+      if (ow){
+        if (!e.owners[ow]) e.owners[ow] = { value: 0, count: 0 };
+        e.owners[ow].value += r.value;
+        e.owners[ow].count += 1;
+      }
     });
     var out = { meta: { year: year, month: month }, byOrg: {} };
     Object.keys(byOrg).forEach(function(org){
       out.byOrg[org] = Object.keys(byOrg[org])
-        .map(function(c){ return { name: c, value: Math.round(byOrg[org][c].value), count: byOrg[org][c].count }; })
+        .map(function(c){
+          var e = byOrg[org][c];
+          var owners = {};
+          Object.keys(e.owners).forEach(function(o){ owners[o] = { value: Math.round(e.owners[o].value), count: e.owners[o].count, stu: [] }; });
+          var stuAll = [];
+          Object.keys(e.stuMap).forEach(function(k){
+            var amt = Math.round(e.stuMap[k]);
+            stuAll.push(amt);
+            var o = k.slice(0, k.indexOf('|'));
+            if (o && owners[o]) owners[o].stu.push(amt);
+          });
+          return { name: c, value: Math.round(e.value), count: e.count, stu: stuAll, owners: owners };
+        })
         .filter(function(x){ return x.value !== 0; });
     });
     return out;
@@ -816,9 +842,11 @@
     _safeSet(cid + 'motiv_synced_channel', ts);
     _safeSet(cid + 'motiv_updated_at', ts);
     var nChan = 0; for (var ck in channelData.channels){ if (channelData.channels[ck].ranking.length) nChan++; }
+    // ★ v5.11 診斷：學員欄有沒有抓到（主打課程套數門檻規則需要它）
+    var stuDiag = (moneyRows && moneyRows._hasStuCol) ? '，學員欄 ✓（套數門檻規則生效）' : '，⚠️ 學員欄沒抓到 — 套數改用筆數估算';
     notify('done', {
       mode: 'channel', channel: channelData, course: courseData, updateTime: ts,
-      msg: '📋 各通路績效同步完成！' + nChan + '/6 通路、共 ' + (moneyRows ? moneyRows.length : 0) + ' 筆收支'
+      msg: '📋 各通路績效同步完成！' + nChan + '/6 通路、共 ' + (moneyRows ? moneyRows.length : 0) + ' 筆收支' + stuDiag
     });
   }
 

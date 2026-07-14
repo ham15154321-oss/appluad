@@ -1914,19 +1914,158 @@
         <div id="ppBody"></div>
       </div>
 
-      <!-- Tab 8: 課程銷售分析（五區課程排名） -->
+      <!-- Tab 8: 課程銷售分析（五區課程排名）＋ 🎯 主打課程追蹤子畫面 -->
       <div class="tab-content" id="tab-8">
-        <div class="ck-toolbar">
-          <button class="ck-region-btn active" data-cr="north1" onclick="crSwitchRegion('north1')">🏙️ 北一區</button>
-          <button class="ck-region-btn" data-cr="north2" onclick="crSwitchRegion('north2')">🌆 北二區</button>
-          <button class="ck-region-btn" data-cr="tao" onclick="crSwitchRegion('tao')">🌸 桃區</button>
-          <button class="ck-region-btn" data-cr="central" onclick="crSwitchRegion('central')">🏯 中區</button>
-          <button class="ck-region-btn" data-cr="south" onclick="crSwitchRegion('south')">🌊 南區</button>
-          <span class="ck-update-info" id="crUpdateInfo"></span>
+        <!-- 課程排名視圖 -->
+        <div id="crRankView">
+          <div class="ck-toolbar">
+            <button class="ck-region-btn active" data-cr="north1" onclick="crSwitchRegion('north1')">🏙️ 北一區</button>
+            <button class="ck-region-btn" data-cr="north2" onclick="crSwitchRegion('north2')">🌆 北二區</button>
+            <button class="ck-region-btn" data-cr="tao" onclick="crSwitchRegion('tao')">🌸 桃區</button>
+            <button class="ck-region-btn" data-cr="central" onclick="crSwitchRegion('central')">🏯 中區</button>
+            <button class="ck-region-btn" data-cr="south" onclick="crSwitchRegion('south')">🌊 南區</button>
+            <button class="crf-open-btn" onclick="crfShow(true)">🎯 主打課程追蹤</button>
+            <span class="ck-update-info" id="crUpdateInfo"></span>
+          </div>
+          <div class="ck-toolbar" id="crOrgBar"></div>
+          <div class="ck-toolbar" id="crPeriodBar"></div>
+          <div id="crBody"></div>
         </div>
-        <div class="ck-toolbar" id="crOrgBar"></div>
-        <div class="ck-toolbar" id="crPeriodBar"></div>
-        <div id="crBody"></div>
+        <!-- 🎯 主打課程追蹤視圖（獨立主畫面） -->
+        <div id="crFocusView" style="display:none;"></div>
+        <style>
+          /* ── 🎯 主打課程追蹤 · 質感重整版（深色預設 + day-mode 白卡片） ── */
+          .crf-open-btn{margin-left:8px;background:linear-gradient(135deg,rgba(255,215,0,.18),rgba(255,140,0,.10));border:1px solid rgba(255,215,0,.55);color:#ffd700;border-radius:10px;padding:5px 14px;cursor:pointer;font-weight:800;font-size:.85rem;letter-spacing:.5px;transition:all .2s;}
+          .crf-open-btn:hover{background:linear-gradient(135deg,rgba(255,215,0,.30),rgba(255,140,0,.16));box-shadow:0 0 14px rgba(255,215,0,.25);}
+          body.day-mode .crf-open-btn{background:#fffbeb;border-color:#fcd34d;color:#b45309;}
+          body.day-mode .crf-open-btn:hover{background:#fef3c7;box-shadow:0 2px 10px rgba(245,158,11,.25);}
+
+          .crf-topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+          .crf-title{font-weight:900;font-size:1.15rem;color:#ffd700;letter-spacing:1px;}
+          body.day-mode .crf-title{color:#b45309;}
+          .crf-back{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.22);color:inherit;border-radius:10px;padding:5px 12px;cursor:pointer;font-size:.82rem;font-weight:700;transition:all .15s;}
+          body.day-mode .crf-back{background:#fff;border-color:#d2d2d7;color:#1d1d1f;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+          .crf-monthnav{display:flex;align-items:center;gap:6px;font-weight:800;font-size:1rem;}
+          .crf-monthnav button{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);color:inherit;border-radius:8px;padding:3px 10px;cursor:pointer;font-size:.9rem;}
+          body.day-mode .crf-monthnav button{background:#fff;border-color:#d2d2d7;color:#1d1d1f;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+
+          .crf-regions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+          .crf-region-chip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);color:inherit;border-radius:999px;padding:5px 16px;cursor:pointer;font-size:.86rem;font-weight:700;transition:all .15s;}
+          .crf-region-chip.active{background:linear-gradient(135deg,rgba(255,215,0,.22),rgba(255,140,0,.10));border-color:rgba(255,215,0,.6);color:#ffd700;box-shadow:0 0 10px rgba(255,215,0,.2);}
+          body.day-mode .crf-region-chip{background:#fff;border-color:#e5e5ea;color:#3a3a3c;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+          body.day-mode .crf-region-chip.active{background:linear-gradient(135deg,#fffbeb,#fef3c7);border-color:#f59e0b;color:#b45309;box-shadow:0 2px 8px rgba(245,158,11,.2);}
+
+          .crf-input{background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.2);color:inherit;border-radius:8px;padding:5px 10px;font-size:.85rem;}
+          body.day-mode .crf-input{background:#fff;border-color:#d2d2d7;color:#1d1d1f;}
+
+          .crf-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;}
+          .crf-kpi{padding:16px 12px;border-radius:16px;background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(0,0,0,.22));border:1px solid rgba(255,255,255,.12);text-align:center;position:relative;overflow:hidden;}
+          body.day-mode .crf-kpi{background:#fff;border-color:#ececf1;box-shadow:0 4px 18px rgba(0,0,0,.06);}
+          .crf-kpi .v{font-size:1.8rem;font-weight:900;line-height:1.15;letter-spacing:-.5px;}
+          .crf-kpi .l{font-size:.74rem;color:rgba(235,238,255,.62);margin-top:6px;letter-spacing:.4px;font-weight:600;}
+          body.day-mode .crf-kpi .l{color:#6e6e73;}
+          .crf-kpi .v.gold{color:#ffd700;} .crf-kpi .v.green{color:#4ade80;} .crf-kpi .v.cyan{color:#4aeaff;} .crf-kpi .v.purple{color:#a78bfa;} .crf-kpi .v.pink{color:#f0abfc;}
+          body.day-mode .crf-kpi .v.gold{color:#b45309;} body.day-mode .crf-kpi .v.green{color:#15803d;} body.day-mode .crf-kpi .v.cyan{color:#0369a1;} body.day-mode .crf-kpi .v.purple{color:#6d28d9;} body.day-mode .crf-kpi .v.pink{color:#be185d;}
+          .crf-ring{width:96px;height:96px;margin:0 auto;}
+
+          .crf-panel{border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(0,0,0,.18);padding:16px 18px;margin-bottom:14px;}
+          body.day-mode .crf-panel{background:#fff;border-color:#ececf1;box-shadow:0 4px 18px rgba(0,0,0,.06);}
+          .crf-panel h3{margin:0 0 12px;font-size:.98rem;letter-spacing:.5px;font-weight:800;}
+          body.day-mode .crf-panel h3{color:#1d1d1f;}
+          .crf-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.74rem;font-weight:600;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.35);margin:2px 4px 0 0;}
+          body.day-mode .crf-badge{background:#ecfdf5;border-color:#a7f3d0;color:#047857;}
+          .crf-note{font-size:.76rem;color:rgba(235,238,255,.6);margin-top:8px;line-height:1.6;}
+          body.day-mode .crf-note{color:#6e6e73;}
+
+          /* 各部達成率比拚 */
+          .crf-vsrow{display:flex;align-items:center;gap:12px;margin:10px 0;}
+          .crf-vsrow .nm{width:110px;font-weight:800;font-size:.92rem;flex-shrink:0;}
+          body.day-mode .crf-vsrow .nm{color:#1d1d1f;}
+          .crf-vsrow .track{flex:1;height:22px;border-radius:11px;background:rgba(127,127,127,.16);overflow:hidden;position:relative;}
+          body.day-mode .crf-vsrow .track{background:#eef0f4;}
+          .crf-vsrow .fill{display:block;height:100%;border-radius:11px;background:linear-gradient(90deg,#3b82f6,#4aeaff);transition:width .5s;box-shadow:inset 0 1px 0 rgba(255,255,255,.3);}
+          .crf-vsrow .fill.ok{background:linear-gradient(90deg,#22c55e,#4ade80);}
+          .crf-vsrow .num{width:180px;font-size:.8rem;font-weight:700;text-align:right;flex-shrink:0;line-height:1.5;}
+          body.day-mode .crf-vsrow .num{color:#3a3a3c;}
+          .crf-vsrow .num .val{font-size:.82rem;font-weight:800;color:#4aeaff;}
+          body.day-mode .crf-vsrow .num .val{color:#0369a1;}
+
+          /* 個人實售排行 */
+          .crf-personrow{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.84rem;}
+          body.day-mode .crf-personrow{border-bottom-color:#f0f0f3;}
+          .crf-personrow:last-child{border-bottom:none;}
+          .crf-personrow .rank{width:30px;text-align:center;font-weight:800;color:rgba(235,238,255,.55);}
+          body.day-mode .crf-personrow .rank{color:#86868b;}
+          .crf-personrow .nm{width:120px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+          body.day-mode .crf-personrow .nm{color:#1d1d1f;}
+          .crf-personrow .num{width:175px;text-align:right;font-size:.76rem;font-weight:600;color:rgba(235,238,255,.85);}
+          body.day-mode .crf-personrow .num{color:#3a3a3c;}
+          /* 前三名：金銀銅底色 + 名字放大 */
+          .crf-personrow.p1,.crf-personrow.p2,.crf-personrow.p3{padding:9px 10px;margin:0 -10px;border-radius:12px;border-bottom:none;}
+          .crf-personrow.p1{background:linear-gradient(90deg,rgba(255,215,0,.14),transparent 70%);}
+          .crf-personrow.p2{background:linear-gradient(90deg,rgba(192,198,214,.16),transparent 70%);}
+          .crf-personrow.p3{background:linear-gradient(90deg,rgba(205,127,50,.14),transparent 70%);}
+          body.day-mode .crf-personrow.p1{background:linear-gradient(90deg,#fff7db,#ffffff 75%);}
+          body.day-mode .crf-personrow.p2{background:linear-gradient(90deg,#f1f3f7,#ffffff 75%);}
+          body.day-mode .crf-personrow.p3{background:linear-gradient(90deg,#fbeee0,#ffffff 75%);}
+          .crf-personrow.p1 .nm,.crf-personrow.p2 .nm,.crf-personrow.p3 .nm{font-size:1.12rem;font-weight:900;letter-spacing:.5px;}
+          .crf-personrow.p1 .rank,.crf-personrow.p2 .rank,.crf-personrow.p3 .rank{font-size:1.2rem;}
+          .crf-personrow.p1 .num,.crf-personrow.p2 .num,.crf-personrow.p3 .num{font-size:.84rem;font-weight:800;}
+          .crf-personrow.p45 .nm{font-size:1rem;font-weight:800;}
+          .crf-personrow.p45 .num{font-size:.8rem;font-weight:700;}
+          /* 進度格（每套一格；半套亮半格） */
+          .crf-personrow .track{flex:1;height:14px;border-radius:7px;background:rgba(127,127,127,.16);overflow:hidden;}
+          body.day-mode .crf-personrow .track{background:#eef0f4;}
+          .crf-personrow .fill{display:block;height:100%;border-radius:7px;background:linear-gradient(90deg,#3b82f6,#4aeaff);}
+          .crf-personrow .segs{flex:1;display:flex;gap:4px;height:16px;}
+          .crf-personrow.p1 .segs,.crf-personrow.p2 .segs,.crf-personrow.p3 .segs{height:19px;}
+          .crf-personrow .seg{flex:1;border-radius:5px;background:rgba(127,127,127,.14);border:1px solid rgba(127,127,127,.2);}
+          body.day-mode .crf-personrow .seg{background:#e9edf2;border-color:#dde2e9;}
+          .crf-personrow .seg.on{background:linear-gradient(135deg,#3b82f6,#4aeaff);border-color:transparent;box-shadow:0 1px 4px rgba(59,130,246,.35);}
+          /* ★ day-mode 空格規則比 .on 特異度高，必須補 day-mode 版亮格，否則藍色被灰底蓋掉 */
+          body.day-mode .crf-personrow .seg.on{background:linear-gradient(135deg,#3b82f6,#4aeaff);border-color:transparent;box-shadow:0 1px 4px rgba(59,130,246,.35);}
+          .crf-personrow .seg.on.done{background:linear-gradient(135deg,#22c55e,#4ade80);box-shadow:0 1px 4px rgba(34,197,94,.4);}
+          body.day-mode .crf-personrow .seg.on.done{background:linear-gradient(135deg,#22c55e,#4ade80);border-color:transparent;box-shadow:0 1px 4px rgba(34,197,94,.4);}
+          .crf-personrow .seg.on.half{background:linear-gradient(90deg,#3b82f6 0,#4aeaff 50%,rgba(127,127,127,.14) 50%);box-shadow:none;border-color:rgba(127,127,127,.2);}
+          body.day-mode .crf-personrow .seg.on.half{background:linear-gradient(90deg,#3b82f6 0,#4aeaff 50%,#e9edf2 50%);border-color:#dde2e9;}
+          .crf-personrow .seg.on.half.done{background:linear-gradient(90deg,#22c55e 0,#4ade80 50%,rgba(127,127,127,.14) 50%);}
+          body.day-mode .crf-personrow .seg.on.half.done{background:linear-gradient(90deg,#22c55e 0,#4ade80 50%,#e9edf2 50%);}
+
+          /* 編輯區 */
+          .crf-editbtn{background:rgba(74,234,255,.08);border:1px solid rgba(74,234,255,.4);color:#4aeaff;border-radius:10px;padding:6px 16px;cursor:pointer;font-size:.84rem;font-weight:700;}
+          body.day-mode .crf-editbtn{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;}
+          .crf-teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-top:12px;}
+          .crf-team{border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(0,0,0,.18);padding:12px 14px;}
+          body.day-mode .crf-team{background:#fff;border-color:#ececf1;box-shadow:0 3px 14px rgba(0,0,0,.05);}
+          .crf-team h4{margin:0 0 6px;font-size:.9rem;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;}
+          body.day-mode .crf-team h4{color:#1d1d1f;}
+          .crf-team table{width:100%;border-collapse:collapse;font-size:.82rem;}
+          .crf-team th{font-size:.7rem;color:rgba(235,238,255,.55);text-align:left;padding:2px 4px;border-bottom:1px solid rgba(255,255,255,.12);}
+          body.day-mode .crf-team th{color:#86868b;border-bottom-color:#ececf1;}
+          .crf-team td{padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.06);}
+          body.day-mode .crf-team td{border-bottom-color:#f4f4f6;}
+          .crf-team input[type=text],.crf-team input[type=number]{width:100%;box-sizing:border-box;background:transparent;border:1px solid transparent;color:inherit;border-radius:6px;padding:2px 4px;font-size:.82rem;}
+          .crf-team input:hover,.crf-team input:focus{border-color:rgba(74,234,255,.4);background:rgba(0,0,0,.25);outline:none;}
+          body.day-mode .crf-team input:hover,body.day-mode .crf-team input:focus{border-color:#93c5fd;background:#f8faff;}
+          .crf-del{cursor:pointer;opacity:.4;border:none;background:none;color:#ff6b6b;font-size:.8rem;}
+          .crf-del:hover{opacity:1;}
+          .crf-add{margin-top:6px;background:rgba(74,234,255,.08);border:1px dashed rgba(74,234,255,.4);color:#4aeaff;border-radius:8px;padding:3px 10px;cursor:pointer;font-size:.78rem;margin-right:6px;}
+          body.day-mode .crf-add{background:#f0f7ff;border-color:#93c5fd;color:#1d4ed8;}
+
+          /* 貼上匯入 modal */
+          .crf-modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:flex;align-items:center;justify-content:center;}
+          .crf-modal{background:#12162b;border:1px solid rgba(255,215,0,.4);border-radius:16px;padding:18px 20px;width:min(480px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.6);}
+          body.day-mode .crf-modal{background:#fff;border-color:#fcd34d;color:#1d1d1f;}
+          .crf-modal h3{margin:0 0 8px;color:#ffd700;font-size:1rem;}
+          body.day-mode .crf-modal h3{color:#b45309;}
+          .crf-modal textarea{width:100%;box-sizing:border-box;height:180px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.25);color:inherit;border-radius:10px;padding:10px;font-size:.85rem;font-family:inherit;}
+          body.day-mode .crf-modal textarea{background:#fafafa;border-color:#d2d2d7;color:#1d1d1f;}
+          .crf-modal .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;}
+          .crf-modal button{border-radius:10px;padding:6px 16px;cursor:pointer;font-weight:700;font-size:.84rem;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:inherit;}
+          body.day-mode .crf-modal button{background:#fff;border-color:#d2d2d7;color:#1d1d1f;}
+          .crf-modal button.primary{background:linear-gradient(135deg,rgba(255,215,0,.25),rgba(255,140,0,.15));border-color:rgba(255,215,0,.6);color:#ffd700;}
+          body.day-mode .crf-modal button.primary{background:#fffbeb;border-color:#f59e0b;color:#b45309;}
+        </style>
       </div>
       <div class="tab-content" id="tab-3">
         <div id="mp-iframe-wrap" style="width:calc(100% + 40px);margin-left:-20px;margin-top:-20px;height:calc(100vh - 60px);overflow:hidden;">
@@ -6314,19 +6453,55 @@
           window.removeEventListener('message', onPong);
           m.busy = false;
           _setModeBtn(mode, m.line1, '擴充無回應', false);
-          if (info){ info.innerHTML = '⚠️ 擴充包沒回應 — 請把本頁重新整理（Cmd+R），並確認 chrome://extensions 已啟用「Appedu EIP 激勵同步」'; info.style.color = '#ff6b6b'; }
+          var pingMsg = '⚠️ 擴充包沒回應 — 請把本頁重新整理（Cmd+R），並確認 chrome://extensions 已啟用「Appedu EIP 激勵同步」';
+          if (info){ info.innerHTML = pingMsg; info.style.color = '#ff6b6b'; }
+          _syncToast(pingMsg, '#ff6b6b');
           settle(false);
         }
       }, 2000);
+    }
+
+    // ★ 全域同步浮動提示 — 不管在哪個分頁都看得到同步狀態/錯誤
+    //   （原本狀態只寫在「激勵」分頁角落的 motivUpdateInfo，在其他分頁按同步會以為沒反應）
+    function _syncToast(msg, color){
+      try {
+        var t = document.getElementById('syncToast');
+        if (!t){
+          t = document.createElement('div');
+          t.id = 'syncToast';
+          t.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:99999;max-width:360px;padding:11px 15px;border-radius:12px;background:rgba(10,14,30,.94);border:1px solid rgba(255,255,255,.25);font-size:.85rem;line-height:1.45;box-shadow:0 6px 24px rgba(0,0,0,.5);transition:opacity .3s;pointer-events:none;';
+          document.body.appendChild(t);
+        }
+        t.style.borderColor = color || 'rgba(255,255,255,.25)';
+        t.style.color = color || '#fff';
+        t.textContent = msg;
+        t.style.opacity = '1';
+        if (t._h) clearTimeout(t._h);
+        t._h = setTimeout(function(){ t.style.opacity = '0'; }, 7000);
+      } catch(e){}
     }
 
     function _motivStartSync(mode, info, settle){
       var m = SYNC_MODES[mode];
       _setModeBtn(mode, m.line1, '同步中…', true);
       if (info){ info.textContent = '⏳ 正在同步 ' + m.label + '...'; info.style.color = '#e6a817'; }
+      _syncToast('⏳ 正在同步 ' + m.label + '...', '#e6a817');
 
       var settled = false;
-      function finish(ok){ if (settled) return; settled = true; m.busy = false; refreshSyncBtnLabels(); if (settle) settle(!!ok); }
+      var wd = null; // ★ 看門狗：90 秒沒有任何訊息 = 卡住 → 自動解鎖，不用重新整理
+      function _wdPoke(){
+        if (wd) clearTimeout(wd);
+        wd = setTimeout(function(){
+          window.removeEventListener('message', onMsg);
+          var msg = '⏰ ' + m.label + ' 同步逾時（90 秒沒回應）— EIP 可能忙線或擴充卡住，已自動解鎖，可直接再按一次重試';
+          if (info){ info.textContent = msg; info.style.color = '#ff6b6b'; }
+          _syncToast(msg, '#ff6b6b');
+          _setModeBtn(mode, m.line1, '逾時，可重試', false);
+          finish(false);
+        }, 90000);
+      }
+      function finish(ok){ if (settled) return; settled = true; if (wd) clearTimeout(wd); m.busy = false; refreshSyncBtnLabels(); if (settle) settle(!!ok); }
+      _wdPoke();
 
       function onMsg(e){
         if (!e.data || e.data.channel !== 'appedu-eip-sync' || e.data.action !== 'result') return;
@@ -6348,6 +6523,7 @@
             try { crApplyAutoSync(); } catch(e2){}            // 課程銷售分析（同一份收支明細）
           }
           if (info){ info.textContent = '✅ ' + d.msg; info.style.color = '#4ade80'; }
+          _syncToast('✅ ' + m.label + '：' + d.msg, '#4ade80');
           finish(true);
         } else if (d.type === 'error'){
           window.removeEventListener('message', onMsg);
@@ -6355,9 +6531,12 @@
           if (em.indexOf('context invalidated') >= 0 || em.indexOf('Extension context') >= 0)
             em = '擴充剛更新過 — 請把本頁重新整理（Cmd+R）一次再同步';
           if (info){ info.textContent = '❌ ' + em; info.style.color = '#ff6b6b'; }
+          _syncToast('❌ ' + m.label + '：' + em, '#ff6b6b');
           finish(false);
         } else if (d.type === 'status'){
+          _wdPoke(); // 有心跳 → 重算逾時
           if (info){ info.textContent = '⏳ ' + d.msg; info.style.color = '#e6a817'; }
+          _syncToast('⏳ ' + d.msg, '#e6a817');
         }
       }
       window.addEventListener('message', onMsg);
@@ -7127,7 +7306,9 @@
     }
 
     function crRenderAll(){
-      // 區域按鈕 active（依目前 scope 所屬區域）
+      // 🎯 主打課程追蹤子畫面（記憶上次視圖；同步完成也會經此刷新儀表板）
+      try { crfApplyView(); } catch(e){ console.warn('[crf]', e); }
+      // 區域按鈕 active（依目前 scope 所屬期間）
       var activeRegion = crScope.type === 'region' ? crScope.key : _crOrgRegionKey(crScope.key);
       document.querySelectorAll('.ck-region-btn[data-cr]').forEach(function(b){
         b.classList.toggle('active', b.getAttribute('data-cr') === activeRegion);
@@ -7182,6 +7363,537 @@
       }
       html += '</tbody></table></div>';
       body.innerHTML = html;
+    }
+
+    // ========== 🎯 主打課程追蹤（tab-8 子畫面：儀表板＋編輯分離、五區各自獨立） ==========
+    //   目標：每人銷售目標套數（手動維護/Excel 貼上）；實售：EIP 收支明細自動比對關鍵字。
+    //   個人實售：擴充 v5.10 起收支明細帶「業績承辦人」→ 自動對上名單姓名。
+    //   儲存 key 用 perf_compare_v1_ 前綴 → firebase 視為全公司共享，所有人看同一份。
+    var CRF_KEY = 'perf_compare_v1_focus_course';
+    var CRF_REGION_ORDER = ['north1','north2','tao','central','south'];
+    var CRF_REGION_LABEL = { north1:'🏙️ 北一區', north2:'🌆 北二區', tao:'🌸 桃區', central:'🏯 中區', south:'🌊 南區' };
+    var CRF_ORG_LABEL = { '台中學院':'台中一部' }; // 部門顯示名
+    function _crfEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function _crfNowYm(){ var d = new Date(); return d.getFullYear() + '-' + _ckPad2(d.getMonth() + 1); }
+    var crfYm = (function(){ try{ return localStorage.getItem('crf_ym_v1') || _crfNowYm(); }catch(e){ return _crfNowYm(); } })();
+    var crfRegion = (function(){ try{ return localStorage.getItem('crf_region_v1') || 'central'; }catch(e){ return 'central'; } })();
+    var crfViewFocus = (function(){ try{ return localStorage.getItem('crf_view_v1') === '1'; }catch(e){ return false; } })();
+    var crfEditOpen = false;   // 編輯區展開（每次進來預設收合）
+    var crfImportTi = null;    // Excel 貼上匯入的目標部門 index
+
+    function crfGetAll(){ try{ return JSON.parse(localStorage.getItem(CRF_KEY) || '{}'); }catch(e){ return {}; } }
+    function crfSaveAll(a){ try{ localStorage.setItem(CRF_KEY, JSON.stringify(a)); }catch(e){ console.warn('[crf] 儲存失敗', e); } }
+
+    function _crfBlankRegion(key){
+      var reg = CR_REGION_BY_KEY[key];
+      var orgs = reg ? reg.orgs : [];
+      return { course:'', goal:0, teams: orgs.map(function(o){ return { name: CRF_ORG_LABEL[o] || o, org: o, rows: [] }; }) };
+    }
+    function _crfBlankMonth(){
+      var regions = {};
+      CRF_REGION_ORDER.forEach(function(k){ regions[k] = _crfBlankRegion(k); });
+      return { regions: regions };
+    }
+    // 2026-07 起始資料（台中三部 AI 平面設計銷售+驗收表）
+    function _crfSeed(){
+      function r(n,q,v,note){ return { n:n, q:q, v:v||'', hw:true, note:note||'' }; }
+      var m = _crfBlankMonth();
+      var c = m.regions.central;
+      c.course = '商用視覺平面設計';
+      c.teams = [
+        { name:'台中一部', org:'台中學院', rows:[
+          r('劉樺玲',5,'https://works.do/xmqpXcN'), r('吳昀璇',5,'已繳'), r('張承鈞',5,'https://works.do/5b3r3A4'),
+          r('吳郁瑾',5,'https://works.do/xNNrVtf'), r('范濟維',5,''), r('胡榮芳',5,'https://works.do/FfirmuI'), r('易佩穎',1,'') ]},
+        { name:'台中二部', org:'台中二部', rows:[
+          r('何紫寧',5,'https://works.do/FdJKbtd'), r('林詩婕',4,'https://works.do/xPBPoXK'),
+          r('何泳禎',3,'已繳','沒上傳到雲端'), r('范允寶',2,'已繳'), r('吳盈緯',5,'已繳','沒上傳到雲端') ]},
+        { name:'台中三部', org:'台中三部', rows:[
+          r('A組長-楊雅筑',5,'已繳'), r('A-楊晏穎',3,'已繳'), r('A-劉子寧',1,'已繳'),
+          r('B組長-唐瑄成',5,'已繳'), r('B-陳韻伃',4,'已繳'), r('B-李幼綾',4,'已繳'),
+          r('C組長-陳煒翔',5,'已繳'), r('C-宋和樹',4,'已繳'), r('C-李岱謙',3,'已繳') ]}
+      ];
+      return m;
+    }
+    // v1（單層 teams）→ v2（五區 regions）搬遷
+    function _crfMigrate(m){
+      if (!m || m.regions) return m;
+      var nm = _crfBlankMonth();
+      if (m.teams){ nm.regions.central = { course: m.course || '', goal: m.goal || 0, teams: m.teams }; }
+      return nm;
+    }
+    function crfGetMonth(){
+      var a = crfGetAll();
+      var m = a[crfYm];
+      if (m && !m.regions){ m = _crfMigrate(m); a[crfYm] = m; crfSaveAll(a); }
+      if (!m && crfYm === '2026-07'){ m = _crfSeed(); a[crfYm] = m; crfSaveAll(a); }
+      // ★ 2026-07 南區（高雄建國）名單一次性補種
+      if (m && crfYm === '2026-07' && m.regions && m.regions.south && !m._southSeed){
+        var st = null;
+        (m.regions.south.teams || []).forEach(function(t){ if (t.org === '高雄建國') st = t; });
+        if (st && !st.rows.length){
+          if (!m.regions.south.course) m.regions.south.course = '商用視覺平面設計';
+          function sr(n,q){ return { n:n, q:q, v:'已繳', hw:true, note:'' }; }
+          st.rows = [ sr('柯珈安',4), sr('陳品禎',3), sr('鄭蕎萱',6), sr('陳思羽',3),
+                      sr('江安琪',3), sr('吳淏芸',4), sr('黃翰傑',4), sr('繆秉岑',4) ];
+        }
+        m._southSeed = 1;
+        a[crfYm] = m; crfSaveAll(a);
+      }
+      // ★ 2026-07 桃區（中壢學院/二部/三部）名單一次性補種
+      if (m && crfYm === '2026-07' && m.regions && m.regions.tao && !m._taoSeed){
+        function tr(n,q){ return { n:n, q:q, v:'', hw:false, note:'' }; }
+        var taoRows = {
+          '中壢學院': [ tr('李婉琳',5), tr('陳怡雯',4), tr('洪思婷',3), tr('盧家豪',4), tr('黃筱涵',3),
+                        tr('劉曉函',3), tr('陳千茹',4), tr('張智翔',1), tr('徐佩容',1) ],
+          '中壢二部': [ tr('易子莫',3), tr('王楷翔',3), tr('王奕期',3), tr('石韋頡',5), tr('吳詠琪',3),
+                        tr('蔡宛凌',3), tr('陳昕妮',4), tr('楊廷威',1), tr('張子臣',1) ],
+          '中壢三部': [ tr('李念庭',5), tr('黃雅蕙',4), tr('曾亞芸',3), tr('邱國能',3), tr('董慈娟',4), tr('林栢舟',3) ]
+        };
+        var seeded = false;
+        (m.regions.tao.teams || []).forEach(function(t){
+          if (taoRows[t.org] && !t.rows.length){ t.rows = taoRows[t.org]; seeded = true; }
+        });
+        if (seeded && !m.regions.tao.course) m.regions.tao.course = '商用視覺平面設計';
+        m._taoSeed = 1;
+        a[crfYm] = m; crfSaveAll(a);
+      }
+      return m || null;
+    }
+    function crfMutate(fn){
+      var a = crfGetAll();
+      var m = _crfMigrate(a[crfYm]) || _crfBlankMonth();
+      if (crfRegion !== 'all'){
+        if (!m.regions[crfRegion]) m.regions[crfRegion] = _crfBlankRegion(crfRegion);
+        fn(m.regions[crfRegion], m);
+      }
+      a[crfYm] = m; crfSaveAll(a); crfRender();
+    }
+    function crfCreateBlank(){ crfMutate(function(){}); }
+    function crfCopyPrev(){
+      var y = parseInt(crfYm.slice(0,4),10), mo = parseInt(crfYm.slice(5),10) - 1;
+      if (mo < 1){ y--; mo = 12; }
+      var prev = crfGetAll()[y + '-' + _ckPad2(mo)];
+      prev = _crfMigrate(prev);
+      if (!prev){ alert('上個月沒有名單可複製'); return; }
+      var a = crfGetAll();
+      var m = JSON.parse(JSON.stringify(prev));
+      // 新的一月：清空驗收狀態，只留名單與目標套數
+      Object.keys(m.regions).forEach(function(k){
+        m.regions[k].teams.forEach(function(t){ t.rows.forEach(function(r){ r.v=''; r.hw=false; r.note=''; }); });
+      });
+      a[crfYm] = m; crfSaveAll(a); crfRender();
+    }
+    function crfShiftMonth(d){
+      var y = parseInt(crfYm.slice(0,4),10), mo = parseInt(crfYm.slice(5),10) + d;
+      if (mo < 1){ y--; mo = 12; } if (mo > 12){ y++; mo = 1; }
+      crfYm = y + '-' + _ckPad2(mo);
+      try{ localStorage.setItem('crf_ym_v1', crfYm); }catch(e){}
+      crfRender();
+    }
+    function crfSetRegion(k){
+      crfRegion = k;
+      try{ localStorage.setItem('crf_region_v1', k); }catch(e){}
+      crfRender();
+    }
+    function crfToggleEdit(){ crfEditOpen = !crfEditOpen; crfRender(); }
+    function crfSetCourse(v){ crfMutate(function(r){ r.course = String(v||'').trim(); }); }
+    function crfSetGoal(v){ crfMutate(function(r){ r.goal = parseInt(v,10) || 0; }); }
+    // ── 套數門檻（學員總繳 ≥ th1 算 1 套；≥ th0 算 0.5 套；低於 th0 不計） ──
+    var CRF_TH1_DEF = 22000, CRF_TH0_DEF = 1500;
+    function _crfTh1(r){ return (r && r.th1) || CRF_TH1_DEF; }
+    function _crfTh0(r){ return (r && r.th0 != null && r.th0 !== 0) ? r.th0 : CRF_TH0_DEF; }
+    function crfSetTh1(v){ crfMutate(function(r){ r.th1 = parseInt(v,10) || 0; }); }
+    function crfSetTh0(v){ crfMutate(function(r){ r.th0 = parseInt(v,10) || 0; }); }
+    function _crfSets(stu, th1, th0){
+      // ★ 退費/折讓的負項常常沒掛學員名字（變成獨立一筆），若不處理會高估套數：
+      //   先把負項總額從「最大的學員總繳」開始扣掉，再套門檻（保守計算，不多算）。
+      var pos = [], neg = 0;
+      for (var i = 0; i < stu.length; i++){
+        var t = stu[i];
+        if (t >= 0) pos.push(t); else neg += -t;
+      }
+      pos.sort(function(a,b){ return b - a; });
+      for (var j = 0; j < pos.length && neg > 0; j++){
+        var d = Math.min(pos[j], neg);
+        pos[j] -= d; neg -= d;
+      }
+      var s = 0;
+      for (var k = 0; k < pos.length; k++){
+        if (pos[k] >= th1) s += 1;
+        else if (pos[k] >= th0) s += 0.5;
+      }
+      return s;
+    }
+    function _crfFmtSets(x){ return String(Math.round(x * 10) / 10).replace(/\.0$/, ''); }
+    // 顯示用姓名：去掉「A組長-」「B-」等抬頭，只留本名（完整名保留在 tooltip）
+    function _crfDispName(n){
+      var s = String(n || '').trim();
+      if (s.indexOf('-') >= 0){ var last = s.split('-').pop().trim(); if (last) return last; }
+      return s;
+    }
+    function crfUpd(ti, ri, f, v){
+      crfMutate(function(r){
+        var row = r.teams[ti] && r.teams[ti].rows[ri]; if (!row) return;
+        if (f === 'q') row.q = parseInt(v,10) || 0;
+        else if (f === 'adj') row.adj = parseFloat(v) || 0;   // 實售手動修正（±套，例 -0.5）
+        else if (f === 'hw') row.hw = !!v;
+        else row[f] = String(v||'').trim();
+      });
+    }
+    function crfAddRow(ti){ crfEditOpen = true; crfMutate(function(r){ if (r.teams[ti]) r.teams[ti].rows.push({ n:'', q:0, v:'', hw:false, note:'' }); }); }
+    function crfDelRow(ti, ri){ crfMutate(function(r){ if (r.teams[ti]) r.teams[ti].rows.splice(ri, 1); }); }
+
+    // ── Excel 貼上匯入 ──
+    function crfImportOpen(ti){ crfImportTi = ti; crfRender(); }
+    function crfImportClose(){ crfImportTi = null; crfRender(); }
+    function crfImportParse(text){
+      var out = [];
+      String(text||'').split(/\r?\n/).forEach(function(line){
+        var s = line.trim(); if (!s) return;
+        var parts = s.split(/[\t,，]+|\s+/).filter(Boolean);
+        if (!parts.length) return;
+        var name = parts[0];
+        if (/姓名|人員|名單|套數/.test(name)) return;   // 表頭列
+        var q = 0;
+        for (var i = 1; i < parts.length; i++){
+          var mm = String(parts[i]).match(/^(\d+(?:\.\d+)?)(?:套)?$/);
+          if (mm){ q = parseFloat(mm[1]); break; }
+        }
+        out.push({ n:name, q:q||0, v:'', hw:false, note:'' });
+      });
+      return out;
+    }
+    function crfImportApply(replace){
+      var ta = document.getElementById('crfImportTa'); if (ta == null) return;
+      var rows = crfImportParse(ta.value);
+      if (!rows.length){ alert('看不懂貼上的內容 — 每行「姓名 套數」（用 Tab、逗號或空格分隔）'); return; }
+      var ti = crfImportTi;
+      crfImportTi = null; crfEditOpen = true;
+      crfMutate(function(r){
+        if (!r.teams[ti]) return;
+        r.teams[ti].rows = replace ? rows : r.teams[ti].rows.concat(rows);
+      });
+    }
+
+    // ── EIP 課程資料比對（雙向包含：課名含關鍵字 or 關鍵字含課名）＋ 承辦人個人明細 ──
+    //   套數 = 依「學員總繳」門檻計算（≥th1=1 套、≥th0=0.5 套、其餘 0）；
+    //   舊版同步資料沒有學員明細（stu）時退回用筆數。
+    function crfMatch(r){
+      var srcRec = _crMonthSource(crfYm);
+      var res = { courses:[], byOrg:{}, ownersByOrg:{}, total:{ count:0, value:0 }, hasOwners:false, hasStu:false, src: srcRec ? srcRec.src : null };
+      if (!srcRec || !r || !r.course) return res;
+      var kws = String(r.course).split(/[、,，\/]+/).map(function(s){ return s.replace(/\s/g,'').toLowerCase(); }).filter(Boolean);
+      if (!kws.length) return res;
+      var th1 = _crfTh1(r), th0 = _crfTh0(r);
+      // ★ 先「跨課程」彙整同學院/同承辦人的學員明細，最後才算套數 —
+      //   退費負項常掛在不同課名（如 xxx(補)）底下，分課各算會漏沖抵、高估套數。
+      var courseAgg = {}, orgAgg = {}, ownAgg = {};
+      function bucket(map, key){ if (!map[key]) map[key] = { value:0, cnt:0, stu:[] }; return map[key]; }
+      function feed(b, entry){
+        b.value += entry.value || 0;
+        if (entry.stu && entry.stu.length){ b.stu = b.stu.concat(entry.stu); res.hasStu = true; }
+        else b.cnt += entry.count || 0;
+      }
+      function setsOfBucket(b){ return (b.stu.length ? _crfSets(b.stu, th1, th0) : 0) + b.cnt; }
+      (r.teams || []).forEach(function(t){
+        (srcRec.byOrg[t.org] || []).forEach(function(c){
+          var nm = String(c.name||'').replace(/\s/g,'').toLowerCase();
+          if (!kws.some(function(k){ return nm.indexOf(k) >= 0 || k.indexOf(nm) >= 0; })) return;
+          feed(bucket(courseAgg, c.name), c);
+          feed(bucket(orgAgg, t.org), c);
+          if (c.owners){
+            res.hasOwners = true;
+            if (!ownAgg[t.org]) ownAgg[t.org] = {};
+            Object.keys(c.owners).forEach(function(o){ feed(bucket(ownAgg[t.org], o), c.owners[o]); });
+          }
+        });
+      });
+      Object.keys(courseAgg).forEach(function(cn){
+        res.courses.push({ name: cn, count: setsOfBucket(courseAgg[cn]), value: courseAgg[cn].value });
+      });
+      res.courses.sort(function(a,b){ return b.value - a.value; });
+      Object.keys(orgAgg).forEach(function(org){
+        res.byOrg[org] = { count: setsOfBucket(orgAgg[org]), value: orgAgg[org].value };
+        res.total.count += res.byOrg[org].count;
+        res.total.value += orgAgg[org].value;
+      });
+      Object.keys(ownAgg).forEach(function(org2){
+        res.ownersByOrg[org2] = {};
+        Object.keys(ownAgg[org2]).forEach(function(o2){
+          res.ownersByOrg[org2][o2] = { count: setsOfBucket(ownAgg[org2][o2]), value: ownAgg[org2][o2].value };
+        });
+      });
+      return res;
+    }
+    // 名單姓名 ↔ EIP 承辦人比對（「A組長-楊雅筑」取「-」後本名）
+    function _crfOwnerFor(rowName, ownersMap){
+      if (!ownersMap) return null;
+      var rn = String(rowName||'').replace(/\s/g,'');
+      if (!rn) return null;
+      var core = rn.indexOf('-') >= 0 ? rn.split('-').pop() : rn;
+      var keys = Object.keys(ownersMap);
+      for (var i = 0; i < keys.length; i++){
+        var on = keys[i].replace(/\s/g,'');
+        if (on === core || on.indexOf(core) >= 0 || core.indexOf(on) >= 0) return ownersMap[keys[i]];
+      }
+      return null;
+    }
+
+    // ── 視圖切換 ──
+    function crfShow(v){
+      crfViewFocus = !!v;
+      try{ localStorage.setItem('crf_view_v1', v ? '1' : '0'); }catch(e){}
+      crfApplyView();
+    }
+    function crfApplyView(){
+      var rv = document.getElementById('crRankView'), fv = document.getElementById('crFocusView');
+      if (rv) rv.style.display = crfViewFocus ? 'none' : '';
+      if (fv) fv.style.display = crfViewFocus ? '' : 'none';
+      if (crfViewFocus) crfRender();
+    }
+
+    // ── 達成率圓環 ──
+    function _crfRing(pct){
+      var r = 40, c = 2 * Math.PI * r;
+      var off = c * (1 - Math.min(pct, 100) / 100);
+      var color = pct >= 100 ? '#22c55e' : (pct >= 60 ? '#eab308' : '#f59e0b');
+      return '<svg class="crf-ring" viewBox="0 0 100 100">'
+        + '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="rgba(127,127,127,.18)" stroke-width="10"/>'
+        + '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 50 50)"/>'
+        + '<text x="50" y="57" text-anchor="middle" font-size="21" font-weight="900" fill="' + color + '">' + pct + '%</text></svg>';
+    }
+
+    function crfRender(){
+      var fv = document.getElementById('crFocusView');
+      if (!fv || !crfViewFocus) return;
+      var month = crfGetMonth();
+      var ymLabel = parseInt(crfYm.slice(0,4),10) + '年' + parseInt(crfYm.slice(5),10) + '月';
+      var isAll = crfRegion === 'all';
+
+      var html = '<div class="crf-topbar">'
+        + '<button class="crf-back" onclick="crfShow(false)">◀ 返回課程排名</button>'
+        + '<span class="crf-title">🎯 主打課程追蹤 <span style="font-size:.6rem;font-weight:600;opacity:.45;vertical-align:middle;">v18</span></span>'
+        + '<span class="crf-monthnav"><button onclick="crfShiftMonth(-1)">◀</button><span>' + ymLabel + '</span><button onclick="crfShiftMonth(1)">▶</button></span>'
+        + '</div>';
+      html += '<div class="crf-regions">' + CRF_REGION_ORDER.map(function(k){
+        return '<button class="crf-region-chip' + (k === crfRegion ? ' active' : '') + '" onclick="crfSetRegion(\'' + k + '\')">' + CRF_REGION_LABEL[k] + '</button>';
+      }).join('')
+        + '<button class="crf-region-chip' + (isAll ? ' active' : '') + '" onclick="crfSetRegion(\'all\')" title="不鎖區域，全臺所有人一起排名">🏆 全臺合計</button>'
+        + '</div>';
+
+      if (!month){
+        html += '<div class="crf-panel" style="text-align:center;padding:30px;">'
+          + '<div style="font-size:1rem;margin-bottom:12px;">' + ymLabel + ' 尚未建立追蹤資料</div>'
+          + '<button class="crf-editbtn" onclick="crfCopyPrev()" style="margin-right:8px;">📋 複製上月名單</button>'
+          + '<button class="crf-editbtn" onclick="crfCreateBlank()">🆕 建立空名單</button></div>';
+        fv.innerHTML = html;
+        return;
+      }
+
+      // ── 建立視圖資料（單區 = 該區各部；全臺 = 各區加總、跨區個人排名） ──
+      var vm = { goal:0, goalManual:false, sold:0, soldVal:0, people:0, vDone:0, hwDone:0,
+                 battles:[], plist:[], badgeMap:{}, src:null, hasStu:false };
+      function collectRegion(k){
+        var rk = month.regions[k] || _crfBlankRegion(k);
+        var mk = crfMatch(rk);
+        var mg = 0, regionAdj = 0;
+        rk.teams.forEach(function(t){ t.rows.forEach(function(row){ mg += row.q||0; regionAdj += (row.adj||0); vm.people++; if (row.v) vm.vDone++; if (row.hw) vm.hwDone++; }); });
+        var soldK = mk.total.count + regionAdj;   // 含手動修正
+        var valK  = mk.total.value;
+        vm.goal += (rk.goal || mg);
+        if (rk.goal) vm.goalManual = true;
+        vm.sold += soldK; vm.soldVal += valK;
+        if (mk.src && !vm.src) vm.src = mk.src;
+        if (mk.hasStu) vm.hasStu = true;
+        mk.courses.forEach(function(c){
+          if (!vm.badgeMap[c.name]) vm.badgeMap[c.name] = { name:c.name, count:0, value:0 };
+          vm.badgeMap[c.name].count += c.count; vm.badgeMap[c.name].value += c.value;
+        });
+        var regionName = (CR_REGION_BY_KEY[k] || {}).name || k;
+        if (isAll){
+          if (rk.teams.some(function(t){ return t.rows.length; }) || soldK){
+            vm.battles.push({ name: regionName, goal: rk.goal || mg, sold: soldK, val: valK });
+          }
+        }
+        rk.teams.forEach(function(t){
+          var teamAdj = t.rows.reduce(function(s,row){ return s + (row.adj||0); }, 0);
+          if (!isAll){
+            var tGoal = t.rows.reduce(function(s,row){ return s + (row.q||0); }, 0);
+            var eip = mk.byOrg[t.org] || { count:0, value:0 };
+            if (t.rows.length || mk.byOrg[t.org]) vm.battles.push({ name: t.name, goal: tGoal, sold: eip.count + teamAdj, val: eip.value });
+          }
+          t.rows.forEach(function(row){
+            var own = _crfOwnerFor(row.n, mk.ownersByOrg[t.org]);
+            vm.plist.push({ team: (isAll ? regionName + '·' : '') + t.name, n: row.n, q: row.q||0,
+                            sold: (own ? own.count : 0) + (row.adj||0), val: own ? own.value : 0, adj: row.adj||0 });
+          });
+        });
+        return rk;
+      }
+      var r = null;
+      if (isAll){ CRF_REGION_ORDER.forEach(collectRegion); }
+      else { r = collectRegion(crfRegion); }
+      var badges = Object.keys(vm.badgeMap).map(function(k2){ return vm.badgeMap[k2]; }).sort(function(a,b){ return b.value - a.value; });
+
+      // ── 設定列（全臺 = 唯讀總覽） ──
+      if (isAll){
+        html += '<div class="crf-topbar" style="margin-bottom:14px;"><span class="crf-note" style="margin-top:0;">🏆 全臺總覽 — 各區的課程關鍵字、目標與門檻請切到該區設定；下面排名為全臺所有人一起比</span></div>';
+      } else {
+        var regionName2 = (CR_REGION_BY_KEY[crfRegion] || {}).name || '';
+        html += '<div class="crf-topbar" style="margin-bottom:14px;">'
+          + '<span style="font-size:.82rem;opacity:.7;">' + regionName2 + ' 追蹤課程</span>'
+          + '<input class="crf-input" style="min-width:220px;" value="' + _crfEsc(r.course) + '" placeholder="課程關鍵字（可用、分隔多個）" onchange="crfSetCourse(this.value)">'
+          + '<span style="font-size:.82rem;opacity:.7;">目標套數</span>'
+          + '<input class="crf-input" type="number" style="width:80px;" value="' + (r.goal || '') + '" placeholder="自動" onchange="crfSetGoal(this.value)" title="留空 = 用名單每人目標加總">'
+          + '<span style="font-size:.82rem;opacity:.7;" title="學員總繳達此金額算 1 套">1套≥</span>'
+          + '<input class="crf-input" type="number" style="width:78px;" value="' + _crfTh1(r) + '" onchange="crfSetTh1(this.value)" title="學員總繳 ≥ 此金額算 1 套">'
+          + '<span style="font-size:.82rem;opacity:.7;" title="學員總繳達此金額但未達 1 套門檻算 0.5 套；低於此金額不計">半套≥</span>'
+          + '<input class="crf-input" type="number" style="width:66px;" value="' + _crfTh0(r) + '" onchange="crfSetTh0(this.value)" title="學員總繳 ≥ 此金額算 0.5 套；低於不計套數">'
+          + '</div>';
+      }
+
+      var pct = vm.goal > 0 ? Math.round(vm.sold / vm.goal * 100) : 0;
+      var vRate = vm.people ? Math.round(vm.vDone / vm.people * 100) : 0;
+      var hwRate = vm.people ? Math.round(vm.hwDone / vm.people * 100) : 0;
+
+      // ── KPI 儀表板 ──
+      html += '<div class="crf-kpis">'
+        + '<div class="crf-kpi">' + _crfRing(pct) + '<div class="l">銷售達成率</div></div>'
+        + '<div class="crf-kpi"><div class="v gold">' + vm.goal + '</div><div class="l">目標套數' + (isAll ? '（全臺合計）' : (r.goal ? '（手動）' : '（名單加總）')) + '</div></div>'
+        + '<div class="crf-kpi"><div class="v green">' + _crfFmtSets(vm.sold) + '</div><div class="l">EIP 實售套數</div></div>'
+        + '<div class="crf-kpi"><div class="v cyan" style="font-size:1.35rem;">' + fmtComma(vm.soldVal) + '</div><div class="l">實售業績</div></div>'
+        + '<div class="crf-kpi"><div class="v purple">' + vRate + '%</div><div class="l">🎬 驗收影片 ' + vm.vDone + '/' + vm.people + '</div></div>'
+        + '<div class="crf-kpi"><div class="v pink">' + hwRate + '%</div><div class="l">📝 作業繳交 ' + vm.hwDone + '/' + vm.people + '</div></div>'
+        + '</div>';
+
+      // ── 比對狀態 ──
+      if (!vm.src){
+        html += '<div class="crf-note">⚠️ ' + ymLabel + ' 尚無 EIP 課程資料 — 請按右上「📋 通路」同步後自動帶入實售套數</div>';
+      } else if (badges.length){
+        html += '<div class="crf-note">符合課程：' + badges.map(function(c){ return '<span class="crf-badge">' + _crfEsc(c.name) + ' — ' + _crfFmtSets(c.count) + ' 套 / ' + fmtComma(c.value) + '</span>'; }).join('')
+          + (vm.src === 'mp' ? ' <span style="opacity:.6;">（每月績效官方資料無套數/個人欄位，以 EIP 同步為準）</span>' : '')
+          + (vm.hasStu
+              ? (isAll ? ' <span style="opacity:.6;">（套數依各區門檻規則計算）</span>'
+                       : ' <span style="opacity:.6;">（套數規則：學員總繳 ≥' + fmtComma(_crfTh1(r)) + ' 算 1 套、≥' + fmtComma(_crfTh0(r)) + ' 算 0.5 套、低於不計）</span>')
+              : ' <span style="opacity:.6;">⚠️ 目前以筆數估算 — 套數門檻規則需擴充 v5.11 的同步資料（chrome://extensions 重新整理擴充後重按 📋 通路）</span>')
+          + '</div>';
+      } else if (isAll){
+        html += '<div class="crf-note">⚠️ 各區都沒比對到課程 — 請到各區確認課程關鍵字</div>';
+      } else if (r.course){
+        html += '<div class="crf-note">⚠️ EIP 資料中找不到含「' + _crfEsc(r.course) + '」的課程 — 可調整關鍵字（例如只留「商用視覺」）</div>';
+      }
+
+      // ── 各部 / 各區 達成率比拚 ──
+      if (vm.battles.length){
+        html += '<div class="crf-panel" style="margin-top:14px;"><h3>🏁 ' + (isAll ? '各區' : '各部') + '達成率比拚</h3>';
+        vm.battles.sort(function(a,b){
+          var pa = a.goal > 0 ? a.sold / a.goal : 0, pb = b.goal > 0 ? b.sold / b.goal : 0;
+          return pb - pa || b.sold - a.sold;
+        });
+        vm.battles.forEach(function(t){
+          var tPct = t.goal > 0 ? Math.round(t.sold / t.goal * 100) : 0;
+          var tDone = t.goal > 0 && t.sold >= t.goal;
+          var tLabel = _crfFmtSets(t.sold) + ' / ' + t.goal + ' 套（' + tPct + '%' + (tDone ? ' 🎉' : (t.goal > 0 ? '，差 ' + _crfFmtSets(t.goal - t.sold) : '')) + '）';
+          html += '<div class="crf-vsrow">'
+            + '<span class="nm">' + _crfEsc(t.name) + '</span>'
+            + '<span class="track"><span class="fill' + (tDone ? ' ok' : '') + '" style="width:' + Math.min(tPct,100) + '%;"></span></span>'
+            + '<span class="num">' + tLabel + '<br><span class="val">💰 ' + fmtComma(t.val || 0) + '</span></span>'
+            + '</div>';
+        });
+        html += '</div>';
+      }
+
+      // ── 個人實售排行（全臺 = 跨區一起排） ──
+      if (vm.people){
+        html += '<div class="crf-panel"><h3>👤 個人實售 vs 目標' + (isAll ? '（全臺排名）' : '') + '</h3>';
+        if (vm.src && !vm.hasStu){
+          html += '<div class="crf-note">個人明細需要擴充 v5.11 之後的同步資料 — 請到 chrome://extensions 重新整理擴充，再按一次「📋 通路」同步</div>';
+        }
+        vm.plist.sort(function(a,b){ return b.sold - a.sold || b.q - a.q; });
+        var medals = ['🥇','🥈','🥉'];
+        vm.plist.forEach(function(p, i){
+          var pDone = p.q > 0 && p.sold >= p.q;
+          var bar;
+          if (p.q > 0 && p.q <= 30){
+            var full = Math.floor(p.sold + 1e-9);
+            var hasHalf = (p.sold - full) >= 0.25;
+            var cells = '';
+            for (var si = 0; si < p.q; si++){
+              var cls = '';
+              if (si < full) cls = pDone ? ' on done' : ' on';
+              else if (si === full && hasHalf) cls = pDone ? ' on half done' : ' on half';
+              cells += '<span class="seg' + cls + '"></span>';
+            }
+            bar = '<span class="segs">' + cells + '</span>';
+          } else {
+            var ppct = p.q > 0 ? Math.round(p.sold / p.q * 100) : 0;
+            bar = '<span class="track"><span class="fill" style="width:' + Math.min(ppct,100) + '%;"></span></span>';
+          }
+          var label = pDone
+            ? '🎉 ' + _crfFmtSets(p.sold) + ' / ' + p.q + ' 套 達標'
+            : _crfFmtSets(p.sold) + ' / ' + p.q + ' 套' + (p.q > 0 ? '（差 ' + _crfFmtSets(p.q - p.sold) + '）' : '');
+          if (p.adj) label += ' <span title="含手動修正 ' + (p.adj > 0 ? '+' : '') + _crfFmtSets(p.adj) + ' 套" style="opacity:.6;">✎</span>';
+          if (p.val) label += ' · ' + fmtComma(p.val);
+          var tier = i === 0 ? ' p1' : (i === 1 ? ' p2' : (i === 2 ? ' p3' : (i < 5 ? ' p45' : '')));
+          html += '<div class="crf-personrow' + tier + '">'
+            + '<span class="rank">' + (p.sold > 0 && i < 3 ? medals[i] : (i+1)) + '</span>'
+            + '<span class="nm" title="' + _crfEsc(p.team + ' · ' + p.n) + '">' + _crfEsc(_crfDispName(p.n)) + (isAll ? ' <span style="font-size:.68rem;font-weight:600;opacity:.55;">' + _crfEsc(p.team.split('·')[0]) + '</span>' : '') + '</span>'
+            + bar
+            + '<span class="num">' + label + '</span>'
+            + '</div>';
+        });
+        html += '</div>';
+      }
+
+      // ── ✏️ 編輯名單（全臺總覽不提供編輯，請切到各區） ──
+      if (isAll){
+        html += '<div class="crf-note" style="margin-bottom:30px;">✏️ 名單編輯請切換到各區進行</div>';
+      } else {
+        html += '<div style="margin:4px 0 30px;">'
+          + '<button class="crf-editbtn" onclick="crfToggleEdit()">' + (crfEditOpen ? '▲ 收合名單編輯' : '✏️ 編輯名單（人員 / 目標套數 / 驗收）') + '</button>';
+        if (crfEditOpen){
+          html += '<div class="crf-teams">';
+          r.teams.forEach(function(t, ti){
+            var tGoal = t.rows.reduce(function(s,row){ return s + (row.q||0); }, 0);
+            html += '<div class="crf-team"><h4><span>' + _crfEsc(t.name) + ' <span style="opacity:.5;font-size:.72rem;">(' + _crfEsc(t.org) + ')</span></span><span style="font-size:.76rem;">🎯 ' + tGoal + ' 套</span></h4>'
+              + '<table><thead><tr><th>姓名</th><th style="width:50px;">套數</th><th style="width:56px;" title="EIP 判定有誤時手動加減實售套數（可 0.5、-0.5）">修正±</th><th>驗收影片</th><th style="width:34px;">作業</th><th>備註</th><th style="width:20px;"></th></tr></thead><tbody>';
+            t.rows.forEach(function(row, ri){
+              var isUrl = /^https?:\/\//.test(row.v);
+              html += '<tr>'
+                + '<td><input type="text" value="' + _crfEsc(row.n) + '" onchange="crfUpd(' + ti + ',' + ri + ',\'n\',this.value)"></td>'
+                + '<td><input type="number" value="' + (row.q||0) + '" onchange="crfUpd(' + ti + ',' + ri + ',\'q\',this.value)"></td>'
+                + '<td><input type="number" step="0.5" value="' + (row.adj || '') + '" placeholder="0" title="手動加減實售套數（例：-0.5）" onchange="crfUpd(' + ti + ',' + ri + ',\'adj\',this.value)"></td>'
+                + '<td style="white-space:nowrap;">' + (row.v ? (isUrl ? '✅<a href="' + _crfEsc(row.v) + '" target="_blank" style="font-size:.72rem;">🔗</a>' : '✅') : '⬜')
+                +   '<input type="text" style="width:calc(100% - 34px);display:inline-block;" value="' + _crfEsc(row.v) + '" placeholder="連結/已繳" onchange="crfUpd(' + ti + ',' + ri + ',\'v\',this.value)"></td>'
+                + '<td style="text-align:center;"><input type="checkbox"' + (row.hw ? ' checked' : '') + ' onchange="crfUpd(' + ti + ',' + ri + ',\'hw\',this.checked)"></td>'
+                + '<td><input type="text" value="' + _crfEsc(row.note) + '" onchange="crfUpd(' + ti + ',' + ri + ',\'note\',this.value)"></td>'
+                + '<td><button class="crf-del" onclick="crfDelRow(' + ti + ',' + ri + ')" title="刪除">✕</button></td>'
+                + '</tr>';
+            });
+            html += '</tbody></table>'
+              + '<button class="crf-add" onclick="crfAddRow(' + ti + ')">＋ 新增成員</button>'
+              + '<button class="crf-add" onclick="crfImportOpen(' + ti + ')">📋 從 Excel 貼上</button>'
+              + '</div>';
+          });
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+
+      // ── Excel 貼上 modal ──
+      if (!isAll && crfImportTi !== null && r.teams[crfImportTi]){
+        html += '<div class="crf-modal-mask" onclick="if(event.target===this)crfImportClose()"><div class="crf-modal">'
+          + '<h3>📋 貼上名單 → ' + _crfEsc(r.teams[crfImportTi].name) + '</h3>'
+          + '<div style="font-size:.78rem;opacity:.7;margin-bottom:8px;">在 Excel/Google 試算表選取「姓名、套數」兩欄複製，直接貼在下面（每行一人，表頭會自動略過）</div>'
+          + '<textarea id="crfImportTa" placeholder="劉樺玲\t5\n吳昀璇\t5"></textarea>'
+          + '<div class="btns">'
+          + '<button onclick="crfImportClose()">取消</button>'
+          + '<button onclick="crfImportApply(false)">➕ 附加到名單</button>'
+          + '<button class="primary" onclick="crfImportApply(true)">📥 匯入（取代整份名單）</button>'
+          + '</div></div></div>';
+      }
+
+      fv.innerHTML = html;
     }
 
     // Initialize on load
