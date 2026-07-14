@@ -6445,6 +6445,36 @@
 
     // 目前選擇的期間 {year:2026, period:'M6' 或 'Q2'}；null = 跟著最新同步
     var ckSel = (function(){ try { return JSON.parse(localStorage.getItem('ck_sel_v1') || 'null'); } catch(e){ return null; } })();
+    // ★ 找出「最後一次有資料」的月份（live 同步 or 封存），跨月 fallback 用
+    function _ckLatestYmWithData(){
+      var keys = Object.keys(ckGetArchive());
+      var liveYm = _ckLiveYm();
+      if (liveYm && keys.indexOf(liveYm) < 0) keys.push(liveYm);
+      keys.sort();
+      return keys.length ? keys[keys.length - 1] : null;
+    }
+    function _ckSelHasData(sel){
+      if (!sel || !sel.period) return false;
+      return _ckPeriodMonths(sel.period).some(function(m){
+        var rec = _ckRecFor(sel.year + '-' + _ckPad2(m));
+        return !!(rec && (rec.checkin || rec.perfp));
+      });
+    }
+    // ★ 開頁檢查：上次停留的期間如果已經沒有資料（最常見 = 跨月後停在新的空月份），
+    //   自動退回「最後一次同步」的月份 → 一打開永遠看得到最後的記錄
+    (function(){
+      try {
+        ckArchiveCurrent(); // 先把 live 同步資料封存進該月，確保最後記錄留存
+        if (ckSel && !_ckSelHasData(ckSel)){
+          var last = _ckLatestYmWithData();
+          if (last){
+            ckSel = { year: parseInt(last.slice(0, 4), 10), period: 'M' + parseInt(last.slice(5), 10) };
+            localStorage.setItem('ck_sel_v1', JSON.stringify(ckSel));
+            console.log('[ck] 上次選的期間沒有資料，自動退回最後一次同步的月份：' + last);
+          }
+        }
+      } catch(e){ console.warn('[ck] 開頁 fallback 檢查失敗', e); }
+    })();
     function ckSetPeriod(year, period){
       ckSel = { year: parseInt(year, 10), period: period };
       try { localStorage.setItem('ck_sel_v1', JSON.stringify(ckSel)); } catch(e){}

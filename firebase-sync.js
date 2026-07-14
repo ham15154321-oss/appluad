@@ -1531,6 +1531,43 @@ async function pullFromCloud(opts){
           }
         }
 
+        // ★★★ ck_archive_v1（報到排名月封存）同樣 MERGE 保護：
+        //     雲端舊版絕不能整包覆蓋掉本地最新封存 → 逐月比 savedAt(ISO)，新者勝、
+        //     雲端只能補本地沒有的月份，永遠不會刪掉本地已有的月份。
+        if (/(?:^|_)ck_archive_v1$/.test(k)){
+          try {
+            var ckLocal = {};
+            try { if (existingVal) ckLocal = JSON.parse(existingVal) || {}; } catch(e1){}
+            var ckCloud = {};
+            try { ckCloud = (typeof v === 'string') ? (JSON.parse(v) || {}) : (v || {}); } catch(e2){}
+            function _ckArchTs(e){
+              var t = (e && e.savedAt) ? Date.parse(e.savedAt) : 0;
+              return isNaN(t) ? 0 : t;
+            }
+            var ckMerged = {}, ckChanged = 0, ckFromCloud = 0;
+            Object.keys(ckLocal).forEach(function(mk){ ckMerged[mk] = ckLocal[mk]; });
+            Object.keys(ckCloud).forEach(function(mk){
+              if (!ckMerged[mk]){ ckMerged[mk] = ckCloud[mk]; ckFromCloud++; ckChanged++; return; }
+              if (_ckArchTs(ckCloud[mk]) > _ckArchTs(ckMerged[mk])){ ckMerged[mk] = ckCloud[mk]; ckChanged++; }
+            });
+            if (ckChanged > 0){
+              try {
+                _origSet(k, JSON.stringify(ckMerged));
+                _localTsMap[k] = Date.now();
+                console.log('[FirebaseSync] ck_archive_v1 合併(時間新者勝)：更新 '+ckChanged+' 個月（雲端補 '+ckFromCloud+'），合計 '+Object.keys(ckMerged).length+' 個月');
+                totalLS++;
+              } catch(qe3){
+                _quotaSkipCount++;
+                _quotaSkipKeys.push(k + '(merge)');
+              }
+            }
+            continue;
+          } catch(eCkMerge){
+            console.warn('[FirebaseSync] ck_archive_v1 merge 失敗，保留本地', eCkMerge);
+            continue;
+          }
+        }
+
         if (isLocalOnlyKey(k)) continue;
 
         // ★★★ 評估資料粗暴保護：雲端只能「補內容」,不能「減內容」
