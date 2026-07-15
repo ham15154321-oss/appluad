@@ -2850,7 +2850,10 @@ function getFullContext(){
   // 案例庫：問到「案例／怎麼處理／類似／以前處理／客訴／參考」時才帶（情境類，非核心）
   var cases=getCaseDbCtx();if(cases && _rel(/案例|怎麼處理|如何處理|類似|以前|之前處理|處理過|客訴|範例|參考|遇到/))parts.push(cases);
   if(curFeature==='mentor'){ var wf=getWaterfallCtx(); if(wf)parts.push(wf); }
-  var mp=getMonthlyPerfCtx();if(mp)parts.push(mp);
+  // ★ 月績效 8 大報表是最肥的區塊，只有「問到數字/報表/業績/趨勢」時才整包帶；
+  //   帶人/心法/管理類問題自動跳過（本人逐月摘要 uSum 仍保留，AI 不會看不到基本數字）。
+  var mp=getMonthlyPerfCtx();
+  if(mp && _rel(/月績效|報表|數字|數據|統計|業績|通路|收支|繳費|課程銷售|面談|註冊|報名|退費|達成|趨勢|排名|報到|這個月|上個月|上半年|下半年|[0-9]+月|幾筆|多少|做多少|成長|掉了|衝班|分析|加購|客單|人頭|分帳/))parts.push(mp);
   var pmem=getPmemoryCtx();if(pmem)parts.push(pmem);
   var tl=getTimelineCtx();if(tl)parts.push(tl);
   // 其他主角：問到比較／別人／團隊／全部／誰最…時才帶（核心「業績排名」已含）
