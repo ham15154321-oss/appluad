@@ -1851,19 +1851,18 @@ function _updateModelBtn(){ var b=document.getElementById('modelBtn'); if(b){ va
 function cycleChatModel(){ var i=(_chatModelIdx()+1)%AI_CHAT_MODELS.length; try{ localStorage.setItem('ai_chat_model_idx', String(i)); }catch(e){} _updateModelBtn(); }
 try{ document.addEventListener('DOMContentLoaded', _updateModelBtn); }catch(e){}
 
-// ★ 組請求 body（降本）：把「穩定大背景」放進 system 並加 cache_control → 同一次對話追問走 1 折快取。
-//   ctx = getFullContext() 的大背景；sysText = 該顧問的人設 system prompt。
-function _buildChatBody(sysText, ctx, apiMsgs, maxTokens){
-  var system;
-  if (ctx && ctx.length > 20){
-    // 人設 + 大背景合成可快取前綴；cache_control 打在大背景這塊（≥1024 token 才會真的快取，否則自動忽略）
-    system = [
-      { type:'text', text: sysText || '' },
-      { type:'text', text: ctx, cache_control:{ type:'ephemeral' } }
-    ];
-  } else {
-    system = sysText || '';
+// ★ 組請求 body（降本）：
+//   [人設 + 穩定背景 stable]（加 cache_control → 可快取前綴，同一次對話追問走 1 折）
+//   [依提問背景 dynamic]（不快取，只帶跟這題相關的）→ 放在快取斷點之後
+function _buildChatBody(sysText, stable, dynamic, apiMsgs, maxTokens){
+  var blocks = [{ type:'text', text: sysText || '' }];
+  if (stable && stable.length > 20){
+    blocks.push({ type:'text', text: stable, cache_control:{ type:'ephemeral' } });  // ★ 快取斷點
   }
+  if (dynamic && dynamic.length > 5){
+    blocks.push({ type:'text', text: dynamic });   // 依提問，不快取
+  }
+  var system = blocks.length > 1 ? blocks : (sysText || '');
   return JSON.stringify({ model:_chatModel(), max_tokens:maxTokens||4096, system:system, messages:apiMsgs });
 }
 
@@ -2830,50 +2829,43 @@ function getPdrCtx(){
   }catch(e){ return ''; }
 }
 function getFullContext(){
-  var parts=[];
-  // ★ 降本：依提問只帶「相關」的情境類區塊（案例庫/其他主角/結案/挑戰/團隊庫）；
-  //   核心績效資料（業績/月績效/通路/PDR/私聊/知識庫）一律保留，避免 AI 說「看不到資料」。
+  // ★ 降本核心：把 context 拆成兩塊 —
+  //   S＝穩定區（不隨提問變）→ 放進可快取前綴，同一次對話追問走 1 折快取。
+  //   D＝依提問區（隨提問變：月績效/案例/其他主角/團隊庫/知識庫）→ 不快取，只帶跟這題相關的。
+  //   核心（當前主角 header + 本人逐月摘要 + 鐵律 + 私聊）一律保留，避免 AI 說「看不到資料」。
+  var S=[], D=[];
   var _q=(window._kbQuery||'');
   var _rel=function(re){ return !_q || re.test(_q); };  // 沒有提問文字時保守全帶
-  // 0️⃣ 永遠把「當前主角 header」放最前面（不依賴其他模組是否有資料）
-  var userHeader = getCurrentUserHeader();
-  if (userHeader) parts.push(userHeader);
-  // 0.5️⃣ 本人逐月績效摘要（乾淨權威表,放最前防止 AI 讀漏/腦補）
-  var uSum = getUserPerfSummary(); if (uSum) parts.push(uSum);
-  var s360=get360FullCtx();if(s360)parts.push(s360);
-  var perf=getPerfCtx();if(perf&&perf.indexOf('無數據')<0)parts.push('📊 業績排名\n'+perf);
-  var ch=getChannelCtx();if(ch)parts.push(ch);
-  var fire=getFireCtx();if(fire)parts.push(fire);
-  var pdrc=getPdrCtx();if(pdrc)parts.push(pdrc);
-  var achieve=getAchieveCtx();if(achieve)parts.push(achieve);
-  var rules=getRulesCtx();if(rules)parts.push(rules);
-  // 案例庫：問到「案例／怎麼處理／類似／以前處理／客訴／參考」時才帶（情境類，非核心）
-  var cases=getCaseDbCtx();if(cases && _rel(/案例|怎麼處理|如何處理|類似|以前|之前處理|處理過|客訴|範例|參考|遇到/))parts.push(cases);
-  if(curFeature==='mentor'){ var wf=getWaterfallCtx(); if(wf)parts.push(wf); }
-  // ★ 月績效 8 大報表是最肥的區塊，只有「問到數字/報表/業績/趨勢」時才整包帶；
-  //   帶人/心法/管理類問題自動跳過（本人逐月摘要 uSum 仍保留，AI 不會看不到基本數字）。
+  // ── 穩定區 S（可快取）──
+  var userHeader = getCurrentUserHeader(); if (userHeader) S.push(userHeader);
+  var uSum = getUserPerfSummary(); if (uSum) S.push(uSum);            // 本人逐月摘要（小、權威）
+  var s360=get360FullCtx(); if(s360) S.push(s360);
+  var perf=getPerfCtx(); if(perf&&perf.indexOf('無數據')<0) S.push('📊 業績排名\n'+perf);
+  var ch=getChannelCtx(); if(ch) S.push(ch);
+  var fire=getFireCtx(); if(fire) S.push(fire);
+  var pdrc=getPdrCtx(); if(pdrc) S.push(pdrc);
+  var achieve=getAchieveCtx(); if(achieve) S.push(achieve);
+  var rules=getRulesCtx(); if(rules) S.push(rules);
+  var pmem=getPmemoryCtx(); if(pmem) S.push(pmem);
+  var tl=getTimelineCtx(); if(tl) S.push(tl);
+  var pinsCtx=getPinsCtx(); if(pinsCtx) S.push(pinsCtx);
+  if(curFeature==='mentor'){ var wf=getWaterfallCtx(); if(wf) S.push(wf); }
+  // ── 依提問區 D（不快取，只帶相關）──
+  // 案例庫
+  var cases=getCaseDbCtx(); if(cases && _rel(/案例|怎麼處理|如何處理|類似|以前|之前處理|處理過|客訴|範例|參考|遇到/)) D.push(cases);
+  // 月績效 8 大報表（最肥）：問到數字/報表/業績/趨勢才整包帶
   var mp=getMonthlyPerfCtx();
-  if(mp && _rel(/月績效|報表|數字|數據|統計|業績|通路|收支|繳費|課程銷售|面談|註冊|報名|退費|達成|趨勢|排名|報到|這個月|上個月|上半年|下半年|[0-9]+月|幾筆|多少|做多少|成長|掉了|衝班|分析|加購|客單|人頭|分帳/))parts.push(mp);
-  var pmem=getPmemoryCtx();if(pmem)parts.push(pmem);
-  var tl=getTimelineCtx();if(tl)parts.push(tl);
-  // 其他主角：問到比較／別人／團隊／全部／誰最…時才帶（核心「業績排名」已含）
-  var others=getOtherCharsCtx();if(others && _rel(/其他人|別人|大家|團隊|比較|對比|全部|所有人|誰最|誰的|排名|前幾名|墊底/))parts.push(others);
-  // 團隊知識庫：只在 team 顧問或問到相關時帶，且截尾避免無限膨脹
-  var kb=localStorage.getItem(SK.teamkb);if(kb && (curFeature==='team' || _rel(/團隊知識|大家問過|常見問題|共用/)))parts.push('📣 團隊知識庫\n'+String(kb).slice(-4000));
-  // ★ 新增三類 context（讓 AI 更聰明）：
-  //   - 釘選話題：該主角自己的重要對話歷史
-  //   - 結案紀錄：該主角已處理過的話題
-  //   - 我要挑戰AI的論點：使用者對 AI 過去回答的質疑（讓 AI 自我修正）
-  var pinsCtx=getPinsCtx();if(pinsCtx)parts.push(pinsCtx);
-  // 結案紀錄／挑戰AI論點：情境類，問到相關時才帶
-  var closedCtx=getClosedCtx();if(closedCtx && _rel(/結案|歸檔|處理過的|之前的話題|以前談過/))parts.push(closedCtx);
-  var errCtx=getAiErrorCtx();if(errCtx && _rel(/你之前|你上次|你錯|修正|為什麼你說|質疑|挑戰|不同意/))parts.push(errCtx);
-  var kbCtx=getKnowledgeBaseCtx();if(kbCtx)parts.push(kbCtx);   // 知識庫已自帶關鍵字漸進式載入
-  if(!parts.length)return '';
-  // ★ 結尾再次強調當前主角，雙重保險（AI 容易看頭看尾）
+  if(mp && _rel(/月績效|報表|數字|數據|統計|業績|通路|收支|繳費|課程銷售|面談|註冊|報名|退費|達成|趨勢|排名|報到|這個月|上個月|上半年|下半年|[0-9]+月|幾筆|多少|做多少|成長|掉了|衝班|分析|加購|客單|人頭|分帳/)) D.push(mp);
+  var others=getOtherCharsCtx(); if(others && _rel(/其他人|別人|大家|團隊|比較|對比|全部|所有人|誰最|誰的|排名|前幾名|墊底/)) D.push(others);
+  var kb=localStorage.getItem(SK.teamkb); if(kb && (curFeature==='team' || _rel(/團隊知識|大家問過|常見問題|共用/))) D.push('📣 團隊知識庫\n'+String(kb).slice(-4000));
+  var closedCtx=getClosedCtx(); if(closedCtx && _rel(/結案|歸檔|處理過的|之前的話題|以前談過/)) D.push(closedCtx);
+  var errCtx=getAiErrorCtx(); if(errCtx && _rel(/你之前|你上次|你錯|修正|為什麼你說|質疑|挑戰|不同意/)) D.push(errCtx);
+  var kbCtx=getKnowledgeBaseCtx(); if(kbCtx) D.push(kbCtx);   // 知識庫已自帶關鍵字漸進式載入
   var cName = localStorage.getItem('activeCharacterName') || '';
   var footer = cName ? '\n\n🔒 再次確認：當前對話對象是「' + cName + '」— 回答時請以這個人的身分與處境思考。' : '';
-  return '\n\n═══ 系統資料（全站數據·所有模組共享）═══\n'+parts.join('\n\n')+footer+'\n═══════════════════════════════';
+  var stable = S.length ? '\n\n═══ 系統資料（全站數據·所有模組共享）═══\n'+S.join('\n\n')+'\n═══════════════════════════════' : '';
+  var dynamic = (D.length||footer) ? '\n\n═══ 本題相關資料 ═══\n'+D.join('\n\n')+footer+'\n═══════════════════════════════' : '';
+  return { stable: stable, dynamic: dynamic, combined: stable+dynamic };
 }
 
 // ══════ 對話介面工具 ══════
@@ -3439,7 +3431,7 @@ async function sendMsg(){
   try{
     var resp=await fetch(PROXY_BASE+'/v1/messages',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:_buildChatBody(f.system, ctx, apiMsgs, 4096)});
+      body:_buildChatBody(f.system, ctx.stable, ctx.dynamic, apiMsgs, 4096)});
     typing.remove();
     if(!resp.ok){var errBody='';try{errBody=await resp.text();}catch(e){}throw new Error('API錯誤('+resp.status+'): '+errBody.substring(0,150));}
     var data=await resp.json();addMsg('ai',data.content[0].text);autoSavePin();
@@ -6304,7 +6296,7 @@ async function autoAnalyzeFile(fileName,text){
   try{
     var resp=await fetch(PROXY_BASE+'/v1/messages',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:_buildChatBody(f.system+'\n\n你正在分析用戶上傳的檔案，請仔細閱讀並提供深入分析。', ctx, apiMsgs, 3000)});
+      body:_buildChatBody(f.system+'\n\n你正在分析用戶上傳的檔案，請仔細閱讀並提供深入分析。', ctx.stable, ctx.dynamic, apiMsgs, 3000)});
     typing.remove();
     if(!resp.ok){var errBody='';try{errBody=await resp.text();}catch(e){}throw new Error('API錯誤('+resp.status+')');}
     var data=await resp.json();
