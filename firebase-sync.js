@@ -1450,7 +1450,10 @@ async function pullFromCloud(opts){
         //     這些是「擴充剛從 EIP 同步寫入的最新資料」，但擴充在隔離環境寫入時不會更新本地時間戳，
         //     導致 LWW 誤判本地較舊、被雲端的舊資料蓋回去（症狀：同步當下對、過一下又變錯）。
         //     規則：本地有值 → 一律以本地為準（雲端只在本地空時才補）。同 motiv_archive 的本地優先精神。
-        if (/(?:^|_)motiv_(?:academy|sales|group_performance|reserve_performance|perfp|channel|checkin)(?:_v1|_meta)?$/.test(k) || /(?:^|_)motiv_updated_at$/.test(k)){
+        //     ★ 2026/07 修正：補上 course（課程銷售分析）與 synced_*（同步時間顯示）—
+        //       漏掉 course 導致「七月同步完，重整/重開機後課程銷售與主打課程實售歸零」
+        //       （雲端舊版 motiv_course_v1 沒有 7 月，LWW 把本地 7 月吃掉）。
+        if (/(?:^|_)motiv_(?:academy|sales|group_performance|reserve_performance|perfp|channel|checkin|course|synced_motiv|synced_checkin|synced_channel)(?:_v1|_meta)?$/.test(k) || /(?:^|_)motiv_updated_at$/.test(k)){
           if (existingVal !== null && existingVal !== ''){
             _skipCount++;            // 本地有值 → 保留本地（不讓雲端舊資料覆蓋）
           } else {
@@ -1564,6 +1567,44 @@ async function pullFromCloud(opts){
             continue;
           } catch(eCkMerge){
             console.warn('[FirebaseSync] ck_archive_v1 merge 失敗，保留本地', eCkMerge);
+            continue;
+          }
+        }
+
+        // ★★★ cr_archive_v2（課程銷售分析月封存）同樣 MERGE 保護（2026/07 新增）：
+        //     結構同 ck_archive_v1：{ 'YYYY-MM': { byOrg, savedAt } }。
+        //     逐月比 savedAt(ISO)，新者勝；雲端只能補本地沒有的月份，絕不刪掉本地已有月份。
+        //     修「七月同步完，重整後課程銷售歸零」— 雲端舊封存不再整包蓋掉本地新月份。
+        if (/(?:^|_)cr_archive_v2$/.test(k)){
+          try {
+            var crLocalA = {};
+            try { if (existingVal) crLocalA = JSON.parse(existingVal) || {}; } catch(e1){}
+            var crCloudA = {};
+            try { crCloudA = (typeof v === 'string') ? (JSON.parse(v) || {}) : (v || {}); } catch(e2){}
+            function _crArchTs(e){
+              var t = (e && e.savedAt) ? Date.parse(e.savedAt) : 0;
+              return isNaN(t) ? 0 : t;
+            }
+            var crMergedA = {}, crChangedA = 0, crFromCloudA = 0;
+            Object.keys(crLocalA).forEach(function(mk){ crMergedA[mk] = crLocalA[mk]; });
+            Object.keys(crCloudA).forEach(function(mk){
+              if (!crMergedA[mk]){ crMergedA[mk] = crCloudA[mk]; crFromCloudA++; crChangedA++; return; }
+              if (_crArchTs(crCloudA[mk]) > _crArchTs(crMergedA[mk])){ crMergedA[mk] = crCloudA[mk]; crChangedA++; }
+            });
+            if (crChangedA > 0){
+              try {
+                _origSet(k, JSON.stringify(crMergedA));
+                _localTsMap[k] = Date.now();
+                console.log('[FirebaseSync] cr_archive_v2 合併(時間新者勝)：更新 '+crChangedA+' 個月（雲端補 '+crFromCloudA+'），合計 '+Object.keys(crMergedA).length+' 個月');
+                totalLS++;
+              } catch(qe4){
+                _quotaSkipCount++;
+                _quotaSkipKeys.push(k + '(merge)');
+              }
+            }
+            continue;
+          } catch(eCrMerge){
+            console.warn('[FirebaseSync] cr_archive_v2 merge 失敗，保留本地', eCrMerge);
             continue;
           }
         }
