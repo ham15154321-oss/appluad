@@ -2651,12 +2651,98 @@ function _findMyGroup(name){
       || scan('motiv_reserve_performance_v1', 'motiv_reserve_performance_meta', '儲備組');
 }
 
+// ★ 學院最高主管對照表 — 與 castle-cards.html 的 ACAD_BOSS_MAP 同步維護（2026/07 加入）
+//   有在這張表裡的人 = 該學院的最高主管：全學院所有組長/組員都歸他管，AI 不得反問上下隸屬關係
+var AI_ACADEMY_BOSS_MAP = {
+  '王志軒':'中壢二部','楊雅晴':'台中三部','洪士德':'中壢學院',
+  '黎禹歆':'高雄建國','林昭宏':'台中學院','凃敏薰':'台中二部','蔡青倚':'中壢三部'
+};
+// ★ 總部層級對照表 — 管轄範圍＝全公司所有學院（2026/07 加入）
+var AI_COMPANY_EXEC_MAP = {
+  '李旭騰':'總經理',
+  '黃柏翰':'總部高層主管',
+  '許傑森':'總部高層主管'
+};
+// 列出某學院在「小組業績」資料中的所有小組（給學院主管的 header 用）
+function _findAcademyGroups(academy){
+  var cid = localStorage.getItem('activeCharacterId') || '';
+  var prefix = cid ? 'char_'+cid+'_' : '';
+  var out = [];
+  [['motiv_group_performance_v1','正式組'],['motiv_reserve_performance_v1','儲備組']].forEach(function(p){
+    var raw = localStorage.getItem(prefix+p[0]) || localStorage.getItem(p[0]);
+    if (!raw) return;
+    try {
+      (JSON.parse(raw)||[]).forEach(function(g){
+        if (g && String(g.academy||'').trim() === academy) out.push({ type:p[1], g:g });
+      });
+    } catch(e){}
+  });
+  return out;
+}
+// ★ 共通的「不要笨」規則 — 主管級與一般使用者都適用（2026/07 加入）
+function _aiSmartRules(){
+  return '⚠️ 回答品質鐵則：\n'
+    + '• 「小組名冊」和「業績報表」是兩個不同來源：某人名若出現在任何業績報表（個人績效/課程銷售/報到等），就代表此人存在 — 絕對不要說「系統裡沒有這個人」。名冊沒列到頂多補一句「小組名冊尚未同步此人」\n'
+    + '• 同一次對話內不可自相矛盾：前面已經給得出某人的數據，後面就不能改口說找不到這個人\n'
+    + '• ASK 反問只用在「缺了會改變結論的關鍵數據」（例：面談場數、成交筆數、名單量），一次最多一題；不要為了組織關係、權限、身分這類事情反問\n';
+}
+
 // ★★★ 當前主角 header — 一定要放在 context 最前面、最醒目位置
 //     避免 AI 從釘選/結案/案例庫的歷史對話裡誤認其他角色為當前使用者
 function getCurrentUserHeader(){
   var cid = localStorage.getItem('activeCharacterId') || '';
   var name = localStorage.getItem('activeCharacterName') || cid || '';
   if (!cid && !name) return '';
+
+  // ══ 總部層級版 header（最優先）══
+  var execTitle = AI_COMPANY_EXEC_MAP[name] || '';
+  if (execTitle){
+    var h2 = '🎯 當前對話主角（也就是「使用者本人」）：' + name + '\n'
+      + '👑 「' + name + '」是全公司的「' + execTitle + '」— 這是系統確認的事實，不需要再跟使用者確認。\n'
+      + '• 全公司所有學院、所有學院主管、所有組長與組員都在「' + name + '」的管轄之下\n'
+      + '• 各學院最高主管：' + Object.keys(AI_ACADEMY_BOSS_MAP).map(function(b){ return AI_ACADEMY_BOSS_MAP[b] + '＝' + b; }).join('、') + '\n'
+      + '• 使用者問任何學院、任何主管、任何業務 → 直接分析；禁止反問「他是不是你管的」「你是什麼身分」這類問題\n';
+    var acadSeen = {};
+    Object.keys(AI_ACADEMY_BOSS_MAP).forEach(function(b){ acadSeen[AI_ACADEMY_BOSS_MAP[b]] = true; });
+    var rosterLines = [];
+    Object.keys(acadSeen).forEach(function(acad){
+      var ag2 = _findAcademyGroups(acad);
+      if (!ag2.length) return;
+      rosterLines.push('   ◤' + acad + '◢ ' + ag2.map(function(x){
+        var g2 = x.g;
+        return (g2.groupName||'?') + '(組長' + ((g2.leader&&g2.leader.name)||'?') + '：' + (g2.members||[]).map(function(m){ return m.name; }).join('、') + ')';
+      }).join('；'));
+    });
+    if (rosterLines.length){
+      h2 += '• 全公司小組名冊（可能不完整 — 業績報表有出現、名冊沒列的人一樣算存在）：\n' + rosterLines.join('\n') + '\n';
+    }
+    h2 += _aiSmartRules()
+      + '• 對總部層級使用者：直接切入分析與建議，語氣是「幕僚對' + execTitle + '」，聚焦跨學院比較與管理判斷\n';
+    return h2;
+  }
+
+  // ══ 學院最高主管版 header（優先於組長/組員判定）══
+  var bossAcad = AI_ACADEMY_BOSS_MAP[name] || '';
+  if (bossAcad){
+    var h = '🎯 當前對話主角（也就是「使用者本人」）：' + name + '\n'
+      + '👑 「' + name + '」是「' + bossAcad + '」的學院最高主管（學院負責人）— 這是系統確認的事實，不需要再跟使用者確認。\n'
+      + '• 整個' + bossAcad + '（所有小組的組長與所有組員）都在「' + name + '」的管轄之下\n'
+      + '• 使用者說「我的業務」「我的組員」「我的人」「我帶的」→ 指' + bossAcad + '學院內的任何人（不限哪個小組）\n'
+      + '• 就算某人隸屬於某個小組（有自己的組長），「' + name + '」身為學院主管一樣直接管得到 — 禁止反問「他是不是你直接帶的」「他在哪個組」這類上下隸屬問題\n';
+    var ag = _findAcademyGroups(bossAcad);
+    if (ag.length){
+      h += '• ' + bossAcad + ' 目前資料中的小組與成員：\n';
+      ag.forEach(function(x){
+        var g = x.g;
+        h += '   - [' + x.type + '] ' + (g.groupName||'?') + '（組長：' + ((g.leader&&g.leader.name)||'?') + '）：'
+          + (g.members||[]).map(function(m){ return m.name; }).join('、') + '\n';
+      });
+      h += '   （此名冊可能不完整 — 業績報表裡有出現、名冊沒列的人，一樣是' + bossAcad + '的人）\n';
+    }
+    h += _aiSmartRules()
+      + '• 對主管級使用者：直接切入分析與建議，語氣是「幕僚對主管」，不是「客服對客戶」\n';
+    return h;
+  }
   // 從卡片資料抓學院/組別作 fallback
   var academy = '', team = '';
   try {
@@ -2712,7 +2798,8 @@ function getCurrentUserHeader(){
        + '• 即使下面的釘選話題、結案紀錄、案例庫、私聊記憶、其他主角資料 裡有出現其他名字（例如李念庭、王志軒、陳XX 等），\n'
        + '  那些都是「資料內容」、不是「當前說話的人」也不是「當前主角的組員」 — 不要混淆\n'
        + '• 回答時永遠以「' + name + '」的視角、身分、處境來分析與建議\n'
-       + '• 如果上方沒列出組員（資料未匯入），就用 ASK 卡片反問「你的組員有哪幾位？」讓使用者直接告訴你\n';
+       + '• 如果上方沒列出組員（資料未匯入），就用 ASK 卡片反問「你的組員有哪幾位？」讓使用者直接告訴你\n'
+       + _aiSmartRules();
 }
 
 // 組裝完整上下文
@@ -2877,7 +2964,10 @@ function getFullContext(){
   if(curFeature==='mentor'){ var wf=getWaterfallCtx(); if(wf) S.push(wf); }
   // ── 依提問區 D（不快取，只帶相關）──
   // 案例庫
-  var cases=getCaseDbCtx(); if(cases && _rel(/案例|怎麼處理|如何處理|類似|以前|之前處理|處理過|客訴|範例|參考|遇到/)) D.push(cases);
+  // ★ 2026/07 修正：案例庫還小（<6KB）就每題必帶（成本低、讓 AI 隨時有公司實例可引用）；
+  //   變大後才用關鍵字過濾。關鍵字補上「怎麼辦/退費/話術/成交/面談」等實戰問法（舊版漏掉，導致最常見的問法不觸發）
+  var cases=getCaseDbCtx();
+  if(cases && (cases.length < 6000 || _rel(/案例|怎麼處理|如何處理|怎麼辦|怎麼講|怎麼回|類似|以前|之前處理|處理過|客訴|退費|範例|參考|遇到|話術|成交|面談|反對問題|拒絕|推銷|close|沒成/i))) D.push(cases);
   // 月績效 8 大報表（最肥）：問到數字/報表/業績/趨勢才整包帶
   var mp=getMonthlyPerfCtx();
   // 注意：拿掉太寬的「業績/分析」（帶人題到處都是）；數字題仍靠 多少/趨勢/排名/月份/報表/數字/達成率 等觸發
