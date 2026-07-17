@@ -171,6 +171,43 @@ tr:hover td{background:rgba(167,139,250,.04);}
   <button class="btn btn-danger" id="btnCleanGreetings" title="刪除所有歷史「歡迎詞 / 內建提示」訊息">🧹 清歷史歡迎詞</button>
 </div>
 
+<!-- ═══ 📣 提問通知設定（EmailJS）— 有人在 AI 顧問提問就寄信通知 ═══ -->
+<div class="toolbar" style="flex-direction:column;align-items:stretch;gap:8px;">
+  <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="anToggle()">
+    <span style="font-size:14px;font-weight:800;color:#ffd700;">📣 提問通知設定</span>
+    <span style="font-size:11px;color:rgba(160,200,255,.55);">有人在 AI 顧問提問 → 寄 email 通知（同一人 30 分鐘一封，累積提問附在信裡）</span>
+    <span id="anStatus" style="font-size:11px;margin-left:auto;"></span>
+    <span id="anArrow" style="color:#a78bfa;">▼</span>
+  </div>
+  <div id="anPanel" style="display:none;flex-wrap:wrap;gap:10px;align-items:end;">
+    <label>啟用
+      <select id="anEnabled" style="min-width:70px;"><option value="0">關閉</option><option value="1">開啟</option></select>
+    </label>
+    <label>收件人 Email（可多個，逗號分隔）
+      <input type="text" id="anTo" placeholder="boss@example.com, me@example.com" style="min-width:280px;">
+    </label>
+    <label>節流（分鐘）
+      <input type="number" id="anThrottle" value="30" min="0" style="min-width:70px;">
+    </label>
+    <label>EmailJS Service ID
+      <input type="text" id="anService" placeholder="service_xxxxxxx">
+    </label>
+    <label>EmailJS Template ID
+      <input type="text" id="anTemplate" placeholder="template_xxxxxxx">
+    </label>
+    <label>EmailJS Public Key
+      <input type="text" id="anPubkey" placeholder="xxxxxxxxxxxxxxx">
+    </label>
+    <button class="btn" onclick="anSave()">💾 儲存設定</button>
+    <button class="btn btn-export" onclick="anTest(this)">🧪 寄一封測試信</button>
+    <div style="flex-basis:100%;font-size:11px;color:rgba(160,200,255,.5);line-height:1.7;">
+      申請免費 EmailJS（emailjs.com，200 封/月）→ Add Service 連 Gmail → 建 Template（To Email 填 <code style="color:#ffd700;">{{to_email}}</code>，
+      內文可用變數 <code style="color:#ffd700;">{{char_name}} {{feature}} {{question}} {{recent}} {{time}} {{admin_url}}</code>）→ 把三個 ID 貼到上面。
+      詳細步驟見資料夾裡的「AI顧問提問通知-設定說明.md」。設定會自動同步到所有裝置。
+    </div>
+  </div>
+</div>
+
 <div class="stats" id="stats"></div>
 <div id="errorBox"></div>
 
@@ -584,6 +621,86 @@ document.getElementById('viewTable').addEventListener('click', () => {
   document.getElementById('viewThread').classList.remove('active');
   render();
 });
+
+// ═══════ 📣 提問通知設定（存 localStorage 'ai_notify_cfg_v1'，firebase-sync 全公司同步）═══════
+const AN_CFG_KEY = 'ai_notify_cfg_v1';
+function anLoad(){
+  let cfg = { enabled:false, to:'', serviceId:'', templateId:'', publicKey:'', throttleMin:30 };
+  try { const s = localStorage.getItem(AN_CFG_KEY); if (s) Object.assign(cfg, JSON.parse(s)); } catch(e){}
+  document.getElementById('anEnabled').value  = cfg.enabled ? '1' : '0';
+  document.getElementById('anTo').value       = cfg.to || '';
+  document.getElementById('anThrottle').value = cfg.throttleMin != null ? cfg.throttleMin : 30;
+  document.getElementById('anService').value  = cfg.serviceId || '';
+  document.getElementById('anTemplate').value = cfg.templateId || '';
+  document.getElementById('anPubkey').value   = cfg.publicKey || '';
+  anRefreshStatus(cfg);
+  return cfg;
+}
+function anRead(){
+  return {
+    enabled:     document.getElementById('anEnabled').value === '1',
+    to:          document.getElementById('anTo').value.trim(),
+    throttleMin: parseFloat(document.getElementById('anThrottle').value) || 30,
+    serviceId:   document.getElementById('anService').value.trim(),
+    templateId:  document.getElementById('anTemplate').value.trim(),
+    publicKey:   document.getElementById('anPubkey').value.trim()
+  };
+}
+function anRefreshStatus(cfg){
+  const el = document.getElementById('anStatus');
+  const complete = cfg.to && cfg.serviceId && cfg.templateId && cfg.publicKey;
+  if (cfg.enabled && complete){ el.textContent = '🟢 已啟用 → ' + cfg.to; el.style.color = '#4ade80'; }
+  else if (cfg.enabled && !complete){ el.textContent = '🟠 已啟用但設定不完整'; el.style.color = '#e6a817'; }
+  else { el.textContent = '⚪ 未啟用'; el.style.color = 'rgba(160,200,255,.45)'; }
+}
+function anToggle(){
+  const p = document.getElementById('anPanel');
+  const open = p.style.display === 'none';
+  p.style.display = open ? 'flex' : 'none';
+  document.getElementById('anArrow').textContent = open ? '▲' : '▼';
+}
+function anSave(){
+  const cfg = anRead();
+  try { localStorage.setItem(AN_CFG_KEY, JSON.stringify(cfg)); } catch(e){ alert('儲存失敗：' + e.message); return; }
+  anRefreshStatus(cfg);
+  alert('✅ 通知設定已儲存。\n\n（設定會透過雲端同步到所有裝置；AI 顧問頁面重新整理後生效）');
+}
+let _anEmailJsLoading = null;
+function anLoadEmailJs(){
+  if (window.emailjs) return Promise.resolve();
+  if (_anEmailJsLoading) return _anEmailJsLoading;
+  _anEmailJsLoading = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js';
+    s.onload = res;
+    s.onerror = () => { _anEmailJsLoading = null; rej(new Error('EmailJS SDK 載入失敗')); };
+    document.head.appendChild(s);
+  });
+  return _anEmailJsLoading;
+}
+function anTest(btn){
+  const cfg = anRead();
+  if (!cfg.to || !cfg.serviceId || !cfg.templateId || !cfg.publicKey){ alert('⚠️ 請先填齊：收件人、Service ID、Template ID、Public Key'); return; }
+  btn.disabled = true; btn.textContent = '⏳ 寄送中…';
+  anLoadEmailJs().then(() =>
+    window.emailjs.send(cfg.serviceId, cfg.templateId, {
+      to_email: cfg.to,
+      char_name: '（測試）',
+      feature: '🧪 測試信',
+      question: '這是一封測試通知 — 如果你收到了，代表 AI 顧問提問通知已設定成功！',
+      recent: '（測試無累積提問）',
+      time: new Date().toLocaleString('zh-TW'),
+      admin_url: location.href
+    }, { publicKey: cfg.publicKey })
+  ).then(() => {
+    btn.textContent = '✅ 已寄出，請收信';
+    setTimeout(() => { btn.disabled = false; btn.textContent = '🧪 寄一封測試信'; }, 4000);
+  }).catch(err => {
+    alert('❌ 寄送失敗：' + (err && (err.text || err.message) || err) + '\n\n請檢查三個 ID 是否正確、EmailJS 模板的 To Email 是否填 {{to_email}}');
+    btn.disabled = false; btn.textContent = '🧪 寄一封測試信';
+  });
+}
+anLoad();
 </script>
 
 </body>

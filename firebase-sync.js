@@ -251,7 +251,8 @@ const LOCAL_ONLY_KEYS = [
   'ui_mode_v1',        // ✨ 簡約/展示模式偏好（每台裝置各自記,不同步）
   'motiv_sel_year',    // 激勵年/月選單最後選的年
   'motiv_sel_month',   // 激勵年/月選單最後選的月
-  'mp_data_v1_summary' // 月績效摘要（給 AI ctx 用，每次重算就好不用同步）
+  'mp_data_v1_summary', // 月績效摘要（給 AI ctx 用，每次重算就好不用同步）
+  'ai_notify_state_v1'  // 📣 提問通知節流狀態（每台裝置各自計時，不同步）
 ];
 
 // 前綴型排除：以這些字串開頭的 localStorage key 不同步（避免大圖拖垮推送）
@@ -281,6 +282,7 @@ const GLOBAL_LS_KEY_PATTERNS = [
   /^wf_good_cases$/,       // 瀑布 優秀錄音案例庫（全主角共用、不分月份）
   /^wf_appointment_sop$/,  // 瀑布 約訪流程 SOP（全公司共用一份）
   /^char_.*_appedu_leader_map_v1_/, // ★ 360 度職能評核（全公司共享：登入該主角即可看到自己被評的分數/評語，不再因「誰登入時推送」而被鎖在別人的格子裡）
+  /^ai_notify_cfg_v1$/,    // ★ 📣 AI 顧問提問通知設定（EmailJS 收件人/金鑰）— 管理員填一次，全公司裝置共用
 ];
 function isGlobalLsKey(k){
   if (!k) return false;
