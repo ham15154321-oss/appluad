@@ -6578,11 +6578,38 @@
     function _ckCid(){
       try { var aid = localStorage.getItem('activeCharacterId'); return aid ? 'char_' + aid + '_' : ''; } catch(e){ return ''; }
     }
+    // ★ 2026/07 跨角色 fallback：報到是全公司資料，但同步時各角色各存一份 —
+    //   自己名下沒有時，自動借用「其他角色最新的那一份」（例：王志軒沒同步過，但楊雅晴今天同步了 7 月 → 王志軒也看得到）
+    //   規則：自己有 → 用自己的（不變）；自己沒有 → 掃所有 char_*_<key>，取 meta 年月最新者
+    function _ckBorrowLatest(suffix){
+      try {
+        var best = null, bestYm = '';
+        for (var i = 0; i < localStorage.length; i++){
+          var k = localStorage.key(i);
+          if (!k || k.indexOf('char_') !== 0 || k.slice(-suffix.length) !== suffix) continue;
+          try {
+            var d = JSON.parse(localStorage.getItem(k) || 'null');
+            if (!d) continue;
+            var ym = (d.meta && d.meta.year) ? (d.meta.year + '-' + String(d.meta.month||0).padStart(2,'0')) : '0000-00';
+            if (ym > bestYm){ bestYm = ym; best = d; }
+          } catch(e2){}
+        }
+        return best;
+      } catch(e){ return null; }
+    }
     function ckGetCheckin(){
-      try { var s = localStorage.getItem(_ckCid() + 'motiv_checkin_v1'); return s ? JSON.parse(s) : null; } catch(e){ return null; }
+      try {
+        var s = localStorage.getItem(_ckCid() + 'motiv_checkin_v1');
+        if (s) return JSON.parse(s);
+        return _ckBorrowLatest('_motiv_checkin_v1');   // 自己沒有 → 借其他角色最新的
+      } catch(e){ return null; }
     }
     function ppGetData(){
-      try { var s = localStorage.getItem(_ckCid() + 'motiv_perfp_v1'); return s ? JSON.parse(s) : null; } catch(e){ return null; }
+      try {
+        var s = localStorage.getItem(_ckCid() + 'motiv_perfp_v1');
+        if (s) return JSON.parse(s);
+        return _ckBorrowLatest('_motiv_perfp_v1');     // 自己沒有 → 借其他角色最新的
+      } catch(e){ return null; }
     }
 
     // ── 目標 / 公告（per region，手動設定） ──
@@ -6605,7 +6632,26 @@
     // ── 月/季封存（像「年度月/季比較」一樣可回看 1~12 月 + Q1~Q4） ──
     function _ckPad2(n){ return String(n).padStart(2, '0'); }
     function ckGetArchive(){
-      try { return JSON.parse(localStorage.getItem(_ckCid() + 'ck_archive_v1') || '{}'); } catch(e){ return {}; }
+      var own = {};
+      try { own = JSON.parse(localStorage.getItem(_ckCid() + 'ck_archive_v1') || '{}') || {}; } catch(e){ own = {}; }
+      // ★ 2026/07 跨角色合併：其他角色封存過的月份也看得到（自己沒有的月份直接補；同月份比 savedAt 新者勝）
+      try {
+        var ownKey = _ckCid() + 'ck_archive_v1';
+        for (var i = 0; i < localStorage.length; i++){
+          var k = localStorage.key(i);
+          if (!k || k.indexOf('char_') !== 0 || k.slice(-14) !== '_ck_archive_v1' || k === ownKey) continue;
+          try {
+            var a = JSON.parse(localStorage.getItem(k) || '{}') || {};
+            for (var ym in a){
+              if (!own[ym]){ own[ym] = a[ym]; continue; }
+              var t1 = Date.parse((own[ym]&&own[ym].savedAt)||0) || 0;
+              var t2 = Date.parse((a[ym]&&a[ym].savedAt)||0) || 0;
+              if (t2 > t1) own[ym] = a[ym];
+            }
+          } catch(e2){}
+        }
+      } catch(e){}
+      return own;
     }
     // 每次有最新同步資料就自動封存到該月（同月覆蓋 = 永遠保留最新）
     function ckArchiveCurrent(){
