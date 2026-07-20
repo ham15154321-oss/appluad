@@ -31,6 +31,20 @@
       });
     } else if(document.body){
       document.body.style.zoom = v;
+      // ★ 2026/07 修正「放大後上方選單搆不到」：
+      //   固定高度版型（html,body{height:100%} + 內容區自己捲動，例：業績數據中心）在 body zoom > 1 時，
+      //   body 會比視窗高 → 整份文件被往下捲、上方 header/分頁列跑出畫面且捲不回去。
+      //   解法：把 body 寬高反向補償（zoom 1.5 → 高度 100/1.5 %），版面永遠剛好填滿視窗。
+      //   一般自然捲動的頁面 html 高度是 auto，百分比高度無效 → 完全不受影響。
+      if (zf === 1){
+        document.body.style.height = '';
+        document.body.style.width  = '';
+      } else {
+        document.body.style.height = (100 / zf) + '%';
+        document.body.style.width  = (100 / zf) + '%';
+      }
+      // 把可能已經被推歪的文件捲回原點（救回已經卡住的狀態）
+      try{ document.documentElement.scrollTop = 0; document.documentElement.scrollLeft = 0; }catch(e){}
     }
     var ctrls = document.querySelectorAll('.tz-control'), i, j;
     for(i=0;i<ctrls.length;i++){
