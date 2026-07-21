@@ -239,6 +239,7 @@
       </div>
       <div class="switch-row" id="viewRow">
         <button class="tbtn on" data-v="honor" onclick="setView('honor')"><b>🎖️</b>上半年榮譽宴</button>
+        <button class="tbtn" data-v="central" onclick="setView('central')"><b>🏛️</b>中區榮譽宴</button>
         <button class="tbtn" data-v="king" onclick="setView('king')"><b>👑</b>通路王嘉許牆</button>
       </div>
       <div class="switch-row" id="switchRow">
@@ -447,19 +448,17 @@ function buildAcademyCard(ch){
 /* ======================= 🎖️ 2026 上半年榮譽宴（資料固定內嵌）======================= */
 const HONOR_AWARDS=[
  { icon:'🏆', title:'業績王', bar:'低標 200萬',
-   winner:{name:'楊雅晴',val:4245738,natRank:7}, second:{name:'凃敏薰',val:3995202,natRank:13},
-   duo:true, winnerTag:'👑 雙冠王', secondTag:'🍽️ 代表出席榮譽宴',
-   dupNote:'楊雅晴同時榮登 🛒 加購王，業績王席次由第二名凃敏薰代表出席 🎉',
-   nat:[{r:1,name:'林庭',val:6680342},{r:2,name:'王采璇',val:5952075},{r:3,name:'陳怡雯',val:5140162}] },
+   winner:{name:'陳昕妮',val:6101957}, second:{name:'陳怡雯',val:5602163},
+   nat:null, note:'📋 全年合計（1–7月）全通路加總' },
  { icon:'🌐', title:'網路王', bar:'一季低標 70萬',
-   winner:{name:'吳昀璇',val:796745,natRank:16}, second:{name:'李幼綾',val:544769,natRank:36},
-   nat:[{r:1,name:'鄧凱文',val:1348124},{r:2,name:'林庭輝',val:1241052},{r:3,name:'邱柏翔',val:1228898}] },
+   winner:{name:'易子莫',val:1088723}, second:{name:'陳品禎',val:983516},
+   nat:null, note:'📋 全年合計（1–7月）網際網路通路' },
  { icon:'💳', title:'現金王（含刷卡）', bar:'一季低標 45萬',
-   winner:{name:'胡榮芳',val:723454}, second:{name:'宋和樹',val:444543},
-   nat:null, note:'💪 中區現金雙雄（本獎項不做全省比對）' },
+   winner:{name:'黃士驊',val:815941}, second:{name:'胡榮芳',val:722962},
+   nat:null, note:'💪 全年合計（1–7月）現＋刷通路' },
  { icon:'🛒', title:'加購王', bar:'一季低標 60萬',
-   winner:{name:'楊雅晴',val:3654216,natRank:3}, second:{name:'凃敏薰',val:3394439,natRank:5},
-   nat:[{r:1,name:'林庭',val:4382580},{r:2,name:'王采璇',val:4032871},{r:3,name:'楊雅晴',val:3654216}] },
+   winner:{name:'楊雅晴',val:4596064}, second:{name:'陳怡雯',val:4192609},
+   nat:null, note:'📋 全年合計（1–7月）學員加購通路' },
  { icon:'🙋', title:'報到王', bar:'一季 50 人', unit:'人',
    winner:{name:'范淯維',val:77}, second:{name:'林詩婕',val:74},
    nat:null, note:'🙌 把人帶進教室，就是把未來帶進赫綵' },
@@ -467,6 +466,79 @@ const HONOR_AWARDS=[
    winner:{name:'宋和樹',val:2459453}, second:{name:'林詩婕',val:2354862},
    nat:null, note:'⭐ 宋和樹今年 6 月到職剛好滿一年，用最後資格衝上新人王 🔥' }
 ];
+
+/* ======================= 🏛️ 中區榮譽宴（桃中南區榜・標出中區代表）======================= */
+// 通路榜：list 為桃中南區排名（由高到低），rep = 中區代表那一位，show = 顯示前幾名
+const CENTRAL_CHANNELS = [
+  { icon:'🌐', title:'網際網路', show:5, rep:'陳煒翔',
+    list:[ {name:'易子莫',wan:109},{name:'陳品禎',wan:98},{name:'陳思羽',wan:87},{name:'陳煒翔',wan:85},{name:'吳昀璇',wan:85} ] },
+  { icon:'🛒', title:'學員加購', show:5, rep:'楊雅晴',
+    list:[ {name:'楊雅晴',wan:460},{name:'陳怡雯',wan:419},{name:'凃敏薰',wan:390},{name:'陳昕妮',wan:357},{name:'李念庭',wan:345} ] },
+  { icon:'💳', title:'現＋刷', show:5, rep:'胡榮芳',
+    list:[ {name:'黃士驊',wan:82},{name:'胡榮芳',wan:72},{name:'繆秉岑',wan:71},{name:'宋和樹',wan:44},{name:'范淯維',wan:39} ] }
+];
+// 三王：list 由高到低，show = 顯示前幾名，unit 為單位（報到王＝人）
+const CENTRAL_KINGS = [
+  { icon:'🏆', title:'業績王', show:2, unit:'',
+    list:[ {name:'楊雅晴',val:5325023},{name:'凃敏薰',val:4669623} ] },
+  { icon:'🌱', title:'新人王（未滿一年）', show:2, unit:'',
+    list:[ {name:'宋和樹',val:2921225},{name:'林詩婕',val:2846368} ] },
+  { icon:'🙋', title:'報到王', show:5, unit:'人',
+    list:[ {name:'范淯維',val:88},{name:'林詩婕',val:75},{name:'李岱謙',val:71},{name:'吳昀璇',val:69},{name:'劉樺玲',val:58} ] }
+];
+const CN_NUM=['零','一','二','三','四','五'];
+function buildCentralChannelCard(ch){
+  const repIdx=ch.list.findIndex(p=>p.name===ch.rep);
+  const rep=ch.list[repIdx]||ch.list[0];
+  const repRank=repIdx+1;
+  const badge = repRank===1 ? '中區代表・桃中南區第一 👑' : '中區代表・桃中南區第 '+repRank;
+  const rows=ch.list.slice(0,ch.show).map((p,i)=>{
+    const isMe=p.name===ch.rep;
+    const crown = i===0 ? '👑 ' : '';
+    return `<div class="nat-row ${isMe?'me':''}"><span class="nr">${i+1}</span><span class="nn">${isMe?'⭐ ':''}${crown}${p.name}</span><span class="nv">${p.wan}萬</span></div>`;
+  }).join('');
+  return `<div class="king-card"><div class="kc-fx"></div><div class="kc-inner">
+    <span class="ssr-stamp" style="display:none">SSR</span>
+    <div class="kc-body">
+      <div class="kc-ch"><span class="kc-ico">${ch.icon}</span>2026 全年合計 · 桃中南區榜 <span class="bar-badge">${badge}</span></div>
+      <div class="kc-title">${ch.icon} ${ch.title}</div>
+      ${photoBlock(rep.name, findCastleCard(rep.name), '🏅')}
+      <div class="kc-name">${rep.name}</div>
+      <div class="kc-val">${rep.wan}萬</div>
+      <div class="rank-stamp ${repRank<=3?'top3':''}"><span>${repRank===1?'🔥 桃中南區第一 🔥':'桃中南區第 '+repRank+' 名'}</span></div>
+      <div class="nat-box">
+        <div class="nat-head">🏅 桃 中 南 區 前 ${CN_NUM[ch.show]||ch.show}</div>
+        ${rows}
+      </div>
+    </div></div></div>`;
+}
+function buildCentralKingCard(k){
+  const w=k.list[0];
+  const fv=v=> k.unit==='人' ? fmtComma(v)+' 人' : fmtComma(v);
+  const runners=k.list.slice(1,k.show).map((p,i)=>`<li class="kc-runner"><span class="rk">${i+2}</span><span class="rn">${p.name}</span><span class="rv">${fv(p.val)}</span></li>`).join('');
+  return `<div class="king-card"><div class="kc-fx"></div><div class="kc-inner">
+    <span class="ssr-stamp" style="display:none">SSR</span>
+    <div class="kc-body">
+      <div class="kc-ch"><span class="kc-ico">${k.icon}</span>2026 全年合計 · 中區 <span class="bar-badge">中區榮譽席</span></div>
+      <div class="kc-title">👑 ${k.title}</div>
+      ${photoBlock(w.name, findCastleCard(w.name), '🏆')}
+      <div class="stars" style="display:none">★★★★★</div>
+      <div class="kc-name">${w.name}</div>
+      <div class="kc-val">${fv(w.val)}</div>
+      ${runners?`<ul class="kc-runners">${runners}</ul>`:''}
+    </div></div></div>`;
+}
+function renderCentralHTML(){
+  return `<div class="ind-section honor">
+    <div class="honor-hero">
+      <div class="hh-kicker">CENTRAL HONOR BANQUET</div>
+      <div class="hh-title">🏛️ 2026 中區榮譽宴</div>
+      <div class="hh-sub">桃中南區對決 × 中區榮光<br>我們的人，站上桃中南舞台 🔥</div>
+    </div>
+    ${CENTRAL_CHANNELS.map(buildCentralChannelCard).join('')}
+    ${CENTRAL_KINGS.map(buildCentralKingCard).join('')}
+  </div>`;
+}
 function gapWan(n){ const w=n/10000; return (w>=100? Math.round(w).toString() : w.toFixed(1).replace(/\.0$/,''))+'萬'; }
 function natListHTML(a){
   const map={}; a.nat.forEach(x=>{ map[x.r]={...x}; });
@@ -568,8 +640,8 @@ let view='honor';
 function setView(v){
   view=v;
   document.querySelectorAll('#viewRow .tbtn').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
-  const mp=document.getElementById('monthPill'); if(mp) mp.style.display = v==='honor' ? 'none' : '';
-  const rf=document.getElementById('refreshBtn'); if(rf) rf.style.display = v==='honor' ? 'none' : '';
+  const mp=document.getElementById('monthPill'); if(mp) mp.style.display = v==='king' ? '' : 'none';
+  const rf=document.getElementById('refreshBtn'); if(rf) rf.style.display = v==='king' ? '' : 'none';
   render();
   window.scrollTo({top:0});
 }
@@ -577,6 +649,7 @@ function setView(v){
 function render(){
   const main=document.getElementById('main');
   if(view==='honor'){ main.innerHTML=renderHonorHTML(); applyThemeFx(); return; }
+  if(view==='central'){ main.innerHTML=renderCentralHTML(); applyThemeFx(); return; }
   if(!current){ main.innerHTML=emptyDiagnostic(); return; }
   let ind='', acad='';
   current.channels.forEach(ch=>{ ind+=buildIndividualCard(ch); });
@@ -648,20 +721,21 @@ function exportHTML(){
   if(!document.querySelector('.king-card')){ alert('目前沒有可輸出的卡片，先選到有資料的月份再輸出 🙂'); return; }
   const css = document.querySelector('style').innerHTML;          // 沿用本頁全部樣式
   const theme = activeTheme;                                       // 鎖定目前風格
-  const label = view==='honor' ? '2026上半年榮譽宴' : (current?current.label:'');   // 鎖定目前分頁/月份
+  const label = view==='honor' ? '2026上半年榮譽宴' : view==='central' ? '2026中區榮譽宴' : (current?current.label:'');   // 鎖定目前分頁/月份
+  const bannerTitle = view==='honor' ? '🎖️ 2026 上半年榮譽宴' : view==='central' ? '🏛️ 2026 中區榮譽宴' : '🏆 通路王嘉許牆 · '+label;
   const clone = document.getElementById('main').cloneNode(true);   // 內嵌目前已渲染的卡片（含照片、彩帶等）
   clone.querySelectorAll('.photo-edit,.photo-clear').forEach(b=>b.remove()); // 移除編輯鈕
   const cardsHTML = clone.innerHTML;
   const doc =
 '<!DOCTYPE html>\n<html lang="zh-Hant">\n<head>\n<meta charset="UTF-8">\n'+
 '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n'+
-'<title>'+(view==='honor'?'🎖️ 2026 上半年榮譽宴':'🏆 通路王嘉許牆 '+label)+'</title>\n<style>'+css+'</style>\n</head>\n'+
+'<title>'+bannerTitle+'</title>\n<style>'+css+'</style>\n</head>\n'+
 '<body class="theme-'+theme+'">\n'+
-'<div class="export-banner">'+(view==='honor'?'🎖️ 2026 上半年榮譽宴':'🏆 通路王嘉許牆 · '+label)+'</div>\n'+
+'<div class="export-banner">'+bannerTitle+'</div>\n'+
 '<main>'+cardsHTML+'</main>\n'+
 '<button class="topbtn" onclick="window.scrollTo({top:0,behavior:\'smooth\'})">↑</button>\n'+
 '</body>\n</html>';
-  const fname = (view==='honor'?'榮譽宴-':'通路王-')+label+'-'+labelOf(theme).replace(/\s/g,'')+'.html';
+  const fname = (view==='honor'?'榮譽宴-':view==='central'?'中區榮譽宴-':'通路王-')+label+'-'+labelOf(theme).replace(/\s/g,'')+'.html';
   const blob = new Blob([doc], {type:'text/html;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = fname;
