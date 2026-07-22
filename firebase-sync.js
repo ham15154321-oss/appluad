@@ -603,9 +603,41 @@ function idbPutEntries(db, storeName, entries){
       var allDone = false;
       var _imgProtectCount = 0, _imgWriteCount = 0;
       var _mpProtectCount = 0, _mpWriteCount = 0;
+      var _archWriteCount = 0, _archSkipCount = 0;
+      // archivedAt → 可比較的時間毫秒（"2026/7/9 11:54" 也能解析；解析失敗回退 0）
+      function _archTs(o){
+        if (!o || !o.archivedAt) return 0;
+        var s = String(o.archivedAt);
+        var t = Date.parse(s);
+        if (isNaN(t)) t = Date.parse(s.replace(/\//g, '-'));
+        return isNaN(t) ? 0 : t;
+      }
       for (const [k, v] of Object.entries(entries)){
         let val = v;
         try { const parsed = JSON.parse(v); if (typeof parsed === 'object') val = parsed; } catch(e){}
+        // ★ MotivArchiveDB.archive（每月績效存檔：學院/業務/組別排名）：依 archivedAt 做 LWW。
+        //   Bug：拉取會輪詢每個角色的雲端存檔「直接覆蓋」本機，且不比時間 →
+        //        只要某角色雲端存的是舊快照且排在後面寫入，就把最新排名蓋回舊的（每天打開又變舊）。
+        //   修法：archivedAt 新者為準；本地沒有就補；雲端較舊 → 保留本地（舊存檔絕不蓋掉新排名）。
+        if (storeName === 'archive') {
+          pendingChecks++;
+          (function(_k, _val){
+            var getReq = store.get(_k);
+            getReq.onsuccess = function(){
+              var localObj = getReq.result;
+              try { if (typeof localObj === 'string') localObj = JSON.parse(localObj); } catch(e){}
+              var cTs = _archTs(_val), lTs = _archTs(localObj);
+              if (!localObj || cTs > lTs) {
+                try { store.put(_val, _k); _archWriteCount++; } catch(e){}
+              } else {
+                _archSkipCount++;
+              }
+              pendingChecks--;
+            };
+            getReq.onerror = function(){ pendingChecks--; };
+          })(k, val);
+          continue;
+        }
         // ★ 保護 mp_data_v1（業績數據中心月績效）：本地有資料就不讓雲端覆蓋
         //   原因：使用者匯入 1 月後，雲端可能還是舊版（沒有 1 月）；如果讓雲端覆蓋會把 1 月吃掉
         //   策略：本地有任何月份資料 → 跳過覆蓋；本地完全空才用雲端版本
@@ -738,6 +770,7 @@ function idbPutEntries(db, storeName, entries){
         if (_imgWriteCount > 0) console.log('[FirebaseSync] 從雲端補入圖片:', _imgWriteCount, '筆');
         if (_mpProtectCount > 0) console.log('[FirebaseSync] 保護 mp_data_v1（本地較新），跳過雲端覆蓋');
         if (_mpWriteCount > 0) console.log('[FirebaseSync] mp_data_v1 本地空，從雲端補入');
+        if (_archWriteCount > 0 || _archSkipCount > 0) console.log('[FirebaseSync] MotivArchiveDB.archive LWW：採用雲端 ' + _archWriteCount + ' 筆，保留本地(雲端較舊) ' + _archSkipCount + ' 筆');
         resolve();
       };
       tx.onerror = () => { resolve(); };
@@ -1756,10 +1789,26 @@ async function pullFromCloud(opts){
         var _gExisting = localStorage.getItem(d.key) || '';
         var localSize = _gExisting.length;
         var cloudSize = d.value.length;
-        // ★ 防呆：雲端比本地小 → 不覆蓋（避免空殼蓋掉真資料）
-        if (cloudSize <= localSize && localSize > 0){
+        // ★ 全公司共享 key 拉取：改用「時間戳 LWW」（與各主角 LS 拉取一致），不再只靠 byte size 比較。
+        //   舊 bug：分店開頁時「主打課程追蹤」等功能會自動塞一份 seed/預設值到 localStorage，
+        //           只要 seed 的 size ≥ 雲端，size 規則就永遠跳過雲端 → 分店看不到總部的最新資料。
+        //   新規則（優先序）：
+        //     1. 雲端近乎空殼（≤2 字元，如 '{}'）而本地有料 → 不覆蓋（保留原本「空殼不蓋真資料」防呆）
+        //     2. 任一方有 ts → 時間戳新者為準；雲端較新或相等 → 採用雲端（讓總部最新資料能蓋過分店舊種子）
+        //     3. 雙方都沒有 ts（舊資料）→ 回退舊 size 規則（雲端較大、或本地全空才覆蓋）
+        var cloudTs = d.ts || 0;
+        var localTs = _localTsMap[d.key] || 0;
+        var _cloudWins;
+        if (cloudSize <= 2 && localSize > 2){
+          _cloudWins = false;
+        } else if (cloudTs > 0 || localTs > 0){
+          _cloudWins = (cloudTs >= localTs);
+        } else {
+          _cloudWins = (localSize === 0) || (cloudSize > localSize);
+        }
+        if (!_cloudWins){
           _globalSkippedCount++;
-          _globalKeysSkipped.push(d.key + '(c:' + cloudSize + ' ≤ l:' + localSize + ')');
+          _globalKeysSkipped.push(d.key + '(c:' + cloudSize + '/ts' + cloudTs + ' ≤ l:' + localSize + '/ts' + localTs + ')');
           return;
         }
         try {
