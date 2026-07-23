@@ -2573,30 +2573,49 @@ function getOtherCharsCtx(){
 // 通路績效
 function getChannelCtx(){
   try{
-    var raw=localStorage.getItem(getCidPrefix()+'perf_compare_v1_channel_v1');
+    // ★ 這個 key 是「全公司共享・無前綴」；舊版只讀帶前綴版本 → 多數角色讀不到 → AI 誤說「看不到通路資料」
+    //   修正：優先讀帶前綴，讀不到就回退無前綴（實際資料存在這裡）
+    var raw=localStorage.getItem(getCidPrefix()+'perf_compare_v1_channel_v1') || localStorage.getItem('perf_compare_v1_channel_v1');
     if(!raw)return '';
     var data=JSON.parse(raw);
-    var lines=['📋 各通路績效（最近有資料的月份）'];
     var chNames={net:'網際網路',purchase:'學員加購',event:'展場活動',referral:'學員介紹',admin:'班務追回',cash:'現＋刷'};
-    // 找最近有資料的月份
+    // 收集有資料的月份（大到小）
+    var months=[];
     for(var m=12;m>=1;m--){
       if(!data[m])continue;
-      var hasData=false;
+      var has=false;
       Object.keys(data[m]).forEach(function(ch){
-        var acads=data[m][ch]&&data[m][ch].academies;
-        if(acads&&acads.some(function(a){return a.value>0;}))hasData=true;
+        var d=data[m][ch]||{};
+        if((d.ranking&&d.ranking.length)||(d.academies&&d.academies.some(function(a){return a.value>0;})))has=true;
       });
-      if(hasData){
-        lines.push(m+'月：');
-        Object.keys(chNames).forEach(function(ch){
-          var d=data[m][ch];if(!d)return;
-          var total=(d.academies||[]).reduce(function(s,a){return s+(a.value||0);},0);
-          if(total>0)lines.push('  '+chNames[ch]+'：'+total.toLocaleString());
-        });
-        break; // 只取最近一個月
-      }
+      if(has)months.push(m);
     }
-    return lines.length>1?lines.join('\n'):'';
+    if(!months.length)return '';
+    var lines=['📋 各通路績效 — 每位業務在「各通路」的個人業績（來自業績數據中心→各通路績效）'];
+    lines.push('【重要】這裡「有」個人 × 通路的明細：可直接查「某業務的網際網路（或加購/展場/介紹/班務/現+刷）業績是多少」。');
+    lines.push('【注意】以下每個通路的數字是該「單月」金額。要算某人跨月合計，就把各月同一人相加；不要說「系統只有合計業績、看不到個人通路」——這裡就有。');
+    // ★ 詳列最近 3 個月，每個通路列出每位業務的個人金額（姓名:金額）＋學院合計
+    var SHOW=3;
+    months.slice(0,SHOW).forEach(function(m){
+      lines.push('');
+      lines.push('━━ '+m+'月 ━━');
+      Object.keys(chNames).forEach(function(ch){
+        var d=data[m][ch]; if(!d)return;
+        var rk=(d.ranking||[]).filter(function(r){return r&&r.value;}).sort(function(a,b){return b.value-a.value;});
+        var acadTotal=(d.academies||[]).reduce(function(s,a){return s+(a.value||0);},0);
+        if(!rk.length && !acadTotal)return;
+        var head='  🔹 '+chNames[ch]+'（學院合計 '+acadTotal.toLocaleString()+'）';
+        if(rk.length){
+          head += '｜個人：'+rk.map(function(r){return r.name+' '+r.value.toLocaleString();}).join('、');
+        }
+        lines.push(head);
+      });
+    });
+    if(months.length>SHOW){
+      lines.push('');
+      lines.push('（另有 '+months.slice(SHOW).join('、')+' 月的各通路個人資料也在系統內，如需這些月份請告知即可展開加總）');
+    }
+    return lines.join('\n');
   }catch(e){return '';}
 }
 
