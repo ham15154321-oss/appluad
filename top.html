@@ -226,6 +226,8 @@
   .bench-tip{ text-align:center; font-size:.74rem; color:#9a9ab0; margin-top:8px; }
   .bench-tip a{ color:#c7b3ff; font-weight:700; }
 </style>
+<!-- ★ 讓 top.html 自己也會跟雲端同步（原本沒載入，導致 🔄 只重讀本機、抓不到最新） -->
+<script defer src="./firebase-sync.js?v=pdrsafe1"></script>
 </head>
 <body>
   <header>
@@ -233,7 +235,7 @@
       <div class="htop">
         <div class="htitle">🏆 通路王嘉許牆</div>
         <div style="display:flex;gap:6px;align-items:center;">
-          <div class="month-pill" id="refreshBtn" onclick="reloadData()" title="重新抓資料">🔄</div>
+          <div class="month-pill" id="refreshBtn" onclick="syncNow()" title="向雲端同步最新資料">🔄</div>
           <div class="month-pill" id="monthPill" onclick="openMonth()">📅 載入中</div>
         </div>
       </div>
@@ -312,12 +314,24 @@ function scanSources(){
     }
   }
   // 2) EIP 當月型（{meta:{month},channels:{...}}）後蓋，優先級高
+  //    ★ 同一個月可能有多個角色各自的快照，且內容不同（各自在不同時間跑 EIP 同步）。
+  //      舊版：誰被掃到最後就用誰 → 舊快照會蓋掉新資料（例：top 顯示 江安琪 18萬，其實最新是 范淯維 24.7萬）。
+  //      新版：同月取「總業績量最大」那份 = 累積到最完整 = 最新一次同步（EIP 越晚同步累積越多、人數越多）。
+  const _motivBest={}; // month -> { key, val, total }
   for(let i=0;i<localStorage.length;i++){
     const key=localStorage.key(i); let val; try{ val=JSON.parse(localStorage.getItem(key)); }catch(e){ continue; }
-    if(isMotivShape(val)){ const m=parseInt(val.meta.month,10); const per=motivToChannels(val);
-      master[m]=master[m]||{}; CH.forEach(ch=>{ master[m][ch.key]=per[ch.key]; });
-      sources.push({key,type:'EIP當月',months:[m]}); }
+    if(isMotivShape(val)){
+      const m=parseInt(val.meta.month,10);
+      let total=0; const chs=val.channels||{};
+      Object.keys(chs).forEach(function(c){ (chs[c].ranking||[]).forEach(function(r){ total+=(r.value||0); }); });
+      if(!_motivBest[m] || total>_motivBest[m].total){ _motivBest[m]={key:key,val:val,total:total}; }
+    }
   }
+  Object.keys(_motivBest).forEach(function(mStr){
+    const m=parseInt(mStr,10); const rec=_motivBest[m]; const per=motivToChannels(rec.val);
+    master[m]=master[m]||{}; CH.forEach(function(ch){ master[m][ch.key]=per[ch.key]; });
+    sources.push({key:rec.key,type:'EIP當月',months:[m]});
+  });
   _scan={master,sources,allKeys};
   return _scan;
 }
@@ -471,9 +485,9 @@ const HONOR_AWARDS=[
 // 通路榜：list 為桃中南區排名（由高到低），rep = 中區代表那一位，show = 顯示前幾名
 const CENTRAL_CHANNELS = [
   { icon:'🌐', title:'網際網路', show:5, rep:'陳煒翔',
-    list:[ {name:'易子莫',wan:109},{name:'陳品禎',wan:98},{name:'陳思羽',wan:87},{name:'陳煒翔',wan:85},{name:'吳昀璇',wan:85} ] },
+    list:[ {name:'易子莫',wan:117},{name:'陳品禎',wan:100},{name:'陳思羽',wan:89},{name:'吳昀璇',wan:87},{name:'陳煒翔',wan:85} ] },
   { icon:'🛒', title:'學員加購', show:5, rep:'楊雅晴',
-    list:[ {name:'楊雅晴',wan:460},{name:'陳怡雯',wan:419},{name:'凃敏薰',wan:390},{name:'陳昕妮',wan:357},{name:'李念庭',wan:345} ] },
+    list:[ {name:'楊雅晴',wan:475},{name:'陳怡雯',wan:448},{name:'凃敏薰',wan:398},{name:'李念庭',wan:375},{name:'陳昕妮',wan:367} ] },
   { icon:'💳', title:'現＋刷', show:5, rep:'胡榮芳',
     list:[ {name:'黃士驊',wan:82},{name:'胡榮芳',wan:72},{name:'繆秉岑',wan:71},{name:'宋和樹',wan:44},{name:'范淯維',wan:39} ] }
 ];
@@ -755,6 +769,23 @@ function pickDefaultMonth(){
   render(); // 5) 完全沒資料 → 顯示提示
 }
 function reloadData(){ _scan=null; curSel=null; scanSources(); pickDefaultMonth(); }
+// ★ 🔄：先向雲端拉最新資料，再重掃本機 → 讓 top.html 能跟人力發展／業績數據中心同步
+var _syncing=false;
+async function syncNow(){
+  if(_syncing) return;
+  var btn=document.getElementById('refreshBtn');
+  _syncing=true; if(btn) btn.textContent='⏳';
+  try{
+    if(window.firebaseSync && typeof firebaseSync.pull==='function'){
+      await firebaseSync.pull();
+    }
+  }catch(e){ console.warn('[top] 雲端同步失敗', e); }
+  reloadData();
+  if(btn) btn.textContent='🔄';
+  _syncing=false;
+}
+// 初次雲端拉取完成（firebase-sync 就緒）→ 自動刷新畫面，不用手動按
+window.addEventListener('firebase-sync-ready', function(){ try{ reloadData(); }catch(e){} });
 function emptyDiagnostic(){
   const sc=getScan();
   const found=sc.sources.length
