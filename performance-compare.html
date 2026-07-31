@@ -7156,8 +7156,59 @@
     var _crMpCache = null; // 每月績效資料快取（從 SpaceBaseDB 讀）
 
     function _crCid(){ try{ var a=localStorage.getItem('activeCharacterId'); return a?'char_'+a+'_':''; }catch(e){ return ''; } }
-    function crGetCourse(){ try{ var s=localStorage.getItem(_crCid()+'motiv_course_v1'); return s?JSON.parse(s):null; }catch(e){ return null; } }
-    function crGetArchive(){ try{ return JSON.parse(localStorage.getItem(_crCid()+'cr_archive_v2')||'{}'); }catch(e){ return {}; } }
+    // ★ 2026/07 跨角色借用：課程資料每個角色各存一份，且舊版擴充同步的沒有承辦人明細（owners）。
+    //   規則：在所有 char_*_motiv_course_v1 中挑「年月最新」者；同年月時「有 owners 的」優先（個人實售才有明細）。
+    //   自己的若已是最佳就用自己的 — 別的角色用舊擴充同步過，也不會蓋掉好資料。
+    function _crHasOwners(byOrg){
+      if (!byOrg) return false;
+      for (var org in byOrg){ var arr = byOrg[org] || []; for (var i = 0; i < arr.length; i++){ if (arr[i] && arr[i].owners) return true; } }
+      return false;
+    }
+    function crGetCourse(){
+      try {
+        var best = null, bestYm = '', bestOwn = false;
+        for (var i = 0; i < localStorage.length; i++){
+          var k = localStorage.key(i);
+          if (!k || k.indexOf('char_') !== 0 || k.slice(-16) !== '_motiv_course_v1') continue;
+          try {
+            var d = JSON.parse(localStorage.getItem(k) || 'null');
+            if (!d || !d.byOrg || !d.meta || !d.meta.year) continue;
+            var ym = d.meta.year + '-' + String(parseInt(d.meta.month,10)||0).padStart(2,'0');
+            var ow = _crHasOwners(d.byOrg);
+            if (ym > bestYm || (ym === bestYm && ow && !bestOwn)){ best = d; bestYm = ym; bestOwn = ow; }
+          } catch(e2){}
+        }
+        if (best) return best;
+        var s = localStorage.getItem(_crCid()+'motiv_course_v1');   // 保險：無前綴/特殊情況
+        return s ? JSON.parse(s) : null;
+      } catch(e){ return null; }
+    }
+    function crGetArchive(){
+      var own = {};
+      try { own = JSON.parse(localStorage.getItem(_crCid()+'cr_archive_v2')||'{}') || {}; } catch(e){ own = {}; }
+      // ★ 跨角色合併：其他角色封存的月份也看得到（自己沒有的月份補進來；同月比 savedAt，新者勝；有 owners 的優先）
+      try {
+        var ownKey = _crCid() + 'cr_archive_v2';
+        for (var i = 0; i < localStorage.length; i++){
+          var k = localStorage.key(i);
+          if (!k || k.indexOf('char_') !== 0 || k.slice(-14) !== '_cr_archive_v2' || k === ownKey) continue;
+          try {
+            var a = JSON.parse(localStorage.getItem(k) || '{}') || {};
+            for (var ym in a){
+              if (!own[ym]){ own[ym] = a[ym]; continue; }
+              var oOw = _crHasOwners((own[ym]||{}).byOrg), aOw = _crHasOwners((a[ym]||{}).byOrg);
+              if (aOw && !oOw){ own[ym] = a[ym]; continue; }       // 有明細的優先
+              if (oOw === aOw){
+                var t1 = Date.parse((own[ym]&&own[ym].savedAt)||0) || 0;
+                var t2 = Date.parse((a[ym]&&a[ym].savedAt)||0) || 0;
+                if (t2 > t1) own[ym] = a[ym];
+              }
+            }
+          } catch(e2){}
+        }
+      } catch(e){}
+      return own;
+    }
     function _crEipLiveYm(){ var c=crGetCourse(); return (c&&c.meta&&c.meta.year&&c.byOrg)?(c.meta.year+'-'+_ckPad2(parseInt(c.meta.month,10))):null; }
 
     // 同步通路 → 把 EIP 當月 byOrg 封存
@@ -7174,6 +7225,9 @@
     }
     function crApplyAutoSync(){ try{ crArchiveCurrent(); }catch(e){} try{ crRenderAll(); }catch(e){} }
     window.crApplyAutoSync = crApplyAutoSync;
+    // ★ 2026/07：開頁就把 live 課程資料封存進該月（跟報到排名同邏輯）—
+    //   否則 8 月一同步，7 月的 live 被覆蓋、個人明細就找不回來了
+    try { crArchiveCurrent(); } catch(e){}
 
     // ── 讀「每月績效」第8表（SpaceBaseDB / images / mp_data_v1）→ 快取成 { 'YYYY-MM': byOrg } ──
     function crLoadMpData(cb){
