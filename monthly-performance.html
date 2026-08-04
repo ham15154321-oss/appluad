@@ -846,6 +846,16 @@
             } catch(lsErr) {
                 // 連摘要都寫不下 → 沒關係，IDB 是 source of truth
             }
+            // ★ 2026/07：存檔後立刻觸發 firebase-sync 推送（不用等 5 分鐘定時器）—
+            //   同事那邊開頁自動拉取就會拿到新月份。找最頂層的 firebaseSync（本頁嵌套在 iframe 裡）。
+            try {
+                var w = window, depth = 0;
+                while (w && depth < 5){
+                    try { if (w.firebaseSync && typeof w.firebaseSync.push === 'function'){ w.firebaseSync.push(); console.log('[mp_data] ☁️ 已觸發 firebase 推送'); break; } } catch(_e){}
+                    if (w === w.parent) break;
+                    w = w.parent; depth++;
+                }
+            } catch(pushErr){ /* 推送失敗不影響本機存檔 */ }
             return true;
         }
 
@@ -2498,7 +2508,8 @@
         }
         function initCloudSyncButtons(){
             var me = _getCurrentUserName();
-            var ADMINS = ['黃柏翰'];
+            // ★ 2026/07 開放：總部層級（李旭騰/黃柏翰/許傑森）＋ 王志軒 都能強制推/拉公司資料
+            var ADMINS = ['黃柏翰', '李旭騰', '許傑森', '王志軒'];
             if(ADMINS.indexOf(me) >= 0){
                 var pushBtn = document.getElementById('cloudPushBtn');
                 var pullBtn = document.getElementById('cloudPullBtn');

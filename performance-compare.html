@@ -6654,18 +6654,44 @@
       return own;
     }
     // 每次有最新同步資料就自動封存到該月（同月覆蓋 = 永遠保留最新）
+    // ★ 2026/07 改版：報到(checkin)與當月績效(perfp)「各自按自己的 meta 月份」歸檔 —
+    //   舊版整包掛在報到的月份下：報到沒同步過就整個月不封存、兩者月份不同時還會標錯月。
     function ckArchiveCurrent(){
-      var live = ckGetCheckin();
-      if (!live || !live.meta || !live.meta.year || !live.meta.month) return;
-      var ym = live.meta.year + '-' + _ckPad2(parseInt(live.meta.month, 10));
       try {
-        var arch = ckGetArchive();
-        var rec = { checkin: live, perfp: ppGetData(), savedAt: new Date().toISOString() };
-        // 內容相同就不重寫（省 localStorage 寫入）
-        if (arch[ym] && JSON.stringify(arch[ym].checkin) === JSON.stringify(live) &&
-            JSON.stringify(arch[ym].perfp) === JSON.stringify(rec.perfp)) return;
-        arch[ym] = rec;
-        localStorage.setItem(_ckCid() + 'ck_archive_v1', JSON.stringify(arch));
+        var arch = ckGetArchive(), changed = false;
+        // ★ 一次性修復舊版錯標：perfp 快照的 meta 月份 ≠ 所在封存槽 → 搬回正確月份槽
+        //   （例：6 月槽裡裝著 7 月初的快照 → 移到 7 月槽或捨棄，6 月槽清空該欄位）
+        Object.keys(arch).forEach(function(ym){
+          var rec = arch[ym]; if (!rec) return;
+          ['perfp', 'checkin'].forEach(function(field){
+            var d = rec[field];
+            if (!d || !d.meta || !d.meta.year || !d.meta.month) return;
+            var realYm = d.meta.year + '-' + _ckPad2(parseInt(d.meta.month, 10));
+            if (realYm === ym) return;
+            // 正確月份槽沒有這個欄位才搬過去（有就直接捨棄錯標的舊快照）
+            if (!arch[realYm]) arch[realYm] = { checkin: null, perfp: null, savedAt: rec.savedAt };
+            if (!arch[realYm][field]) arch[realYm][field] = d;
+            rec[field] = null;
+            changed = true;
+          });
+          // 兩個欄位都空了就把整個月槽刪掉
+          if (!rec.checkin && !rec.perfp) { delete arch[ym]; changed = true; }
+        });
+        function put(ym, field, data){
+          if (!ym || !data) return;
+          var prev = arch[ym] || {};
+          if (JSON.stringify(prev[field]) === JSON.stringify(data)) return;
+          var rec = { checkin: prev.checkin || null, perfp: prev.perfp || null, savedAt: new Date().toISOString() };
+          rec[field] = data;
+          arch[ym] = rec; changed = true;
+        }
+        var live = ckGetCheckin();
+        if (live && live.meta && live.meta.year && live.meta.month)
+          put(live.meta.year + '-' + _ckPad2(parseInt(live.meta.month, 10)), 'checkin', live);
+        var pp = ppGetData();
+        if (pp && pp.meta && pp.meta.year && pp.meta.month)
+          put(pp.meta.year + '-' + _ckPad2(parseInt(pp.meta.month, 10)), 'perfp', pp);
+        if (changed) localStorage.setItem(_ckCid() + 'ck_archive_v1', JSON.stringify(arch));
       } catch(e){ console.warn('[ck] 封存失敗', e); }
     }
 
@@ -7047,19 +7073,61 @@
       ppRenderAll();
     }
 
+    // ★ 2026/07 月份回查：live 當月 + ck_archive_v1 裡有 perfp 的封存月份，跨月不再消失
+    var ppSelYm = (function(){ try{ return localStorage.getItem('pp_sel_ym_v1') || null; }catch(e){ return null; } })();
+    function ppSetYm(ym){
+      ppSelYm = ym;
+      try { localStorage.setItem('pp_sel_ym_v1', ym || ''); } catch(e){}
+      ppRenderAll();
+    }
+    function _ppLiveYm(){
+      var p = ppGetData();
+      return (p && p.meta && p.meta.year) ? (p.meta.year + '-' + _ckPad2(parseInt(p.meta.month, 10))) : null;
+    }
+
     function _ppPct(v){ return _ckNum(v) + '%'; }
 
     function ppRenderAll(){
-      var pp = ppGetData();
       var bar = document.getElementById('ppOrgBar');
       var body = document.getElementById('ppBody');
       if (!bar || !body) return;
 
-      var barHtml = '<button class="ck-region-btn' + (ppOrg === 'SUMMARY' ? ' active' : '') + '" onclick="ppSwitchOrg(\'SUMMARY\')">📊 七家彙總</button>';
+      // ★ 月份來源：live 當月 + 封存裡有 perfp 的月份
+      var liveYm = _ppLiveYm();
+      var arch = ckGetArchive();
+      var ymSet = {};
+      if (liveYm) ymSet[liveYm] = 1;
+      Object.keys(arch).forEach(function(ym){
+        var p = arch[ym] && arch[ym].perfp;
+        if (!p) return;
+        // ★ 只收「快照自己的 meta 月份」跟封存槽一致的（擋掉舊版錯標的殭屍快照）
+        if (p.meta && p.meta.year && (p.meta.year + '-' + _ckPad2(parseInt(p.meta.month, 10))) !== ym) return;
+        ymSet[ym] = 1;
+      });
+      var ymList = Object.keys(ymSet).sort();
+      var selYm = (ppSelYm && ymSet[ppSelYm]) ? ppSelYm : (ymList.length ? ymList[ymList.length - 1] : null);
+      var pp = null;
+      if (selYm){
+        pp = (selYm === liveYm) ? ppGetData() : ((arch[selYm] && arch[selYm].perfp) || null);
+      } else {
+        pp = ppGetData();
+      }
+
+      var barHtml = '';
+      if (ymList.length > 1 || (ymList.length === 1 && ymList[0] !== liveYm)){
+        barHtml += '<div style="flex-basis:100%;display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">'
+          + ymList.map(function(ym){
+              var y = parseInt(ym.slice(0, 4), 10), mo = parseInt(ym.slice(5), 10);
+              return '<button class="ck-region-btn' + (ym === selYm ? ' active' : '') + '" onclick="ppSetYm(\'' + ym + '\')">'
+                + y + '年' + mo + '月' + (ym === liveYm ? '' : ' 📦') + '</button>';
+            }).join('')
+          + '</div>';
+      }
+      barHtml += '<button class="ck-region-btn' + (ppOrg === 'SUMMARY' ? ' active' : '') + '" onclick="ppSwitchOrg(\'SUMMARY\')">📊 七家彙總</button>';
       CK_ORG_LIST.forEach(function(org){
         barHtml += '<button class="ck-region-btn' + (ppOrg === org ? ' active' : '') + '" onclick="ppSwitchOrg(\'' + org + '\')" style="' + (ppOrg === org ? 'color:' + CK_COLOR[org] + ';' : '') + '">' + org + '</button>';
       });
-      if (pp && pp.meta) barHtml += '<span class="ck-update-info">' + pp.meta.year + '/' + pp.meta.month + '</span>';
+      if (pp && pp.meta) barHtml += '<span class="ck-update-info">' + pp.meta.year + '/' + pp.meta.month + (selYm && selYm !== liveYm ? '（封存資料）' : '') + '</span>';
       bar.innerHTML = barHtml;
 
       if (!pp || !pp.orgs){
@@ -7164,9 +7232,17 @@
       for (var org in byOrg){ var arr = byOrg[org] || []; for (var i = 0; i < arr.length; i++){ if (arr[i] && arr[i].owners) return true; } }
       return false;
     }
+    // 「2026/7/20 11:37」→ timestamp（各角色通路同步時間，同年月資料的比新用）
+    function _crSyncTsOf(charKey){
+      try {
+        var s = localStorage.getItem(charKey.replace(/_motiv_course_v1$/, '_motiv_synced_channel')) || '';
+        var m = s.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/);
+        return m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]).getTime() : 0;
+      } catch(e){ return 0; }
+    }
     function crGetCourse(){
       try {
-        var best = null, bestYm = '', bestOwn = false;
+        var best = null, bestYm = '', bestOwn = false, bestTs = -1;
         for (var i = 0; i < localStorage.length; i++){
           var k = localStorage.key(i);
           if (!k || k.indexOf('char_') !== 0 || k.slice(-16) !== '_motiv_course_v1') continue;
@@ -7175,7 +7251,12 @@
             if (!d || !d.byOrg || !d.meta || !d.meta.year) continue;
             var ym = d.meta.year + '-' + String(parseInt(d.meta.month,10)||0).padStart(2,'0');
             var ow = _crHasOwners(d.byOrg);
-            if (ym > bestYm || (ym === bestYm && ow && !bestOwn)){ best = d; bestYm = ym; bestOwn = ow; }
+            var ts = _crSyncTsOf(k);
+            // 排序優先權：年月新 > 有明細(owners) > 同步時間新
+            var better = ym > bestYm
+              || (ym === bestYm && ow && !bestOwn)
+              || (ym === bestYm && ow === bestOwn && ts > bestTs);
+            if (better){ best = d; bestYm = ym; bestOwn = ow; bestTs = ts; }
           } catch(e2){}
         }
         if (best) return best;
