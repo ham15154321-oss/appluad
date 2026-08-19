@@ -283,6 +283,7 @@ const GLOBAL_LS_KEY_PATTERNS = [
   /^wf_appointment_sop$/,  // 瀑布 約訪流程 SOP（全公司共用一份）
   /^char_.*_appedu_leader_map_v1_/, // ★ 360 度職能評核（全公司共享：登入該主角即可看到自己被評的分數/評語，不再因「誰登入時推送」而被鎖在別人的格子裡）
   /^ai_notify_cfg_v1$/,    // ★ 📣 AI 顧問提問通知設定（EmailJS 收件人/金鑰）— 管理員填一次，全公司裝置共用
+  /^armory_v1$/,           // ★ ⚔️ 管理道場・武器庫（練功坊右門）— 全公司共享同一份武器清單
 ];
 function isGlobalLsKey(k){
   if (!k) return false;

@@ -574,7 +574,7 @@
         }
     </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=pdrsafe1"></script>
+<script defer src="./firebase-sync.js?v=armory1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -2668,7 +2668,29 @@
                 };
                 var bundleJson = JSON.stringify(bundle);
                 console.log('[cloud-sync] 推送 size = '+(bundleJson.length/1024).toFixed(1)+'KB | LS '+lsKeys.length+' / mp '+mpMonths.length+' 月 / kb '+kbItemCount+' 份');
-                await fsync.writeGlobalDoc('_global_perf_data', 'bundle', bundleJson, _getCurrentUserName());
+                // ★ 2026/07 自動分片：Firestore 單文件上限 1MB（中文 UTF-8 一字最多 3 bytes）。
+                //   一律切成 20 萬字/片（最壞 ~600KB）寫成 bundle_part_0..N，最後才寫 manifest（bundle）—
+                //   確保所有分片都上傳成功才切換指標，拉取端永遠拿到完整組合。
+                var CHUNK = 200000;
+                // 切片（emoji 安全版：切點若落在 surrogate pair 中間就往後挪一位，避免 Firestore 拒收半個字）
+                var chunks = [];
+                var pos = 0;
+                while (pos < bundleJson.length){
+                    var end = Math.min(pos + CHUNK, bundleJson.length);
+                    var cc = bundleJson.charCodeAt(end - 1);
+                    if (cc >= 0xD800 && cc <= 0xDBFF && end < bundleJson.length) end++;
+                    chunks.push(bundleJson.slice(pos, end));
+                    pos = end;
+                }
+                var nParts = chunks.length || 1;
+                for (var pi = 0; pi < nParts; pi++){
+                    btn.textContent = '☁️↑ 推送中... (' + (pi + 1) + '/' + nParts + ')';
+                    await fsync.writeGlobalDoc('_global_perf_data', 'bundle_part_' + pi, chunks[pi], _getCurrentUserName());
+                }
+                await fsync.writeGlobalDoc('_global_perf_data', 'bundle',
+                    JSON.stringify({ schema:'company-bundle-v2-manifest', chunks:nParts, totalChars:bundleJson.length }),
+                    _getCurrentUserName());
+                console.log('[cloud-sync] 分片推送完成: ' + nParts + ' 片');
                 showStatus('✅ 已推送 '+(mpMonths.length+lsKeys.length+(kbItemCount?1:0))+' 項公司資料到雲端', 'success');
                 console.log('[cloud-sync] ✅ 推送成功');
             }catch(e){
@@ -2697,6 +2719,25 @@
                     return;
                 }
                 var bundle = JSON.parse(doc.data);
+                // ★ 2026/07 分片格式：bundle 是 manifest → 把 bundle_part_0..N 讀回來拼成完整資料
+                if (bundle && bundle.schema === 'company-bundle-v2-manifest'){
+                    var parts = [];
+                    for (var pi = 0; pi < bundle.chunks; pi++){
+                        btn.textContent = '☁️↓ 拉取中... (' + (pi + 1) + '/' + bundle.chunks + ')';
+                        var pd = await fsync.readGlobalDoc('_global_perf_data', 'bundle_part_' + pi);
+                        if (!pd || typeof pd.data !== 'string' || !pd.data.length){
+                            alert('❌ 雲端分片不完整（缺第 ' + (pi + 1) + '/' + bundle.chunks + ' 片）— 請在主機重按一次「強制推送」');
+                            return;
+                        }
+                        parts.push(pd.data);
+                    }
+                    var joined = parts.join('');
+                    if (bundle.totalChars && joined.length !== bundle.totalChars){
+                        alert('❌ 雲端分片長度不符（' + joined.length + ' ≠ ' + bundle.totalChars + '）— 請在主機重按一次「強制推送」');
+                        return;
+                    }
+                    bundle = JSON.parse(joined);
+                }
                 var mp = bundle.mpData ? JSON.parse(bundle.mpData) : null;
                 var lsBundle = bundle.lsKeys || {};
                 var kb = bundle.kb || null;

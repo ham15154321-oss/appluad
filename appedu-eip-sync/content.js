@@ -34,9 +34,12 @@
   // ── EIP 請求之間的節流間隔（避免一次對 EIP 灌爆，預設 0.4 秒） ──
   function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
   var EIP_THROTTLE_MS = 400;
+  // ★ v5.13：網頁版分頁 fallback 專用節流 — 這是唯一「逐頁連打」EIP 的流程，
+  //   刻意放慢到 0.8 秒/頁，把對 EIP 的壓力降到最低（使用者可接受跑久一點）。
+  var HTML_PAGE_THROTTLE_MS = 800;
 
-  // ── 透過 background fetch ──
-  function fetchViaBackground(url){
+  // ── 透過 background fetch（單次，不含重試）──
+  function _fetchOnce(url){
     return new Promise(function(resolve, reject){
       chrome.runtime.sendMessage({ action: 'fetchEip', url: url }, function(resp){
         if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
@@ -44,6 +47,39 @@
         resolve(resp.html);
       });
     });
+  }
+  // ── 透過 background fetch（★ v5.13：加逾時 + 重試）──
+  //   MV3 service worker 在連續請求的空檔會被 Chrome 休眠，偶爾把回應「掉包」→
+  //   sendMessage 的 callback 永遠不觸發、整條同步吊死。解法：每次請求給 35 秒逾時，
+  //   逾時就重發（重發會把睡著的 SW 喚醒）。最多試 3 次，仍失敗才真的報錯。
+  function fetchViaBackground(url){
+    var MAX_TRY = 3, TIMEOUT_MS = 35000;
+    async function attempt(n){
+      try {
+        return await new Promise(function(resolve, reject){
+          var done = false;
+          var timer = setTimeout(function(){
+            if (!done){ done = true; reject(new Error('__TIMEOUT__')); }
+          }, TIMEOUT_MS);
+          _fetchOnce(url).then(function(html){
+            if (!done){ done = true; clearTimeout(timer); resolve(html); }
+          }, function(err){
+            if (!done){ done = true; clearTimeout(timer); reject(err); }
+          });
+        });
+      } catch(e){
+        var msg = (e && e.message) || '';
+        // 逾時、SW 掉包、背景 abort、context invalidated → 還有次數就重試
+        if (n < MAX_TRY && (msg === '__TIMEOUT__' || msg.indexOf('逾時') >= 0 || msg.indexOf('message channel') >= 0 || msg.indexOf('無回應') >= 0 || msg.indexOf('Receiving end') >= 0)){
+          console.warn('[EIP Content] 背景請求第 ' + n + ' 次無回應，重試...');
+          await sleep(500);
+          return attempt(n + 1);
+        }
+        if (msg === '__TIMEOUT__') throw new Error('EIP 背景請求逾時（' + MAX_TRY + ' 次都沒回應）— 請重新整理本頁再試');
+        throw e;
+      }
+    }
+    return attempt(1);
   }
 
   // ══════════════════════════════════════
@@ -497,17 +533,128 @@
     return n;
   }
 
+  // ★ v5.12：CSV 抓取加「重試 + 分辨未登入/忙線」
+  //   EIP 在連續請求後（報到按鈕會先跑完激勵的 8+ 次請求）常回一頁 HTML，
+  //   舊版直接報「未登入或忙線」讓人以為要重新登入。現在：
+  //   ① 回傳頁面含登入表單特徵 → 明確說「請重新登入」，不重試
+  //   ② 其他 HTML（忙線/逾時頁）→ 等 2 秒、5 秒各重試一次，多半第二次就成功
+  function _looksLikeHtml(t){ return !t || t.indexOf('<html') >= 0 || t.indexOf('<!DOCTYPE') >= 0; }
+  function _looksLikeLogin(t){
+    if (!t) return false;
+    var s = String(t);
+    return /登入|登錄|帳號|密碼|password|name=["']?(user|account|pwd|passwd)/i.test(s) && s.indexOf('學院') < 0;
+  }
+  // ★ v5.13：從一頁 HTML 抽出名單列（學院/承辦人 + 整列指紋）→ 給分頁去重用
+  function _listRowsFromHtml(html){
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var tables = doc.querySelectorAll('table');
+    var table = null, idxAcad = -1, idxOwner = -1;
+    for (var t = 0; t < tables.length; t++){
+      var rows = getDirectRows(tables[t]);
+      if (rows.length < 1) continue;
+      var ths = getDirectCells(rows[0]);
+      var ia = -1, io = -1;
+      for (var c = 0; c < ths.length; c++){
+        var h = ths[c].textContent.trim();
+        if (ia < 0 && h === '學院') ia = c;
+        if (io < 0 && h === '承辦人') io = c;
+      }
+      if (ia >= 0 && io >= 0){ table = tables[t]; idxAcad = ia; idxOwner = io; break; }
+    }
+    if (!table) return null; // 連名單表都沒有 → 可能無權/登入頁，交給呼叫端判斷
+    var out = [];
+    var trs = getDirectRows(table);
+    for (var i = 1; i < trs.length; i++){
+      var tds = getDirectCells(trs[i]);
+      if (tds.length <= Math.max(idxAcad, idxOwner)) continue;
+      var acad = tds[idxAcad].textContent.trim();
+      var owner = tds[idxOwner].textContent.trim();
+      var sig = trs[i].textContent.replace(/\s+/g, '').slice(0, 60);
+      out.push({ academy: acad, owner: owner, sig: sig });
+    }
+    return out;
+  }
+
+  // ★ v5.13：CSV 被擋時的 fallback — 用「網頁版名單 total.php + pg 分頁」抓完整名單。
+  //   權限說明：CSV 匯出(total_csv.php)的權限被關，但網頁版名單(total.php)使用者本人仍有權開啟，
+  //   所以這是「用使用者自己的權限、模擬人工翻頁」，不是繞過權限。
+  //   安全機制：節流 400ms/頁、去重（同一列不重複算）、遇空頁或無新資料即停、上限 80 頁。
+  async function fetchListCountsViaHtml(params, label){
+    var counts = emptyCounts();
+    var seen = {};
+    var MAX_PAGES = 80;
+    var got1stTable = false;
+    // ★ v5.14→v5.15：keepalive 改「content 端主動敲」。
+    //   content.js 跑在頁面裡永遠不會被休眠 → 由它每 12 秒送一個輕量 ping，
+    //   讓 Chrome 一直看到有訊息進來、不把背景 service worker 回收（比背景自己敲可靠）。
+    var kaTimer = setInterval(function(){
+      try { chrome.runtime.sendMessage({ action: 'keepalive' }, function(){ void chrome.runtime.lastError; }); } catch(e){}
+    }, 12000);
+    try {
+    for (var pg = 1; pg <= MAX_PAGES; pg++){
+      if (pg > 1) await sleep(HTML_PAGE_THROTTLE_MS);
+      var over = {}; for (var k in params) over[k] = params[k];
+      over.pg = String(pg);
+      var url = 'http://eip.appedu.com.tw/outlet/list/total.php?' + buildTotalQuery(over);
+      var html = await fetchViaBackground(url);
+      if (/無權|沒有權限|權限不足/.test(String(html))){
+        throw new Error(label + '：EIP 回覆「您無權進入此頁」— 你的帳號連「通路名單網頁版」也沒有權限。請找 EIP 管理員開通（CSV 與網頁版皆被關）');
+      }
+      var rows = _listRowsFromHtml(html);
+      if (rows === null){
+        if (_looksLikeLogin(html)) throw new Error(label + '：EIP 顯示登入頁 — 請在瀏覽器重新登入 EIP 後再同步');
+        if (pg === 1) throw new Error(label + '：EIP 網頁版沒有名單表格 — 可能忙線，請稍後再試');
+        break; // 後面頁數拿不到表格 → 當作結束
+      }
+      got1stTable = true;
+      var added = 0;
+      for (var i = 0; i < rows.length; i++){
+        if (seen[rows[i].sig]) continue;      // 去重（保險：pg 超過末頁若回捲也不會重複算）
+        seen[rows[i].sig] = 1;
+        addCount(counts, rows[i].academy, rows[i].owner);
+        added++;
+      }
+      notify('status', { msg: label + '：網頁版分頁抓取中… 第 ' + pg + ' 頁（累計 ' + counts.total + ' 筆）' });
+      if (rows.length === 0 || added === 0) break; // 空頁 or 這頁全是重複 → 結束
+    }
+    } finally {
+      try { clearInterval(kaTimer); } catch(e){}   // 抓完（或出錯）都要停掉 keepalive ping
+    }
+    if (!got1stTable) return emptyCounts();
+    console.log('[EIP Content] ' + label + ' 網頁版分頁: ' + counts.total + ' 筆');
+    return counts;
+  }
+
   async function fetchListCounts(params, label){
     var qs = buildTotalQuery(params);
-    // ★ v5.4：只走 CSV（不限筆數一次拿全部）。CSV 失敗就停下來，絕不退回逐頁狂掃 EIP（避免拖垮）。
-    var csv = await fetchViaBackground('http://eip.appedu.com.tw/outlet/list/total_csv.php?' + qs);
-    if (!csv || csv.indexOf('<html') >= 0 || csv.indexOf('<!DOCTYPE') >= 0){
-      throw new Error(label + '：EIP 回傳網頁而非 CSV — 多半是未登入或忙線，請稍後再試（不逐頁抓以免拖垮 EIP）');
+    var url = 'http://eip.appedu.com.tw/outlet/list/total_csv.php?' + qs;
+    var delays = [0, 2000, 5000];   // 第一次立刻，之後等 2 秒、5 秒
+    for (var attempt = 0; attempt < delays.length; attempt++){
+      if (delays[attempt]) {
+        notify('status', { msg: label + '：EIP 忙線，' + (delays[attempt]/1000) + ' 秒後重試（' + (attempt+1) + '/' + delays.length + '）...' });
+        await sleep(delays[attempt]);
+      }
+      var csv = await fetchViaBackground(url);
+      if (!_looksLikeHtml(csv)){
+        var counts = countsFromCSV(csv);
+        if (!counts) counts = emptyCounts(); // 有 CSV 但解析不出表頭（可能該查詢本月 0 筆）→ 當成 0，不報錯
+        console.log('[EIP Content] ' + label + ' CSV: ' + counts.total + ' 筆' + (attempt ? '（第 ' + (attempt+1) + ' 次嘗試成功）' : ''));
+        return counts;
+      }
+      // ★ v5.13：CSV 匯出權限被關（「您無權進入此頁」）→ 不重試，直接改用網頁版分頁 fallback。
+      if (/無權|沒有權限|權限不足/.test(String(csv))){
+        console.warn('[EIP Content] ' + label + ' CSV 無權 → 改用網頁版分頁抓取');
+        notify('status', { msg: label + '：CSV 匯出權限已關，改用網頁版分頁抓取（較慢，請稍候）...' });
+        return await fetchListCountsViaHtml(params, label);
+      }
+      if (_looksLikeLogin(csv)){
+        throw new Error(label + '：EIP 顯示登入頁 — 請在瀏覽器重新登入 EIP 後再同步');
+      }
+      console.warn('[EIP Content] ' + label + ' 第 ' + (attempt+1) + ' 次拿到 HTML（非 CSV），準備重試');
     }
-    var counts = countsFromCSV(csv);
-    if (!counts) counts = emptyCounts(); // 有 CSV 但解析不出表頭（可能該查詢本月 0 筆）→ 當成 0，不報錯
-    console.log('[EIP Content] ' + label + ' CSV: ' + counts.total + ' 筆');
-    return counts;
+    // CSV 連續 HTML（忙線）→ 最後也退到網頁版分頁試一次
+    console.warn('[EIP Content] ' + label + ' CSV 連續忙線 → 改用網頁版分頁');
+    return await fetchListCountsViaHtml(params, label);
   }
 
   function pad2(n){ return String(n).padStart(2, '0'); }

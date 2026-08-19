@@ -47,6 +47,8 @@ document.addEventListener('DOMContentLoaded', function(){
 // EIP 請求節流（避免一次灌爆，0.4 秒間隔）
 function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
 var EIP_THROTTLE_MS = 400;
+// ★ v5.13：網頁版分頁 fallback 專用節流（唯一逐頁連打的流程），放慢到 0.8 秒/頁降低 EIP 壓力
+var HTML_PAGE_THROTTLE_MS = 800;
 function _setBusy(disabled){
   ['motiv','checkin','channel'].forEach(function(mode){
     var b = document.getElementById('btnSync_' + mode); if (b) b.disabled = disabled;
@@ -567,17 +569,105 @@ function countsFromListHtml(html, counts){
   return n;
 }
 
+// ★ v5.12：CSV 抓取加「重試 + 分辨未登入/忙線」（與 content.js 同步維護）
+function _looksLikeHtml(t){ return !t || t.indexOf('<html') >= 0 || t.indexOf('<!DOCTYPE') >= 0; }
+function _looksLikeLogin(t){
+  if (!t) return false;
+  var s = String(t);
+  return /登入|登錄|帳號|密碼|password|name=["']?(user|account|pwd|passwd)/i.test(s) && s.indexOf('學院') < 0;
+}
+// ★ v5.13：從一頁 HTML 抽出名單列（學院/承辦人 + 整列指紋）→ 給分頁去重用
+function _listRowsFromHtml(html){
+  var doc = new DOMParser().parseFromString(html, 'text/html');
+  var tables = doc.querySelectorAll('table');
+  var table = null, idxAcad = -1, idxOwner = -1;
+  for (var t = 0; t < tables.length; t++){
+    var rows = getDirectRows(tables[t]);
+    if (rows.length < 1) continue;
+    var ths = getDirectCells(rows[0]);
+    var ia = -1, io = -1;
+    for (var c = 0; c < ths.length; c++){
+      var h = ths[c].textContent.trim();
+      if (ia < 0 && h === '學院') ia = c;
+      if (io < 0 && h === '承辦人') io = c;
+    }
+    if (ia >= 0 && io >= 0){ table = tables[t]; idxAcad = ia; idxOwner = io; break; }
+  }
+  if (!table) return null;
+  var out = [];
+  var trs = getDirectRows(table);
+  for (var i = 1; i < trs.length; i++){
+    var tds = getDirectCells(trs[i]);
+    if (tds.length <= Math.max(idxAcad, idxOwner)) continue;
+    out.push({ academy: tds[idxAcad].textContent.trim(), owner: tds[idxOwner].textContent.trim(), sig: trs[i].textContent.replace(/\s+/g,'').slice(0,60) });
+  }
+  return out;
+}
+
+// ★ v5.13：CSV 被擋時 fallback — 用網頁版名單 total.php + pg 分頁抓完整名單（用使用者本人權限，非繞過）
+async function fetchListCountsViaHtml(params, label){
+  var counts = emptyCounts();
+  var seen = {};
+  var MAX_PAGES = 80;
+  var gotTable = false;
+  for (var pg = 1; pg <= MAX_PAGES; pg++){
+    if (pg > 1) await sleep(HTML_PAGE_THROTTLE_MS);
+    var over = {}; for (var k in params) over[k] = params[k];
+    over.pg = String(pg);
+    var html = await fetchEipPage('http://eip.appedu.com.tw/outlet/list/total.php?' + buildTotalQuery(over));
+    if (/無權|沒有權限|權限不足/.test(String(html))){
+      throw new Error(label + '：EIP 回覆「您無權進入此頁」— 連網頁版名單也沒有權限，請找 EIP 管理員開通');
+    }
+    var rows = _listRowsFromHtml(html);
+    if (rows === null){
+      if (_looksLikeLogin(html)) throw new Error(label + '：EIP 顯示登入頁 — 請在瀏覽器重新登入 EIP 後再同步');
+      if (pg === 1) throw new Error(label + '：EIP 網頁版沒有名單表格 — 可能忙線，請稍後再試');
+      break;
+    }
+    gotTable = true;
+    var added = 0;
+    for (var i = 0; i < rows.length; i++){
+      if (seen[rows[i].sig]) continue;
+      seen[rows[i].sig] = 1;
+      addCount(counts, rows[i].academy, rows[i].owner);
+      added++;
+    }
+    try { setStatus(label + '：網頁版分頁抓取中… 第 ' + pg + ' 頁（累計 ' + counts.total + ' 筆）'); } catch(e){}
+    if (rows.length === 0 || added === 0) break;
+  }
+  if (!gotTable) return emptyCounts();
+  console.log('[EIP] ' + label + ' 網頁版分頁: ' + counts.total + ' 筆');
+  return counts;
+}
+
 async function fetchListCounts(params, label){
   var qs = buildTotalQuery(params);
-  // ★ v5.4：只走 CSV。失敗就停下來，絕不退回逐頁狂掃拖垮 EIP。
-  var csv = await fetchEipPage('http://eip.appedu.com.tw/outlet/list/total_csv.php?' + qs);
-  if (!csv || csv.indexOf('<html') >= 0 || csv.indexOf('<!DOCTYPE') >= 0){
-    throw new Error(label + '：EIP 回傳網頁而非 CSV — 多半是未登入或忙線，請稍後再試（不逐頁抓以免拖垮 EIP）');
+  var url = 'http://eip.appedu.com.tw/outlet/list/total_csv.php?' + qs;
+  var delays = [0, 2000, 5000];
+  for (var attempt = 0; attempt < delays.length; attempt++){
+    if (delays[attempt]){
+      try { setStatus(label + '：EIP 忙線，' + (delays[attempt]/1000) + ' 秒後重試（' + (attempt+1) + '/' + delays.length + '）...'); } catch(e){}
+      await sleep(delays[attempt]);
+    }
+    var csv = await fetchEipPage(url);
+    if (!_looksLikeHtml(csv)){
+      var counts = countsFromCSV(csv);
+      if (!counts) counts = emptyCounts(); // 有 CSV 但無表頭（可能該查詢 0 筆）→ 當 0
+      console.log('[EIP] ' + label + ' CSV: ' + counts.total + ' 筆' + (attempt ? '（第 ' + (attempt+1) + ' 次嘗試成功）' : ''));
+      return counts;
+    }
+    if (/無權|沒有權限|權限不足/.test(String(csv))){
+      console.warn('[EIP] ' + label + ' CSV 無權 → 改用網頁版分頁抓取');
+      try { setStatus(label + '：CSV 匯出權限已關，改用網頁版分頁抓取（較慢，請稍候）...'); } catch(e){}
+      return await fetchListCountsViaHtml(params, label);
+    }
+    if (_looksLikeLogin(csv)){
+      throw new Error(label + '：EIP 顯示登入頁 — 請在瀏覽器重新登入 EIP 後再同步');
+    }
+    console.warn('[EIP] ' + label + ' 第 ' + (attempt+1) + ' 次拿到 HTML（非 CSV），準備重試');
   }
-  var counts = countsFromCSV(csv);
-  if (!counts) counts = emptyCounts(); // 有 CSV 但無表頭（可能該查詢 0 筆）→ 當 0
-  console.log('[EIP] ' + label + ' CSV: ' + counts.total + ' 筆');
-  return counts;
+  console.warn('[EIP] ' + label + ' CSV 連續忙線 → 改用網頁版分頁');
+  return await fetchListCountsViaHtml(params, label);
 }
 
 function pad2(n){ return String(n).padStart(2, '0'); }

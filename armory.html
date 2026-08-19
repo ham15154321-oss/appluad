@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚔️ 管理道場・武器庫</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Segoe UI','Microsoft JhengHei',sans-serif;
+  background:radial-gradient(ellipse at 50% 30%,#0d1b3e 0%,#070d1f 55%,#03060f 100%);
+  color:#e2e8f0;min-height:100vh;
+}
+/* 星空 */
+.stars{position:fixed;inset:0;pointer-events:none;z-index:0;}
+.star{position:absolute;background:#fff;border-radius:50%;animation:tw var(--dur) ease-in-out infinite alternate;}
+@keyframes tw{0%{opacity:.15;transform:scale(.8)}100%{opacity:.9;transform:scale(1.15)}}
+
+.wrap{position:relative;z-index:2;max-width:1200px;margin:0 auto;padding:26px 20px 60px;}
+h1{
+  font-size:1.7rem;font-weight:900;text-align:center;letter-spacing:3px;
+  background:linear-gradient(135deg,#ffd479,#c084fc,#4aeaff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.sub{text-align:center;color:#6a7faa;font-size:.84rem;margin:6px 0 20px;letter-spacing:1px;}
+
+/* 工具列 */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.search{
+  flex:1;min-width:220px;padding:10px 14px;border-radius:10px;
+  border:1px solid rgba(120,150,255,.25);background:rgba(10,18,45,.7);color:#e2e8f0;font-size:.9rem;outline:none;
+}
+.search:focus{border-color:#818cf8;box-shadow:0 0 0 2px rgba(129,140,248,.18);}
+.btn{
+  padding:10px 16px;border-radius:10px;border:none;cursor:pointer;font-size:.86rem;font-weight:700;
+  background:linear-gradient(135deg,#7c5cff,#4a6cf7);color:#fff;white-space:nowrap;
+}
+.btn.ghost{background:rgba(120,150,255,.14);color:#aebcf0;border:1px solid rgba(120,150,255,.25);}
+.btn:hover{filter:brightness(1.15);}
+
+/* 分類列 */
+.cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+.cat{
+  padding:7px 15px;border-radius:999px;cursor:pointer;font-size:.84rem;font-weight:700;
+  background:rgba(120,150,255,.1);border:1px solid rgba(120,150,255,.22);color:#aebcf0;
+  display:flex;align-items:center;gap:6px;
+}
+.cat.active{background:linear-gradient(135deg,rgba(124,92,255,.85),rgba(74,108,247,.85));color:#fff;border-color:transparent;}
+.cat .cnt{font-size:.72rem;opacity:.75;}
+
+/* 武器卡 */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+.card{
+  background:linear-gradient(160deg,rgba(18,28,62,.92),rgba(9,14,34,.92));
+  border:1px solid rgba(120,150,255,.18);border-radius:14px;padding:16px;
+  cursor:pointer;transition:transform .15s, box-shadow .15s, border-color .15s;position:relative;
+}
+.card:hover{transform:translateY(-3px);border-color:rgba(160,140,255,.55);box-shadow:0 8px 26px rgba(80,90,255,.18);}
+.card .hd{display:flex;align-items:flex-start;gap:10px;}
+.card .icon{font-size:1.5rem;line-height:1;}
+.card .name{font-size:1rem;font-weight:800;color:#fff;flex:1;line-height:1.35;}
+.card .catbadge{
+  font-size:.68rem;padding:2px 9px;border-radius:999px;white-space:nowrap;
+  background:rgba(255,212,121,.12);color:#ffd479;border:1px solid rgba(255,212,121,.3);
+}
+.card .desc{font-size:.8rem;color:#93a4cf;margin:9px 0 0;line-height:1.55;min-height:1em;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.card .tags{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;}
+.card .tag{font-size:.68rem;color:#8fb8ff;background:rgba(80,140,255,.1);padding:2px 8px;border-radius:6px;}
+.card .acts{position:absolute;top:10px;right:10px;display:none;gap:6px;}
+.card:hover .acts{display:flex;}
+.card .acts button{
+  border:none;border-radius:7px;padding:4px 8px;cursor:pointer;font-size:.72rem;
+  background:rgba(20,30,64,.9);color:#aebcf0;border:1px solid rgba(120,150,255,.3);
+}
+.card .acts button:hover{color:#fff;background:rgba(90,110,220,.6);}
+.card .url{font-size:.66rem;color:#5a6b96;margin-top:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.empty{
+  text-align:center;color:#6a7faa;padding:70px 20px;font-size:.95rem;line-height:2;
+  border:1px dashed rgba(120,150,255,.25);border-radius:14px;
+}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(3,6,16,.78);display:none;z-index:50;align-items:center;justify-content:center;padding:18px;}
+.modal-bg.open{display:flex;}
+.modal{
+  width:100%;max-width:520px;background:linear-gradient(160deg,#131f45,#0a1128);
+  border:1px solid rgba(140,160,255,.3);border-radius:16px;padding:22px;max-height:88vh;overflow-y:auto;
+}
+.modal h3{font-size:1.05rem;margin-bottom:16px;color:#fff;}
+.modal label{display:block;font-size:.78rem;color:#8fa2d0;margin:12px 0 5px;}
+.modal input,.modal select,.modal textarea{
+  width:100%;padding:9px 12px;border-radius:9px;font-size:.88rem;color:#e2e8f0;outline:none;
+  border:1px solid rgba(120,150,255,.25);background:rgba(8,14,36,.8);font-family:inherit;
+}
+.modal textarea{resize:vertical;min-height:64px;}
+.mrow{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+.catmgr-item{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.catmgr-item input{flex:1;}
+.catmgr-item button{border:none;border-radius:8px;padding:8px 10px;cursor:pointer;background:rgba(255,110,110,.15);color:#ff9a9a;}
+
+/* ═══ ☀️ 白天模式（跟隨主頁 appedu_day_mode，由 day-mode-init.js 切 body.day-mode）═══ */
+body.day-mode{background:linear-gradient(180deg,#f5f6fa 0%,#eceef5 100%);color:#1d1d1f;}
+body.day-mode .stars{display:none;}
+body.day-mode h1{background:linear-gradient(135deg,#b8860b,#7c5cff,#2563eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+body.day-mode .sub{color:#6b7280;}
+body.day-mode .search{background:#fff;border-color:#d7dbe6;color:#1d1d1f;}
+body.day-mode .search::placeholder{color:#9aa3b5;}
+body.day-mode .search:focus{border-color:#7c5cff;box-shadow:0 0 0 2px rgba(124,92,255,.15);}
+body.day-mode .btn.ghost{background:#fff;color:#4b5563;border-color:#d7dbe6;}
+body.day-mode .cat{background:#fff;border-color:#d7dbe6;color:#4b5563;}
+body.day-mode .cat.active{color:#fff;}
+body.day-mode .card{background:#fff;border-color:#e2e6ef;box-shadow:0 2px 10px rgba(30,40,90,.06);}
+body.day-mode .card:hover{border-color:#b7a8ff;box-shadow:0 8px 24px rgba(90,80,220,.15);}
+body.day-mode .card .name{color:#1d1d1f;}
+body.day-mode .card .desc{color:#5b6472;}
+body.day-mode .card .catbadge{background:rgba(184,134,11,.1);color:#a16207;border-color:rgba(184,134,11,.3);}
+body.day-mode .card .tag{color:#2563eb;background:rgba(37,99,235,.08);}
+body.day-mode .card .url{color:#9aa3b5;}
+body.day-mode .card .acts button{background:#f3f4f8;color:#4b5563;border-color:#d7dbe6;}
+body.day-mode .card .acts button:hover{color:#fff;background:#7c5cff;}
+body.day-mode .empty{color:#6b7280;border-color:#cfd5e3;}
+body.day-mode .modal-bg{background:rgba(40,45,60,.35);}
+body.day-mode .modal{background:#fff;border-color:#d7dbe6;}
+body.day-mode .modal h3{color:#1d1d1f;}
+body.day-mode .modal label{color:#6b7280;}
+body.day-mode .modal input,body.day-mode .modal select,body.day-mode .modal textarea{background:#f8f9fc;border-color:#d7dbe6;color:#1d1d1f;}
+body.day-mode .catmgr-item button{background:rgba(220,60,60,.08);color:#dc2626;}
+body.day-mode #newCatName{background:#f8f9fc !important;border-color:#d7dbe6 !important;color:#1d1d1f !important;}
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+<div class="wrap">
+  <h1>⚔️ 管理道場・武器庫</h1>
+  <div class="sub">主管的兵器架 — 管理・訓練・會議，需要什麼，自己來拿</div>
+
+  <div class="toolbar">
+    <input class="search" id="q" placeholder="🔍 搜尋武器名稱、說明、標籤…" oninput="render()">
+    <button class="btn" onclick="openAdd()">＋ 新增武器</button>
+    <button class="btn ghost" onclick="openCatMgr()">⚙️ 分類管理</button>
+  </div>
+
+  <div class="cats" id="cats"></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none;"></div>
+</div>
+
+<!-- 新增/編輯 武器 -->
+<div class="modal-bg" id="mAdd"><div class="modal">
+  <h3 id="mAddTitle">＋ 新增武器</h3>
+  <label>武器名稱 *</label>
+  <input id="fName" placeholder="例如：主管一對一面談腳本、月會簡報範本">
+  <label>連結（HTML 頁面或雲端網址）*</label>
+  <input id="fUrl" placeholder="https://…（Google 雲端、Notion、或站內 .html 檔名）">
+  <label>分類</label>
+  <select id="fCat"></select>
+  <label>一句話說明（這把武器什麼時候用）</label>
+  <textarea id="fDesc" placeholder="例如：組員連續兩週未達標時，用這份腳本做一對一"></textarea>
+  <label>標籤（逗號分隔，方便搜尋）</label>
+  <input id="fTags" placeholder="例如：一對一, 檢討會, 新人">
+  <div class="mrow">
+    <button class="btn ghost" onclick="closeModal('mAdd')">取消</button>
+    <button class="btn" onclick="saveItem()">儲存</button>
+  </div>
+</div></div>
+
+<!-- 分類管理 -->
+<div class="modal-bg" id="mCat"><div class="modal">
+  <h3>⚙️ 分類管理</h3>
+  <div style="font-size:.76rem;color:#8fa2d0;margin-bottom:12px;">改名直接改文字；刪除分類時，原本的武器會變成「未分類」。</div>
+  <div id="catList"></div>
+  <div style="display:flex;gap:8px;margin-top:12px;">
+    <input id="newCatName" placeholder="新分類名稱…" style="flex:1;padding:9px 12px;border-radius:9px;border:1px solid rgba(120,150,255,.25);background:rgba(8,14,36,.8);color:#e2e8f0;outline:none;">
+    <button class="btn" onclick="addCat()">＋ 新增</button>
+  </div>
+  <div class="mrow"><button class="btn ghost" onclick="saveCatsFromMgr()">完成</button></div>
+</div></div>
+
+<script src="./auth-check.js"></script>
+<script src="./day-mode-init.js"></script>
+<script defer src="./firebase-sync.js?v=armory1"></script>
+<script>
+// ── 星空 ──
+(function(){
+  var s=document.getElementById('stars');
+  for(var i=0;i<70;i++){
+    var d=document.createElement('div');d.className='star';
+    d.style.cssText='left:'+Math.random()*100+'%;top:'+Math.random()*100+'%;width:'+(1+Math.random()*2)+'px;height:'+(1+Math.random()*2)+'px;--dur:'+(1.5+Math.random()*3)+'s;';
+    s.appendChild(d);
+  }
+})();
+
+// ══════ 資料層 ══════
+// LS key：armory_v1（已加入 firebase-sync GLOBAL_LS_KEY_PATTERNS → 全公司共享同一份）
+var KEY='armory_v1';
+function load(){
+  try{ var d=JSON.parse(localStorage.getItem(KEY)||'null'); if(d&&Array.isArray(d.items))return d; }catch(e){}
+  return { cats:['🧭 管理','🎯 訓練','📋 會議'], items:[] };
+}
+function save(d){
+  try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){ alert('儲存失敗：'+(e.message||e)); }
+  // 觸發 firebase push（firebase-sync.js 有攔 setItem 就自動；保險再手動叫一次）
+  try{ if(window.firebaseSync&&window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
+}
+var curCat='all', _editId=null;
+
+// ── 依網址判斷武器類型 icon ──
+function iconFor(url){
+  url=String(url||'').toLowerCase();
+  if(/docs\.google|drive\.google|sheets\.google|slides\.google/.test(url))return '☁️';
+  if(/notion\.so|notion\.site/.test(url))return '🧊';
+  if(/youtube\.com|youtu\.be/.test(url))return '🎬';
+  if(/dropbox|onedrive|icloud/.test(url))return '☁️';
+  if(/\.html/.test(url))return '📄';
+  if(/\.pdf/.test(url))return '📕';
+  return '🔗';
+}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ══════ 渲染 ══════
+function render(){
+  var d=load(), q=(document.getElementById('q').value||'').trim().toLowerCase();
+  // 分類列
+  var catsEl=document.getElementById('cats');
+  var html='<div class="cat'+(curCat==='all'?' active':'')+'" onclick="setCat(\'all\')">全部 <span class="cnt">('+d.items.length+')</span></div>';
+  d.cats.forEach(function(c){
+    var n=d.items.filter(function(it){return it.cat===c;}).length;
+    html+='<div class="cat'+(curCat===c?' active':'')+'" onclick="setCat(\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+' <span class="cnt">('+n+')</span></div>';
+  });
+  var un=d.items.filter(function(it){return !it.cat||d.cats.indexOf(it.cat)<0;}).length;
+  if(un)html+='<div class="cat'+(curCat==='__none__'?' active':'')+'" onclick="setCat(\'__none__\')">未分類 <span class="cnt">('+un+')</span></div>';
+  catsEl.innerHTML=html;
+
+  // 篩選
+  var items=d.items.slice();
+  if(curCat==='__none__')items=items.filter(function(it){return !it.cat||d.cats.indexOf(it.cat)<0;});
+  else if(curCat!=='all')items=items.filter(function(it){return it.cat===curCat;});
+  if(q)items=items.filter(function(it){
+    return (it.name||'').toLowerCase().indexOf(q)>=0
+      || (it.desc||'').toLowerCase().indexOf(q)>=0
+      || (it.tags||[]).join(',').toLowerCase().indexOf(q)>=0;
+  });
+  items.sort(function(a,b){return (b.updatedAt||0)-(a.updatedAt||0);});
+
+  var grid=document.getElementById('grid'), empty=document.getElementById('empty');
+  if(!items.length){
+    grid.innerHTML='';
+    empty.style.display='block';
+    empty.innerHTML=d.items.length?'🔍 這個篩選下沒有武器':'⚔️ 武器庫還是空的<br>點右上「＋ 新增武器」放進第一把 — 可以是站內頁面、Google 雲端、Notion，任何連結都行。';
+    return;
+  }
+  empty.style.display='none';
+  grid.innerHTML=items.map(function(it){
+    var tags=(it.tags||[]).map(function(t){return '<span class="tag">#'+esc(t)+'</span>';}).join('');
+    return '<div class="card" onclick="openItem(\''+it.id+'\')">'
+      +'<div class="acts">'
+      +  '<button onclick="event.stopPropagation();openEdit(\''+it.id+'\')">✏️</button>'
+      +  '<button onclick="event.stopPropagation();delItem(\''+it.id+'\')">🗑</button>'
+      +'</div>'
+      +'<div class="hd"><div class="icon">'+iconFor(it.url)+'</div>'
+      +  '<div class="name">'+esc(it.name||'(未命名)')+'</div>'
+      +  (it.cat?'<div class="catbadge">'+esc(it.cat)+'</div>':'')
+      +'</div>'
+      +(it.desc?'<div class="desc">'+esc(it.desc)+'</div>':'')
+      +(tags?'<div class="tags">'+tags+'</div>':'')
+      +'<div class="url">'+esc(it.url||'')+'</div>'
+      +'</div>';
+  }).join('');
+}
+function setCat(c){curCat=c;render();}
+function openItem(id){
+  var it=load().items.find(function(x){return x.id===id;});
+  if(it&&it.url)window.open(it.url,'_blank');
+}
+
+// ══════ 新增 / 編輯 ══════
+function _fillCatSelect(sel){
+  var d=load(), el=document.getElementById('fCat');
+  el.innerHTML='<option value="">（未分類）</option>'+d.cats.map(function(c){
+    return '<option value="'+esc(c)+'"'+(c===sel?' selected':'')+'>'+esc(c)+'</option>';
+  }).join('');
+}
+function openAdd(){
+  _editId=null;
+  document.getElementById('mAddTitle').textContent='＋ 新增武器';
+  ['fName','fUrl','fDesc','fTags'].forEach(function(i){document.getElementById(i).value='';});
+  _fillCatSelect(curCat!=='all'&&curCat!=='__none__'?curCat:'');
+  document.getElementById('mAdd').classList.add('open');
+}
+function openEdit(id){
+  var it=load().items.find(function(x){return x.id===id;}); if(!it)return;
+  _editId=id;
+  document.getElementById('mAddTitle').textContent='✏️ 編輯武器';
+  document.getElementById('fName').value=it.name||'';
+  document.getElementById('fUrl').value=it.url||'';
+  document.getElementById('fDesc').value=it.desc||'';
+  document.getElementById('fTags').value=(it.tags||[]).join(', ');
+  _fillCatSelect(it.cat||'');
+  document.getElementById('mAdd').classList.add('open');
+}
+function saveItem(){
+  var name=document.getElementById('fName').value.trim();
+  var url=document.getElementById('fUrl').value.trim();
+  if(!name){alert('請填武器名稱');return;}
+  if(!url){alert('請填連結');return;}
+  if(!/^https?:\/\//.test(url) && !/\.html/.test(url)){ if(!confirm('這個連結看起來不是網址也不是 .html，確定要存嗎？'))return; }
+  var d=load();
+  var tags=document.getElementById('fTags').value.split(/[,，]/).map(function(t){return t.trim();}).filter(Boolean);
+  if(_editId){
+    var it=d.items.find(function(x){return x.id===_editId;});
+    if(it){it.name=name;it.url=url;it.cat=document.getElementById('fCat').value;it.desc=document.getElementById('fDesc').value.trim();it.tags=tags;it.updatedAt=Date.now();}
+  }else{
+    d.items.push({id:'w_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+      name:name,url:url,cat:document.getElementById('fCat').value,
+      desc:document.getElementById('fDesc').value.trim(),tags:tags,
+      createdAt:Date.now(),updatedAt:Date.now()});
+  }
+  save(d);closeModal('mAdd');render();
+}
+function delItem(id){
+  if(!confirm('確定要把這把武器移出武器庫？'))return;
+  var d=load();d.items=d.items.filter(function(x){return x.id!==id;});save(d);render();
+}
+
+// ══════ 分類管理 ══════
+function openCatMgr(){
+  var d=load(), el=document.getElementById('catList');
+  el.innerHTML=d.cats.map(function(c,i){
+    return '<div class="catmgr-item"><input value="'+esc(c)+'" data-i="'+i+'"><button onclick="delCat('+i+')">🗑</button></div>';
+  }).join('');
+  document.getElementById('mCat').classList.add('open');
+}
+function addCat(){
+  var v=document.getElementById('newCatName').value.trim();if(!v)return;
+  var d=load();if(d.cats.indexOf(v)>=0){alert('已有同名分類');return;}
+  d.cats.push(v);save(d);document.getElementById('newCatName').value='';openCatMgr();render();
+}
+function delCat(i){
+  var d=load(), name=d.cats[i];
+  if(!confirm('刪除分類「'+name+'」？裡面的武器會變成未分類。'))return;
+  d.cats.splice(i,1);
+  d.items.forEach(function(it){if(it.cat===name)it.cat='';});
+  save(d);openCatMgr();render();
+}
+function saveCatsFromMgr(){
+  var d=load();
+  var inputs=document.querySelectorAll('#catList input');
+  var newCats=[],rename={};
+  inputs.forEach(function(inp){
+    var oldName=d.cats[parseInt(inp.dataset.i,10)], v=inp.value.trim();
+    if(!v)return;
+    if(oldName&&v!==oldName)rename[oldName]=v;
+    if(newCats.indexOf(v)<0)newCats.push(v);
+  });
+  d.items.forEach(function(it){ if(it.cat&&rename[it.cat])it.cat=rename[it.cat]; });
+  d.cats=newCats;save(d);closeModal('mCat');render();
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// 點背景關 modal
+document.querySelectorAll('.modal-bg').forEach(function(bg){
+  bg.addEventListener('click',function(e){if(e.target===bg)bg.classList.remove('open');});
+});
+
+render();
+// firebase pull 完成後重繪（別台裝置新增的武器會出現）
+window.addEventListener('storage',function(e){if(e.key===KEY)render();});
+setTimeout(render,2500);
+</script>
+</body>
+</html>

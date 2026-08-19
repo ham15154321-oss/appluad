@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Appedu EIP 激勵同步",
-  "version": "5.11",
-  "description": "從赫綵 EIP 系統同步業績數據到激勵排行榜 — 新增各通路績效自動同步（收支明細六通路分類 + 班務追回）",
-  "permissions": ["activeTab", "scripting"],
+  "version": "5.15",
+  "description": "從赫綵 EIP 系統同步業績數據到激勵排行榜 — v5.15：報到網頁版分頁 keepalive 改由 content 端主動維持，徹底修正逐頁抓取中途吊死",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
   "host_permissions": [
     "*://eip.appedu.com.tw/*"
   ],
@@ -12,8 +15,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>", "file:///*"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>",
+        "file:///*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle",
       "all_frames": true
     }

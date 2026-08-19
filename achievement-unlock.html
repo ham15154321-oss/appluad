@@ -443,7 +443,7 @@ body.day-mode .tm-content-box{background:#fbfbfd;border-color:#e5e5ea;color:#1d1
 }
 </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=pdrsafe1"></script>
+<script defer src="./firebase-sync.js?v=armory1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -453,6 +453,7 @@ body.day-mode .tm-content-box{background:#fbfbfd;border-color:#e5e5ea;color:#1d1
 <!-- NAV -->
 <div class="nav">
   <button class="active" onclick="showTab('potential',this)">潛 能</button>
+  <button onclick="showTab('finance',this)">💰 財務總覽</button>
   <button onclick="showTab('collect',this)">蒐 藏</button>
   <button onclick="showTab('achieve',this)">成 就</button>
   <button onclick="showTab('gallery',this)">精華區</button>
@@ -472,6 +473,11 @@ body.day-mode .tm-content-box{background:#fbfbfd;border-color:#e5e5ea;color:#1d1
     </div>
     <div class="radar-stats" id="radarStats"></div>
   </div>
+</div>
+
+<!-- ══════ 💰 財務總覽（每人各自的資料，iframe 載入 財務總覽.html）══════ -->
+<div id="page-finance" class="page" style="padding:0;">
+  <iframe id="financeFrame" style="width:100%;height:calc(100vh - 52px);border:none;background:transparent;display:block;" allow="clipboard-write"></iframe>
 </div>
 
 <!-- ══════ 蒐藏 ══════ -->
@@ -629,6 +635,11 @@ function showTab(id,btn){
   btn.classList.add('active');
   if(id==='potential') drawRadar();
   if(id==='taskarchive') renderTaskArchive();
+  // ★ 財務總覽：第一次點開才載入 iframe（省資源）；資料會依當前角色自動隔離＋雲端同步
+  if(id==='finance'){
+    var f=document.getElementById('financeFrame');
+    if(f && !f.getAttribute('src')) f.setAttribute('src','./財務總覽.html?v=fin1');
+  }
 }
 const BASE_SK='achievement_unlock_data';
 const SHARED_YT_SK='achievement_shared_all_yt'; // 精華區影片照片：全角色共享
