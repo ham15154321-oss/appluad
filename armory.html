@@ -153,9 +153,9 @@ body.day-mode #newCatName{background:#f8f9fc !important;border-color:#d7dbe6 !im
   <label>武器名稱 *</label>
   <input id="fName" placeholder="例如：主管一對一面談腳本、月會簡報範本">
   <label>連結（HTML 頁面或雲端網址）*</label>
-  <input id="fUrl" placeholder="站內檔案：武器庫/檔名.html ｜ 雲端：https://…">
+  <input id="fUrl" placeholder="站內檔案：直接填 檔名.html ｜ 雲端：https://…">
   <div style="font-size:.72rem;color:#7c8db5;margin-top:5px;line-height:1.6;">
-    📁 站內 HTML：把檔案放進「武器庫」資料夾 → 部署 → 這裡填 <b>武器庫/檔名.html</b><br>
+    📁 站內 HTML：檔案放進「武器庫」資料夾 → 部署 → 這裡<b>直接填 檔名.html</b>（系統會自動去武器庫資料夾找）<br>
     ☁️ Google/Notion 雲端：直接貼完整網址（記得開「知道連結的人可檢視」）
   </div>
   <label>分類</label>
@@ -199,12 +199,26 @@ body.day-mode #newCatName{background:#f8f9fc !important;border-color:#d7dbe6 !im
 // ══════ 資料層 ══════
 // LS key：armory_v1（已加入 firebase-sync GLOBAL_LS_KEY_PATTERNS → 全公司共享同一份）
 var KEY='armory_v1';
+// ★ 鏡像備份 key：firebase_sync_ 前綴「不會上雲、也不會被雲端拉取覆蓋」→ 純本機保險箱。
+//   就算 firebase pull 把主 key 蓋成空的（重開機競態），load() 會發現鏡像比較多筆 → 自動救回。
+var MIRROR='firebase_sync_armory_mirror';
+function _cnt(d){ return (d&&Array.isArray(d.items))?d.items.length:-1; }
 function load(){
-  try{ var d=JSON.parse(localStorage.getItem(KEY)||'null'); if(d&&Array.isArray(d.items))return d; }catch(e){}
+  var main=null, mir=null;
+  try{ main=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(e){}
+  try{ mir=JSON.parse(localStorage.getItem(MIRROR)||'null'); }catch(e){}
+  // 鏡像比主資料多筆 → 主資料被覆蓋過 → 用鏡像救回並寫回主 key
+  if(_cnt(mir) > _cnt(main)){
+    console.warn('[armory] 🛡 主資料('+_cnt(main)+'筆) < 鏡像('+_cnt(mir)+'筆)，用鏡像救回');
+    try{ localStorage.setItem(KEY, JSON.stringify(mir)); }catch(e){}
+    main=mir;
+  }
+  if(main&&Array.isArray(main.items)) return main;
   return { cats:['🧭 管理','🎯 訓練','📋 會議'], items:[] };
 }
 function save(d){
   try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){ alert('儲存失敗：'+(e.message||e)); }
+  try{ localStorage.setItem(MIRROR, JSON.stringify(d)); }catch(e){}   // ★ 同步寫鏡像（本機保險箱）
   // 觸發 firebase push（firebase-sync.js 有攔 setItem 就自動；保險再手動叫一次）
   try{ if(window.firebaseSync&&window.firebaseSync.push) window.firebaseSync.push(); }catch(e){}
 }
@@ -274,9 +288,18 @@ function render(){
   }).join('');
 }
 function setCat(c){curCat=c;render();}
+// ── 連結解析：純檔名（沒 http、沒斜線）→ 自動當成「武器庫/檔名」──
+//   使用者只要填「檔名.html」就好；要連站內其他頁可填「./頁面.html」或含路徑
+function resolveUrl(u){
+  u=String(u||'').trim();
+  if(!u) return '';
+  if(/^https?:\/\//i.test(u)) return u;   // 完整網址 → 原樣
+  if(u.indexOf('/')>=0) return u;          // 已含路徑 → 原樣
+  return '武器庫/'+u;                       // 純檔名 → 自動進武器庫資料夾
+}
 function openItem(id){
   var it=load().items.find(function(x){return x.id===id;});
-  if(it&&it.url)window.open(it.url,'_blank');
+  if(it&&it.url)window.open(resolveUrl(it.url),'_blank');
 }
 
 // ══════ 新增 / 編輯 ══════

@@ -60,15 +60,46 @@
     try{ localStorage.setItem('appedu_text_zoom', v); }catch(e){}
     apply();
   }
+  // ★ 收合狀態（截圖時可一鍵縮成小角標，記憶偏好；每台裝置各自，不同步）
+  function isCollapsed(){ try{ return localStorage.getItem('appedu_tz_collapsed') === '1'; }catch(e){ return false; } }
+  function setCollapsed(v){ try{ localStorage.setItem('appedu_tz_collapsed', v ? '1' : '0'); }catch(e){}
+    var c = document.querySelector('.tz-control.tz-float');
+    if(c){ c.classList.toggle('tz-collapsed', !!v); pokeIdle(); }
+  }
+  // ★ 閒置自動變半透明：3 秒沒互動 → 淡出；滑到/點到 → 恢復
+  var _idleT = null;
+  function pokeIdle(){
+    var c = document.querySelector('.tz-control.tz-float');
+    if(!c) return;
+    c.classList.remove('tz-idle');
+    if(_idleT) clearTimeout(_idleT);
+    _idleT = setTimeout(function(){ if(c) c.classList.add('tz-idle'); }, 3000);
+  }
   function makeControl(floating){
     var box = document.createElement('div');
     box.className = 'tz-control' + (floating ? ' tz-float' : '');
-    box.innerHTML = '<span class="tz-cap">文字</span>' + LEVELS.map(function(l){
+    var inner = '';
+    if(floating){
+      // 收合把手（縮起來時只剩這顆小圓鈕；展開時當「收合」鈕）
+      inner += '<button type="button" class="tz-handle" title="收合／展開文字大小列">A±</button>';
+    }
+    inner += '<span class="tz-cap">文字</span>' + LEVELS.map(function(l){
       return '<button type="button" class="tz-btn" data-z="' + l.k + '">' + l.label + '</button>';
     }).join('');
+    box.innerHTML = inner;
     var bb = box.querySelectorAll('.tz-btn');
     for(var i=0;i<bb.length;i++){
-      bb[i].addEventListener('click', function(){ setLevel(this.getAttribute('data-z')); });
+      bb[i].addEventListener('click', function(){ setLevel(this.getAttribute('data-z')); pokeIdle(); });
+    }
+    var handle = box.querySelector('.tz-handle');
+    if(handle){
+      handle.addEventListener('click', function(e){ e.stopPropagation(); setCollapsed(!box.classList.contains('tz-collapsed')); });
+    }
+    if(floating){
+      if(isCollapsed()) box.classList.add('tz-collapsed');
+      box.addEventListener('mouseenter', pokeIdle);
+      box.addEventListener('click', pokeIdle);
+      box.addEventListener('touchstart', pokeIdle, {passive:true});
     }
     return box;
   }
@@ -78,18 +109,33 @@
     st.textContent =
       '.tz-control{display:flex;gap:3px;align-items:center;background:rgba(20,28,46,0.94);'
     + 'border:1px solid rgba(120,160,220,0.32);border-radius:999px;padding:5px 7px;'
-    + 'box-shadow:0 4px 18px rgba(0,0,0,0.32);font-family:-apple-system,"Noto Sans TC",sans-serif;}'
+    + 'box-shadow:0 4px 18px rgba(0,0,0,0.32);font-family:-apple-system,"Noto Sans TC",sans-serif;'
+    + 'transition:opacity .3s ease;}'
     + '.tz-control.tz-float{position:fixed;right:12px;bottom:12px;z-index:99995;}'
+    // 閒置淡出（滑到/點到會恢復）— 截圖時比較不擋
+    + '.tz-control.tz-float.tz-idle{opacity:.22;}'
+    + '.tz-control.tz-float.tz-idle:hover{opacity:1;}'
     + '.tz-control .tz-cap{font-size:11px;font-weight:800;color:#9bb3d8;margin:0 4px 0 3px;}'
     + '.tz-control .tz-btn{border:none;border-radius:999px;padding:5px 11px;font-size:12px;'
     + 'font-weight:700;cursor:pointer;background:transparent;color:#9bb3d8;font-family:inherit;line-height:1;}'
     + '.tz-control .tz-btn:hover{background:rgba(120,160,220,0.18);}'
     + '.tz-control .tz-btn.tz-on{background:#0071e3;color:#fff;}'
+    // 收合把手
+    + '.tz-control .tz-handle{border:none;border-radius:999px;width:26px;height:26px;flex:0 0 auto;cursor:pointer;'
+    + 'background:rgba(120,160,220,0.16);color:#9bb3d8;font-size:11px;font-weight:800;font-family:inherit;line-height:1;padding:0;}'
+    + '.tz-control .tz-handle:hover{background:rgba(120,160,220,0.3);}'
+    // 收合狀態：只剩把手，其餘藏起來
+    + '.tz-control.tz-collapsed{padding:3px;opacity:.5;}'
+    + '.tz-control.tz-collapsed:hover{opacity:1;}'
+    + '.tz-control.tz-collapsed.tz-idle{opacity:.5;}'
+    + '.tz-control.tz-collapsed .tz-cap,.tz-control.tz-collapsed .tz-btn{display:none;}'
     + 'body.day-mode .tz-control{background:rgba(255,255,255,0.96);border-color:#d2d2d7;box-shadow:0 4px 18px rgba(0,0,0,0.12);}'
     + 'body.day-mode .tz-control .tz-cap{color:#6e6e73;}'
     + 'body.day-mode .tz-control .tz-btn{color:#6e6e73;}'
     + 'body.day-mode .tz-control .tz-btn:hover{background:#ebebed;}'
-    + 'body.day-mode .tz-control .tz-btn.tz-on{background:#0071e3;color:#fff;}';
+    + 'body.day-mode .tz-control .tz-btn.tz-on{background:#0071e3;color:#fff;}'
+    + 'body.day-mode .tz-control .tz-handle{background:#eef1f5;color:#6e6e73;}'
+    + 'body.day-mode .tz-control .tz-handle:hover{background:#e2e6ec;}';
     document.head.appendChild(st);
     if(mounts){
       mounts.forEach(function(sel){
@@ -102,7 +148,7 @@
       document.body.appendChild(makeControl(true));
     }
   }
-  function init(){ build(); apply(); }
+  function init(){ build(); apply(); pokeIdle(); }
   if(document.body) init();
   else document.addEventListener('DOMContentLoaded', init);
   window.addEventListener('storage', function(e){
