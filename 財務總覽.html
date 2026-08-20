@@ -703,6 +703,15 @@ body.day-mode ::-webkit-scrollbar-thumb{background:#d2d2d7}
       </div>
     </details>
     <div class="card">
+      <h3>☁️ 雲端同步（多裝置共用同一份）</h3>
+      <div class="hint" style="padding:0 0 10px">兩台裝置交替使用時，換裝置前先在「舊裝置」按 <b>☁️ 推送到雲端</b>，到「新裝置」按 <b>🔄 從雲端拉取最新</b>，就會拿到最新資料。<br>⚠️ 拉取會用雲端版本覆蓋本機，請先確認本機的最新編輯已推送過。</div>
+      <div class="btnrow" style="margin-bottom:6px">
+        <button class="btn2" id="finPushBtn">☁️ 推送到雲端</button>
+        <button class="btn2 fill" id="finPullBtn">🔄 從雲端拉取最新</button>
+      </div>
+      <div class="savebar" id="finSyncState" style="padding:4px 0 0"></div>
+    </div>
+    <div class="card">
       <h3>💾 資料備份</h3>
       <div class="hint" style="padding:0 0 10px">改版或換檔案前先「匯出備份」下載保存；新版打開後「匯入備份」即可完整還原（含各帳本、截圖、繳款勾選、資產負債與走勢快照）。</div>
       <div class="btnrow" style="margin-bottom:6px">
@@ -3062,6 +3071,45 @@ async function importBackup(file){
 $('bkExport').onclick = exportBackup;
 $('bkImport').onclick = ()=> $('bkFile').click();
 $('bkFile').onchange = ev=>{ const f = ev.target.files[0]; if(f) importBackup(f); ev.target.value=''; };
+
+/* ---------- ☁️ 手動雲端同步（多裝置交替使用時，明確控制推/拉方向）---------- */
+function _finFindSync(){
+  try{ let w=window,hop=0; while(w&&hop<6){ try{ if(w.firebaseSync && typeof w.firebaseSync.push==='function' && typeof w.firebaseSync.pull==='function') return w.firebaseSync; }catch(e){} if(w===w.parent)break; w=w.parent; hop++; } }catch(e){}
+  return null;
+}
+function _finSyncMsg(t,color){ const el=$('finSyncState'); if(el){ el.textContent=t; el.style.color=color||''; } }
+// 推送：把本機財務資料強制推上雲端
+async function finPushCloud(){
+  const fs=_finFindSync();
+  if(!fs){ _finSyncMsg('⚠️ 找不到雲端同步（請從人力發展 → 成就解鎖進入，不要單獨開檔）','#ff6b6b'); return; }
+  const btn=$('finPushBtn'); btn.disabled=true; const old=btn.textContent; btn.textContent='☁️ 推送中…';
+  try{
+    await Promise.resolve(fs.push({force:true}));
+    _finSyncMsg('✅ 已推送到雲端（'+new Date().toLocaleTimeString('zh-TW')+'）。到另一台按「🔄 從雲端拉取最新」','#2e9e5b');
+  }catch(e){ _finSyncMsg('❌ 推送失敗：'+(e&&e.message||e),'#ff6b6b'); }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+// 拉取：用雲端版本覆蓋本機（先把本機財務 key 的時間戳歸零，確保雲端一定贏，破除 LWW「本機較新」卡住）
+async function finPullCloud(){
+  const fs=_finFindSync();
+  if(!fs){ _finSyncMsg('⚠️ 找不到雲端同步（請從人力發展 → 成就解鎖進入，不要單獨開檔）','#ff6b6b'); return; }
+  if(!confirm('🔄 用雲端版本覆蓋這台的財務資料？\n\n若這台有還沒推送的編輯會被蓋掉。確定要拉取最新嗎？')) return;
+  const btn=$('finPullBtn'); btn.disabled=true; const old=btn.textContent; btn.textContent='🔄 拉取中…';
+  try{
+    // 把本機財務 key 的 LWW 時間戳設 0 → 雲端任何版本都算「較新」→ 一定覆蓋本機
+    try{
+      const LS=_finTopLS(); const pfx=_finPrefix();
+      const ts=JSON.parse(LS.getItem('_fs_lastModified')||'{}')||{};
+      Object.keys(ts).forEach(function(k){ if(k.indexOf(pfx)===0) ts[k]=0; });
+      LS.setItem('_fs_lastModified', JSON.stringify(ts));
+    }catch(e){}
+    await Promise.resolve(fs.pull());
+    _finSyncMsg('✅ 已從雲端拉取，正在重新整理…','#2e9e5b');
+    setTimeout(function(){ try{ location.reload(); }catch(e){} }, 800);
+  }catch(e){ _finSyncMsg('❌ 拉取失敗：'+(e&&e.message||e),'#ff6b6b'); btn.disabled=false; btn.textContent=old; }
+}
+$('finPushBtn').onclick = finPushCloud;
+$('finPullBtn').onclick = finPullCloud;
 
 /* ---------- ☀️🌙 日夜模式（契約對齊人力發展.html：body.day-mode ＋ localStorage appedu_day_mode ＋ #dayNightBtn） ---------- */
 function refreshModeBtn(){
