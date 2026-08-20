@@ -78,6 +78,17 @@ try {
         var top = _findTopFirebaseSync();
         if (top && top.readTrainingSalesDoc) return top.readTrainingSalesDoc(charId);
         return Promise.reject(new Error('parent 沒有 readTrainingSalesDoc'));
+      },
+      // ★ 2026/08：轉發單一文件讀寫（財務總覽的快速同步用）
+      writeGlobalDoc: function(collectionName, docId, jsonString, pushedBy){
+        var top = _findTopFirebaseSync();
+        if (top && top.writeGlobalDoc) return top.writeGlobalDoc(collectionName, docId, jsonString, pushedBy);
+        return Promise.reject(new Error('parent 沒有 writeGlobalDoc'));
+      },
+      readGlobalDoc: function(collectionName, docId){
+        var top = _findTopFirebaseSync();
+        if (top && top.readGlobalDoc) return top.readGlobalDoc(collectionName, docId);
+        return Promise.reject(new Error('parent 沒有 readGlobalDoc'));
       }
     };
     return;
