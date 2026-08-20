@@ -927,6 +927,21 @@
   @media (max-width:768px) {
     body {
       -webkit-tap-highlight-color: transparent;
+      /* ★ 手機解鎖上下捲動：原本 body 鎖 100vh + overflow:hidden，
+         內容比一個螢幕高就被切掉、頂部「練功房/指揮城堡」按不到。改成可捲動。*/
+      overflow-y: auto;
+      overflow-x: hidden;
+      height: auto;
+      min-height: 100vh;
+      -webkit-overflow-scrolling: touch;
+    }
+    /* ★ 卡片區改「由上往下正常排列」（原本絕對置中會超出畫面且無法捲到）*/
+    .center-stage {
+      position: static;
+      transform: none;
+      top: auto; left: auto;
+      margin: 0 auto;
+      padding: 96px 12px 120px;   /* 上留白避開頂部資訊列、下留白避開底部導航列 */
     }
 
     /* Top-left adjustments */
@@ -1046,6 +1061,8 @@
     body {
       -webkit-tap-highlight-color: transparent;
     }
+    /* ★ 頂部資訊列在極窄螢幕會換行變高 → 卡片區多留一點上留白，避免蓋住第一排卡片 */
+    .center-stage { padding-top: 116px; }
 
     /* Top-left adjustments */
     .top-left {
