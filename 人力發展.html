@@ -5619,6 +5619,39 @@ window.addEventListener('load',function(){
     }
   }catch(e){}
 });
+
+// ★ 手機捲動兜底（2026/08）：用最高優先級 inline style 強制解鎖上下滑動。
+//   原本 body 鎖 100vh + overflow:hidden，手機內容超過一個螢幕就切掉、按鈕按不到。
+//   即使 CSS 因快取沒更新，這段 JS 也能保證手機可捲、卡片正常由上往下排。
+(function(){
+  function fixMobileScroll(){
+    var mobile = window.innerWidth <= 768;
+    var b = document.body, h = document.documentElement;
+    var cs = document.querySelector('.center-stage');
+    if(mobile){
+      h.style.height='auto'; h.style.overflowY='auto';
+      b.style.height='auto'; b.style.minHeight='100vh';
+      b.style.overflowY='auto'; b.style.overflowX='hidden';
+      b.style.webkitOverflowScrolling='touch';
+      if(cs){
+        cs.style.position='static'; cs.style.transform='none';
+        cs.style.top='auto'; cs.style.left='auto'; cs.style.margin='0 auto';
+        if(!cs.style.paddingTop || cs.style.paddingTop==='0px'){
+          cs.style.padding=(window.innerWidth<=480?'116px':'96px')+' 12px 120px';
+        }
+      }
+    }else{
+      // 桌面版還原（避免視窗縮放後殘留）
+      h.style.height=''; h.style.overflowY='';
+      b.style.height=''; b.style.minHeight='';
+      b.style.overflowY=''; b.style.overflowX=''; b.style.webkitOverflowScrolling='';
+      if(cs){ cs.style.position=''; cs.style.transform=''; cs.style.top=''; cs.style.left=''; cs.style.margin=''; cs.style.padding=''; }
+    }
+  }
+  fixMobileScroll();
+  window.addEventListener('resize', fixMobileScroll);
+  window.addEventListener('orientationchange', function(){ setTimeout(fixMobileScroll, 200); });
+})();
 </script>
 </body>
 </html>
