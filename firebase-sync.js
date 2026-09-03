@@ -1098,6 +1098,19 @@ async function pushToCloud(opts){
         }
         // 非圖片大型資料（對話記錄、案例庫等）→ 正常放行，由 writeDataToFirestore 分批處理
       }
+      // ★ 2026/09 Firestore 單欄位上限 ~1MB：超過的巨型 key（例如漏斗逐人封存 ck_archive）
+      //   跳過一般逐 key 通道（否則整次推送 invalid-argument 炸掉）。
+      //   這類巨型資料請走「每月績效 → ☁️↑ 強制推送公司資料」的分片打包通道。
+      try {
+        if (val.length > 300000) {   // 先粗篩（>30 萬字才精算 byte 數，避免每個 key 都算）
+          var _bytes = (typeof TextEncoder !== 'undefined') ? new TextEncoder().encode(val).length : val.length * 3;
+          if (_bytes > 1000000){
+            skippedCount++;
+            console.warn('[FirebaseSync] ⚠️ 跳過超過 Firestore 1MB 上限的 key（此類資料走 ☁️↑ 強制推送的分片通道）:', k, Math.round(_bytes/1024) + 'KB');
+            continue;
+          }
+        }
+      } catch(_szErr){}
       lsData[k] = val;
     }
     if (skippedCount) console.log('[FirebaseSync] 共跳過', skippedCount, '筆超大資料');

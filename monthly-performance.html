@@ -574,7 +574,7 @@
         }
     </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=armory1"></script>
+<script defer src="./firebase-sync.js?v=sizeguard1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -2615,7 +2615,19 @@
             }catch(e){ console.warn('[cloud-sync] 寫 KnowledgeBaseDB 失敗',e); }
         }
 
+        // ★ 強制推送僅限管理者（黃柏翰）：非管理者按鈕隱藏＋函式入口擋下（拉取不限）
+        function _mpIsAdmin(){
+            try {
+                var pLS = _getParentLS();
+                var n = pLS.getItem('activeCharacterName') || pLS.getItem('appedu_logged_character') || '';
+                return n === '黃柏翰';
+            } catch(e){ return false; }
+        }
+        try { document.addEventListener('DOMContentLoaded', function(){
+            try { if (!_mpIsAdmin()){ var b = document.getElementById('cloudPushBtn'); if (b) b.style.display = 'none'; } } catch(e){}
+        }); } catch(e){}
         async function forcePushMpDataToCloud(){
+            if (!_mpIsAdmin()){ alert('☁️↑ 強制推送僅限管理者（黃柏翰）使用。\n你的填寫會自動同步，看不到新月份請按「☁️↓ 強制拉取」。'); return; }
             var btn = document.getElementById('cloudPushBtn');
             try{
                 btn.disabled = true; btn.textContent = '☁️↑ 推送中...';

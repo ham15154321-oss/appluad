@@ -1928,7 +1928,7 @@
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=armory1"></script>
+<script defer src="./firebase-sync.js?v=sizeguard1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -3474,7 +3474,7 @@
 
     // Switch tabs
     // ★ 載入「每月績效」iframe（懶載入；表頭 ☁️↑ 推送鈕也會用到）
-    var MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle2';
+    var MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle3';
     function _pcEnsureMpLoaded(){
       var f = document.getElementById('mp-iframe');
       if (f && (!f.src || f.src.indexOf(MP_TARGET_SRC) < 0)) f.src = MP_TARGET_SRC;
@@ -3503,8 +3503,20 @@
         else { if (btn) btn.textContent = label; alert('每月績效模組載入逾時，請先點「每月績效」分頁再按一次'); }
       })();
     }
-    function pcForcePushCompany(){ _pcCallMp('forcePushMpDataToCloud', 'pcPushBtn', '☁️↑ 推送'); }
+    // ★ 推送僅限管理者（黃柏翰）：按鈕隱藏＋函式入口雙重防護（拉取所有人可用）
+    function _pcIsAdmin(){
+      try {
+        var n = localStorage.getItem('activeCharacterName') || localStorage.getItem('appedu_logged_character') || '';
+        return n === '黃柏翰';
+      } catch(e){ return false; }
+    }
+    function pcForcePushCompany(){
+      if (!_pcIsAdmin()){ alert('☁️↑ 強制推送僅限管理者（黃柏翰）使用。\n你的填寫會自動同步，看不到新月份請按「☁️↓ 拉取」。'); return; }
+      _pcCallMp('forcePushMpDataToCloud', 'pcPushBtn', '☁️↑ 推送');
+    }
     function pcForcePullCompany(){ _pcCallMp('forcePullMpDataFromCloud', 'pcPullBtn', '☁️↓ 拉取'); }
+    // 非管理者 → 隱藏推送鈕
+    (function(){ try { if (!_pcIsAdmin()){ var b = document.getElementById('pcPushBtn'); if (b) b.style.display = 'none'; } } catch(e){} })();
 
     function switchTab(tabIndex) {
       loadData();
