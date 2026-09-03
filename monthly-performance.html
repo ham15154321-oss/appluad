@@ -2550,9 +2550,17 @@
         function _collectPerfLSKeys(){
             var pLS = _getParentLS();
             var keys = [];
+            var aid = ''; try{ aid = pLS.getItem('activeCharacterId') || ''; }catch(e){}
+            var pfx = aid ? ('char_' + aid + '_') : null;
             for(var i=0;i<pLS.length;i++){
                 var k = pLS.key(i);
-                if(k && k.indexOf('perf_compare_v1') === 0) keys.push(k);
+                if(!k) continue;
+                if(k.indexOf('perf_compare_v1') === 0){ keys.push(k); continue; }
+                // ★ 2026/09 報到/漏斗/激勵（含 ck_archive_v1 月份封存）也一起打包：
+                //   這些是全公司資料但存在「角色 key」底下，之前強制推送沒帶到 → 別台看不到新月份。
+                //   只帶「目前登入角色」那份（最完整的一份），別台強制拉取後靠跨角色 fallback 讀取。
+                if(pfx && k.indexOf(pfx) === 0 && (k.indexOf('motiv_') >= 0 || k.indexOf('ck_archive_v1') >= 0)){ keys.push(k); continue; }
+                if(/^motiv_[A-Za-z_0-9]+$/.test(k)){ keys.push(k); continue; }
             }
             return keys;
         }
@@ -2645,11 +2653,14 @@
 
                 var summary = [];
                 if(mpMonths.length) summary.push('📅 每月績效: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
+                var _extraN = 0;
                 lsKeys.forEach(function(k){
+                    if(k.indexOf('perf_compare_v1') !== 0){ _extraN++; return; }
                     var label = k.replace('perf_compare_v1','').replace(/^_/,'')||'比較';
                     var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史'};
                     summary.push((labels[label]||label)+': ✓');
                 });
+                if(_extraN) summary.push('📦 報到/漏斗/激勵(含月份封存): '+_extraN+' 項');
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
                 if(!confirm('☁️ 把所有公司資料推送到雲端?\n\n'+summary.join('\n')+'\n\n注意:會覆蓋雲端版本。其他電腦下次按「強制拉取」就能拿到最新版。')){
@@ -2749,11 +2760,14 @@
 
                 var summary = [];
                 if(mpMonths.length) summary.push('📅 每月績效: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
+                var _extraN2 = 0;
                 lsKeyNames.forEach(function(k){
+                    if(k.indexOf('perf_compare_v1') !== 0){ _extraN2++; return; }
                     var label = k.replace('perf_compare_v1','').replace(/^_/,'')||'比較';
                     var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史'};
                     summary.push((labels[label]||label)+': ✓');
                 });
+                if(_extraN2) summary.push('📦 報到/漏斗/激勵(含月份封存): '+_extraN2+' 項');
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
                 if(!confirm('☁️ 把雲端公司資料合併到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n說明:依月份合併 — 雲端會更新/補上月份,但不會刪掉本機已有的月份。')){

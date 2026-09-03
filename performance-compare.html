@@ -3493,7 +3493,7 @@
       if (tabIndex === 3) {
         const mpIframe = document.getElementById('mp-iframe');
         // ★ 永遠用最新的 cache buster（沒有當前版本字串 → 重抓新版）
-        const MP_TARGET_SRC = 'monthly-performance.html?v=mpmerge1';
+        const MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle2';
         if (!mpIframe.src || !mpIframe.src.includes('v=apple1')) {
           mpIframe.src = MP_TARGET_SRC;
         }
@@ -8433,8 +8433,19 @@
       var c1=0, c2=0, c3=0, c4=0, biz=0, np=0, pb=0;
       rows.forEach(function(r){ c1 += _ckNum(r.count1); c2 += _ckNum(r.count2); c3 += _ckNum(r.count3); c4 += _ckNum(r.count4); biz += _ckNum(r.business); np += _ckNum(r.new_perf); pb += _ckNum(r.pay_back); });
       var ent = fnGetEntry(ym, org);
-      var extra = _ckNum(ent.extraTrial);
       var auto = _fnAuto(_fnRawFor(ym), org, ym);           // ★ 擴充「🔀 漏斗」逐人資料 → 自動分類（有就接管，手填變覆寫）
+      // ── 🖐 記名制報備試聽（沒繳報名費但有安排試聽的人，手動記名）──
+      //    與自動名單比對：該學員已註冊 → ✅（不重複計）；已在自動試聽名單（有繳報名費）→ 🔁（不重複計）；其餘計入安排試聽
+      var _regN = {}, _trN = {};
+      if (auto){
+        [].concat(auto.onsite||[], auto.trialReg||[], auto.harvest||[], auto.harvestOld||[]).forEach(function(x){ _regN[x.n] = 1; });
+        (auto.mgmt||[]).forEach(function(x){ _trN[x.n] = 1; });
+      }
+      var sReports = (Array.isArray(ent.reports) ? ent.reports : []).map(function(r){
+        return Object.assign({}, r, { st: _regN[r.n] ? 'reg' : (_trN[r.n] ? 'dup' : 'ok') });
+      });
+      var reportN = sReports.filter(function(r){ return r.st === 'ok'; }).length;
+      var extra = _ckNum(ent.extraTrial) + reportN;
       var trial = (auto ? auto.trial : c2) + extra;
       // ── 當下 / 試聽後註冊：自動優先，手填覆寫；沒自動時雙填互驗 ──
       var hasOn = _fnHasVal(ent.onsite), hasTr = _fnHasVal(ent.trialReg);
@@ -8458,6 +8469,7 @@
       var suspicious = known && ((trial >= 5 && trialReg / trial > 0.8) || (c1 >= 10 && onsiteRate > 50));   // 偏高 → 黃燈提醒
       var mgmt = auto && !hasTr ? auto.mgmt.length + extra : (known ? Math.max(0, trial - trialReg) : 0);
       return { org:org, checkin:checkin, interview:c1, signup:c2, extra:extra, trial:trial, auto:auto, autoDiff:autoDiff, harvestDiff: auto ? harvestDiff : 0,
+               reports:sReports, reportN:reportN,
                harvest: auto ? auto.harvest.length + auto.harvestOld.length : null, poolOpen: auto ? auto.poolOpen : null, poolHarvest: auto ? auto.poolHarvest : null,
                courses: auto ? auto.courses : null, coursesNew: auto ? auto.coursesNew : null, heads: auto ? auto.heads : null, headsNew: auto ? auto.headsNew : null,
                regA:c3, regB:c4, onsite:onsite, reg:trialReg, mgmt:mgmt, filled:filled, mismatch:mismatch, known:known, overTrial:overTrial, overInterview:overInterview, suspicious:suspicious, onsiteRate:onsiteRate, filledBy:ent.filledBy||'', filledAt:ent.filledAt||'',
@@ -8677,7 +8689,7 @@
         html += '<div class="fn-tools">'
           + '<label>當下註冊 <input type="number" min="0" step="1"' + ((s.mismatch || s.overInterview) ? ' class="bad"' : '') + ' value="' + (_fnHasVal(ent.onsite) ? _ckNum(ent.onsite) : '') + '" placeholder="—" onchange="fnSetField(\'' + ym + '\',\'' + o + '\',\'onsite\',this.value)"></label>'
           + '<label>試聽後註冊 <input type="number" min="0" step="1"' + ((s.mismatch || s.overTrial) ? ' class="bad"' : '') + ' value="' + (_fnHasVal(ent.trialReg) ? _ckNum(ent.trialReg) : '') + '" placeholder="—" onchange="fnSetField(\'' + ym + '\',\'' + o + '\',\'trialReg\',this.value)"></label>'
-          + '<label>額外試聽報備 <input type="number" min="0" step="1" value="' + (s.extra || 0) + '" onchange="fnSetField(\'' + ym + '\',\'' + o + '\',\'extraTrial\',this.value)"></label>'
+          + '<button onclick="fnOpenReports(\'' + ym + '\',\'' + o + '\')" style="border:1px solid rgba(120,140,220,.4);background:rgba(90,110,240,.12);color:inherit;border-radius:8px;padding:5px 12px;cursor:pointer;font-size:.8rem;font-weight:700;">🖐 報備試聽名單（' + ((s.reports && s.reports.length) || 0) + '）</button>'
           + '<span style="color:var(--fnDim);">' + (s.auto ? '已由 🔀 漏斗自動分類，這兩格填了會覆寫自動值' : '兩格相加應＝註冊Ⓐ ' + s.regA + '；只填一格會自動算另一格') + '</span>'
           + '<button onclick="fnToggleNote(this)">✏️ 補充亮點</button>'
           + (s.filledBy ? '<span style="margin-left:auto;color:var(--fnDim);">✍️ ' + _fnEsc(s.filledBy) + ' ' + _fnEsc(s.filledAt) + ' 填</span>' : (s.auto ? '' : '<span style="margin-left:auto;color:var(--fnWarn);">尚未有人填寫</span>'))
@@ -8699,6 +8711,75 @@
       fnSetEntry(ym, org, patch); fnRenderAll();
     }
     function fnToggleNote(btn){ var card = btn.closest('.fn-tile'); var box = card && card.querySelector('.fn-hl[style]'); if (box) box.style.display = (box.style.display === 'none') ? 'flex' : 'none'; }
+
+    // ═══════ 🖐 記名制報備試聽 ═══════
+    //   沒繳報名費但有安排試聽 → 記名報備（誰報備、何時報備都留 log）。
+    //   全公司同步（FN_KEY 走 perf_compare_v1 共享白名單）。學員之後註冊 → 自動標 ✅。
+    function fnOpenReports(ym, org){
+      var d = _fnDataFor(ym); var s = _fnOrgStats(d, org, ym);
+      var reps = s.reports || [];
+      var stTag = function(st){
+        if (st === 'reg') return '<span style="color:#16a34a;font-weight:700;">✅ 已註冊（轉化成功）</span>';
+        if (st === 'dup') return '<span style="color:#d97706;font-weight:700;">🔁 已在自動試聽名單，不重複計</span>';
+        return '<span style="color:#2563eb;font-weight:700;">🖐 報備中（計入安排試聽）</span>';
+      };
+      var rows = reps.map(function(r){
+        return '<div style="border-bottom:1px solid #eee;padding:9px 0;display:flex;gap:10px;align-items:flex-start;">'
+          + '<div style="flex:1;line-height:1.55;"><b>' + _fnEsc(r.n) + '</b>'
+          + (r.course ? '<span style="color:#666;">｜' + _fnEsc(r.course) + '</span>' : '')
+          + (r.date ? '<span style="color:#666;">｜試聽日 ' + _fnEsc(r.date) + '</span>' : '')
+          + '<div style="font-size:.78rem;color:#777;margin-top:2px;">'
+          + (r.sales ? '負責業務：' + _fnEsc(r.sales) + '　' : '') + stTag(r.st)
+          + (r.note ? '<br>📝 ' + _fnEsc(r.note) : '')
+          + '<br><span style="color:#aaa;">✍️ ' + _fnEsc(r.by || '未知') + ' 於 ' + _fnEsc(r.at || '—') + ' 報備</span></div></div>'
+          + '<button onclick="fnDelReport(\'' + ym + '\',\'' + _fnEsc(org) + '\',\'' + r.id + '\')" style="border:none;background:#fdecec;color:#c33;border-radius:6px;padding:4px 9px;cursor:pointer;">🗑</button>'
+          + '</div>';
+      }).join('') || '<div style="color:#999;padding:14px 0;">尚無報備。沒繳報名費但已安排試聽的學員，從下方新增。</div>';
+      var inp = 'style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:.85rem;box-sizing:border-box;background:#fff;color:#1d1d1f;"';
+      var html = '<div id="fnRepBg" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(10,14,30,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;">'
+        + '<div style="background:#fff;color:#1d1d1f;border-radius:14px;max-width:560px;width:100%;max-height:86vh;overflow-y:auto;padding:20px;font-size:.9rem;box-shadow:0 18px 60px rgba(0,0,0,.35);">'
+        + '<b style="font-size:1rem;">🖐 ' + _fnEsc(org) + '・報備試聽名單（' + ym + '）</b>'
+        + '<div style="font-size:.75rem;color:#888;margin:4px 0 10px;">沒繳報名費但有安排試聽 → 記名報備，計入「安排試聽」。學員之後註冊會自動標 ✅。全公司同步，每筆都記報備人與時間。</div>'
+        + rows
+        + '<div style="margin-top:14px;padding-top:12px;border-top:2px solid #eee;">'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+        + '<input id="fnRepName" placeholder="學員姓名（必填）" ' + inp + '>'
+        + '<input id="fnRepSales" placeholder="負責業務" ' + inp + '>'
+        + '<input id="fnRepCourse" placeholder="試聽課程（例：商用平面）" ' + inp + '>'
+        + '<input id="fnRepDate" type="date" ' + inp + '>'
+        + '</div>'
+        + '<div style="margin-top:8px;"><input id="fnRepNote" placeholder="備註（選填）" ' + inp + '></div>'
+        + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">'
+        + '<button onclick="document.getElementById(\'fnRepBg\').remove()" style="padding:8px 16px;border:1px solid #ddd;background:#fff;color:#555;border-radius:8px;cursor:pointer;">關閉</button>'
+        + '<button onclick="fnAddReport(\'' + ym + '\',\'' + _fnEsc(org) + '\')" style="padding:8px 16px;border:none;background:#4a6cf7;color:#fff;border-radius:8px;cursor:pointer;font-weight:700;">＋ 報備</button>'
+        + '</div></div></div></div>';
+      var old = document.getElementById('fnRepBg'); if (old) old.remove();
+      document.body.insertAdjacentHTML('beforeend', html);
+    }
+    function fnAddReport(ym, org){
+      var n = (document.getElementById('fnRepName').value || '').trim();
+      if (!n){ alert('請填學員姓名'); return; }
+      var who = ''; try { who = localStorage.getItem('activeCharacterName') || localStorage.getItem('activeCharacterId') || ''; } catch(e){}
+      var d = new Date();
+      var rec = { id:'tr_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
+        n:n,
+        sales:(document.getElementById('fnRepSales').value || '').trim(),
+        course:(document.getElementById('fnRepCourse').value || '').trim(),
+        date:document.getElementById('fnRepDate').value || '',
+        note:(document.getElementById('fnRepNote').value || '').trim(),
+        by: who || '未知',
+        at:(d.getMonth()+1) + '/' + d.getDate() + ' ' + _ckPad2(d.getHours()) + ':' + _ckPad2(d.getMinutes()) };
+      var ent = fnGetEntry(ym, org); var arr = Array.isArray(ent.reports) ? ent.reports.slice() : [];
+      if (arr.some(function(r){ return r.n === n; })){ if (!confirm('「' + n + '」這個月已有報備，確定要再加一筆？')) return; }
+      arr.push(rec); fnSetEntry(ym, org, { reports: arr });
+      fnRenderAll(); fnOpenReports(ym, org);
+    }
+    function fnDelReport(ym, org, id){
+      if (!confirm('刪除這筆報備？（刪除後不再計入安排試聽）')) return;
+      var ent = fnGetEntry(ym, org); var arr = (ent.reports || []).filter(function(r){ return r.id !== id; });
+      fnSetEntry(ym, org, { reports: arr });
+      fnRenderAll(); fnOpenReports(ym, org);
+    }
 
     // 📋 複製成 LINE 可貼的文字（含敘事）
     function fnCopyText(){
