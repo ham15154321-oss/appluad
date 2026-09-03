@@ -42,6 +42,27 @@ document.addEventListener('DOMContentLoaded', function(){
   if (bc) bc.addEventListener('click', async function(){ await doSync('motiv'); await doSync('checkin'); });
   var bch = document.getElementById('btnSync_channel');
   if (bch) bch.addEventListener('click', function(){ doSync('channel'); });
+  // ★ v5.16：漏斗 — 逐人資料由頁面裡的 content script 抓（要回溯 3 個月、翻頁多），popup 只負責「按下去」
+  var bfn = document.getElementById('btnSync_funnel');
+  if (bfn) bfn.addEventListener('click', async function(){
+    try {
+      var year = document.getElementById('selYear').value, month = document.getElementById('selMonth').value;
+      var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabs || !tabs.length) throw new Error('找不到目前頁面');
+      var res = await chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id, allFrames: true },
+        func: function(y, m){
+          var ok = false;
+          try { if (document.getElementById('fnBar')){ window.postMessage({ channel:'appedu-eip-sync', action:'request', year:y, month:m, mode:'funnel' }, '*'); ok = true; } } catch(e){}
+          return ok;
+        },
+        args: [year, month]
+      });
+      var hit = (res || []).some(function(r){ return r && r.result; });
+      if (!hit) throw new Error('目前分頁沒有「業績數據中心」— 請先開啟人力發展 → 📊 業績數據中心，再按這顆');
+      setStatus('⏳ 🔀 漏斗已交給「業績數據中心」頁面執行（約 7～9 分鐘），進度與結果看該頁右下角提示', 'ok');
+    } catch(err){ setStatus('❌ ' + (err.message || err), 'err'); }
+  });
 });
 
 // EIP 請求節流（避免一次灌爆，0.4 秒間隔）
@@ -50,7 +71,7 @@ var EIP_THROTTLE_MS = 400;
 // ★ v5.13：網頁版分頁 fallback 專用節流（唯一逐頁連打的流程），放慢到 0.8 秒/頁降低 EIP 壓力
 var HTML_PAGE_THROTTLE_MS = 800;
 function _setBusy(disabled){
-  ['motiv','checkin','channel'].forEach(function(mode){
+  ['motiv','checkin','channel','funnel'].forEach(function(mode){
     var b = document.getElementById('btnSync_' + mode); if (b) b.disabled = disabled;
   });
 }

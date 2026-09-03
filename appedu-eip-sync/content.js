@@ -997,6 +997,210 @@
     });
   }
 
+  // ══════════════════════════════════════════════════════════════
+  //  ★ v5.16 模式 D：🔀 漏斗（月度漏斗總結的逐人資料）
+  //   兩張 EIP 逐人明細，七家各抓一次，用「姓名」合併：
+  //   ① 面談紀錄總表 class/student/student/interview/total.php
+  //      q1=組織、q5~q6=建檔日期（本月 + 往回 3 個月，追回/收割池要看前幾個月談的人）
+  //      欄：建檔日期、姓名、行動電話、承辦人、購買課程(報名/註冊狀態)、備註、總實繳
+  //   ② 營業收支查詢 class/report/performance/business.php
+  //      q12=組織、q1~q2=收支日期（本月）
+  //      欄：姓名、副類別(學員加購要排除)、繳費狀態(只留 報名/註冊)、業績合計、收支日期、承辦人
+  //   兩頁都是 pg= 翻頁、每頁 30 筆，跟報到排名的網頁版 fallback 同一套做法（0.8 秒/頁、去重、空頁即停）。
+  //   分類（當下/試聽後/追回/經營中）不在擴充算，交給頁面（規則可改、不用重抓）。
+  // ══════════════════════════════════════════════════════════════
+  var FUNNEL_LOOKBACK_MONTHS = 3;
+  // ★ 對 EIP 的保護：漏斗是全擴充裡翻頁最多的流程（七家約 180 頁），刻意比報到再慢一倍 —
+  //   每頁間隔 2 秒、每家之間再停 4 秒、永遠一次只有一個請求在跑（跟一個人手動翻頁一樣，只是更慢）。
+  //   總時間約 7～9 分鐘，換取對公司 EIP 幾乎零感的負載。
+  var FUNNEL_PAGE_THROTTLE_MS = 2000;
+  var FUNNEL_ORG_GAP_MS = 4000;
+  function _fnPad2(n){ return String(n).padStart(2, '0'); }
+  function _fnLastDay(y, m){ return new Date(y, m, 0).getDate(); }   // m: 1-12
+  function _fnTxt(el){ return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; }
+
+  // 面談紀錄總表：一頁 → rows
+  function _fnParseInterviewPage(html){
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var table = doc.getElementById('students');
+    if (!table){
+      // 找表頭含「建檔日期」「姓名」「購買課程」的表
+      var tables = doc.querySelectorAll('table');
+      for (var t = 0; t < tables.length; t++){
+        var h = _fnTxt(getDirectRows(tables[t])[0] || null);
+        if (h.indexOf('建檔日期') >= 0 && h.indexOf('購買課程') >= 0){ table = tables[t]; break; }
+      }
+    }
+    if (!table) return null;
+    var trs = getDirectRows(table);
+    if (!trs.length) return null;
+    var ths = getDirectCells(trs[0]).map(function(c){ return _fnTxt(c); });
+    var ix = {};
+    ths.forEach(function(h, i){
+      if (h === '建檔日期') ix.date = i;
+      else if (h === '姓名') ix.name = i;
+      else if (h === '行動電話') ix.phone = i;
+      else if (h === '承辦人') ix.owner = i;
+      else if (h === '想學課程') ix.want = i;
+      else if (h === '購買課程') ix.bought = i;
+      else if (h === '備註') ix.note = i;
+      else if (h === '總實繳') ix.paid = i;
+      else if (h === '通路來源(副)') ix.src = i;
+    });
+    if (ix.date == null || ix.name == null) return null;
+    var out = [];
+    for (var i = 1; i < trs.length; i++){
+      var tds = getDirectCells(trs[i]);
+      if (tds.length <= ix.date) continue;
+      var name = _fnTxt(tds[ix.name]); if (!name) continue;
+      var bought = tds[ix.bought], app = 0, reg = 0, courses = [];
+      if (bought){
+        var divs = bought.querySelectorAll('div');
+        for (var d = 0; d < divs.length; d++){
+          var cls = divs[d].className || '';
+          var cn = _fnTxt(divs[d]).replace(/\s*(未登記|登記上課|登記未出席|使用未過 1\/3|出席.*)$/, '');
+          if (/pay_status1/.test(cls)){ app++; courses.push(cn + '(報名)'); }
+          else if (/pay_status2/.test(cls)){ reg++; courses.push(cn + '(註冊)'); }
+        }
+      }
+      out.push({
+        d: _fnTxt(tds[ix.date]),                       // 建檔日期 = 面談日 YYYY/MM/DD
+        n: name,
+        p: ix.phone != null ? _fnTxt(tds[ix.phone]) : '',
+        o: ix.owner != null ? _fnTxt(tds[ix.owner]) : '',
+        s: ix.src != null ? _fnTxt(tds[ix.src]) : '',
+        w: ix.want != null ? _fnTxt(tds[ix.want]).slice(0, 40) : '',
+        a: app,                                         // 報名中的課程數（報未註）
+        r: reg,                                         // 已註冊課程數
+        c: courses.slice(0, 4).join('、'),
+        m: ix.note != null ? _fnTxt(tds[ix.note]).slice(0, 60) : '',
+        t: ix.paid != null ? parseFloat(_fnTxt(tds[ix.paid]).replace(/,/g, '')) || 0 : 0
+      });
+    }
+    return out;
+  }
+
+  // 營業收支查詢：一頁 → rows（只留 報名/註冊）
+  function _fnParseBusinessPage(html){
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var table = doc.getElementById('performances');
+    if (!table){
+      var tables = doc.querySelectorAll('table');
+      for (var t = 0; t < tables.length; t++){
+        var h = _fnTxt(getDirectRows(tables[t])[0] || null);
+        if (h.indexOf('繳費狀態') >= 0 && h.indexOf('收支日期') >= 0){ table = tables[t]; break; }
+      }
+    }
+    if (!table) return null;
+    var trs = getDirectRows(table);
+    if (!trs.length) return null;
+    var ths = getDirectCells(trs[0]).map(function(c){ return _fnTxt(c); });
+    var ix = {};
+    ths.forEach(function(h, i){
+      if (h === '姓名') ix.name = i;
+      else if (h === '通路來源副類別') ix.sub = i;
+      else if (h === '課程名稱') ix.course = i;
+      else if (h === '繳費狀態') ix.state = i;
+      else if (h === '業績合計') ix.perf = i;
+      else if (h === '收支日期') ix.date = i;
+      else if (h === '承辦人') ix.owner = i;
+      else if (h === '收據編號') ix.sn = i;
+    });
+    if (ix.name == null || ix.state == null || ix.date == null) return null;
+    var out = { rows: [], total: 0 };
+    for (var i = 1; i < trs.length; i++){
+      var tds = getDirectCells(trs[i]);
+      if (tds.length <= Math.max(ix.state, ix.date)) continue;
+      out.total++;
+      var st = _fnTxt(tds[ix.state]);
+      if (st !== '報名' && st !== '註冊') continue;
+      out.rows.push({
+        n: _fnTxt(tds[ix.name]),
+        st: st,
+        sub: ix.sub != null ? _fnTxt(tds[ix.sub]) : '',
+        k: ix.course != null ? _fnTxt(tds[ix.course]).slice(0, 30) : '',
+        d: _fnTxt(tds[ix.date]),
+        v: ix.perf != null ? parseFloat(_fnTxt(tds[ix.perf]).replace(/,/g, '')) || 0 : 0,
+        o: ix.owner != null ? _fnTxt(tds[ix.owner]) : '',
+        sn: ix.sn != null ? _fnTxt(tds[ix.sn]) : ''
+      });
+    }
+    return out;
+  }
+
+  // 通用：pg 翻頁抓到底（去重、空頁即停）
+  async function _fnFetchPaged(baseUrl, label, parsePage, maxPages, prog){
+    var all = [], seen = {}, gotTable = false;
+    for (var pg = 1; pg <= maxPages; pg++){
+      if (pg > 1) await sleep(FUNNEL_PAGE_THROTTLE_MS);
+      var html = await fetchViaBackground(baseUrl + '&pg=' + pg);
+      if (/無權|沒有權限|權限不足/.test(String(html))) throw new Error(label + '：EIP 回覆「無權進入此頁」— 請找 EIP 管理員開通');
+      var parsed = parsePage(html);
+      if (parsed === null){
+        if (_looksLikeLogin(html)) throw new Error(label + '：EIP 顯示登入頁 — 請重新登入 EIP 後再同步');
+        if (pg === 1) throw new Error(label + '：找不到資料表格 — EIP 可能忙線，請稍後再試');
+        break;
+      }
+      gotTable = true;
+      var rows = parsed.rows || parsed, rawCount = parsed.total != null ? parsed.total : rows.length;
+      var added = 0;
+      for (var i = 0; i < rows.length; i++){
+        var sig = JSON.stringify(rows[i]);
+        if (seen[sig]) continue;
+        seen[sig] = 1; all.push(rows[i]); added++;
+      }
+      notify('status', { msg: label + ' 第 ' + pg + ' 頁（累計 ' + all.length + ' 筆）', prog: Object.assign({}, prog || {}, { page: pg, rows: all.length }) });
+      if (rawCount === 0 || rawCount < 30) break;          // 不滿 30 筆 = 最後一頁
+      if (rows.length && added === 0) break;                // 整頁重複 = 回捲，結束
+    }
+    return gotTable ? all : [];
+  }
+
+  async function fetchFunnel(year, month){
+    var y = parseInt(year, 10), m = parseInt(month, 10);
+    var fy = y, fm = m - FUNNEL_LOOKBACK_MONTHS; while (fm < 1){ fm += 12; fy--; }
+    var from = fy + '/' + _fnPad2(fm) + '/01';
+    var mStart = y + '/' + _fnPad2(m) + '/01', mEnd = y + '/' + _fnPad2(m) + '/' + _fnPad2(_fnLastDay(y, m));
+    var data = { meta: { year: y, month: m, lookback: FUNNEL_LOOKBACK_MONTHS, from: from, to: mEnd, syncedAt: _nowStr() }, orgs: {} };
+    var kaTimer = setInterval(function(){
+      try { chrome.runtime.sendMessage({ action: 'keepalive' }, function(){ void chrome.runtime.lastError; }); } catch(e){}
+    }, 12000);
+    try {
+      for (var k = 0; k < PERF_ORGS.length; k++){
+        var org = PERF_ORGS[k];
+        var lab = '🔀 ' + org.name + '（' + (k+1) + '/' + PERF_ORGS.length + '）';
+        // ① 面談紀錄總表：本月 + 往回 3 個月
+        var itvUrl = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id
+          + '&q5=' + encodeURIComponent(from) + '&q6=' + encodeURIComponent(mEnd);
+        var itv = await _fnFetchPaged(itvUrl, lab + ' 面談紀錄', _fnParseInterviewPage, 60, { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'itv' });
+        await sleep(FUNNEL_PAGE_THROTTLE_MS);
+        // ② 營業收支：本月
+        var bizUrl = 'http://eip.appedu.com.tw/class/report/performance/business.php?q12=' + org.id
+          + '&q1=' + encodeURIComponent(mStart) + '&q2=' + encodeURIComponent(mEnd) + '&btnq=' + encodeURIComponent('查詢');
+        var pay = await _fnFetchPaged(bizUrl, lab + ' 收支明細', _fnParseBusinessPage, 60, { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'pay' });
+        data.orgs[org.name] = { itv: itv, pay: pay };
+        if (k < PERF_ORGS.length - 1){ notify('status', { msg: lab + ' 完成，停 4 秒讓 EIP 喘口氣…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } }); await sleep(FUNNEL_ORG_GAP_MS); }
+      }
+    } finally {
+      try { clearInterval(kaTimer); } catch(e){}
+    }
+    return data;
+  }
+
+  async function syncFunnel(year, month){
+    notify('status', { msg: '🔀 漏斗：開始抓七家的面談紀錄＋收支明細（本月＋往回 3 個月）。為了不影響 EIP，刻意放慢：每頁 2 秒、一次只發一個請求，約 7～9 分鐘，可以先去做別的事…', prog: { org: 0, total: PERF_ORGS.length, phase: 'start' } });
+    var data = await fetchFunnel(year, month);
+    var cid = _cid(), ts = _nowStr();
+    var nI = 0, nP = 0; for (var o in data.orgs){ nI += data.orgs[o].itv.length; nP += data.orgs[o].pay.length; }
+    _safeSet(cid + 'motiv_funnel_v1', JSON.stringify(data));
+    _safeSet(cid + 'motiv_synced_funnel', ts);
+    _safeSet(cid + 'motiv_updated_at', ts);
+    notify('done', {
+      mode: 'funnel', funnel: data, updateTime: ts,
+      msg: '🔀 漏斗同步完成！面談紀錄 ' + nI + ' 人（含往回 3 個月）／ 報名・註冊明細 ' + nP + ' 筆'
+    });
+  }
+
   var _syncBusy = false; // ★ v5.5：全域單一同步鎖 — 同時間只允許一個模式抓 EIP
   async function doSync(year, month, mode){
     mode = mode || 'motiv';
@@ -1011,6 +1215,7 @@
       if (mode === 'motiv') await syncMotiv(year, month);
       else if (mode === 'checkin') await syncCheckin(year, month);
       else if (mode === 'channel') await syncChannel(year, month);
+      else if (mode === 'funnel') await syncFunnel(year, month);
       else throw new Error('未知的同步模式: ' + mode);
     } catch(err){
       console.error('[EIP Content] 同步失敗:', err);
