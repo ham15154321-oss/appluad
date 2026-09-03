@@ -1038,6 +1038,7 @@
     var ix = {};
     ths.forEach(function(h, i){
       if (h === '建檔日期') ix.date = i;
+      else if (h === '通路建檔日期') ix.src0 = i;
       else if (h === '姓名') ix.name = i;
       else if (h === '行動電話') ix.phone = i;
       else if (h === '承辦人') ix.owner = i;
@@ -1065,6 +1066,7 @@
       }
       out.push({
         d: _fnTxt(tds[ix.date]),                       // 建檔日期 = 面談日 YYYY/MM/DD
+        sd: ix.src0 != null ? _fnTxt(tds[ix.src0]) : '',  // 通路建檔日期 = 名單進來的日期（EIP Ⓐ/Ⓑ 用這個分：當月＝Ⓐ 新名單、更早＝Ⓑ 舊名單）
         n: name,
         p: ix.phone != null ? _fnTxt(tds[ix.phone]) : '',
         o: ix.owner != null ? _fnTxt(tds[ix.owner]) : '',

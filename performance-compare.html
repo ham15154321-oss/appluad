@@ -8341,7 +8341,7 @@
       var P = {};
       pay.forEach(function(r){ if (r.sub === '學員加購') return; var d = _fnParseD(r.d); if (!d) return; var p = P[r.n] || (P[r.n] = { reg:[], app:[] }); p[r.st === '註冊' ? 'reg' : 'app'].push({ d:d, v:+r.v || 0, o:r.o, k:r.k }); });
       var I = {};
-      itv.forEach(function(r){ var d = _fnParseD(r.d); if (!d) return; var i = I[r.n] || (I[r.n] = { rows:[] }); i.rows.push({ d:d, o:r.o, a:+r.a||0, r:+r.r||0, m:r.m||'', p:r.p||'', w:r.w||'', t:+r.t||0 }); });
+      itv.forEach(function(r){ var d = _fnParseD(r.d); if (!d) return; var i = I[r.n] || (I[r.n] = { rows:[] }); i.rows.push({ d:d, sd:_fnParseD(r.sd), o:r.o, a:+r.a||0, r:+r.r||0, m:r.m||'', p:r.p||'', w:r.w||'', t:+r.t||0 }); });
       var out = { interview:0, onsite:[], trialReg:[], harvest:[], harvestOld:[], trial:0, mgmt:[], pool:[], lost:[], regTotal:0, regAmt:0 };
       var seen = {};
       for (var name in I){
@@ -8356,7 +8356,16 @@
         var regStatus = rows.some(function(x){ return x.r > 0; });
         if (rowM){
           out.interview++;
-          if (regM){
+          // ★ 跟 EIP 註冊Ⓐ/Ⓑ 對齊：名單（通路建檔日期）當月建檔或空白＝Ⓐ 新名單 → 當下／試聽後；名單更早進來＝Ⓑ 舊名單 → 追回（即使本月才面談）
+          var listNew = !rowM.sd || inM(rowM.sd) || rowM.sd > mEnd;
+          if (regM && amt < FN_COURSE_MIN){
+            // ★ 公司規則：本月註冊加總未達 2 萬「不能計算」→ 不算當下/試聽後/追回，視為經營中（標註已繳金額，人不會消失）
+            seen[name] = 1; out.trial++;
+            out.mgmt.push({ n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), m:'💰已繳 ' + amt.toLocaleString() + '（未達 2 萬門檻，不計註冊）', w:rowM.w, days:_fnDays(rowM.d, new Date()), below:true });
+          } else if (regM && !listNew){
+            seen[name] = 1; out.regTotal++; out.regAmt += amt;
+            out.harvest.push({ n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), ym:_fnYmOf(rowM.sd), r:_fnMD(regM.d), v:amt, w:rowM.w, trial: p.app.some(function(x){ return x.d < regM.d; }), oldList:true, itvM:true });
+          } else if (regM){
             seen[name] = 1; out.regTotal++; out.regAmt += amt;
             var days = _fnDays(rowM.d, regM.d);
             var rec = { n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), r:_fnMD(regM.d), v:amt, w:rowM.w, days:days, trial: p.app.some(function(x){ return x.d < regM.d; }) };
@@ -8370,7 +8379,11 @@
           }
         } else {
           // 前 1～3 個月面談的人
-          if (regM){
+          if (regM && amt < FN_COURSE_MIN){
+            // ★ 未達 2 萬門檻 → 不算追回，仍列經營池（標註已繳金額）
+            seen[name] = 1;
+            out.pool.push({ n:name, o:last.o, d:_fnMD(last.d), ym:_fnYmOf(last.d), m:'💰已繳 ' + amt.toLocaleString() + '（未達 2 萬門檻，不計追回）', w:last.w, days:_fnDays(last.d, new Date()), below:true });
+          } else if (regM){
             seen[name] = 1; out.regTotal++; out.regAmt += amt;
             out.harvest.push({ n:name, o:regM.o || last.o, d:_fnMD(last.d), ym:_fnYmOf(last.d), r:_fnMD(regM.d), v:amt, w:last.w, trial: hasApp });
           } else if (hasApp && !regStatus){
@@ -8384,6 +8397,7 @@
         var regs = P[nm].reg.filter(function(x){ return inM(x.d); }).sort(function(a,b){ return a.d - b.d; });
         if (!regs.length) continue;
         var amt2 = regs.reduce(function(s,x){ return s + x.v; }, 0);
+        if (amt2 < FN_COURSE_MIN) continue;   // ★ 未達 2 萬門檻「不能計算」→ 不列舊名單追回
         out.regTotal++; out.regAmt += amt2;
         out.harvestOld.push({ n:nm, o:regs[0].o, r:_fnMD(regs[0].d), v:amt2, trial: P[nm].app.length > 0 });
       }
@@ -8610,14 +8624,15 @@
       var grp = function(title, cls, arr, fmt){ if (!arr.length) return ''; return '<div class="fn-ng ' + cls + '"><div class="fn-ng-t">' + title + ' <b>' + arr.length + '</b></div><ul>' + arr.map(function(x){ return li(x, fmt(x)); }).join('') + '</ul></div>'; };
       var body = grp('當下註冊', 'g-on', a.onsite, function(x){ return '面談 ' + x.d + ' → 註冊 ' + x.r + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('試聽後註冊', 'g-tr', a.trialReg, function(x){ return '面談 ' + x.d + ' → 註冊 ' + x.r + '（' + x.days + ' 天' + (x.trial ? '・有試聽' : '・無試聽') + '）' + (x.v ? '・' + _fnWan(x.v) : ''); })
-        + grp('追回（前 3 個月經營池收割）', 'g-hv', a.harvest, function(x){ return _fnMonthLabel(x.ym) + ' 面談 → ' + x.r + ' 註冊' + (x.trial ? '・有試聽' : '・無試聽') + (x.v ? '・' + _fnWan(x.v) : ''); })
+        + grp('追回（Ⓑ 舊名單：名單前幾個月進來、本月註冊）', 'g-hv', a.harvest, function(x){ return (x.oldList ? '名單 ' + _fnMonthLabel(x.ym) + ' 建檔・本月 ' + x.d + ' 面談' : _fnMonthLabel(x.ym) + ' 面談') + ' → ' + x.r + ' 註冊' + (x.trial ? '・有試聽' : '・無試聽') + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('舊名單追回（3 個月內無面談紀錄）', 'g-hv', a.harvestOld, function(x){ return x.r + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('經營中（本月試聽、未註冊）→ 優先回追', 'g-mg', a.mgmt, function(x){ return '面談 ' + x.d + '・已 ' + x.days + ' 天' + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
         + grp('經營池（前 3 個月試聽、還沒註冊）→ 下月收割', 'g-pl', a.pool, function(x){ return _fnMonthLabel(x.ym) + ' 面談・已 ' + x.days + ' 天' + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
         + grp('面談後流失（沒報名也沒註冊）', 'g-ls', a.lost, function(x){ return '面談 ' + x.d + (x.w ? '・想學 ' + _fnEsc(x.w.slice(0, 16)) : ''); })
         + grp('科數明細（每筆 ≥ 2 萬＝1 科）', 'g-on', a.courseList, function(x){ return _fnEsc(x.k) + '・' + _fnWan(x.v) + '・' + x.d + (x.add ? '・加購' : '・新生'); })
-        + grp('人頭明細（同一人加總 ≥ 2 萬＝1 人頭）', 'g-on', a.headList, function(x){ return x.cnt + ' 筆・合計 ' + _fnWan(x.v) + (x.add ? '・純加購' : '・新生 ' + _fnWan(x.vNew)); });
-      return '<details class="fn-names"><summary>👥 名單：當下 ' + a.onsite.length + '・試聽後 ' + a.trialReg.length + '・追回 ' + (a.harvest.length + a.harvestOld.length) + '・經營中 ' + a.mgmt.length + '・經營池 ' + a.pool.length + '・流失 ' + a.lost.length + '　｜　科數 ' + a.courses + '・人頭 ' + a.heads + '</summary><div class="fn-names-b">' + body + '</div></details>';
+        + grp('新生人頭明細（同一新生加總 ≥ 2 萬）', 'g-on', a.headList.filter(function(h){ return h.vNew >= FN_COURSE_MIN; }), function(x){ return x.cnt + ' 筆・新生 ' + _fnWan(x.vNew) + (x.v !== x.vNew ? '・含加購合計 ' + _fnWan(x.v) : ''); })
+        + grp('舊生加購（不算人頭）', 'g-pl', a.headList.filter(function(h){ return h.vNew < FN_COURSE_MIN; }), function(x){ return x.cnt + ' 筆・' + _fnWan(x.v); });
+      return '<details class="fn-names"><summary>👥 名單：當下 ' + a.onsite.length + '・試聽後 ' + a.trialReg.length + '・追回 ' + (a.harvest.length + a.harvestOld.length) + '・經營中 ' + a.mgmt.length + '・經營池 ' + a.pool.length + '・流失 ' + a.lost.length + '　｜　新生科數 ' + a.coursesNew + '・新生人頭 ' + a.headsNew + '（含加購 ' + a.courses + '／' + a.heads + '）</summary><div class="fn-names-b">' + body + '</div></details>';
     }
     function _fnCardHtml(s, all, ym, isTotal, prevAll){
       var rateCls = function(key){
@@ -8631,11 +8646,11 @@
       var hls = isTotal ? _fnTotalHighlights(s, all, ym, prevAll) : _fnHighlights(s, all, ym, prevAll);
       var noteLines = (s.note || '').split('\n').map(function(t){ return t.trim(); }).filter(Boolean);
       var subWarn = s.mismatch ? '<span class="warn" title="當下＋試聽後註冊 ≠ 註冊Ⓐ">⚠️ 當下 ' + s.onsite + '＋試聽後 ' + s.reg + ' ≠ 註冊Ⓐ ' + s.regA + '</span>' : (s.filled === 'none' && s.regA > 0 && !isTotal ? '<span class="warn">未填當下</span>' : '');
-      if (s.auto) subWarn += '<span class="auto" title="擴充「🔀 漏斗」逐人資料自動分類。當下＋試聽後 ' + (s.auto.onsite.length + s.auto.trialReg.length) + ' vs 註冊Ⓐ ' + s.regA + '；追回 ' + (s.auto.harvest.length + s.auto.harvestOld.length) + ' vs 註冊Ⓑ ' + s.regB + '（差異多半是加購／跨月入帳／解約）">🤖 自動' + (s.autoDiff ? ' Ⓐ' + (s.autoDiff > 0 ? '+' : '') + s.autoDiff : '') + (s.harvestDiff ? ' Ⓑ' + (s.harvestDiff > 0 ? '+' : '') + s.harvestDiff : '') + '</span>';
+      if (s.auto) subWarn += '<span class="auto" title="擴充「🔀 漏斗」逐人資料自動分類。當下＋試聽後 ' + (s.auto.onsite.length + s.auto.trialReg.length) + ' vs EIP 註冊Ⓐ ' + s.regA + '（Ⓐ＝名單當月建檔；有差多半是跨月入帳／解約）">🤖 自動' + (s.autoDiff ? ' Ⓐ' + (s.autoDiff > 0 ? '+' : '') + s.autoDiff : ' Ⓐ✓') + '</span>';
       else if (isTotal && s.autoN) subWarn += '<span class="auto">🤖 ' + s.autoN + ' 家自動</span>';
       var html = '<div class="fn-tile' + (isTotal ? ' total' : '') + '" data-org="' + _fnEsc(s.org) + '">'
         + '<div class="fn-head"><div class="fn-title">' + (isTotal ? '👑 ' : '<span class="dot" style="background:' + (CK_COLOR[s.org] || '#999') + '"></span>') + _fnEsc(s.org) + '</div>'
-        + '<div class="fn-sub"><span>註冊Ⓐ<b>' + s.regA + '</b></span><span>當下<b>' + s.onsite + '</b></span><span>註冊Ⓑ<b>' + s.regB + '</b></span>' + (s.harvest != null ? '<span title="本月註冊、面談在前 1～3 個月（含舊名單）">追回<b>' + s.harvest + '</b></span>' : '') + (s.courses != null ? '<span title="本月每筆註冊業績合計 ≥ 2 萬算 1 科（括號＝排除學員加購的新生科數）">科數<b>' + s.courses + '</b><small style="color:var(--fnDim)">(新生 ' + s.coursesNew + ')</small></span><span title="同一學生本月註冊加總 ≥ 2 萬算 1 人頭（括號＝新生）">人頭<b>' + s.heads + '</b><small style="color:var(--fnDim)">(新生 ' + s.headsNew + ')</small></span>' : '') + (s.newPerf ? '<span>新業績<b>' + _fnWan(s.newPerf) + '</b></span>' : '') + subWarn + '</div></div>'
+        + '<div class="fn-sub"><span>註冊Ⓐ<b>' + s.regA + '</b></span><span>當下<b>' + s.onsite + '</b></span><span>註冊Ⓑ<b>' + s.regB + '</b></span>' + (s.harvest != null ? '<span title="本月註冊、面談在前 1～3 個月（含舊名單）">追回<b>' + s.harvest + '</b></span>' : '') + (s.courses != null ? '<span title="新生科數：本月每筆註冊業績合計 ≥ 2 萬算 1 科，排除「學員加購」（括號＝含舊生加購）">科數<b>' + s.coursesNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.courses + ')</small></span><span title="新生人頭：同一新生本月註冊加總 ≥ 2 萬算 1 人頭，排除「學員加購」（括號＝含舊生加購）">人頭<b>' + s.headsNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.heads + ')</small></span>' : '') + (s.newPerf ? '<span>新業績<b>' + _fnWan(s.newPerf) + '</b></span>' : '') + subWarn + '</div></div>'
         + '<div class="fn-flow">'
         + '<div class="fn-step"><div class="lb">總報到</div><div class="v">' + s.checkin + '</div></div>'
         + '<div class="fn-step"><div class="lb">實際面談</div><div class="v">' + s.interview + '</div>' + (s.onsite ? '<div class="sm">當下註冊 ' + s.onsite + '</div>' : '') + '</div>'
@@ -8697,11 +8712,11 @@
       var line = function(s){ return '報到 ' + s.checkin + ' → 面談 ' + s.interview + ' → 試聽 ' + s.trial + ' → ' + (s.known ? '試聽後註冊 ' + s.reg + '／經營中 ' + s.mgmt : '試聽後結果（待填當下）') + '\n　' + _fnPct(s.r1) + '｜' + _fnPct(s.r2) + '｜試聽註冊率 ' + (s.known ? _fnPct(s.r3) : '—') + '｜註冊Ⓐ' + s.regA + (s.known ? '（當下 ' + s.onsite + '）' : '') + '註冊Ⓑ' + s.regB; };
       var txt = '📌 ' + y + '年' + m + '月 月度漏斗復盤（' + _fnScopeLabel().replace('合計','') + '）\n【' + (ov.two || nr.two) + '】' + (ov.sub || nr.sub) + '\n';
       if (ov.gap || nr.gap) txt += '⚠️ 本月最大缺口：' + strip(ov.gap || nr.gap) + '\n';
-      txt += '\n【' + t.org + '】' + line(t) + (t.harvest != null ? '　追回 ' + t.harvest : '') + (t.courses != null ? '　科數 ' + t.courses + '(新生' + t.coursesNew + ')　人頭 ' + t.heads + '(新生' + t.headsNew + ')' : '') + '\n' + _fnTotalHighlights(t, all, ym, prev).map(function(h){ return '・' + strip(h.h); }).join('\n') + '\n';
+      txt += '\n【' + t.org + '】' + line(t) + (t.harvest != null ? '　追回 ' + t.harvest : '') + (t.courses != null ? '　科數 ' + t.coursesNew + '　人頭 ' + t.headsNew + '（含加購 ' + t.courses + '/' + t.heads + '）' : '') + '\n' + _fnTotalHighlights(t, all, ym, prev).map(function(h){ return '・' + strip(h.h); }).join('\n') + '\n';
       all.forEach(function(s){
         if (!s.hasData) return;
         var p = _fnProfile(s, all);
-        txt += '\n【' + s.org + (p ? '・' + p.label : '') + '】' + line(s) + (s.harvest != null ? '　追回 ' + s.harvest : '') + (s.courses != null ? '　科數 ' + s.courses + '(新生' + s.coursesNew + ')　人頭 ' + s.heads + '(新生' + s.headsNew + ')' : '') + '\n' + _fnHighlights(s, all, ym, prev).map(function(h){ return '・' + strip(h.h); }).join('\n');
+        txt += '\n【' + s.org + (p ? '・' + p.label : '') + '】' + line(s) + (s.harvest != null ? '　追回 ' + s.harvest : '') + (s.courses != null ? '　科數 ' + s.coursesNew + '　人頭 ' + s.headsNew + '（含加購 ' + s.courses + '/' + s.heads + '）' : '') + '\n' + _fnHighlights(s, all, ym, prev).map(function(h){ return '・' + strip(h.h); }).join('\n');
         if (s.auto && s.auto.mgmt.length) txt += '\n　經營中：' + s.auto.mgmt.map(function(x){ return x.n + '(' + x.o + ')'; }).join('、');
         if (s.auto && s.auto.pool.length) txt += '\n　經營池：' + s.auto.pool.map(function(x){ return x.n + '(' + x.o + ')'; }).join('、');
         var nl = (s.note||'').split('\n').map(function(x){ return x.trim(); }).filter(Boolean); if (nl.length) txt += '\n' + nl.map(function(x){ return '・' + x; }).join('\n');
@@ -8757,7 +8772,7 @@
       if (!d.perfp) missing.push('當月績效（面談／試聽／註冊會是 0）');
       var hasFunnel = !!_fnRawFor(selYm);
       var html = '<div class="fn-note">總報到＝報到排名(EIP)｜面談・註冊Ⓐ・註冊Ⓑ＝當月績效(EIP)｜'
-        + (hasFunnel ? '🤖 當下・試聽後註冊・追回・經營中＝🔀 漏斗逐人資料自動分類（當下＝3 天內；追回＝前 3 個月經營池收割；學員加購排除）｜科數＝每筆註冊 ≥ 2 萬算 1 科｜人頭＝同一人本月註冊加總 ≥ 2 萬｜手填可覆寫' : '安排試聽＝報名＋額外報備｜當下註冊・試聽後註冊＝手填（相加＝註冊Ⓐ）｜經營中＝試聽－試聽後註冊｜收割率＝本月註冊Ⓑ ÷ 上月經營中')
+        + (hasFunnel ? '🤖 當下・試聽後註冊・追回・經營中＝🔀 漏斗逐人資料自動分類（Ⓐ 新名單＝通路建檔在當月：當下＝3 天內、其餘試聽後；Ⓑ 舊名單＝追回；學員加購排除）｜科數＝新生每筆註冊 ≥ 2 萬算 1 科｜人頭＝同一新生本月註冊加總 ≥ 2 萬（都排除學員加購，括號為含加購）｜手填可覆寫' : '安排試聽＝報名＋額外報備｜當下註冊・試聽後註冊＝手填（相加＝註冊Ⓐ）｜經營中＝試聽－試聽後註冊｜收割率＝本月註冊Ⓑ ÷ 上月經營中')
         + (missing.length ? '<br><span class="warn">⚠️ ' + selYm + ' 缺：' + missing.join('、') + '，請到「🏆 激勵」同步</span>' : '')
         + (!hasFunnel ? '<br><span class="warn">💡 按右上角「🔀 漏斗」同步逐人資料，當下／試聽後／追回／經營中名單就會全自動，不用手填</span>' : '')
         + (!prev ? '<br><span style="opacity:.8;">ℹ️ 沒有上月資料，兩字總結與收割閉環要等下個月才會自動比較</span>' : '') + '</div>';
