@@ -1951,6 +1951,8 @@
         <span class="hmb-line1">🔀 漏斗</span><span class="hmb-line2" id="syncTime_funnel">未同步</span>
       </button>
       <button id="hdrSaveBtn" class="hdr-save-btn" onclick="motivSaveCurrentToArchive()" title="把目前畫面的資料覆蓋鎖進本月封存（即使 EIP 登出 / 同步失敗也不會跑掉）">💾 鎖定</button>
+      <button id="pcPushBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#00695c,#00897b);color:#fff;border-color:transparent;" onclick="pcForcePushCompany()" title="把本機全部公司資料（每月績效＋各通路＋報到/漏斗/激勵含月份封存＋知識庫）強制推送到雲端。同步完新月份後按一次，同事按「☁️↓ 拉取」就能看到最新月份。">☁️↑ 推送</button>
+      <button id="pcPullBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#1565c0,#1e88e5);color:#fff;border-color:transparent;" onclick="pcForcePullCompany()" title="從雲端拉取全部公司資料（依月份合併，不會刪掉本機已有的月份）。管理者推送新月份後，按這顆就能看到。">☁️↓ 拉取</button>
     </div>
   </header>
 
@@ -3471,6 +3473,39 @@
     }
 
     // Switch tabs
+    // ★ 載入「每月績效」iframe（懶載入；表頭 ☁️↑ 推送鈕也會用到）
+    var MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle2';
+    function _pcEnsureMpLoaded(){
+      var f = document.getElementById('mp-iframe');
+      if (f && (!f.src || f.src.indexOf(MP_TARGET_SRC) < 0)) f.src = MP_TARGET_SRC;
+      return f;
+    }
+    // ★ 表頭「☁️↑ 推送」「☁️↓ 拉取」：一鍵呼叫每月績效模組的強制推送/拉取，不用自己找路徑。
+    //   iframe 還沒載入就先載，載好自動跳出確認視窗。
+    function _pcCallMp(fnName, btnId, label){
+      var f = _pcEnsureMpLoaded();
+      if (!f){ alert('找不到每月績效模組'); return; }
+      var btn = document.getElementById(btnId);
+      var call = function(){
+        if (btn) btn.textContent = label;
+        try { f.contentWindow[fnName](); }
+        catch(e){ alert('呼叫失敗：' + (e.message || e)); }
+      };
+      if (f.contentWindow && typeof f.contentWindow[fnName] === 'function'){ call(); return; }
+      if (btn) btn.textContent = '⏳ 載入中…';
+      var tries = 25, done = false;
+      (function poll(){
+        if (done) return;
+        try {
+          if (f.contentWindow && typeof f.contentWindow[fnName] === 'function'){ done = true; call(); return; }
+        } catch(e){}
+        if (--tries > 0) setTimeout(poll, 400);
+        else { if (btn) btn.textContent = label; alert('每月績效模組載入逾時，請先點「每月績效」分頁再按一次'); }
+      })();
+    }
+    function pcForcePushCompany(){ _pcCallMp('forcePushMpDataToCloud', 'pcPushBtn', '☁️↑ 推送'); }
+    function pcForcePullCompany(){ _pcCallMp('forcePullMpDataFromCloud', 'pcPullBtn', '☁️↓ 拉取'); }
+
     function switchTab(tabIndex) {
       loadData();
       renderComparison();
@@ -3491,12 +3526,7 @@
 
       // Load monthly performance iframe when switching to tab 3
       if (tabIndex === 3) {
-        const mpIframe = document.getElementById('mp-iframe');
-        // ★ 永遠用最新的 cache buster（沒有當前版本字串 → 重抓新版）
-        const MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle2';
-        if (!mpIframe.src || !mpIframe.src.includes('v=apple1')) {
-          mpIframe.src = MP_TARGET_SRC;
-        }
+        _pcEnsureMpLoaded();
       }
 
       // 激勵排行榜
