@@ -1480,7 +1480,19 @@
     .fn-edit.on { display:block; }
     .fn-edit label { display:block; font-size:.72rem; color:var(--fnDim); margin:8px 0 3px; font-weight:700; }
     .fn-edit textarea, .fn-edit input[type=text] { width:100%; box-sizing:border-box; background:var(--fnBg2) !important; border:1px dashed var(--fnLine) !important; border-radius:8px; color:var(--fnText) !important; font:inherit; font-size:.86rem; padding:6px 8px; resize:vertical; }
-    @media print { .tabs-container, header, .fn-tools, .fn-edit, #fnBar { display:none !important; } body { overflow:visible !important; } .fn-tile { break-inside:avoid; box-shadow:none; } }
+    @media print {
+      /* 列印：把「固定高度＋內部捲動」的版面展開成完整長度，否則只印得出第一頁 */
+      html, body { height:auto !important; max-height:none !important; overflow:visible !important; display:block !important; background:#fff !important; }
+      .content, .content-max, .wrapper, #container { height:auto !important; max-height:none !important; overflow:visible !important; flex:none !important; display:block !important; }
+      .tabs-container, header, .hdr, .fn-tools, .fn-edit, #fnBar, #syncToast, #fnProg, .nav-home, #navHome { display:none !important; }
+      .tab-content { display:none !important; } .tab-content.active { display:block !important; }
+      .fn-grid { display:block !important; }
+      .fn-tile { break-inside:avoid; page-break-inside:avoid; box-shadow:none !important; margin-bottom:14px; }
+      .fn-story { display:block !important; } .fn-story .fn-tile { margin-bottom:14px; }
+      .fn-names { display:none !important; }   /* 名單太長，列印預設不含；要印名單先展開再用瀏覽器列印 */
+      #tab-9 { --fnBg:#fff; --fnBg2:#f5f5f7; --fnFill:#f2f2f7; --fnText:#1d1d1f; --fnDim:#6e6e73; --fnLine:rgba(0,0,0,.12); --fnAcc:#6e3ad6; --fnGood:#1f8f45; --fnBad:#d63a2f; --fnWarn:#b7791f; --fnGold:#b7791f; }
+      @page { size: A4 portrait; margin: 10mm; }
+    }
     .ck-region-btn {
       padding:7px 16px; border-radius:20px; cursor:pointer; font-family:inherit;
       background:rgba(255,255,255,.04); border:1px solid var(--border); color:var(--dim);
@@ -6639,7 +6651,7 @@
       if (info){ info.textContent = '⏳ 正在同步 ' + m.label + '...'; info.style.color = '#e6a817'; }
       _syncToast('⏳ 正在同步 ' + m.label + '...', '#e6a817');
 
-      var settled = false;
+      var settled = false, gotStatus = false;
       var wd = null; // ★ 看門狗：90 秒沒有任何訊息 = 卡住 → 自動解鎖，不用重新整理
       function _wdPoke(){
         if (wd) clearTimeout(wd);
@@ -6690,6 +6702,7 @@
           _syncToast('❌ ' + m.label + '：' + em, '#ff6b6b');
           finish(false);
         } else if (d.type === 'status'){
+          gotStatus = true;
           _wdPoke(); // 有心跳 → 重算逾時
           if (info){ info.textContent = '⏳ ' + d.msg; info.style.color = '#e6a817'; }
           _syncToast('⏳ ' + d.msg, '#e6a817');
@@ -6707,7 +6720,8 @@
       window.postMessage({ channel: 'appedu-eip-sync', action: 'request', year: year, month: month, mode: mode }, '*');
 
       setTimeout(function(){
-        if (m.busy){
+        // ★ 只在「擴充從頭到尾沒回報過任何進度」時才兜底；有心跳的長流程（🔀 漏斗 8 分鐘、報到網頁版翻頁）交給 90 秒看門狗
+        if (m.busy && !gotStatus){
           window.removeEventListener('message', onMsg);
           if (info && info.textContent.indexOf('⏳') >= 0){
             info.textContent = '⚠️ ' + m.label + ' 同步逾時，請確認已登入 EIP 後再試'; info.style.color = '#ff6b6b';
@@ -8293,6 +8307,7 @@
     //     「學員加購」一律排除（舊生加課不是新生漏斗）
     // ══════════════════════════════════════════════════════════════
     var FN_ONSITE_DAYS = 3;
+    var FN_COURSE_MIN = 20000;   // 科數／人頭門檻：業績合計 ≥ 2 萬
     function _fnParseD(s){ var m = /^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/.exec(String(s || '')); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; }
     function _fnDays(a, b){ return Math.round((b - a) / 86400000); }
     function _fnYmOf(d){ return d.getFullYear() + '-' + _ckPad2(d.getMonth() + 1); }
@@ -8372,6 +8387,21 @@
         out.regTotal++; out.regAmt += amt2;
         out.harvestOld.push({ n:nm, o:regs[0].o, r:_fnMD(regs[0].d), v:amt2, trial: P[nm].app.length > 0 });
       }
+      // ── 科數 / 人頭（本月「註冊」列；科＝單筆 ≥ 2 萬；人頭＝同一人加總 ≥ 2 萬；各分含加購／新生）──
+      var byName = {};
+      out.courseList = [];
+      pay.forEach(function(r){
+        if (r.st !== '註冊') return; var d = _fnParseD(r.d); if (!d || !inM(d)) return;
+        var v = +r.v || 0, isAdd = r.sub === '學員加購';
+        if (v >= FN_COURSE_MIN) out.courseList.push({ n:r.n, k:r.k, v:v, o:r.o, add:isAdd, d:_fnMD(d) });
+        var h = byName[r.n] || (byName[r.n] = { n:r.n, v:0, vNew:0, cnt:0, o:r.o, add:true });
+        h.v += v; h.cnt++; if (!isAdd){ h.vNew += v; h.add = false; }
+      });
+      out.headList = Object.keys(byName).map(function(k){ return byName[k]; }).filter(function(h){ return h.v >= FN_COURSE_MIN; }).sort(function(a,b){ return b.v - a.v; });
+      out.courses = out.courseList.length;
+      out.coursesNew = out.courseList.filter(function(x){ return !x.add; }).length;
+      out.heads = out.headList.length;
+      out.headsNew = out.headList.filter(function(h){ return h.vNew >= FN_COURSE_MIN; }).length;
       out.poolHarvest = out.harvest.filter(function(x){ return x.trial; }).length;
       out.poolOpen = out.pool.length;
       return out;
@@ -8415,6 +8445,7 @@
       var mgmt = auto && !hasTr ? auto.mgmt.length + extra : (known ? Math.max(0, trial - trialReg) : 0);
       return { org:org, checkin:checkin, interview:c1, signup:c2, extra:extra, trial:trial, auto:auto, autoDiff:autoDiff, harvestDiff: auto ? harvestDiff : 0,
                harvest: auto ? auto.harvest.length + auto.harvestOld.length : null, poolOpen: auto ? auto.poolOpen : null, poolHarvest: auto ? auto.poolHarvest : null,
+               courses: auto ? auto.courses : null, coursesNew: auto ? auto.coursesNew : null, heads: auto ? auto.heads : null, headsNew: auto ? auto.headsNew : null,
                regA:c3, regB:c4, onsite:onsite, reg:trialReg, mgmt:mgmt, filled:filled, mismatch:mismatch, known:known, overTrial:overTrial, overInterview:overInterview, suspicious:suspicious, onsiteRate:onsiteRate, filledBy:ent.filledBy||'', filledAt:ent.filledAt||'',
                biz:biz, newPerf:np, payBack:pb,
                r1: checkin ? c1/checkin*100 : 0, r2: c1 ? trial/c1*100 : 0, r3: (known && trial) ? Math.min(100, trialReg/trial*100) : 0,
@@ -8423,7 +8454,8 @@
     function _fnSum(list, org){
       var t = { org: org || '合計', checkin:0, interview:0, signup:0, extra:0, trial:0, regA:0, regB:0, onsite:0, reg:0, mgmt:0, biz:0, newPerf:0, payBack:0, note:'', hasData:false, filled:'sum', mismatch:false, known:true, overTrial:false, knownTrial:0, unknownOrgs:[], harvest:null, poolOpen:null, poolHarvest:null, autoN:0 };
       list.forEach(function(s){ ['checkin','interview','signup','extra','trial','regA','regB','biz','newPerf','payBack'].forEach(function(k){ t[k] += s[k] || 0; }); if (s.hasData) t.hasData = true; if (s.mismatch) t.mismatch = true;
-        if (s.auto){ t.autoN++; t.harvest = (t.harvest||0) + s.harvest; t.poolOpen = (t.poolOpen||0) + s.poolOpen; t.poolHarvest = (t.poolHarvest||0) + s.poolHarvest; }
+        if (s.auto){ t.autoN++; t.harvest = (t.harvest||0) + s.harvest; t.poolOpen = (t.poolOpen||0) + s.poolOpen; t.poolHarvest = (t.poolHarvest||0) + s.poolHarvest;
+          t.courses = (t.courses||0) + s.courses; t.coursesNew = (t.coursesNew||0) + s.coursesNew; t.heads = (t.heads||0) + s.heads; t.headsNew = (t.headsNew||0) + s.headsNew; }
         if (s.known){ t.onsite += s.onsite; t.reg += s.reg; t.mgmt += s.mgmt; t.knownTrial += s.trial; } else if (s.hasData && s.regA > 0) t.unknownOrgs.push(s.org); });
       t.known = t.unknownOrgs.length === 0;
       t.r1 = t.checkin ? t.interview/t.checkin*100 : 0; t.r2 = t.interview ? t.trial/t.interview*100 : 0; t.r3 = t.knownTrial ? Math.min(100, t.reg/t.knownTrial*100) : 0;
@@ -8582,8 +8614,10 @@
         + grp('舊名單追回（3 個月內無面談紀錄）', 'g-hv', a.harvestOld, function(x){ return x.r + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('經營中（本月試聽、未註冊）→ 優先回追', 'g-mg', a.mgmt, function(x){ return '面談 ' + x.d + '・已 ' + x.days + ' 天' + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
         + grp('經營池（前 3 個月試聽、還沒註冊）→ 下月收割', 'g-pl', a.pool, function(x){ return _fnMonthLabel(x.ym) + ' 面談・已 ' + x.days + ' 天' + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
-        + grp('面談後流失（沒報名也沒註冊）', 'g-ls', a.lost, function(x){ return '面談 ' + x.d + (x.w ? '・想學 ' + _fnEsc(x.w.slice(0, 16)) : ''); });
-      return '<details class="fn-names"><summary>👥 名單：當下 ' + a.onsite.length + '・試聽後 ' + a.trialReg.length + '・追回 ' + (a.harvest.length + a.harvestOld.length) + '・經營中 ' + a.mgmt.length + '・經營池 ' + a.pool.length + '・流失 ' + a.lost.length + '</summary><div class="fn-names-b">' + body + '</div></details>';
+        + grp('面談後流失（沒報名也沒註冊）', 'g-ls', a.lost, function(x){ return '面談 ' + x.d + (x.w ? '・想學 ' + _fnEsc(x.w.slice(0, 16)) : ''); })
+        + grp('科數明細（每筆 ≥ 2 萬＝1 科）', 'g-on', a.courseList, function(x){ return _fnEsc(x.k) + '・' + _fnWan(x.v) + '・' + x.d + (x.add ? '・加購' : '・新生'); })
+        + grp('人頭明細（同一人加總 ≥ 2 萬＝1 人頭）', 'g-on', a.headList, function(x){ return x.cnt + ' 筆・合計 ' + _fnWan(x.v) + (x.add ? '・純加購' : '・新生 ' + _fnWan(x.vNew)); });
+      return '<details class="fn-names"><summary>👥 名單：當下 ' + a.onsite.length + '・試聽後 ' + a.trialReg.length + '・追回 ' + (a.harvest.length + a.harvestOld.length) + '・經營中 ' + a.mgmt.length + '・經營池 ' + a.pool.length + '・流失 ' + a.lost.length + '　｜　科數 ' + a.courses + '・人頭 ' + a.heads + '</summary><div class="fn-names-b">' + body + '</div></details>';
     }
     function _fnCardHtml(s, all, ym, isTotal, prevAll){
       var rateCls = function(key){
@@ -8601,7 +8635,7 @@
       else if (isTotal && s.autoN) subWarn += '<span class="auto">🤖 ' + s.autoN + ' 家自動</span>';
       var html = '<div class="fn-tile' + (isTotal ? ' total' : '') + '" data-org="' + _fnEsc(s.org) + '">'
         + '<div class="fn-head"><div class="fn-title">' + (isTotal ? '👑 ' : '<span class="dot" style="background:' + (CK_COLOR[s.org] || '#999') + '"></span>') + _fnEsc(s.org) + '</div>'
-        + '<div class="fn-sub"><span>註冊Ⓐ<b>' + s.regA + '</b></span><span>當下<b>' + s.onsite + '</b></span><span>註冊Ⓑ<b>' + s.regB + '</b></span>' + (s.harvest != null ? '<span title="本月註冊、面談在前 1～3 個月（含舊名單）">追回<b>' + s.harvest + '</b></span>' : '') + (s.newPerf ? '<span>新業績<b>' + _fnWan(s.newPerf) + '</b></span>' : '') + subWarn + '</div></div>'
+        + '<div class="fn-sub"><span>註冊Ⓐ<b>' + s.regA + '</b></span><span>當下<b>' + s.onsite + '</b></span><span>註冊Ⓑ<b>' + s.regB + '</b></span>' + (s.harvest != null ? '<span title="本月註冊、面談在前 1～3 個月（含舊名單）">追回<b>' + s.harvest + '</b></span>' : '') + (s.courses != null ? '<span title="本月每筆註冊業績合計 ≥ 2 萬算 1 科（括號＝排除學員加購的新生科數）">科數<b>' + s.courses + '</b><small style="color:var(--fnDim)">(新生 ' + s.coursesNew + ')</small></span><span title="同一學生本月註冊加總 ≥ 2 萬算 1 人頭（括號＝新生）">人頭<b>' + s.heads + '</b><small style="color:var(--fnDim)">(新生 ' + s.headsNew + ')</small></span>' : '') + (s.newPerf ? '<span>新業績<b>' + _fnWan(s.newPerf) + '</b></span>' : '') + subWarn + '</div></div>'
         + '<div class="fn-flow">'
         + '<div class="fn-step"><div class="lb">總報到</div><div class="v">' + s.checkin + '</div></div>'
         + '<div class="fn-step"><div class="lb">實際面談</div><div class="v">' + s.interview + '</div>' + (s.onsite ? '<div class="sm">當下註冊 ' + s.onsite + '</div>' : '') + '</div>'
@@ -8663,11 +8697,11 @@
       var line = function(s){ return '報到 ' + s.checkin + ' → 面談 ' + s.interview + ' → 試聽 ' + s.trial + ' → ' + (s.known ? '試聽後註冊 ' + s.reg + '／經營中 ' + s.mgmt : '試聽後結果（待填當下）') + '\n　' + _fnPct(s.r1) + '｜' + _fnPct(s.r2) + '｜試聽註冊率 ' + (s.known ? _fnPct(s.r3) : '—') + '｜註冊Ⓐ' + s.regA + (s.known ? '（當下 ' + s.onsite + '）' : '') + '註冊Ⓑ' + s.regB; };
       var txt = '📌 ' + y + '年' + m + '月 月度漏斗復盤（' + _fnScopeLabel().replace('合計','') + '）\n【' + (ov.two || nr.two) + '】' + (ov.sub || nr.sub) + '\n';
       if (ov.gap || nr.gap) txt += '⚠️ 本月最大缺口：' + strip(ov.gap || nr.gap) + '\n';
-      txt += '\n【' + t.org + '】' + line(t) + (t.harvest != null ? '　追回 ' + t.harvest : '') + '\n' + _fnTotalHighlights(t, all, ym, prev).map(function(h){ return '・' + strip(h.h); }).join('\n') + '\n';
+      txt += '\n【' + t.org + '】' + line(t) + (t.harvest != null ? '　追回 ' + t.harvest : '') + (t.courses != null ? '　科數 ' + t.courses + '(新生' + t.coursesNew + ')　人頭 ' + t.heads + '(新生' + t.headsNew + ')' : '') + '\n' + _fnTotalHighlights(t, all, ym, prev).map(function(h){ return '・' + strip(h.h); }).join('\n') + '\n';
       all.forEach(function(s){
         if (!s.hasData) return;
         var p = _fnProfile(s, all);
-        txt += '\n【' + s.org + (p ? '・' + p.label : '') + '】' + line(s) + (s.harvest != null ? '　追回 ' + s.harvest : '') + '\n' + _fnHighlights(s, all, ym, prev).map(function(h){ return '・' + strip(h.h); }).join('\n');
+        txt += '\n【' + s.org + (p ? '・' + p.label : '') + '】' + line(s) + (s.harvest != null ? '　追回 ' + s.harvest : '') + (s.courses != null ? '　科數 ' + s.courses + '(新生' + s.coursesNew + ')　人頭 ' + s.heads + '(新生' + s.headsNew + ')' : '') + '\n' + _fnHighlights(s, all, ym, prev).map(function(h){ return '・' + strip(h.h); }).join('\n');
         if (s.auto && s.auto.mgmt.length) txt += '\n　經營中：' + s.auto.mgmt.map(function(x){ return x.n + '(' + x.o + ')'; }).join('、');
         if (s.auto && s.auto.pool.length) txt += '\n　經營池：' + s.auto.pool.map(function(x){ return x.n + '(' + x.o + ')'; }).join('、');
         var nl = (s.note||'').split('\n').map(function(x){ return x.trim(); }).filter(Boolean); if (nl.length) txt += '\n' + nl.map(function(x){ return '・' + x; }).join('\n');
@@ -8723,7 +8757,7 @@
       if (!d.perfp) missing.push('當月績效（面談／試聽／註冊會是 0）');
       var hasFunnel = !!_fnRawFor(selYm);
       var html = '<div class="fn-note">總報到＝報到排名(EIP)｜面談・註冊Ⓐ・註冊Ⓑ＝當月績效(EIP)｜'
-        + (hasFunnel ? '🤖 當下・試聽後註冊・追回・經營中＝🔀 漏斗逐人資料自動分類（當下＝3 天內；追回＝前 3 個月經營池收割；學員加購排除）｜手填可覆寫' : '安排試聽＝報名＋額外報備｜當下註冊・試聽後註冊＝手填（相加＝註冊Ⓐ）｜經營中＝試聽－試聽後註冊｜收割率＝本月註冊Ⓑ ÷ 上月經營中')
+        + (hasFunnel ? '🤖 當下・試聽後註冊・追回・經營中＝🔀 漏斗逐人資料自動分類（當下＝3 天內；追回＝前 3 個月經營池收割；學員加購排除）｜科數＝每筆註冊 ≥ 2 萬算 1 科｜人頭＝同一人本月註冊加總 ≥ 2 萬｜手填可覆寫' : '安排試聽＝報名＋額外報備｜當下註冊・試聽後註冊＝手填（相加＝註冊Ⓐ）｜經營中＝試聽－試聽後註冊｜收割率＝本月註冊Ⓑ ÷ 上月經營中')
         + (missing.length ? '<br><span class="warn">⚠️ ' + selYm + ' 缺：' + missing.join('、') + '，請到「🏆 激勵」同步</span>' : '')
         + (!hasFunnel ? '<br><span class="warn">💡 按右上角「🔀 漏斗」同步逐人資料，當下／試聽後／追回／經營中名單就會全自動，不用手填</span>' : '')
         + (!prev ? '<br><span style="opacity:.8;">ℹ️ 沒有上月資料，兩字總結與收割閉環要等下個月才會自動比較</span>' : '') + '</div>';

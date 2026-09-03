@@ -49,18 +49,27 @@ document.addEventListener('DOMContentLoaded', function(){
       var year = document.getElementById('selYear').value, month = document.getElementById('selMonth').value;
       var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tabs || !tabs.length) throw new Error('找不到目前頁面');
+      // ★ 在頁面主世界執行：把年/月選單設成小視窗選的，然後按頁面自己的 motivTriggerEipSync('funnel')
+      //   → 進度面板、toast、封存、重新渲染全部走頁面既有流程（跟直接按右上角那顆一模一樣）
       var res = await chrome.scripting.executeScript({
         target: { tabId: tabs[0].id, allFrames: true },
+        world: 'MAIN',
         func: function(y, m){
-          var ok = false;
-          try { if (document.getElementById('fnBar')){ window.postMessage({ channel:'appedu-eip-sync', action:'request', year:y, month:m, mode:'funnel' }, '*'); ok = true; } } catch(e){}
-          return ok;
+          try {
+            if (!document.getElementById('fnBar')) return false;
+            var ys = document.getElementById('motivYearSelect'), ms = document.getElementById('motivMonthSelect');
+            if (ys) ys.value = String(y);
+            if (ms) ms.value = String(m).padStart(2, '0');
+            if (typeof motivTriggerEipSync === 'function'){ motivTriggerEipSync('funnel'); return true; }
+            window.postMessage({ channel:'appedu-eip-sync', action:'request', year:y, month:m, mode:'funnel' }, '*');
+            return true;
+          } catch(e){ return false; }
         },
         args: [year, month]
       });
       var hit = (res || []).some(function(r){ return r && r.result; });
       if (!hit) throw new Error('目前分頁沒有「業績數據中心」— 請先開啟人力發展 → 📊 業績數據中心，再按這顆');
-      setStatus('⏳ 🔀 漏斗已交給「業績數據中心」頁面執行（約 7～9 分鐘），進度與結果看該頁右下角提示', 'ok');
+      setStatus('⏳ 🔀 漏斗已在「業績數據中心」頁面開始（約 7～9 分鐘），進度面板在該頁下方中央', 'ok');
     } catch(err){ setStatus('❌ ' + (err.message || err), 'err'); }
   });
 });
