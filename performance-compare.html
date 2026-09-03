@@ -8313,6 +8313,47 @@
     function fnSetStore(o){ try { localStorage.setItem(FN_KEY, JSON.stringify(o)); } catch(e){} }
     function fnGetEntry(ym, org){ var s = fnGetStore(); return (s[ym] && s[ym][org]) || {}; }
     function fnSetEntry(ym, org, patch){ var s = fnGetStore(); s[ym] = s[ym] || {}; s[ym][org] = Object.assign({}, s[ym][org] || {}, patch); fnSetStore(s); }
+
+    // ═══ 🖐 報備試聽 v2：每筆獨立 key（perf_compare_v1_funnelrep_<id>）═══
+    //   為什麼：整包存在 FN_KEY 裡會被「整包 LWW」互蓋 — 兩個人各自新增，後同步的把先同步的洗掉。
+    //   獨立 key = 各自同步、互不相蓋（同「跨主角任務」的已驗證做法）。刪除用墓碑（del:1），避免雲端把它復活。
+    var FN_REP_PFX = 'perf_compare_v1_funnelrep_';
+    function _fnRepKey(id){ return FN_REP_PFX + id; }
+    function fnRepAll(ym, org){
+      var out = [];
+      try {
+        for (var i = 0; i < localStorage.length; i++){
+          var k = localStorage.key(i);
+          if (!k || k.indexOf(FN_REP_PFX) !== 0) continue;
+          try {
+            var r = JSON.parse(localStorage.getItem(k) || '');
+            if (r && !r.del && r.ym === ym && r.org === org) out.push(r);
+          } catch(e){}
+        }
+      } catch(e){}
+      return out;
+    }
+    // 一次性遷移：把舊版存在 FN_KEY 整包裡的 ent.reports 搬成獨立 key（搬完清空舊陣列）
+    (function _fnMigrateReports(){
+      try {
+        if (localStorage.getItem('fn_rep_migrated_v1') === '1') return;
+        var s = fnGetStore(), changed = false;
+        Object.keys(s).forEach(function(ym){
+          Object.keys(s[ym] || {}).forEach(function(org){
+            var ent = s[ym][org];
+            if (!ent || !Array.isArray(ent.reports) || !ent.reports.length) return;
+            ent.reports.forEach(function(r){
+              if (!r || !r.id) return;
+              r.ym = ym; r.org = org;
+              try { if (!localStorage.getItem(_fnRepKey(r.id))) localStorage.setItem(_fnRepKey(r.id), JSON.stringify(r)); } catch(e){}
+            });
+            ent.reports = []; changed = true;
+          });
+        });
+        if (changed) fnSetStore(s);
+        localStorage.setItem('fn_rep_migrated_v1', '1');
+      } catch(e){ console.warn('[fn] 報備遷移失敗', e); }
+    })();
     function _fnEsc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
     function _fnHasVal(v){ return v !== undefined && v !== null && v !== ''; }
 
@@ -8483,7 +8524,12 @@
         [].concat(auto.onsite||[], auto.trialReg||[], auto.harvest||[], auto.harvestOld||[]).forEach(function(x){ _regN[x.n] = 1; });
         (auto.mgmt||[]).forEach(function(x){ _trN[x.n] = 1; });
       }
-      var sReports = (Array.isArray(ent.reports) ? ent.reports : []).map(function(r){
+      // v2：獨立 key 為主，尚未遷移完的舊陣列補進來（依 id 去重）
+      var _repRaw = fnRepAll(ym, org);
+      (Array.isArray(ent.reports) ? ent.reports : []).forEach(function(r){
+        if (r && r.id && !_repRaw.some(function(x){ return x.id === r.id; })) _repRaw.push(r);
+      });
+      var sReports = _repRaw.map(function(r){
         return Object.assign({}, r, { st: _regN[r.n] ? 'reg' : (_trN[r.n] ? 'dup' : 'ok') });
       });
       var reportN = sReports.filter(function(r){ return r.st === 'ok'; }).length;
@@ -8804,22 +8850,34 @@
       var who = ''; try { who = localStorage.getItem('activeCharacterName') || localStorage.getItem('activeCharacterId') || ''; } catch(e){}
       var d = new Date();
       var rec = { id:'tr_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
-        n:n,
+        ym:ym, org:org, n:n,
         sales:(document.getElementById('fnRepSales').value || '').trim(),
         course:(document.getElementById('fnRepCourse').value || '').trim(),
         date:document.getElementById('fnRepDate').value || '',
         note:(document.getElementById('fnRepNote').value || '').trim(),
         by: who || '未知',
         at:(d.getMonth()+1) + '/' + d.getDate() + ' ' + _ckPad2(d.getHours()) + ':' + _ckPad2(d.getMinutes()) };
-      var ent = fnGetEntry(ym, org); var arr = Array.isArray(ent.reports) ? ent.reports.slice() : [];
-      if (arr.some(function(r){ return r.n === n; })){ if (!confirm('「' + n + '」這個月已有報備，確定要再加一筆？')) return; }
-      arr.push(rec); fnSetEntry(ym, org, { reports: arr });
+      if (fnRepAll(ym, org).some(function(r){ return r.n === n; })){ if (!confirm('「' + n + '」這個月已有報備，確定要再加一筆？')) return; }
+      // ★ v2：每筆獨立 key → 各自同步、互不相蓋
+      try { localStorage.setItem(_fnRepKey(rec.id), JSON.stringify(rec)); } catch(e){ alert('儲存失敗：' + (e.message || e)); return; }
       fnRenderAll(); fnOpenReports(ym, org);
     }
     function fnDelReport(ym, org, id){
       if (!confirm('刪除這筆報備？（刪除後不再計入安排試聽）')) return;
-      var ent = fnGetEntry(ym, org); var arr = (ent.reports || []).filter(function(r){ return r.id !== id; });
-      fnSetEntry(ym, org, { reports: arr });
+      // ★ v2：墓碑刪除（寫回 del:1 讓刪除也同步到全公司，不會被雲端復活）
+      try {
+        var raw = localStorage.getItem(_fnRepKey(id));
+        var r = raw ? JSON.parse(raw) : { id:id, ym:ym, org:org };
+        r.del = 1; r.delAt = Date.now();
+        localStorage.setItem(_fnRepKey(id), JSON.stringify(r));
+      } catch(e){}
+      // 舊陣列裡若還有（未遷移殘留）也一併移除
+      try {
+        var ent = fnGetEntry(ym, org);
+        if (Array.isArray(ent.reports) && ent.reports.length){
+          fnSetEntry(ym, org, { reports: ent.reports.filter(function(r2){ return r2.id !== id; }) });
+        }
+      } catch(e){}
       fnRenderAll(); fnOpenReports(ym, org);
     }
 
