@@ -1462,7 +1462,128 @@
     .fn-tools input.bad { border-color:var(--fnBad) !important; color:var(--fnBad) !important; }
     .fn-tools button { padding:4px 10px; border-radius:999px; border:1px solid var(--fnLine) !important; background:var(--fnBg2) !important; color:var(--fnText) !important; font:inherit; font-size:.74rem; font-weight:700; cursor:pointer; }
     .fn-tools button:hover { border-color:var(--fnAcc) !important; color:var(--fnAcc) !important; }
+    /* 💡 教學小卡（滑到按鈕／分頁跳出） */
+    #uiTip { position:fixed; z-index:100000; display:none; width:300px; padding:13px 15px 12px; border-radius:14px;
+      background:#ffffff; color:#1d1d1f; border:1px solid rgba(0,0,0,.08); box-shadow:0 14px 40px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.08);
+      font-size:.8rem; line-height:1.5; letter-spacing:.01em; pointer-events:auto; text-shadow:none; }
+    #uiTip::before { content:''; position:absolute; left:50%; top:-6px; width:11px; height:11px; background:#fff; border-left:1px solid rgba(0,0,0,.08); border-top:1px solid rgba(0,0,0,.08); transform:translateX(-50%) rotate(45deg); }
+    #uiTip.ut-up::before { top:auto; bottom:-6px; border:none; border-right:1px solid rgba(0,0,0,.08); border-bottom:1px solid rgba(0,0,0,.08); }
+    #uiTip .ut-h { font-size:.95rem; font-weight:800; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+    #uiTip .ut-tag { font-size:.66rem; font-weight:700; color:#6e6e73; background:#f2f2f7; border-radius:999px; padding:1px 8px; }
+    #uiTip .ut-tag-s { color:#5B5BD6; background:#EEEEFB; }
+    #uiTip .ut-who { font-weight:700; color:#1d1d1f; margin-bottom:6px; }
+    #uiTip .ut-row { display:grid; grid-template-columns:34px 1fr; gap:6px; color:#3a3a3c; font-size:.78rem; margin-top:2px; }
+    #uiTip .ut-row span { color:#8e8e93; font-weight:600; }
+    #uiTip .ut-note { margin-top:8px; padding:7px 9px; background:#f5f5f7; border-radius:9px; color:#3a3a3c; font-size:.76rem; }
+    #uiTip .ut-last { margin-top:7px; font-size:.72rem; color:#8e8e93; }
+    @media print { #uiTip { display:none !important; } }
     .fn-note { font-size:.74rem; color:var(--fnDim); margin:2px 0 12px; line-height:1.5; }
+
+    /* ── 檢視切換（卡片／儀表板）── */
+    .fn-seg { display:inline-flex; background:var(--fnBg2); border:1px solid var(--fnLine); border-radius:999px; padding:2px; margin-right:6px; }
+    .fn-seg button { border:none; background:transparent; color:var(--fnDim); font:inherit; font-size:.82rem; font-weight:700; padding:5px 14px; border-radius:999px; cursor:pointer; }
+    .fn-seg button.on { background:var(--fnAcc); color:#fff; }
+
+    /* ══ 📊 全省儀表板 ══ */
+    #tab-9 .ds-wrap { --dsInk:var(--fnText); --dsDim:var(--fnDim); --dsLine:var(--fnLine); --dsAcc:var(--fnAcc);
+      --dsBar1:#A5B4FC; --dsBar2:#818CF8; --dsBar3:#6366F1; --dsBar4:#4338CA;
+      --dsGood:var(--fnGood); --dsWarn:var(--fnWarn); --dsBad:var(--fnBad); }
+    .ds-h1 { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+    .ds-h1 h2 { margin:0; font-size:1.5rem; font-weight:800; letter-spacing:-.01em; color:var(--dsInk); }
+    .ds-h1 p { margin:4px 0 0; font-size:.8rem; color:var(--dsDim); }
+    .ds-legend { display:flex; align-items:center; gap:6px; font-size:.75rem; color:var(--dsDim); }
+    .ds-lg { width:16px; height:12px; border-radius:3px; display:inline-block; }
+    .ds-sec { margin-bottom:26px; }
+    .ds-sec h3 { margin:0 0 10px; font-size:1.02rem; font-weight:800; color:var(--dsInk); display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+    .ds-sec h3 small { font-size:.76rem; font-weight:500; color:var(--dsDim); }
+    .ds-note { font-size:.74rem; color:var(--dsDim); margin:8px 0 0; }
+    .ds-none { font-size:.85rem; color:var(--dsDim); padding:14px; background:var(--fnBg2); border-radius:12px; }
+    .ds-scroll { overflow-x:auto; }
+
+    /* KPI */
+    .ds-kpis { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; }
+    @media (max-width:1000px){ .ds-kpis { grid-template-columns:repeat(3,1fr); } }
+    .ds-kpi { background:var(--fnBg2); border-radius:14px; padding:13px 15px; }
+    .ds-kpi-k { font-size:.75rem; color:var(--dsDim); font-weight:600; }
+    .ds-kpi-v { font-size:1.85rem; font-weight:800; color:var(--dsInk); letter-spacing:-.02em; line-height:1.15; margin-top:2px; }
+    .ds-kpi-v small { font-size:.85rem; font-weight:700; margin-left:2px; }
+    .ds-kpi-d { font-size:.74rem; margin-top:2px; }
+    .ds-up { color:var(--dsGood); font-weight:700; } .ds-dn { color:var(--dsBad); font-weight:700; } .ds-fl { color:var(--dsDim); }
+
+    /* 熱力表 */
+    .ds-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.82rem; min-width:960px; }
+    .ds-table th { position:sticky; top:0; background:var(--fnBg); z-index:1; font-weight:700; color:var(--dsDim); font-size:.75rem; padding:8px 6px; text-align:center; border-bottom:1.5px solid var(--dsLine); white-space:nowrap; }
+    .ds-th { cursor:pointer; user-select:none; } .ds-th:hover { color:var(--dsAcc); } .ds-th.on { color:var(--dsAcc); }
+    .ds-table td { padding:8px 6px; text-align:center; border-bottom:1px solid var(--dsLine); font-variant-numeric:tabular-nums; }
+    .ds-rank { width:38px; text-align:center; font-weight:700; color:var(--dsDim); }
+    .ds-name { text-align:left !important; font-weight:700; color:var(--dsInk); white-space:nowrap; }
+    .ds-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+    .ds-mini { margin-left:7px; border:1px solid var(--dsLine); background:var(--fnBg2); color:var(--dsDim); border-radius:7px; padding:1px 7px; font-size:.72rem; cursor:pointer; font-family:inherit; }
+    .ds-mini:hover { border-color:var(--dsAcc); color:var(--dsAcc); }
+    .ds-td { color:var(--dsInk); }
+    .ds-h0 { background:transparent; color:var(--dsDim); }
+    .ds-h1c, .ds-h1 { }
+    .ds-td.ds-h1 { background:rgba(99,102,241,.07); }
+    .ds-td.ds-h2 { background:rgba(99,102,241,.14); }
+    .ds-td.ds-h3 { background:rgba(99,102,241,.22); }
+    .ds-td.ds-h4 { background:rgba(99,102,241,.30); font-weight:700; }
+    .ds-td.ds-top { background:rgba(99,102,241,.40); font-weight:800; }
+    .ds-lg.ds-h4 { background:rgba(99,102,241,.30); } .ds-lg.ds-h2 { background:rgba(99,102,241,.14); } .ds-lg.ds-h0 { background:var(--fnBg2); }
+    .ds-strong { font-weight:800; }
+    .ds-org { white-space:nowrap; }
+    .ds-ptable { min-width:640px; }
+
+    /* 迷你漏斗 */
+    .ds-fgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; }
+    .ds-fcard { background:var(--fnBg2); border-radius:14px; padding:13px 15px; }
+    .ds-fh { display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:9px; }
+    .ds-fh b { font-size:.95rem; color:var(--dsInk); } .ds-fh span { font-size:.72rem; color:var(--dsDim); font-variant-numeric:tabular-nums; }
+    .ds-fbar { display:grid; grid-template-columns:34px 1fr 34px; gap:7px; align-items:center; margin-bottom:4px; }
+    .ds-fl2 { font-size:.72rem; color:var(--dsDim); }
+    .ds-ftrack { height:9px; background:var(--fnFill); border-radius:5px; overflow:hidden; }
+    .ds-ftrack i { display:block; height:100%; border-radius:5px; transition:width .4s; }
+    .ds-fv { font-size:.76rem; font-weight:700; color:var(--dsInk); text-align:right; font-variant-numeric:tabular-nums; }
+
+    /* 四象限 */
+    .ds-quad { position:relative; height:330px; background:var(--fnBg2); border-radius:16px; overflow:hidden; }
+    .ds-qline { position:absolute; background:var(--dsLine); }
+    .ds-qv { top:6%; bottom:10%; width:1px; border-left:1px dashed var(--dsDim); background:none; opacity:.5; }
+    .ds-qh { left:5%; right:4%; height:1px; border-top:1px dashed var(--dsDim); background:none; opacity:.5; }
+    .ds-qlab { position:absolute; font-size:.72rem; color:var(--dsDim); font-weight:600; }
+    .ds-q1 { right:12px; top:10px; } .ds-q2 { right:12px; bottom:26px; } .ds-q3 { left:12px; top:10px; } .ds-q4 { left:12px; bottom:26px; }
+    .ds-qaxis { position:absolute; font-size:.7rem; color:var(--dsDim); }
+    .ds-qax { bottom:6px; left:50%; transform:translateX(-50%); }
+    .ds-qay { top:50%; left:2px; transform:translateY(-50%) rotate(-90deg); transform-origin:left center; white-space:nowrap; }
+    .ds-dot2 { position:absolute; transform:translate(-50%,-50%); border-radius:50%; opacity:.86; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.18); }
+    .ds-dot2 span { color:#fff; font-size:.68rem; font-weight:800; text-shadow:0 1px 2px rgba(0,0,0,.3); }
+
+    /* 紅綠燈 */
+    .ds-lights { display:grid; gap:8px; }
+    .ds-lrow { display:grid; grid-template-columns:190px repeat(4,1fr); gap:8px; align-items:stretch; }
+    @media (max-width:900px){ .ds-lrow { grid-template-columns:1fr 1fr; } }
+    .ds-lname { display:flex; flex-direction:column; justify-content:center; font-weight:700; color:var(--dsInk); font-size:.9rem; }
+    .ds-lred { font-size:.72rem; color:var(--dsBad); font-weight:700; }
+    .ds-lok { font-size:.72rem; color:var(--dsGood); font-weight:700; }
+    .ds-l { background:var(--fnBg2); border-radius:11px; padding:9px 12px; border-left:3px solid var(--dsLine); }
+    .ds-lt { display:block; font-size:.7rem; color:var(--dsDim); }
+    .ds-l b { font-size:1rem; font-variant-numeric:tabular-nums; }
+    .ds-l-g { border-left-color:var(--dsGood); } .ds-l-g b { color:var(--dsGood); }
+    .ds-l-y { border-left-color:var(--dsWarn); } .ds-l-y b { color:var(--dsWarn); }
+    .ds-l-r { border-left-color:var(--dsBad); } .ds-l-r b { color:var(--dsBad); }
+    .ds-l-n b { color:var(--dsDim); font-size:.85rem; }
+
+    /* 待辦池 */
+    .ds-pool { display:grid; gap:8px; }
+    .ds-prow { display:grid; grid-template-columns:110px 1fr 150px 74px; gap:12px; align-items:center; }
+    @media (max-width:900px){ .ds-prow { grid-template-columns:90px 1fr 120px; } .ds-prow .ds-mini { display:none; } }
+    .ds-pname { font-weight:700; color:var(--dsInk); font-size:.88rem; }
+    .ds-ptrack { height:14px; background:var(--fnFill); border-radius:7px; overflow:hidden; display:flex; }
+    .ds-p1 { background:var(--dsWarn); } .ds-p2 { background:var(--dsBar1); }
+    .ds-pv { text-align:right; font-size:.78rem; color:var(--dsDim); }
+    .ds-pv b { font-size:1.05rem; color:var(--dsInk); font-variant-numeric:tabular-nums; }
+    .ds-pv small { display:block; font-size:.7rem; }
+
+    @media print { .fn-seg, .ds-mini { display:none !important; } .ds-sec { break-inside:avoid; } .ds-table th { position:static; } }
     .fn-note .warn { color:var(--fnWarn); font-weight:700; }
     .fn-sub .auto { color:var(--fnGood); font-weight:800; }
     /* 📖 每張卡的「詳細教學」金色按鈕 */
@@ -1944,35 +2065,35 @@
       <button class="back-btn" onclick="goBack()">◀ 返回</button>
     </div>
     <div class="hdr-sync-group" id="hdrSyncGroup">
-      <button id="syncBtn_motiv"   class="hdr-mode-btn motiv"   onclick="motivTriggerEipSync('motiv')"   title="同步『激勵』+『當月績效』（學院/業務/小組/七學院個人績效）。建議每天。輕量。">
+      <button id="syncBtn_motiv"   class="hdr-mode-btn motiv"   onclick="motivTriggerEipSync('motiv')" data-tip="sync-motiv">
         <span class="hmb-line1">🏆 激勵</span><span class="hmb-line2" id="syncTime_motiv">未同步</span>
       </button>
-      <button id="syncBtn_checkin" class="hdr-mode-btn checkin" onclick="motivSyncSeq(['motiv','checkin'])" title="同步『報到排名』：會先同步激勵（更新業績/個人績效），再抓報到名單，讓報到排名的業績欄也是最新。建議每週、非尖峰時段。">
+      <button id="syncBtn_checkin" class="hdr-mode-btn checkin" onclick="motivSyncSeq(['motiv','checkin'])" data-tip="sync-checkin">
         <span class="hmb-line1">🚪 報到</span><span class="hmb-line2" id="syncTime_checkin">未同步</span>
       </button>
-      <button id="syncBtn_channel" class="hdr-mode-btn channel" onclick="motivTriggerEipSync('channel')" title="同步『各通路績效』（收支明細）。建議每 15 天。較耗能，請非尖峰時段。">
+      <button id="syncBtn_channel" class="hdr-mode-btn channel" onclick="motivTriggerEipSync('channel')" data-tip="sync-channel">
         <span class="hmb-line1">📋 通路</span><span class="hmb-line2" id="syncTime_channel">未同步</span>
       </button>
-      <button id="syncBtn_funnel" class="hdr-mode-btn funnel" onclick="motivTriggerEipSync('funnel')" title="同步『月度漏斗總結』的逐人資料：七家的面談紀錄（本月＋往回 3 個月）＋ 報名/註冊明細，自動分出當下／試聽後／追回／經營中名單。約 7～9 分鐘（刻意放慢、不影響 EIP），建議每週一次、非尖峰時段。需擴充 v5.16。">
+      <button id="syncBtn_funnel" class="hdr-mode-btn funnel" onclick="fnSyncAll()" data-tip="sync-funnel">
         <span class="hmb-line1">🔀 漏斗</span><span class="hmb-line2" id="syncTime_funnel">未同步</span>
       </button>
-      <button id="hdrSaveBtn" class="hdr-save-btn" onclick="motivSaveCurrentToArchive()" title="把目前畫面的資料覆蓋鎖進本月封存（即使 EIP 登出 / 同步失敗也不會跑掉）">💾 鎖定</button>
-      <button id="pcPushBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#00695c,#00897b);color:#fff;border-color:transparent;" onclick="pcForcePushCompany()" title="把本機全部公司資料（每月績效＋各通路＋報到/漏斗/激勵含月份封存＋知識庫）強制推送到雲端。同步完新月份後按一次，同事按「☁️↓ 拉取」就能看到最新月份。">☁️↑ 推送</button>
-      <button id="pcPullBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#1565c0,#1e88e5);color:#fff;border-color:transparent;" onclick="pcForcePullCompany()" title="從雲端拉取全部公司資料（依月份合併，不會刪掉本機已有的月份）。管理者推送新月份後，按這顆就能看到。">☁️↓ 拉取</button>
+      <button id="hdrSaveBtn" class="hdr-save-btn" onclick="motivSaveCurrentToArchive()" data-tip="lock">💾 鎖定</button>
+      <button id="pcPushBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#00695c,#00897b);color:#fff;border-color:transparent;" onclick="pcForcePushCompany()" data-tip="push">☁️↑ 推送</button>
+      <button id="pcPullBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#1565c0,#1e88e5);color:#fff;border-color:transparent;" onclick="pcForcePullCompany()" data-tip="pull">☁️↓ 拉取</button>
     </div>
   </header>
 
   <div class="tabs-container">
-    <button class="tab-btn active" data-tab="0" onclick="switchTab(0)">📈 年度月/季比較</button>
-    <button class="tab-btn" data-tab="1" onclick="switchTab(1)">📊 每月講座成績表現</button>
-    <button class="tab-btn" data-tab="2" onclick="switchTab(2)">📋 各通路績效</button>
-    <button class="tab-btn" data-tab="8" onclick="switchTab(8)">🎓 課程銷售分析</button>
-    <button class="tab-btn" data-tab="6" onclick="switchTab(6)">🚪 報到排名</button>
-    <button class="tab-btn" data-tab="7" onclick="switchTab(7)">📆 當月績效</button>
-    <button class="tab-btn" data-tab="9" onclick="switchTab(9)">📌 月度漏斗總結</button>
-    <button class="tab-btn" data-tab="3" onclick="switchTab(3)">📅 每月績效</button>
-    <button class="tab-btn" data-tab="4" onclick="switchTab(4)">🏆 激勵</button>
-    <button class="tab-btn" data-tab="5" onclick="switchTab(5)">📝 成績單</button>
+    <button class="tab-btn active" data-tab="0" data-tip="tab-0" onclick="switchTab(0)">📈 年度月/季比較</button>
+    <button class="tab-btn" data-tab="1" data-tip="tab-1" onclick="switchTab(1)">📊 每月講座成績表現</button>
+    <button class="tab-btn" data-tab="2" data-tip="tab-2" onclick="switchTab(2)">📋 各通路績效</button>
+    <button class="tab-btn" data-tab="8" data-tip="tab-8" onclick="switchTab(8)">🎓 課程銷售分析</button>
+    <button class="tab-btn" data-tab="6" data-tip="tab-6" onclick="switchTab(6)">🚪 報到排名</button>
+    <button class="tab-btn" data-tab="7" data-tip="tab-7" onclick="switchTab(7)">📆 當月績效</button>
+    <button class="tab-btn" data-tab="9" data-tip="tab-9" onclick="switchTab(9)">📌 月度漏斗總結</button>
+    <button class="tab-btn" data-tab="3" data-tip="tab-3" onclick="switchTab(3)">📅 每月績效</button>
+    <button class="tab-btn" data-tab="4" data-tip="tab-4" onclick="switchTab(4)">🏆 激勵</button>
+    <button class="tab-btn" data-tab="5" data-tip="tab-5" onclick="switchTab(5)">📝 成績單</button>
   </div>
 
   <div class="content">
@@ -6624,8 +6745,17 @@
 
     // ★ 🔀 漏斗同步進度面板：七家逐一打勾、目前頁數、已跑時間、預估剩餘、提醒不要關頁
     var _fnProgT0 = 0, _fnProgTimer = null, _fnProgState = null;
-    function fnProgressStart(){
-      _fnProgT0 = Date.now(); _fnProgState = { org:0, total:7, phase:'start', page:0, rows:0, name:'' };
+    // ★ 一鍵三連：激勵 → 報到 → 漏斗（三個資料來源一次更新；面板從第 1 步就顯示）
+    function fnSyncAll(){
+      if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      fnProgressStart(true);
+      _fnProgState.stage = '① 激勵：面談／註冊Ⓐ／Ⓑ／新業績';
+      fnProgressRender('準備開始…');
+      motivSyncSeq(['motiv', 'checkin', 'funnel']);
+    }
+    function fnProgressStart(force){
+      if (_fnProgTimer && !force){ _fnProgState = Object.assign(_fnProgState || {}, { org:0, phase:'start', page:0, rows:0, stage:'③ 漏斗：逐人明細（七家）' }); return; }
+      _fnProgT0 = Date.now(); _fnProgState = { org:0, total:7, phase:'start', page:0, rows:0, name:'', stage:'③ 漏斗：逐人明細（七家）' };
       var el = document.getElementById('fnProg');
       if (!el){
         el = document.createElement('div'); el.id = 'fnProg';
@@ -6644,7 +6774,8 @@
       var frac = st.phase === 'start' ? 0 : ((st.org - 1) + (st.phase === 'itv' ? 0.25 : (st.phase === 'pay' ? 0.7 : 1))) / N;
       frac = Math.max(0, Math.min(0.99, frac));
       var el_s = Math.round((Date.now() - _fnProgT0) / 1000);
-      var eta = frac > 0.05 ? Math.round(el_s / frac * (1 - frac)) : null;
+      var inFunnel = /③/.test(st.stage || '');
+      var eta = (inFunnel && frac > 0.05) ? Math.round(el_s / frac * (1 - frac)) : null;
       var mmss = function(sec){ return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
       var orgs = (typeof CK_ORG_LIST !== 'undefined') ? CK_ORG_LIST : [];
       var steps = orgs.map(function(o, i){
@@ -6653,8 +6784,9 @@
       }).join('');
       if (msg) st.lastMsg = msg;
       el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;">'
-        + '<b style="font-size:1rem;">🔀 漏斗同步中 ' + Math.round(frac * 100) + '%</b>'
-        + '<span style="color:#9ca3af;font-size:.78rem;">已跑 ' + mmss(el_s) + (eta != null ? '　預估剩 ' + mmss(eta) : '　預估 7～9 分鐘') + '</span></div>'
+        + '<b style="font-size:1rem;">🔀 一鍵同步中' + (inFunnel ? ' ' + Math.round(frac * 100) + '%' : '') + '</b>'
+        + '<span style="color:#9ca3af;font-size:.78rem;">已跑 ' + mmss(el_s) + (eta != null ? '　預估剩 ' + mmss(eta) : '　全程約 10～12 分鐘') + '</span></div>'
+        + '<div style="font-size:.8rem;color:#5eead4;font-weight:700;margin-bottom:6px;">' + (st.stage || '') + '　<span style="color:#9ca3af;font-weight:500;">（① 激勵 → ② 報到 → ③ 漏斗）</span></div>'
         + '<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden;margin-bottom:8px;"><div style="height:100%;width:' + Math.round(frac * 100) + '%;background:linear-gradient(90deg,#0f766e,#14b8a6);transition:width .5s;"></div></div>'
         + '<div style="font-size:.78rem;margin-bottom:6px;">' + steps + '</div>'
         + '<div style="font-size:.78rem;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (st.lastMsg || '') + '</div>'
@@ -6664,8 +6796,8 @@
       if (_fnProgTimer){ clearInterval(_fnProgTimer); _fnProgTimer = null; }
       var el = document.getElementById('fnProg'); if (!el) return;
       var el_s = Math.round((Date.now() - _fnProgT0) / 1000);
-      el.innerHTML = '<div style="font-size:1rem;"><b>' + (ok ? '✅ 漏斗同步完成' : '❌ 漏斗同步中斷') + '</b><span style="color:#9ca3af;font-size:.78rem;margin-left:10px;">共 ' + Math.floor(el_s / 60) + ' 分 ' + (el_s % 60) + ' 秒</span></div>'
-        + '<div style="font-size:.78rem;color:#cbd5e1;margin-top:4px;">' + (ok ? '可以關閉頁面了。到「📌 月度漏斗總結」看自動分類結果。' : '可以直接再按一次「🔀 漏斗」重試。') + '</div>';
+      el.innerHTML = '<div style="font-size:1rem;"><b>' + (ok ? '✅ 全部同步完成（激勵・報到・漏斗）' : '❌ 同步中斷') + '</b><span style="color:#9ca3af;font-size:.78rem;margin-left:10px;">共 ' + Math.floor(el_s / 60) + ' 分 ' + (el_s % 60) + ' 秒</span></div>'
+        + '<div style="font-size:.78rem;color:#cbd5e1;margin-top:4px;">' + (ok ? '總報到、面談、註冊、逐人名單都是最新的。可以關閉頁面了。' : '可以直接再按一次「🔀 漏斗」重試（會從第一步重跑）。') + '</div>';
       setTimeout(function(){ if (el) el.style.display = 'none'; }, ok ? 12000 : 20000);
     }
     // 同步進行中若關閉/重新整理 → 瀏覽器先跳確認（避免 8 分鐘白跑）
@@ -6712,7 +6844,10 @@
           finish(false);
         }, 90000);
       }
-      function finish(ok){ if (settled) return; settled = true; if (wd) clearTimeout(wd); m.busy = false; refreshSyncBtnLabels(); if (mode === 'funnel') fnProgressEnd(ok); if (settle) settle(!!ok); }
+      function finish(ok){ if (settled) return; settled = true; if (wd) clearTimeout(wd); m.busy = false; refreshSyncBtnLabels();
+        if (mode === 'funnel') fnProgressEnd(ok);
+        else if (_fnProgTimer){ if (!ok) fnProgressEnd(false); else fnProgressUpdate({ stage: mode === 'motiv' ? '② 報到：總報到' : '③ 漏斗：逐人明細（七家）' }, '✅ ' + m.label + ' 完成，接著下一步…'); }
+        if (settle) settle(!!ok); }
       _wdPoke();
       if (mode === 'funnel') fnProgressStart();
 
@@ -6755,6 +6890,7 @@
           if (info){ info.textContent = '⏳ ' + d.msg; info.style.color = '#e6a817'; }
           _syncToast('⏳ ' + d.msg, '#e6a817');
           if (mode === 'funnel' && d.prog) fnProgressUpdate(d.prog, d.msg);
+          else if (mode !== 'funnel' && _fnProgTimer) fnProgressUpdate({ stage: mode === 'motiv' ? '① 激勵：面談／註冊Ⓐ／Ⓑ／新業績' : '② 報到：總報到' }, d.msg);
         }
       }
       window.addEventListener('message', onMsg);
@@ -9224,6 +9360,234 @@
     function _fnScopeOrgs(){ var r = CK_REGIONS[fnScope] || CK_REGIONS.all; return r.orgs; }
     function _fnScopeLabel(){ var r = CK_REGIONS[fnScope] || CK_REGIONS.all; return fnScope === 'all' ? '七家合計' : r.label + '合計'; }
 
+    // ══════════════════════════════════════════════════════════════
+    // 📊 全省儀表板（卡片／儀表板 檢視切換）
+    //   六大區塊，一頁到底：戰情列 → 排行熱力表 → 迷你漏斗 → 四象限 → 紅綠燈 → 待辦池 → 業務個人榜
+    //   所有數字沿用卡片同一套計算（_fnOrgStats / _fnAuto），只是換一種看法。
+    //   排名：綜合分數為主，每一欄也都能點欄位標題單獨排序（找各家問題）。
+    //   比較基準：跟上月比（↑↓）＋ 跟全台七家平均比（vs 全台）。
+    // ══════════════════════════════════════════════════════════════
+    var fnView = (function(){ try { return localStorage.getItem('fn_view_v1') || 'card'; } catch(e){ return 'card'; } })();
+    function fnSetView(v){ fnView = v; try { localStorage.setItem('fn_view_v1', v); } catch(e){} fnRenderAll(); }
+    var fnSort = (function(){ try { return JSON.parse(localStorage.getItem('fn_sort_v1') || 'null') || { k:'score', d:-1 }; } catch(e){ return { k:'score', d:-1 }; } })();
+    function fnSetSort(k){
+      if (fnSort.k === k) fnSort.d = -fnSort.d; else fnSort = { k:k, d:-1 };
+      try { localStorage.setItem('fn_sort_v1', JSON.stringify(fnSort)); } catch(e){}
+      fnRenderAll();
+    }
+    function _dsPct(v){ return (Math.round(v * 10) / 10).toFixed(1) + '%'; }
+    function _dsWan(v){ return Math.round(v / 10000); }
+    // 綜合分數：量體 30 ＋ 轉換 40 ＋ 成果 30（各項對全台最佳值標準化）
+    function _dsScore(s, base){
+      var f = function(v, max){ return max > 0 ? Math.min(1, v / max) : 0; };
+      var vol = f(s.checkin, base.checkin) * 0.18 + f(s.interview, base.interview) * 0.12;
+      var cvr = f(Math.min(s.r1, 130), Math.min(base.r1, 130)) * 0.10 + f(s.r2, base.r2) * 0.13 + f(s.r3, base.r3) * 0.17;
+      var out = f(s.onsite + s.reg, base.reg) * 0.12 + f(s.headsNew || 0, base.heads) * 0.08 + f(s.newPerf, base.perf) * 0.10;
+      return Math.round((vol + cvr + out) * 100);
+    }
+    function _dsLight(v, good, ok){ return v >= good ? 'g' : (v >= ok ? 'y' : 'r'); }
+
+    function fnDashHtml(selYm, orgs, all, total, prev){
+      var y = parseInt(selYm.slice(0,4),10), m = parseInt(selYm.slice(5),10);
+      var natAll = CK_ORG_LIST.map(function(o){ return _fnOrgStats(_fnDataFor(selYm), o, selYm); });   // 全台七家（比較基準）
+      var natWith = natAll.filter(function(x){ return x.hasData; });
+      var nat = _fnSum(natAll, '全台');
+      var natAvg = {
+        r1: natWith.length ? natWith.reduce(function(t,x){ return t + x.r1; }, 0) / natWith.length : 0,
+        r2: natWith.length ? natWith.reduce(function(t,x){ return t + x.r2; }, 0) / natWith.length : 0,
+        r3: (function(){ var l = natWith.filter(function(x){ return x.known && x.trial >= 5; }); return l.length ? l.reduce(function(t,x){ return t + x.r3; }, 0) / l.length : 0; })(),
+        checkin: natWith.length ? nat.checkin / natWith.length : 0,
+        perf: natWith.length ? nat.newPerf / natWith.length : 0
+      };
+      var base = {
+        checkin: Math.max.apply(null, natAll.map(function(x){ return x.checkin; }).concat([1])),
+        interview: Math.max.apply(null, natAll.map(function(x){ return x.interview; }).concat([1])),
+        r1: Math.max.apply(null, natAll.map(function(x){ return Math.min(x.r1, 130); }).concat([1])),
+        r2: Math.max.apply(null, natAll.map(function(x){ return x.r2; }).concat([1])),
+        r3: Math.max.apply(null, natAll.map(function(x){ return x.known ? x.r3 : 0; }).concat([1])),
+        reg: Math.max.apply(null, natAll.map(function(x){ return x.onsite + x.reg; }).concat([1])),
+        heads: Math.max.apply(null, natAll.map(function(x){ return x.headsNew || 0; }).concat([1])),
+        perf: Math.max.apply(null, natAll.map(function(x){ return x.newPerf; }).concat([1]))
+      };
+      var rows = all.filter(function(x){ return x.hasData; }).map(function(s){
+        var p = prev ? prev.find(function(x){ return x.org === s.org; }) : null;
+        return {
+          s: s, p: p, score: _dsScore(s, base),
+          checkin: s.checkin, interview: s.interview, trial: s.trial,
+          onsite: s.onsite, reg: s.reg, regTot: s.onsite + s.reg, harvest: s.harvest || 0,
+          mgmt: s.mgmt, pool: (s.auto ? s.auto.pool.length : 0),
+          courses: s.coursesNew || 0, heads: s.headsNew || 0, perf: s.newPerf,
+          r1: s.r1, r2: s.r2, r3: s.known ? s.r3 : -1,
+          hv: (s.poolHarvest != null && (s.poolHarvest + s.poolOpen) > 0) ? (s.poolHarvest / (s.poolHarvest + s.poolOpen) * 100) : -1
+        };
+      });
+      if (!rows.length) return '<div class="ck-empty">這個月還沒有資料</div>';
+      rows.sort(function(a, b){ return (a[fnSort.k] - b[fnSort.k]) * fnSort.d || (b.score - a.score); });
+
+      // ── 1. 戰情列 ──
+      var pt = prev ? _fnSum(prev, '') : null;
+      var kpi = [
+        { k:'總報到', v:total.checkin, p:pt ? pt.checkin : null },
+        { k:'實際面談', v:total.interview, p:pt ? pt.interview : null },
+        { k:'安排試聽', v:total.trial, p:pt ? pt.trial : null },
+        { k:'當下＋試聽後', v:total.onsite + total.reg, p:pt ? (pt.onsite + pt.reg) : null },
+        { k:'追回', v:total.harvest || 0, p:pt ? (pt.harvest || 0) : null },
+        { k:'新生人頭', v:total.headsNew || 0, p:pt ? (pt.headsNew || 0) : null },
+        { k:'新業績', v:_dsWan(total.newPerf), unit:'萬', p:pt ? _dsWan(pt.newPerf) : null },
+      ].map(function(d){
+        var diff = (d.p == null) ? null : d.v - d.p;
+        var arrow = diff == null ? '' : (diff > 0 ? '<span class="ds-up">▲ ' + diff + '</span>' : (diff < 0 ? '<span class="ds-dn">▼ ' + Math.abs(diff) + '</span>' : '<span class="ds-fl">— 持平</span>'));
+        return '<div class="ds-kpi"><div class="ds-kpi-k">' + d.k + '</div><div class="ds-kpi-v">' + d.v + (d.unit ? '<small>' + d.unit + '</small>' : '') + '</div><div class="ds-kpi-d">' + (arrow || '<span class="ds-fl">無上月資料</span>') + '</div></div>';
+      }).join('');
+
+      // ── 2. 排行熱力表 ──
+      var cols = [
+        { k:'score', t:'綜合分', hint:'量體30＋轉換40＋成果30，對全台最佳值標準化' },
+        { k:'checkin', t:'報到' }, { k:'interview', t:'面談' }, { k:'trial', t:'試聽' },
+        { k:'onsite', t:'當下' }, { k:'reg', t:'試聽後' }, { k:'harvest', t:'追回' },
+        { k:'mgmt', t:'經營中' }, { k:'pool', t:'經營池' },
+        { k:'courses', t:'科數' }, { k:'heads', t:'人頭' }, { k:'perf', t:'新業績', unit:'萬' },
+        { k:'r1', t:'報到→面談', pct:true }, { k:'r2', t:'面談→試聽', pct:true }, { k:'r3', t:'試聽→註冊', pct:true }, { k:'hv', t:'收割率', pct:true }
+      ];
+      // 每欄的極值 → 色階
+      var mx = {}, mn = {};
+      cols.forEach(function(c){
+        var vals = rows.map(function(r){ return r[c.k]; }).filter(function(v){ return v >= 0; });
+        mx[c.k] = Math.max.apply(null, vals.concat([0])); mn[c.k] = Math.min.apply(null, vals.concat([0]));
+      });
+      var heat = function(c, v){
+        if (v < 0) return '';
+        var range = mx[c.k] - mn[c.k]; if (range <= 0) return '';
+        var t = (v - mn[c.k]) / range;                       // 0～1
+        if (t >= 0.999) return ' ds-top';
+        return t > 0.02 ? ' ds-h' + Math.min(4, Math.max(1, Math.ceil(t * 4))) : ' ds-h0';
+      };
+      var head = '<tr><th class="ds-rank">#</th><th class="ds-name">學院</th>'
+        + cols.map(function(c){
+            var on = fnSort.k === c.k;
+            return '<th class="ds-th' + (on ? ' on' : '') + '" onclick="fnSetSort(\'' + c.k + '\')"' + (c.hint ? ' title="' + c.hint + '"' : '') + '>' + c.t + (on ? (fnSort.d < 0 ? ' ↓' : ' ↑') : '') + '</th>';
+          }).join('') + '</tr>';
+      var body = rows.map(function(r, i){
+        var tds = cols.map(function(c){
+          var v = r[c.k];
+          var txt = v < 0 ? '—' : (c.pct ? _dsPct(v) : (c.k === 'perf' ? _dsWan(v) + ' 萬' : v + (c.unit || '')));
+          return '<td class="ds-td' + heat(c, v) + '">' + txt + '</td>';
+        }).join('');
+        var medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : (i + 1)));
+        return '<tr><td class="ds-rank">' + medal + '</td>'
+          + '<td class="ds-name"><span class="ds-dot" style="background:' + (CK_COLOR[r.s.org] || '#999') + '"></span>' + _fnEsc(r.s.org)
+          + '<button class="ds-mini" onclick="fnTeach(\'' + selYm + '\',\'' + _fnEsc(r.s.org) + '\')" title="看這家每個數字怎麼來的">📖</button></td>' + tds + '</tr>';
+      }).join('');
+      var table = '<table class="ds-table"><thead>' + head + '</thead><tbody>' + body + '</tbody></table>';
+
+      // ── 3. 迷你漏斗（同一比例尺）──
+      var fmax = Math.max.apply(null, rows.map(function(r){ return r.checkin; }).concat([1]));
+      var funnels = rows.slice().sort(function(a,b){ return b.checkin - a.checkin; }).map(function(r){
+        var seg = [
+          { t:'報到', v:r.checkin, c:'var(--dsBar1)' },
+          { t:'面談', v:r.interview, c:'var(--dsBar2)' },
+          { t:'試聽', v:r.trial, c:'var(--dsBar3)' },
+          { t:'註冊', v:r.regTot, c:'var(--dsBar4)' }
+        ].map(function(x){
+          return '<div class="ds-fbar"><span class="ds-fl2">' + x.t + '</span>'
+            + '<span class="ds-ftrack"><i style="width:' + Math.max(1.5, x.v / fmax * 100) + '%;background:' + x.c + '"></i></span>'
+            + '<span class="ds-fv">' + x.v + '</span></div>';
+        }).join('');
+        return '<div class="ds-fcard"><div class="ds-fh"><b>' + _fnEsc(r.s.org) + '</b><span>' + _dsPct(r.r1) + ' → ' + _dsPct(r.r2) + ' → ' + (r.r3 < 0 ? '—' : _dsPct(r.r3)) + '</span></div>' + seg + '</div>';
+      }).join('');
+
+      // ── 4. 四象限（量體 × 收割力）──
+      var qx = Math.max.apply(null, rows.map(function(r){ return r.checkin; }).concat([1]));
+      var qy = Math.max.apply(null, rows.map(function(r){ return Math.max(r.r3, 0); }).concat([10]));
+      var avgX = rows.reduce(function(t,r){ return t + r.checkin; }, 0) / rows.length;
+      var avgY = (function(){ var l = rows.filter(function(r){ return r.r3 >= 0; }); return l.length ? l.reduce(function(t,r){ return t + r.r3; }, 0) / l.length : 0; })();
+      var pmax = Math.max.apply(null, rows.map(function(r){ return r.perf; }).concat([1]));
+      var dots = rows.map(function(r){
+        var px = 8 + (r.checkin / qx) * 84, py = 92 - (Math.max(r.r3, 0) / qy) * 84;
+        var sz = 22 + (r.perf / pmax) * 34;
+        return '<div class="ds-dot2" style="left:' + px + '%;top:' + py + '%;width:' + sz + 'px;height:' + sz + 'px;background:' + (CK_COLOR[r.s.org] || '#999') + '" title="' + _fnEsc(r.s.org) + '：報到 ' + r.checkin + '、試聽註冊率 ' + (r.r3 < 0 ? '—' : _dsPct(r.r3)) + '、新業績 ' + _dsWan(r.perf) + ' 萬"><span>' + _fnEsc(CK_SHORT[r.s.org] || r.s.org) + '</span></div>';
+      }).join('');
+      var quad = '<div class="ds-quad">'
+        + '<div class="ds-qline ds-qv" style="left:' + (8 + (avgX / qx) * 84) + '%"></div>'
+        + '<div class="ds-qline ds-qh" style="top:' + (92 - (avgY / qy) * 84) + '%"></div>'
+        + '<span class="ds-qlab ds-q1">明星（量大・收得好）</span><span class="ds-qlab ds-q2">漏水（量大・收不好）</span>'
+        + '<span class="ds-qlab ds-q3">潛力（量小・收得好）</span><span class="ds-qlab ds-q4">待救（量小・收不好）</span>'
+        + dots
+        + '<span class="ds-qaxis ds-qax">量體：總報到 →</span><span class="ds-qaxis ds-qay">↑ 收割力：試聽註冊率</span>'
+        + '</div>';
+
+      // ── 5. 紅綠燈健檢（紅的排前面）──
+      var lights = rows.slice().map(function(r){
+        var L = [
+          { t:'報到→面談', v:r.r1, s:_dsLight(r.r1, 85, 70), txt:_dsPct(r.r1) },
+          { t:'面談→試聽', v:r.r2, s:_dsLight(r.r2, 25, 15), txt:_dsPct(r.r2) },
+          { t:'試聽→註冊', v:r.r3, s:r.r3 < 0 ? 'n' : _dsLight(r.r3, 40, 20), txt:r.r3 < 0 ? '待填' : _dsPct(r.r3) },
+          { t:'收割率', v:r.hv, s:r.hv < 0 ? 'n' : _dsLight(r.hv, 25, 10), txt:r.hv < 0 ? '無上月池' : _dsPct(r.hv) }
+        ];
+        var red = L.filter(function(x){ return x.s === 'r'; }).length;
+        return { org:r.s.org, L:L, red:red, ym:selYm };
+      }).sort(function(a,b){ return b.red - a.red; }).map(function(x){
+        return '<div class="ds-lrow"><div class="ds-lname">' + _fnEsc(x.org) + (x.red ? '<span class="ds-lred">' + x.red + ' 項待補</span>' : '<span class="ds-lok">全數達標</span>') + '</div>'
+          + x.L.map(function(l){ return '<div class="ds-l ds-l-' + l.s + '"><span class="ds-lt">' + l.t + '</span><b>' + l.txt + '</b></div>'; }).join('') + '</div>';
+      }).join('');
+
+      // ── 6. 待辦池 ──
+      var poolRows = rows.slice().sort(function(a,b){ return (b.mgmt + b.pool) - (a.mgmt + a.pool); }).map(function(r){
+        var tot = r.mgmt + r.pool;
+        return '<div class="ds-prow"><div class="ds-pname">' + _fnEsc(r.s.org) + '</div>'
+          + '<div class="ds-ptrack"><i class="ds-p1" style="width:' + (tot ? r.mgmt / tot * 100 : 0) + '%"></i><i class="ds-p2" style="width:' + (tot ? r.pool / tot * 100 : 0) + '%"></i></div>'
+          + '<div class="ds-pv"><b>' + tot + '</b> 位<small>經營中 ' + r.mgmt + '・經營池 ' + r.pool + '</small></div>'
+          + '<button class="ds-mini" onclick="fnTeach(\'' + selYm + '\',\'' + _fnEsc(r.s.org) + '\')">看名單</button></div>';
+      }).join('');
+      var poolTot = rows.reduce(function(t,r){ return t + r.mgmt + r.pool; }, 0);
+
+      // ── 7. 業務個人排行榜（EIP 當月績效逐人 + 逐人資料的名單）──
+      var pp = _fnDataFor(selYm).perfp;
+      var people = [];
+      if (pp && pp.orgs){
+        orgs.forEach(function(o){
+          (pp.orgs[o] || []).forEach(function(r){
+            var itv = _ckNum(r.count1), regA = _ckNum(r.count3), regB = _ckNum(r.count4), perf = _ckNum(r.new_perf), biz = _ckNum(r.business);
+            if (!itv && !regA && !perf) return;
+            people.push({ n:r.employee_name, org:o, itv:itv, regA:regA, regB:regB, perf:perf, biz:biz, rate: itv ? regA / itv * 100 : 0 });
+          });
+        });
+      }
+      people.sort(function(a,b){ return b.perf - a.perf; });
+      var pRows = people.slice(0, 20).map(function(p, i){
+        var medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : (i + 1)));
+        return '<tr><td class="ds-rank">' + medal + '</td><td class="ds-name">' + _fnEsc(p.n) + '</td>'
+          + '<td class="ds-td ds-org"><span class="ds-dot" style="background:' + (CK_COLOR[p.org] || '#999') + '"></span>' + _fnEsc(CK_SHORT[p.org] || p.org) + '</td>'
+          + '<td class="ds-td">' + p.itv + '</td><td class="ds-td">' + p.regA + '</td><td class="ds-td">' + p.regB + '</td>'
+          + '<td class="ds-td">' + _dsPct(p.rate) + '</td><td class="ds-td ds-strong">' + _dsWan(p.perf) + ' 萬</td></tr>';
+      }).join('');
+      var peopleBlock = people.length
+        ? '<table class="ds-table ds-ptable"><thead><tr><th class="ds-rank">#</th><th class="ds-name">業務</th><th>學院</th><th>面談</th><th>註冊Ⓐ</th><th>註冊Ⓑ</th><th>面談→註冊</th><th>新業績</th></tr></thead><tbody>' + pRows + '</tbody></table>'
+        : '<div class="ds-none">這個月沒有個人績效資料（請到「🏆 激勵」同步）</div>';
+
+      // ── 組版 ──
+      var scopeName = _fnScopeLabel().replace('合計','');
+      return '<div class="ds-wrap">'
+        + '<div class="ds-h1"><div><h2>' + y + ' 年 ' + m + ' 月　' + scopeName + '戰情儀表板</h2>'
+        + '<p>排序：' + (cols.filter(function(c){ return c.k === fnSort.k; })[0] || { t:'綜合分' }).t + (fnSort.d < 0 ? '（高→低）' : '（低→高）') + '　·　點任一欄位標題可換排序　·　所有比較基準＝全台七家</p></div>'
+        + '<div class="ds-legend"><span class="ds-lg ds-h4"></span>前段<span class="ds-lg ds-h2"></span>中段<span class="ds-lg ds-h0"></span>後段</div></div>'
+
+        + '<div class="ds-sec"><h3>戰情總覽<small>' + scopeName + '合計，跟上月比</small></h3><div class="ds-kpis">' + kpi + '</div></div>'
+
+        + '<div class="ds-sec"><h3>排行熱力表<small>顏色越深＝該項在同組裡越前面；點欄位可排序</small></h3><div class="ds-scroll">' + table + '</div>'
+        + '<p class="ds-note">綜合分＝量體 30（報到18＋面談12）＋轉換 40（報到→面談10＋面談→試聽13＋試聽→註冊17）＋成果 30（註冊12＋人頭8＋新業績10），每項對全台最佳值標準化。</p></div>'
+
+        + '<div class="ds-sec"><h3>漏斗形狀比一比<small>同一比例尺，一眼看出誰卡在哪一關</small></h3><div class="ds-fgrid">' + funnels + '</div></div>'
+
+        + '<div class="ds-sec"><h3>量體 × 收割力<small>泡泡大小＝新業績；虛線＝該組平均</small></h3>' + quad + '</div>'
+
+        + '<div class="ds-sec"><h3>紅綠燈健檢<small>紅燈多的排前面。門檻：報到→面談 85/70、面談→試聽 25/15、試聽→註冊 40/20、收割率 25/10</small></h3><div class="ds-lights">' + lights + '</div></div>'
+
+        + '<div class="ds-sec"><h3>待辦池<small>' + scopeName + '合計 <b>' + poolTot + '</b> 位可以打電話 —— 經營中（本月試聽未簽）＋ 經營池（前 3 個月試聽未簽）</small></h3><div class="ds-pool">' + poolRows + '</div></div>'
+
+        + '<div class="ds-sec"><h3>業務個人排行 TOP 20<small>依新業績排序，資料來自 EIP 當月績效</small></h3><div class="ds-scroll">' + peopleBlock + '</div></div>'
+        + '</div>';
+    }
     function fnRenderAll(){
       var bar = document.getElementById('fnBar'), body = document.getElementById('fnBody');
       if (!bar || !body) return;
@@ -9237,6 +9601,10 @@
             var isLive = (ym === liveCk || ym === livePp);
             return '<button class="ck-region-btn' + (ym === selYm ? ' active' : '') + '" onclick="fnSetYm(\'' + ym + '\')">' + y + '年' + mo + '月' + (isLive ? ' 🟢' : ' 📦') + '</button>';
           }).join('')
+        + '</div>'
+        + '<div class="fn-seg">'
+        +   '<button class="' + (fnView === 'card' ? 'on' : '') + '" onclick="fnSetView(\'card\')">▦ 卡片</button>'
+        +   '<button class="' + (fnView === 'dash' ? 'on' : '') + '" onclick="fnSetView(\'dash\')">📊 儀表板</button>'
         + '</div>'
         + ['all','taoyuan','central','south'].map(function(k){ return '<button class="ck-region-btn' + (fnScope === k ? ' active' : '') + '" onclick="fnSetScope(\'' + k + '\')">' + CK_REGIONS[k].label + '</button>'; }).join('')
         + '<span style="width:8px"></span>'
@@ -9261,10 +9629,79 @@
         + (missing.length ? '<br><span class="warn">⚠️ ' + selYm + ' 缺：' + missing.join('、') + '，請到「🏆 激勵」同步</span>' : '')
         + (!hasFunnel ? '<br><span class="warn">💡 按右上角「🔀 漏斗」同步逐人資料，當下／試聽後／追回／經營中名單就會全自動，不用手填</span>' : '')
         + (!prev ? '<br><span style="opacity:.8;">ℹ️ 沒有上月資料，兩字總結與收割閉環要等下個月才會自動比較</span>' : '') + '</div>';
+      if (fnView === 'dash'){
+        body.innerHTML = html + fnDashHtml(selYm, orgs, all, total, prev);
+        return;
+      }
       html += _fnStoryHtml(nr, total, selYm, all);
       html += '<div class="fn-grid">' + _fnCardHtml(total, all, selYm, true, prev) + all.map(function(s){ return _fnCardHtml(s, all, selYm, false, prev); }).join('') + '</div>';
       body.innerHTML = html;
     }
+
+
+    // ══════════════════════════════════════════════════════════════
+    // 💡 滑鼠移到按鈕／分頁 → 跳出教學小卡（哪顆更新什麼、來源、多久、多常按）
+    // ══════════════════════════════════════════════════════════════
+    var UI_TIPS = {
+      'sync-motiv':   { t:'🏆 激勵', who:'更新：激勵、當月績效、成績單', src:'來源：EIP 學院績效表＋業務個人績效', time:'約 30 秒', freq:'建議每天', note:'最輕量的一顆，想看今天業績就按它。' },
+      'sync-checkin': { t:'🚪 報到', who:'更新：報到排名（會先自動跑一次激勵）', src:'來源：EIP 通路名單（已報到／網路／到月底）', time:'約 1～2 分鐘', freq:'建議每週、非尖峰', note:'報到排名的業績欄也會一起變最新。' },
+      'sync-channel': { t:'📋 通路', who:'更新：各通路績效、🎓 課程銷售分析', src:'來源：EIP 收支明細（同一份算兩個分頁）', time:'較久，依筆數', freq:'每 15 天、非尖峰', note:'課程銷售分析沒更新？就是這顆該按了。' },
+      'sync-funnel':  { t:'🔀 漏斗（一鍵三連）', who:'更新：月度漏斗總結（卡片＋儀表板）', src:'順序：① 激勵 → ② 報到 → ③ 面談紀錄總表＋營業收支逐人明細', time:'約 10～12 分鐘（刻意放慢、不影響 EIP）', freq:'每週一次、非尖峰', note:'按一次就把總報到、面談、註冊、逐人名單全部更新；中途請不要關頁面，會有進度面板。' },
+      'lock':  { t:'💾 鎖定', who:'把目前畫面的資料鎖進「本月封存」', src:'不抓 EIP，只存本機＋雲端', time:'1 秒', freq:'同步完想保險時按', note:'即使之後 EIP 登出或同步失敗，這個月的數字不會跑掉。' },
+      'push':  { t:'☁️↑ 推送', who:'把本機全部公司資料強制推上雲端', src:'平常會自動同步，不需要按', time:'幾秒', freq:'管理者限定，新月份同步完按一次', note:'同事按「☁️↓ 拉取」就能看到你剛同步的月份。' },
+      'pull':  { t:'☁️↓ 拉取', who:'從雲端拉取全部公司資料（依月份合併）', src:'不會刪掉本機已有的月份', time:'幾秒', freq:'看不到新月份時按', note:'平常開頁面就會自動拉，通常不用按。' },
+      'tab-0': { t:'📈 年度月/季比較', who:'手動輸入／匯入', src:'不靠同步按鈕', time:'', freq:'', note:'資料全公司共享，改了大家都看得到。' },
+      'tab-1': { t:'📊 每月講座成績表現', who:'手動輸入', src:'不靠同步按鈕', time:'', freq:'', note:'' },
+      'tab-2': { t:'📋 各通路績效', who:'靠右上角「📋 通路」更新', src:'EIP 收支明細', time:'', freq:'每 15 天', note:'' },
+      'tab-8': { t:'🎓 課程銷售分析', who:'靠右上角「📋 通路」更新', src:'EIP 收支明細（跟各通路績效同一份）', time:'', freq:'每 15 天', note:'主打課程追蹤也在這裡。' },
+      'tab-6': { t:'🚪 報到排名', who:'靠右上角「🚪 報到」更新', src:'EIP 通路名單', time:'', freq:'每週', note:'' },
+      'tab-7': { t:'📆 當月績效', who:'靠右上角「🏆 激勵」更新', src:'EIP 業務個人績效（七學院逐人）', time:'', freq:'每天', note:'' },
+      'tab-9': { t:'📌 月度漏斗總結', who:'靠右上角「🔀 漏斗」更新（一鍵：激勵→報到→逐人）', src:'EIP 四張表', time:'', freq:'每週', note:'卡片右上有「📖 這張卡怎麼看」，工具列可切「📊 儀表板」。' },
+      'tab-3': { t:'📅 每月績效', who:'📥 匯入 Excel（分頁內按鈕）', src:'不靠同步按鈕', time:'', freq:'每月', note:'管理者匯入後按「☁️↑ 強制推送」，同事「☁️↓ 拉取」。' },
+      'tab-4': { t:'🏆 激勵', who:'靠右上角「🏆 激勵」更新', src:'EIP 學院／業務／小組績效', time:'', freq:'每天', note:'同步完記得「💾 鎖定」進本月封存。' },
+      'tab-5': { t:'📝 成績單', who:'讀「🏆 激勵」的封存資料', src:'不用另外同步', time:'', freq:'', note:'哪個月沒資料，就回激勵分頁同步那個月再鎖定。' }
+    };
+    (function(){
+      var tipEl = null, hideT = null;
+      function ensure(){
+        if (tipEl) return tipEl;
+        tipEl = document.createElement('div'); tipEl.id = 'uiTip';
+        tipEl.innerHTML = '';
+        document.body.appendChild(tipEl);
+        tipEl.addEventListener('mouseenter', function(){ if (hideT) clearTimeout(hideT); });
+        tipEl.addEventListener('mouseleave', hide);
+        return tipEl;
+      }
+      function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]; }); }
+      function show(el){
+        var k = el.getAttribute('data-tip'), d = UI_TIPS[k]; if (!d) return;
+        if (hideT) clearTimeout(hideT);
+        var t = ensure();
+        var sync = /^sync-/.test(k), tab = /^tab-/.test(k);
+        var last = (sync && typeof SYNC_MODES !== 'undefined' && SYNC_MODES[k.replace('sync-','')]) ? (function(){
+          try { var ts = localStorage.getItem(_ckCid() + SYNC_MODES[k.replace('sync-','')].tsKey); return ts ? '上次同步：' + ts : '尚未同步過'; } catch(e){ return ''; } })() : '';
+        t.innerHTML = '<div class="ut-h">' + esc(d.t) + (tab ? '<span class="ut-tag">分頁</span>' : (sync ? '<span class="ut-tag ut-tag-s">同步鈕</span>' : '')) + '</div>'
+          + '<div class="ut-who">' + esc(d.who) + '</div>'
+          + (d.src ? '<div class="ut-row"><span>來源</span>' + esc(d.src) + '</div>' : '')
+          + (d.time ? '<div class="ut-row"><span>時間</span>' + esc(d.time) + '</div>' : '')
+          + (d.freq ? '<div class="ut-row"><span>頻率</span>' + esc(d.freq) + '</div>' : '')
+          + (d.note ? '<div class="ut-note">' + esc(d.note) + '</div>' : '')
+          + (last ? '<div class="ut-last">' + esc(last) + '</div>' : '');
+        t.style.display = 'block';
+        var r = el.getBoundingClientRect(), tw = t.offsetWidth, th = t.offsetHeight;
+        var x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8);
+        var below = r.bottom + 10, above = r.top - th - 10;
+        var y = (below + th < window.innerHeight - 8 || above < 8) ? below : above;
+        t.classList.toggle('ut-up', y === above);
+        t.style.left = x + 'px'; t.style.top = y + 'px';
+      }
+      function hide(){ hideT = setTimeout(function(){ if (tipEl) tipEl.style.display = 'none'; }, 120); }
+      document.addEventListener('mouseover', function(e){ var el = e.target.closest && e.target.closest('[data-tip]'); if (el) show(el); });
+      document.addEventListener('mouseout', function(e){ var el = e.target.closest && e.target.closest('[data-tip]'); if (el && !(e.relatedTarget && el.contains(e.relatedTarget))) hide(); });
+      document.addEventListener('focusin', function(e){ var el = e.target.closest && e.target.closest('[data-tip]'); if (el) show(el); });
+      document.addEventListener('focusout', hide);
+      document.addEventListener('scroll', function(){ if (tipEl) tipEl.style.display = 'none'; }, true);
+    })();
 
     // Initialize on load
     window.addEventListener('load', init);

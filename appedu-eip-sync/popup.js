@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', function(){
             var ys = document.getElementById('motivYearSelect'), ms = document.getElementById('motivMonthSelect');
             if (ys) ys.value = String(y);
             if (ms) ms.value = String(m).padStart(2, '0');
+            if (typeof fnSyncAll === 'function'){ fnSyncAll(); return true; }
             if (typeof motivTriggerEipSync === 'function'){ motivTriggerEipSync('funnel'); return true; }
             window.postMessage({ channel:'appedu-eip-sync', action:'request', year:y, month:m, mode:'funnel' }, '*');
             return true;
@@ -69,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function(){
       });
       var hit = (res || []).some(function(r){ return r && r.result; });
       if (!hit) throw new Error('目前分頁沒有「業績數據中心」— 請先開啟人力發展 → 📊 業績數據中心，再按這顆');
-      setStatus('⏳ 🔀 漏斗已在「業績數據中心」頁面開始（約 7～9 分鐘），進度面板在該頁下方中央', 'ok');
+      setStatus('⏳ 🔀 已在「業績數據中心」頁面開始一鍵同步：激勵 → 報到 → 漏斗（約 10～12 分鐘），進度面板在該頁下方中央', 'ok');
     } catch(err){ setStatus('❌ ' + (err.message || err), 'err'); }
   });
 });
