@@ -1600,6 +1600,7 @@
     .fn-ng { border-left:3px solid var(--fnAcc); padding-left:8px; }
     .fn-ng.g-on { border-color:var(--fnGood); } .fn-ng.g-hv { border-color:var(--fnGold); } .fn-ng.g-mg { border-color:var(--fnWarn); } .fn-ng.g-pl { border-color:var(--fnDim); } .fn-ng.g-ls { border-color:var(--fnBad); }
     .fn-ng-t { font-size:.74rem; font-weight:800; color:var(--fnDim); margin-bottom:4px; } .fn-ng-t b { color:var(--fnText); }
+    .fn-ng-note { grid-column:1 / -1; font-size:.76rem; line-height:1.55; color:var(--fnDim); background:rgba(124,58,237,.07); border-left:3px solid #8b5cf6; border-radius:6px; padding:7px 10px; margin:6px 0 2px; } .fn-ng-note b { color:var(--fnText); }
     .fn-ng ul { margin:0; padding:0; list-style:none; max-height:180px; overflow:auto; }
     .fn-ng li { font-size:.76rem; line-height:1.45; color:var(--fnText); display:flex; gap:6px; flex-wrap:wrap; align-items:baseline; }
     .fn-ng li span { color:var(--fnDim); font-size:.7rem; } .fn-ng li em { font-style:normal; color:var(--fnDim); font-size:.68rem; flex-basis:100%; }
@@ -2055,7 +2056,7 @@
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=sizeguard1"></script>
+<script defer src="./firebase-sync.js?v=funneldb1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -3601,7 +3602,7 @@
 
     // Switch tabs
     // ★ 載入「每月績效」iframe（懶載入；表頭 ☁️↑ 推送鈕也會用到）
-    var MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle3';
+    var MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle5';
     function _pcEnsureMpLoaded(){
       var f = document.getElementById('mp-iframe');
       if (f && (!f.src || f.src.indexOf(MP_TARGET_SRC) < 0)) f.src = MP_TARGET_SRC;
@@ -6870,6 +6871,8 @@
             try { chApplyAutoSync(); } catch(e2){}            // 套進各通路績效月資料
             try { crApplyAutoSync(); } catch(e2){}            // 課程銷售分析（同一份收支明細）
           } else if (mode === 'funnel'){
+            // ★ 擴充回傳的逐人 raw 直接存進 IndexedDB（不靠 localStorage，額度爆了也不會漏）
+            try { if (d.funnel && d.funnel.orgs && typeof _fnIdbPut === 'function'){ _fnIdbPut(_ckCid() + 'motiv_funnel_v1', d.funnel); try { localStorage.removeItem(_ckCid() + 'motiv_funnel_v1'); } catch(e3){} } } catch(e2){}
             try { fnArchiveCurrent(); } catch(e2){}           // 逐人資料封存進該月
             try { fnRenderAll(); } catch(e2){}
           }
@@ -8537,25 +8540,173 @@
     function _fnDays(a, b){ return Math.round((b - a) / 86400000); }
     function _fnYmOf(d){ return d.getFullYear() + '-' + _ckPad2(d.getMonth() + 1); }
     function _fnMD(d){ return (d.getMonth()+1) + '/' + d.getDate(); }
+    // ═══════════ 漏斗逐人資料改存 IndexedDB（FunnelDB）— 2026/09 ═══════════
+    // 為什麼：逐人 raw 每月約 30 萬字、月封存越積越大（已 >1MB）。塞 localStorage 會把 5MB 額度撐爆 →
+    //   同事「☁️↓ 拉取」時寫入失敗卻顯示成功、擴充也寫不進去、firebase 逐 key 同步也超過 1MB 被跳過。
+    //   IndexedDB 沒這個上限。key 名沿用 LS：
+    //     char_<id>_motiv_funnel_v1  = 最近一次同步的 raw（擴充寫進 LS 後由這裡搬進來）
+    //     char_<id>_fn_archive_v1    = { 'YYYY-MM': { savedAt, funnel } } 月封存（原本塞在 ck_archive_v1[ym].funnel）
+    var FN_IDB = { name: 'FunnelDB', ver: 1, store: 'kv' };
+    window._fnIdbCache = window._fnIdbCache || {};   // key → JSON 字串（同步讀取用）
+    window._fnIdbReady = false;
+    window._fnIdbObj = window._fnIdbObj || {};        // 解析快取：key → { s, o }
+    function _fnIdbOpen(){
+      return new Promise(function(res, rej){
+        try {
+          var q = indexedDB.open(FN_IDB.name, FN_IDB.ver);
+          q.onupgradeneeded = function(){ var db = q.result; if (!db.objectStoreNames.contains(FN_IDB.store)) db.createObjectStore(FN_IDB.store); };
+          q.onsuccess = function(){ res(q.result); };
+          q.onerror = function(){ rej(q.error); };
+          q.onblocked = function(){ rej(new Error('FunnelDB blocked')); };
+        } catch(e){ rej(e); }
+      });
+    }
+    function _fnIdbLoadAll(){
+      return _fnIdbOpen().then(function(db){
+        return new Promise(function(res){
+          var out = {};
+          try {
+            var c = db.transaction(FN_IDB.store, 'readonly').objectStore(FN_IDB.store).openCursor();
+            c.onsuccess = function(){ var cur = c.result; if (cur){ out[String(cur.key)] = cur.value; cur.continue(); } else { db.close(); res(out); } };
+            c.onerror = function(){ db.close(); res(out); };
+          } catch(e){ try { db.close(); } catch(_){} res(out); }
+        });
+      });
+    }
+    function _fnIdbWrite(k, v){
+      return _fnIdbOpen().then(function(db){
+        return new Promise(function(res, rej){
+          var tx = db.transaction(FN_IDB.store, 'readwrite'), st = tx.objectStore(FN_IDB.store);
+          if (v === null || v === undefined) st.delete(k); else st.put(v, k);
+          tx.oncomplete = function(){ db.close(); res(); };
+          tx.onerror = function(){ db.close(); rej(tx.error); };
+        });
+      });
+    }
+    // 同步更新 cache（UI 立刻看得到）＋ 非同步寫 IDB。v 可以是物件或 JSON 字串；null = 刪除
+    function _fnIdbPut(k, v){
+      window._fnIdbCache = window._fnIdbCache || {}; window._fnIdbObj = window._fnIdbObj || {};
+      if (v === null || v === undefined){ delete window._fnIdbCache[k]; delete window._fnIdbObj[k]; }
+      else window._fnIdbCache[k] = (typeof v === 'string') ? v : JSON.stringify(v);
+      return _fnIdbWrite(k, window._fnIdbCache[k] || null).catch(function(e){ console.error('[fn-idb] 寫入失敗', k, e); });
+    }
+    window._fnIdbPut = _fnIdbPut;
+    function _fnIdbGet(k){
+      var s = (window._fnIdbCache || {})[k]; if (!s) return null;
+      window._fnIdbObj = window._fnIdbObj || {};
+      var c = window._fnIdbObj[k]; if (c && c.s === s) return c.o;
+      try { var o = JSON.parse(s); window._fnIdbObj[k] = { s: s, o: o }; return o; } catch(e){ return null; }
+    }
+    window._fnIdbGet = _fnIdbGet;
+    function _fnIsFunnelKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1'); }
+    window._fnIsFunnelKey = _fnIsFunnelKey;
+    // 把某個角色的 ck_archive 物件裡的 funnel 欄位搬進 IDB 的 fn_archive（回傳 true = 有搬）
+    function _fnAbsorbCkFunnel(cid, arch){
+      var ak = cid + 'fn_archive_v1', fa = _fnIdbGet(ak) || {}, ch = false;
+      Object.keys(arch || {}).forEach(function(ym){
+        var rec = arch[ym]; if (!rec || !rec.funnel) return;
+        var t1 = Date.parse(rec.savedAt || 0) || 0, t2 = Date.parse((fa[ym] && fa[ym].savedAt) || 0) || 0;
+        if (!fa[ym] || !fa[ym].funnel || t1 >= t2) fa[ym] = { savedAt: rec.savedAt || new Date().toISOString(), funnel: rec.funnel };
+        delete rec.funnel; ch = true;
+      });
+      if (ch) _fnIdbPut(ak, fa);
+      return ch;
+    }
+    window._fnAbsorbCkFunnel = _fnAbsorbCkFunnel;
+    // 把 LS 裡的漏斗巨型資料搬進 IDB 並從 LS 移除（釋放額度）：
+    //  ① char_*_motiv_funnel_v1（擴充寫進 LS 的 raw）→ IDB 同名 key
+    //  ② char_*_ck_archive_v1[ym].funnel → IDB char_*_fn_archive_v1[ym]；LS 的 ck_archive 只留 checkin/perfp
+    function _fnMigrateLs(){
+      var moved = 0, freed = 0;
+      if (!window._fnIdbReady) return 0;   // IDB 還沒載好前不搬（避免把還沒讀進 cache 的 IDB 內容蓋掉）
+      try {
+        var keys = []; for (var i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+        keys.forEach(function(k){
+          if (!k || k.indexOf('char_') !== 0) return;
+          if (k.slice(-16) === '_motiv_funnel_v1'){
+            var s = localStorage.getItem(k); if (!s) return;
+            _fnIdbPut(k, s);
+            try { localStorage.removeItem(k); } catch(e){}
+            moved++; freed += s.length; return;
+          }
+          if (k.slice(-14) === '_ck_archive_v1'){
+            var before = localStorage.getItem(k) || '', a;
+            try { a = JSON.parse(before || '{}') || {}; } catch(e){ return; }
+            if (_fnAbsorbCkFunnel(k.slice(0, -13), a)){
+              var slim = JSON.stringify(a); freed += before.length - slim.length; moved++;
+              try { localStorage.setItem(k, slim); } catch(e){ console.warn('[fn-idb] 瘦身後回寫失敗', k, e); }
+            }
+          }
+        });
+      } catch(e){ console.warn('[fn-idb] 搬移失敗', e); }
+      if (moved) console.log('[fn-idb] 已把 ' + moved + ' 筆漏斗資料從 localStorage 搬進 IndexedDB，釋出約 ' + Math.round(freed / 1024) + 'K');
+      return moved;
+    }
+    window._fnMigrateLs = _fnMigrateLs;
     function fnGetRaw(){
-      try { var s = localStorage.getItem(_ckCid() + 'motiv_funnel_v1'); if (s) return JSON.parse(s); return _ckBorrowLatest('_motiv_funnel_v1'); } catch(e){ return null; }
+      try {
+        var own = _ckCid() + 'motiv_funnel_v1';
+        var s = localStorage.getItem(own); if (s) return JSON.parse(s);     // 擴充剛寫進 LS、還沒搬 → 最新
+        var d0 = _fnIdbGet(own); if (d0) return d0;
+        // 自己沒有 → 借其他角色最新的（IDB → 舊 LS）
+        var best = null, bestYm = '';
+        Object.keys(window._fnIdbCache || {}).forEach(function(k){
+          if (k.slice(-16) !== '_motiv_funnel_v1') return;
+          var d = _fnIdbGet(k); if (!d) return;
+          var ym = (d.meta && d.meta.year) ? (d.meta.year + '-' + String(d.meta.month || 0).padStart(2, '0')) : '0000-00';
+          if (ym > bestYm){ bestYm = ym; best = d; }
+        });
+        return best || _ckBorrowLatest('_motiv_funnel_v1');
+      } catch(e){ return null; }
     }
     function _fnLiveFunnelYm(){ var r = fnGetRaw(); return (r && r.meta && r.meta.year) ? (r.meta.year + '-' + _ckPad2(parseInt(r.meta.month, 10))) : null; }
+    // 某月的逐人 raw：live 月用 fnGetRaw；其他月從 IDB 月封存找（自己的優先，其次其他角色 savedAt 最新者）；最後相容舊格式 ck_archive[ym].funnel
     function _fnRawFor(ym){
       if (ym === _fnLiveFunnelYm()) return fnGetRaw();
-      var a = ckGetArchive()[ym]; return (a && a.funnel) || null;
+      var ownKey = _ckCid() + 'fn_archive_v1', best = null, bestT = -1;
+      Object.keys(window._fnIdbCache || {}).forEach(function(k){
+        if (k.slice(-14) !== '_fn_archive_v1') return;
+        var a = _fnIdbGet(k), rec = a && a[ym]; if (!rec || !rec.funnel) return;
+        var t = (Date.parse(rec.savedAt || 0) || 0) + (k === ownKey ? 1 : 0);
+        if (t > bestT){ bestT = t; best = rec.funnel; }
+      });
+      if (best) return best;
+      var a2 = ckGetArchive()[ym]; return (a2 && a2.funnel) || null;
     }
-    // 同步完把逐人資料封存進該月（跟 checkin/perfp 一樣放 ck_archive_v1[ym]，跨月回查不會消失）
+    // 有哪些月份有逐人資料（給推送摘要／月份列用）
+    function _fnArchiveYms(){
+      var set = {}; var live = _fnLiveFunnelYm(); if (live) set[live] = 1;
+      Object.keys(window._fnIdbCache || {}).forEach(function(k){ if (k.slice(-14) !== '_fn_archive_v1') return; var a = _fnIdbGet(k) || {}; Object.keys(a).forEach(function(ym){ if (a[ym] && a[ym].funnel) set[ym] = 1; }); });
+      return Object.keys(set).sort();
+    }
+    window._fnArchiveYms = _fnArchiveYms;
+    // 同步完把逐人資料封存進該月（IDB fn_archive_v1[ym]，跨月回查不會消失）
     function fnArchiveCurrent(){
+      if (!window._fnIdbReady) return;   // boot 完成後會再叫一次
       try {
+        try { _fnMigrateLs(); } catch(e0){}
         var raw = fnGetRaw(); if (!raw || !raw.meta || !raw.meta.year) return;
         var ym = raw.meta.year + '-' + _ckPad2(parseInt(raw.meta.month, 10));
-        var key = _ckCid() + 'ck_archive_v1';
-        var own = {}; try { own = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch(e){ own = {}; }
-        own[ym] = own[ym] || {}; own[ym].funnel = raw; own[ym].savedAt = new Date().toISOString();
-        localStorage.setItem(key, JSON.stringify(own));
+        var key = _ckCid() + 'fn_archive_v1';
+        var own = _fnIdbGet(key) || {};
+        var rs = JSON.stringify(raw);
+        if (own[ym] && own[ym].funnel && JSON.stringify(own[ym].funnel) === rs) return;   // 沒變就不重寫
+        own[ym] = { savedAt: new Date().toISOString(), funnel: raw };
+        _fnIdbPut(key, own);
       } catch(e){ console.warn('[fn] archive funnel 失敗', e); }
     }
+    // Boot：IDB → cache，再把 LS 舊資料搬過來，然後（若正停在漏斗分頁）重畫
+    (function _fnIdbBoot(){
+      _fnIdbLoadAll().then(function(all){
+        Object.keys(all).forEach(function(k){ window._fnIdbCache[k] = all[k]; });
+      }).catch(function(e){ console.warn('[fn-idb] 開啟失敗（改用 localStorage 相容模式）', e); }).then(function(){
+        window._fnIdbReady = true;
+        try { _fnMigrateLs(); } catch(e){}
+        try { fnArchiveCurrent(); } catch(e){}
+        try { var t9 = document.getElementById('tab-9'); if (t9 && t9.classList.contains('active') && typeof fnRenderAll === 'function') fnRenderAll(); } catch(e){}
+        try { window.dispatchEvent(new CustomEvent('fn-idb-ready')); } catch(e){}
+      });
+    })();
     function _fnAuto(raw, org, ym){
       if (!raw || !raw.orgs || !raw.orgs[org]) return null;
       var itv = raw.orgs[org].itv || [], pay = raw.orgs[org].pay || [];
@@ -8648,6 +8799,18 @@
     }
     function _fnPrevYm(ym){ var y = parseInt(ym.slice(0,4),10), m = parseInt(ym.slice(5),10) - 1; if (m < 1){ m = 12; y--; } return y + '-' + _ckPad2(m); }
     function _fnMonthLabel(ym){ return parseInt(ym.slice(5),10) + '月'; }
+    // 「經營池 N 位」怎麼來的 — 一句話＋分月統計（教學視窗、卡片名單、儀表板共用）
+    function _fnPoolNote(a, ym){
+      if (!a || !a.pool) return '';
+      var byYm = {}, below = 0;
+      a.pool.forEach(function(x){ byYm[x.ym] = (byYm[x.ym] || 0) + 1; if (x.below) below++; });
+      var parts = Object.keys(byYm).sort().map(function(k){ return _fnMonthLabel(k) + '面談 ' + byYm[k] + ' 位'; }).join('・');
+      var months = [3,2,1].map(function(i){ var y = +ym.slice(0,4), m = +ym.slice(5) - i; if (m < 1){ m += 12; y--; } return m + '月'; }).join('、');
+      return '經營池 <b>' + a.pool.length + '</b> 位怎麼來：往回看 <b>' + months + '</b> 三個月的面談紀錄總表，同時符合 ①那幾個月在這家有面談 ②有繳 100 元報名費（或面談表「報名」欄有勾＝安排過試聽）③到今天都沒有註冊紀錄、本月也沒繳到 2 萬。'
+        + (parts ? '　分月：' + parts + '。' : '')
+        + (below ? '　其中 <b>' + below + '</b> 位本月有繳費但未達 2 萬門檻，先留在池裡。' : '')
+        + '　<span style="opacity:.75;">本月面談還沒簽的不在這裡，算「經營中」；沒繳報名費的算「流失」，不進池。這個數字是一直累積的（每月只滾動三個月），所以會比本月的經營中大很多。</span>';
+    }
     function _fnNextMonthLabel(ym){ var m = parseInt(ym.slice(5),10) + 1; if (m > 12) m = 1; return m + '月'; }
     function _fnPct(v){ return (Math.round(v * 10) / 10).toFixed(1) + '%'; }
     function _fnWan(v){ return Math.round(v / 10000) + ' 萬'; }
@@ -8976,6 +9139,7 @@
         (s.known ? '試聽的人裡面：<b>' + s.reg + '</b> 位已經簽了（試聽後註冊），<b>' + s.mgmt + '</b> 位還在追 —— 這 ' + s.mgmt + ' 位就是下個月的收割名單。'
                  : '這家還沒同步逐人資料，也還沒手填「當下註冊」，所以算不出來。')
         + (a ? _tvNames('經營中（本月試聽、還沒簽）→ 優先回追', a.mgmt, function(x){ return { pill:'已 ' + x.days + ' 天', sub:'面談 ' + x.d + (x.m ? '・' + _fnEsc(String(x.m).slice(0,26)) : '') }; })
+             + (a.pool.length ? '<div class="tv-note" style="margin:8px 0 2px;font-size:.86rem;line-height:1.55;">' + _fnPoolNote(a, ym) + '</div>' : '')
              + _tvNames('經營池（前 3 個月試聽、還沒簽）→ 下月收割', a.pool, function(x){ return { pill:_fnMonthLabel(x.ym) + '・已 ' + x.days + ' 天', sub:'面談 ' + x.d + (x.m ? '・' + _fnEsc(String(x.m).slice(0,26)) : '') }; }, 'x')
              + _tvNames('面談後流失（沒報名也沒註冊）', a.lost, function(x){ return { pill:'面談 ' + x.d, sub:(x.w ? '想學 ' + _fnEsc(String(x.w).slice(0,16)) : '無備註') }; }, 'x') : ''));
 
@@ -9166,6 +9330,7 @@
         + grp('追回（Ⓑ 舊名單：名單前幾個月進來、本月註冊）', 'g-hv', a.harvest, function(x){ return (x.oldList ? '名單 ' + _fnMonthLabel(x.ym) + ' 建檔・本月 ' + x.d + ' 面談' : _fnMonthLabel(x.ym) + ' 面談') + ' → ' + x.r + ' 註冊' + (x.trial ? '・有試聽' : '・無試聽') + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('舊名單追回（3 個月內無面談紀錄）', 'g-hv', a.harvestOld, function(x){ return x.r + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('經營中（本月試聽、未註冊）→ 優先回追', 'g-mg', a.mgmt, function(x){ return '面談 ' + x.d + '・已 ' + x.days + ' 天' + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
+        + (a.pool.length ? '<div class="fn-ng-note">' + _fnPoolNote(a, ym) + '</div>' : '')
         + grp('經營池（前 3 個月試聽、還沒註冊）→ 下月收割', 'g-pl', a.pool, function(x){ return _fnMonthLabel(x.ym) + ' 面談・已 ' + x.days + ' 天' + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
         + grp('面談後流失（沒報名也沒註冊）', 'g-ls', a.lost, function(x){ return '面談 ' + x.d + (x.w ? '・想學 ' + _fnEsc(x.w.slice(0, 16)) : ''); })
         + grp('科數明細（每筆 ≥ 2 萬＝1 科）', 'g-on', a.courseList, function(x){ return _fnEsc(x.k) + '・' + _fnWan(x.v) + '・' + x.d + (x.add ? '・加購' : '・新生'); })
@@ -9583,7 +9748,9 @@
 
         + '<div class="ds-sec"><h3>紅綠燈健檢<small>紅燈多的排前面。門檻：報到→面談 85/70、面談→試聽 25/15、試聽→註冊 40/20、收割率 25/10</small></h3><div class="ds-lights">' + lights + '</div></div>'
 
-        + '<div class="ds-sec"><h3>待辦池<small>' + scopeName + '合計 <b>' + poolTot + '</b> 位可以打電話 —— 經營中（本月試聽未簽）＋ 經營池（前 3 個月試聽未簽）</small></h3><div class="ds-pool">' + poolRows + '</div></div>'
+        + '<div class="ds-sec"><h3>待辦池<small>' + scopeName + '合計 <b>' + poolTot + '</b> 位可以打電話 —— 經營中（本月試聽未簽）＋ 經營池（前 3 個月試聽未簽）</small></h3>'
+        + '<div class="ds-note" style="margin:-4px 0 8px;">經營池怎麼算：往回三個月的面談紀錄裡「有面談 ＋ 有繳報名費（安排過試聽）＋ 到今天沒註冊」的人，每月滾動累積，所以通常比經營中大很多。點卡片的「📖 這張卡怎麼看」可看到分月與逐人名單。</div>'
+        + '<div class="ds-pool">' + poolRows + '</div></div>'
 
         + '<div class="ds-sec"><h3>業務個人排行 TOP 20<small>依新業績排序，資料來自 EIP 當月績效</small></h3><div class="ds-scroll">' + peopleBlock + '</div></div>'
         + '</div>';

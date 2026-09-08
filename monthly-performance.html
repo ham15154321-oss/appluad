@@ -574,7 +574,7 @@
         }
     </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=sizeguard1"></script>
+<script defer src="./firebase-sync.js?v=funneldb1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -2535,6 +2535,20 @@
         }
         // 取最頂層 localStorage(monthly-performance 嵌套 2 層, perf_compare_v1* LS 在 performance-compare.html 那層)
         // 同 origin 下,localStorage 是共享的(任何層 window.localStorage 都是同一份),但為保險仍往上拿
+        // ★ 2026/09 漏斗逐人資料存在「業績數據中心」視窗的 IndexedDB（FunnelDB），不在 localStorage
+        //   → 推送時從它的 cache 拿、拉取時交給它寫進 IDB
+        function _getFnHost(){
+            try{
+                var w = window, depth = 0;
+                while(w && depth < 5){
+                    try{ if (typeof w._fnIdbPut === 'function' && w._fnIdbCache) return w; }catch(_){}
+                    if (w === w.parent) break;
+                    w = w.parent; depth++;
+                }
+            }catch(e){}
+            return null;
+        }
+        function _isFnIdbKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1'); }
         function _getParentLS(){
             try{
                 var w = window;
@@ -2547,6 +2561,27 @@
             }catch(e){ return localStorage; }
         }
         // 列出所有要打包的 perf_compare_v1* LS keys
+        // ★ 推送/拉取摘要用：從 ck_archive_v1 找出「報到/漏斗/激勵」有哪些月份（Excel 以外的來源）
+        function _ckArchiveMonthsFrom(getter){
+            var out = {};
+            try{ if (!getter){ var host = _getFnHost(); if (host && typeof host._fnArchiveYms === 'function') host._fnArchiveYms().forEach(function(ym){ out[ym] = 1; }); } }catch(e){}
+            try{
+                var pLS = _getParentLS();
+                for(var i=0;i<pLS.length;i++){
+                    var k = pLS.key(i);
+                    if(!k || k.indexOf('ck_archive_v1') < 0) continue;
+                    var raw = getter ? getter(k) : pLS.getItem(k);
+                    if(!raw) continue;
+                    var o = JSON.parse(raw);
+                    Object.keys(o || {}).forEach(function(ym){ if(/^\d{4}-\d{2}$/.test(ym)) out[ym] = 1; });
+                }
+            }catch(e){}
+            return Object.keys(out).sort();
+        }
+        function _extraLine(n, months){
+            var m = months && months.length ? '　月份：' + months.map(function(ym){ return ym.slice(0,4)+'/'+Number(ym.slice(5)); }).join(', ') : '';
+            return '📦 報到/漏斗/激勵（EIP 同步）: ' + n + ' 項' + m;
+        }
         function _collectPerfLSKeys(){
             var pLS = _getParentLS();
             var keys = [];
@@ -2562,7 +2597,18 @@
                 if(pfx && k.indexOf(pfx) === 0 && (k.indexOf('motiv_') >= 0 || k.indexOf('ck_archive_v1') >= 0)){ keys.push(k); continue; }
                 if(/^motiv_[A-Za-z_0-9]+$/.test(k)){ keys.push(k); continue; }
             }
+            // ★ FunnelDB（IndexedDB）裡目前角色的漏斗 raw / 月封存
+            try{
+                var host = _getFnHost();
+                if (host && pfx) Object.keys(host._fnIdbCache).forEach(function(k){ if (k.indexOf(pfx) === 0 && _isFnIdbKey(k) && keys.indexOf(k) < 0) keys.push(k); });
+            }catch(e){}
             return keys;
+        }
+        function _lsOrIdbGet(pLS, k){
+            var v = null;
+            try{ v = pLS.getItem(k); }catch(e){}
+            if (v === null || v === undefined){ try{ var host = _getFnHost(); if (host) v = host._fnIdbCache[k]; }catch(e){} }
+            return (v === null || v === undefined) ? '' : String(v);
         }
         // 找最頂層的 firebaseSync 物件(parent helper 在那邊)
         function _getParentFirebaseSync(){
@@ -2651,7 +2697,7 @@
                 var lsKeys = _collectPerfLSKeys();
                 var lsBundle = {};
                 lsKeys.forEach(function(k){
-                    try{ lsBundle[k] = String(pLS.getItem(k) || ''); }catch(e){}
+                    try{ lsBundle[k] = _lsOrIdbGet(pLS, k); }catch(e){}
                 });
 
                 // 3) 讀知識庫 KnowledgeBaseDB.kb
@@ -2664,15 +2710,16 @@
                 }
 
                 var summary = [];
-                if(mpMonths.length) summary.push('📅 每月績效: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
-                var _extraN = 0;
+                if(mpMonths.length) summary.push('📅 每月績效（Excel 匯入）: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
+                var _extraN = 0, _rest = [];
                 lsKeys.forEach(function(k){
                     if(k.indexOf('perf_compare_v1') !== 0){ _extraN++; return; }
                     var label = k.replace('perf_compare_v1','').replace(/^_/,'')||'比較';
-                    var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史'};
-                    summary.push((labels[label]||label)+': ✓');
+                    var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史','funnel_v1':'📌 漏斗手填/報備'};
+                    _rest.push((labels[label]||label)+': ✓');
                 });
-                if(_extraN) summary.push('📦 報到/漏斗/激勵(含月份封存): '+_extraN+' 項');
+                if(_extraN) summary.push(_extraLine(_extraN, _ckArchiveMonthsFrom(null)));
+                summary = summary.concat(_rest);
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
                 if(!confirm('☁️ 把所有公司資料推送到雲端?\n\n'+summary.join('\n')+'\n\n注意:會覆蓋雲端版本。其他電腦下次按「強制拉取」就能拿到最新版。')){
@@ -2771,15 +2818,32 @@
                 var pushedAt = doc.updatedAt ? new Date(doc.updatedAt).toLocaleString('zh-TW') : '未知';
 
                 var summary = [];
-                if(mpMonths.length) summary.push('📅 每月績效: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
-                var _extraN2 = 0;
+                if(mpMonths.length) summary.push('📅 每月績效（Excel 匯入）: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
+                var _extraN2 = 0, _rest2 = [];
                 lsKeyNames.forEach(function(k){
                     if(k.indexOf('perf_compare_v1') !== 0){ _extraN2++; return; }
                     var label = k.replace('perf_compare_v1','').replace(/^_/,'')||'比較';
-                    var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史'};
-                    summary.push((labels[label]||label)+': ✓');
+                    var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史','funnel_v1':'📌 漏斗手填/報備'};
+                    _rest2.push((labels[label]||label)+': ✓');
                 });
-                if(_extraN2) summary.push('📦 報到/漏斗/激勵(含月份封存): '+_extraN2+' 項');
+                if(_extraN2){
+                    var _cloudMonths = [];
+                    try{
+                        var _lsObj = lsBundle || {};
+                        var _seen = {};
+                        Object.keys(_lsObj).forEach(function(k){
+                            if(k.indexOf('ck_archive_v1') < 0 && k.indexOf('fn_archive_v1') < 0) return;
+                            try{ Object.keys(JSON.parse(_lsObj[k]||'{}')).forEach(function(ym){ if(/^\d{4}-\d{2}$/.test(ym)) _seen[ym]=1; }); }catch(e){}
+                        });
+                        Object.keys(_lsObj).forEach(function(k){
+                            if(k.slice(-16) !== '_motiv_funnel_v1') return;
+                            try{ var mm = (JSON.parse(_lsObj[k]||'{}')||{}).meta; if (mm && mm.year) _seen[mm.year + '-' + String(mm.month||0).padStart(2,'0')] = 1; }catch(e){}
+                        });
+                        _cloudMonths = Object.keys(_seen).sort();
+                    }catch(e){}
+                    summary.push(_extraLine(_extraN2, _cloudMonths));
+                }
+                summary = summary.concat(_rest2);
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
                 if(!confirm('☁️ 把雲端公司資料合併到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n說明:依月份合併 — 雲端會更新/補上月份,但不會刪掉本機已有的月份。')){
@@ -2814,16 +2878,57 @@
                     db.close();
                 }
                 // 2) 寫 parent LS 所有 perf_compare_v1* keys
+                //    ★ 2026/09：漏斗逐人資料（motiv_funnel_v1 / fn_archive_v1）改寫進 FunnelDB（IndexedDB），
+                //      舊 bundle 裡 ck_archive_v1[ym].funnel 也拆出來放 IDB → localStorage 不會再被撐爆。
+                //      任何一筆寫失敗（通常 = 瀏覽器 5MB 額度滿了）都要列出來，不能再假裝成功。
                 var pLS = _getParentLS();
+                var host = _getFnHost();
+                var failed = [], idbWrites = [];
                 lsKeyNames.forEach(function(k){
-                    try{ pLS.setItem(k, lsBundle[k]); }catch(e){ console.warn('[cloud-sync] LS 寫入失敗',k,e); }
+                    var v = lsBundle[k];
+                    try{
+                        if (_isFnIdbKey(k)){
+                            if (host){
+                                if (k.slice(-14) === '_fn_archive_v1'){
+                                    // 月封存：跟本機已有的合併（同月 savedAt 新者勝，不刪本機月份）
+                                    var cur = {}; try{ cur = JSON.parse(host._fnIdbCache[k] || '{}') || {}; }catch(e1){}
+                                    var inc = {}; try{ inc = JSON.parse(v || '{}') || {}; }catch(e2){}
+                                    Object.keys(inc).forEach(function(ym){
+                                        var t1 = Date.parse((cur[ym]&&cur[ym].savedAt)||0)||0, t2 = Date.parse((inc[ym]&&inc[ym].savedAt)||0)||0;
+                                        if (!cur[ym] || !cur[ym].funnel || t2 >= t1) cur[ym] = inc[ym];
+                                    });
+                                    idbWrites.push(host._fnIdbPut(k, cur));
+                                } else {
+                                    idbWrites.push(host._fnIdbPut(k, v));
+                                }
+                                try{ pLS.removeItem(k); }catch(e3){}
+                            } else {
+                                pLS.setItem(k, v);   // 舊版頁面：退回 localStorage
+                            }
+                            return;
+                        }
+                        if (k.slice(-14) === '_ck_archive_v1' && host && typeof host._fnAbsorbCkFunnel === 'function'){
+                            var a = null; try{ a = JSON.parse(v || '{}') || {}; }catch(e4){}
+                            if (a){ host._fnAbsorbCkFunnel(k.slice(0, -13), a); v = JSON.stringify(a); }
+                        }
+                        pLS.setItem(k, v);
+                    }catch(e){
+                        console.warn('[cloud-sync] 寫入失敗', k, e);
+                        failed.push(k + '（' + Math.round(String(v||'').length/1024) + 'K）');
+                    }
                 });
+                try{ await Promise.all(idbWrites); }catch(eIdb){ console.warn('[cloud-sync] FunnelDB 寫入失敗', eIdb); }
                 // 3) 寫 KnowledgeBaseDB.kb
                 if(kb){ await _writeKnowledgeBase(kb); }
 
+                if (failed.length){
+                    alert('⚠️ 拉取完成，但有 ' + failed.length + ' 筆資料寫不進這台瀏覽器（通常是 localStorage 5MB 額度滿了）：\n\n' + failed.join('\n')
+                        + '\n\n請把這個畫面截圖給管理者。其他資料已更新，3 秒後重新整理。');
+                }
                 showStatus('✅ 已拉取 '+(mpMonths.length+lsKeyNames.length+(kbItemCount?1:0))+' 項公司資料,1.5 秒後重新整理', 'success');
-                console.log('[cloud-sync] ✅ 拉取成功');
-                setTimeout(function(){ location.reload(); }, 1500);
+                console.log('[cloud-sync] ✅ 拉取成功' + (failed.length ? '（' + failed.length + ' 筆寫入失敗）' : ''));
+                // ★ 重整「整個」業績數據中心（原本只重整這個看不見的 iframe，外層畫面沒變 → 以為沒拉到）
+                setTimeout(function(){ try{ window.top.location.reload(); }catch(e){ location.reload(); } }, failed.length ? 3000 : 1500);
             }catch(e){
                 console.error('[cloud-sync] 拉取失敗', e);
                 showStatus('❌ 拉取失敗: '+(e.message||e), 'error');
