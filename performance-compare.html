@@ -1436,6 +1436,16 @@
     .fn-step .lb { font-size:.72rem; color:var(--fnDim); font-weight:700; letter-spacing:.08em; }
     .fn-step .v { font-size:2.2rem; font-weight:800; color:var(--fnText); line-height:1.1; margin-top:4px; letter-spacing:-.02em; }
     .fn-step .sm { font-size:.68rem; color:var(--fnDim); margin-top:2px; }
+    .fn-gbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0 10px; padding:8px 10px; background:#f5f5f7; border-radius:10px; }
+    .fn-gbar-t { font-size:.74rem; font-weight:800; color:#6e6e73; margin-right:4px; }
+    .fn-gchip { font-size:.76rem; font-weight:700; color:#1d1d1f; background:#fff; border:1px solid #d2d2d7; border-radius:999px; padding:3px 10px; }
+    .fn-gchip b { color:#16a34a; margin-left:2px; }
+    .fn-gchip.zero { color:#b91c1c; background:#fef2f2; border-color:#fca5a5; } .fn-gchip.zero b { color:#b91c1c; }
+    .fn-gchip.other { color:#6e6e73; border-style:dashed; } .fn-gchip.other b { color:#6e6e73; }
+    .fn-tag { display:inline-block; font-size:.68rem; font-weight:700; border-radius:999px; padding:1px 7px; margin-left:6px; vertical-align:middle; }
+    .fn-tag.grp { background:#eef2ff; color:#3730a3; } .fn-tag.ext { background:#ecfeff; color:#0e7490; } .fn-tag.none { background:#f5f5f7; color:#98989d; }
+    .fn-step .fn-ext { display:inline-block; margin-top:6px; font-size:.7rem; font-weight:700; color:#0e7490; background:rgba(14,116,144,.1); border:1px solid rgba(14,116,144,.25); border-radius:999px; padding:2px 9px; white-space:nowrap; }
+    .fn-step .fn-ext b { font-weight:900; }
     .fn-step.res .row { display:flex; justify-content:center; align-items:baseline; gap:8px; }
     .fn-step.res .row .v { font-size:1.5rem; }
     .fn-step.res .row + .row { border-top:1px solid var(--fnLine); margin-top:5px; padding-top:5px; }
@@ -8478,6 +8488,50 @@
       } catch(e){}
       return out;
     }
+    // ═══ 組別：從 EIP 正式組／儲備組績效表（激勵分頁同步）找該學院的組 ═══
+    function _fnGroupsFor(org, ym){
+      var src = [];
+      try {
+        var live = (_motivGroupPerfMeta && _motivGroupPerfMeta.year && _motivGroupPerfMeta.month && _motivGroupPerfMeta.month !== 'YEAR_TOTAL')
+          ? (_motivGroupPerfMeta.year + '-' + _ckPad2(parseInt(_motivGroupPerfMeta.month, 10))) : null;
+        var a = (typeof _motivGetArchive === 'function') ? (_motivGetArchive() || {}) : {};
+        var rec = a[ym] || null;
+        var g = (rec && rec.groupPerformance && rec.groupPerformance.length) ? rec.groupPerformance : (live === ym ? (_motivGroupPerf || []) : []);
+        var r = (rec && rec.reservePerformance && rec.reservePerformance.length) ? rec.reservePerformance : (live === ym ? (_motivReservePerf || []) : []);
+        if (!g.length && !r.length){   // 該月還沒同步 → 用最近一個有資料的月份
+          var ks = Object.keys(a).sort().filter(function(k){ return k <= ym; });
+          for (var i = ks.length - 1; i >= 0 && !g.length && !r.length; i--){ g = a[ks[i]].groupPerformance || []; r = a[ks[i]].reservePerformance || []; }
+          if (!g.length && !r.length){ g = _motivGroupPerf || []; r = _motivReservePerf || []; }
+        }
+        var push = function(x, kind){ if (!x || x.academy !== org || !x.groupName) return; src.push({ name:x.groupName, kind:kind, leader:(x.leader && x.leader.name) || '', members:(x.members || []).map(function(m){ return m && m.name; }).filter(Boolean) }); };
+        g.forEach(function(x){ push(x, '正式'); });
+        r.forEach(function(x){ push(x, '儲備'); });
+      } catch(e){}
+      return src;
+    }
+    function _fnGroupOf(name, org, ym){
+      if (!name) return '';
+      var gs = _fnGroupsFor(org, ym);
+      for (var i = 0; i < gs.length; i++){ if (gs[i].leader === name || gs[i].members.indexOf(name) >= 0) return gs[i].name; }
+      return '';
+    }
+    function _fnMe(){ try { return localStorage.getItem('activeCharacterName') || localStorage.getItem('activeCharacterId') || ''; } catch(e){ return ''; } }
+    // 某個學員本月有沒有在「任何一家」註冊 ≥ 2 萬（外院報備自動 ✅ 用）
+    function _fnRegAnywhere(raw, name, ym){
+      if (!raw || !raw.orgs || !name) return null;
+      var mStart = new Date(+ym.slice(0,4), +ym.slice(5)-1, 1), mEnd = new Date(+ym.slice(0,4), +ym.slice(5), 0);
+      var best = null;
+      Object.keys(raw.orgs).forEach(function(og){
+        var amt = 0, first = null;
+        (raw.orgs[og].pay || []).forEach(function(r){
+          if (r.n !== name || r.st !== '註冊' || r.sub === '學員加購') return;
+          var d = _fnParseD(r.d); if (!d || d < mStart || d > mEnd) return;
+          amt += +r.v || 0; if (!first || d < first) first = d;
+        });
+        if (amt >= FN_COURSE_MIN && (!best || amt > best.v)) best = { org:og, v:amt, d:_fnMD(first) };
+      });
+      return best;
+    }
     // 一次性遷移：把舊版存在 FN_KEY 整包裡的 ent.reports 搬成獨立 key（搬完清空舊陣列）
     (function _fnMigrateReports(){
       try {
@@ -8795,6 +8849,28 @@
       out.headsNew = out.headList.filter(function(h){ return h.vNew >= FN_COURSE_MIN; }).length;
       out.poolHarvest = out.harvest.filter(function(x){ return x.trial; }).length;
       out.poolOpen = out.pool.length;
+      // ── 🏫 外院試聽（自動偵測）：本月在本院有報名/註冊 ＋ 3 個月內本院沒面談紀錄 ＋ 3 個月內在別家有面談紀錄 ──
+      //    （＝別家談過、我們安排試聽／收單的名單。不進本院「安排試聽」與轉換率，另列。）
+      out.ext = [];
+      try {
+        var otherItv = {};
+        Object.keys(raw.orgs).forEach(function(og){
+          if (og === org) return;
+          (raw.orgs[og].itv || []).forEach(function(r){ var d = _fnParseD(r.d); if (!d || !r.n) return; var cur = otherItv[r.n]; if (!cur || d > cur.d) otherItv[r.n] = { org:og, o:r.o, d:d }; });
+        });
+        for (var nmE in P){
+          if (I[nmE]) continue;                       // 本院 3 個月內有面談 → 是本院名單
+          var oi = otherItv[nmE]; if (!oi) continue;
+          var appM = P[nmE].app.filter(function(x){ return inM(x.d); }).sort(function(a,b){ return a.d - b.d; });
+          var regsM = P[nmE].reg.filter(function(x){ return inM(x.d); }).sort(function(a,b){ return a.d - b.d; });
+          if (!appM.length && !regsM.length) continue;
+          var amtE = regsM.reduce(function(t,x){ return t + x.v; }, 0);
+          out.ext.push({ n:nmE, src:oi.org, o:oi.o, d:_fnMD(oi.d), ym:_fnYmOf(oi.d), a: appM.length ? _fnMD(appM[0].d) : '', r: regsM.length ? _fnMD(regsM[0].d) : '', v:amtE,
+                         st: amtE >= FN_COURSE_MIN ? 'reg' : 'mgmt', regAt: amtE >= FN_COURSE_MIN ? org : '', auto:true, ours:(regsM[0] || appM[0]).o || '' });
+        }
+        var extN = {}; out.ext.forEach(function(x){ extN[x.n] = x.src; });
+        out.harvestOld.forEach(function(x){ if (extN[x.n]) x.ext = extN[x.n]; });   // 舊名單追回裡標「外院」
+      } catch(eExt){ console.warn('[fn] 外院偵測失敗', eExt); }
       return out;
     }
     function _fnPrevYm(ym){ var y = parseInt(ym.slice(0,4),10), m = parseInt(ym.slice(5),10) - 1; if (m < 1){ m = 12; y--; } return y + '-' + _ckPad2(m); }
@@ -8835,10 +8911,24 @@
       (Array.isArray(ent.reports) ? ent.reports : []).forEach(function(r){
         if (r && r.id && !_repRaw.some(function(x){ return x.id === r.id; })) _repRaw.push(r);
       });
+      var _rawAll = _fnRawFor(ym);
+      var _extAuto = {}; if (auto && auto.ext) auto.ext.forEach(function(x){ _extAuto[x.n] = x; });
       var sReports = _repRaw.map(function(r){
+        if (r.ext){   // 🏫 外院報備：不進本院試聽數；七家收支都掃，≥ 2 萬就 ✅ 並標簽在哪家
+          if (_extAuto[r.n]) return Object.assign({}, r, { st:'ext-dup', regAt:_extAuto[r.n].regAt || '' });
+          var ra = _fnRegAnywhere(_rawAll, r.n, ym);
+          return Object.assign({}, r, { st: ra ? 'ext-reg' : 'ext', regAt: ra ? ra.org : '', regV: ra ? ra.v : 0, regD: ra ? ra.d : '' });
+        }
         return Object.assign({}, r, { st: _regN[r.n] ? 'reg' : (_trN[r.n] ? 'dup' : 'ok') });
       });
       var reportN = sReports.filter(function(r){ return r.st === 'ok'; }).length;
+      // 外院試聽合併清單：自動偵測 ＋ 手動報備（同名不重複）
+      var extList = (auto && auto.ext ? auto.ext.map(function(x){ return Object.assign({}, x, { by:'🤖 自動偵測' }); }) : [])
+        .concat(sReports.filter(function(r){ return r.st === 'ext' || r.st === 'ext-reg'; }).map(function(r){
+          return { n:r.n, src:r.src || '', o:'', d:'', a:r.date || '', r:r.regD || '', v:r.regV || 0, st: r.st === 'ext-reg' ? 'reg' : 'mgmt', regAt:r.regAt || '', manual:true, by:r.by || '', grp:r.grp || '', sales:r.sales || '', course:r.course || '' };
+        }));
+      var ext = { n:extList.length, reg:extList.filter(function(x){ return x.st === 'reg'; }).length, list:extList, autoN:(auto && auto.ext) ? auto.ext.length : 0 };
+      ext.mgmt = ext.n - ext.reg; ext.manualN = ext.n - ext.autoN;
       var extra = _ckNum(ent.extraTrial) + reportN;
       var trial = (auto ? auto.trial : c2) + extra;
       // ── 當下 / 試聽後註冊：自動優先，手填覆寫；沒自動時雙填互驗 ──
@@ -8863,7 +8953,7 @@
       var suspicious = known && ((trial >= 5 && trialReg / trial > 0.8) || (c1 >= 10 && onsiteRate > 50));   // 偏高 → 黃燈提醒
       var mgmt = auto && !hasTr ? auto.mgmt.length + extra : (known ? Math.max(0, trial - trialReg) : 0);
       return { org:org, checkin:checkin, interview:c1, signup:c2, extra:extra, trial:trial, auto:auto, autoDiff:autoDiff, harvestDiff: auto ? harvestDiff : 0,
-               reports:sReports, reportN:reportN,
+               reports:sReports, reportN:reportN, ext:ext,
                harvest: auto ? auto.harvest.length + auto.harvestOld.length : null, poolOpen: auto ? auto.poolOpen : null, poolHarvest: auto ? auto.poolHarvest : null,
                courses: auto ? auto.courses : null, coursesNew: auto ? auto.coursesNew : null, heads: auto ? auto.heads : null, headsNew: auto ? auto.headsNew : null,
                regA:c3, regB:c4, onsite:onsite, reg:trialReg, mgmt:mgmt, filled:filled, mismatch:mismatch, known:known, overTrial:overTrial, overInterview:overInterview, suspicious:suspicious, onsiteRate:onsiteRate, filledBy:ent.filledBy||'', filledAt:ent.filledAt||'',
@@ -8872,10 +8962,11 @@
                note: ent.note || '', hasData: !!(checkin || rows.length) };
     }
     function _fnSum(list, org){
-      var t = { org: org || '合計', checkin:0, interview:0, signup:0, extra:0, trial:0, regA:0, regB:0, onsite:0, reg:0, mgmt:0, biz:0, newPerf:0, payBack:0, note:'', hasData:false, filled:'sum', mismatch:false, known:true, overTrial:false, knownTrial:0, unknownOrgs:[], harvest:null, poolOpen:null, poolHarvest:null, autoN:0 };
+      var t = { org: org || '合計', checkin:0, interview:0, signup:0, extra:0, trial:0, regA:0, regB:0, onsite:0, reg:0, mgmt:0, biz:0, newPerf:0, payBack:0, note:'', hasData:false, filled:'sum', mismatch:false, known:true, overTrial:false, knownTrial:0, unknownOrgs:[], harvest:null, poolOpen:null, poolHarvest:null, autoN:0, ext:{ n:0, reg:0, mgmt:0, list:[] } };
       list.forEach(function(s){ ['checkin','interview','signup','extra','trial','regA','regB','biz','newPerf','payBack'].forEach(function(k){ t[k] += s[k] || 0; }); if (s.hasData) t.hasData = true; if (s.mismatch) t.mismatch = true;
         if (s.auto){ t.autoN++; t.harvest = (t.harvest||0) + s.harvest; t.poolOpen = (t.poolOpen||0) + s.poolOpen; t.poolHarvest = (t.poolHarvest||0) + s.poolHarvest;
           t.courses = (t.courses||0) + s.courses; t.coursesNew = (t.coursesNew||0) + s.coursesNew; t.heads = (t.heads||0) + s.heads; t.headsNew = (t.headsNew||0) + s.headsNew; }
+        if (s.ext){ t.ext.n += s.ext.n; t.ext.reg += s.ext.reg; t.ext.mgmt += s.ext.mgmt; t.ext.list = t.ext.list.concat(s.ext.list.map(function(x){ return Object.assign({}, x, { home:s.org }); })); }
         if (s.known){ t.onsite += s.onsite; t.reg += s.reg; t.mgmt += s.mgmt; t.knownTrial += s.trial; } else if (s.hasData && s.regA > 0) t.unknownOrgs.push(s.org); });
       t.known = t.unknownOrgs.length === 0;
       t.r1 = t.checkin ? t.interview/t.checkin*100 : 0; t.r2 = t.interview ? t.trial/t.interview*100 : 0; t.r3 = t.knownTrial ? Math.min(100, t.reg/t.knownTrial*100) : 0;
@@ -8929,6 +9020,7 @@
         else if (s.r1 > 100) out.push({ h:'面談 ' + s.interview + ' 超過報到 ' + s.checkin + '，含班務／舊名單／轉介紹面談，前端有量' });
         else if (s.r1 >= 85) out.push({ h:'報到→面談 <b>' + _fnPct(s.r1) + '</b>，前端銜接到位' });
       }
+      if (s.ext && s.ext.n) out.splice(Math.min(out.length, 2), 0, { h:'🏫 外院試聽 <b>' + s.ext.n + '</b> 位（已簽 ' + s.ext.reg + '・經營中 ' + s.ext.mgmt + (s.ext.autoN ? '・系統偵測 ' + s.ext.autoN : '') + '），不計入本院轉換率' });
       if (s.onsite > 0 && out.length < 3) out.push({ h:'當下註冊 <b>' + s.onsite + '</b> 位，面談當場成交力 ' + _fnPct(s.interview ? s.onsite / s.interview * 100 : 0) });
       return out.slice(0, 3);
     }
@@ -9133,7 +9225,10 @@
       flow += _tvRow('安排試聽', s.trial, a ? '逐人資料 ＋ 記名報備' : '報名數 ＋ 額外報備',
         a ? '本月面談、而且有繳報名費（等於安排試聽）的 <b>' + a.trial + '</b> 位' + (s.extra ? '，加上沒繳報名費但主管記名報備的 <b>' + s.extra + '</b> 位' : '') + '。'
             + _tvNames('有繳報名費＝安排試聽', a.trialList, function(x){ return { pill:x.st, sub:'面談 ' + x.d + (x.r ? ' → 註冊 ' + x.r : '') + (x.v ? '・' + _fnWan(x.v) : '') }; })
-            + ((s.reports && s.reports.length) ? _tvNames('記名報備試聽', s.reports, function(x){ return { pill: x.st === 'reg' ? '已註冊' : (x.st === 'dup' ? '重複不計' : '計入試聽'), sub:(x.course ? _fnEsc(x.course) : '') + (x.date ? '・試聽日 ' + _fnEsc(x.date) : '') }; }, 'x') : '')
+            + ((s.reports && s.reports.length) ? _tvNames('記名報備試聽', s.reports.filter(function(x){ return !x.ext; }), function(x){ return { pill: x.st === 'reg' ? '已註冊' : (x.st === 'dup' ? '重複不計' : '計入試聽'), sub:(x.grp ? _fnEsc(x.grp) + '・' : '') + (x.course ? _fnEsc(x.course) : '') + (x.date ? '・試聽日 ' + _fnEsc(x.date) : '') }; }, 'x') : '')
+            + (s.ext && s.ext.n ? '<div class="tv-note" style="margin:8px 0 2px;font-size:.86rem;line-height:1.55;">🏫 <b>外院試聽 ' + s.ext.n + ' 位</b>（已簽 ' + s.ext.reg + '・經營中 ' + s.ext.mgmt + '）＝別家學院談過、我們安排試聽或收單的名單，<b>不計入</b>上面的安排試聽和三個百分比。'
+                + (s.ext.autoN ? '其中 ' + s.ext.autoN + ' 位是系統自動偵測：本月在本院有報名或註冊、三個月內本院沒面談紀錄、但在別家有面談紀錄。' : '') + (s.ext.manualN ? '另 ' + s.ext.manualN + ' 位是組長手動報備。' : '') + '註冊會掃七家收支，≥ 2 萬就自動 ✅ 並標簽在哪家。</div>'
+                + _tvNames('外院試聽名單', s.ext.list, function(x){ return { pill: x.st === 'reg' ? '✅ ' + (x.regAt === s.org ? '本院' : x.regAt) + ' 註冊' : '經營中', sub:(x.src ? '原 ' + _fnEsc(x.src) + (x.o ? '・' + _fnEsc(x.o) : '') + (x.d ? '・' + x.d + ' 面談' : '') : '來源未填') + (x.v ? '・' + _fnWan(x.v) : '') + (x.manual ? '・🖐 ' + _fnEsc(x.by || '') : '・🤖 自動') }; }, 'x') : '')
           : 'EIP 報名數 ' + s.signup + (s.extra ? ' ＋ 報備 ' + s.extra : '') + '。');
       flow += _tvRow('試聽後結果', (s.known ? s.reg + ' 註冊 ／ ' + s.mgmt + ' 經營中' : '待填當下'), a ? '逐人資料自動算' : '手填後自動算',
         (s.known ? '試聽的人裡面：<b>' + s.reg + '</b> 位已經簽了（試聽後註冊），<b>' + s.mgmt + '</b> 位還在追 —— 這 ' + s.mgmt + ' 位就是下個月的收割名單。'
@@ -9322,13 +9417,15 @@
     function fnTeachClose(){ var el = document.getElementById('tvBg'); if (el) el.remove(); try { document.removeEventListener('keydown', _fnTeachEsc); } catch(e){} }
     function _fnTeachEsc(e){ if (e.key === 'Escape') fnTeachClose(); }
     // 👥 名單面板：當下／試聽後註冊／追回／經營中（本月）／經營池（前 3 個月）／面談流失
-    function _fnNamesHtml(a, ym){
+    function _fnNamesHtml(a, ym, s){
+      s = s || { org:'', ext:null };
       var li = function(x, extra){ return '<li><b>' + _fnEsc(x.n) + '</b><span>' + _fnEsc(x.o || '') + '</span>' + (extra ? '<em>' + extra + '</em>' : '') + '</li>'; };
       var grp = function(title, cls, arr, fmt){ if (!arr.length) return ''; return '<div class="fn-ng ' + cls + '"><div class="fn-ng-t">' + title + ' <b>' + arr.length + '</b></div><ul>' + arr.map(function(x){ return li(x, fmt(x)); }).join('') + '</ul></div>'; };
       var body = grp('當下註冊', 'g-on', a.onsite, function(x){ return '面談 ' + x.d + ' → 註冊 ' + x.r + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('試聽後註冊', 'g-tr', a.trialReg, function(x){ return '面談 ' + x.d + ' → 註冊 ' + x.r + '（' + x.days + ' 天' + (x.trial ? '・有試聽' : '・無試聽') + '）' + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('追回（Ⓑ 舊名單：名單前幾個月進來、本月註冊）', 'g-hv', a.harvest, function(x){ return (x.oldList ? '名單 ' + _fnMonthLabel(x.ym) + ' 建檔・本月 ' + x.d + ' 面談' : _fnMonthLabel(x.ym) + ' 面談') + ' → ' + x.r + ' 註冊' + (x.trial ? '・有試聽' : '・無試聽') + (x.v ? '・' + _fnWan(x.v) : ''); })
-        + grp('舊名單追回（3 個月內無面談紀錄）', 'g-hv', a.harvestOld, function(x){ return x.r + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : ''); })
+        + grp('舊名單追回（3 個月內無面談紀錄）', 'g-hv', a.harvestOld, function(x){ return x.r + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : '') + (x.ext ? '・🏫 外院（原 ' + _fnEsc(x.ext) + '）' : ''); })
+        + (s.ext && s.ext.list.length ? grp('🏫 外院試聽（別家談過、我們安排試聽；不計入本院試聽數）', 'g-tr', s.ext.list, function(x){ return (x.src ? '原 ' + _fnEsc(x.src) + (x.o ? '・' + _fnEsc(x.o) : '') + (x.d ? '・' + x.d + ' 面談' : '') : '來源未填') + ' → ' + (x.st === 'reg' ? '✅ ' + (x.regAt === s.org ? '本院' : _fnEsc(x.regAt)) + ' 註冊' + (x.r ? ' ' + x.r : '') + (x.v ? '・' + _fnWan(x.v) : '') : '經營中' + (x.a ? '・報名 ' + x.a : (x.r ? '・繳 ' + x.v.toLocaleString() + '（未達 2 萬）' : ''))) + (x.manual ? '・🖐 ' + _fnEsc(x.by || '') + (x.grp ? '（' + _fnEsc(x.grp) + '）' : '') : '・🤖'); }) : '')
         + grp('經營中（本月試聽、未註冊）→ 優先回追', 'g-mg', a.mgmt, function(x){ return '面談 ' + x.d + '・已 ' + x.days + ' 天' + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
         + (a.pool.length ? '<div class="fn-ng-note">' + _fnPoolNote(a, ym) + '</div>' : '')
         + grp('經營池（前 3 個月試聽、還沒註冊）→ 下月收割', 'g-pl', a.pool, function(x){ return _fnMonthLabel(x.ym) + ' 面談・已 ' + x.days + ' 天' + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
@@ -9336,7 +9433,7 @@
         + grp('科數明細（每筆 ≥ 2 萬＝1 科）', 'g-on', a.courseList, function(x){ return _fnEsc(x.k) + '・' + _fnWan(x.v) + '・' + x.d + (x.add ? '・加購' : '・新生'); })
         + grp('新生人頭明細（同一新生加總 ≥ 2 萬）', 'g-on', a.headList.filter(function(h){ return h.vNew >= FN_COURSE_MIN; }), function(x){ return x.cnt + ' 筆・新生 ' + _fnWan(x.vNew) + (x.v !== x.vNew ? '・含加購合計 ' + _fnWan(x.v) : ''); })
         + grp('舊生加購（不算人頭）', 'g-pl', a.headList.filter(function(h){ return h.vNew < FN_COURSE_MIN; }), function(x){ return x.cnt + ' 筆・' + _fnWan(x.v); });
-      return '<details class="fn-names"><summary>👥 名單：當下 ' + a.onsite.length + '・試聽後 ' + a.trialReg.length + '・追回 ' + (a.harvest.length + a.harvestOld.length) + '・經營中 ' + a.mgmt.length + '・經營池 ' + a.pool.length + '・流失 ' + a.lost.length + '　｜　新生科數 ' + a.coursesNew + '・新生人頭 ' + a.headsNew + '（含加購 ' + a.courses + '／' + a.heads + '）</summary><div class="fn-names-b">' + body + '</div></details>';
+      return '<details class="fn-names"><summary>👥 名單：當下 ' + a.onsite.length + '・試聽後 ' + a.trialReg.length + '・追回 ' + (a.harvest.length + a.harvestOld.length) + '・經營中 ' + a.mgmt.length + '・經營池 ' + a.pool.length + '・流失 ' + a.lost.length + (s.ext && s.ext.n ? '・🏫 外院 ' + s.ext.n : '') + '　｜　新生科數 ' + a.coursesNew + '・新生人頭 ' + a.headsNew + '（含加購 ' + a.courses + '／' + a.heads + '）</summary><div class="fn-names-b">' + body + '</div></details>';
     }
     function _fnCardHtml(s, all, ym, isTotal, prevAll){
       var rateCls = function(key){
@@ -9359,10 +9456,12 @@
         + '<div class="fn-flow">'
         + '<div class="fn-step"><div class="lb">總報到</div><div class="v">' + s.checkin + '</div></div>'
         + '<div class="fn-step"><div class="lb">實際面談</div><div class="v">' + s.interview + '</div>' + (s.onsite ? '<div class="sm">當下註冊 ' + s.onsite + '</div>' : '') + '</div>'
-        + '<div class="fn-step"><div class="lb">安排試聽</div><div class="v">' + s.trial + '</div>' + (s.auto ? '<div class="sm">有繳報名費 ' + s.auto.trial + (s.extra ? ' ＋ 報備 ' + s.extra : '') + '</div>' : (s.extra ? '<div class="sm">報名 ' + s.signup + ' ＋ 報備 ' + s.extra + '</div>' : '')) + '</div>'
+        + '<div class="fn-step"><div class="lb">安排試聽</div><div class="v">' + s.trial + '</div>' + (s.auto ? '<div class="sm">有繳報名費 ' + s.auto.trial + (s.extra ? ' ＋ 報備 ' + s.extra : '') + '</div>' : (s.extra ? '<div class="sm">報名 ' + s.signup + ' ＋ 報備 ' + s.extra + '</div>' : ''))
+        + (s.ext && s.ext.n ? '<div class="fn-ext" title="別家學院談過、我們安排試聽的名單（自動偵測＋報備）。不計入上面的安排試聽與轉換率。">🏫 外院試聽 <b>+' + s.ext.n + '</b></div>' : '') + '</div>'
         + '<div class="fn-step res"><div class="lb">試聽後結果</div>' + (s.known
             ? '<div class="row hot"><div class="v">' + s.reg + '</div><span>註冊</span></div><div class="row"><div class="v">' + s.mgmt + '</div><span>經營中</span></div>'
-            : '<div class="v" style="font-size:1.1rem;color:var(--fnWarn);margin-top:10px;">待填當下</div><div class="sm">填「當下註冊」後自動計算</div>') + '</div>'
+            : '<div class="v" style="font-size:1.1rem;color:var(--fnWarn);margin-top:10px;">待填當下</div><div class="sm">填「當下註冊」後自動計算</div>')
+        + (s.ext && s.ext.n ? '<div class="fn-ext">🏫 外院：<b>' + s.ext.reg + '</b> 註冊／<b>' + s.ext.mgmt + '</b> 經營中</div>' : '') + '</div>'
         + '</div>'
         + '<div class="fn-rates">'
         + '<div class="fn-rate' + rateCls('r1') + '"><div class="pill">' + _fnPct(s.r1) + '</div><div class="cap">報到 → 面談' + (s.r1 > 100 ? '<br><span style="color:var(--fnWarn)">含班務／舊名單面談</span>' : '') + '</div></div>'
@@ -9375,7 +9474,7 @@
         + noteLines.map(function(t){ return '<li>' + _fnEsc(t) + '</li>'; }).join('')
         + (hls.length + noteLines.length === 0 ? '<li style="color:var(--fnDim);">尚無資料</li>' : '')
         + '</ul></div>';
-      if (!isTotal && s.auto) html += _fnNamesHtml(s.auto, ym);
+      if (!isTotal && s.auto) html += _fnNamesHtml(s.auto, ym, s);
       if (!isTotal){
         var ent = fnGetEntry(ym, s.org);
         var o = _fnEsc(s.org);
@@ -9411,51 +9510,98 @@
     function fnOpenReports(ym, org){
       var d = _fnDataFor(ym); var s = _fnOrgStats(d, org, ym);
       var reps = s.reports || [];
-      var stTag = function(st){
+      var me = _fnMe();
+      var groups = _fnGroupsFor(org, ym);
+      var myGrp = _fnGroupOf(me, org, ym);
+      var lastGrp = ''; try { lastGrp = localStorage.getItem('fn_rep_grp_' + org) || ''; } catch(e){}
+      var defGrp = myGrp || lastGrp || '';
+      // ── 各組本月報備筆數（0 筆標紅）──
+      var cnt = {}; reps.forEach(function(r){ var g = r.grp || '未分組'; cnt[g] = (cnt[g] || 0) + 1; });
+      var chips = groups.map(function(g){
+        var n = cnt[g.name] || 0;
+        return '<span class="fn-gchip' + (n ? '' : ' zero') + '" title="' + g.kind + '組・組長 ' + _fnEsc(g.leader) + '">' + _fnEsc(g.name) + ' <b>' + n + '</b></span>';
+      });
+      Object.keys(cnt).forEach(function(g){ if (!groups.some(function(x){ return x.name === g; })) chips.push('<span class="fn-gchip other">' + _fnEsc(g) + ' <b>' + cnt[g] + '</b></span>'); });
+      var chipBar = groups.length || chips.length
+        ? '<div class="fn-gbar"><span class="fn-gbar-t">各組本月報備</span>' + chips.join('') + (groups.length && Object.keys(cnt).every(function(g){ return !groups.some(function(x){ return x.name === g; }); }) && !reps.length ? '' : '') + '</div>'
+        : '<div class="fn-gbar"><span class="fn-gbar-t">各組本月報備</span><span style="color:#999;font-size:.78rem;">找不到 ' + _fnEsc(org) + ' 的組別（激勵分頁尚未同步 ' + ym + ' 的小組績效表）</span></div>';
+      var stTag = function(r){
+        var st = r.st;
         if (st === 'reg') return '<span style="color:#16a34a;font-weight:700;">✅ 已註冊（轉化成功）</span>';
         if (st === 'dup') return '<span style="color:#d97706;font-weight:700;">🔁 已在自動試聽名單，不重複計</span>';
+        if (st === 'ext-reg') return '<span style="color:#16a34a;font-weight:700;">✅ 外院 → 已在 ' + _fnEsc(r.regAt === org ? '本院' : r.regAt) + ' 註冊' + (r.regV ? '（' + _fnWan(r.regV) + '）' : '') + '</span>';
+        if (st === 'ext-dup') return '<span style="color:#0e7490;font-weight:700;">🤖 系統已自動偵測到這位外院名單，不重複計</span>';
+        if (st === 'ext') return '<span style="color:#0e7490;font-weight:700;">🏫 外院報備中（另列，不計入本院試聽）</span>';
         return '<span style="color:#2563eb;font-weight:700;">🖐 報備中（計入安排試聽）</span>';
       };
       var rows = reps.map(function(r){
         return '<div style="border-bottom:1px solid #eee;padding:9px 0;display:flex;gap:10px;align-items:flex-start;">'
           + '<div style="flex:1;line-height:1.55;"><b>' + _fnEsc(r.n) + '</b>'
+          + (r.ext ? '<span class="fn-tag ext">🏫 外院' + (r.src ? '・原 ' + _fnEsc(r.src) : '') + '</span>' : '')
+          + (r.grp ? '<span class="fn-tag grp">' + _fnEsc(r.grp) + '</span>' : '<span class="fn-tag none">未分組</span>')
           + (r.course ? '<span style="color:#666;">｜' + _fnEsc(r.course) + '</span>' : '')
           + (r.date ? '<span style="color:#666;">｜試聽日 ' + _fnEsc(r.date) + '</span>' : '')
           + '<div style="font-size:.78rem;color:#777;margin-top:2px;">'
-          + (r.sales ? '負責業務：' + _fnEsc(r.sales) + '　' : '') + stTag(r.st)
+          + (r.sales ? '負責業務：' + _fnEsc(r.sales) + '　' : '') + stTag(r)
           + (r.note ? '<br>📝 ' + _fnEsc(r.note) : '')
           + '<br><span style="color:#aaa;">✍️ ' + _fnEsc(r.by || '未知') + ' 於 ' + _fnEsc(r.at || '—') + ' 報備</span></div></div>'
           + '<button onclick="fnDelReport(\'' + ym + '\',\'' + _fnEsc(org) + '\',\'' + r.id + '\')" style="border:none;background:#fdecec;color:#c33;border-radius:6px;padding:4px 9px;cursor:pointer;">🗑</button>'
           + '</div>';
       }).join('') || '<div style="color:#999;padding:14px 0;">尚無報備。沒繳報名費但已安排試聽的學員，從下方新增。</div>';
+      // ── 系統自動偵測的外院名單（只顯示，已自動計入外院行）──
+      var autoExt = (s.auto && s.auto.ext) ? s.auto.ext : [];
+      var autoBlock = autoExt.length
+        ? '<div style="margin-top:12px;padding:10px 12px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:10px;">'
+          + '<div style="font-weight:800;color:#0e7490;font-size:.85rem;">🤖 系統偵測到的外院名單 ' + autoExt.length + ' 位 <span style="font-weight:400;color:#0891b2;">（別家談過，本月在本院有報名／註冊；已自動計入「外院」行，不用再報備）</span></div>'
+          + autoExt.map(function(x){ return '<div style="font-size:.8rem;color:#155e75;padding:3px 0;">• <b>' + _fnEsc(x.n) + '</b>　原 ' + _fnEsc(x.src) + (x.o ? '・' + _fnEsc(x.o) : '') + '・' + x.d + ' 面談 → 本院' + (x.st === 'reg' ? ' <b style="color:#16a34a;">✅ 註冊 ' + x.r + '・' + _fnWan(x.v) + '</b>' : (x.a ? '報名 ' + x.a : '繳費 ' + x.r + '・' + x.v.toLocaleString() + '（未達 2 萬）') + '（經營中）') + (x.ours ? '・承辦 ' + _fnEsc(x.ours) : '') + '</div>'; }).join('')
+          + '</div>'
+        : '';
       var inp = 'style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:.85rem;box-sizing:border-box;background:#fff;color:#1d1d1f;"';
+      var grpOpts = '<option value="">— 組別 —</option>' + groups.map(function(g){ return '<option value="' + _fnEsc(g.name) + '"' + (g.name === defGrp ? ' selected' : '') + '>' + _fnEsc(g.name) + '（' + g.kind + '・' + _fnEsc(g.leader) + '）</option>'; }).join('')
+        + (defGrp && !groups.some(function(g){ return g.name === defGrp; }) ? '<option value="' + _fnEsc(defGrp) + '" selected>' + _fnEsc(defGrp) + '</option>' : '')
+        + '<option value="__other__">其他（自行輸入）</option>';
+      var srcOpts = '<option value="">— 來源學院（外院時選）—</option>' + (typeof CK_ORG_LIST !== 'undefined' ? CK_ORG_LIST : []).filter(function(o){ return o !== org; }).map(function(o){ return '<option value="' + _fnEsc(o) + '">' + _fnEsc(o) + '</option>'; }).join('') + '<option value="其他學院">其他學院／不確定</option>';
       var html = '<div id="fnRepBg" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(10,14,30,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;">'
-        + '<div style="background:#fff;color:#1d1d1f;border-radius:14px;max-width:560px;width:100%;max-height:86vh;overflow-y:auto;padding:20px;font-size:.9rem;box-shadow:0 18px 60px rgba(0,0,0,.35);">'
+        + '<div style="background:#fff;color:#1d1d1f;border-radius:14px;max-width:600px;width:100%;max-height:88vh;overflow-y:auto;padding:20px;font-size:.9rem;box-shadow:0 18px 60px rgba(0,0,0,.35);">'
         + '<b style="font-size:1rem;">🖐 ' + _fnEsc(org) + '・報備試聽名單（' + ym + '）</b>'
-        + '<div style="font-size:.75rem;color:#888;margin:4px 0 10px;">沒繳報名費但有安排試聽 → 記名報備，計入「安排試聽」。學員之後註冊會自動標 ✅。全公司同步，每筆都記報備人與時間。</div>'
+        + '<div style="font-size:.75rem;color:#888;margin:4px 0 8px;">沒繳報名費但有安排試聽 → 記名報備，計入「安排試聽」。外院名單（別家談過、我們安排試聽）選「外院」→ 另列不計率。學員之後註冊會自動標 ✅（外院掃七家）。全公司同步，每筆都記報備人、組別與時間。</div>'
+        + chipBar
         + rows
+        + autoBlock
         + '<div style="margin-top:14px;padding-top:12px;border-top:2px solid #eee;">'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+        + '<select id="fnRepGrp" ' + inp + ' onchange="var o=document.getElementById(\'fnRepGrpOther\');o.style.display=this.value===\'__other__\'?\'block\':\'none\';if(this.value===\'__other__\')o.focus();">' + grpOpts + '</select>'
+        + '<input id="fnRepSales" placeholder="負責業務" value="' + _fnEsc(me) + '" ' + inp + '>'
+        + '<input id="fnRepGrpOther" placeholder="組別名稱" style="display:none;grid-column:1 / -1;width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:.85rem;box-sizing:border-box;background:#fff;color:#1d1d1f;">'
         + '<input id="fnRepName" placeholder="學員姓名（必填）" ' + inp + '>'
-        + '<input id="fnRepSales" placeholder="負責業務" ' + inp + '>'
+        + '<select id="fnRepType" ' + inp + ' onchange="document.getElementById(\'fnRepSrc\').style.display=this.value===\'ext\'?\'block\':\'none\';"><option value="own">本院試聽（計入安排試聽）</option><option value="ext">🏫 外院試聽（另列，不計率）</option></select>'
+        + '<select id="fnRepSrc" style="display:none;grid-column:1 / -1;width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:.85rem;box-sizing:border-box;background:#fff;color:#1d1d1f;">' + srcOpts + '</select>'
         + '<input id="fnRepCourse" placeholder="試聽課程（例：商用平面）" ' + inp + '>'
         + '<input id="fnRepDate" type="date" ' + inp + '>'
         + '</div>'
         + '<div style="margin-top:8px;"><input id="fnRepNote" placeholder="備註（選填）" ' + inp + '></div>'
+        + '<div style="font-size:.72rem;color:#999;margin-top:6px;">組別＝依登入者「' + _fnEsc(me || '未登入') + '」比對 EIP 小組績效表自動帶入' + (myGrp ? '（' + _fnEsc(myGrp) + '）' : '（找不到，請手選）') + '；負責業務預設登入者，報組員的單改名字即可。</div>'
         + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">'
         + '<button onclick="document.getElementById(\'fnRepBg\').remove()" style="padding:8px 16px;border:1px solid #ddd;background:#fff;color:#555;border-radius:8px;cursor:pointer;">關閉</button>'
         + '<button onclick="fnAddReport(\'' + ym + '\',\'' + _fnEsc(org) + '\')" style="padding:8px 16px;border:none;background:#4a6cf7;color:#fff;border-radius:8px;cursor:pointer;font-weight:700;">＋ 報備</button>'
         + '</div></div></div></div>';
       var old = document.getElementById('fnRepBg'); if (old) old.remove();
       document.body.insertAdjacentHTML('beforeend', html);
+      try { var nm = document.getElementById('fnRepName'); if (nm) nm.focus(); } catch(e){}
     }
     function fnAddReport(ym, org){
       var n = (document.getElementById('fnRepName').value || '').trim();
       if (!n){ alert('請填學員姓名'); return; }
-      var who = ''; try { who = localStorage.getItem('activeCharacterName') || localStorage.getItem('activeCharacterId') || ''; } catch(e){}
+      var who = _fnMe();
       var d = new Date();
+      var grpSel = (document.getElementById('fnRepGrp') || {}).value || '';
+      var grp = grpSel === '__other__' ? ((document.getElementById('fnRepGrpOther') || {}).value || '').trim() : grpSel;
+      var isExt = ((document.getElementById('fnRepType') || {}).value === 'ext');
+      var src = isExt ? ((document.getElementById('fnRepSrc') || {}).value || '') : '';
+      if (isExt && !src){ alert('外院試聽請選「來源學院」（不確定就選「其他學院／不確定」）'); return; }
+      try { if (grp) localStorage.setItem('fn_rep_grp_' + org, grp); } catch(e){}
       var rec = { id:'tr_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5),
-        ym:ym, org:org, n:n,
+        ym:ym, org:org, n:n, grp:grp, ext: isExt ? 1 : 0, src:src,
         sales:(document.getElementById('fnRepSales').value || '').trim(),
         course:(document.getElementById('fnRepCourse').value || '').trim(),
         date:document.getElementById('fnRepDate').value || '',
@@ -9503,6 +9649,7 @@
         if (!s.hasData) return;
         var p = _fnProfile(s, all);
         txt += '\n【' + s.org + (p ? '・' + p.label : '') + '】' + line(s) + (s.harvest != null ? '　追回 ' + s.harvest : '') + (s.courses != null ? '　科數 ' + s.coursesNew + '　人頭 ' + s.headsNew + '（含加購 ' + s.courses + '/' + s.heads + '）' : '') + '\n' + _fnHighlights(s, all, ym, prev).map(function(h){ return '・' + strip(h.h); }).join('\n');
+        if (s.ext && s.ext.n) txt += '\n　🏫 外院試聽 ' + s.ext.n + '（已簽 ' + s.ext.reg + '・經營中 ' + s.ext.mgmt + '）：' + s.ext.list.map(function(x){ return x.n + (x.src ? '(原' + x.src + ')' : '') + (x.st === 'reg' ? '✅' : ''); }).join('、');
         if (s.auto && s.auto.mgmt.length) txt += '\n　經營中：' + s.auto.mgmt.map(function(x){ return x.n + '(' + x.o + ')'; }).join('、');
         if (s.auto && s.auto.pool.length) txt += '\n　經營池：' + s.auto.pool.map(function(x){ return x.n + '(' + x.o + ')'; }).join('、');
         var nl = (s.note||'').split('\n').map(function(x){ return x.trim(); }).filter(Boolean); if (nl.length) txt += '\n' + nl.map(function(x){ return '・' + x; }).join('\n');
