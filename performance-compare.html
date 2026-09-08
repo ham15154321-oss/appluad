@@ -1610,6 +1610,10 @@
     .fn-ng { border-left:3px solid var(--fnAcc); padding-left:8px; }
     .fn-ng.g-on { border-color:var(--fnGood); } .fn-ng.g-hv { border-color:var(--fnGold); } .fn-ng.g-mg { border-color:var(--fnWarn); } .fn-ng.g-pl { border-color:var(--fnDim); } .fn-ng.g-ls { border-color:var(--fnBad); }
     .fn-ng-t { font-size:.74rem; font-weight:800; color:var(--fnDim); margin-bottom:4px; } .fn-ng-t b { color:var(--fnText); }
+    .fn-copy { margin-left:8px; border:1px solid var(--fnLine); background:transparent; color:var(--fnDim); border-radius:999px; padding:1px 8px; font-size:.68rem; cursor:pointer; font-family:inherit; vertical-align:middle; }
+    .fn-copy:hover { color:var(--fnText); border-color:var(--fnText); }
+    .tv-g-t .fn-copy { font-size:.72rem; }
+    @media print { .fn-copy { display:none !important; } }
     .fn-ng-note { grid-column:1 / -1; font-size:.76rem; line-height:1.55; color:var(--fnDim); background:rgba(124,58,237,.07); border-left:3px solid #8b5cf6; border-radius:6px; padding:7px 10px; margin:6px 0 2px; } .fn-ng-note b { color:var(--fnText); }
     .fn-ng ul { margin:0; padding:0; list-style:none; max-height:180px; overflow:auto; }
     .fn-ng li { font-size:.76rem; line-height:1.45; color:var(--fnText); display:flex; gap:6px; flex-wrap:wrap; align-items:baseline; }
@@ -8761,6 +8765,39 @@
         try { window.dispatchEvent(new CustomEvent('fn-idb-ready')); } catch(e){}
       });
     })();
+    // ═══ 📝 備註試聽：追蹤情形（總表「備註」欄＝最新一筆）寫了「試聽」＋ 日期 → 算安排試聽（沒繳報名費也算）═══
+    //   規則（2026/09 決議）：日期 ≥ 基準日（同步當天）才算；沒寫日期也算；日期在下個月也算（標跨月）；
+    //   日期已過、還沒註冊 → 另列「試聽後待追」。基準日：本月＝今天；舊月份＝那次同步的日期（最後一次去看的那天）。
+    function _fnRefDate(raw, ym){
+      var live = _fnLiveFunnelYm();
+      if (ym === live) { var t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
+      var sa = raw && raw.meta && raw.meta.syncedAt ? _fnParseD(raw.meta.syncedAt) : null;
+      return sa || new Date(+ym.slice(0,4), +ym.slice(5), 0);
+    }
+    function _fnTrialNote(m, ref, ym){
+      var txt = String(m || '');
+      if (!txt || txt.indexOf('試聽') < 0) return null;
+      var yr = +ym.slice(0,4), mo = +ym.slice(5);
+      var dates = [], re = /(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})|(\d{1,2})[\/\-.](\d{1,2})(?![\/\-.]?\d)|(\d{1,2})\s*月\s*(\d{1,2})\s*(?:日|號)?/g, mm;
+      while ((mm = re.exec(txt))){
+        var y, M, D;
+        if (mm[1]){ y = +mm[1]; M = +mm[2]; D = +mm[3]; }
+        else if (mm[4]){ M = +mm[4]; D = +mm[5]; }
+        else { M = +mm[6]; D = +mm[7]; }
+        if (!(M >= 1 && M <= 12 && D >= 1 && D <= 31)) continue;
+        if (!y){ y = yr; if (M < mo - 6) y = yr + 1; if (M > mo + 6) y = yr - 1; }
+        dates.push({ d: new Date(y, M - 1, D), i: mm.index, s: mm[0] });
+      }
+      // 每個「試聽」取最近的一個日期（前後 14 字內），都沒有 → 無日期
+      var best = null, bestDist = 1e9, pos = -1;
+      while ((pos = txt.indexOf('試聽', pos + 1)) >= 0){
+        dates.forEach(function(x){ var dist = Math.abs(x.i - pos); if (dist <= 30 && dist < bestDist){ bestDist = dist; best = x; } });
+      }
+      if (!best && dates.length === 1) best = dates[0];   // 整段只有一個日期 → 就是它
+      var d = best ? best.d : null;
+      var future = !d || d >= ref;
+      return { has:true, d:d, td: d ? _fnMD(d) : '', future:future, cross: d ? (_fnYmOf(d) !== ym) : false, txt: txt.length > 60 ? txt.slice(0, 60) + '…' : txt };
+    }
     function _fnAuto(raw, org, ym){
       if (!raw || !raw.orgs || !raw.orgs[org]) return null;
       var itv = raw.orgs[org].itv || [], pay = raw.orgs[org].pay || [];
@@ -8772,7 +8809,9 @@
       pay.forEach(function(r){ if (r.sub === '學員加購') return; var d = _fnParseD(r.d); if (!d) return; var p = P[r.n] || (P[r.n] = { reg:[], app:[] }); p[r.st === '註冊' ? 'reg' : 'app'].push({ d:d, v:+r.v || 0, o:r.o, k:r.k }); });
       var I = {};
       itv.forEach(function(r){ var d = _fnParseD(r.d); if (!d) return; var i = I[r.n] || (I[r.n] = { rows:[] }); i.rows.push({ d:d, sd:_fnParseD(r.sd), o:r.o, a:+r.a||0, r:+r.r||0, m:r.m||'', p:r.p||'', w:r.w||'', t:+r.t||0 }); });
-      var out = { interview:0, onsite:[], trialReg:[], harvest:[], harvestOld:[], trial:0, trialList:[], itvList:[], mgmt:[], pool:[], lost:[], regTotal:0, regAmt:0 };
+      var out = { interview:0, onsite:[], trialReg:[], harvest:[], harvestOld:[], trial:0, trialList:[], itvList:[], mgmt:[], pool:[], lost:[], regTotal:0, regAmt:0,
+                  noteTrial:[], poolTrial:[], trialDue:[], feeTrial:0 };
+      var refD = _fnRefDate(raw, ym);
       var seen = {};
       for (var name in I){
         var rows = I[name].rows.sort(function(a,b){ return a.d - b.d; });
@@ -8784,6 +8823,7 @@
         var appBefore = function(d){ return p.app.some(function(x){ return x.d < d; }); };
         var hasApp = p.app.length > 0 || rows.some(function(x){ return x.a > 0; });
         var regStatus = rows.some(function(x){ return x.r > 0; });
+        var tn = _fnTrialNote(last.m, refD, ym);   // 📝 備註（最新追蹤情形）裡的試聽
         if (rowM){
           out.interview++;
           out.itvList.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), sd:rowM.sd ? _fnYmOf(rowM.sd) : '', w:rowM.w });
@@ -8804,7 +8844,16 @@
             if (p.app.some(function(x){ return x.d < regM.d; })){ out.trial++; out.trialList.push({ n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), st:'已註冊', r:_fnMD(regM.d), v:amt }); }   // 先報名後註冊 → 有安排試聽
           } else if (hasApp || regStatus){
             // 本月面談、還沒（本月）註冊：有報名 → 試聽中/經營中
-            if (!regStatus){ out.trial++; out.trialList.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), st:'經營中' }); out.mgmt.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), m:rowM.m, w:rowM.w, days:_fnDays(rowM.d, new Date()) }); }
+            if (!regStatus){ out.trial++; out.feeTrial++; out.trialList.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), st:'經營中', td: tn ? tn.td : '', tx: tn ? tn.txt : '' }); out.mgmt.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), m:rowM.m, w:rowM.w, days:_fnDays(rowM.d, new Date()) }); }
+          } else if (tn && tn.future){
+            // 📝 沒繳報名費，但追蹤情形寫了「試聽」且日期 ≥ 基準日（或沒寫日期）→ 算安排試聽（備註試聽）
+            out.trial++;
+            out.trialList.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), st:'備註試聽', td:tn.td, tx:tn.txt, cross:tn.cross });
+            out.noteTrial.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), td:tn.td, tx:tn.txt, cross:tn.cross, w:rowM.w });
+            out.mgmt.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), m:rowM.m, w:rowM.w, days:_fnDays(rowM.d, new Date()), note:true });
+          } else if (tn && !tn.future){
+            // 📝 試聽日已過、還沒註冊 → 不算試聽，另列「試聽後待追」
+            out.trialDue.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), td:tn.td, tx:tn.txt, w:rowM.w, days:_fnDays(tn.d, refD) });
           } else {
             out.lost.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), m:rowM.m, w:rowM.w });
           }
@@ -8819,6 +8868,10 @@
             out.harvest.push({ n:name, o:regM.o || last.o, d:_fnMD(last.d), ym:_fnYmOf(last.d), r:_fnMD(regM.d), v:amt, w:last.w, trial: hasApp });
           } else if (hasApp && !regStatus){
             out.pool.push({ n:name, o:last.o, d:_fnMD(last.d), ym:_fnYmOf(last.d), m:last.m, w:last.w, days:_fnDays(last.d, new Date()) });
+          }
+          // 📝 前 1～3 個月面談、備註排了「未來」試聽日（要有明確日期）→ 另列，不混進本月安排試聽
+          if (!regM && !regStatus && tn && tn.d && tn.future){
+            out.poolTrial.push({ n:name, o:last.o, d:_fnMD(last.d), ym:_fnYmOf(last.d), td:tn.td, tx:tn.txt, cross:tn.cross, w:last.w, inPool: hasApp });
           }
         }
       }
@@ -9128,7 +9181,7 @@
     function _tvNames(title, arr, fmt, tone){
       if (!arr || !arr.length) return '';
       return '<details class="tv-det"><summary>看這 ' + arr.length + ' 位是誰 ▸</summary><div class="tv-det-b tv-one">'
-        + '<div class="tv-g"><div class="tv-g-t">' + title + '　<b>' + arr.length + '</b> 位</div><ul class="tv-ul">'
+        + '<div class="tv-g"><div class="tv-g-t">' + title + '　<b>' + arr.length + '</b> 位' + _fnCopyBtn(arr) + '</div><ul class="tv-ul">'
         + arr.map(function(x){
             var f = fmt(x);
             return '<li><b>' + _fnEsc(x.n) + '</b>' + (f.pill ? '<span class="tv-pill' + (tone === 'x' ? ' tv-pill-x' : '') + '">' + f.pill + '</span>' : '')
@@ -9223,8 +9276,15 @@
         + (a ? '<span style="color:var(--tvFaint);">　EIP 的 ' + s.interview + ' 是彙總值；下面是面談紀錄總表裡「本月建檔」的 ' + a.itvList.length + ' 位逐人清單，兩者可能略有出入（同一人談兩次 EIP 算兩次）。</span>'
              + _tvNames('本月有面談紀錄的人', a.itvList, function(x){ return { pill:'面談 ' + x.d, sub:(x.sd ? '名單 ' + _fnMonthLabel(x.sd) + ' 建檔' : '名單日期空白') + (x.w ? '・想學 ' + _fnEsc(String(x.w).slice(0,14)) : '') }; }) : ''));
       flow += _tvRow('安排試聽', s.trial, a ? '逐人資料 ＋ 記名報備' : '報名數 ＋ 額外報備',
-        a ? '本月面談、而且有繳報名費（等於安排試聽）的 <b>' + a.trial + '</b> 位' + (s.extra ? '，加上沒繳報名費但主管記名報備的 <b>' + s.extra + '</b> 位' : '') + '。'
-            + _tvNames('有繳報名費＝安排試聽', a.trialList, function(x){ return { pill:x.st, sub:'面談 ' + x.d + (x.r ? ' → 註冊 ' + x.r : '') + (x.v ? '・' + _fnWan(x.v) : '') }; })
+        a ? '本月面談、有繳報名費的 <b>' + a.feeTrial + '</b> 位'
+            + (a.noteTrial.length ? '，加上沒繳報名費、但追蹤情形（總表備註）寫了「試聽」的 <b>' + a.noteTrial.length + '</b> 位（📝 備註試聽：試聽日 ≥ 同步當天、或沒寫日期才算；日期在下個月也算）' : '')
+            + (s.extra ? '，加上主管記名報備的 <b>' + s.extra + '</b> 位' : '') + '。'
+            + (a.poolTrial.length ? '　另有 <b>' + a.poolTrial.length + '</b> 位是前 1～3 個月面談、備註排了未來試聽日 —— 另列，不算本月安排試聽。' : '')
+            + (a.trialDue.length ? '　<b style="color:var(--tvWarn);">' + a.trialDue.length + '</b> 位備註的試聽日已經過了、還沒註冊 → 不算試聽，列「試聽後待追」。' : '')
+            + _tvNames('有繳報名費＝安排試聽', a.trialList.filter(function(x){ return x.st !== '備註試聽'; }), function(x){ return { pill:x.st, sub:'面談 ' + x.d + (x.r ? ' → 註冊 ' + x.r : '') + (x.v ? '・' + _fnWan(x.v) : '') + (x.td ? '・備註試聽 ' + x.td : '') }; })
+            + _tvNames('📝 備註試聽（沒繳報名費）', a.noteTrial, function(x){ return { pill: x.td ? '試聽 ' + x.td + (x.cross ? '・跨月' : '') : '未寫日期', sub:'面談 ' + x.d + '・「' + _fnEsc(x.tx) + '」' }; })
+            + _tvNames('前 1～3 個月面談・已排未來試聽日（另列）', a.poolTrial, function(x){ return { pill:'試聽 ' + x.td + (x.cross ? '・跨月' : ''), sub:_fnMonthLabel(x.ym) + ' 面談・「' + _fnEsc(x.tx) + '」' }; }, 'x')
+            + _tvNames('⏰ 試聽後待追（試聽日已過、還沒註冊）', a.trialDue, function(x){ return { pill:'試聽 ' + x.td + '・已過 ' + x.days + ' 天', sub:'面談 ' + x.d + '・「' + _fnEsc(x.tx) + '」' }; }, 'x')
             + ((s.reports && s.reports.length) ? _tvNames('記名報備試聽', s.reports.filter(function(x){ return !x.ext; }), function(x){ return { pill: x.st === 'reg' ? '已註冊' : (x.st === 'dup' ? '重複不計' : '計入試聽'), sub:(x.grp ? _fnEsc(x.grp) + '・' : '') + (x.course ? _fnEsc(x.course) : '') + (x.date ? '・試聽日 ' + _fnEsc(x.date) : '') }; }, 'x') : '')
             + (s.ext && s.ext.n ? '<div class="tv-note" style="margin:8px 0 2px;font-size:.86rem;line-height:1.55;">🏫 <b>外院試聽 ' + s.ext.n + ' 位</b>（已簽 ' + s.ext.reg + '・經營中 ' + s.ext.mgmt + '）＝別家學院談過、我們安排試聽或收單的名單，<b>不計入</b>上面的安排試聽和三個百分比。'
                 + (s.ext.autoN ? '其中 ' + s.ext.autoN + ' 位是系統自動偵測：本月在本院有報名或註冊、三個月內本院沒面談紀錄、但在別家有面談紀錄。' : '') + (s.ext.manualN ? '另 ' + s.ext.manualN + ' 位是組長手動報備。' : '') + '註冊會掃七家收支，≥ 2 萬就自動 ✅ 並標簽在哪家。</div>'
@@ -9417,16 +9477,30 @@
     function fnTeachClose(){ var el = document.getElementById('tvBg'); if (el) el.remove(); try { document.removeEventListener('keydown', _fnTeachEsc); } catch(e){} }
     function _fnTeachEsc(e){ if (e.key === 'Escape') fnTeachClose(); }
     // 👥 名單面板：當下／試聽後註冊／追回／經營中（本月）／經營池（前 3 個月）／面談流失
+    // 📋 一鍵複製名單（逗號隔開）
+    function _fnCopyBtn(arr){
+      var names = (arr || []).map(function(x){ return x.n; }).filter(Boolean);
+      if (!names.length) return '';
+      return '<button class="fn-copy" type="button" data-names="' + _fnEsc(names.join(', ')) + '" onclick="fnCopyNames(this)" title="複製這 ' + names.length + ' 個名字（逗號隔開）">📋 複製</button>';
+    }
+    function fnCopyNames(btn){
+      var t = btn.getAttribute('data-names') || '';
+      var done = function(){ var o = btn.textContent; btn.textContent = '✅ 已複製'; setTimeout(function(){ btn.textContent = o; }, 1400); };
+      try { navigator.clipboard.writeText(t).then(done, function(){ window.prompt('複製名單：', t); }); } catch(e){ window.prompt('複製名單：', t); }
+    }
     function _fnNamesHtml(a, ym, s){
       s = s || { org:'', ext:null };
       var li = function(x, extra){ return '<li><b>' + _fnEsc(x.n) + '</b><span>' + _fnEsc(x.o || '') + '</span>' + (extra ? '<em>' + extra + '</em>' : '') + '</li>'; };
-      var grp = function(title, cls, arr, fmt){ if (!arr.length) return ''; return '<div class="fn-ng ' + cls + '"><div class="fn-ng-t">' + title + ' <b>' + arr.length + '</b></div><ul>' + arr.map(function(x){ return li(x, fmt(x)); }).join('') + '</ul></div>'; };
+      var grp = function(title, cls, arr, fmt){ if (!arr.length) return ''; return '<div class="fn-ng ' + cls + '"><div class="fn-ng-t">' + title + ' <b>' + arr.length + '</b>' + _fnCopyBtn(arr) + '</div><ul>' + arr.map(function(x){ return li(x, fmt(x)); }).join('') + '</ul></div>'; };
       var body = grp('當下註冊', 'g-on', a.onsite, function(x){ return '面談 ' + x.d + ' → 註冊 ' + x.r + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('試聽後註冊', 'g-tr', a.trialReg, function(x){ return '面談 ' + x.d + ' → 註冊 ' + x.r + '（' + x.days + ' 天' + (x.trial ? '・有試聽' : '・無試聽') + '）' + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('追回（Ⓑ 舊名單：名單前幾個月進來、本月註冊）', 'g-hv', a.harvest, function(x){ return (x.oldList ? '名單 ' + _fnMonthLabel(x.ym) + ' 建檔・本月 ' + x.d + ' 面談' : _fnMonthLabel(x.ym) + ' 面談') + ' → ' + x.r + ' 註冊' + (x.trial ? '・有試聽' : '・無試聽') + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('舊名單追回（3 個月內無面談紀錄）', 'g-hv', a.harvestOld, function(x){ return x.r + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : '') + (x.ext ? '・🏫 外院（原 ' + _fnEsc(x.ext) + '）' : ''); })
         + (s.ext && s.ext.list.length ? grp('🏫 外院試聽（別家談過、我們安排試聽；不計入本院試聽數）', 'g-tr', s.ext.list, function(x){ return (x.src ? '原 ' + _fnEsc(x.src) + (x.o ? '・' + _fnEsc(x.o) : '') + (x.d ? '・' + x.d + ' 面談' : '') : '來源未填') + ' → ' + (x.st === 'reg' ? '✅ ' + (x.regAt === s.org ? '本院' : _fnEsc(x.regAt)) + ' 註冊' + (x.r ? ' ' + x.r : '') + (x.v ? '・' + _fnWan(x.v) : '') : '經營中' + (x.a ? '・報名 ' + x.a : (x.r ? '・繳 ' + x.v.toLocaleString() + '（未達 2 萬）' : ''))) + (x.manual ? '・🖐 ' + _fnEsc(x.by || '') + (x.grp ? '（' + _fnEsc(x.grp) + '）' : '') : '・🤖'); }) : '')
-        + grp('經營中（本月試聽、未註冊）→ 優先回追', 'g-mg', a.mgmt, function(x){ return '面談 ' + x.d + '・已 ' + x.days + ' 天' + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
+        + grp('📝 備註試聽（沒繳報名費，追蹤情形寫了試聽・計入安排試聽）', 'g-tr', a.noteTrial, function(x){ return '面談 ' + x.d + (x.td ? ' → 試聽 ' + x.td + (x.cross ? '（跨月）' : '') : ' → 試聽（未寫日期）') + '・「' + _fnEsc(x.tx) + '」'; })
+        + grp('前 1～3 個月面談・已排未來試聽日（另列，不計本月）', 'g-pl', a.poolTrial, function(x){ return _fnMonthLabel(x.ym) + ' 面談 → 試聽 ' + x.td + (x.cross ? '（跨月）' : '') + '・「' + _fnEsc(x.tx) + '」'; })
+        + grp('⏰ 試聽後待追（試聽日已過、還沒註冊・不計試聽）', 'g-ls', a.trialDue, function(x){ return '面談 ' + x.d + ' → 試聽 ' + x.td + '・已過 ' + x.days + ' 天・「' + _fnEsc(x.tx) + '」'; })
+        + grp('經營中（本月試聽、未註冊）→ 優先回追', 'g-mg', a.mgmt, function(x){ return '面談 ' + x.d + '・已 ' + x.days + ' 天' + (x.note ? '・📝備註試聽' : '') + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
         + (a.pool.length ? '<div class="fn-ng-note">' + _fnPoolNote(a, ym) + '</div>' : '')
         + grp('經營池（前 3 個月試聽、還沒註冊）→ 下月收割', 'g-pl', a.pool, function(x){ return _fnMonthLabel(x.ym) + ' 面談・已 ' + x.days + ' 天' + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
         + grp('面談後流失（沒報名也沒註冊）', 'g-ls', a.lost, function(x){ return '面談 ' + x.d + (x.w ? '・想學 ' + _fnEsc(x.w.slice(0, 16)) : ''); })
@@ -9456,7 +9530,10 @@
         + '<div class="fn-flow">'
         + '<div class="fn-step"><div class="lb">總報到</div><div class="v">' + s.checkin + '</div></div>'
         + '<div class="fn-step"><div class="lb">實際面談</div><div class="v">' + s.interview + '</div>' + (s.onsite ? '<div class="sm">當下註冊 ' + s.onsite + '</div>' : '') + '</div>'
-        + '<div class="fn-step"><div class="lb">安排試聽</div><div class="v">' + s.trial + '</div>' + (s.auto ? '<div class="sm">有繳報名費 ' + s.auto.trial + (s.extra ? ' ＋ 報備 ' + s.extra : '') + '</div>' : (s.extra ? '<div class="sm">報名 ' + s.signup + ' ＋ 報備 ' + s.extra + '</div>' : ''))
+        + '<div class="fn-step"><div class="lb">安排試聽</div><div class="v">' + s.trial + '</div>' + (s.auto ? '<div class="sm">有繳報名費 ' + s.auto.feeTrial + (s.auto.noteTrial.length ? ' ＋ 📝備註試聽 ' + s.auto.noteTrial.length : '') + (s.extra ? ' ＋ 報備 ' + s.extra : '') + '</div>'
+              + (s.auto.poolTrial.length ? '<div class="sm" title="前 1～3 個月面談的人，追蹤情形排了未來的試聽日。不算在本月安排試聽裡。">前月面談排試聽 ' + s.auto.poolTrial.length + '（另列）</div>' : '')
+              + (s.auto.trialDue.length ? '<div class="sm" style="color:var(--fnWarn);" title="追蹤情形寫的試聽日已經過了、還沒註冊 → 不算試聽，要回追">⏰ 試聽後待追 ' + s.auto.trialDue.length + '</div>' : '')
+            : (s.extra ? '<div class="sm">報名 ' + s.signup + ' ＋ 報備 ' + s.extra + '</div>' : ''))
         + (s.ext && s.ext.n ? '<div class="fn-ext" title="別家學院談過、我們安排試聽的名單（自動偵測＋報備）。不計入上面的安排試聽與轉換率。">🏫 外院試聽 <b>+' + s.ext.n + '</b></div>' : '') + '</div>'
         + '<div class="fn-step res"><div class="lb">試聽後結果</div>' + (s.known
             ? '<div class="row hot"><div class="v">' + s.reg + '</div><span>註冊</span></div><div class="row"><div class="v">' + s.mgmt + '</div><span>經營中</span></div>'
@@ -9528,7 +9605,7 @@
       var stTag = function(r){
         var st = r.st;
         if (st === 'reg') return '<span style="color:#16a34a;font-weight:700;">✅ 已註冊（轉化成功）</span>';
-        if (st === 'dup') return '<span style="color:#d97706;font-weight:700;">🔁 已在自動試聽名單，不重複計</span>';
+        if (st === 'dup') return '<span style="color:#d97706;font-weight:700;">🔁 系統已偵測（有繳報名費或備註寫了試聽），不重複計</span>';
         if (st === 'ext-reg') return '<span style="color:#16a34a;font-weight:700;">✅ 外院 → 已在 ' + _fnEsc(r.regAt === org ? '本院' : r.regAt) + ' 註冊' + (r.regV ? '（' + _fnWan(r.regV) + '）' : '') + '</span>';
         if (st === 'ext-dup') return '<span style="color:#0e7490;font-weight:700;">🤖 系統已自動偵測到這位外院名單，不重複計</span>';
         if (st === 'ext') return '<span style="color:#0e7490;font-weight:700;">🏫 外院報備中（另列，不計入本院試聽）</span>';
@@ -9939,7 +10016,7 @@
       if (!d.perfp) missing.push('當月績效（面談／試聽／註冊會是 0）');
       var hasFunnel = !!_fnRawFor(selYm);
       var html = '<div class="fn-note">總報到＝報到排名(EIP)｜面談・註冊Ⓐ・註冊Ⓑ＝當月績效(EIP)｜'
-        + (hasFunnel ? '🤖 當下・試聽後註冊・追回・經營中＝🔀 漏斗逐人資料自動分類（Ⓐ 新名單＝通路建檔在當月：當下＝3 天內、其餘試聽後；Ⓑ 舊名單＝追回；學員加購排除）｜科數＝新生每筆註冊 ≥ 2 萬算 1 科｜人頭＝同一新生本月註冊加總 ≥ 2 萬（都排除學員加購，括號為含加購）｜手填可覆寫' : '安排試聽＝報名＋額外報備｜當下註冊・試聽後註冊＝手填（相加＝註冊Ⓐ）｜經營中＝試聽－試聽後註冊｜收割率＝本月註冊Ⓑ ÷ 上月經營中')
+        + (hasFunnel ? '🤖 當下・試聽後註冊・追回・經營中＝🔀 漏斗逐人資料自動分類（Ⓐ 新名單＝通路建檔在當月：當下＝3 天內、其餘試聽後；Ⓑ 舊名單＝追回；學員加購排除）｜安排試聽＝有繳報名費 ＋ 📝備註試聽（追蹤情形寫「試聽」且日期 ≥ 同步當天）＋ 報備｜科數＝新生每筆註冊 ≥ 2 萬算 1 科｜人頭＝同一新生本月註冊加總 ≥ 2 萬（都排除學員加購，括號為含加購）｜手填可覆寫' : '安排試聽＝報名＋額外報備｜當下註冊・試聽後註冊＝手填（相加＝註冊Ⓐ）｜經營中＝試聽－試聽後註冊｜收割率＝本月註冊Ⓑ ÷ 上月經營中')
         + (missing.length ? '<br><span class="warn">⚠️ ' + selYm + ' 缺：' + missing.join('、') + '，請到「🏆 激勵」同步</span>' : '')
         + (!hasFunnel ? '<br><span class="warn">💡 按右上角「🔀 漏斗」同步逐人資料，當下／試聽後／追回／經營中名單就會全自動，不用手填</span>' : '')
         + (!prev ? '<br><span style="opacity:.8;">ℹ️ 沒有上月資料，兩字總結與收割閉環要等下個月才會自動比較</span>' : '') + '</div>';
