@@ -1609,11 +1609,26 @@ async function pullFromCloud(opts){
               var t = (e && e.savedAt) ? Date.parse(e.savedAt) : 0;
               return isNaN(t) ? 0 : t;
             }
+            // ★ 2026/09 空殼防呆：EIP 抓空表寫進來的月份（perfp/checkin 全 0）不能蓋掉另一邊的好資料
+            function _ckPerfpRows(e){ var d = e && e.perfp, n = 0; if (d && d.orgs) for (var o in d.orgs) n += (d.orgs[o] || []).length; return n; }
+            function _ckCheckRows(e){ var d = e && e.checkin, f = d && d.formal && d.formal.byAcademy, n = 0; if (f) for (var k in f) n += (parseInt(f[k], 10) || 0); return n; }
+            function _ckPickField(dst, a1, b1, cnt){   // 兩邊挑「有料的」，都有料才比時間
+              var na = cnt(a1), nb = cnt(b1);
+              if (na > 0 && nb === 0) return a1;
+              if (nb > 0 && na === 0) return b1;
+              return _ckArchTs(b1) > _ckArchTs(a1) ? b1 : a1;
+            }
             var ckMerged = {}, ckChanged = 0, ckFromCloud = 0;
             Object.keys(ckLocal).forEach(function(mk){ ckMerged[mk] = ckLocal[mk]; });
             Object.keys(ckCloud).forEach(function(mk){
               if (!ckMerged[mk]){ ckMerged[mk] = ckCloud[mk]; ckFromCloud++; ckChanged++; return; }
-              if (_ckArchTs(ckCloud[mk]) > _ckArchTs(ckMerged[mk])){ ckMerged[mk] = ckCloud[mk]; ckChanged++; }
+              var lo = ckMerged[mk], cl = ckCloud[mk];
+              var pickP = _ckPickField(lo, lo, cl, _ckPerfpRows), pickC = _ckPickField(lo, lo, cl, _ckCheckRows);
+              var merged = { checkin: pickC.checkin || lo.checkin || cl.checkin || null,
+                             perfp: pickP.perfp || lo.perfp || cl.perfp || null,
+                             funnel: lo.funnel || cl.funnel || null,
+                             savedAt: (_ckArchTs(cl) > _ckArchTs(lo) ? cl.savedAt : lo.savedAt) };
+              if (JSON.stringify(merged) !== JSON.stringify(lo)){ ckMerged[mk] = merged; ckChanged++; }
             });
             if (ckChanged > 0){
               try {

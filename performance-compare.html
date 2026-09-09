@@ -2070,7 +2070,7 @@
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=funneldb1"></script>
+<script defer src="./firebase-sync.js?v=emptyguard1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -6968,18 +6968,48 @@
         return best;
       } catch(e){ return null; }
     }
+    // ★ 2026/09 空殼防呆：EIP 偶爾會回空表（逾時／權限／頁面改版），同步照樣寫進來 →
+    //   當月績效、報到整個變 0。規則：空殼一律不覆蓋既有非空資料，畫面讀到空殼就自動退回同月封存。
+    function _ckIsEmptyPerfp(d){
+      if (!d || !d.orgs) return true;
+      var n = 0; for (var o in d.orgs){ n += (d.orgs[o] || []).length; }
+      return n === 0;
+    }
+    function _ckIsEmptyCheckin(d){
+      if (!d) return true;
+      var f = d.formal && d.formal.byAcademy, n = 0;
+      if (f) for (var k in f){ n += _ckNum(f[k]); }
+      return n === 0;
+    }
+    function _ckSameYm(d, ym){
+      return !!(d && d.meta && d.meta.year && (d.meta.year + '-' + _ckPad2(parseInt(d.meta.month, 10))) === ym);
+    }
+    // 空殼 → 找同月封存（自己的優先，其次其他角色）救回來
+    function _ckArchFallback(field, live){
+      try {
+        if (!live || !live.meta || !live.meta.year) return null;
+        var ym = live.meta.year + '-' + _ckPad2(parseInt(live.meta.month, 10));
+        var rec = ckGetArchive()[ym]; var d = rec && rec[field];
+        if (!d) return null;
+        if (field === 'perfp' && _ckIsEmptyPerfp(d)) return null;
+        if (field === 'checkin' && _ckIsEmptyCheckin(d)) return null;
+        return d;
+      } catch(e){ return null; }
+    }
     function ckGetCheckin(){
       try {
         var s = localStorage.getItem(_ckCid() + 'motiv_checkin_v1');
-        if (s) return JSON.parse(s);
-        return _ckBorrowLatest('_motiv_checkin_v1');   // 自己沒有 → 借其他角色最新的
+        var d = s ? JSON.parse(s) : _ckBorrowLatest('_motiv_checkin_v1');   // 自己沒有 → 借其他角色最新的
+        if (d && _ckIsEmptyCheckin(d)){ var f = _ckArchFallback('checkin', d); if (f) return f; }
+        return d;
       } catch(e){ return null; }
     }
     function ppGetData(){
       try {
         var s = localStorage.getItem(_ckCid() + 'motiv_perfp_v1');
-        if (s) return JSON.parse(s);
-        return _ckBorrowLatest('_motiv_perfp_v1');     // 自己沒有 → 借其他角色最新的
+        var d = s ? JSON.parse(s) : _ckBorrowLatest('_motiv_perfp_v1');     // 自己沒有 → 借其他角色最新的
+        if (d && _ckIsEmptyPerfp(d)){ var f = _ckArchFallback('perfp', d); if (f) return f; }
+        return d;
       } catch(e){ return null; }
     }
 
@@ -7055,6 +7085,11 @@
         function put(ym, field, data){
           if (!ym || !data) return;
           var prev = arch[ym] || {};
+          // ★ 空殼不覆蓋既有非空封存（EIP 抓空時保住上一次的好資料）
+          if (prev[field]){
+            if (field === 'perfp' && _ckIsEmptyPerfp(data) && !_ckIsEmptyPerfp(prev[field])){ console.warn('[ck] 當月績效抓到空表，保留原封存 ' + ym); return; }
+            if (field === 'checkin' && _ckIsEmptyCheckin(data) && !_ckIsEmptyCheckin(prev[field])){ console.warn('[ck] 報到抓到空表，保留原封存 ' + ym); return; }
+          }
           if (JSON.stringify(prev[field]) === JSON.stringify(data)) return;
           var rec = { checkin: prev.checkin || null, perfp: prev.perfp || null, savedAt: new Date().toISOString() };
           rec[field] = data;
@@ -7093,6 +7128,15 @@
       try {
         ckArchiveCurrent(); // 先把 live 同步資料封存進該月，確保最後記錄留存
         try { fnArchiveCurrent(); } catch(e0){}
+        // ★ live 被空殼蓋掉 → 用同月封存回填，畫面與各分頁一起恢復
+        try {
+          [['perfp','motiv_perfp_v1',_ckIsEmptyPerfp],['checkin','motiv_checkin_v1',_ckIsEmptyCheckin]].forEach(function(t){
+            var raw = localStorage.getItem(_ckCid() + t[1]); if (!raw) return;
+            var live = JSON.parse(raw); if (!live || !t[2](live)) return;
+            var back = _ckArchFallback(t[0], live);
+            if (back){ localStorage.setItem(_ckCid() + t[1], JSON.stringify(back)); console.warn('[ck] ' + t[1] + ' 是空表，已用封存版本回填'); }
+          });
+        } catch(eR){ console.warn('[ck] 空殼回填失敗', eR); }
         if (ckSel && !_ckSelHasData(ckSel)){
           var last = _ckLatestYmWithData();
           if (last){

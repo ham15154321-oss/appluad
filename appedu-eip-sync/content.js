@@ -889,6 +889,22 @@
     try { localStorage.setItem(k, v); return true; }
     catch(e){ console.error('[EIP Content] localStorage 寫入失敗 (quota?):', k, e.message); return false; }
   }
+  // ★ 2026/09 空殼防呆：EIP 偶爾回空表（逾時／權限／改版），照寫會把好資料蓋成 0。
+  //   規則：抓到空的、而本機同月已有非空資料 → 保留舊資料，並在完成訊息提醒重跑。
+  function _sameYm(d, year, month){
+    return !!(d && d.meta && String(d.meta.year) === String(year) && parseInt(d.meta.month, 10) === parseInt(month, 10));
+  }
+  function _perfpRows(d){ var n = 0; if (d && d.orgs) for (var o in d.orgs) n += (d.orgs[o] || []).length; return n; }
+  function _checkinRows(d){ var n = 0, f = d && d.formal && d.formal.byAcademy; if (f) for (var k in f) n += (parseInt(f[k], 10) || 0); return n; }
+  function _keepIfEmpty(key, incoming, year, month, countFn){
+    if (countFn(incoming) > 0) return { data: incoming, kept: false };
+    var old = null; try { old = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+    if (old && _sameYm(old, year, month) && countFn(old) > 0){
+      console.warn('[EIP Content] ⚠️ 抓到空表，保留本機既有資料：' + key);
+      return { data: old, kept: true };
+    }
+    return { data: incoming, kept: false };
+  }
   function _nowStr(){
     var now = new Date();
     return now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate()
@@ -932,10 +948,9 @@
       console.warn('[EIP Content] 單頁分組個人績效不足（covered=' + (grouped?grouped.covered:0) + '），改逐學院補抓');
       perfPData = await fetchPerfPPerOrg(year, month);
     }
-    var perfPTotal = 0;
-    if (perfPData){ for (var po in perfPData.orgs) perfPTotal += perfPData.orgs[po].length; }
-
     var cid = _cid(), ts = _nowStr();
+    var _perfPKeep = _keepIfEmpty(cid + 'motiv_perfp_v1', perfPData || { orgs:{}, meta:{ year: year, month: month } }, year, month, _perfpRows);
+    var perfPTotal = _perfpRows(_perfPKeep.data);
     var pairs = [
       [cid + 'motiv_academy_v1', JSON.stringify(academyData)],
       [cid + 'motiv_sales_v1', JSON.stringify(salesData)],
@@ -943,7 +958,7 @@
       [cid + 'motiv_group_performance_meta', JSON.stringify({ year: year, month: month })],
       [cid + 'motiv_reserve_performance_v1', JSON.stringify(reserveData)],
       [cid + 'motiv_reserve_performance_meta', JSON.stringify({ year: year, month: month })],
-      [cid + 'motiv_perfp_v1', JSON.stringify(perfPData || { orgs:{}, meta:{ year: year, month: month } })],
+      [cid + 'motiv_perfp_v1', JSON.stringify(_perfPKeep.data || { orgs:{}, meta:{ year: year, month: month } })],
       [cid + 'motiv_updated_at', ts],
       [cid + 'motiv_synced_motiv', ts]
     ];
@@ -956,6 +971,7 @@
       reservePerformance: reserveData, reserveMeta: { year: year, month: month },
       perfP: perfPData, updateTime: ts,
       msg: '🏆 激勵同步完成！學院 ' + academyData.length + ' / 業務 ' + salesData.length + ' / 正式 ' + groupData.length + ' 組 / 儲備 ' + reserveData.length + ' 組 / 個人績效 ' + perfPTotal + ' 人'
+        + (_perfPKeep.kept ? '　⚠️ 這次個人績效抓到空表（EIP 可能逾時或權限問題），已保留上一次的資料，請稍後再同步一次' : '')
     });
   }
 
@@ -963,12 +979,15 @@
   async function syncCheckin(year, month){
     var checkinData = await fetchCheckin(year, month);
     var cid = _cid(), ts = _nowStr();
+    var _ckKeep = _keepIfEmpty(cid + 'motiv_checkin_v1', checkinData, year, month, _checkinRows);
+    checkinData = _ckKeep.data;
     _safeSet(cid + 'motiv_checkin_v1', JSON.stringify(checkinData));
     _safeSet(cid + 'motiv_synced_checkin', ts);
     _safeSet(cid + 'motiv_updated_at', ts);
     notify('done', {
       mode: 'checkin', checkin: checkinData, updateTime: ts,
       msg: '🚪 報到排名同步完成！已報到 ' + checkinData.formal.total + ' / 網路 ' + checkinData.net.total + ' / 到月底 ' + checkinData.rs.total + ' 筆'
+        + (_ckKeep.kept ? '　⚠️ 這次抓到空表，已保留上一次的資料，請稍後再同步一次' : '')
     });
   }
 
