@@ -21,6 +21,7 @@
     var year = e.data.year || new Date().getFullYear();
     var month = e.data.month || String(new Date().getMonth() + 1).padStart(2, '0');
     var mode = e.data.mode || 'motiv';
+    if (e.data.region && mode === 'trial') mode = 'trial:' + e.data.region;
     console.log('[EIP Content] 收到同步請求 year=' + year + ' month=' + month + ' mode=' + mode);
     doSync(year, month, mode);
   });
@@ -1094,7 +1095,8 @@
         a: app,                                         // 報名中的課程數（報未註）
         r: reg,                                         // 已註冊課程數
         c: courses.slice(0, 4).join('、'),
-        m: ix.note != null ? _fnTxt(tds[ix.note]).slice(0, 60) : '',
+        m: ix.note != null ? _fnTxt(tds[ix.note]).slice(0, 200) : '',
+        id: _trialRowId(trs[i]),                        // 學員 id（深挖狀態歷史記錄用）
         t: ix.paid != null ? parseFloat(_fnTxt(tds[ix.paid]).replace(/,/g, '')) || 0 : 0
       });
     }
@@ -1222,6 +1224,184 @@
     });
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // 🔎 模式 E：試聽深挖（狀態歷史記錄）— v5.19
+  //   面談紀錄總表的「備註」只有最新一筆追蹤情形，業務把試聽日寫在更早的紀錄裡就看不到。
+  //   這個模式會逐人打開「新增狀態記錄」視窗，把 狀態歷史記錄 裡每一筆「追蹤情形」抓回來，
+  //   交給頁面判斷（關鍵字與日期規則寫在頁面，改規則不用重抓）。
+  //   為了不影響公司 EIP：
+  //     ① 只挖「本月面談」的人（不是三個月）
+  //     ② 已註冊、已繳報名費的人跳過（答案已定）
+  //     ③ 增量：備註沒變、上次挖過的人跳過
+  //     ④ 可以只挖一個區（中區／桃區／南區）
+  //     ⑤ 每人間隔 2 秒，一次一個請求
+  // ══════════════════════════════════════════════════════════════
+  var TRIAL_THROTTLE_MS = 2000, TRIAL_ORG_GAP_MS = 3000;
+  var TRIAL_REGIONS = {
+    all:     { label: '全省七家', orgs: ['台中學院','台中二部','台中三部','中壢學院','中壢二部','中壢三部','高雄建國'] },
+    central: { label: '中區',     orgs: ['台中學院','台中二部','台中三部'] },
+    taoyuan: { label: '桃區',     orgs: ['中壢學院','中壢二部','中壢三部'] },
+    south:   { label: '南區',     orgs: ['高雄建國'] }
+  };
+  // 從列表的一列裡找出學員 id（新增按鈕的 onclick / href 參數）
+  function _trialRowId(tr){
+    try {
+      var h = tr.innerHTML || '';
+      var m = /(?:onclick|href)\s*=\s*["'][^"']*?(?:\(|[?&][a-z_0-9]{1,12}=)\s*'?"?(\d{3,12})/i.exec(h);
+      if (m) return m[1];
+      var m2 = /\b(?:id|sid|student_id|q1)\s*=\s*["']?(\d{3,12})/i.exec(h);
+      return m2 ? m2[1] : '';
+    } catch(e){ return ''; }
+  }
+  // 自動探測「新增狀態記錄」的網址樣板（{id} 會被換成學員 id）
+  var _trialUrlTpl = null, _trialDiag = '';
+  function _trialFindTpl(listHtml, sampleId){
+    var cands = [];
+    // ① 列表裡直接寫的 href
+    var re = /href\s*=\s*["']([^"']*(?:status|interview|record|call|track)[^"']*\.php[^"']*)["']/ig, m;
+    while ((m = re.exec(listHtml))) cands.push(m[1]);
+    // ② onclick 呼叫的函式 → 找函式本體裡的 .php 路徑
+    var fns = {}, re2 = /onclick\s*=\s*["']\s*([A-Za-z_$][\w$]*)\s*\(/g;
+    while ((m = re2.exec(listHtml))) fns[m[1]] = 1;
+    Object.keys(fns).forEach(function(fn){
+      var i = listHtml.indexOf('function ' + fn);
+      if (i < 0) return;
+      var body = listHtml.slice(i, i + 1200);
+      var re3 = /["']([^"']*\.php[^"']*)["']/g, m3;
+      while ((m3 = re3.exec(body))) cands.push(m3[1]);
+    });
+    // 整理成樣板
+    var out = [];
+    cands.forEach(function(u){
+      if (!u || /login|logout|\.js|\.css/i.test(u)) return;
+      var abs = u.indexOf('http') === 0 ? u : ('http://eip.appedu.com.tw/' + String(u).replace(/^\.?\//, ''));
+      abs = abs.replace(/(\?|&)([a-z_0-9]{1,14})=(\d{3,12})/i, '$1$2={id}');
+      if (abs.indexOf('{id}') < 0) abs += (abs.indexOf('?') > 0 ? '&' : '?') + 'id={id}';
+      if (out.indexOf(abs) < 0) out.push(abs);
+    });
+    // 常見備援樣板
+    ['class/student/student/interview/status.php?id={id}',
+     'class/student/student/interview/add.php?id={id}',
+     'class/student/student/interview/record.php?id={id}',
+     'class/student/student/status.php?id={id}'].forEach(function(u){
+      var abs = 'http://eip.appedu.com.tw/' + u;
+      if (out.indexOf(abs) < 0) out.push(abs);
+    });
+    _trialDiag = '候選：' + out.slice(0, 6).join(' ｜ ');
+    return out;
+  }
+  // 解析「狀態歷史記錄」：回傳 [{d:撥打日期, s:狀態, m:追蹤情形}]（最多 8 筆，新到舊）
+  function _trialParseHistory(html){
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var body = doc.body ? doc.body.innerText || doc.body.textContent || '' : '';
+    if (body.indexOf('狀態歷史記錄') < 0) return null;
+    var out = [];
+    // 表格式：每筆一個小表，欄位是「撥打日期 / 狀態 / 追蹤情形 / 承辦人 / 時間(狀態值) / 修改人」
+    var tables = doc.querySelectorAll('table');
+    for (var t = 0; t < tables.length; t++){
+      var txt = tables[t].innerText || tables[t].textContent || '';
+      if (txt.indexOf('撥打日期') < 0 && txt.indexOf('追蹤情形') < 0) continue;
+      var cells = tables[t].querySelectorAll('td, th');
+      var rec = { d:'', s:'', m:'' }, got = false;
+      for (var c = 0; c < cells.length - 1; c++){
+        var lab = (cells[c].innerText || cells[c].textContent || '').replace(/\s+/g, '');
+        var val = (cells[c+1].innerText || cells[c+1].textContent || '').replace(/\s+/g, ' ').trim();
+        if (lab === '撥打日期'){ if (got && (rec.m || rec.d)) { out.push(rec); rec = { d:'', s:'', m:'' }; } rec.d = val; got = true; }
+        else if (lab === '狀態') rec.s = val;
+        else if (lab === '追蹤情形') rec.m = val.slice(0, 160);
+        else if (lab === '時間(狀態值)' && !rec.t) rec.t = val;
+      }
+      if (got && (rec.m || rec.d)) out.push(rec);
+    }
+    if (!out.length){
+      // 純文字備援：抓「追蹤情形 …」後面那段
+      var re = /追蹤情形[\s:：]*([^\n]{2,160})/g, m;
+      while ((m = re.exec(body))) out.push({ d:'', s:'', m: m[1].trim() });
+    }
+    return out.slice(0, 8);
+  }
+  // 挖一個人
+  async function _trialFetchOne(id, tpls){
+    for (var i = 0; i < tpls.length; i++){
+      var url = tpls[i].replace('{id}', id);
+      var html;
+      try { html = await fetchViaBackground(url); } catch(e){ continue; }
+      if (_looksLikeLogin(html)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再挖');
+      var h = _trialParseHistory(html);
+      if (h){ if (i > 0) tpls.unshift(tpls.splice(i, 1)[0]); return h; }   // 成功的樣板往前排
+    }
+    return null;
+  }
+  async function syncTrial(year, month, region){
+    var y = parseInt(year, 10), m = parseInt(month, 10);
+    var reg = TRIAL_REGIONS[region] || TRIAL_REGIONS.all;
+    var orgs = PERF_ORGS.filter(function(o){ return reg.orgs.indexOf(o.name) >= 0; });
+    var mStart = y + '/' + _fnPad2(m) + '/01', mEnd = y + '/' + _fnPad2(m) + '/' + _fnPad2(_fnLastDay(y, m));
+    var cid = _cid(), key = cid + 'motiv_trial_v1';
+    var store = null; try { store = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+    if (!store || !store.meta || store.meta.year !== y || store.meta.month !== m) store = { meta: { year:y, month:m }, orgs: {} };
+    store.meta.syncedAt = _nowStr(); store.meta.lastRegion = reg.label;
+
+    notify('status', { msg: '🔎 試聽深挖（' + reg.label + '）：先抓本月面談名單…', prog: { org:0, total:orgs.length, phase:'start' } });
+    var kaTimer = setInterval(function(){ try { chrome.runtime.sendMessage({ action:'keepalive' }, function(){ void chrome.runtime.lastError; }); } catch(e){} }, 12000);
+    var nScan = 0, nSkip = 0, nFail = 0, nPeople = 0;
+    try {
+      for (var k = 0; k < orgs.length; k++){
+        var org = orgs[k];
+        var lab = '🔎 ' + org.name + '（' + (k+1) + '/' + orgs.length + '）';
+        var url = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id
+          + '&q5=' + encodeURIComponent(mStart) + '&q6=' + encodeURIComponent(mEnd);
+        // 順便留一份第一頁 HTML 給網址探測用
+        var firstHtml = await fetchViaBackground(url + '&pg=1');
+        if (_looksLikeLogin(firstHtml)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再挖');
+        var rows = _fnParseInterviewPage(firstHtml) || [];
+        if (rows.length >= 30){
+          await sleep(TRIAL_THROTTLE_MS);
+          var more = await _fnFetchPaged(url, lab + ' 本月面談', _fnParseInterviewPage, 20, { org:k+1, total:orgs.length, name:org.name, phase:'itv' });
+          if (more.length > rows.length) rows = more;
+        }
+        var prev = store.orgs[org.name] || {};
+        var cur = {};
+        // 篩出「需要挖」的人：未註冊、未繳報名費、備註 sig 有變或沒挖過
+        var todo = [];
+        rows.forEach(function(r){
+          if (!r.n) return;
+          nPeople++;
+          var old = prev[r.n];
+          if (r.r > 0 || r.a > 0){ cur[r.n] = old || { skip:'已註冊/已繳報名費' }; nSkip++; return; }   // 答案已定
+          var sig = (r.m || '') + '|' + (r.d || '');
+          if (old && old.sig === sig && old.h){ cur[r.n] = old; nSkip++; return; }                      // 增量：沒變就不挖
+          todo.push({ n:r.n, id:r.id, sig:sig, o:r.o, d:r.d });
+        });
+        if (!_trialUrlTpl) _trialUrlTpl = _trialFindTpl(firstHtml, todo.length ? todo[0].id : '');
+        notify('status', { msg: lab + '：本月面談 ' + rows.length + ' 人，要挖 ' + todo.length + ' 人（其餘已確定或沒變動）', prog: { org:k+1, total:orgs.length, name:org.name, phase:'scan', rows:todo.length } });
+        for (var i = 0; i < todo.length; i++){
+          var t = todo[i];
+          if (i > 0) await sleep(TRIAL_THROTTLE_MS);
+          var hist = null;
+          if (t.id){ try { hist = await _trialFetchOne(t.id, _trialUrlTpl); } catch(eOne){ if (String(eOne.message||'').indexOf('登入頁') >= 0) throw eOne; } }
+          if (hist){ cur[t.n] = { sig:t.sig, h:hist, at:_nowStr() }; nScan++; }
+          else { cur[t.n] = { sig:t.sig, h:[], at:_nowStr(), fail:1 }; nFail++; }
+          notify('status', { msg: lab + ' 挖第 ' + (i+1) + '/' + todo.length + ' 人：' + t.n, prog: { org:k+1, total:orgs.length, name:org.name, phase:'dig', page:i+1, rows:todo.length } });
+        }
+        store.orgs[org.name] = cur;
+        _safeSet(key, JSON.stringify(store));            // 每家存一次，中途關掉也不會全白跑
+        if (k < orgs.length - 1){ notify('status', { msg: lab + ' 完成，停 3 秒讓 EIP 喘口氣…', prog: { org:k+1, total:orgs.length, name:org.name, phase:'done' } }); await sleep(TRIAL_ORG_GAP_MS); }
+      }
+    } finally { try { clearInterval(kaTimer); } catch(e){} }
+
+    _safeSet(cid + 'motiv_synced_trial', _nowStr());
+    _safeSet(cid + 'motiv_updated_at', _nowStr());
+    if (nScan === 0 && nFail > 0){
+      notify('error', { mode:'trial', msg:'🔎 深挖失敗：抓不到「狀態歷史記錄」視窗（' + nFail + ' 人）。請把這行回報給開發者 → ' + _trialDiag });
+      return;
+    }
+    notify('done', {
+      mode: 'trial', trial: store, updateTime: _nowStr(),
+      msg: '🔎 試聽深挖完成（' + reg.label + '）！本月面談 ' + nPeople + ' 人，新挖 ' + nScan + ' 人、跳過 ' + nSkip + ' 人（已確定或沒變動）' + (nFail ? '、失敗 ' + nFail + ' 人' : '')
+    });
+  }
+
   var _syncBusy = false; // ★ v5.5：全域單一同步鎖 — 同時間只允許一個模式抓 EIP
   async function doSync(year, month, mode){
     mode = mode || 'motiv';
@@ -1237,6 +1417,7 @@
       else if (mode === 'checkin') await syncCheckin(year, month);
       else if (mode === 'channel') await syncChannel(year, month);
       else if (mode === 'funnel') await syncFunnel(year, month);
+      else if (mode === 'trial' || mode.indexOf('trial:') === 0) await syncTrial(year, month, mode.indexOf(':') > 0 ? mode.split(':')[1] : 'all');
       else throw new Error('未知的同步模式: ' + mode);
     } catch(err){
       console.error('[EIP Content] 同步失敗:', err);

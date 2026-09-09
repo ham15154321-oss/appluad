@@ -73,6 +73,37 @@ document.addEventListener('DOMContentLoaded', function(){
       setStatus('⏳ 🔀 已在「業績數據中心」頁面開始一鍵同步：激勵 → 報到 → 漏斗（約 10～12 分鐘），進度面板在該頁下方中央', 'ok');
     } catch(err){ setStatus('❌ ' + (err.message || err), 'err'); }
   });
+
+  // 🔎 試聽深挖：中區／桃區／南區／全部 — 一樣交給「業績數據中心」頁面執行（進度面板在那邊）
+  [['central','中區'],['taoyuan','桃區'],['south','南區'],['all','全省七家']].forEach(function(pair){
+    var btn = document.getElementById('btnTrial_' + pair[0]);
+    if (!btn) return;
+    btn.addEventListener('click', async function(){
+      try {
+        var year = document.getElementById('selYear').value, month = document.getElementById('selMonth').value;
+        var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tabs || !tabs.length) throw new Error('找不到目前頁面');
+        var res = await chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id, allFrames: true }, world: 'MAIN',
+          func: function(y, m, region){
+            try {
+              if (!document.getElementById('fnBar')) return false;
+              var ys = document.getElementById('motivYearSelect'), ms = document.getElementById('motivMonthSelect');
+              if (ys) ys.value = String(y);
+              if (ms) ms.value = String(m).padStart(2, '0');
+              if (typeof fnTrialSync === 'function'){ fnTrialSync(region); return true; }
+              window.postMessage({ channel:'appedu-eip-sync', action:'request', year:y, month:m, mode:'trial', region:region }, '*');
+              return true;
+            } catch(e){ return false; }
+          },
+          args: [year, month, pair[0]]
+        });
+        if (!(res || []).some(function(r){ return r && r.result; }))
+          throw new Error('目前分頁沒有「業績數據中心」— 請先開啟人力發展 → 📊 業績數據中心，再按這顆');
+        setStatus('⏳ 🔎 ' + pair[1] + ' 試聽深挖已在「業績數據中心」頁面開始，進度看該頁下方面板', 'ok');
+      } catch(err){ setStatus('❌ ' + (err.message || err), 'err'); }
+    });
+  });
 });
 
 // EIP 請求節流（避免一次灌爆，0.4 秒間隔）
@@ -83,6 +114,9 @@ var HTML_PAGE_THROTTLE_MS = 800;
 function _setBusy(disabled){
   ['motiv','checkin','channel','funnel'].forEach(function(mode){
     var b = document.getElementById('btnSync_' + mode); if (b) b.disabled = disabled;
+  });
+  ['central','taoyuan','south','all'].forEach(function(rg){
+    var b = document.getElementById('btnTrial_' + rg); if (b) b.disabled = disabled;
   });
 }
 
