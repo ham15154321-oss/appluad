@@ -8984,10 +8984,14 @@
     //   規則（2026/09 決議）：日期 ≥ 基準日（同步當天）才算；沒寫日期也算；日期在下個月也算（標跨月）；
     //   日期已過、還沒註冊 → 另列「試聽後待追」。基準日：本月＝今天；舊月份＝那次同步的日期（最後一次去看的那天）。
     function _fnRefDate(raw, ym){
-      var live = _fnLiveFunnelYm();
-      if (ym === live) { var t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
-      var sa = raw && raw.meta && raw.meta.syncedAt ? _fnParseD(raw.meta.syncedAt) : null;
-      return sa || new Date(+ym.slice(0,4), +ym.slice(5), 0);
+      // ★ 基準日＝「判斷試聽有沒有過期」的那一天。
+      //   只看行事曆：正在進行中的月份 → 今天；已經結束的月份 → 那個月的最後一天。
+      //   （舊版是看「最後一次同步的是哪個月」，只要有人同步過別的月份，基準日就會退回那次同步日，
+      //     9/9 看還會以為是 9/7，9/8 的試聽就不會被判成過期。）
+      var t = new Date();
+      var curYm = t.getFullYear() + '-' + _ckPad2(t.getMonth() + 1);
+      if (ym === curYm) return new Date(t.getFullYear(), t.getMonth(), t.getDate());
+      return new Date(+ym.slice(0, 4), +ym.slice(5), 0);
     }
     // 試聽關鍵字（含常見錯字與其他說法）：試聽／視聽／體驗課／單元課／放正課／正課
     var FN_TRIAL_RE = /試聽|視聽|試廳|體驗課|體驗班|單元課|單元班|放正課|上正課|正課/;
@@ -9579,17 +9583,27 @@
             + (a.noteTrial.length ? '，加上沒繳報名費、但追蹤情形（總表備註）寫了「試聽」的 <b>' + a.noteTrial.length + '</b> 位（📝 備註試聽：試聽日 ≥ 同步當天、或沒寫日期才算；日期在下個月也算）' : '')
             + (s.extra ? '，加上主管記名報備的 <b>' + s.extra + '</b> 位' : '') + '。'
             + (a.poolTrial.length ? '　另有 <b>' + a.poolTrial.length + '</b> 位是前 1～3 個月面談、備註排了未來試聽日 —— 另列，不算本月安排試聽。' : '')
-            + (a.trialDue.length ? '　<b style="color:var(--tvWarn);">' + a.trialDue.length + '</b> 位排的試聽日已經過了、沒補排新的也沒註冊 → <b>已從安排試聽扣掉</b>，列「排了試聽沒來」。' : '')
+            + (a.trialDue.length ? '　另有 <b style="color:var(--tvWarn);">' + a.trialDue.length + '</b> 位已經從這個數字扣掉了（排了沒來，看下一列）。' : '')
             + (a.scanN ? '　🔎 這家有 <b>' + a.scanN + '</b> 位做過「狀態歷史記錄」深挖（連更早的追蹤情形都看得到）；之後每次同步看到的新備註會自動累積，不用再挖一次。' : '')
             + _tvNames('有繳報名費＝安排試聽', a.trialList.filter(function(x){ return x.st !== '備註試聽'; }), function(x){ return { pill:x.st, sub:'面談 ' + x.d + (x.r ? ' → 註冊 ' + x.r : '') + (x.v ? '・' + _fnWan(x.v) : '') + (x.td ? '・備註試聽 ' + x.td : '') }; })
             + _tvNames('📝 追蹤情形寫了試聽（沒繳報名費）', a.noteTrial, function(x){ return { pill: x.td ? '試聽 ' + x.td + (x.cross ? '・跨月' : '') : '未寫日期', sub:'面談 ' + x.d + (x.src === 'hist' ? '・🔎深挖' : '') + '・「' + _fnEsc(x.tx) + '」' }; })
             + _tvNames('前 1～3 個月面談・已排未來試聽日（另列）', a.poolTrial, function(x){ return { pill:'試聽 ' + x.td + (x.cross ? '・跨月' : ''), sub:_fnMonthLabel(x.ym) + ' 面談・「' + _fnEsc(x.tx) + '」' }; }, 'x')
-            + _tvNames('⚠️ 排了試聽沒來（已從安排試聽扣掉）', a.trialDue, function(x){ return { pill:'排 ' + x.td + '・已過 ' + x.days + ' 天', sub:'面談 ' + x.d + (x.src === 'hist' ? '・🔎深挖' : '') + '・「' + _fnEsc(x.tx) + '」' }; }, 'x')
+
             + ((s.reports && s.reports.length) ? _tvNames('記名報備試聽', s.reports.filter(function(x){ return !x.ext; }), function(x){ return { pill: x.st === 'reg' ? '已註冊' : (x.st === 'dup' ? '重複不計' : '計入試聽'), sub:(x.grp ? _fnEsc(x.grp) + '・' : '') + (x.course ? _fnEsc(x.course) : '') + (x.date ? '・試聽日 ' + _fnEsc(x.date) : '') }; }, 'x') : '')
             + (s.ext && s.ext.n ? '<div class="tv-note" style="margin:8px 0 2px;font-size:.86rem;line-height:1.55;">🏫 <b>外院試聽 ' + s.ext.n + ' 位</b>（已簽 ' + s.ext.reg + '・經營中 ' + s.ext.mgmt + '）＝別家學院談過、我們安排試聽或收單的名單，<b>不計入</b>上面的安排試聽和三個百分比。'
                 + (s.ext.autoN ? '其中 ' + s.ext.autoN + ' 位是系統自動偵測：本月在本院有報名或註冊、三個月內本院沒面談紀錄、但在別家有面談紀錄。' : '') + (s.ext.manualN ? '另 ' + s.ext.manualN + ' 位是組長手動報備。' : '') + '註冊會掃七家收支，≥ 2 萬就自動 ✅ 並標簽在哪家。</div>'
                 + _tvNames('外院試聽名單', s.ext.list, function(x){ return { pill: x.st === 'reg' ? '✅ ' + (x.regAt === s.org ? '本院' : x.regAt) + ' 註冊' : '經營中', sub:(x.src ? '原 ' + _fnEsc(x.src) + (x.o ? '・' + _fnEsc(x.o) : '') + (x.d ? '・' + x.d + ' 面談' : '') : '來源未填') + (x.v ? '・' + _fnWan(x.v) : '') + (x.manual ? '・🖐 ' + _fnEsc(x.by || '') : '・🤖 自動') }; }, 'x') : '')
           : 'EIP 報名數 ' + s.signup + (s.extra ? ' ＋ 報備 ' + s.extra : '') + '。');
+      // ★ 主標列：排了試聽沒來（很重要 → 跟其他四格同一層，不藏在說明裡）
+      if (a){
+        flow += _tvRow('<span style="color:var(--tvWarn);">⚠️ 排了試聽沒來</span>',
+          '<span style="color:var(--tvWarn);">' + a.trialDue.length + '</span>',
+          '逐人資料自動算',
+          (a.trialDue.length
+            ? '<b>約好了試聽日、日子過了人沒出現，也沒有再排新的、也還沒註冊。</b>這 <b>' + a.trialDue.length + '</b> 位<b style="color:var(--tvWarn);">已經從上面的「安排試聽」扣掉了</b>，不會灌水。<br>只要業務重新約，下次同步就會自動加回「安排試聽」、這裡同步減一 —— 所以這個數字就是<b>現在該打電話重約的人</b>。'
+            : '目前沒有這種人：排過的試聽要嘛還沒到、要嘛人來了。<br>（判定：約定的試聽日已經過了 ＋ 沒有更新的試聽日 ＋ 還沒註冊。日子一過就自動掉進這裡，不用等同步。）')
+          + _tvNames('⚠️ 排了試聽沒來・現在該重約的人', a.trialDue, function(x){ return { pill:'排 ' + x.td + '・已過 ' + x.days + ' 天', sub:'面談 ' + x.d + (x.src === 'hist' ? '・🔎深挖' : '') + '・「' + _fnEsc(x.tx) + '」' }; }, 'x'));
+      }
       flow += _tvRow('試聽後結果', (s.known ? s.reg + ' 註冊 ／ ' + s.mgmt + ' 經營中' : '待填當下'), a ? '逐人資料自動算' : '手填後自動算',
         (s.known ? '試聽的人裡面：<b>' + s.reg + '</b> 位已經簽了（試聽後註冊），<b>' + s.mgmt + '</b> 位還在追 —— 這 ' + s.mgmt + ' 位就是下個月的收割名單。'
                  : '這家還沒同步逐人資料，也還沒手填「當下註冊」，所以算不出來。')
@@ -9603,6 +9617,27 @@
         + '<div class="tv-step"><span class="tv-n">1</span><b>先看金額</b><p>本月註冊金額（業績合計）加總要 <b>≥ 2 萬</b> 才算註冊。只繳 100 元報名費、或只繳部分款 → 不算註冊，改列「經營中」並標註已繳多少，人不會不見。</p></div>'
         + '<div class="tv-step"><span class="tv-n">2</span><b>再看名單新舊</b><p>看面談表的「<b>通路建檔日期</b>」＝這個名單什麼時候進公司的。<br><span style="color:var(--tvGood);font-weight:700;">Ⓐ 新名單</span>＝本月建檔（或展場空白）→ 走「當下／試聽後」<br><span style="color:var(--tvWarn);font-weight:700;">Ⓑ 舊名單</span>＝上個月以前建檔 → 一律算「追回」，就算本月才面談也一樣。</p></div>'
         + '<div class="tv-step"><span class="tv-n">3</span><b>最後看天數</b><p>只對 Ⓐ 新名單判斷：<b>註冊日 − 面談日 ≤ 3 天</b> → 當下註冊（當場成交力）；<b>&gt; 3 天</b> → 試聽後註冊（追回來才簽，不管有沒有繳 100 元）。</p></div>'
+        + '</div>';
+
+      // ── ③-2 試聽怎麼被認出來（給主管的判讀手冊）──
+      var kw = '<div class="tv-kw">'
+        + '<div class="tv-kwrow"><b>① 這些寫法都算「有安排試聽」</b>'
+        + '<div class="tv-chips2">' + ['試聽','視聽（打錯字也算）','試廳','體驗課','體驗班','單元課','單元班','放正課','上正課','正課'].map(function(t){ return '<span>' + t + '</span>'; }).join('') + '</div>'
+        + '<p>業務在 EIP「追蹤情形」裡寫的字，只要出現上面任一個詞，再配上一個日期，就會被算成安排了試聽。</p></div>'
+        + '<div class="tv-kwrow"><b>② 沒寫「試聽」兩個字也算：日期後面有「課」</b>'
+        + '<div class="tv-eg"><span class="ok">✅ 9/25 Procreate課</span><span class="ok">✅ 10/3 電繪課</span><span class="ok">✅ 9/20 排平面課</span></div>'
+        + '<p>日期後面 12 個字以內出現「課」就算。所以業務寫「幾月幾號的某某課」也抓得到，不用強迫他們改用詞。</p></div>'
+        + '<div class="tv-kwrow"><b>③ 這些不算</b>'
+        + '<div class="tv-eg"><span class="no">✘ 登9月ＩＰＡＤ一三課</span><span class="no">✘ 9/12 電話追蹤</span><span class="no">✘ 有興趣，之後再說</span></div>'
+        + '<p>「9月」沒有日、沒有完整日期 → 不算（避免把課程名稱誤判成試聽）。只有日期沒有課或試聽字樣 → 也不算。</p></div>'
+        + '<div class="tv-kwrow"><b>④ 日期一過，數字自己會掉</b>'
+        + '<p><b>約的日子過了、人沒來、也沒再排新的 → 自動從「安排試聽」扣掉</b>，改列上面那條 <span style="color:var(--tvWarn);font-weight:800;">⚠️ 排了試聽沒來</span>。<br>'
+        + '業務重新約一個未來的日期 → 下次同步就<b>自動加回「安排試聽」</b>，同時從「沒來」減掉。<br>'
+        + '如果業務後來寫了「取消／不來了／不參加／放棄」，這場就不算了，不會一直掛在試聽裡。</p></div>'
+        + '<div class="tv-kwrow"><b>⑤ 兩種來源</b>'
+        + '<p><b>名單頁的備註</b>（最新一筆追蹤情形）每次同步都會看到，會自動累積起來；<br>'
+        + '<b>更早的紀錄</b>要靠 <b>🔎 試聽深挖</b>（漏斗分頁上方的中區／桃區／南區按鈕）打開 EIP 的「狀態歷史記錄」才看得到，一個人挖過一次就夠了。</p></div>'
+        + '<div class="tv-kwtip">💡 要跟業務講的只有一句：<b>「試聽日期寫在追蹤情形裡，格式像 9/25 試聽 就好。」</b>其餘的錯字和寫法系統都吃得下來。</div>'
         + '</div>';
 
       // ── ④ 面談 vs 報到 ──
@@ -9675,6 +9710,17 @@
         +   'box-shadow:0 30px 90px rgba(0,0,0,.28);font-size:.92rem;line-height:1.65;'
         +   '-webkit-font-smoothing:antialiased;letter-spacing:.01em;}'
         + '#tvBox h2{margin:2px 0 0;font-size:1.6rem;font-weight:800;letter-spacing:-.01em;color:var(--tvInk);}'
+        + '.tv-kw{display:grid;gap:11px;}'
+        + '.tv-kwrow{background:var(--tvFill);border-radius:14px;padding:13px 16px;}'
+        + '.tv-kwrow b{font-size:.92rem;color:var(--tvInk);}'
+        + '.tv-kwrow p{margin-top:6px;font-size:.86rem;line-height:1.65;color:var(--tvDim);}'
+        + '.tv-chips2{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}'
+        + '.tv-chips2 span{background:#fff;border:1px solid var(--tvLine);border-radius:999px;padding:3px 11px;font-size:.79rem;font-weight:700;color:var(--tvAcc);}'
+        + '.tv-eg{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;}'
+        + '.tv-eg span{border-radius:8px;padding:4px 10px;font-size:.8rem;font-weight:700;}'
+        + '.tv-eg .ok{background:var(--tvGoodSoft);color:var(--tvGood);}'
+        + '.tv-eg .no{background:#F5F5F7;color:#98989D;text-decoration:line-through;}'
+        + '.tv-kwtip{background:var(--tvAccSoft);border-radius:14px;padding:13px 16px;font-size:.88rem;line-height:1.6;color:var(--tvInk);}'
         + '#tvBox h3{margin:30px 0 12px;font-size:1.02rem;font-weight:800;color:var(--tvInk);display:flex;align-items:center;gap:9px;letter-spacing:0;}'
         + '#tvBox h3 i{font-style:normal;width:21px;height:21px;border-radius:50%;background:var(--tvAcc);color:#fff;font-size:.72rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none;}'
         + '#tvBox p{margin:0;}'
@@ -9760,6 +9806,7 @@
         + '<h3><i>1</i>上排這幾個數字</h3>' + top
         + '<h3><i>2</i>中間四格漏斗</h3>' + flow
         + '<h3><i>3</i>一個學生會被分成哪一種？三步驟判定</h3>' + rules
+        + '<h3><i>3.5</i>「安排試聽」是怎麼被認出來的？（業務怎麼寫都抓得到）</h3>' + kw
         + '<h3><i>4</i>為什麼「實際面談 ' + s.interview + '」比「總報到 ' + s.checkin + '」還多？</h3>' + whyR
         + '<h3><i>5</i>「當下註冊 ' + s.onsite + '」是怎麼算出來的？</h3>' + five
         + (ex ? '<div class="tv-exs">' + ex + '</div><p style="font-size:.78rem;color:var(--tvDim);margin-top:6px;">↑ 這幾位是這張卡裡的真實案例，點卡片的「👥 名單」可以看到全部。</p>' : '')
