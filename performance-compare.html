@@ -1616,6 +1616,8 @@
     .fn-tb-btn { border:1px solid rgba(245,158,11,.5); background:#fff; color:#b45309; border-radius:999px; padding:3px 11px; font-size:.75rem; font-weight:800; cursor:pointer; font-family:inherit; }
     .fn-tb-btn:hover { background:#f59e0b; color:#fff; }
     .fn-tb-btn.wide { border-style:dashed; }
+    .fn-tb-btn.full { border-color:rgba(15,118,110,.5); color:#0f766e; margin-right:10px; }
+    .fn-tb-btn.full:hover { background:#14b8a6; color:#fff; }
     .fn-tb-ts { font-size:.68rem; color:var(--fnDim); }
     @media print { .fn-trialbar { display:none !important; } }
     .fn-copy { margin-left:8px; border:1px solid var(--fnLine); background:transparent; color:var(--fnDim); border-radius:999px; padding:1px 8px; font-size:.68rem; cursor:pointer; font-family:inherit; vertical-align:middle; }
@@ -2078,7 +2080,7 @@
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=emptyguard1"></script>
+<script defer src="./firebase-sync.js?v=idbkeys3"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -3624,7 +3626,7 @@
 
     // Switch tabs
     // ★ 載入「每月績效」iframe（懶載入；表頭 ☁️↑ 推送鈕也會用到）
-    var MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle5';
+    var MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle11';
     function _pcEnsureMpLoaded(){
       var f = document.getElementById('mp-iframe');
       if (f && (!f.src || f.src.indexOf(MP_TARGET_SRC) < 0)) f.src = MP_TARGET_SRC;
@@ -6717,20 +6719,50 @@
         if (info0){ info0.textContent = '⏳ 已有同步進行中，請等它跑完再按'; info0.style.color = '#e6a817'; }
         return;
       }
+      // 整串只問一次：今天已經跑過的模式列出來，讓使用者決定要不要重抓
+      var dup = modes.filter(function(md){ return !!_syncedTodayLabel(md); });
+      if (dup.length){
+        var names = dup.map(function(md){ return SYNC_MODES[md].label + '（' + _syncedTodayLabel(md) + '）'; }).join('\n　');
+        if (!confirm('今天已經同步過：\n　' + names + '\n\nEIP 的資料過了當天幾乎不會再變，重抓只是多打一次 EIP。\n\n還是要重跑整串嗎？')){
+          // 使用者自己取消 → 安靜收掉進度面板，不要顯示「同步中斷」
+          try { if (_fnProgTimer){ clearInterval(_fnProgTimer); _fnProgTimer = null; } var pe = document.getElementById('fnProg'); if (pe) pe.style.display = 'none'; } catch(e){}
+          return;
+        }
+      }
       var i = 0;
       function next(){
         if (i >= modes.length) return;
         var mode = modes[i++];
-        motivTriggerEipSync(mode, function(){ setTimeout(next, 600); }); // 模式之間隔 0.6 秒
+        motivTriggerEipSync(mode, function(){ setTimeout(next, 600); }, true); // 已在上面問過，序列內不再問
       }
       next();
     }
 
-    function motivTriggerEipSync(mode, onComplete){
+    // ★ 同一天重複按 → 先問一次（EIP 排行榜／報到過了當天基本不會變，避免手滑重複打 EIP）
+    var FULL_REFETCH_MODES = { motiv:1, checkin:1, channel:1 };   // 這幾顆每次都整批重抓 → 同一天重複按才需要問
+    function _syncedTodayLabel(mode){
+      try {
+        if (!FULL_REFETCH_MODES[mode]) return '';   // 漏斗／試聽深挖是增量，重複按很便宜，不打斷
+        var m = SYNC_MODES[mode]; if (!m || !m.tsKey) return '';
+        var ts = localStorage.getItem(_syncCid() + m.tsKey) || '';
+        if (!ts) return '';
+        var mm = /^(\d{4})\/(\d{1,2})\/(\d{1,2})/.exec(ts); if (!mm) return '';
+        var d = new Date(), today = d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate();
+        return (mm[1] + '/' + parseInt(mm[2],10) + '/' + parseInt(mm[3],10) === today) ? ts : '';
+      } catch(e){ return ''; }
+    }
+    function motivTriggerEipSync(mode, onComplete, skipDupCheck){
       mode = mode || 'motiv';
       var m = SYNC_MODES[mode];
       if (!m){ if (onComplete) onComplete(false); return; }
       if (m.busy){ if (onComplete) onComplete(false); return; }
+      if (!skipDupCheck){
+        var todayTs = _syncedTodayLabel(mode);
+        if (todayTs && !confirm(m.label + ' 今天已經同步過了（' + todayTs + '）。\n\nEIP 的資料過了當天幾乎不會再變，重抓只是多打一次 EIP。\n\n還是要重抓嗎？')){
+          if (onComplete) onComplete(false);
+          return;
+        }
+      }
       // ★ v5.5：全域單一同步 — 有任何模式在跑就不准再開新的（避免同時抓 EIP）
       if (_anySyncBusy()){
         var info0 = document.getElementById('motivUpdateInfo');
@@ -6771,12 +6803,18 @@
     // ★ 🔀 漏斗同步進度面板：七家逐一打勾、目前頁數、已跑時間、預估剩餘、提醒不要關頁
     var _fnProgT0 = 0, _fnProgTimer = null, _fnProgState = null;
     // ★ 一鍵三連：激勵 → 報到 → 漏斗（三個資料來源一次更新；面板從第 1 步就顯示）
-    function fnSyncAll(){
+    var _fnFunnelFull = false;   // true = 這次漏斗要完整重抓三個月
+    function fnSyncAll(full){
       if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      _fnFunnelFull = !!full;
       fnProgressStart(true);
       _fnProgState.stage = '① 激勵：面談／註冊Ⓐ／Ⓑ／新業績';
-      fnProgressRender('準備開始…');
+      fnProgressRender(full ? '準備開始（完整重抓，約 10～12 分鐘）…' : '準備開始（增量，通常 1～3 分鐘）…');
       motivSyncSeq(['motiv', 'checkin', 'funnel']);
+    }
+    function fnSyncFullAll(){
+      if (!confirm('🔁 完整重抓漏斗？\n\n會重新抓「本月＋往回 3 個月」全部逐人資料，約 10～12 分鐘。\n平常按「🔀 漏斗」就好：抓過的日期不會再抓，換月份也只補新的幾天。\n\n只有資料看起來怪怪的、或懷疑快取壞掉時才需要。')) return;
+      fnSyncAll(true);
     }
     // 🔎 試聽深挖：中區／桃區／南區／全省七家
     function fnTrialSync(region){
@@ -6909,7 +6947,7 @@
           } else if (mode === 'trial'){
             // 🔎 深挖結果搬進 FunnelDB（不佔 localStorage 額度），再重畫
             try {
-              var _tk = _ckCid() + 'motiv_trial_v1';
+              var _tk = _ckCid() + 'motiv_trial_v2';
               var _td = d.trial || null;
               if (!_td){ try { _td = JSON.parse(localStorage.getItem(_tk) || 'null'); } catch(e4){} }
               if (_td && typeof _fnIdbPut === 'function'){ _fnIdbPut(_tk, _td); try { localStorage.removeItem(_tk); } catch(e5){} }
@@ -6918,6 +6956,7 @@
           } else if (mode === 'funnel'){
             // ★ 擴充回傳的逐人 raw 直接存進 IndexedDB（不靠 localStorage，額度爆了也不會漏）
             try { if (d.funnel && d.funnel.orgs && typeof _fnIdbPut === 'function'){ _fnIdbPut(_ckCid() + 'motiv_funnel_v1', d.funnel); try { localStorage.removeItem(_ckCid() + 'motiv_funnel_v1'); } catch(e3){} } } catch(e2){}
+            try { _fnAbsorbNotes(d.funnel || fnGetRaw()); } catch(e2){}   // 📒 把這次看到的備註收進歷史池
             try { fnArchiveCurrent(); } catch(e2){}           // 逐人資料封存進該月
             try { fnRenderAll(); } catch(e2){}
           }
@@ -6949,7 +6988,7 @@
       var year = (ys && ys.value) ? parseInt(ys.value, 10) : now.getFullYear();
       var month = (ms && ms.value) ? ms.value : String(now.getMonth() + 1).padStart(2, '0');
 
-      window.postMessage({ channel: 'appedu-eip-sync', action: 'request', year: year, month: month, mode: mode, region: (mode === 'trial' ? _fnTrialRegion : undefined) }, '*');
+      window.postMessage({ channel: 'appedu-eip-sync', action: 'request', year: year, month: month, mode: mode, region: (mode === 'trial' ? _fnTrialRegion : undefined), full: (mode === 'funnel' ? !!_fnFunnelFull : undefined) }, '*');
 
       setTimeout(function(){
         // ★ 只在「擴充從頭到尾沒回報過任何進度」時才兜底；有心跳的長流程（🔀 漏斗 8 分鐘、報到網頁版翻頁）交給 90 秒看門狗
@@ -8731,7 +8770,7 @@
       try { var o = JSON.parse(s); window._fnIdbObj[k] = { s: s, o: o }; return o; } catch(e){ return null; }
     }
     window._fnIdbGet = _fnIdbGet;
-    function _fnIsFunnelKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1' || k.slice(-15) === '_motiv_trial_v1'); }
+    function _fnIsFunnelKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1' || k.slice(-15) === '_motiv_trial_v1' || k.slice(-15) === '_motiv_trial_v2' || k.slice(-10) === '_fn_itv_v1' || k.slice(-12) === '_fn_notes_v1'); }
     window._fnIsFunnelKey = _fnIsFunnelKey;
     // 把某個角色的 ck_archive 物件裡的 funnel 欄位搬進 IDB 的 fn_archive（回傳 true = 有搬）
     function _fnAbsorbCkFunnel(cid, arch){
@@ -8756,7 +8795,7 @@
         var keys = []; for (var i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
         keys.forEach(function(k){
           if (!k || k.indexOf('char_') !== 0) return;
-          if (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-15) === '_motiv_trial_v1'){
+          if (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-15) === '_motiv_trial_v1' || k.slice(-15) === '_motiv_trial_v2'){
             var s = localStorage.getItem(k); if (!s) return;
             _fnIdbPut(k, s);
             try { localStorage.removeItem(k); } catch(e){}
@@ -8799,9 +8838,11 @@
       var ownKey = _ckCid() + 'fn_archive_v1', best = null, bestT = -1;
       Object.keys(window._fnIdbCache || {}).forEach(function(k){
         if (k.slice(-14) !== '_fn_archive_v1') return;
-        var a = _fnIdbGet(k), rec = a && a[ym]; if (!rec || !rec.funnel) return;
+        var a = _fnIdbGet(k), rec = a && a[ym]; if (!rec) return;
+        var got = rec.funnel || (rec.pay ? _fnJoinFromPool(rec, ym) : null);   // 舊格式：整包；新格式：從共用池組回來
+        if (!got) return;
         var t = (Date.parse(rec.savedAt || 0) || 0) + (k === ownKey ? 1 : 0);
-        if (t > bestT){ bestT = t; best = rec.funnel; }
+        if (t > bestT){ bestT = t; best = got; }
       });
       if (best) return best;
       var a2 = ckGetArchive()[ym]; return (a2 && a2.funnel) || null;
@@ -8809,10 +8850,80 @@
     // 有哪些月份有逐人資料（給推送摘要／月份列用）
     function _fnArchiveYms(){
       var set = {}; var live = _fnLiveFunnelYm(); if (live) set[live] = 1;
-      Object.keys(window._fnIdbCache || {}).forEach(function(k){ if (k.slice(-14) !== '_fn_archive_v1') return; var a = _fnIdbGet(k) || {}; Object.keys(a).forEach(function(ym){ if (a[ym] && a[ym].funnel) set[ym] = 1; }); });
+      Object.keys(window._fnIdbCache || {}).forEach(function(k){ if (k.slice(-14) !== '_fn_archive_v1') return; var a = _fnIdbGet(k) || {}; Object.keys(a).forEach(function(ym){ if (a[ym] && (a[ym].funnel || a[ym].pay)) set[ym] = 1; }); });
       return Object.keys(set).sort();
     }
     window._fnArchiveYms = _fnArchiveYms;
+    // ═══ 月封存去重（2026/09）═══
+    //   舊做法：每個月的封存各存一份「本月＋前 3 個月」的完整逐人資料 → 7、8 月的面談會在 9、10、11 月的封存裡各存一次，資料量三倍。
+    //   新做法：面談逐人資料依「面談月份」拆進共用池 fn_itv_v1（一個月只有一份）；
+    //           各月封存 fn_archive_v1[ym] 只留「本月收支 pay」＋「引用哪幾個面談月份 itvYms」，回查時再組回來。
+    function _fnItvPoolKey(){ return _ckCid() + 'fn_itv_v1'; }
+    // ═══ 備註歷史池（2026/09）═══
+    //   名單頁的「備註」只有最新一筆追蹤情形，但我們每次同步都會看到當下那一筆 →
+    //   把每次看到的都存起來，久而久之就等於一份追蹤情形的流水帳，不用再打開 EIP 的歷史視窗重挖。
+    //   結構：{ 學院: { 姓名: [ { m:備註, at:第一次看到的時間 } ] } }（同一段文字只留一份）
+    function _fnNotesKey(){ return _ckCid() + 'fn_notes_v1'; }
+    function _fnAbsorbNotes(raw){
+      try {
+        if (!raw || !raw.orgs) return 0;
+        var box = _fnIdbGet(_fnNotesKey()) || {}, added = 0, now = Date.now();
+        Object.keys(raw.orgs).forEach(function(org){
+          var slot = box[org] || (box[org] = {});
+          (raw.orgs[org].itv || []).forEach(function(r){
+            var m = String(r.m || '').trim();
+            if (!m || !r.n) return;
+            var arr = slot[r.n] || (slot[r.n] = []);
+            for (var i = 0; i < arr.length; i++){ if (arr[i].m === m) return; }   // 同一段文字看過就不重複存
+            arr.push({ m: m, at: now, d: r.d || '' });
+            if (arr.length > 12) arr.shift();                                     // 一個人最多留 12 段
+            added++;
+          });
+        });
+        if (added) _fnIdbPut(_fnNotesKey(), box);
+        return added;
+      } catch(e){ console.warn('[fn] 備註累積失敗', e); return 0; }
+    }
+    function _fnNotesFor(org){
+      var box = _fnIdbGet(_fnNotesKey()) || {};
+      return box[org] || null;
+    }
+    // 把一份 raw 拆進共用池，回傳這份 raw 用到的面談月份清單
+    function _fnSplitToPool(raw){
+      var pool = _fnIdbGet(_fnItvPoolKey()) || {};
+      var yms = {}, changed = false;
+      Object.keys(raw.orgs || {}).forEach(function(org){
+        (raw.orgs[org].itv || []).forEach(function(r){
+          var d = String(r.d || ''); if (d.length < 7) return;
+          var ym = d.slice(0, 7).replace('/', '-');
+          yms[ym] = 1;
+          var slot = pool[ym] || (pool[ym] = {});
+          var arr = slot[org] || (slot[org] = []);
+          var key = r.n + '|' + r.d;
+          var hit = -1;
+          for (var i = 0; i < arr.length; i++){ if (arr[i].n + '|' + arr[i].d === key){ hit = i; break; } }
+          if (hit < 0){ arr.push(r); changed = true; }
+          else if (JSON.stringify(arr[hit]) !== JSON.stringify(r)){ arr[hit] = r; changed = true; }   // 備註有更新 → 覆蓋
+        });
+      });
+      if (changed) _fnIdbPut(_fnItvPoolKey(), pool);
+      return Object.keys(yms).sort();
+    }
+    // 從共用池組回某個月封存要的完整 raw
+    function _fnJoinFromPool(rec, ym){
+      if (!rec || !rec.pay) return null;
+      var pool = _fnIdbGet(_fnItvPoolKey()) || {};
+      var raw = { meta: rec.meta || { year: +ym.slice(0,4), month: +ym.slice(5) }, orgs: {} };
+      Object.keys(rec.pay).forEach(function(org){ raw.orgs[org] = { itv: [], pay: rec.pay[org] || [] }; });
+      (rec.itvYms || []).forEach(function(iy){
+        var slot = pool[iy] || {};
+        Object.keys(slot).forEach(function(org){
+          var o = raw.orgs[org] || (raw.orgs[org] = { itv: [], pay: [] });
+          o.itv = o.itv.concat(slot[org] || []);
+        });
+      });
+      return raw;
+    }
     // 同步完把逐人資料封存進該月（IDB fn_archive_v1[ym]，跨月回查不會消失）
     function fnArchiveCurrent(){
       if (!window._fnIdbReady) return;   // boot 完成後會再叫一次
@@ -8822,11 +8933,38 @@
         var ym = raw.meta.year + '-' + _ckPad2(parseInt(raw.meta.month, 10));
         var key = _ckCid() + 'fn_archive_v1';
         var own = _fnIdbGet(key) || {};
-        var rs = JSON.stringify(raw);
-        if (own[ym] && own[ym].funnel && JSON.stringify(own[ym].funnel) === rs) return;   // 沒變就不重寫
-        own[ym] = { savedAt: new Date().toISOString(), funnel: raw };
+        // ★ 面談拆進共用池（一個月只存一份），封存只留本月收支＋引用的面談月份
+        var itvYms = _fnSplitToPool(raw);
+        var pay = {};
+        Object.keys(raw.orgs || {}).forEach(function(org){ pay[org] = raw.orgs[org].pay || []; });
+        var rec = { savedAt: new Date().toISOString(), meta: raw.meta, itvYms: itvYms, pay: pay };
+        var prev = own[ym];
+        if (prev && !prev.funnel && JSON.stringify(prev.itvYms) === JSON.stringify(itvYms) && JSON.stringify(prev.pay) === JSON.stringify(pay)) return;
+        own[ym] = rec;
         _fnIdbPut(key, own);
       } catch(e){ console.warn('[fn] archive funnel 失敗', e); }
+    }
+    // 一次性瘦身：把舊的「每月各存一份 3 個月」封存拆進共用池
+    function _fnCompactArchives(){
+      try {
+        var key = _ckCid() + 'fn_archive_v1';
+        var own = _fnIdbGet(key); if (!own) return 0;
+        var before = JSON.stringify(own).length, n = 0;
+        Object.keys(own).forEach(function(ym){
+          var rec = own[ym]; if (!rec || !rec.funnel) return;
+          var itvYms = _fnSplitToPool(rec.funnel);
+          var pay = {};
+          Object.keys(rec.funnel.orgs || {}).forEach(function(org){ pay[org] = rec.funnel.orgs[org].pay || []; });
+          own[ym] = { savedAt: rec.savedAt, meta: rec.funnel.meta, itvYms: itvYms, pay: pay };
+          n++;
+        });
+        if (n){
+          _fnIdbPut(key, own);
+          var after = JSON.stringify(own).length + JSON.stringify(_fnIdbGet(_fnItvPoolKey()) || {}).length;
+          console.log('[fn-idb] 月封存去重：' + n + ' 個月，' + Math.round(before/1024) + 'K → ' + Math.round(after/1024) + 'K');
+        }
+        return n;
+      } catch(e){ console.warn('[fn] 封存去重失敗', e); return 0; }
     }
     // Boot：IDB → cache，再把 LS 舊資料搬過來，然後（若正停在漏斗分頁）重畫
     (function _fnIdbBoot(){
@@ -8835,6 +8973,8 @@
       }).catch(function(e){ console.warn('[fn-idb] 開啟失敗（改用 localStorage 相容模式）', e); }).then(function(){
         window._fnIdbReady = true;
         try { _fnMigrateLs(); } catch(e){}
+        try { _fnCompactArchives(); } catch(e){}
+        try { _fnAbsorbNotes(fnGetRaw()); } catch(e){}
         try { fnArchiveCurrent(); } catch(e){}
         try { var t9 = document.getElementById('tab-9'); if (t9 && t9.classList.contains('active') && typeof fnRenderAll === 'function') fnRenderAll(); } catch(e){}
         try { window.dispatchEvent(new CustomEvent('fn-idb-ready')); } catch(e){}
@@ -8891,38 +9031,57 @@
     // 🔎 深挖資料（狀態歷史記錄）：char_<id>_motiv_trial_v1（擴充寫入，頁面搬進 FunnelDB）
     function fnGetTrialScan(){
       try {
-        var own = _ckCid() + 'motiv_trial_v1';
-        var s = localStorage.getItem(own); if (s) return JSON.parse(s);
-        var d0 = _fnIdbGet(own); if (d0) return d0;
+        var cid = _ckCid();
+        // v2（跨月保留、以人為單位）優先，其次 v1（單月）
+        var picks = [cid + 'motiv_trial_v2', cid + 'motiv_trial_v1'];
+        for (var i = 0; i < picks.length; i++){
+          var sRaw = localStorage.getItem(picks[i]); if (sRaw) return JSON.parse(sRaw);
+          var d0 = _fnIdbGet(picks[i]); if (d0) return d0;
+        }
+        // 自己沒有 → 借其他角色最新的
         var best = null, bestT = '';
         Object.keys(window._fnIdbCache || {}).forEach(function(k){
-          if (k.slice(-15) !== '_motiv_trial_v1') return;
-          var d = _fnIdbGet(k); if (!d || !d.meta) return;
-          var ym = d.meta.year + '-' + String(d.meta.month || 0).padStart(2, '0');
-          if (ym > bestT){ bestT = ym; best = d; }
+          if (k.slice(-15) !== '_motiv_trial_v2' && k.slice(-15) !== '_motiv_trial_v1') return;
+          var d = _fnIdbGet(k); if (!d) return;
+          var at = (d.meta && d.meta.syncedAt) || '';
+          if (at > bestT){ bestT = at; best = d; }
         });
         return best;
       } catch(e){ return null; }
     }
-    // 某月某家的深挖結果 → { 姓名: [{d,s,m}] }
+    // 某家的深挖結果 → { 姓名: {h:[{d,s,m}]} }
+    //   v2：歷史紀錄是「人」的屬性，跨月都能用（回看舊月份時也拿得到當時那幾筆）。
+    //   v1（舊版）：只有同一個月才算數。
     function _fnScanFor(ym, org){
       var t = fnGetTrialScan();
-      if (!t || !t.meta) return null;
+      if (!t) return null;
+      if (t.people) return t.people[org] || null;
+      if (!t.meta) return null;
       if ((t.meta.year + '-' + _ckPad2(parseInt(t.meta.month, 10))) !== ym) return null;
       return (t.orgs && t.orgs[org]) || null;
     }
     // 深挖歷史 → 取「最新的一次試聽安排」：有未來日 → 有效；只有過去日 → 沒來
+    // 業務後來寫「取消／不來了」就不該再算成有試聽 → 用得上的關鍵字
+    var FN_CANCEL_RE = /取消|不來|不參加|沒來|不用了|放棄|退掉|改天再|再約/;
+    // 從（深挖歷史 ＋ 歷次累積的備註）判斷試聽：時間新的說了算
+    //   排序：深挖紀錄用「撥打日期」，累積備註用「第一次看到的時間」，新 → 舊
     function _fnTrialFromHist(recs, ref, ym){
       if (!recs || !recs.length) return null;
-      var future = null, past = null;
-      recs.forEach(function(r){
-        var t = _fnTrialNote(r && r.m, ref, ym);
-        if (!t || !t.d) return;
-        if (t.future){ if (!future || t.d < future.d) future = t; }        // 未來的取最近一場
-        else if (!past || t.d > past.d) past = t;                          // 過去的取最後一場
-      });
-      if (future) return Object.assign({ src:'hist' }, future);
-      if (past) return Object.assign({ src:'hist', noShow:true }, past);
+      var list = recs.map(function(r, i){
+        var t = 0;
+        if (r && r.d){ var dd = _fnParseD(r.d); if (dd) t = dd.getTime(); }
+        if (!t && r && r.at) t = +r.at || 0;
+        return { m: (r && r.m) || '', t: t, i: i };
+      }).sort(function(a, b){ return (b.t - a.t) || (b.i - a.i); });
+      for (var i = 0; i < list.length; i++){
+        var t = _fnTrialNote(list[i].m, ref, ym);
+        if (!t || !t.d) continue;
+        // 有「更新的」紀錄說取消 → 這場不算，繼續往更舊的找（通常就找不到了）
+        var cancelled = false;
+        for (var j = 0; j < i; j++){ if (FN_CANCEL_RE.test(list[j].m)){ cancelled = true; break; } }
+        if (cancelled) continue;
+        return t.future ? Object.assign({ src:'hist' }, t) : Object.assign({ src:'hist', noShow:true }, t);
+      }
       return null;
     }
     function _fnAuto(raw, org, ym){
@@ -8940,6 +9099,7 @@
                   noteTrial:[], poolTrial:[], trialDue:[], feeTrial:0, scanN:0 };
       var refD = _fnRefDate(raw, ym);
       var scan = _fnScanFor(ym, org);   // 🔎 深挖：狀態歷史記錄逐筆追蹤情形
+      var noteBox = _fnNotesFor(org);   // 📒 歷次同步看到的備註（不用重挖就能累積）
       var seen = {};
       for (var name in I){
         var rows = I[name].rows.sort(function(a,b){ return a.d - b.d; });
@@ -8952,11 +9112,14 @@
         var hasApp = p.app.length > 0 || rows.some(function(x){ return x.a > 0; });
         var regStatus = rows.some(function(x){ return x.r > 0; });
         var tn = _fnTrialNote(last.m, refD, ym);   // 📝 備註（最新追蹤情形）裡的試聽
-        // 🔎 深挖歷史：備註看不到、但更早的紀錄裡排過試聽 → 以歷史為準（未來日優先；只有過去日 = 排了沒來）
+        // 🔎 深挖歷史 ＋ 📒 歷次同步累積的備註：合在一起找「最靠近今天的未來試聽日」
+        var recs = [];
         var sc = scan && scan[name] && scan[name].h;
-        if (sc && sc.length){
-          out.scanN++;
-          var th = _fnTrialFromHist(sc, refD, ym);
+        if (sc && sc.length){ out.scanN++; recs = recs.concat(sc); }
+        var nb = noteBox && noteBox[name];
+        if (nb && nb.length){ recs = recs.concat(nb.map(function(x){ return { m: x.m, at: x.at }; })); }
+        if (recs.length){
+          var th = _fnTrialFromHist(recs, refD, ym);
           if (th && (!tn || !tn.d || (th.future && !tn.future) || (th.future && th.d < tn.d))) tn = th;
           else if (th && !tn) tn = th;
         }
@@ -9417,7 +9580,7 @@
             + (s.extra ? '，加上主管記名報備的 <b>' + s.extra + '</b> 位' : '') + '。'
             + (a.poolTrial.length ? '　另有 <b>' + a.poolTrial.length + '</b> 位是前 1～3 個月面談、備註排了未來試聽日 —— 另列，不算本月安排試聽。' : '')
             + (a.trialDue.length ? '　<b style="color:var(--tvWarn);">' + a.trialDue.length + '</b> 位排的試聽日已經過了、沒補排新的也沒註冊 → <b>已從安排試聽扣掉</b>，列「排了試聽沒來」。' : '')
-            + (a.scanN ? '　🔎 這家有 <b>' + a.scanN + '</b> 位做過「狀態歷史記錄」深挖（連更早的追蹤情形都看得到）。' : '')
+            + (a.scanN ? '　🔎 這家有 <b>' + a.scanN + '</b> 位做過「狀態歷史記錄」深挖（連更早的追蹤情形都看得到）；之後每次同步看到的新備註會自動累積，不用再挖一次。' : '')
             + _tvNames('有繳報名費＝安排試聽', a.trialList.filter(function(x){ return x.st !== '備註試聽'; }), function(x){ return { pill:x.st, sub:'面談 ' + x.d + (x.r ? ' → 註冊 ' + x.r : '') + (x.v ? '・' + _fnWan(x.v) : '') + (x.td ? '・備註試聽 ' + x.td : '') }; })
             + _tvNames('📝 追蹤情形寫了試聽（沒繳報名費）', a.noteTrial, function(x){ return { pill: x.td ? '試聽 ' + x.td + (x.cross ? '・跨月' : '') : '未寫日期', sub:'面談 ' + x.d + (x.src === 'hist' ? '・🔎深挖' : '') + '・「' + _fnEsc(x.tx) + '」' }; })
             + _tvNames('前 1～3 個月面談・已排未來試聽日（另列）', a.poolTrial, function(x){ return { pill:'試聽 ' + x.td + (x.cross ? '・跨月' : ''), sub:_fnMonthLabel(x.ym) + ' 面談・「' + _fnEsc(x.tx) + '」' }; }, 'x')
@@ -10121,7 +10284,8 @@
       try {
         var t = fnGetTrialScan();
         if (!t || !t.meta || !t.meta.syncedAt) return '尚未深挖';
-        var n = 0; Object.keys(t.orgs || {}).forEach(function(o){ Object.keys(t.orgs[o] || {}).forEach(function(k){ if (t.orgs[o][k] && t.orgs[o][k].h && t.orgs[o][k].h.length) n++; }); });
+        var src = t.people || t.orgs || {};
+        var n = 0; Object.keys(src).forEach(function(o){ Object.keys(src[o] || {}).forEach(function(k){ if (src[o][k] && src[o][k].h && src[o][k].h.length) n++; }); });
         return '上次 ' + t.meta.syncedAt + (t.meta.lastRegion ? '（' + t.meta.lastRegion + '）' : '') + '・已挖 ' + n + ' 人';
       } catch(e){ return ''; }
     }
@@ -10147,6 +10311,7 @@
           }).join('')
         + '<span class="fn-tb-ts">' + _fnTrialTsText() + '</span>'
         + '</div>'
+        + '<button class="fn-tb-btn full" onclick="fnSyncFullAll()" title="平常按右上角「🔀 漏斗」就好（只補本月新資料）。這顆是完整重抓本月＋前 3 個月，約 10～12 分鐘，換月份或資料怪怪的時候用。">🔁 漏斗全抓</button>'
         + '<div class="fn-seg">'
         +   '<button class="' + (fnView === 'card' ? 'on' : '') + '" onclick="fnSetView(\'card\')">▦ 卡片</button>'
         +   '<button class="' + (fnView === 'dash' ? 'on' : '') + '" onclick="fnSetView(\'dash\')">📊 儀表板</button>'
@@ -10191,7 +10356,7 @@
       'sync-motiv':   { t:'🏆 激勵', who:'更新：激勵、當月績效、成績單', src:'來源：EIP 學院績效表＋業務個人績效', time:'約 30 秒', freq:'建議每天', note:'最輕量的一顆，想看今天業績就按它。' },
       'sync-checkin': { t:'🚪 報到', who:'更新：報到排名（會先自動跑一次激勵）', src:'來源：EIP 通路名單（已報到／網路／到月底）', time:'約 1～2 分鐘', freq:'建議每週、非尖峰', note:'報到排名的業績欄也會一起變最新。' },
       'sync-channel': { t:'📋 通路', who:'更新：各通路績效、🎓 課程銷售分析', src:'來源：EIP 收支明細（同一份算兩個分頁）', time:'較久，依筆數', freq:'每 15 天、非尖峰', note:'課程銷售分析沒更新？就是這顆該按了。' },
-      'sync-funnel':  { t:'🔀 漏斗（一鍵三連）', who:'更新：月度漏斗總結（卡片＋儀表板）', src:'順序：① 激勵 → ② 報到 → ③ 面談紀錄總表＋營業收支逐人明細', time:'約 10～12 分鐘（刻意放慢、不影響 EIP）', freq:'每週一次、非尖峰', note:'按一次就把總報到、面談、註冊、逐人名單全部更新；中途請不要關頁面，會有進度面板。' },
+      'sync-funnel':  { t:'🔀 漏斗（一鍵三連・增量）', who:'更新：月度漏斗總結（卡片＋儀表板）', src:'順序：① 激勵 → ② 報到 → ③ 面談紀錄總表＋營業收支逐人明細', time:'第一次約 10～12 分鐘；同一個月之後再按只補新資料，約 1～3 分鐘', freq:'想看最新就按、非尖峰', note:'抓過的日期永遠不重抓（連換月份也只補新的那幾天），舊紀錄只更新「上次同步後被編輯過」的列；收支只補最近幾天；每抓完一家就先存，中途關掉不會白跑。要整批重來才按漏斗分頁裡的「🔁 漏斗全抓」。' },
       'lock':  { t:'💾 鎖定', who:'把目前畫面的資料鎖進「本月封存」', src:'不抓 EIP，只存本機＋雲端', time:'1 秒', freq:'同步完想保險時按', note:'即使之後 EIP 登出或同步失敗，這個月的數字不會跑掉。' },
       'push':  { t:'☁️↑ 推送', who:'把本機全部公司資料強制推上雲端', src:'平常會自動同步，不需要按', time:'幾秒', freq:'管理者限定，新月份同步完按一次', note:'同事按「☁️↓ 拉取」就能看到你剛同步的月份。' },
       'pull':  { t:'☁️↓ 拉取', who:'從雲端拉取全部公司資料（依月份合併）', src:'不會刪掉本機已有的月份', time:'幾秒', freq:'看不到新月份時按', note:'平常開頁面就會自動拉，通常不用按。' },

@@ -321,7 +321,11 @@ var IDB_MIGRATED_LS_SUFFIXES = [
   'prNextId',                    // → PrCasesDB.data
   'ai_casedb_v1',                // → AiCasedbDB.cases（錄音案例庫，全公司共用 IDB）
   'motiv_funnel_v1',             // → FunnelDB.kv（漏斗逐人 raw，每月 30 萬字；2026/09 搬離 LS）
-  'fn_archive_v1'                // → FunnelDB.kv（漏斗逐人月封存；靠「☁️↑ 強制推送」分片通道分發）
+  'fn_archive_v1',               // → FunnelDB.kv（漏斗逐人月封存；靠「☁️↑ 強制推送」分片通道分發）
+  'fn_itv_v1',                   // → FunnelDB.kv（面談逐人共用池，依面談月份存一份）
+  'fn_notes_v1',                 // → FunnelDB.kv（歷次同步看到的備註累積）
+  'motiv_trial_v1',              // → FunnelDB.kv（試聽深挖，舊版）
+  'motiv_trial_v2'               // → FunnelDB.kv（試聽深挖，跨月保留版）
 ];
 function _isIdbMigratedLsKey(k){
   if (!k) return false;

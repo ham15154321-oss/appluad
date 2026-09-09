@@ -574,7 +574,7 @@
         }
     </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=emptyguard1"></script>
+<script defer src="./firebase-sync.js?v=idbkeys3"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -2548,7 +2548,31 @@
             }catch(e){}
             return null;
         }
-        function _isFnIdbKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1'); }
+        function _isFnIdbKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1' || k.slice(-10) === '_fn_itv_v1' || k.slice(-12) === '_fn_notes_v1' || k.slice(-15) === '_motiv_trial_v1' || k.slice(-15) === '_motiv_trial_v2'); }
+        // ★ 2026/09 增量推送：整包上雲每次都全量（含 1MB 逐人資料）。改成逐項比簽章，只上傳有變動的。
+        //   簽章 = 長度 + 32bit hash（夠分辨內容有沒有變，成本極低）
+        function _sigOf(str){
+            var s = String(str == null ? '' : str), h = 5381;
+            for (var i = 0; i < s.length; i++){ h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; }
+            return s.length + '.' + h.toString(36);
+        }
+        // Firestore 文件 id：只留安全字元，太長就截斷＋加 hash 避免撞名
+        function _docIdOf(name){
+            var safe = String(name).replace(/[^A-Za-z0-9_一-鿿]/g, '_');
+            if (safe.length > 60) safe = safe.slice(0, 60);
+            return 'p_' + safe + '_' + _sigOf(name).split('.')[1];
+        }
+        function _chunkStr(str, size){
+            var out = [], pos = 0;
+            while (pos < str.length){
+                var end = Math.min(pos + size, str.length);
+                var cc = str.charCodeAt(end - 1);
+                if (cc >= 0xD800 && cc <= 0xDBFF && end < str.length) end++;   // 不切斷 emoji
+                out.push(str.slice(pos, end));
+                pos = end;
+            }
+            return out.length ? out : [''];
+        }
         function _getParentLS(){
             try{
                 var w = window;
@@ -2730,6 +2754,43 @@
                 //   payload 在 iframe 組成 JSON string,傳給 parent 由 parent realm 重建物件
                 var fsync = _getParentFirebaseSync();
                 if(!fsync){ alert('❌ 找不到 firebaseSync.writeGlobalDoc(需在 parent)'); return; }
+                // ══ 增量推送（v3）：把資料拆成一項一項，只上傳簽章有變的 ══
+                var items = {};
+                if (mp) items['mpData'] = JSON.stringify(mp);
+                Object.keys(lsBundle).forEach(function(k){ items['ls:' + k] = lsBundle[k]; });
+                if (kb) items['kb'] = JSON.stringify(kb);
+
+                var cloudMan = null;
+                try {
+                    var cm = await fsync.readGlobalDoc('_global_perf_data', 'bundle');
+                    if (cm && cm.data){ var pj = JSON.parse(cm.data); if (pj && pj.schema === 'company-bundle-v3') cloudMan = pj; }
+                } catch(eMan){ console.warn('[cloud-sync] 讀雲端 manifest 失敗，改為全量推送', eMan); }
+
+                var CHUNK = 200000;
+                var manifest = { schema: 'company-bundle-v3', items: {}, updatedAt: Date.now() };
+                var nUp = 0, nSame = 0, upChars = 0, totalChars = 0;
+                var names = Object.keys(items);
+                for (var ii = 0; ii < names.length; ii++){
+                    var nm = names[ii], val = items[nm] || '';
+                    var sig = _sigOf(val);
+                    totalChars += val.length;
+                    var old = cloudMan && cloudMan.items ? cloudMan.items[nm] : null;
+                    if (old && old.sig === sig){                       // 沒變 → 沿用雲端既有分片，一個位元組都不上傳
+                        manifest.items[nm] = old; nSame++; continue;
+                    }
+                    var parts = _chunkStr(val, CHUNK), docBase = _docIdOf(nm);
+                    for (var pi2 = 0; pi2 < parts.length; pi2++){
+                        btn.textContent = '☁️↑ 推送中... (' + (ii + 1) + '/' + names.length + ')';
+                        await fsync.writeGlobalDoc('_global_perf_data', docBase + '_' + pi2, parts[pi2], _getCurrentUserName());
+                    }
+                    manifest.items[nm] = { sig: sig, doc: docBase, parts: parts.length, chars: val.length };
+                    nUp++; upChars += val.length;
+                }
+                await fsync.writeGlobalDoc('_global_perf_data', 'bundle', JSON.stringify(manifest), _getCurrentUserName());
+                console.log('[cloud-sync] 增量推送完成：上傳 ' + nUp + ' 項（' + Math.round(upChars/1024) + 'K），沿用 ' + nSame + ' 項，總計 ' + Math.round(totalChars/1024) + 'K');
+                showStatus('✅ 已推送：' + nUp + ' 項有變動（' + Math.round(upChars/1024) + 'K）、' + nSame + ' 項沒變沿用雲端', 'success');
+                return;
+                // ── 以下為舊版全量路徑（保留不執行，方便回溯） ──
                 var bundle = {
                     mpData: mp ? JSON.stringify(mp) : '',
                     lsKeys: lsBundle,
@@ -2789,8 +2850,43 @@
                     return;
                 }
                 var bundle = JSON.parse(doc.data);
+                // ★ 2026/09 增量格式 v3：逐項讀，本機已經一樣的項目直接跳過不下載
+                if (bundle && bundle.schema === 'company-bundle-v3'){
+                    var pLS3 = _getParentLS(), host3 = _getFnHost();
+                    var localOf = function(nm){
+                        try {
+                            if (nm === 'mpData') return null;                       // mp 一律重讀（IDB，成本低）
+                            if (nm === 'kb') return null;
+                            var k = nm.slice(3);
+                            var v = null;
+                            try { v = pLS3.getItem(k); } catch(e){}
+                            if ((v === null || v === undefined) && host3){ try { v = host3._fnIdbCache[k]; } catch(e){} }
+                            return (v === null || v === undefined) ? null : String(v);
+                        } catch(e){ return null; }
+                    };
+                    var nm3 = Object.keys(bundle.items || {}), got = {}, nSkip3 = 0, nGet3 = 0;
+                    for (var i3 = 0; i3 < nm3.length; i3++){
+                        var name3 = nm3[i3], it3 = bundle.items[name3];
+                        var loc3 = localOf(name3);
+                        if (loc3 !== null && _sigOf(loc3) === it3.sig){ nSkip3++; continue; }   // 本機已經一樣 → 不下載
+                        btn.textContent = '☁️↓ 拉取中... (' + (i3 + 1) + '/' + nm3.length + ')';
+                        var buf3 = [];
+                        for (var q3 = 0; q3 < it3.parts; q3++){
+                            var pd3 = await fsync.readGlobalDoc('_global_perf_data', it3.doc + '_' + q3);
+                            if (!pd3 || typeof pd3.data !== 'string'){ buf3 = null; break; }
+                            buf3.push(pd3.data);
+                        }
+                        if (!buf3){ console.warn('[cloud-sync] 分片缺失，跳過', name3); continue; }
+                        got[name3] = buf3.join(''); nGet3++;
+                    }
+                    var mp3 = got['mpData'] ? JSON.parse(got['mpData']) : null;
+                    var ls3 = {}; Object.keys(got).forEach(function(n){ if (n.indexOf('ls:') === 0) ls3[n.slice(3)] = got[n]; });
+                    var kb3 = got['kb'] ? JSON.parse(got['kb']) : null;
+                    console.log('[cloud-sync] 增量拉取：下載 ' + nGet3 + ' 項、跳過 ' + nSkip3 + ' 項（本機已相同）');
+                    bundle = { mpData: mp3 ? JSON.stringify(mp3) : '', lsKeys: ls3, kb: kb3, _inc: { got: nGet3, skip: nSkip3, total: nm3.length } };
+                }
                 // ★ 2026/07 分片格式：bundle 是 manifest → 把 bundle_part_0..N 讀回來拼成完整資料
-                if (bundle && bundle.schema === 'company-bundle-v2-manifest'){
+                else if (bundle && bundle.schema === 'company-bundle-v2-manifest'){
                     var parts = [];
                     for (var pi = 0; pi < bundle.chunks; pi++){
                         btn.textContent = '☁️↓ 拉取中... (' + (pi + 1) + '/' + bundle.chunks + ')';
@@ -2895,9 +2991,60 @@
                                     var inc = {}; try{ inc = JSON.parse(v || '{}') || {}; }catch(e2){}
                                     Object.keys(inc).forEach(function(ym){
                                         var t1 = Date.parse((cur[ym]&&cur[ym].savedAt)||0)||0, t2 = Date.parse((inc[ym]&&inc[ym].savedAt)||0)||0;
-                                        if (!cur[ym] || !cur[ym].funnel || t2 >= t1) cur[ym] = inc[ym];
+                                        if (!cur[ym] || t2 >= t1) cur[ym] = inc[ym];   // 只比時間，新舊格式都適用
                                     });
                                     idbWrites.push(host._fnIdbPut(k, cur));
+                                } else if (k.slice(-10) === '_fn_itv_v1'){
+                                    // 面談共用池：依「面談月份 → 學院 → 姓名+面談日」合併，本機獨有的月份不會被雲端洗掉
+                                    var curP = {}; try{ curP = JSON.parse(host._fnIdbCache[k] || '{}') || {}; }catch(e1){}
+                                    var incP = {}; try{ incP = JSON.parse(v || '{}') || {}; }catch(e2){}
+                                    Object.keys(incP).forEach(function(ym){
+                                        var cs = curP[ym] || (curP[ym] = {});
+                                        Object.keys(incP[ym] || {}).forEach(function(og){
+                                            var arr = cs[og] || (cs[og] = []), idx = {};
+                                            arr.forEach(function(r, i){ idx[r.n + '|' + r.d] = i; });
+                                            (incP[ym][og] || []).forEach(function(r){
+                                                var kk = r.n + '|' + r.d;
+                                                if (idx[kk] === undefined){ arr.push(r); idx[kk] = arr.length - 1; }
+                                                else arr[idx[kk]] = r;   // 同一人同一場面談 → 用雲端較新的備註
+                                            });
+                                        });
+                                    });
+                                    idbWrites.push(host._fnIdbPut(k, curP));
+                                } else if (k.slice(-12) === '_fn_notes_v1'){
+                                    // 備註歷史池：依「學院 → 姓名」把沒看過的備註併進來（兩台各自看到的都留著）
+                                    var curN = {}; try{ curN = JSON.parse(host._fnIdbCache[k] || '{}') || {}; }catch(e1){}
+                                    var incN = {}; try{ incN = JSON.parse(v || '{}') || {}; }catch(e2){}
+                                    Object.keys(incN).forEach(function(og){
+                                        var cs = curN[og] || (curN[og] = {});
+                                        Object.keys(incN[og] || {}).forEach(function(nm){
+                                            var arr = cs[nm] || (cs[nm] = []), seen = {};
+                                            arr.forEach(function(x){ seen[x.m] = 1; });
+                                            (incN[og][nm] || []).forEach(function(x){ if (!seen[x.m]){ arr.push(x); seen[x.m] = 1; } });
+                                            if (arr.length > 12) cs[nm] = arr.slice(-12);
+                                        });
+                                    });
+                                    idbWrites.push(host._fnIdbPut(k, curN));
+                                } else if (k.slice(-15) === '_motiv_trial_v2'){
+                                    // 試聽深挖：依「學院 → 姓名」合併，時間新者勝；本機挖過的人不會被洗掉
+                                    var curT = null; try{ curT = JSON.parse(host._fnIdbCache[k] || 'null'); }catch(e1){}
+                                    var incT = null; try{ incT = JSON.parse(v || 'null'); }catch(e2){}
+                                    if (!curT || !curT.people){ idbWrites.push(host._fnIdbPut(k, incT || {})); }
+                                    else if (incT && incT.people){
+                                        Object.keys(incT.people).forEach(function(og){
+                                            var cp = curT.people[og] || (curT.people[og] = {});
+                                            Object.keys(incT.people[og] || {}).forEach(function(nm){
+                                                var a = cp[nm], b = incT.people[og][nm];
+                                                if (!a){ cp[nm] = b; return; }
+                                                var ta = a.ts || 0, tb = b.ts || 0;
+                                                if (ta || tb){ if (tb >= ta) cp[nm] = b; return; }
+                                                var ha = (a.h && a.h.length) ? 1 : 0, hb = (b.h && b.h.length) ? 1 : 0;
+                                                if (hb > ha) cp[nm] = b;                 // 沒有時間戳 → 有挖到內容的勝，其餘保留本機
+                                            });
+                                        });
+                                        if (incT.meta) curT.meta = Object.assign({}, incT.meta, curT.meta);
+                                        idbWrites.push(host._fnIdbPut(k, curT));
+                                    }
                                 } else {
                                     idbWrites.push(host._fnIdbPut(k, v));
                                 }
@@ -2925,7 +3072,7 @@
                     alert('⚠️ 拉取完成，但有 ' + failed.length + ' 筆資料寫不進這台瀏覽器（通常是 localStorage 5MB 額度滿了）：\n\n' + failed.join('\n')
                         + '\n\n請把這個畫面截圖給管理者。其他資料已更新，3 秒後重新整理。');
                 }
-                showStatus('✅ 已拉取 '+(mpMonths.length+lsKeyNames.length+(kbItemCount?1:0))+' 項公司資料,1.5 秒後重新整理', 'success');
+                showStatus('✅ 已拉取 '+(mpMonths.length+lsKeyNames.length+(kbItemCount?1:0))+' 項公司資料'+(bundle._inc ? '（雲端共 ' + bundle._inc.total + ' 項：' + bundle._inc.got + ' 項有更新、' + bundle._inc.skip + ' 項本機已是最新）' : '')+',1.5 秒後重新整理', 'success');
                 console.log('[cloud-sync] ✅ 拉取成功' + (failed.length ? '（' + failed.length + ' 筆寫入失敗）' : ''));
                 // ★ 重整「整個」業績數據中心（原本只重整這個看不見的 iframe，外層畫面沒變 → 以為沒拉到）
                 setTimeout(function(){ try{ window.top.location.reload(); }catch(e){ location.reload(); } }, failed.length ? 3000 : 1500);

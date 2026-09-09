@@ -22,6 +22,7 @@
     var month = e.data.month || String(new Date().getMonth() + 1).padStart(2, '0');
     var mode = e.data.mode || 'motiv';
     if (e.data.region && mode === 'trial') mode = 'trial:' + e.data.region;
+    if (mode === 'funnel' && e.data.full) mode = 'funnel:full';
     console.log('[EIP Content] 收到同步請求 year=' + year + ' month=' + month + ' mode=' + mode);
     doSync(year, month, mode);
   });
@@ -34,10 +35,10 @@
 
   // ── EIP 請求之間的節流間隔（避免一次對 EIP 灌爆，預設 0.4 秒） ──
   function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
-  var EIP_THROTTLE_MS = 400;
+  var EIP_THROTTLE_MS = 1000;
   // ★ v5.13：網頁版分頁 fallback 專用節流 — 這是唯一「逐頁連打」EIP 的流程，
   //   刻意放慢到 0.8 秒/頁，把對 EIP 的壓力降到最低（使用者可接受跑久一點）。
-  var HTML_PAGE_THROTTLE_MS = 800;
+  var HTML_PAGE_THROTTLE_MS = 1200;
 
   // ── 透過 background fetch（單次，不含重試）──
   function _fetchOnce(url){
@@ -53,9 +54,21 @@
   //   MV3 service worker 在連續請求的空檔會被 Chrome 休眠，偶爾把回應「掉包」→
   //   sendMessage 的 callback 永遠不觸發、整條同步吊死。解法：每次請求給 35 秒逾時，
   //   逾時就重發（重發會把睡著的 SW 喚醒）。最多試 3 次，仍失敗才真的報錯。
+  // ★ 對 EIP 的總閘門：所有請求都經過這裡，強制「任兩個請求之間至少隔 EIP_MIN_GAP_MS」。
+  //   各流程本身還有自己的節流（漏斗 2 秒/頁等），這道閘只是防止任何新程式碼不小心連發。
+  var EIP_MIN_GAP_MS = 800, _eipLastAt = 0, _eipGate = Promise.resolve();
+  function _eipGateWait(){
+    _eipGate = _eipGate.then(async function(){
+      var wait = EIP_MIN_GAP_MS - (Date.now() - _eipLastAt);
+      if (wait > 0) await sleep(wait);
+      _eipLastAt = Date.now();
+    });
+    return _eipGate;
+  }
   function fetchViaBackground(url){
     var MAX_TRY = 3, TIMEOUT_MS = 35000;
     async function attempt(n){
+      await _eipGateWait();          // ← 每一個請求都先過閘
       try {
         return await new Promise(function(resolve, reject){
           var done = false;
@@ -72,8 +85,9 @@
         var msg = (e && e.message) || '';
         // 逾時、SW 掉包、背景 abort、context invalidated → 還有次數就重試
         if (n < MAX_TRY && (msg === '__TIMEOUT__' || msg.indexOf('逾時') >= 0 || msg.indexOf('message channel') >= 0 || msg.indexOf('無回應') >= 0 || msg.indexOf('Receiving end') >= 0)){
-          console.warn('[EIP Content] 背景請求第 ' + n + ' 次無回應，重試...');
-          await sleep(500);
+          var backoff = n === 1 ? 3000 : 8000;   // 3 秒 → 8 秒（EIP 忙的時候要讓它喘，不是連敲）
+          console.warn('[EIP Content] 背景請求第 ' + n + ' 次無回應，' + (backoff/1000) + ' 秒後重試...');
+          await sleep(backoff);
           return attempt(n + 1);
         }
         if (msg === '__TIMEOUT__') throw new Error('EIP 背景請求逾時（' + MAX_TRY + ' 次都沒回應）— 請重新整理本頁再試');
@@ -1152,10 +1166,15 @@
   }
 
   // 通用：pg 翻頁抓到底（去重、空頁即停）
-  async function _fnFetchPaged(baseUrl, label, parsePage, maxPages, prog){
+  async function _fnFetchPaged(baseUrl, label, parsePage, maxPages, prog, opts){
     var all = [], seen = {}, gotTable = false;
-    for (var pg = 1; pg <= maxPages; pg++){
-      if (pg > 1) await sleep(FUNNEL_PAGE_THROTTLE_MS);
+    var startPg = (opts && opts.startPg) || 1;
+    if (opts && opts.seed && opts.seed.length){          // 第 1 頁已經抓過 → 直接沿用，不重抓
+      opts.seed.forEach(function(r){ var sg = JSON.stringify(r); if (!seen[sg]){ seen[sg] = 1; all.push(r); } });
+      gotTable = true;
+    }
+    for (var pg = startPg; pg <= maxPages; pg++){
+      if (pg > startPg || startPg > 1) await sleep(FUNNEL_PAGE_THROTTLE_MS);
       var html = await fetchViaBackground(baseUrl + '&pg=' + pg);
       if (/無權|沒有權限|權限不足/.test(String(html))) throw new Error(label + '：EIP 回覆「無權進入此頁」— 請找 EIP 管理員開通');
       var parsed = parsePage(html);
@@ -1179,48 +1198,308 @@
     return gotTable ? all : [];
   }
 
-  async function fetchFunnel(year, month){
+  // ── FunnelDB（跟頁面共用的 IndexedDB）讀寫：漏斗逐人資料太大，不走 localStorage ──
+  var FN_DB = { name:'FunnelDB', ver:1, store:'kv' };
+  function _fnDbOpen(){
+    return new Promise(function(res, rej){
+      try {
+        var q = indexedDB.open(FN_DB.name, FN_DB.ver);
+        q.onupgradeneeded = function(){ var db = q.result; if (!db.objectStoreNames.contains(FN_DB.store)) db.createObjectStore(FN_DB.store); };
+        q.onsuccess = function(){ res(q.result); };
+        q.onerror = function(){ rej(q.error); };
+      } catch(e){ rej(e); }
+    });
+  }
+  async function _fnDbGet(key){
+    try {
+      var db = await _fnDbOpen();
+      if (!db.objectStoreNames.contains(FN_DB.store)){ db.close(); return null; }
+      return await new Promise(function(res){
+        var g = db.transaction(FN_DB.store, 'readonly').objectStore(FN_DB.store).get(key);
+        g.onsuccess = function(){ var v = g.result; db.close(); try { res(typeof v === 'string' ? JSON.parse(v) : (v || null)); } catch(e){ res(null); } };
+        g.onerror = function(){ db.close(); res(null); };
+      });
+    } catch(e){ return null; }
+  }
+  async function _fnDbPut(key, obj){
+    try {
+      var db = await _fnDbOpen();
+      await new Promise(function(res, rej){
+        var tx = db.transaction(FN_DB.store, 'readwrite');
+        tx.objectStore(FN_DB.store).put(JSON.stringify(obj), key);
+        tx.oncomplete = function(){ db.close(); res(); };
+        tx.onerror = function(){ db.close(); rej(tx.error); };
+      });
+      return true;
+    } catch(e){ console.warn('[EIP Content] FunnelDB 寫入失敗', e); return false; }
+  }
+  // 上次的漏斗資料（LS 優先，其次 FunnelDB）
+  async function _fnPrevData(){
+    var cid = _cid();
+    try { var s = localStorage.getItem(cid + 'motiv_funnel_v1'); if (s) return JSON.parse(s); } catch(e){}
+    return await _fnDbGet(cid + 'motiv_funnel_v1');
+  }
+  var FUNNEL_PAY_BACKDAYS = 2;                 // 收支只補「上次同步日往前 2 天」到月底
+  // 前 3 個月的面談紀錄：同一個月裡抓過一次就永久沿用（面談日不會變）。
+  // 會變的只有那些人的「備註」（最新追蹤情形）→ 用總表的「編輯日期」篩選，只抓上次同步後被改過的列。
+  var _fnEditParams = null;   // { from:'qX', to:'qY' }，從總表表單探測；探不到就不補
+  function _fnFindEditParams(html){
+    if (_fnEditParams) return _fnEditParams;
+    try {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var trs = doc.querySelectorAll('tr');
+      for (var i = 0; i < trs.length; i++){
+        var first = trs[i].querySelector('td, th');
+        var lab = first ? (first.textContent || '').replace(/\s+/g, '') : '';
+        if (lab.indexOf('編輯日期') !== 0) continue;
+        var ins = trs[i].querySelectorAll('input[name]');
+        var names = [];
+        for (var j = 0; j < ins.length; j++){ var ty = (ins[j].type || 'text').toLowerCase(); if (ty === 'text' || ty === 'date') names.push(ins[j].name); }
+        if (names.length >= 2){ _fnEditParams = { from: names[0], to: names[1] }; return _fnEditParams; }
+      }
+    } catch(e){}
+    return null;
+  }
+  function _fnMergeRows(cached, fresh){
+    // 以「姓名＋面談日」當 key：有變動的列蓋掉舊的，新列追加
+    var map = {}, order = [];
+    (cached || []).forEach(function(r){ var k = r.n + '|' + r.d; if (!(k in map)) order.push(k); map[k] = r; });
+    (fresh || []).forEach(function(r){ var k = r.n + '|' + r.d; if (!(k in map)) order.push(k); map[k] = r; });
+    return order.map(function(k){ return map[k]; });
+  }
+  function _fnDedupe(list){
+    var seen = {}, out = [];
+    (list || []).forEach(function(r){ var sig = JSON.stringify(r); if (seen[sig]) return; seen[sig] = 1; out.push(r); });
+    return out;
+  }
+  function _fnDStr(d){ return d.getFullYear() + '/' + _fnPad2(d.getMonth() + 1) + '/' + _fnPad2(d.getDate()); }
+
+  // ── 收支明細：跟「📋 通路」共用同一支 CSV（一個請求拿全月七家），取代 business.php 逐頁 ──
+  //   欄位不齊、或解析出來的筆數明顯少於逐頁版 → 自動回退舊路徑，判定規則不受影響。
+  function _fnPayFromCsvText(text, mStart, mEnd){
+    var rows = parseCSV(text);
+    if (!rows.length) return null;
+    // 表頭：漏斗要 姓名／繳費狀態／收支日期／業績合計／組織；有 副類別・課程・承辦人 更好
+    // ★ 日期只認「收支日期」，不接受「入帳日期」代打 —— 兩者可能差好幾天，
+    //   而「當下註冊」是用「註冊日 − 面談日 ≤ 3 天」判的，日期一歪分類就跟著歪。
+    //   CSV 沒有收支日期 → 直接回退逐頁 business.php（那張表一定有收支日期）。
+    var NEED = { org:['組織'], name:['學員','姓名'], state:['繳費狀態'], date:['收支日期'],
+                 perf:['業績合計'], sub:['通路來源副類別'], course:['課程名稱'], owner:['業績承辦人','承辦人'], note:['狀態備註'] };
+    var hIdx = -1, col = {};
+    for (var r = 0; r < Math.min(rows.length, 5); r++){
+      var found = {};
+      for (var c = 0; c < rows[r].length; c++){
+        var h = String(rows[r][c]).trim();
+        for (var k in NEED){
+          if (found[k] !== undefined) continue;
+          for (var v = 0; v < NEED[k].length; v++){
+            if (k === 'note' ? (h === NEED[k][v]) : (h.indexOf(NEED[k][v]) >= 0 && h !== '狀態備註')){ found[k] = c; break; }
+          }
+        }
+      }
+      if (found.org !== undefined && found.name !== undefined && found.state !== undefined && found.date !== undefined && found.perf !== undefined){
+        hIdx = r; col = found; break;
+      }
+    }
+    if (hIdx < 0) return null;                       // 欄位不齊 → 回退逐頁
+    var byOrg = {}, nAll = 0, nKeep = 0, badState = 0;
+    var norm = function(d){ return String(d || '').replace(/-/g, '/').slice(0, 10); };
+    for (var i = hIdx + 1; i < rows.length; i++){
+      var row = rows[i];
+      if (row.length <= col.perf) continue;
+      var cell = function(k){ return col[k] !== undefined && row[col[k]] !== undefined ? String(row[col[k]]).trim() : ''; };
+      var st = cell('state');
+      nAll++;
+      if (st !== '報名' && st !== '註冊'){ if (st) badState++; continue; }
+      var d = norm(cell('date'));
+      if (!d) return null;                            // 沒有收支日期 → 不採用整份 CSV，回退逐頁
+      if (d < mStart || d > mEnd) continue;           // 只留本月（CSV 可能含跨月列）
+      var org = cell('org');
+      if (!org) continue;
+      (byOrg[org] || (byOrg[org] = [])).push({
+        n: cell('name'), st: st, sub: cell('sub'), k: cell('course').slice(0, 30), d: d,
+        v: parseFloat(cell('perf').replace(/,/g, '').replace(/\s/g, '')) || 0, o: cell('owner'), sn: ''
+      });
+      nKeep++;
+    }
+    // 完全沒有 報名/註冊 → 這支 CSV 的狀態欄不是我們要的，回退
+    if (!nKeep && badState) return null;
+    return { byOrg: byOrg, nAll: nAll, nKeep: nKeep };
+  }
+  async function _fnPayCsvAll(year, month, mStart, mEnd){
+    try {
+      notify('status', { msg: '💵 收支明細：改用 CSV 一次拿全月七家（1 個請求，取代逐頁抓）…', prog: { phase: 'pay' } });
+      var qs = buildMoneyQuery(mStart);
+      var csv = await fetchViaBackground('http://eip.appedu.com.tw/class/report/performance/business_money_csv.php?' + qs);
+      if (!csv || csv.indexOf('<html') >= 0 || csv.indexOf('<!DOCTYPE') >= 0) return null;
+      var got = _fnPayFromCsvText(csv, mStart, mEnd);
+      if (!got || !Object.keys(got.byOrg).length) return null;
+      // 組織名可能是別名（各通路績效畫面把「台中學院」叫「台中一部」）→ 先還原
+      var ALIAS = { '台中一部': '台中學院' };
+      Object.keys(ALIAS).forEach(function(a){
+        if (got.byOrg[a] && !got.byOrg[ALIAS[a]]){ got.byOrg[ALIAS[a]] = got.byOrg[a]; delete got.byOrg[a]; }
+      });
+      // ★ 對不到我們的七家 → 整份不採用，回退逐頁（避免組織名不合就靜默變成 0 筆）
+      var hit = PERF_ORG_NAMES.filter(function(n){ return got.byOrg[n] && got.byOrg[n].length; });
+      if (!hit.length){
+        console.warn('[EIP Content] 收支 CSV 的組織名對不到七學院（CSV 裡有：' + Object.keys(got.byOrg).slice(0, 8).join('、') + '）→ 回退逐頁');
+        return null;
+      }
+      console.log('[EIP Content] 收支 CSV：' + got.nKeep + '/' + got.nAll + ' 筆（報名/註冊），對到 ' + hit.length + '/' + PERF_ORG_NAMES.length + ' 家');
+      return got.byOrg;
+    } catch(e){ console.warn('[EIP Content] 收支 CSV 失敗，回退逐頁', e); return null; }
+  }
+
+  // 中途存檔：還沒跑到的學院沿用上一輪的資料，避免中斷後畫面少掉幾家
+  async function _fnSavePartial(key, data, cache, partial){
+    var merged = { meta: Object.assign({}, data.meta, { partial: !!partial }), orgs: {} };
+    Object.keys(cache || {}).forEach(function(o){ merged.orgs[o] = cache[o]; });
+    Object.keys(data.orgs || {}).forEach(function(o){ merged.orgs[o] = data.orgs[o]; });
+    return await _fnDbPut(key, merged);
+  }
+  async function fetchFunnel(year, month, opts){
     var y = parseInt(year, 10), m = parseInt(month, 10);
     var fy = y, fm = m - FUNNEL_LOOKBACK_MONTHS; while (fm < 1){ fm += 12; fy--; }
     var from = fy + '/' + _fnPad2(fm) + '/01';
     var mStart = y + '/' + _fnPad2(m) + '/01', mEnd = y + '/' + _fnPad2(m) + '/' + _fnPad2(_fnLastDay(y, m));
-    var data = { meta: { year: y, month: m, lookback: FUNNEL_LOOKBACK_MONTHS, from: from, to: mEnd, syncedAt: _nowStr() }, orgs: {} };
+    var full = !!(opts && opts.full);
+    var prev = await _fnPrevData();
+    var sameMonth = !!(prev && prev.meta && parseInt(prev.meta.year, 10) === y && parseInt(prev.meta.month, 10) === m);
+    var cache = (!full && prev && prev.orgs) ? prev.orgs : {};
+    var nowMs = Date.now();
+    var today = new Date(); var todayStr = _fnDStr(today);
+    var prevEndStr = _fnDStr(new Date(y, m - 1, 0));                 // 上個月最後一天（舊月份範圍的尾）
+    var covToNow = (todayStr < mEnd) ? todayStr : mEnd;               // 這次抓完後，資料涵蓋到哪一天
+    var data = { meta: { year: y, month: m, lookback: FUNNEL_LOOKBACK_MONTHS, from: from, to: mEnd, syncedAt: _nowStr(), incremental: !full }, orgs: {} };
+    var cid0 = _cid(), fnKey = cid0 + 'motiv_funnel_v1';
+    var nFullOrg = 0, nIncOrg = 0, nSeg = 0;
+    // 舊版快取沒有 cov（涵蓋範圍）→ 用當時的 meta 推：from ～ min(to, 當時同步日)
+    function _covOf(oc, prevMeta){
+      if (!oc || !oc.itv || !oc.itv.length) return null;
+      if (oc.cov && oc.cov.from && oc.cov.to) return oc.cov;
+      if (!prevMeta || !prevMeta.from) return null;
+      var sd = prevMeta.syncedAt ? String(prevMeta.syncedAt).split(' ')[0].replace(/(\d+)\/(\d+)\/(\d+)/, function(_, a, b, c){ return a + '/' + _fnPad2(+b) + '/' + _fnPad2(+c); }) : null;
+      var to = (sd && sd < prevMeta.to) ? sd : prevMeta.to;
+      return { from: prevMeta.from, to: to };
+    }
+    function _dayAfter(str){ var mm = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(str); var dt = new Date(+mm[1], +mm[2]-1, +mm[3] + 1); return _fnDStr(dt); }
+    function _dayBefore(str){ var mm = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(str); var dt = new Date(+mm[1], +mm[2]-1, +mm[3] - 1); return _fnDStr(dt); }
     var kaTimer = setInterval(function(){
       try { chrome.runtime.sendMessage({ action: 'keepalive' }, function(){ void chrome.runtime.lastError; }); } catch(e){}
     }, 12000);
+    var payCsv = null;
     try {
+      payCsv = await _fnPayCsvAll(y, m, mStart, mEnd);
+      if (payCsv) data.meta.paySrc = 'csv';
+      await sleep(FUNNEL_PAGE_THROTTLE_MS);
       for (var k = 0; k < PERF_ORGS.length; k++){
         var org = PERF_ORGS[k];
         var lab = '🔀 ' + org.name + '（' + (k+1) + '/' + PERF_ORGS.length + '）';
-        // ① 面談紀錄總表：本月 + 往回 3 個月
-        var itvUrl = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id
-          + '&q5=' + encodeURIComponent(from) + '&q6=' + encodeURIComponent(mEnd);
-        var itv = await _fnFetchPaged(itvUrl, lab + ' 面談紀錄', _fnParseInterviewPage, 60, { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'itv' });
+        data.nIncOrg = nIncOrg; data.nFullOrg = nFullOrg; data.nSeg = nSeg;
+        var oc = cache[org.name] || null;
+        var cov = _covOf(oc, prev && prev.meta);
+        var itvUrlBase = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id;
+        // ── ① 面談紀錄：只抓「還沒涵蓋」的日期段 ──
+        //    需要的範圍 = from ～ mEnd。已涵蓋 cov.from～cov.to 的一律不重抓（面談日不會變）。
+        //    本月（mStart～mEnd）永遠會補到今天；舊月份只補「涵蓋範圍以外」的那幾天。
+        var segs = [];   // [{a,b,label}]
+        if (!cov){
+          segs.push({ a: from, b: mEnd, label: '面談紀錄（完整 ' + FUNNEL_LOOKBACK_MONTHS + ' 個月）' });
+          nFullOrg++;
+        } else {
+          nIncOrg++;
+          if (cov.from > from) segs.push({ a: from, b: _dayBefore(cov.from), label: '補更早的月份 ' + from.slice(5) + '～' + _dayBefore(cov.from).slice(5) });
+          if (cov.to < prevEndStr) segs.push({ a: _dayBefore(cov.to), b: prevEndStr, label: '補舊月份尾巴 ' + _dayBefore(cov.to).slice(5) + '～' + prevEndStr.slice(5) });
+          var curFrom = (cov.to >= mStart) ? _dayBefore(cov.to) : mStart;   // 本月：從上次涵蓋到的那天往前一天重抓（重疊一天防漏）
+          segs.push({ a: curFrom, b: mEnd, label: '本月面談 ' + curFrom.slice(5) + ' 起' });
+        }
+        var fetched = [];
+        for (var si = 0; si < segs.length; si++){
+          if (si > 0) await sleep(FUNNEL_PAGE_THROTTLE_MS);
+          var sg = segs[si];
+          var rows = await _fnFetchPaged(itvUrlBase + '&q5=' + encodeURIComponent(sg.a) + '&q6=' + encodeURIComponent(sg.b), lab + ' ' + sg.label, _fnParseInterviewPage, 60, { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'itv' });
+          fetched = fetched.concat(rows); nSeg++;
+        }
+        // 快取裡「需要範圍內」的舊列 + 這次抓到的（同一人同面談日 → 新的蓋舊的）
+        var keep = (oc && oc.itv ? oc.itv : []).filter(function(r){ var d = String(r.d || ''); return d >= from && d <= mEnd; });
+        var itv = _fnMergeRows(keep, fetched);
+        // 舊月份裡「上次同步後被編輯過」的列（備註／狀態有變）→ 用總表的「編輯日期」篩選，只抓這幾個人
+        if (!_fnEditParams){
+          try { var probe = await fetchViaBackground(itvUrlBase + '&q5=' + encodeURIComponent(mStart) + '&q6=' + encodeURIComponent(mEnd) + '&pg=1'); _fnFindEditParams(probe); } catch(eP){}
+          if (_fnEditParams) console.log('[EIP Content] 編輯日期欄位：', _fnEditParams);
+        }
+        if (cov && _fnEditParams && oc.payAt){
+          await sleep(FUNNEL_PAGE_THROTTLE_MS);
+          var editFrom = _fnDStr(new Date(oc.payAt - 86400000));
+          var itvUrlE = itvUrlBase + '&q5=' + encodeURIComponent(from) + '&q6=' + encodeURIComponent(prevEndStr)
+            + '&' + _fnEditParams.from + '=' + encodeURIComponent(editFrom) + '&' + _fnEditParams.to + '=' + encodeURIComponent(mEnd);
+          var changed = await _fnFetchPaged(itvUrlE, lab + ' 舊月份有變動的列', _fnParseInterviewPage, 10, { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'itv' });
+          if (changed.length){ itv = _fnMergeRows(itv, changed); data.nChanged = (data.nChanged || 0) + changed.length; }
+        }
+        itv = _fnDedupe(itv);
+        // ── ② 營業收支：優先用 CSV（已經一次拿到七家）；沒有才逐頁抓 ──
+        var pay = null;
+        if (payCsv){
+          pay = payCsv[org.name] || null;
+          // 安全網：這家在 CSV 裡完全沒出現 → 不當成「0 筆」，改走逐頁確認
+          if (!pay){
+            console.warn('[EIP Content] ' + org.name + ' 在收支 CSV 裡沒有任何列 → 改走逐頁確認');
+          }
+          // 安全網：CSV 抓到的筆數比上次少一半以上 → 不信任，改走逐頁
+          var prevN = (oc && oc.pay) ? oc.pay.length : 0;
+          if (pay && prevN >= 10 && pay.length < prevN * 0.5){
+            console.warn('[EIP Content] ' + org.name + ' CSV 收支只有 ' + pay.length + ' 筆（上次 ' + prevN + '），改走逐頁');
+            pay = null;
+          } else {
+            notify('status', { msg: lab + ' 收支 ' + pay.length + ' 筆（CSV，免翻頁）', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'pay', rows: pay.length } });
+          }
+        }
+        if (pay){
+          data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs };
+          await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, k < PERF_ORGS.length - 1);
+          if (k < PERF_ORGS.length - 1){ notify('status', { msg: lab + ' 完成，停 4 秒讓 EIP 喘口氣…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } }); await sleep(FUNNEL_ORG_GAP_MS); }
+          continue;
+        }
         await sleep(FUNNEL_PAGE_THROTTLE_MS);
-        // ② 營業收支：本月
+        var payFrom = mStart;
+        if (sameMonth && oc && oc.pay && oc.payAt){
+          var back = new Date(oc.payAt - FUNNEL_PAY_BACKDAYS * 86400000);
+          var ms = new Date(y, m - 1, 1);
+          if (back > ms) payFrom = _fnDStr(back);
+        }
         var bizUrl = 'http://eip.appedu.com.tw/class/report/performance/business.php?q12=' + org.id
-          + '&q1=' + encodeURIComponent(mStart) + '&q2=' + encodeURIComponent(mEnd) + '&btnq=' + encodeURIComponent('查詢');
-        var pay = await _fnFetchPaged(bizUrl, lab + ' 收支明細', _fnParseBusinessPage, 60, { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'pay' });
-        data.orgs[org.name] = { itv: itv, pay: pay };
+          + '&q1=' + encodeURIComponent(payFrom) + '&q2=' + encodeURIComponent(mEnd) + '&btnq=' + encodeURIComponent('查詢');
+        var payNew = await _fnFetchPaged(bizUrl, lab + ' 收支明細' + (payFrom !== mStart ? '（' + payFrom.slice(5) + ' 起）' : ''), _fnParseBusinessPage, 60, { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'pay' });
+        if (payFrom !== mStart){
+          var keepPay = (oc.pay || []).filter(function(r){ return String(r.d || '') < payFrom; });
+          pay = _fnDedupe(keepPay.concat(payNew));
+        } else pay = payNew;
+        data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs };
+        // ★ 每家抓完就存一次：中途關掉頁面也不會整批白跑，下次接著跑
+        await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, k < PERF_ORGS.length - 1);
         if (k < PERF_ORGS.length - 1){ notify('status', { msg: lab + ' 完成，停 4 秒讓 EIP 喘口氣…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } }); await sleep(FUNNEL_ORG_GAP_MS); }
       }
     } finally {
       try { clearInterval(kaTimer); } catch(e){}
     }
+    data.nIncOrg = nIncOrg; data.nFullOrg = nFullOrg; data.nSeg = nSeg;
     return data;
   }
 
-  async function syncFunnel(year, month){
-    notify('status', { msg: '🔀 漏斗：開始抓七家的面談紀錄＋收支明細（本月＋往回 3 個月）。為了不影響 EIP，刻意放慢：每頁 2 秒、一次只發一個請求，約 7～9 分鐘，可以先去做別的事…', prog: { org: 0, total: PERF_ORGS.length, phase: 'start' } });
-    var data = await fetchFunnel(year, month);
+  async function syncFunnel(year, month, opts){
+    notify('status', { msg: '🔀 漏斗：開始抓七家的面談紀錄＋收支明細。' + ((opts && opts.full) ? '這次是「全部重抓」（本月＋往回 3 個月），約 7～9 分鐘。' : '同一個月第二次以後只補本月新資料＋前 3 個月有改過的列，通常 1～3 分鐘。') + '為了不影響 EIP，刻意放慢：每頁 2 秒、一次只發一個請求…', prog: { org: 0, total: PERF_ORGS.length, phase: 'start' } });
+    var data = await fetchFunnel(year, month, opts);
     var cid = _cid(), ts = _nowStr();
     var nI = 0, nP = 0; for (var o in data.orgs){ nI += data.orgs[o].itv.length; nP += data.orgs[o].pay.length; }
-    _safeSet(cid + 'motiv_funnel_v1', JSON.stringify(data));
+    var okIdb = await _fnDbPut(cid + 'motiv_funnel_v1', data);
+    if (!okIdb) _safeSet(cid + 'motiv_funnel_v1', JSON.stringify(data));   // IDB 不能用才退回 localStorage
     _safeSet(cid + 'motiv_synced_funnel', ts);
     _safeSet(cid + 'motiv_updated_at', ts);
     notify('done', {
       mode: 'funnel', funnel: data, updateTime: ts,
       msg: '🔀 漏斗同步完成！面談紀錄 ' + nI + ' 人（含往回 3 個月）／ 報名・註冊明細 ' + nP + ' 筆'
+        + (data.meta.paySrc === 'csv' ? '　💵 收支走 CSV（1 個請求，省下逐頁）' : '')
+        + (data.meta.incremental ? '　⚡ 增量：' + data.nIncOrg + ' 家沿用快取、只補沒涵蓋的日期' + (data.nChanged ? '（另更新 ' + data.nChanged + ' 列有變動的舊紀錄）' : '') + (data.nFullOrg ? '、' + data.nFullOrg + ' 家第一次完整抓' : '') : '　（完整重抓）')
     });
   }
 
@@ -1321,14 +1600,29 @@
     return out.slice(0, 8);
   }
   // 挖一個人
+  var _trialTplLocked = false;   // 已經確認可用的樣板 → 之後每個人只打 1 個請求
   async function _trialFetchOne(id, tpls){
+    if (_trialTplLocked){
+      try {
+        var html0 = await fetchViaBackground(tpls[0].replace('{id}', id));
+        if (_looksLikeLogin(html0)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再挖');
+        return _trialParseHistory(html0);
+      } catch(e){ if (String(e.message||'').indexOf('登入頁') >= 0) throw e; return null; }
+    }
+    // 還沒鎖定 → 逐一試候選，每個之間也停 1 秒，不要連發
     for (var i = 0; i < tpls.length; i++){
+      if (i > 0) await sleep(1000);
       var url = tpls[i].replace('{id}', id);
       var html;
       try { html = await fetchViaBackground(url); } catch(e){ continue; }
       if (_looksLikeLogin(html)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再挖');
       var h = _trialParseHistory(html);
-      if (h){ if (i > 0) tpls.unshift(tpls.splice(i, 1)[0]); return h; }   // 成功的樣板往前排
+      if (h){
+        if (i > 0) tpls.unshift(tpls.splice(i, 1)[0]);   // 成功的樣板排到最前面
+        _trialTplLocked = true;                          // 之後不再試其他候選
+        console.log('[EIP Content] 狀態歷史記錄網址已鎖定：' + tpls[0]);
+        return h;
+      }
     }
     return null;
   }
@@ -1337,9 +1631,20 @@
     var reg = TRIAL_REGIONS[region] || TRIAL_REGIONS.all;
     var orgs = PERF_ORGS.filter(function(o){ return reg.orgs.indexOf(o.name) >= 0; });
     var mStart = y + '/' + _fnPad2(m) + '/01', mEnd = y + '/' + _fnPad2(m) + '/' + _fnPad2(_fnLastDay(y, m));
-    var cid = _cid(), key = cid + 'motiv_trial_v1';
-    var store = null; try { store = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
-    if (!store || !store.meta || store.meta.year !== y || store.meta.month !== m) store = { meta: { year:y, month:m }, orgs: {} };
+    // ★ v5.23：狀態歷史記錄是「人」的屬性，不會因為換月就失效 → 跨月永久保留，只挖備註有變動的人。
+    //   結構：{ meta, people: { 學院: { 姓名: { sig, h, at, ym } } } }（舊版 orgs 會自動併過來）
+    var cid = _cid(), key = cid + 'motiv_trial_v2';
+    var store = null;
+    try { store = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+    if (!store) store = await _fnDbGet(key);
+    if (!store || !store.people){
+      var old = null;
+      try { old = JSON.parse(localStorage.getItem(cid + 'motiv_trial_v1') || 'null'); } catch(e){}
+      if (!old) old = await _fnDbGet(cid + 'motiv_trial_v1');
+      store = { meta: {}, people: (old && old.orgs) ? old.orgs : {} };
+      if (old && old.meta) store.meta.migratedFrom = old.meta.year + '/' + old.meta.month;
+    }
+    store.meta.year = y; store.meta.month = m;
     store.meta.syncedAt = _nowStr(); store.meta.lastRegion = reg.label;
 
     notify('status', { msg: '🔎 試聽深挖（' + reg.label + '）：先抓本月面談名單…', prog: { org:0, total:orgs.length, phase:'start' } });
@@ -1357,10 +1662,11 @@
         var rows = _fnParseInterviewPage(firstHtml) || [];
         if (rows.length >= 30){
           await sleep(TRIAL_THROTTLE_MS);
-          var more = await _fnFetchPaged(url, lab + ' 本月面談', _fnParseInterviewPage, 20, { org:k+1, total:orgs.length, name:org.name, phase:'itv' });
+          // 第 1 頁已經在上面抓過了 → 從第 2 頁接著抓，不重複打 EIP
+          var more = await _fnFetchPaged(url, lab + ' 本月面談', _fnParseInterviewPage, 20, { org:k+1, total:orgs.length, name:org.name, phase:'itv' }, { startPg:2, seed:rows });
           if (more.length > rows.length) rows = more;
         }
-        var prev = store.orgs[org.name] || {};
+        var prev = store.people[org.name] || {};
         var cur = {};
         // 篩出「需要挖」的人：未註冊、未繳報名費、備註 sig 有變或沒挖過
         var todo = [];
@@ -1370,7 +1676,10 @@
           var old = prev[r.n];
           if (r.r > 0 || r.a > 0){ cur[r.n] = old || { skip:'已註冊/已繳報名費' }; nSkip++; return; }   // 答案已定
           var sig = (r.m || '') + '|' + (r.d || '');
-          if (old && old.sig === sig && old.h){ cur[r.n] = old; nSkip++; return; }                      // 增量：沒變就不挖
+          // ★ v5.31：一個人挖過一次就夠了。歷史視窗裡「只有它看得到」的是更早那幾筆；
+          //   之後新增的追蹤情形會變成名單頁的「備註」，每次同步就自動收進來（頁面會累積），不必再挖一次。
+          //   （舊規則是「備註有變就重挖」，業務每打一次電話就重挖一輪，月底會多花好幾倍時間。）
+          if (old && old.h && old.h.length){ cur[r.n] = old; nSkip++; return; }
           todo.push({ n:r.n, id:r.id, sig:sig, o:r.o, d:r.d });
         });
         if (!_trialUrlTpl) _trialUrlTpl = _trialFindTpl(firstHtml, todo.length ? todo[0].id : '');
@@ -1380,12 +1689,23 @@
           if (i > 0) await sleep(TRIAL_THROTTLE_MS);
           var hist = null;
           if (t.id){ try { hist = await _trialFetchOne(t.id, _trialUrlTpl); } catch(eOne){ if (String(eOne.message||'').indexOf('登入頁') >= 0) throw eOne; } }
-          if (hist){ cur[t.n] = { sig:t.sig, h:hist, at:_nowStr() }; nScan++; }
-          else { cur[t.n] = { sig:t.sig, h:[], at:_nowStr(), fail:1 }; nFail++; }
+          if (hist){ cur[t.n] = { sig:t.sig, h:hist, at:_nowStr(), ts:Date.now(), ym:y + '-' + _fnPad2(m) }; nScan++; }
+          else {
+            cur[t.n] = { sig:t.sig, h:[], at:_nowStr(), ts:Date.now(), ym:y + '-' + _fnPad2(m), fail:1 }; nFail++;
+            // ★ 還沒鎖定樣板、又已經連續失敗 3 個人 → 代表網址猜不中，立刻停手（不要每個人都去試一輪候選壓 EIP）
+            if (!_trialTplLocked && nFail >= 3){
+              store.people[org.name] = cur;
+              await _fnDbPut(key, store);
+              throw new Error('找不到「狀態歷史記錄」視窗的網址（已試 ' + nFail + ' 人就停手，避免壓到 EIP）。請把這行回報給開發者 → ' + _trialDiag);
+            }
+          }
           notify('status', { msg: lab + ' 挖第 ' + (i+1) + '/' + todo.length + ' 人：' + t.n, prog: { org:k+1, total:orgs.length, name:org.name, phase:'dig', page:i+1, rows:todo.length } });
         }
-        store.orgs[org.name] = cur;
-        _safeSet(key, JSON.stringify(store));            // 每家存一次，中途關掉也不會全白跑
+        // ★ 跨月保留：這個月沒出現的人不刪掉（下個月他還在經營池，備註沒變就不用再挖）
+        Object.keys(prev).forEach(function(nm){ if (!cur[nm]) cur[nm] = prev[nm]; });
+        store.people[org.name] = cur;
+        var okT = await _fnDbPut(key, store);            // 每家存一次，中途關掉也不會全白跑
+        if (!okT) _safeSet(key, JSON.stringify(store));
         if (k < orgs.length - 1){ notify('status', { msg: lab + ' 完成，停 3 秒讓 EIP 喘口氣…', prog: { org:k+1, total:orgs.length, name:org.name, phase:'done' } }); await sleep(TRIAL_ORG_GAP_MS); }
       }
     } finally { try { clearInterval(kaTimer); } catch(e){} }
@@ -1398,16 +1718,40 @@
     }
     notify('done', {
       mode: 'trial', trial: store, updateTime: _nowStr(),
-      msg: '🔎 試聽深挖完成（' + reg.label + '）！本月面談 ' + nPeople + ' 人，新挖 ' + nScan + ' 人、跳過 ' + nSkip + ' 人（已確定或沒變動）' + (nFail ? '、失敗 ' + nFail + ' 人' : '')
+      msg: '🔎 試聽深挖完成（' + reg.label + '）！本月面談 ' + nPeople + ' 人，新挖 ' + nScan + ' 人、跳過 ' + nSkip + ' 人（已註冊/已繳費，或先前挖過）' + (nFail ? '、失敗 ' + nFail + ' 人' : '')
     });
   }
 
+  // ★ 跨分頁鎖：_syncBusy 只鎖得住自己這個分頁。同一台電腦開兩個分頁各按一次，
+  //   EIP 就會被兩條線同時打。用 localStorage 當跨分頁鎖，每 5 秒心跳一次，30 秒沒心跳視為死鎖自動解開。
+  var EIP_LOCK_KEY = 'eip_sync_lock_v1', EIP_LOCK_STALE_MS = 30000;
+  var _lockId = Math.random().toString(36).slice(2), _lockTimer = null;
+  function _lockRead(){ try { return JSON.parse(localStorage.getItem(EIP_LOCK_KEY) || 'null'); } catch(e){ return null; } }
+  function _lockAcquire(mode){
+    var cur = _lockRead();
+    if (cur && cur.id !== _lockId && (Date.now() - (cur.ts || 0)) < EIP_LOCK_STALE_MS) return cur;   // 別的分頁正在跑
+    try { localStorage.setItem(EIP_LOCK_KEY, JSON.stringify({ id: _lockId, mode: mode, ts: Date.now() })); } catch(e){}
+    if (_lockTimer) clearInterval(_lockTimer);
+    _lockTimer = setInterval(function(){
+      try { localStorage.setItem(EIP_LOCK_KEY, JSON.stringify({ id: _lockId, mode: mode, ts: Date.now() })); } catch(e){}
+    }, 5000);
+    return null;
+  }
+  function _lockRelease(){
+    if (_lockTimer){ clearInterval(_lockTimer); _lockTimer = null; }
+    try { var cur = _lockRead(); if (cur && cur.id === _lockId) localStorage.removeItem(EIP_LOCK_KEY); } catch(e){}
+  }
   var _syncBusy = false; // ★ v5.5：全域單一同步鎖 — 同時間只允許一個模式抓 EIP
   async function doSync(year, month, mode){
     mode = mode || 'motiv';
     if (_syncBusy){
       console.warn('[EIP Content] 已有同步進行中，拒絕新請求 mode=' + mode);
-      notify('error', { mode: mode, msg: '已有另一個同步正在進行，請等它跑完再按（避免同時抓 EIP）' });
+      notify('error', { mode: String(mode).split(':')[0], msg: '已有另一個同步正在進行，請等它跑完再按（避免同時抓 EIP）' });
+      return;
+    }
+    var held = _lockAcquire(mode);
+    if (held){
+      notify('error', { mode: String(mode).split(':')[0], msg: '另一個分頁正在同步「' + (held.mode || '?') + '」，同時抓會壓到 EIP。請等它跑完，或關掉那個分頁再試。' });
       return;
     }
     _syncBusy = true;
@@ -1416,7 +1760,8 @@
       if (mode === 'motiv') await syncMotiv(year, month);
       else if (mode === 'checkin') await syncCheckin(year, month);
       else if (mode === 'channel') await syncChannel(year, month);
-      else if (mode === 'funnel') await syncFunnel(year, month);
+      else if (mode === 'funnel') await syncFunnel(year, month, {});
+      else if (mode === 'funnel:full') await syncFunnel(year, month, { full: true });
       else if (mode === 'trial' || mode.indexOf('trial:') === 0) await syncTrial(year, month, mode.indexOf(':') > 0 ? mode.split(':')[1] : 'all');
       else throw new Error('未知的同步模式: ' + mode);
     } catch(err){
@@ -1426,9 +1771,10 @@
         msg = '擴充剛更新過 — 請把這個頁面重新整理（Cmd+R）一次再同步';
       else if (msg.indexOf('Failed to fetch') >= 0 || msg.indexOf('NetworkError') >= 0)
         msg = '無法連線 EIP — 請確認已登入且網路正常';
-      notify('error', { mode: mode, msg: msg });
+      notify('error', { mode: String(mode).split(':')[0], msg: msg });
     } finally {
       _syncBusy = false;
+      _lockRelease();
     }
   }
 
