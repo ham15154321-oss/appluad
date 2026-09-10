@@ -574,7 +574,7 @@
         }
     </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=idbkeys3"></script>
+<script defer src="./firebase-sync.js?v=cold1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -2548,7 +2548,14 @@
             }catch(e){}
             return null;
         }
-        function _isFnIdbKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1' || k.slice(-10) === '_fn_itv_v1' || k.slice(-12) === '_fn_notes_v1' || k.slice(-15) === '_motiv_trial_v1' || k.slice(-15) === '_motiv_trial_v2'); }
+        // 每筆一個 key 的三類（報備試聽 / 名單核對 / 追註冊知識庫）→ 摘要時併成一行
+        function _grpLabel(label){
+            if (/^funnelrep_/.test(label)) return '🖐 報備試聽';
+            if (/^chk_/.test(label)) return '✅ 名單核對紀錄';
+            if (/^kb_/.test(label)) return '📚 追註冊知識庫';
+            return '';
+        }
+        function _isFnIdbKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1' || k.slice(-10) === '_fn_itv_v1' || k.slice(-12) === '_fn_notes_v1' || k.slice(-17) === '_fn_cold_index_v1' || k.slice(-15) === '_motiv_trial_v1' || k.slice(-15) === '_motiv_trial_v2'); }
         // ★ 2026/09 增量推送：整包上雲每次都全量（含 1MB 逐人資料）。改成逐項比簽章，只上傳有變動的。
         //   簽章 = 長度 + 32bit hash（夠分辨內容有沒有變，成本極低）
         function _sigOf(str){
@@ -2735,13 +2742,17 @@
 
                 var summary = [];
                 if(mpMonths.length) summary.push('📅 每月績效（Excel 匯入）: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
-                var _extraN = 0, _rest = [];
+                var _extraN = 0, _rest = [], _grp = {};
                 lsKeys.forEach(function(k){
                     if(k.indexOf('perf_compare_v1') !== 0){ _extraN++; return; }
                     var label = k.replace('perf_compare_v1','').replace(/^_/,'')||'比較';
+                    // 「每筆一個 key」的那幾類（報備試聽／名單核對／追註冊知識庫）→ 併成一行，不然清單會有好幾百列
+                    var g = _grpLabel(label);
+                    if(g){ _grp[g] = (_grp[g]||0) + 1; return; }
                     var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史','funnel_v1':'📌 漏斗手填/報備'};
                     _rest.push((labels[label]||label)+': ✓');
                 });
+                Object.keys(_grp).forEach(function(g){ _rest.push(g+': '+_grp[g]+' 筆'); });
                 if(_extraN) summary.push(_extraLine(_extraN, _ckArchiveMonthsFrom(null)));
                 summary = summary.concat(_rest);
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
@@ -2915,13 +2926,16 @@
 
                 var summary = [];
                 if(mpMonths.length) summary.push('📅 每月績效（Excel 匯入）: '+mpMonths.length+' 個月 ('+mpMonths.join(',')+')');
-                var _extraN2 = 0, _rest2 = [];
+                var _extraN2 = 0, _rest2 = [], _grp2 = {};
                 lsKeyNames.forEach(function(k){
                     if(k.indexOf('perf_compare_v1') !== 0){ _extraN2++; return; }
                     var label = k.replace('perf_compare_v1','').replace(/^_/,'')||'比較';
+                    var g = _grpLabel(label);
+                    if(g){ _grp2[g] = (_grp2[g]||0) + 1; return; }
                     var labels = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史','funnel_v1':'📌 漏斗手填/報備'};
                     _rest2.push((labels[label]||label)+': ✓');
                 });
+                Object.keys(_grp2).forEach(function(g){ _rest2.push(g+': '+_grp2[g]+' 筆'); });
                 if(_extraN2){
                     var _cloudMonths = [];
                     try{

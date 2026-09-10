@@ -32,16 +32,29 @@
     } else if(document.body){
       document.body.style.zoom = v;
       // ★ 2026/07 修正「放大後上方選單搆不到」：
-      //   固定高度版型（html,body{height:100%} + 內容區自己捲動，例：業績數據中心）在 body zoom > 1 時，
-      //   body 會比視窗高 → 整份文件被往下捲、上方 header/分頁列跑出畫面且捲不回去。
-      //   解法：把 body 寬高反向補償（zoom 1.5 → 高度 100/1.5 %），版面永遠剛好填滿視窗。
-      //   一般自然捲動的頁面 html 高度是 auto，百分比高度無效 → 完全不受影響。
+      //   舊版瀏覽器的 zoom（Chrome 127 以前）會把 body 整個放大 zf 倍 → 固定高度版型
+      //   （html,body{height:100%}，例：業績數據中心）的 body 比視窗大，上方 header 被推出畫面且捲不回來。
+      //   當時的解法是把 body 寬高反向補償成 100/zf %。
+      // ★ 2026/09 再修正「整頁只佔螢幕三分之二、右邊下面留一片白」：
+      //   新版瀏覽器（Chrome 128+／Safari 18+）改用標準 zoom，百分比已經自動換算過，
+      //   再補償一次就變成 66.7% × 66.7% —— 畫面右側與下方整片空白，全螢幕視窗也塞不滿。
+      //   所以改成「先不補償，量一下 body 有沒有真的溢出視窗，溢出才補」，新舊瀏覽器都對。
       if (zf === 1){
         document.body.style.height = '';
         document.body.style.width  = '';
       } else {
-        document.body.style.height = (100 / zf) + '%';
-        document.body.style.width  = (100 / zf) + '%';
+        document.body.style.height = '';
+        document.body.style.width  = '';
+        var needFix = false;
+        try {
+          var vw = document.documentElement.clientWidth || 0;
+          var bw = document.body.getBoundingClientRect().width || 0;
+          needFix = (vw > 0 && bw > vw * 1.02);   // body 比視窗寬 → 舊版 zoom
+        } catch(e){}
+        if (needFix){
+          document.body.style.height = (100 / zf) + '%';
+          document.body.style.width  = (100 / zf) + '%';
+        }
       }
       // 把可能已經被推歪的文件捲回原點（救回已經卡住的狀態）
       try{ document.documentElement.scrollTop = 0; document.documentElement.scrollLeft = 0; }catch(e){}

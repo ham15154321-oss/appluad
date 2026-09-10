@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function(){
               var ys = document.getElementById('motivYearSelect'), ms = document.getElementById('motivMonthSelect');
               if (ys) ys.value = String(y);
               if (ms) ms.value = String(m).padStart(2, '0');
-              if (typeof fnTrialSync === 'function'){ fnTrialSync(region); return true; }
+              if (typeof fnTrialSync === 'function'){ fnTrialSync(region, true); return true; }   // 小視窗按的已經是明確意圖，不再問一次
               window.postMessage({ channel:'appedu-eip-sync', action:'request', year:y, month:m, mode:'trial', region:region }, '*');
               return true;
             } catch(e){ return false; }

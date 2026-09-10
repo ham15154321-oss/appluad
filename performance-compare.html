@@ -1396,13 +1396,22 @@
     .ck-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
 
     /* ===== 📌 月度漏斗總結（tab-9）— Apple 風：一個強調色、大數字、細線、留白；夜間/日間兩套變數 ===== */
-    #tab-9 { --fnBg:#111114; --fnBg2:#1c1c1f; --fnFill:#232327; --fnText:#f5f5f7; --fnDim:#98989d; --fnLine:rgba(255,255,255,.12); --fnAcc:#bf5af2; --fnAccSoft:rgba(191,90,242,.16); --fnGood:#30d158; --fnBad:#ff453a; --fnWarn:#ffd60a; --fnGold:#ffd60a; }
-    body.day-mode #tab-9 { --fnBg:#ffffff; --fnBg2:#f5f5f7; --fnFill:#f2f2f7; --fnText:#1d1d1f; --fnDim:#6e6e73; --fnLine:rgba(0,0,0,.09); --fnAcc:#6e3ad6; --fnAccSoft:rgba(110,58,214,.10); --fnGood:#1f8f45; --fnBad:#d63a2f; --fnWarn:#b7791f; --fnGold:#b7791f; }
+    #tab-9 { --fnBg:#111114; --fnBg2:#1c1c1f; --fnFill:#1a1a1e; --fnText:#f5f5f7; --fnDim:#98989d; --fnMute:#6b6b70;
+      --fnLine:rgba(255,255,255,.10); --fnAcc:#bf5af2; --fnAccSoft:rgba(191,90,242,.14); --fnGood:#30d158; --fnBad:#ff6b3d; --fnAct:#ff9f0a; --fnWarn:#ffd60a; --fnGold:#ffd60a;
+      --fnOwn:#9db4d6; --fnOwnBg:rgba(157,180,214,.14); }
+    /* ★ 配色規則（2026/09 重整）
+       灰階三層：--fnText 主角數字／--fnDim 說明／--fnMute 佐證與註解
+       顏色只有三個意思：--fnAcc 紫＝本月主結果　--fnGood 綠＝表現最好　--fnAct 橘＝要處理的事
+       其餘一律中性，避免整頁都在喊 */
+    body.day-mode #tab-9 { --fnBg:#ffffff; --fnBg2:#f7f7f9; --fnFill:#fafafc; --fnText:#1d1d1f; --fnDim:#6e6e73; --fnMute:#a1a1a6;
+      --fnLine:rgba(0,0,0,.07); --fnAcc:#6e3ad6; --fnAccSoft:rgba(110,58,214,.08); --fnGood:#1f8f45; --fnBad:#c2410c; --fnAct:#c2410c; --fnWarn:#b7791f; --fnGold:#b7791f;
+      --fnOwn:#4a6180; --fnOwnBg:#eef1f6; }
     #tab-9, #tab-9 * { font-variant-numeric:tabular-nums; }
     /* 上層敘事（復盤） */
     .fn-story { display:grid; grid-template-columns:1.1fr 1fr; gap:16px; margin-bottom:18px; }
     @media (max-width:900px){ .fn-story { grid-template-columns:1fr; } }
-    .fn-tile { background:var(--fnBg) !important; border:1px solid var(--fnLine) !important; border-radius:18px; padding:22px 24px; color:var(--fnText) !important; box-shadow:0 1px 2px rgba(0,0,0,.06), 0 12px 32px rgba(0,0,0,.10); position:relative; }
+    .fn-tile { background:var(--fnBg) !important; border:1px solid var(--fnLine) !important; border-radius:18px; padding:22px 24px; color:var(--fnText) !important;
+      box-shadow:0 1px 2px rgba(0,0,0,.04), 0 10px 28px rgba(0,0,0,.05); box-shadow:0 1px 2px rgba(0,0,0,.06), 0 12px 32px rgba(0,0,0,.10); position:relative; }
     .fn-kicker { font-size:.72rem; letter-spacing:.18em; text-transform:uppercase; color:var(--fnAcc); font-weight:700; margin-bottom:6px; }
     .fn-two { font-size:4.2rem; font-weight:800; letter-spacing:.08em; line-height:1; color:var(--fnText); margin:4px 0 8px; }
     .fn-two small { display:block; font-size:1.05rem; font-weight:500; letter-spacing:0; color:var(--fnDim); margin-top:10px; line-height:1.5; }
@@ -1424,18 +1433,25 @@
     .fn-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(540px,1fr)); gap:16px; }
     @media (max-width:640px){ .fn-grid { grid-template-columns:1fr; } }
     .fn-tile.total { grid-column:1 / -1; border-color:var(--fnGold) !important; }
-    .fn-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+    .fn-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px 12px; flex-wrap:wrap; margin-bottom:14px; }
+    .fn-head > .fn-sub { flex-basis:100%; margin-top:2px; }
     .fn-title { font-size:1.3rem; font-weight:800; letter-spacing:.02em; color:var(--fnText); display:flex; align-items:center; gap:8px; }
     .fn-title .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
-    .fn-sub { display:flex; gap:14px; font-size:.8rem; color:var(--fnDim); font-weight:600; }
-    .fn-sub b { color:var(--fnText); font-size:1.05rem; font-weight:800; margin-left:4px; }
+    .fn-sub { display:flex; gap:0; flex-wrap:wrap; font-size:.74rem; color:var(--fnMute); font-weight:500;
+      background:var(--fnFill); border:1px solid var(--fnLine); border-radius:12px; padding:7px 4px; }
+    .fn-sub > span { padding:0 11px; border-left:1px solid var(--fnLine); line-height:1.6; }
+    .fn-sub > span:first-child { border-left:0; }
+    .fn-sub b { color:var(--fnDim); font-size:1rem; font-weight:700; margin-left:4px; }
+    .fn-sub .lead b { color:var(--fnAcc); font-size:1.15rem; font-weight:800; }   /* 新業績＝本月主結果 */
     .fn-sub .warn { color:var(--fnWarn); }
-    .fn-flow { display:grid; grid-template-columns:1fr 1fr 1fr 1.3fr; background:var(--fnFill); border-radius:14px; padding:14px 8px 12px; }
+    .fn-flow { display:grid; grid-template-columns:1fr 1fr 1fr 1.35fr; background:var(--fnBg2); border:1px solid var(--fnLine); border-radius:14px; padding:14px 10px 12px; align-items:start; }
     .fn-step { text-align:center; position:relative; padding:2px 4px; }
-    .fn-step + .fn-step::before { content:''; position:absolute; left:-1px; top:18%; height:64%; width:1px; background:var(--fnLine); }
-    .fn-step .lb { font-size:.72rem; color:var(--fnDim); font-weight:700; letter-spacing:.08em; }
+    .fn-step + .fn-step::before { content:'›'; position:absolute; left:-7px; top:50%; transform:translateY(-60%); color:var(--fnMute); font-size:1.1rem; font-weight:400; line-height:1; }
+    .fn-step.res { background:var(--fnBg); border:1px solid var(--fnLine); border-radius:11px; margin:-6px -2px -4px 6px; padding:8px 6px 6px; }
+    .fn-step.res::before { display:none; }
+    .fn-step .lb { font-size:.7rem; color:var(--fnMute); font-weight:600; letter-spacing:.06em; }
     .fn-step .v { font-size:2.2rem; font-weight:800; color:var(--fnText); line-height:1.1; margin-top:4px; letter-spacing:-.02em; }
-    .fn-step .sm { font-size:.68rem; color:var(--fnDim); margin-top:2px; }
+    .fn-step .sm { font-size:.68rem; color:var(--fnMute); margin-top:2px; font-weight:500; }
     .fn-gbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0 10px; padding:8px 10px; background:#f5f5f7; border-radius:10px; }
     .fn-gbar-t { font-size:.74rem; font-weight:800; color:#6e6e73; margin-right:4px; }
     .fn-gchip { font-size:.76rem; font-weight:700; color:#1d1d1f; background:#fff; border:1px solid #d2d2d7; border-radius:999px; padding:3px 10px; }
@@ -1444,28 +1460,28 @@
     .fn-gchip.other { color:#6e6e73; border-style:dashed; } .fn-gchip.other b { color:#6e6e73; }
     .fn-tag { display:inline-block; font-size:.68rem; font-weight:700; border-radius:999px; padding:1px 7px; margin-left:6px; vertical-align:middle; }
     .fn-tag.grp { background:#eef2ff; color:#3730a3; } .fn-tag.ext { background:#ecfeff; color:#0e7490; } .fn-tag.none { background:#f5f5f7; color:#98989d; }
-    .fn-step .fn-noshow { display:inline-block; margin-top:6px; font-size:.7rem; font-weight:800; color:#b45309; background:rgba(245,158,11,.14); border:1px solid rgba(245,158,11,.4); border-radius:999px; padding:2px 9px; white-space:nowrap; }
+    .fn-step .fn-noshow { display:inline-block; margin-top:6px; font-size:.7rem; font-weight:800; color:#fff; background:var(--fnAct); border:1px solid var(--fnAct); border-radius:999px; padding:2px 10px; white-space:nowrap; }
     .fn-step .fn-ext { display:inline-block; margin-top:6px; font-size:.7rem; font-weight:700; color:#0e7490; background:rgba(14,116,144,.1); border:1px solid rgba(14,116,144,.25); border-radius:999px; padding:2px 9px; white-space:nowrap; }
     .fn-step .fn-ext b { font-weight:900; }
     .fn-step.res .row { display:flex; justify-content:center; align-items:baseline; gap:8px; }
     .fn-step.res .row .v { font-size:1.5rem; }
     .fn-step.res .row + .row { border-top:1px solid var(--fnLine); margin-top:5px; padding-top:5px; }
-    .fn-step.res .row span { font-size:.75rem; color:var(--fnDim); font-weight:700; }
-    .fn-step.res .row.hot .v { color:var(--fnAcc); }
+    .fn-step.res .row span { font-size:.74rem; color:var(--fnMute); font-weight:600; }
+    .fn-step.res .row.hot .v { color:var(--fnAcc); font-weight:900; }
     .fn-rates { display:grid; grid-template-columns:1fr 1fr 1fr 1.3fr; margin-top:10px; }
     .fn-rate { text-align:center; }
-    .fn-rate .pill { display:inline-block; min-width:76px; padding:6px 12px; border-radius:999px; border:1px solid var(--fnLine); color:var(--fnText); font-weight:800; font-size:1rem; background:var(--fnBg2); }
+    .fn-rate .pill { display:inline-block; min-width:76px; padding:6px 12px; border-radius:999px; border:1px solid var(--fnLine); color:var(--fnDim); font-weight:700; font-size:1rem; background:var(--fnBg2); }
     .fn-rate .pill.box { border-radius:12px; padding:6px 14px; }
-    .fn-rate .pill.box small { display:block; font-size:.66rem; font-weight:700; color:var(--fnDim); margin-bottom:1px; }
-    .fn-rate .cap { font-size:.7rem; color:var(--fnDim); margin-top:5px; font-weight:600; }
-    .fn-rate.hi .pill { border-color:var(--fnGood); color:var(--fnGood); background:transparent; }
-    .fn-rate.lo .pill { border-color:var(--fnBad); color:var(--fnBad); background:transparent; }
-    .fn-hl { margin-top:12px; border-left:3px solid var(--fnAcc); border-radius:0 12px 12px 0; padding:10px 14px; display:flex; gap:12px; align-items:flex-start; background:var(--fnBg2); }
-    .fn-hl .tt { font-weight:800; color:var(--fnAcc); font-size:.85rem; white-space:nowrap; margin-top:2px; letter-spacing:.04em; }
+    .fn-rate .pill.box small { display:block; font-size:.64rem; font-weight:600; color:var(--fnMute); margin-bottom:1px; }
+    .fn-rate .cap { font-size:.68rem; color:var(--fnMute); margin-top:5px; font-weight:500; }
+    .fn-rate.hi .pill { border-color:var(--fnGood); color:var(--fnGood); background:transparent; font-weight:800; }
+    .fn-rate.lo .pill { border-color:var(--fnAct); color:var(--fnAct); background:rgba(194,65,12,.06); font-weight:800; }
+    .fn-hl { margin-top:12px; border-left:3px solid var(--fnLine); border-radius:0 12px 12px 0; padding:10px 14px; display:flex; gap:12px; align-items:flex-start; background:var(--fnBg2); }
+    .fn-hl .tt { font-weight:700; color:var(--fnMute); font-size:.8rem; white-space:nowrap; margin-top:2px; letter-spacing:.04em; }
     .fn-hl ul { margin:0; padding-left:16px; color:var(--fnText); font-size:.88rem; line-height:1.6; flex:1; }
-    .fn-hl ul b { color:var(--fnAcc); font-weight:800; }
-    .fn-hl ul li.bad b { color:var(--fnBad); }
-    .fn-hl ul li.warn { color:var(--fnWarn); }
+    .fn-hl ul b { color:var(--fnText); font-weight:800; }
+    .fn-hl ul li.bad, .fn-hl ul li.bad b { color:var(--fnAct); }
+    .fn-hl ul li.warn { color:var(--fnDim); }
     .fn-hl textarea { flex:1; min-height:44px; resize:vertical; background:var(--fnBg) !important; border:1px dashed var(--fnLine) !important; border-radius:8px; color:var(--fnText) !important; font:inherit; font-size:.86rem; padding:6px 8px; }
     .fn-tools { display:flex; gap:6px 14px; flex-wrap:wrap; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid var(--fnLine); font-size:.76rem; color:var(--fnDim); }
     .fn-tools label { display:inline-flex; align-items:center; gap:6px; }
@@ -1488,7 +1504,7 @@
     #uiTip .ut-note { margin-top:8px; padding:7px 9px; background:#f5f5f7; border-radius:9px; color:#3a3a3c; font-size:.76rem; }
     #uiTip .ut-last { margin-top:7px; font-size:.72rem; color:#8e8e93; }
     @media print { #uiTip { display:none !important; } }
-    .fn-note { font-size:.74rem; color:var(--fnDim); margin:2px 0 12px; line-height:1.5; }
+    .fn-note { font-size:.72rem; color:var(--fnMute); margin:2px 0 12px; line-height:1.55; font-weight:400; }
 
     /* ── 檢視切換（卡片／儀表板）── */
     .fn-seg { display:inline-flex; background:var(--fnBg2); border:1px solid var(--fnLine); border-radius:999px; padding:2px; margin-right:6px; }
@@ -1608,26 +1624,154 @@
     .fn-names summary::-webkit-details-marker { display:none; }
     .fn-names summary::before { content:'▸ '; color:var(--fnAcc); } .fn-names[open] summary::before { content:'▾ '; }
     .fn-names-b { padding:0 12px 10px; display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:10px; }
+    /* 可核對的名單一列資訊多（勾／繳費／備註／約定／換人／沒機會）→ 讓它整排通吃，不要擠成兩欄 */
+    .fn-names-b .fn-ng:has(li.fn-row), .fn-names-b .fn-ng.g-rs { grid-column:1 / -1; }
     .fn-ng { border-left:3px solid var(--fnAcc); padding-left:8px; }
     .fn-ng.g-on { border-color:var(--fnGood); } .fn-ng.g-hv { border-color:var(--fnGold); } .fn-ng.g-mg { border-color:var(--fnWarn); } .fn-ng.g-pl { border-color:var(--fnDim); } .fn-ng.g-ls { border-color:var(--fnBad); }
-    .fn-ng-t { font-size:.74rem; font-weight:800; color:var(--fnDim); margin-bottom:4px; } .fn-ng-t b { color:var(--fnText); }
-    .fn-trialbar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-right:10px; padding:4px 8px; border:1px solid rgba(245,158,11,.35); background:rgba(245,158,11,.08); border-radius:999px; }
+    .fn-ng.g-rs { border-color:var(--fnAct); }
+    /* 核對列自己排版：第一行＝勾＋姓名＋標籤，第二行＝原本那句敘述 */
+    #tab-9 .fn-ng li.fn-row, #tvBox li.fn-row { display:block; }
+    #tab-9 .fn-r1 .fn-ex, #tvBox .fn-r1 .fn-ex { flex-basis:100%; order:9; font-style:normal; font-size:.74rem; margin:1px 0 0 27px; }
+    #tab-9 .fn-r1 .fn-ex { color:var(--fnMute); }
+    #tvBox .fn-r1 .fn-ex { color:#86868b; }
+    .fn-ng-t { font-size:.74rem; font-weight:700; color:var(--fnDim); margin-bottom:4px; } .fn-ng-t b { color:var(--fnText); }
+    .fn-actions { margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;
+      padding-left:14px; border-left:1px dashed var(--fnLine); }
+    .fn-trialbar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:4px 8px; border:1px solid rgba(245,158,11,.35); background:rgba(245,158,11,.08); border-radius:999px; }
     .fn-tb-t { font-size:.74rem; font-weight:800; color:#b45309; }
     .fn-tb-btn { border:1px solid rgba(245,158,11,.5); background:#fff; color:#b45309; border-radius:999px; padding:3px 11px; font-size:.75rem; font-weight:800; cursor:pointer; font-family:inherit; }
     .fn-tb-btn:hover { background:#f59e0b; color:#fff; }
     .fn-tb-btn.wide { border-style:dashed; }
-    .fn-tb-btn.full { border-color:rgba(15,118,110,.5); color:#0f766e; margin-right:10px; }
+    .fn-tb-btn.cold { border-color:rgba(14,116,144,.55); color:#0e7490; background:rgba(14,116,144,.08); }
+    .fn-tb-btn.cold:hover { background:#0e7490; color:#fff; }
+    .ck-region-btn.cold { border-style:dashed; }
+    .fn-tb-btn.full { border-color:rgba(15,118,110,.5); color:#0f766e; }
     .fn-tb-btn.full:hover { background:#14b8a6; color:#fff; }
     .fn-tb-ts { font-size:.68rem; color:var(--fnDim); }
-    @media print { .fn-trialbar { display:none !important; } }
-    .fn-copy { margin-left:8px; border:1px solid var(--fnLine); background:transparent; color:var(--fnDim); border-radius:999px; padding:1px 8px; font-size:.68rem; cursor:pointer; font-family:inherit; vertical-align:middle; }
+    @media print { .fn-trialbar, .fn-actions { display:none !important; } }
+    .fn-copy { margin-left:8px; border:1px solid var(--fnLine); background:transparent; color:var(--fnMute); border-radius:999px; padding:1px 8px; font-size:.68rem; cursor:pointer; font-family:inherit; vertical-align:middle; }
     .fn-copy:hover { color:var(--fnText); border-color:var(--fnText); }
     .tv-g-t .fn-copy { font-size:.72rem; }
     @media print { .fn-copy { display:none !important; } }
+    /* 👤 業務（承辦人）＝藍灰，跟學生姓名（近黑粗體）明顯分開 */
+    /* 👤 業務（承辦人）：不加框，只用顏色分辨；字級放大好讀 */
+    #tab-9 .fn-own, #tvBox .fn-own { display:inline-block; margin-left:9px; padding:0;
+      background:none; color:var(--fnOwn) !important; font-size:.86rem; font-weight:700; vertical-align:baseline; white-space:nowrap; }
+    #tvBox { --fnOwn:#4a6180; --fnOwnBg:#eef1f6; }
+    /* ═══ ✅ 名單核對列（2026/09）═══ */
+    #tab-9 li.fn-row { list-style:none; padding:5px 0; border-bottom:1px dashed var(--fnLine); }
+    #tab-9 li.fn-row:last-child { border-bottom:none; }
+    #tab-9 .fn-r1 { display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; }
+    #tab-9 .fn-ck { flex:0 0 auto; width:20px; height:20px; border-radius:6px; border:1.5px solid var(--fnLine) !important;
+      background:transparent !important; color:transparent !important; font-size:.72rem; line-height:1; cursor:pointer; padding:0; align-self:center; transition:all .15s; }
+    #tab-9 .fn-ck:hover { border-color:var(--fnGood) !important; color:var(--fnGood) !important; }
+    #tab-9 li.fn-row.done .fn-ck { background:var(--fnGood) !important; border-color:var(--fnGood) !important; color:#fff !important; }
+    #tab-9 li.fn-row.done .fn-nm { text-decoration:line-through; text-decoration-thickness:1.5px; opacity:.45; }
+    #tab-9 li.fn-row.done .fn-ex, #tab-9 li.fn-row.done .fn-meta { opacity:.4; }
+    #tab-9 li.fn-row.rs { border-left:3px solid var(--fnAct); padding-left:7px; margin-left:-10px; }
+    #tab-9 li.fn-row.gv .fn-nm { color:var(--fnMute); }
+    #tab-9 .fn-more { flex:0 0 auto; margin-left:auto; border:none !important; background:transparent !important; color:var(--fnMute) !important;
+      cursor:pointer; font-size:.8rem; padding:0 4px; }
+    #tab-9 .fn-more:hover { color:var(--fnText) !important; }
+    #tab-9 .fn-meta { display:inline-flex; gap:5px; flex-wrap:wrap; align-items:baseline; }
+    #tab-9 .fn-pay, #tab-9 .fn-due, #tab-9 .fn-tag, #tab-9 .fn-lastm {
+      font-size:.68rem; font-weight:700; border-radius:999px; padding:1px 7px; white-space:nowrap; }
+    #tab-9 .fn-pay.ok { color:var(--fnGood); background:rgba(31,143,69,.09); }
+    #tab-9 .fn-pay.mid { color:var(--fnDim); background:var(--fnFill); }
+    #tab-9 .fn-pay.no { color:var(--fnMute); background:transparent; border:1px dashed var(--fnLine); font-weight:600; }
+    #tab-9 .fn-lastm { color:var(--fnMute); background:transparent; font-weight:500; max-width:280px; overflow:hidden; text-overflow:ellipsis; }
+    #tab-9 .fn-due { color:var(--fnDim); background:var(--fnFill); }
+    #tab-9 .fn-due.over { color:#fff; background:var(--fnAct); }
+    #tab-9 .fn-tag.t-rs { color:#fff; background:var(--fnAct); }
+    #tab-9 .fn-tag.t-gv { color:var(--fnAct); background:rgba(194,65,12,.08); border:1px solid rgba(194,65,12,.25); }
+    #tab-9 .fn-tag.t-nt { color:var(--fnDim); background:var(--fnFill); }
+    #tab-9 .fn-tag.t-ai { color:var(--fnAcc); background:var(--fnAccSoft); }
+    #tab-9 .fn-step .fn-unsure { display:inline-block; margin-top:6px; font-size:.7rem; font-weight:800; color:var(--fnDim);
+      background:transparent; border:1px dashed var(--fnLine); border-radius:999px; padding:2px 10px; white-space:nowrap; }
+    #tab-9 .fn-cnt { font-size:.68rem; font-weight:800; color:var(--fnMute); margin-left:6px; }
+    #tab-9 .fn-cnt.all { color:var(--fnGood); }
+    #tab-9 .fn-r2 { margin:6px 0 8px 27px; padding:10px 12px; background:var(--fnFill); border:1px solid var(--fnLine); border-radius:12px; }
+    #tab-9 .fn-fgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:8px; }
+    #tab-9 .fn-r2 label { display:flex; flex-direction:column; gap:3px; font-size:.68rem; font-weight:700; color:var(--fnMute); }
+    #tab-9 .fn-r2 input, #tab-9 .fn-r2 select, #tab-9 .fn-r2 textarea {
+      border:1px solid var(--fnLine); border-radius:8px; padding:5px 8px; font-size:.8rem; font-family:inherit;
+      background:var(--fnBg); color:var(--fnText); }
+    #tab-9 .fn-frow { display:flex; gap:7px; align-items:center; flex-wrap:wrap; margin-top:9px; }
+    #tab-9 .fn-frow .fn-i-gvm { flex:1; min-width:170px; }
+    #tab-9 .fn-flb { font-size:.7rem; font-weight:800; color:var(--fnMute); }
+    #tab-9 .fn-b { border:1px solid var(--fnLine) !important; background:var(--fnBg) !important; color:var(--fnText) !important; border-radius:8px;
+      padding:5px 11px; font-size:.75rem; font-weight:700; cursor:pointer; font-family:inherit; }
+    #tab-9 .fn-b:hover { border-color:var(--fnDim) !important; }
+    #tab-9 .fn-b.warn { color:var(--fnAct) !important; border-color:rgba(194,65,12,.35) !important; }
+    #tab-9 .fn-b.go { color:#fff !important; background:var(--fnAcc) !important; border-color:var(--fnAcc) !important; }
+    #tab-9 .fn-fai { align-items:stretch; }
+    #tab-9 .fn-fai textarea { flex:1; min-width:220px; min-height:54px; resize:vertical; }
+    #tab-9 .fn-by { font-size:.68rem; color:var(--fnMute); font-weight:600; }
+    #tab-9 .fn-aih { margin-top:8px; font-size:.75rem; }
+    #tab-9 .fn-aih summary { cursor:pointer; color:var(--fnAcc); font-weight:700; }
+    #tab-9 .fn-aii { border-top:1px solid var(--fnLine); padding:7px 0 0; margin-top:7px; }
+    #tab-9 .fn-aii pre { white-space:pre-wrap; font-family:inherit; font-size:.78rem; line-height:1.6; margin:3px 0 0; color:var(--fnDim); }
+    /* 教學視窗（白底）也用同一套，但要吃它自己的色票 */
+    #tvBox li.fn-row { list-style:none; padding:5px 0; border-bottom:1px dashed var(--tvLine); }
+    #tvBox .fn-r1 { display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; }
+    #tvBox .fn-ck { flex:0 0 auto; width:20px; height:20px; border-radius:6px; border:1.5px solid #d2d2d7 !important;
+      background:transparent !important; color:transparent !important; font-size:.72rem; line-height:1; cursor:pointer; padding:0; align-self:center; }
+    #tvBox .fn-ck:hover { border-color:#1f8f45 !important; color:#1f8f45 !important; }
+    #tvBox li.fn-row.done .fn-ck { background:#1f8f45 !important; border-color:#1f8f45 !important; color:#fff !important; }
+    #tvBox li.fn-row.done .fn-nm { text-decoration:line-through; text-decoration-thickness:1.5px; opacity:.45; }
+    #tvBox li.fn-row.done .fn-ex, #tvBox li.fn-row.done .fn-meta { opacity:.4; }
+    #tvBox li.fn-row.rs { border-left:3px solid #c2410c; padding-left:7px; }
+    #tvBox .fn-more { margin-left:auto; border:none !important; background:transparent !important; color:#86868b !important; cursor:pointer; font-size:.8rem; }
+    #tvBox .fn-meta { display:inline-flex; gap:5px; flex-wrap:wrap; align-items:baseline; }
+    #tvBox .fn-pay, #tvBox .fn-due, #tvBox .fn-tag, #tvBox .fn-lastm { font-size:.68rem; font-weight:700; border-radius:999px; padding:1px 7px; white-space:nowrap; }
+    #tvBox .fn-pay.ok { color:#1f8f45; background:rgba(31,143,69,.09); }
+    #tvBox .fn-pay.mid { color:#6e6e73; background:#f2f2f7; }
+    #tvBox .fn-pay.no { color:#a1a1a6; border:1px dashed #d2d2d7; font-weight:600; }
+    #tvBox .fn-lastm { color:#a1a1a6; font-weight:500; }
+    #tvBox .fn-due { color:#6e6e73; background:#f2f2f7; }
+    #tvBox .fn-due.over { color:#fff; background:#c2410c; }
+    #tvBox .fn-tag.t-rs { color:#fff; background:#c2410c; }
+    #tvBox .fn-tag.t-gv { color:#c2410c; background:rgba(194,65,12,.08); border:1px solid rgba(194,65,12,.25); }
+    #tvBox .fn-tag.t-nt { color:#6e6e73; background:#f2f2f7; }
+    #tvBox .fn-tag.t-ai { color:#6e3ad6; background:rgba(110,58,214,.08); }
+    #tvBox .fn-cnt { font-size:.68rem; font-weight:800; color:#a1a1a6; margin-left:6px; }
+    #tvBox .fn-cnt.all { color:#1f8f45; }
+    #tvBox .fn-r2 { margin:6px 0 8px 27px; padding:10px 12px; background:#fafafc; border:1px solid #e5e5ea; border-radius:12px; }
+    #tvBox .fn-fgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:8px; }
+    #tvBox .fn-r2 label { display:flex; flex-direction:column; gap:3px; font-size:.68rem; font-weight:700; color:#86868b; }
+    #tvBox .fn-r2 input, #tvBox .fn-r2 select, #tvBox .fn-r2 textarea { border:1px solid #d2d2d7; border-radius:8px; padding:5px 8px; font-size:.8rem; font-family:inherit; background:#fff; color:#1d1d1f; }
+    #tvBox .fn-frow { display:flex; gap:7px; align-items:center; flex-wrap:wrap; margin-top:9px; }
+    #tvBox .fn-frow .fn-i-gvm { flex:1; min-width:170px; }
+    #tvBox .fn-flb { font-size:.7rem; font-weight:800; color:#86868b; }
+    #tvBox .fn-b { border:1px solid #d2d2d7 !important; background:#fff !important; color:#1d1d1f !important; border-radius:8px; padding:5px 11px; font-size:.75rem; font-weight:700; cursor:pointer; font-family:inherit; }
+    #tvBox .fn-b.warn { color:#c2410c !important; border-color:rgba(194,65,12,.35) !important; }
+    #tvBox .fn-b.go { color:#fff !important; background:#6e3ad6 !important; border-color:#6e3ad6 !important; }
+    #tvBox .fn-fai textarea { flex:1; min-width:220px; min-height:54px; resize:vertical; }
+    #tvBox .fn-by { font-size:.68rem; color:#86868b; font-weight:600; }
+    #tvBox .fn-aih summary { cursor:pointer; color:#6e3ad6; font-weight:700; font-size:.75rem; }
+    #tvBox .fn-aii { border-top:1px solid #e5e5ea; padding:7px 0 0; margin-top:7px; }
+    #tvBox .fn-aii pre { white-space:pre-wrap; font-family:inherit; font-size:.78rem; line-height:1.6; margin:3px 0 0; color:#6e6e73; }
+    .fn-gsec { margin-top:8px; border-left:2px solid var(--fnLine); padding-left:9px; }
+    .fn-gsec-h { display:flex; align-items:center; gap:7px; flex-wrap:wrap; font-size:.82rem; color:var(--fnDim); margin-bottom:4px; }
+    .fn-gsec-n { font-weight:900; color:var(--fnText); font-size:.95rem; }
+    .fn-gsec-l { background:var(--fnFill); border-radius:999px; padding:1px 8px; font-weight:700; }
+    .fn-gsec-h b { color:var(--fnDim); }
+    .fn-osec { margin:4px 0 6px 6px; }
+    #tab-9 .fn-osec-h, #tvBox .fn-osec-h { font-size:.95rem; font-weight:800; color:var(--fnOwn) !important; display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-bottom:2px; }
+    .fn-osec-h b { color:var(--fnDim); }
+    .fn-osec ul { margin-top:2px; }
+    .tv-g .fn-gsec { border-left-color:var(--tvAcc); margin-top:10px; }
+    .tv-g .fn-gsec-n { color:var(--tvInk); }
+    .tv-g .fn-gsec-l { background:var(--tvFill); }
+    .tv-g .fn-gsec-h b, .tv-g .fn-osec-h b { color:var(--tvAcc); }
+    #tvBox .tv-g .fn-osec-h { color:var(--fnOwn) !important; }
+    .tv-g .fn-osec ul { list-style:none; padding:0; margin:3px 0 0; }
+    #tvBox .tv-g li b, #tab-9 .fn-ng li b { color:var(--fnText) !important; font-weight:800; }
     .fn-ng-note { grid-column:1 / -1; font-size:.76rem; line-height:1.55; color:var(--fnDim); background:rgba(124,58,237,.07); border-left:3px solid #8b5cf6; border-radius:6px; padding:7px 10px; margin:6px 0 2px; } .fn-ng-note b { color:var(--fnText); }
     .fn-ng ul { margin:0; padding:0; list-style:none; max-height:180px; overflow:auto; }
-    .fn-ng li { font-size:.76rem; line-height:1.45; color:var(--fnText); display:flex; gap:6px; flex-wrap:wrap; align-items:baseline; }
-    .fn-ng li span { color:var(--fnDim); font-size:.7rem; } .fn-ng li em { font-style:normal; color:var(--fnDim); font-size:.68rem; flex-basis:100%; }
+    .fn-ng li { font-size:.88rem; line-height:1.5; color:var(--fnText); display:flex; gap:6px; flex-wrap:wrap; align-items:baseline; padding:1px 0; }
+    .fn-ng li span { color:var(--fnDim); font-size:.74rem; } .fn-ng li em { font-style:normal; color:var(--fnMute); font-size:.74rem; flex-basis:100%; }
+    .fn-ng ul { max-height:none; }
     .fn-edit { display:none; margin-top:10px; }
     .fn-edit.on { display:block; }
     .fn-edit label { display:block; font-size:.72rem; color:var(--fnDim); margin:8px 0 3px; font-weight:700; }
@@ -2080,7 +2224,7 @@
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=idbkeys3"></script>
+<script defer src="./firebase-sync.js?v=cold1"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple2">
 </head>
 <body>
@@ -6808,6 +6952,7 @@
       if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
       _fnFunnelFull = !!full;
       fnProgressStart(true);
+      _fnProgState.kind = 'chain'; _fnProgState.orgList = null;
       _fnProgState.stage = '① 激勵：面談／註冊Ⓐ／Ⓑ／新業績';
       fnProgressRender(full ? '準備開始（完整重抓，約 10～12 分鐘）…' : '準備開始（增量，通常 1～3 分鐘）…');
       motivSyncSeq(['motiv', 'checkin', 'funnel']);
@@ -6817,13 +6962,21 @@
       fnSyncAll(true);
     }
     // 🔎 試聽深挖：中區／桃區／南區／全省七家
-    function fnTrialSync(region){
+    function fnTrialSync(region, skipAsk){
       if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
       _fnTrialRegion = region || 'all';
       var lab = { all:'全省七家', central:'中區', taoyuan:'桃區', south:'南區' }[_fnTrialRegion] || '全省七家';
+      // ★ 會去打 EIP、要跑幾分鐘 → 先確認一次，避免誤按
+      if (!skipAsk){
+        var last = '';
+        try { var t0 = fnGetTrialScan(); last = (t0 && t0.meta && t0.meta.syncedAt) ? ('\n上次深挖：' + t0.meta.syncedAt + (t0.meta.lastRegion ? '（' + t0.meta.lastRegion + '）' : '')) : '\n（還沒深挖過）'; } catch(e){}
+        if (!confirm('🔎 要深挖「' + lab + '」的試聽狀況嗎？\n\n會去 EIP 逐一打開本月面談、還沒繳費那些人的「狀態歷史記錄」，把業務寫在舊紀錄裡的試聽日期抓出來。\n・只挖沒挖過的人，挖過的自動跳過\n・刻意放慢不影響 EIP，' + (_fnTrialRegion === 'all' ? '全省約 3～20 分鐘' : '單區通常 1～3 分鐘') + last + '\n\n中途不要關頁面。要開始嗎？')) return;
+      }
       var n = { all:7, central:3, taoyuan:3, south:1 }[_fnTrialRegion] || 7;
       fnProgressStart(true);
       _fnProgState.total = n;
+      _fnProgState.kind = 'trial';
+      _fnProgState.orgList = { all:CK_ORG_LIST, central:CK_REGIONS.central.orgs, taoyuan:CK_REGIONS.taoyuan.orgs, south:CK_REGIONS.south.orgs }[_fnTrialRegion] || CK_ORG_LIST;
       _fnProgState.stage = '🔎 試聽深挖（' + lab + '）：翻每個人的狀態歷史記錄';
       fnProgressRender('準備開始…');
       motivTriggerEipSync('trial');
@@ -6843,36 +6996,53 @@
       _fnProgTimer = setInterval(function(){ fnProgressRender(); }, 1000);
     }
     function fnProgressUpdate(p, msg){ _fnProgState = Object.assign(_fnProgState || {}, p); fnProgressRender(msg); }
+    function _fnProgIsTrial(){ return !!(_fnProgState && _fnProgState.kind === 'trial'); }
     function fnProgressRender(msg){
       var el = document.getElementById('fnProg'); if (!el || !_fnProgState) return;
       var st = _fnProgState, N = st.total || 7;
       var frac = st.phase === 'start' ? 0 : ((st.org - 1) + (st.phase === 'itv' ? 0.25 : (st.phase === 'pay' ? 0.7 : 1))) / N;
       frac = Math.max(0, Math.min(0.99, frac));
       var el_s = Math.round((Date.now() - _fnProgT0) / 1000);
-      var inFunnel = /③/.test(st.stage || '');
+      var isTrial = _fnProgIsTrial();
+      var inFunnel = isTrial || /③/.test(st.stage || '');
       var eta = (inFunnel && frac > 0.05) ? Math.round(el_s / frac * (1 - frac)) : null;
       var mmss = function(sec){ return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
       var orgs = (typeof CK_ORG_LIST !== 'undefined') ? CK_ORG_LIST : [];
+      if (isTrial && st.orgList && st.orgList.length) orgs = st.orgList;
       var steps = orgs.map(function(o, i){
         var k = i + 1, ic = k < st.org || (k === st.org && st.phase === 'done') ? '✅' : (k === st.org ? '⏳' : '·');
         return '<span style="display:inline-block;margin:2px 8px 2px 0;opacity:' + (k <= st.org ? 1 : .45) + '">' + ic + ' ' + o + '</span>';
       }).join('');
       if (msg) st.lastMsg = msg;
       el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;">'
-        + '<b style="font-size:1rem;">🔀 一鍵同步中' + (inFunnel ? ' ' + Math.round(frac * 100) + '%' : '') + '</b>'
-        + '<span style="color:#9ca3af;font-size:.78rem;">已跑 ' + mmss(el_s) + (eta != null ? '　預估剩 ' + mmss(eta) : '　全程約 10～12 分鐘') + '</span></div>'
-        + '<div style="font-size:.8rem;color:#5eead4;font-weight:700;margin-bottom:6px;">' + (st.stage || '') + '　<span style="color:#9ca3af;font-weight:500;">（① 激勵 → ② 報到 → ③ 漏斗）</span></div>'
+        + '<b style="font-size:1rem;">' + (isTrial ? '🔎 試聽深挖中' : '🔀 一鍵同步中') + (inFunnel ? ' ' + Math.round(frac * 100) + '%' : '') + '</b>'
+        + '<span style="color:#9ca3af;font-size:.78rem;">已跑 ' + mmss(el_s) + (eta != null ? '　預估剩 ' + mmss(eta) : (isTrial ? '' : '　全程約 10～12 分鐘')) + '</span></div>'
+        + '<div style="font-size:.8rem;color:#5eead4;font-weight:700;margin-bottom:6px;">' + (st.stage || '') + (isTrial ? '' : '　<span style="color:#9ca3af;font-weight:500;">（① 激勵 → ② 報到 → ③ 漏斗）</span>') + '</div>'
         + '<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden;margin-bottom:8px;"><div style="height:100%;width:' + Math.round(frac * 100) + '%;background:linear-gradient(90deg,#0f766e,#14b8a6);transition:width .5s;"></div></div>'
         + '<div style="font-size:.78rem;margin-bottom:6px;">' + steps + '</div>'
         + '<div style="font-size:.78rem;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (st.lastMsg || '') + '</div>'
         + '<div style="margin-top:8px;font-size:.78rem;color:#fca5a5;font-weight:700;">⚠️ 同步中請不要關閉或重新整理這個頁面（可以切到別的分頁做事）</div>';
     }
+    // 保險絲：面板還開著、但其實沒有任何同步在進行 → 15 秒後自動收掉
+    var _fnProgIdle = 0;
+    function _fnProgWatch(){
+      try {
+        if (!_fnProgTimer) { _fnProgIdle = 0; return; }
+        if (_anySyncBusy()) { _fnProgIdle = 0; return; }
+        _fnProgIdle++;
+        if (_fnProgIdle >= 15) fnProgressEnd(true);
+      } catch(e){}
+    }
+    setInterval(_fnProgWatch, 1000);
     function fnProgressEnd(ok){
       if (_fnProgTimer){ clearInterval(_fnProgTimer); _fnProgTimer = null; }
       var el = document.getElementById('fnProg'); if (!el) return;
       var el_s = Math.round((Date.now() - _fnProgT0) / 1000);
-      el.innerHTML = '<div style="font-size:1rem;"><b>' + (ok ? '✅ 全部同步完成（激勵・報到・漏斗）' : '❌ 同步中斷') + '</b><span style="color:#9ca3af;font-size:.78rem;margin-left:10px;">共 ' + Math.floor(el_s / 60) + ' 分 ' + (el_s % 60) + ' 秒</span></div>'
-        + '<div style="font-size:.78rem;color:#cbd5e1;margin-top:4px;">' + (ok ? '總報到、面談、註冊、逐人名單都是最新的。可以關閉頁面了。' : '可以直接再按一次「🔀 漏斗」重試（會從第一步重跑）。') + '</div>';
+      var isTrial = _fnProgIsTrial();
+      el.innerHTML = '<div style="font-size:1rem;"><b>' + (ok ? (isTrial ? '✅ 試聽深挖完成' : '✅ 全部同步完成（激勵・報到・漏斗）') : (isTrial ? '❌ 深挖中斷' : '❌ 同步中斷')) + '</b><span style="color:#9ca3af;font-size:.78rem;margin-left:10px;">共 ' + Math.floor(el_s / 60) + ' 分 ' + (el_s % 60) + ' 秒</span></div>'
+        + '<div style="font-size:.78rem;color:#cbd5e1;margin-top:4px;">'
+        + (ok ? (isTrial ? '試聽狀況已更新：安排試聽、⚠️ 排了試聽沒來都是最新的。可以關閉頁面了。' : '總報到、面談、註冊、逐人名單都是最新的。可以關閉頁面了。')
+              : (isTrial ? '可以直接再按一次那一區重試（已經挖過的人不會重挖）。' : '可以直接再按一次「🔀 漏斗」重試（會從第一步重跑）。')) + '</div>';
       setTimeout(function(){ if (el) el.style.display = 'none'; }, ok ? 12000 : 20000);
     }
     // 同步進行中若關閉/重新整理 → 瀏覽器先跳確認（避免 8 分鐘白跑）
@@ -6920,7 +7090,9 @@
         }, 90000);
       }
       function finish(ok){ if (settled) return; settled = true; if (wd) clearTimeout(wd); m.busy = false; refreshSyncBtnLabels();
-        if (mode === 'funnel') fnProgressEnd(ok);
+        // ★ 漏斗＝一鍵三連的最後一步；試聽深挖＝單獨跑的 → 兩者跑完都要收掉面板。
+        //   其餘（激勵／報到）才是「還有下一步」。
+        if (mode === 'funnel' || mode === 'trial') fnProgressEnd(ok);
         else if (_fnProgTimer){ if (!ok) fnProgressEnd(false); else fnProgressUpdate({ stage: mode === 'motiv' ? '② 報到：總報到' : '③ 漏斗：逐人明細（七家）' }, '✅ ' + m.label + ' 完成，接著下一步…'); }
         if (settle) settle(!!ok); }
       _wdPoke();
@@ -6954,9 +7126,15 @@
             } catch(e3){}
             try { fnRenderAll(); } catch(e2){}
           } else if (mode === 'funnel'){
+            // ★ 順序很重要：先把「舊的那份」備註收進歷史池，再換成新資料。
+            //   （反過來的話，上次同步看到的備註會在這一刻被新資料蓋掉，之後就找不回來了。）
+            try {
+              var _t2 = new Date(), _cy2 = _t2.getFullYear() + '-' + _ckPad2(_t2.getMonth() + 1);
+              var _old2 = _fnRawFor(_cy2); if (_old2) _fnAbsorbNotes(_old2);   // 舊的（同步前）
+            } catch(e2){}
             // ★ 擴充回傳的逐人 raw 直接存進 IndexedDB（不靠 localStorage，額度爆了也不會漏）
             try { if (d.funnel && d.funnel.orgs && typeof _fnIdbPut === 'function'){ _fnIdbPut(_ckCid() + 'motiv_funnel_v1', d.funnel); try { localStorage.removeItem(_ckCid() + 'motiv_funnel_v1'); } catch(e3){} } } catch(e2){}
-            try { _fnAbsorbNotes(d.funnel || fnGetRaw()); } catch(e2){}   // 📒 把這次看到的備註收進歷史池
+            try { _fnAbsorbNotes(d.funnel || fnGetRaw()); } catch(e2){}       // 新的（同步後）
             try { fnArchiveCurrent(); } catch(e2){}           // 逐人資料封存進該月
             try { fnRenderAll(); } catch(e2){}
           }
@@ -8683,6 +8861,7 @@
       var b = _ppLiveYm(); if (b) set[b] = 1;
       var arch = ckGetArchive();
       Object.keys(arch).forEach(function(ym){ if (arch[ym] && (arch[ym].checkin || arch[ym].perfp)) set[ym] = 1; });
+      try { Object.keys(_fnColdIdx()).forEach(function(ym){ set[ym] = 1; }); } catch(e){}   // 🧊 已搬到雲端的月份也要列出來
       return Object.keys(set).sort();
     }
     function _fnDataFor(ym){
@@ -8770,7 +8949,7 @@
       try { var o = JSON.parse(s); window._fnIdbObj[k] = { s: s, o: o }; return o; } catch(e){ return null; }
     }
     window._fnIdbGet = _fnIdbGet;
-    function _fnIsFunnelKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1' || k.slice(-15) === '_motiv_trial_v1' || k.slice(-15) === '_motiv_trial_v2' || k.slice(-10) === '_fn_itv_v1' || k.slice(-12) === '_fn_notes_v1'); }
+    function _fnIsFunnelKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1' || k.slice(-15) === '_motiv_trial_v1' || k.slice(-15) === '_motiv_trial_v2' || k.slice(-10) === '_fn_itv_v1' || k.slice(-12) === '_fn_notes_v1' || k.slice(-17) === '_fn_cold_index_v1'); }
     window._fnIsFunnelKey = _fnIsFunnelKey;
     // 把某個角色的 ck_archive 物件裡的 funnel 欄位搬進 IDB 的 fn_archive（回傳 true = 有搬）
     function _fnAbsorbCkFunnel(cid, arch){
@@ -8867,20 +9046,25 @@
     function _fnAbsorbNotes(raw){
       try {
         if (!raw || !raw.orgs) return 0;
-        var box = _fnIdbGet(_fnNotesKey()) || {}, added = 0, now = Date.now();
+        var box = _fnIdbGet(_fnNotesKey()) || {}, added = 0, ch = false, now = Date.now();
         Object.keys(raw.orgs).forEach(function(org){
           var slot = box[org] || (box[org] = {});
           (raw.orgs[org].itv || []).forEach(function(r){
             var m = String(r.m || '').trim();
             if (!m || !r.n) return;
             var arr = slot[r.n] || (slot[r.n] = []);
-            for (var i = 0; i < arr.length; i++){ if (arr[i].m === m) return; }   // 同一段文字看過就不重複存
-            arr.push({ m: m, at: now, d: r.d || '' });
+            // ★ 2026/09：標記「EIP 現在顯示的就是這一段」。
+            //   沒有這個標記，被業務刪掉／改回舊備註的那段試聽會永遠留著算數（馬弘緯 9/20 就是這樣來的）。
+            for (var j = 0; j < arr.length; j++){ if (arr[j].cur) delete arr[j].cur; }
+            var hit = -1;
+            for (var i = 0; i < arr.length; i++){ if (arr[i].m === m){ hit = i; break; } }
+            if (hit >= 0){ arr[hit].cur = 1; arr[hit].seen = now; ch = true; return; }   // 看過的文字不重存，但要更新「現行」
+            arr.push({ m: m, at: now, seen: now, cur: 1, d: r.d || '' });
             if (arr.length > 12) arr.shift();                                     // 一個人最多留 12 段
-            added++;
+            added++; ch = true;
           });
         });
-        if (added) _fnIdbPut(_fnNotesKey(), box);
+        if (ch) _fnIdbPut(_fnNotesKey(), box);
         return added;
       } catch(e){ console.warn('[fn] 備註累積失敗', e); return 0; }
     }
@@ -8944,6 +9128,200 @@
         _fnIdbPut(key, own);
       } catch(e){ console.warn('[fn] archive funnel 失敗', e); }
     }
+    // ═══════════ 🧊 冷封存（2026/09）═══════════
+    //   超過 N 個月的逐人資料搬去雲端（Firebase＝Google），本機只留最近 N 個月，
+    //   月份列仍然看得到那個月，標 🧊；點下去自動從雲端拉回來，看完照常用。
+    //   搬的同時會下載一份 JSON 檔，讓你收進 Google Drive 當離線備份。
+    var FN_COLD_KEEP_MONTHS = 12;                      // 手邊保留幾個月
+    var FN_COLD_COL = '_global_perf_cold';             // Firestore collection
+    var FN_COLD_IDX = 'cold_index';                    // 索引文件：哪些月份已冷封存
+    function _fnColdIdxKey(){ return _ckCid() + 'fn_cold_index_v1'; }   // 本機索引（離線也知道有哪些月在雲端）
+    function _fnColdIdx(){ return _fnIdbGet(_fnColdIdxKey()) || {}; }
+    function _fnColdMark(ym, info){ var x = _fnColdIdx(); x[ym] = info; _fnIdbPut(_fnColdIdxKey(), x); }
+    function _fnColdUnmark(ym){ var x = _fnColdIdx(); delete x[ym]; _fnIdbPut(_fnColdIdxKey(), x); }
+    // 幾個月前
+    function _fnMonthsAgo(ym){
+      var t = new Date(), cy = t.getFullYear(), cm = t.getMonth() + 1;
+      return (cy - parseInt(ym.slice(0,4), 10)) * 12 + (cm - parseInt(ym.slice(5), 10));
+    }
+    // 哪些月份「該搬」了：超過保留期、本機還有資料、而且不是當月
+    function _fnColdDue(){
+      var due = [], idx = _fnColdIdx();
+      var pool = _fnIdbGet(_fnItvPoolKey()) || {};
+      var arch = _fnIdbGet(_ckCid() + 'fn_archive_v1') || {};
+      var yms = {};
+      Object.keys(pool).forEach(function(ym){ yms[ym] = 1; });
+      Object.keys(arch).forEach(function(ym){ yms[ym] = 1; });
+      Object.keys(yms).sort().forEach(function(ym){
+        if (idx[ym]) return;                                   // 已經搬過
+        if (_fnMonthsAgo(ym) < FN_COLD_KEEP_MONTHS) return;    // 還在保留期
+        due.push(ym);
+      });
+      return due;
+    }
+    // 把一個月份打包成一包（面談逐人 ＋ 該月收支 ＋ 該月相關的備註與深挖）
+    function _fnColdPack(ym){
+      var pool = _fnIdbGet(_fnItvPoolKey()) || {};
+      var arch = _fnIdbGet(_ckCid() + 'fn_archive_v1') || {};
+      var notes = _fnIdbGet(_fnNotesKey()) || {};
+      var trial = fnGetTrialScan();
+      var itv = pool[ym] || {};
+      // 這個月出現過的人（用來挑出相關的備註與深挖紀錄，不必整包搬）
+      var who = {};
+      Object.keys(itv).forEach(function(org){ (itv[org] || []).forEach(function(r){ if (r && r.n) (who[org] || (who[org] = {}))[r.n] = 1; }); });
+      var notesPick = {}, trialPick = {};
+      Object.keys(who).forEach(function(org){
+        var nb = notes[org] || {}, tb = (trial && (trial.people || trial.orgs) || {})[org] || {};
+        Object.keys(who[org]).forEach(function(n){
+          if (nb[n]) (notesPick[org] || (notesPick[org] = {}))[n] = nb[n];
+          if (tb[n]) (trialPick[org] || (trialPick[org] = {}))[n] = tb[n];
+        });
+      });
+      return {
+        schema: 'fn-cold-v1', ym: ym, packedAt: new Date().toISOString(), packedBy: _fnMe(),
+        itv: itv,                                   // 該月面談逐人（依學院）
+        archive: arch[ym] || null,                  // 該月收支 pay ＋ 引用的面談月份
+        notes: notesPick,                           // 這些人的備註流水
+        trial: trialPick                            // 這些人的狀態歷史記錄
+      };
+    }
+    // 分片寫進 Firestore（跟推送同一套切法，避免單一文件超過 1MB）
+    async function _fnColdUpload(ym, pack){
+      var fs = _fnFsync(); if (!fs) throw new Error('找不到雲端連線（firebaseSync）');
+      var json = JSON.stringify(pack), CH = 200000, parts = [], pos = 0;
+      while (pos < json.length){
+        var end = Math.min(pos + CH, json.length);
+        var cc = json.charCodeAt(end - 1);
+        if (cc >= 0xD800 && cc <= 0xDBFF && end < json.length) end++;
+        parts.push(json.slice(pos, end)); pos = end;
+      }
+      for (var i = 0; i < parts.length; i++){
+        await fs.writeGlobalDoc(FN_COLD_COL, 'cold_' + ym + '_' + i, parts[i], _fnMe());
+      }
+      await fs.writeGlobalDoc(FN_COLD_COL, 'cold_' + ym, JSON.stringify({ schema:'fn-cold-manifest', ym:ym, parts:parts.length, chars:json.length, packedAt:pack.packedAt, packedBy:pack.packedBy }), _fnMe());
+      // 更新雲端索引（別台電腦也知道有這個月）
+      try {
+        var cur = {};
+        try { var d = await fs.readGlobalDoc(FN_COLD_COL, FN_COLD_IDX); if (d && d.data) cur = JSON.parse(d.data) || {}; } catch(e){}
+        cur[ym] = { parts: parts.length, chars: json.length, packedAt: pack.packedAt, packedBy: pack.packedBy };
+        await fs.writeGlobalDoc(FN_COLD_COL, FN_COLD_IDX, JSON.stringify(cur), _fnMe());
+      } catch(e){ console.warn('[cold] 更新雲端索引失敗', e); }
+      return { parts: parts.length, chars: json.length };
+    }
+    function _fnFsync(){
+      var w = window, hop = 0;
+      while (w && hop < 5){
+        try { if (w.firebaseSync && typeof w.firebaseSync.writeGlobalDoc === 'function') return w.firebaseSync; } catch(e){}
+        if (w === w.parent) break;
+        w = w.parent; hop++;
+      }
+      return null;
+    }
+    // 下載一份 JSON（收進 Google Drive 當離線備份）
+    function _fnColdDownload(ym, pack){
+      try {
+        var blob = new Blob([JSON.stringify(pack)], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = '漏斗封存_' + ym + '.json';
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+        return true;
+      } catch(e){ console.warn('[cold] 下載失敗', e); return false; }
+    }
+    // 從本機刪掉這個月（雲端已經有了）
+    function _fnColdEvict(ym, pack){
+      var pool = _fnIdbGet(_fnItvPoolKey()) || {};
+      if (pool[ym]){ delete pool[ym]; _fnIdbPut(_fnItvPoolKey(), pool); }
+      var ak = _ckCid() + 'fn_archive_v1', arch = _fnIdbGet(ak) || {};
+      if (arch[ym]){ delete arch[ym]; _fnIdbPut(ak, arch); }
+      // 備註／深挖：只刪「只在這個月出現過」的人，還在近期名單裡的人保留
+      try {
+        var keepNames = {};
+        Object.keys(pool).forEach(function(oy){ Object.keys(pool[oy] || {}).forEach(function(org){ (pool[oy][org] || []).forEach(function(r){ if (r && r.n) (keepNames[org] || (keepNames[org] = {}))[r.n] = 1; }); }); });
+        var notes = _fnIdbGet(_fnNotesKey()) || {}, nCh = false;
+        Object.keys(pack.notes || {}).forEach(function(org){
+          Object.keys(pack.notes[org]).forEach(function(n){
+            if (keepNames[org] && keepNames[org][n]) return;
+            if (notes[org] && notes[org][n]){ delete notes[org][n]; nCh = true; }
+          });
+        });
+        if (nCh) _fnIdbPut(_fnNotesKey(), notes);
+      } catch(e){ console.warn('[cold] 清備註失敗', e); }
+    }
+    // 主流程：封存一個月
+    async function fnColdArchiveOne(ym, silent){
+      var pack = _fnColdPack(ym);
+      var nP = Object.keys(pack.itv || {}).reduce(function(a, o){ return a + (pack.itv[o] || []).length; }, 0);
+      if (!nP && !pack.archive){ _fnColdMark(ym, { empty: 1, packedAt: new Date().toISOString() }); return { ym: ym, empty: true }; }
+      var up = await _fnColdUpload(ym, pack);
+      _fnColdDownload(ym, pack);
+      _fnColdMark(ym, { parts: up.parts, chars: up.chars, rows: nP, packedAt: pack.packedAt, packedBy: pack.packedBy });
+      _fnColdEvict(ym, pack);
+      return { ym: ym, rows: nP, kb: Math.round(up.chars / 1024) };
+    }
+    async function fnColdArchiveDue(){
+      var due = _fnColdDue();
+      if (!due.length){ alert('目前沒有超過 ' + FN_COLD_KEEP_MONTHS + ' 個月的資料需要封存。'); return; }
+      var msg = '🧊 要把這些月份搬到雲端嗎？\n\n' + due.map(function(ym){ return '　' + ym.slice(0,4) + ' 年 ' + parseInt(ym.slice(5),10) + ' 月（' + _fnMonthsAgo(ym) + ' 個月前）'; }).join('\n')
+        + '\n\n搬完之後：\n・本機會變輕，這些月份的按鈕會標 🧊\n・點那個月份會自動從雲端拉回來，照常可以看卡片與逐人名單\n・同時會下載一份 JSON 檔，請收進 Google Drive 當離線備份';
+      if (!confirm(msg)) return;
+      var okList = [], errList = [];
+      for (var i = 0; i < due.length; i++){
+        _syncToast('🧊 正在封存 ' + due[i] + '（' + (i+1) + '/' + due.length + '）…', '#0e7490');
+        try { var r = await fnColdArchiveOne(due[i]); okList.push(r); }
+        catch(e){ errList.push(due[i] + '：' + (e.message || e)); }
+      }
+      try { fnRenderAll(); } catch(e){}
+      alert('🧊 封存完成\n\n' + okList.map(function(r){ return '　' + r.ym + (r.empty ? '（沒有資料）' : '　' + r.rows + ' 筆・' + r.kb + 'K') ; }).join('\n')
+        + (errList.length ? '\n\n失敗：\n' + errList.join('\n') : '')
+        + '\n\n下載的 JSON 檔請收進 Google Drive；要看舊月份直接點月份按鈕就會拉回來。');
+    }
+    // 從雲端把某個月拉回本機快取（點 🧊 月份時自動做）
+    var _fnColdLoading = {};
+    async function fnColdRestore(ym){
+      if (_fnColdLoading[ym]) return false;
+      _fnColdLoading[ym] = 1;
+      try {
+        var fs = _fnFsync(); if (!fs) throw new Error('找不到雲端連線');
+        _syncToast('🧊 正在從雲端取回 ' + ym + '…', '#0e7490');
+        var man = await fs.readGlobalDoc(FN_COLD_COL, 'cold_' + ym);
+        if (!man || !man.data) throw new Error('雲端找不到這個月的封存');
+        var mm = JSON.parse(man.data), buf = [];
+        for (var i = 0; i < mm.parts; i++){
+          var pd = await fs.readGlobalDoc(FN_COLD_COL, 'cold_' + ym + '_' + i);
+          if (!pd || typeof pd.data !== 'string') throw new Error('雲端分片不完整（第 ' + (i+1) + ' 片）');
+          buf.push(pd.data);
+        }
+        var pack = JSON.parse(buf.join(''));
+        // 放回快取（不動索引 → 下次還是知道它是冷資料）
+        var pool = _fnIdbGet(_fnItvPoolKey()) || {};
+        pool[ym] = pack.itv || {}; _fnIdbPut(_fnItvPoolKey(), pool);
+        if (pack.archive){ var ak = _ckCid() + 'fn_archive_v1', arch = _fnIdbGet(ak) || {}; arch[ym] = pack.archive; _fnIdbPut(ak, arch); }
+        if (pack.notes){
+          var notes = _fnIdbGet(_fnNotesKey()) || {};
+          Object.keys(pack.notes).forEach(function(org){
+            var slot = notes[org] || (notes[org] = {});
+            Object.keys(pack.notes[org]).forEach(function(n){ if (!slot[n]) slot[n] = pack.notes[org][n]; });
+          });
+          _fnIdbPut(_fnNotesKey(), notes);
+        }
+        _syncToast('🧊 ' + ym + ' 已取回（' + Math.round((mm.chars||0)/1024) + 'K）', '#4ade80');
+        return true;
+      } catch(e){
+        _syncToast('❌ 取回失敗：' + (e.message || e), '#ff6b6b');
+        return false;
+      } finally { delete _fnColdLoading[ym]; }
+    }
+    // 月份按鈕點下去：冷資料且本機沒有 → 先拉回再顯示
+    async function fnSetYmCold(ym){
+      var pool = _fnIdbGet(_fnItvPoolKey()) || {};
+      if (_fnColdIdx()[ym] && !pool[ym]){
+        var ok = await fnColdRestore(ym);
+        if (!ok) return;
+      }
+      fnSetYm(ym);
+    }
     // 一次性瘦身：把舊的「每月各存一份 3 個月」封存拆進共用池
     function _fnCompactArchives(){
       try {
@@ -8974,7 +9352,11 @@
         window._fnIdbReady = true;
         try { _fnMigrateLs(); } catch(e){}
         try { _fnCompactArchives(); } catch(e){}
-        try { _fnAbsorbNotes(fnGetRaw()); } catch(e){}
+        try {
+          _fnAbsorbNotes(fnGetRaw());
+          var _t = new Date(), _cy = _t.getFullYear() + '-' + _ckPad2(_t.getMonth() + 1);
+          var _cur = _fnRawFor(_cy); if (_cur && _cur !== fnGetRaw()) _fnAbsorbNotes(_cur);   // 本月封存那份的備註也收起來
+        } catch(e){}
         try { fnArchiveCurrent(); } catch(e){}
         try { var t9 = document.getElementById('tab-9'); if (t9 && t9.classList.contains('active') && typeof fnRenderAll === 'function') fnRenderAll(); } catch(e){}
         try { window.dispatchEvent(new CustomEvent('fn-idb-ready')); } catch(e){}
@@ -9071,12 +9453,21 @@
     //   排序：深挖紀錄用「撥打日期」，累積備註用「第一次看到的時間」，新 → 舊
     function _fnTrialFromHist(recs, ref, ym){
       if (!recs || !recs.length) return null;
+      // 現行備註（EIP 上現在就是這一段）第一次被看到的時間
+      var curAt = null;
+      for (var k = 0; k < recs.length; k++){ if (recs[k] && recs[k].cur) curAt = +recs[k].at || 0; }
       var list = recs.map(function(r, i){
         var t = 0;
         if (r && r.d){ var dd = _fnParseD(r.d); if (dd) t = dd.getTime(); }
         if (!t && r && r.at) t = +r.at || 0;
-        return { m: (r && r.m) || '', t: t, i: i };
+        return { m: (r && r.m) || '', t: t, i: i, cur: !!(r && r.cur), at: (r && r.at) ? (+r.at || 0) : 0 };
       }).sort(function(a, b){ return (b.t - a.t) || (b.i - a.i); });
+      // ★ 2026/09 資料誠實原則：
+      //   備註池只是「我們每次同步時看到的快照」，不是 EIP 的原始紀錄。
+      //   一段只存在於備註池、在 EIP 現況又對不上的文字，不可以單獨決定一個人「有安排試聽」——
+      //   那會讓卡片上的數字動了，卻沒有任何地方查得到為什麼。
+      //   所以改成：對不上現況的，不計入試聽，但原文照留、標成「待查證」列出來給人去 EIP 對。
+      var unsure = null;
       for (var i = 0; i < list.length; i++){
         var t = _fnTrialNote(list[i].m, ref, ym);
         if (!t || !t.d) continue;
@@ -9084,9 +9475,16 @@
         var cancelled = false;
         for (var j = 0; j < i; j++){ if (FN_CANCEL_RE.test(list[j].m)){ cancelled = true; break; } }
         if (cancelled) continue;
+        var verified = list[i].cur || !list[i].at;        // 現行備註，或深挖歷史（有真實撥打日期、沒有 at）
+        if (!verified && curAt !== null){
+          if (!unsure) unsure = Object.assign({ src:'hist', unverified:1, seenAt:list[i].at, curTx:(function(){
+            for (var q = 0; q < list.length; q++){ if (list[q].cur) return list[q].m; } return '';
+          })() }, t);
+          continue;
+        }
         return t.future ? Object.assign({ src:'hist' }, t) : Object.assign({ src:'hist', noShow:true }, t);
       }
-      return null;
+      return unsure;
     }
     function _fnAuto(raw, org, ym){
       if (!raw || !raw.orgs || !raw.orgs[org]) return null;
@@ -9100,7 +9498,7 @@
       var I = {};
       itv.forEach(function(r){ var d = _fnParseD(r.d); if (!d) return; var i = I[r.n] || (I[r.n] = { rows:[] }); i.rows.push({ d:d, sd:_fnParseD(r.sd), o:r.o, a:+r.a||0, r:+r.r||0, m:r.m||'', p:r.p||'', w:r.w||'', t:+r.t||0 }); });
       var out = { interview:0, onsite:[], trialReg:[], harvest:[], harvestOld:[], trial:0, trialList:[], itvList:[], mgmt:[], pool:[], lost:[], regTotal:0, regAmt:0,
-                  noteTrial:[], poolTrial:[], trialDue:[], feeTrial:0, scanN:0 };
+                  noteTrial:[], poolTrial:[], trialDue:[], trialUnsure:[], feeTrial:0, scanN:0 };
       var refD = _fnRefDate(raw, ym);
       var scan = _fnScanFor(ym, org);   // 🔎 深挖：狀態歷史記錄逐筆追蹤情形
       var noteBox = _fnNotesFor(org);   // 📒 歷次同步看到的備註（不用重挖就能累積）
@@ -9121,9 +9519,19 @@
         var sc = scan && scan[name] && scan[name].h;
         if (sc && sc.length){ out.scanN++; recs = recs.concat(sc); }
         var nb = noteBox && noteBox[name];
-        if (nb && nb.length){ recs = recs.concat(nb.map(function(x){ return { m: x.m, at: x.at }; })); }
+        if (nb && nb.length){
+          var curM = String(last.m || '').trim();
+          var hasCur = nb.some(function(x){ return x.cur; });
+          recs = recs.concat(nb.map(function(x){ return { m:x.m, at:x.at, cur: hasCur ? (x.cur ? 1 : 0) : (x.m === curM ? 1 : 0) }; }));
+        }
         if (recs.length){
           var th = _fnTrialFromHist(recs, refD, ym);
+          // ★ 待查證：備註池講了試聽，但 EIP 現在的備註看不到這段 → 不動任何數字，只列出來給人去對
+          if (th && th.unverified){
+            if (!tn || !tn.d) out.trialUnsure.push({ n:name, o:(rowM ? rowM.o : last.o), d:_fnMD(last.d), ym:_fnYmOf(last.d),
+              td:th.td, tx:th.txt, seenAt:th.seenAt, cur:String(th.curTx || '').slice(0, 40) });
+            th = null;
+          }
           if (th && (!tn || !tn.d || (th.future && !tn.future) || (th.future && th.d < tn.d))) tn = th;
           else if (th && !tn) tn = th;
         }
@@ -9481,16 +9889,21 @@
     // ══════════════════════════════════════════════════════════════
     function _tvNum(v){ return '<b style="font-size:1.05rem;color:var(--tvAcc);">' + v + '</b>'; }
     // 可展開名單（沒有名單就回空字串）
-    function _tvNames(title, arr, fmt, tone){
+    var _tvOrg = '', _tvYm = '';   // 教學視窗當下看的是哪一家、哪個月（分組要用）
+    function _tvNames(title, arr, fmt, tone, chk){
       if (!arr || !arr.length) return '';
+      var ctx = (chk && _tvOrg) ? _fnChkCtx(_tvOrg, _tvYm) : null;
+      var liFn = function(x){
+        var f = fmt(x);
+        var pill = f.pill ? '<span class="tv-pill' + (tone === 'x' ? ' tv-pill-x' : '') + '">' + f.pill + '</span>' : '';
+        if (ctx) return _fnRowHtml(x, pill + f.sub, ctx);
+        return '<li><b>' + _fnEsc(x.n) + '</b>' + pill + '<em>' + f.sub + '</em></li>';
+      };
+      var grouped = _fnGroupedHtml(arr, _tvOrg, _tvYm, liFn);
       return '<details class="tv-det"><summary>看這 ' + arr.length + ' 位是誰 ▸</summary><div class="tv-det-b tv-one">'
-        + '<div class="tv-g"><div class="tv-g-t">' + title + '　<b>' + arr.length + '</b> 位' + _fnCopyBtn(arr) + '</div><ul class="tv-ul">'
-        + arr.map(function(x){
-            var f = fmt(x);
-            return '<li><b>' + _fnEsc(x.n) + '</b>' + (f.pill ? '<span class="tv-pill' + (tone === 'x' ? ' tv-pill-x' : '') + '">' + f.pill + '</span>' : '')
-              + '<em>' + f.sub + (x.o ? '　' + _fnEsc(x.o) : '') + '</em></li>';
-          }).join('')
-        + '</ul></div></div></details>';
+        + '<div class="tv-g"><div class="tv-g-t">' + title + '　<b>' + arr.length + '</b> 位' + _fnCopyBtn(arr) + '</div>'
+        + (grouped || ('<ul class="tv-ul">' + arr.map(liFn).join('') + '</ul>'))
+        + '</div></div></details>';
     }
     function _tvRow(label, value, from, how){
       return '<div class="tv-row"><div class="tv-lb">' + label + '</div>'
@@ -9499,6 +9912,7 @@
         + '<div class="tv-how">' + how + '</div></div>';
     }
     function fnTeach(ym, org){
+      _tvYm = ym; _tvOrg = (org === '__TOTAL__') ? '' : org;
       var orgs = _fnScopeOrgs();
       var d = _fnDataFor(ym);
       var all = CK_ORG_LIST.map(function(o){ return _fnOrgStats(d, o, ym); });
@@ -9524,22 +9938,25 @@
         };
         var hvList = '';
         if (a){
-          var g1 = a.harvest.map(function(x){
+          var li1 = function(x){
             var ago = _mAgo(x.ym);
             return '<li><b>' + _fnEsc(x.n) + '</b>'
               + '<span class="tv-pill">' + (x.ym ? _fnMonthLabel(x.ym) + (ago ? '（' + ago + ' 個月前）' : '（本月）') : '—') + '</span>'
-              + '<em>' + (x.oldList ? '名單建檔' : '面談') + '　→　' + (x.r || '—') + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : '') + (x.trial ? '・有試聽' : '') + '　' + _fnEsc(x.o || '') + '</em></li>';
-          }).join('');
-          var g2 = a.harvestOld.map(function(x){
+              + '<em>' + (x.oldList ? '名單建檔' : '面談') + '　→　' + (x.r || '—') + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : '') + (x.trial ? '・有試聽' : '') + '</em></li>';
+          };
+          var li2 = function(x){
             return '<li><b>' + _fnEsc(x.n) + '</b><span class="tv-pill tv-pill-x">3 個月內無面談</span>'
-              + '<em>' + (x.r || '—') + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : '') + (x.trial ? '・曾繳報名費' : '') + '　' + _fnEsc(x.o || '') + '</em></li>';
-          }).join('');
+              + '<em>' + (x.r || '—') + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : '') + (x.trial ? '・曾繳報名費' : '') + '</em></li>';
+          };
+          // ★ 跟其他名單一致：依 組 → 業務 分層（合計卡沒有單一學院時自動退回平鋪）
+          var g1 = _fnGroupedHtml(a.harvest, _tvOrg, _tvYm, li1) || (a.harvest.length ? '<ul class="tv-ul">' + a.harvest.map(li1).join('') + '</ul>' : '');
+          var g2 = _fnGroupedHtml(a.harvestOld, _tvOrg, _tvYm, li2) || (a.harvestOld.length ? '<ul class="tv-ul">' + a.harvestOld.map(li2).join('') + '</ul>' : '');
           hvList = '<details class="tv-det"><summary>看這 ' + s.harvest + ' 位是誰・幾個月前的名單 ▸</summary>'
             + '<div class="tv-det-b">'
             + '<div class="tv-g"><div class="tv-g-t">⑴ Ⓑ 舊名單（名單上個月以前建檔）本月註冊　<b>' + a.harvest.length + '</b> 位</div>'
-            + (g1 ? '<ul class="tv-ul">' + g1 + '</ul>' : '<p class="tv-none">本月沒有</p>') + '</div>'
+            + (g1 || '<p class="tv-none">本月沒有</p>') + '</div>'
             + '<div class="tv-g"><div class="tv-g-t">⑵ 往回 3 個月查不到面談紀錄（更早的舊名單）　<b>' + a.harvestOld.length + '</b> 位</div>'
-            + (g2 ? '<ul class="tv-ul">' + g2 + '</ul>' : '<p class="tv-none">本月沒有</p>') + '</div>'
+            + (g2 || '<p class="tv-none">本月沒有</p>') + '</div>'
             + '<p class="tv-note">⑴ 有標幾個月前 → 看得出是「上個月剛談的」還是「三個月前的老名單」，回追優先順序不一樣。⑵ 這批連 3 個月內都沒面談紀錄，等於更早期的名單自己回來簽，通常是舊生轉介或長期經營。</p>'
             + '</div></details>';
         }
@@ -9586,13 +10003,13 @@
             + (a.trialDue.length ? '　另有 <b style="color:var(--tvWarn);">' + a.trialDue.length + '</b> 位已經從這個數字扣掉了（排了沒來，看下一列）。' : '')
             + (a.scanN ? '　🔎 這家有 <b>' + a.scanN + '</b> 位做過「狀態歷史記錄」深挖（連更早的追蹤情形都看得到）；之後每次同步看到的新備註會自動累積，不用再挖一次。' : '')
             + _tvNames('有繳報名費＝安排試聽', a.trialList.filter(function(x){ return x.st !== '備註試聽'; }), function(x){ return { pill:x.st, sub:'面談 ' + x.d + (x.r ? ' → 註冊 ' + x.r : '') + (x.v ? '・' + _fnWan(x.v) : '') + (x.td ? '・備註試聽 ' + x.td : '') }; })
-            + _tvNames('📝 追蹤情形寫了試聽（沒繳報名費）', a.noteTrial, function(x){ return { pill: x.td ? '試聽 ' + x.td + (x.cross ? '・跨月' : '') : '未寫日期', sub:'面談 ' + x.d + (x.src === 'hist' ? '・🔎深挖' : '') + '・「' + _fnEsc(x.tx) + '」' }; })
-            + _tvNames('前 1～3 個月面談・已排未來試聽日（另列）', a.poolTrial, function(x){ return { pill:'試聽 ' + x.td + (x.cross ? '・跨月' : ''), sub:_fnMonthLabel(x.ym) + ' 面談・「' + _fnEsc(x.tx) + '」' }; }, 'x')
+            + _tvNames('📝 追蹤情形寫了試聽（沒繳報名費）', a.noteTrial, function(x){ return { pill: x.td ? '試聽 ' + x.td + (x.cross ? '・跨月' : '') : '未寫日期', sub:'面談 ' + x.d + (x.src === 'hist' ? '・🔎深挖' : '') + '・「' + _fnEsc(x.tx) + '」' }; }, '', 1)
+            + _tvNames('前 1～3 個月面談・已排未來試聽日（另列）', a.poolTrial, function(x){ return { pill:'試聽 ' + x.td + (x.cross ? '・跨月' : ''), sub:_fnMonthLabel(x.ym) + ' 面談・「' + _fnEsc(x.tx) + '」' }; }, 'x', 1)
 
             + ((s.reports && s.reports.length) ? _tvNames('記名報備試聽', s.reports.filter(function(x){ return !x.ext; }), function(x){ return { pill: x.st === 'reg' ? '已註冊' : (x.st === 'dup' ? '重複不計' : '計入試聽'), sub:(x.grp ? _fnEsc(x.grp) + '・' : '') + (x.course ? _fnEsc(x.course) : '') + (x.date ? '・試聽日 ' + _fnEsc(x.date) : '') }; }, 'x') : '')
             + (s.ext && s.ext.n ? '<div class="tv-note" style="margin:8px 0 2px;font-size:.86rem;line-height:1.55;">🏫 <b>外院試聽 ' + s.ext.n + ' 位</b>（已簽 ' + s.ext.reg + '・經營中 ' + s.ext.mgmt + '）＝別家學院談過、我們安排試聽或收單的名單，<b>不計入</b>上面的安排試聽和三個百分比。'
                 + (s.ext.autoN ? '其中 ' + s.ext.autoN + ' 位是系統自動偵測：本月在本院有報名或註冊、三個月內本院沒面談紀錄、但在別家有面談紀錄。' : '') + (s.ext.manualN ? '另 ' + s.ext.manualN + ' 位是組長手動報備。' : '') + '註冊會掃七家收支，≥ 2 萬就自動 ✅ 並標簽在哪家。</div>'
-                + _tvNames('外院試聽名單', s.ext.list, function(x){ return { pill: x.st === 'reg' ? '✅ ' + (x.regAt === s.org ? '本院' : x.regAt) + ' 註冊' : '經營中', sub:(x.src ? '原 ' + _fnEsc(x.src) + (x.o ? '・' + _fnEsc(x.o) : '') + (x.d ? '・' + x.d + ' 面談' : '') : '來源未填') + (x.v ? '・' + _fnWan(x.v) : '') + (x.manual ? '・🖐 ' + _fnEsc(x.by || '') : '・🤖 自動') }; }, 'x') : '')
+                + _tvNames('外院試聽名單', s.ext.list, function(x){ return { pill: x.st === 'reg' ? '✅ ' + (x.regAt === s.org ? '本院' : x.regAt) + ' 註冊' : '經營中', sub:(x.src ? '原 ' + _fnEsc(x.src) + (x.o ? '・' + _fnEsc(x.o) : '') + (x.d ? '・' + x.d + ' 面談' : '') : '來源未填') + (x.v ? '・' + _fnWan(x.v) : '') + (x.manual ? '・🖐 ' + _fnEsc(x.by || '') : '・🤖 自動') }; }, 'x', 1) : '')
           : 'EIP 報名數 ' + s.signup + (s.extra ? ' ＋ 報備 ' + s.extra : '') + '。');
       // ★ 主標列：排了試聽沒來（很重要 → 跟其他四格同一層，不藏在說明裡）
       if (a){
@@ -9602,15 +10019,16 @@
           (a.trialDue.length
             ? '<b>約好了試聽日、日子過了人沒出現，也沒有再排新的、也還沒註冊。</b>這 <b>' + a.trialDue.length + '</b> 位<b style="color:var(--tvWarn);">已經從上面的「安排試聽」扣掉了</b>，不會灌水。<br>只要業務重新約，下次同步就會自動加回「安排試聽」、這裡同步減一 —— 所以這個數字就是<b>現在該打電話重約的人</b>。'
             : '目前沒有這種人：排過的試聽要嘛還沒到、要嘛人來了。<br>（判定：約定的試聽日已經過了 ＋ 沒有更新的試聽日 ＋ 還沒註冊。日子一過就自動掉進這裡，不用等同步。）')
-          + _tvNames('⚠️ 排了試聽沒來・現在該重約的人', a.trialDue, function(x){ return { pill:'排 ' + x.td + '・已過 ' + x.days + ' 天', sub:'面談 ' + x.d + (x.src === 'hist' ? '・🔎深挖' : '') + '・「' + _fnEsc(x.tx) + '」' }; }, 'x'));
+          + _tvNames('📝 待查證試聽（沒有計入任何數字）', a.trialUnsure || [], function(x){ return { pill:'待查證', sub:'面談 ' + x.d + ' → 備註寫試聽 ' + (x.td || '（沒寫日期）') + '・這段是 ' + _fnWhen(x.seenAt) + ' 抓到的，EIP 現在的備註是「' + (x.cur ? _fnEsc(x.cur) : '（空白）') + '」' + '・原文「' + _fnEsc(x.tx) + '」' }; }, 'x', 1)
+          + _tvNames('⚠️ 排了試聽沒來・現在該重約的人', a.trialDue, function(x){ return { pill:'排 ' + x.td + '・已過 ' + x.days + ' 天', sub:'面談 ' + x.d + (x.src === 'hist' ? '・🔎深挖' : '') + '・「' + _fnEsc(x.tx) + '」' }; }, 'x', 1));
       }
       flow += _tvRow('試聽後結果', (s.known ? s.reg + ' 註冊 ／ ' + s.mgmt + ' 經營中' : '待填當下'), a ? '逐人資料自動算' : '手填後自動算',
         (s.known ? '試聽的人裡面：<b>' + s.reg + '</b> 位已經簽了（試聽後註冊），<b>' + s.mgmt + '</b> 位還在追 —— 這 ' + s.mgmt + ' 位就是下個月的收割名單。'
                  : '這家還沒同步逐人資料，也還沒手填「當下註冊」，所以算不出來。')
-        + (a ? _tvNames('經營中（本月試聽、還沒簽）→ 優先回追', a.mgmt, function(x){ return { pill:'已 ' + x.days + ' 天', sub:'面談 ' + x.d + (x.m ? '・' + _fnEsc(String(x.m).slice(0,26)) : '') }; })
+        + (a ? _tvNames('經營中（本月試聽、還沒簽）→ 優先回追', a.mgmt, function(x){ return { pill:'已 ' + x.days + ' 天', sub:'面談 ' + x.d + (x.m ? '・' + _fnEsc(String(x.m).slice(0,26)) : '') }; }, '', 1)
              + (a.pool.length ? '<div class="tv-note" style="margin:8px 0 2px;font-size:.86rem;line-height:1.55;">' + _fnPoolNote(a, ym) + '</div>' : '')
-             + _tvNames('經營池（前 3 個月試聽、還沒簽）→ 下月收割', a.pool, function(x){ return { pill:_fnMonthLabel(x.ym) + '・已 ' + x.days + ' 天', sub:'面談 ' + x.d + (x.m ? '・' + _fnEsc(String(x.m).slice(0,26)) : '') }; }, 'x')
-             + _tvNames('面談後流失（沒報名也沒註冊）', a.lost, function(x){ return { pill:'面談 ' + x.d, sub:(x.w ? '想學 ' + _fnEsc(String(x.w).slice(0,16)) : '無備註') }; }, 'x') : ''));
+             + _tvNames('經營池（前 3 個月試聽、還沒簽）→ 下月收割', a.pool, function(x){ return { pill:_fnMonthLabel(x.ym) + '・已 ' + x.days + ' 天', sub:'面談 ' + x.d + (x.m ? '・' + _fnEsc(String(x.m).slice(0,26)) : '') }; }, 'x', 1)
+             + _tvNames('面談後流失（沒報名也沒註冊）', a.lost, function(x){ return { pill:'面談 ' + x.d, sub:(x.w ? '想學 ' + _fnEsc(String(x.w).slice(0,16)) : '無備註') }; }, 'x', 1) : ''));
 
       // ── ③ 判定規則 ──
       var rules = '<div class="tv-steps">'
@@ -9661,7 +10079,7 @@
           var x = p.x;
           return '<div class="tv-ex"><div class="tv-ex-h"><b>' + _fnEsc(x.n) + '</b><span style="background:' + p.c + '">' + p.r + '</span></div>'
             + '<div class="tv-ex-p">' + (x.d ? '面談 ' + x.d : '') + (x.r ? '　→　註冊 ' + x.r : '') + (x.v ? '　' + _fnWan(x.v) : '') + '</div>'
-            + '<div class="tv-ex-w">判定：' + p.t + '　｜　承辦 ' + _fnEsc(x.o || '—') + '</div></div>';
+            + '<div class="tv-ex-w">判定：' + p.t + '　｜　承辦 <span class="fn-own">' + _fnEsc(x.o || '—') + '</span></div></div>';
         }).join('');
       }
       var five = '<div class="tv-five">'
@@ -9701,14 +10119,20 @@
       }).join('');
 
       var css = '<style>'
-        + '#tvBg{position:fixed;inset:0;background:rgba(0,0,0,.42);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;}'
+        + '#tvBg{position:fixed;inset:0;background:#fff;z-index:1000;display:block;padding:0;overflow:hidden;}'
         + '#tvBox{'
         +   '--tvAcc:#5B5BD6;--tvAccSoft:#EEEEFB;--tvGood:#1B8A4B;--tvGoodSoft:#EAF6EF;--tvBad:#C0392B;'
         +   '--tvWarn:#A8690B;--tvWarnSoft:#FDF6E7;--tvTeal:#0E7C86;--tvOrange:#B0590A;'
         +   '--tvInk:#1D1D1F;--tvDim:#6E6E73;--tvFaint:#8E8E93;--tvLine:#E5E5EA;--tvSoft:#F5F5F7;'
-        +   'background:#fff;color:var(--tvInk);border-radius:20px;max-width:1040px;width:100%;padding:30px 34px 32px;'
-        +   'box-shadow:0 30px 90px rgba(0,0,0,.28);font-size:.92rem;line-height:1.65;'
+        +   'background:#fff;color:var(--tvInk);border-radius:0;width:100%;height:100%;padding:0;'
+        +   'font-size:.95rem;line-height:1.7;overflow:auto;'
         +   '-webkit-font-smoothing:antialiased;letter-spacing:.01em;}'
+        /* 內容置中收在可讀寬度內，但背景是滿版白 */
+        + '#tvBox > *{max-width:1180px;margin-left:auto;margin-right:auto;}'
+        + '#tvBox > .tv-hd{max-width:none;position:sticky;top:0;z-index:5;background:rgba(255,255,255,.94);-webkit-backdrop-filter:saturate(180%) blur(12px);backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--tvLine);padding:16px 32px;margin:0 0 8px;}'
+        + '#tvBox > .tv-hd > .tv-hd-in{max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;}'
+        + '#tvBox > h3, #tvBox > div:not(.tv-hd), #tvBox > p{padding-left:32px;padding-right:32px;}'
+        + '@media (max-width:860px){#tvBox > .tv-hd{padding:14px 16px;} #tvBox > h3, #tvBox > div:not(.tv-hd), #tvBox > p{padding-left:16px;padding-right:16px;}}'
         + '#tvBox h2{margin:2px 0 0;font-size:1.6rem;font-weight:800;letter-spacing:-.01em;color:var(--tvInk);}'
         + '.tv-kw{display:grid;gap:11px;}'
         + '.tv-kwrow{background:var(--tvFill);border-radius:14px;padding:13px 16px;}'
@@ -9791,17 +10215,17 @@
         + '.tv-close:hover{background:#000;}'
         + '.tv-print{border:1px solid var(--tvLine);background:#fff;color:var(--tvInk);border-radius:999px;padding:9px 18px;font-weight:700;cursor:pointer;font-size:.88rem;margin-right:8px;font-family:inherit;}'
         + '.tv-print:hover{background:var(--tvSoft);}'
-        + '@media print{#tvBg{position:static;background:#fff;padding:0;overflow:visible;backdrop-filter:none;} #tvBox{box-shadow:none;max-width:none;padding:0;} .tv-close,.tv-print{display:none;} .tv-det{border-color:#ccc;} .tv-det summary{display:none;} .tv-det-b{display:grid !important;} .tv-ul{max-height:none;overflow:visible;} h3{page-break-after:avoid;} .tv-row,.tv-step,.tv-f,.tv-ex,.tv-fl,.tv-rate{page-break-inside:avoid;}}'
+        + '@media print{#tvBg{position:static;background:#fff;padding:0;overflow:visible;backdrop-filter:none;} #tvBox{box-shadow:none;max-width:none;padding:0;height:auto;overflow:visible;} #tvBox>.tv-hd{position:static;background:#fff;} .tv-close,.tv-print{display:none;} .tv-det{border-color:#ccc;} .tv-det summary{display:none;} .tv-det-b{display:grid !important;} .tv-ul{max-height:none;overflow:visible;} h3{page-break-after:avoid;} .tv-row,.tv-step,.tv-f,.tv-ex,.tv-fl,.tv-rate{page-break-inside:avoid;}}'
         + '@media (max-width:820px){.tv-row{grid-template-columns:64px 1fr;gap:6px;} .tv-from{grid-column:2;justify-self:start;} .tv-how{grid-column:2;} .tv-steps,.tv-five,.tv-rates{grid-template-columns:1fr;}}'
         + '</style>';
 
-      var html = '<div id="tvBg" onclick="if(event.target===this)fnTeachClose()">' + css + '<div id="tvBox">'
-        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">'
+      var html = '<div id="tvBg">' + css + '<div id="tvBox">'
+        + '<div class="tv-hd"><div class="tv-hd-in">'
         + '<div><div style="font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--tvDim);">HOW TO READ · ' + y + ' 年 ' + m + ' 月</div>'
         + '<h2>' + _fnEsc(s.org) + '　這張卡的每個數字是怎麼來的</h2>'
         + '<p style="color:var(--tvDim);font-size:.86rem;margin-top:4px;">下面全部用這張卡「現在的真實數字」現算，跟卡片一致。'
         + (a ? '資料來源：EIP 逐人明細（面談紀錄總表＋營業收支查詢）。' : '這家還沒同步逐人資料，部分欄位是手填值。') + '</p></div>'
-        + '<div style="white-space:nowrap;"><button class="tv-print" onclick="window.print()">🖨 列印</button><button class="tv-close" onclick="fnTeachClose()">關閉</button></div></div>'
+        + '<div style="white-space:nowrap;"><button class="tv-print" onclick="window.print()">🖨 列印</button><button class="tv-close" onclick="fnTeachClose()">✕ 關閉（Esc）</button></div></div></div>'
 
         + '<h3><i>1</i>上排這幾個數字</h3>' + top
         + '<h3><i>2</i>中間四格漏斗</h3>' + flow
@@ -9817,14 +10241,408 @@
         + '<button class="tv-close" onclick="fnTeachClose()">我懂了</button></div>'
         + '</div></div>';
       var old = document.getElementById('tvBg'); if (old) old.remove();
+      try { document.body.style.overflow = 'hidden'; } catch(e){}   // 全螢幕時背景不要跟著捲
       var wrap = document.createElement('div'); wrap.innerHTML = html;
       document.body.appendChild(wrap.firstChild);
+      fnChkCountAll();
       try { document.addEventListener('keydown', _fnTeachEsc); } catch(e){}
     }
-    function fnTeachClose(){ var el = document.getElementById('tvBg'); if (el) el.remove(); try { document.removeEventListener('keydown', _fnTeachEsc); } catch(e){} }
+    function fnTeachClose(){ var el = document.getElementById('tvBg'); if (el) el.remove(); try { document.body.style.overflow = ''; } catch(e2){} try { document.removeEventListener('keydown', _fnTeachEsc); } catch(e){} }
     function _fnTeachEsc(e){ if (e.key === 'Escape') fnTeachClose(); }
     // 👥 名單面板：當下／試聽後註冊／追回／經營中（本月）／經營池（前 3 個月）／面談流失
+    // ═══ 名單分組：組 → 業務 → 學生（2026/09）═══
+    //   要找組長檢討整組、找業務核對個人，名單就得照組織拆開，不能一長串混在一起。
+    //   組別來自 EIP 小組績效表（激勵分頁同步的那份），對不到的人歸「未分組」。
+    var _fnGrpMapCache = { key:'', map:null };
+    function _fnOwnerGroupMap(org, ym){
+      var k = org + '|' + ym;
+      if (_fnGrpMapCache.key === k && _fnGrpMapCache.map) return _fnGrpMapCache.map;
+      var map = {};
+      try {
+        _fnGroupsFor(org, ym).forEach(function(g){
+          if (g.leader) map[g.leader] = { name:g.name, kind:g.kind, leader:g.leader, isLeader:true };
+          (g.members || []).forEach(function(m){ if (m) map[m] = { name:g.name, kind:g.kind, leader:g.leader, isLeader:false }; });
+        });
+      } catch(e){}
+      _fnGrpMapCache = { key:k, map:map };
+      return map;
+    }
+    // arr → [{ group, leader, kind, n, owners:[{ owner, isLeader, n, list }] }]
+    function _fnByGroup(arr, org, ym){
+      var map = _fnOwnerGroupMap(org, ym), byG = {};
+      (arr || []).forEach(function(x){
+        var owner = (x && x.o) ? String(x.o).trim() : '';
+        var g = owner && map[owner] ? map[owner] : null;
+        var gname = g ? g.name : '未分組';
+        var slot = byG[gname] || (byG[gname] = { group:gname, leader:g ? g.leader : '', kind:g ? g.kind : '', n:0, owners:{} });
+        var oname = owner || '（沒有承辦人）';
+        var os = slot.owners[oname] || (slot.owners[oname] = { owner:oname, isLeader: !!(g && g.isLeader), n:0, list:[] });
+        os.list.push(x); os.n++; slot.n++;
+      });
+      return Object.keys(byG).map(function(gn){
+        var g = byG[gn];
+        g.owners = Object.keys(g.owners).map(function(on){ return g.owners[on]; })
+          .sort(function(a, b){ return (b.isLeader - a.isLeader) || (b.n - a.n) || a.owner.localeCompare(b.owner, 'zh-Hant'); });
+        return g;
+      }).sort(function(a, b){
+        if (a.group === '未分組') return 1;
+        if (b.group === '未分組') return -1;
+        return (b.n - a.n) || a.group.localeCompare(b.group, 'zh-Hant');
+      });
+    }
+    // 分層 HTML：組標（可複製整組）→ 業務標（可複製這位）→ 學生
+    function _fnGroupedHtml(arr, org, ym, liFn){
+      var groups = _fnByGroup(arr, org, ym);
+      if (!groups.length) return '';
+      return groups.map(function(g){
+        return '<div class="fn-gsec">'
+          + '<div class="fn-gsec-h"><span class="fn-gsec-n">' + _fnEsc(g.group) + '</span>'
+          + (g.leader ? '<span class="fn-gsec-l">組長 ' + _fnEsc(g.leader) + '</span>' : '')
+          + '<b>' + g.n + '</b> 位' + _fnCopyBtn(g.owners.reduce(function(a, o){ return a.concat(o.list); }, [])) + '</div>'
+          + g.owners.map(function(o){
+              return '<div class="fn-osec"><div class="fn-osec-h">' + (o.isLeader ? '👑 ' : '') + _fnEsc(o.owner) + '　<b>' + o.n + '</b> 位' + _fnCopyBtn(o.list) + '</div>'
+                + '<ul>' + o.list.map(liFn).join('') + '</ul></div>';
+            }).join('')
+          + '</div>';
+      }).join('');
+    }
     // 📋 一鍵複製名單（逗號隔開）
+    // ═══════════ ✅ 名單核對層（2026/09）═══════════
+    //   組長拿卡片跟業務對名單的時候，需要在同一個畫面上做完六件事：
+    //   勾掉對過的、邊對邊記、約好何時給答案、看繳費、標換人、標沒機會、把 AI 教的追法貼回來。
+    //   資料存 IDB char_<id>_fn_check_v1，跟著 ☁️↑推送／☁️↓拉取 全公司共享，每個欄位都記名記時間。
+    //   結構：{ 學院: { 姓名: { ok, note, due, rs, gv, ai:[] } } }
+    var FN_CHK_REASONS = ['外院約來拿好禮','已報名別家','完全失聯','預算不足','時間搭不上','本人沒意願','其他'];
+    var FN_CHK_COURSES = ['正課','單元課','講座','體驗課','試聽','再面談一次'];
+    //   存法沿用「🖐 報備試聽」已驗證的做法：每位學員一個 localStorage key，前綴 perf_compare_v1_
+    //   → firebase 視為全公司共享、自動同步，而且各自一個 key，兩個組長同時對名單不會互相洗掉。
+    var FN_CHK_PFX = 'perf_compare_v1_chk_';
+    var FN_KB_PFX  = 'perf_compare_v1_kb_';
+    function _fnChkKey(org, name){ return FN_CHK_PFX + org + '__' + name; }
+    function _fnCheckAll(){
+      var m = {};
+      try {
+        for (var i = 0; i < localStorage.length; i++){
+          var k = localStorage.key(i);
+          if (!k || k.indexOf(FN_CHK_PFX) !== 0) continue;
+          var rest = k.slice(FN_CHK_PFX.length), q = rest.indexOf('__');
+          if (q < 0) continue;
+          var r = null; try { r = JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){}
+          if (_fnChkEmpty(r)) continue;
+          var og = rest.slice(0, q);
+          (m[og] || (m[og] = {}))[rest.slice(q + 2)] = r;
+        }
+      } catch(e){}
+      return m;
+    }
+    function _fnChkEmpty(r){ return !r || !!r._e || !Object.keys(r).filter(function(k){ return k !== '_e' && k !== 'at'; }).length; }
+    function _fnCheckGet(org, name){
+      try { var r = JSON.parse(localStorage.getItem(_fnChkKey(org, name)) || 'null'); return _fnChkEmpty(r) ? null : r; } catch(e){ return null; }
+    }
+    function _fnCheckSet(org, name, patch){
+      var r = _fnCheckGet(org, name) || {};
+      var me = _fnMe() || '未知', now = Date.now();
+      Object.keys(patch).forEach(function(k){
+        var v = patch[k];
+        if (v === null || v === undefined){ delete r[k]; return; }
+        r[k] = Object.assign({}, v, { by:me, at:now });
+      });
+      try {
+        // ★ 全部清空不能寫 '{}'：實測過，空物件會被雲端的舊值蓋回來（等於刪不掉）。
+        //   改寫成帶時間戳的墓碑（跟報備試聽的 del:1 同一招），才贏得過雲端那份。
+        delete r._e;
+        if (!Object.keys(r).length) localStorage.setItem(_fnChkKey(org, name), JSON.stringify({ _e:1, at:Date.now() }));
+        else localStorage.setItem(_fnChkKey(org, name), JSON.stringify(r));
+      } catch(e){ alert('存不下來（瀏覽器空間滿了）：' + (e.message || e)); }
+      return r;
+    }
+    // 📚 追註冊知識庫：每則一個 key，只增不改 → 全院累積、不會互蓋
+    function _fnKbAdd(org, name, t){
+      var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      var rec = { org:org, n:name, t:String(t).slice(0, 3000), by:_fnMe() || '未知', at:Date.now() };
+      try { localStorage.setItem(FN_KB_PFX + id, JSON.stringify(rec)); } catch(e){ alert('存不下來（瀏覽器空間滿了）：' + (e.message || e)); return false; }
+      return true;
+    }
+    function _fnWhen(at){ if (!at) return ''; var d = new Date(at); return (d.getMonth()+1) + '/' + d.getDate() + ' ' + _ckPad2(d.getHours()) + ':' + _ckPad2(d.getMinutes()); }
+    // 💰 繳費狀況：直接從 EIP 營業收支查詢的逐人資料算，業務不用也不能手動填
+    var _fnPmCache = { k:'', m:null };
+    function _fnPayMapFor(ym, org){
+      var k = ym + '|' + org;
+      if (_fnPmCache.k === k && _fnPmCache.m) return _fnPmCache.m;
+      var out = {}, raw = _fnRawFor(ym), o = raw && raw.orgs && raw.orgs[org];
+      if (o) (o.pay || []).forEach(function(r){
+        if (!r || !r.n) return;
+        var p = out[r.n] || (out[r.n] = { app:0, reg:0, cnt:0, add:0 });
+        var v = +r.v || 0;
+        if (r.sub === '學員加購') p.add += v;
+        else if (r.st === '註冊'){ p.reg += v; p.cnt++; }
+        else p.app += v;
+      });
+      _fnPmCache = { k:k, m:out };
+      return out;
+    }
+    function _fnPayPill(pm, name){
+      var p = pm[name];
+      if (!p || (!p.reg && !p.app && !p.add)) return '<span class="fn-pay no" title="EIP 營業收支查詢裡本月沒有這個人的任何款項">未繳</span>';
+      if (p.reg >= FN_COURSE_MIN) return '<span class="fn-pay ok">💰 已註冊 ' + _fnWan(p.reg) + '</span>';
+      if (p.reg > 0) return '<span class="fn-pay mid" title="有註冊金額但沒到 2 萬，公司規則不計註冊">💰 ' + p.reg.toLocaleString() + '（未達 2 萬）</span>';
+      if (p.app > 0) return '<span class="fn-pay mid" title="已繳報名費（＝有安排試聽）">💰 報名費 ' + p.app.toLocaleString() + '</span>';
+      return '<span class="fn-pay mid" title="舊生加購，不算新生人頭">💰 加購 ' + _fnWan(p.add) + '</span>';
+    }
+    // 📝 最後一次備註：從歷次同步累積的備註池取「現在 EIP 上那一筆」
+    var _fnNbCache = { k:'', m:null };
+    function _fnNotesMapFor(org){
+      if (_fnNbCache.k === org && _fnNbCache.m) return _fnNbCache.m;
+      var m = _fnNotesFor(org) || {};
+      _fnNbCache = { k:org, m:m };
+      return m;
+    }
+    function _fnLastNoteOf(nb, name){
+      var arr = nb[name]; if (!arr || !arr.length) return null;
+      var cur = null;
+      for (var i = arr.length - 1; i >= 0; i--){ if (arr[i].cur){ cur = arr[i]; break; } }
+      var r = cur || arr[arr.length - 1];
+      var t = String((r && r.m) || '').trim();
+      if (!t || /^\*+$/.test(t)) return null;   // 「**」＝沒寫，不用佔位置
+      return { full:t, s: t.length > 18 ? t.slice(0, 18) + '…' : t };
+    }
+    function _fnDueLabel(d){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? (+m[2]) + '/' + (+m[3]) : _fnEsc(d); }
+    function _fnDuePill(due, done){
+      if (!due || (!due.d && !due.c)) return '';
+      var over = false;
+      if (due.d && !done){ var t = new Date(); t.setHours(0,0,0,0); var dd = _fnParseD(String(due.d).replace(/-/g, '/')); over = !!dd && dd < t; }
+      return '<span class="fn-due' + (over ? ' over' : '') + '" title="約定何時給答案／要幫他排什麼">📅 '
+        + (due.d ? _fnDueLabel(due.d) : '') + (due.c ? (due.d ? '・' : '') + _fnEsc(due.c) : '') + (over ? '・逾期' : '') + '</span>';
+    }
+    function _fnChkCtx(org, ym){ return { org:org || '', ym:ym || '', pm:_fnPayMapFor(ym || '', org || ''), nb:_fnNotesMapFor(org || ''), kb:_fnKbCountMap(org || '') }; }
+    function _fnRowMeta(org, name, ctx, c){
+      c = c || _fnCheckGet(org, name) || {};
+      var ln = _fnLastNoteOf(ctx.nb, name);
+      return _fnPayPill(ctx.pm, name)
+        + (ln ? '<span class="fn-lastm" title="' + _fnEsc(ln.full) + '">📝 ' + _fnEsc(ln.s) + '</span>' : '')
+        + _fnDuePill(c.due, !!c.ok)
+        + (c.rs ? '<span class="fn-tag t-rs" title="' + _fnEsc(c.rs.by || '') + ' ' + _fnWhen(c.rs.at) + ' 標記">🔁 換 ' + _fnEsc(c.rs.v) + '</span>' : '')
+        + (c.gv ? '<span class="fn-tag t-gv" title="' + _fnEsc((c.gv.memo || '') + '　' + (c.gv.by || '') + ' ' + _fnWhen(c.gv.at) + ' 放棄') + '">🚫 ' + _fnEsc(c.gv.why || '沒機會') + '</span>' : '')
+        + (c.note ? '<span class="fn-tag t-nt" title="' + _fnEsc(c.note.v) + '">✎ ' + _fnEsc(String(c.note.v).slice(0, 14)) + '</span>' : '')
+        + ((ctx.kb && ctx.kb[name]) ? '<span class="fn-tag t-ai" title="已存 ' + ctx.kb[name] + ' 則 AI 追法">🤖 ' + ctx.kb[name] + '</span>' : '');
+    }
+    function _fnRowHtml(x, extra, ctx){
+      var name = (x && x.n) || '';
+      if (!ctx || !ctx.org || !name) return '<li><b>' + _fnEsc(name) + '</b>' + (extra ? '<em>' + extra + '</em>' : '') + '</li>';
+      var c = _fnCheckGet(ctx.org, name) || {};
+      return '<li class="fn-row' + (c.ok ? ' done' : '') + (c.gv ? ' gv' : '') + (c.rs ? ' rs' : '') + '"'
+        + ' data-org="' + _fnEsc(ctx.org) + '" data-n="' + _fnEsc(name) + '" data-ym="' + _fnEsc(ctx.ym) + '">'
+        + '<div class="fn-r1">'
+        + '<button type="button" class="fn-ck" title="對過了就打勾，名字會畫掉" onclick="fnChkToggle(this)">✔</button>'
+        + '<b class="fn-nm">' + _fnEsc(name) + '</b>'
+        + (extra ? '<em class="fn-ex">' + extra + '</em>' : '')
+        + '<span class="fn-meta">' + _fnRowMeta(ctx.org, name, ctx, c) + '</span>'
+        + '<button type="button" class="fn-more" title="展開：筆記／何時確認／換人／沒機會／AI 追法" onclick="fnChkMore(this)">▾</button>'
+        + '</div><div class="fn-r2" style="display:none"></div></li>';
+    }
+    function _fnRowFormHtml(org, name){
+      var c = _fnCheckGet(org, name) || {};
+      var v = function(o, f){ return o ? _fnEsc(o[f] || '') : ''; };
+      var who = function(o){ return (o && o.at) ? (_fnEsc(o.by || '') + ' ' + _fnWhen(o.at)) : ''; };
+      return '<div class="fn-fgrid">'
+        + '<label>組長筆記<input type="text" class="fn-i-note" value="' + v(c.note, 'v') + '" placeholder="邊對邊打，離開欄位就存" onchange="fnChkSave(this,\'note\')"></label>'
+        + '<label>何時確認<input type="date" class="fn-i-dued" value="' + v(c.due, 'd') + '" onchange="fnChkSave(this,\'due\')"></label>'
+        + '<label>要排的課<input type="text" class="fn-i-duec" list="fnChkCourses" value="' + v(c.due, 'c') + '" placeholder="正課／單元課／講座" onchange="fnChkSave(this,\'due\')"></label>'
+        + '<label>🔁 換人處理<input type="text" class="fn-i-rs" value="' + v(c.rs, 'v') + '" placeholder="接手的業務姓名" onchange="fnChkSave(this,\'rs\')"></label>'
+        + '</div>'
+        + '<div class="fn-frow"><span class="fn-flb">🚫 沒機會</span>'
+        + '<select class="fn-i-gvw">' + FN_CHK_REASONS.map(function(r){ return '<option' + ((c.gv && c.gv.why === r) ? ' selected' : '') + '>' + _fnEsc(r) + '</option>'; }).join('') + '</select>'
+        + '<input type="text" class="fn-i-gvm" value="' + v(c.gv, 'memo') + '" placeholder="一句話說明，這是之後重新分配的憑據">'
+        + (c.gv ? '<button type="button" class="fn-b" onclick="fnChkGiveup(this,1)">↩︎ 取消放棄</button><span class="fn-by">🚫 ' + who(c.gv) + ' 放棄</span>'
+                : '<button type="button" class="fn-b warn" onclick="fnChkGiveup(this,0)">標記沒機會</button>')
+        + '</div>'
+        + '<div class="fn-frow"><span class="fn-flb">🤖 追註冊</span>'
+        + '<button type="button" class="fn-b" onclick="fnChkAskCopy(this)">📋 複製提問（自己去問 AI 的追註冊 SKILL）</button>'
+        + '<button type="button" class="fn-b" onclick="fnChkKb(this)">📚 本院知識庫（' + _fnKbCount(org) + ' 則）</button>'
+        + '</div>'
+        + '<div class="fn-frow fn-fai"><textarea class="fn-i-ai" placeholder="把 AI 回你的追法整段貼回來 → 存進本院知識庫，以後全院都查得到"></textarea>'
+        + '<button type="button" class="fn-b go" onclick="fnChkAiSave(this)">存起來</button></div>'
+        + (function(){ var mine = _fnKbList(org, name); return mine.length ? '<details class="fn-aih"><summary>這位學員已存 ' + mine.length + ' 則追法</summary>'
+            + mine.map(function(a){ return '<div class="fn-aii"><span class="fn-by">' + who(a) + '</span><pre>' + _fnEsc(a.t) + '</pre></div>'; }).join('') + '</details>' : ''; })()
+        + (c.ok ? '<div class="fn-by">✔ ' + who(c.ok) + ' 核對過</div>' : '');
+    }
+    function _fnChkRow(el){ try { return el.closest('li.fn-row'); } catch(e){ return null; } }
+    function _fnChkRefresh(li, keepForm){
+      if (!li) return;
+      var org = li.getAttribute('data-org'), n = li.getAttribute('data-n'), ym = li.getAttribute('data-ym');
+      var c = _fnCheckGet(org, n) || {};
+      li.className = 'fn-row' + (c.ok ? ' done' : '') + (c.gv ? ' gv' : '') + (c.rs ? ' rs' : '');
+      var m = li.querySelector('.fn-meta'); if (m) m.innerHTML = _fnRowMeta(org, n, _fnChkCtx(org, ym), c);
+      var box = li.querySelector('.fn-r2');
+      if (!keepForm && box && box.style.display !== 'none') box.innerHTML = _fnRowFormHtml(org, n);
+      fnChkCountAll();
+    }
+    function fnChkMore(btn){
+      var li = _fnChkRow(btn); if (!li) return;
+      var box = li.querySelector('.fn-r2');
+      if (box.style.display !== 'none'){ box.style.display = 'none'; btn.textContent = '▾'; return; }
+      if (!document.getElementById('fnChkCourses')){
+        var dl = document.createElement('datalist'); dl.id = 'fnChkCourses';
+        dl.innerHTML = FN_CHK_COURSES.map(function(c){ return '<option value="' + _fnEsc(c) + '">'; }).join('');
+        document.body.appendChild(dl);
+      }
+      box.innerHTML = _fnRowFormHtml(li.getAttribute('data-org'), li.getAttribute('data-n'));
+      box.style.display = 'block'; btn.textContent = '▴';
+    }
+    function fnChkToggle(btn){
+      var li = _fnChkRow(btn); if (!li) return;
+      var org = li.getAttribute('data-org'), n = li.getAttribute('data-n');
+      var c = _fnCheckGet(org, n) || {};
+      _fnCheckSet(org, n, { ok: c.ok ? null : { v:1 } });
+      _fnChkRefresh(li);
+    }
+    function fnChkSave(inp, field){
+      var li = _fnChkRow(inp); if (!li) return;
+      var org = li.getAttribute('data-org'), n = li.getAttribute('data-n'), box = li.querySelector('.fn-r2');
+      if (field === 'note'){ var t = (inp.value || '').trim(); _fnCheckSet(org, n, { note: t ? { v:t } : null }); }
+      else if (field === 'rs'){ var r = (inp.value || '').trim(); _fnCheckSet(org, n, { rs: r ? { v:r } : null }); }
+      else if (field === 'due'){
+        var d = box.querySelector('.fn-i-dued').value, cc = (box.querySelector('.fn-i-duec').value || '').trim();
+        _fnCheckSet(org, n, { due: (d || cc) ? { d:d, c:cc } : null });
+      }
+      _fnChkRefresh(li, true);
+    }
+    function fnChkGiveup(btn, undo){
+      var li = _fnChkRow(btn); if (!li) return;
+      var org = li.getAttribute('data-org'), n = li.getAttribute('data-n');
+      if (undo){ _fnCheckSet(org, n, { gv:null }); _fnChkRefresh(li); return; }
+      var box = li.querySelector('.fn-r2');
+      var why = box.querySelector('.fn-i-gvw').value;
+      var memo = (box.querySelector('.fn-i-gvm').value || '').trim();
+      if (!memo){ alert('放棄要留一句說明（例如「外院約來拿好禮，本來就沒打算學」），這是之後重新分配的憑據。'); box.querySelector('.fn-i-gvm').focus(); return; }
+      _fnCheckSet(org, n, { gv:{ why:why, memo:memo } });
+      _fnChkRefresh(li);
+    }
+    function _fnChkCopy(t, btn, ok){
+      var o = btn.textContent;
+      var done = function(){ btn.textContent = ok; setTimeout(function(){ btn.textContent = o; }, 1800); };
+      try { navigator.clipboard.writeText(t).then(done, function(){ window.prompt('複製這段：', t); }); } catch(e){ window.prompt('複製這段：', t); }
+    }
+    function fnChkAskCopy(btn){
+      var li = _fnChkRow(btn); if (!li) return;
+      var org = li.getAttribute('data-org'), n = li.getAttribute('data-n'), ym = li.getAttribute('data-ym');
+      var ctx = _fnChkCtx(org, ym), c = _fnCheckGet(org, n) || {};
+      var ex = li.querySelector('.fn-ex'), st = ex ? ex.textContent.trim() : '';
+      var ln = _fnLastNoteOf(ctx.nb, n), p = ctx.pm[n] || {};
+      var pay = (p.reg >= FN_COURSE_MIN) ? ('已註冊 ' + p.reg.toLocaleString())
+              : (p.reg > 0 ? ('已繳 ' + p.reg.toLocaleString() + '，未達 2 萬') : (p.app > 0 ? ('已繳報名費 ' + p.app.toLocaleString()) : '完全沒繳'));
+      var t = '請用赫綵的「追註冊」方法教我怎麼追這位學員。直接給我未來三天要做的動作，含第一通電話怎麼開口，不要只講原則。\n\n'
+        + '學院：' + org + '\n學員：' + n + '\n目前狀況：' + (st || '（名單上沒寫）') + '\n繳費：' + pay + '\n最後備註：' + (ln ? ln.full : '（沒有備註）') + '\n'
+        + (c.note ? '組長現場筆記：' + c.note.v + '\n' : '')
+        + (c.due && (c.due.d || c.due.c) ? '約定：' + (c.due.d || '') + (c.due.c ? ' 排 ' + c.due.c : '') + '\n' : '');
+      _fnChkCopy(t, btn, '✅ 已複製，去問 AI');
+    }
+    function fnChkAiSave(btn){
+      var li = _fnChkRow(btn); if (!li) return;
+      var ta = li.querySelector('.fn-i-ai'), t = ((ta && ta.value) || '').trim();
+      if (t.length < 10){ alert('把 AI 給你的追法貼進來再按存起來。'); return; }
+      if (!_fnKbAdd(li.getAttribute('data-org'), li.getAttribute('data-n'), t)) return;
+      ta.value = '';
+      var box = li.querySelector('.fn-r2');
+      box.innerHTML = _fnRowFormHtml(li.getAttribute('data-org'), li.getAttribute('data-n'));
+      _fnChkRefresh(li, true);
+    }
+    // 各層標頭的「已核對 x/y」
+    function fnChkCountAll(){
+      try {
+        ['.fn-ng', '.fn-gsec', '.fn-osec'].forEach(function(sel){
+          Array.prototype.forEach.call(document.querySelectorAll(sel), function(box){
+            var rows = box.querySelectorAll('li.fn-row'); if (!rows.length) return;
+            var done = box.querySelectorAll('li.fn-row.done').length;
+            var h = box.querySelector(':scope > .fn-ng-t, :scope > .fn-gsec-h, :scope > .fn-osec-h'); if (!h) return;
+            var t = h.querySelector('.fn-cnt');
+            if (!t){ t = document.createElement('span'); t.className = 'fn-cnt'; h.appendChild(t); }
+            t.textContent = done ? ('✔ ' + done + '/' + rows.length) : '';
+            t.className = 'fn-cnt' + (done && done === rows.length ? ' all' : '');
+          });
+        });
+      } catch(e){}
+    }
+    // 📚 本院追註冊知識庫：全院所有人貼回來的 AI 追法，集中查
+    function _fnKbList(org, name){
+      var out = [];
+      try {
+        for (var i = 0; i < localStorage.length; i++){
+          var k = localStorage.key(i); if (!k || k.indexOf(FN_KB_PFX) !== 0) continue;
+          var r = null; try { r = JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){}
+          if (!r || r.del || !r.t) continue;
+          if (org && r.org !== org) continue;
+          if (name && r.n !== name) continue;
+          out.push(r);
+        }
+      } catch(e){}
+      return out.sort(function(p, q){ return (q.at || 0) - (p.at || 0); });
+    }
+    // 這一院每個學員各存了幾則（畫名單時一次算好，不要每一列都掃一次 LS）
+    function _fnKbCountMap(org){
+      var m = {}; _fnKbList(org).forEach(function(r){ m[r.n] = (m[r.n] || 0) + 1; }); return m;
+    }
+    function _fnKbCount(org){ return _fnKbList(org).length; }
+    function fnChkKb(btn){ var li = _fnChkRow(btn); if (li) fnKbOpen(li.getAttribute('data-org')); }
+    function fnKbOpen(org){
+      var list = _fnKbList(org);
+      var css = '<style>#kbBg{position:fixed;inset:0;background:#fff;color:#1d1d1f;z-index:1200;overflow:auto;'
+        + 'font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",sans-serif;-webkit-font-smoothing:antialiased;}'
+        + '#kbBg .kb-hd{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.95);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid #e5e5ea;padding:16px 28px;}'
+        + '#kbBg .kb-hd-in,#kbBg .kb-in{max-width:960px;margin:0 auto;}'
+        + '#kbBg .kb-hd-in{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}'
+        + '#kbBg h2{font-size:1.25rem;margin:0;letter-spacing:-.01em;flex:0 0 auto;}'
+        + '#kbBg .kb-sub{font-size:.78rem;color:#86868b;flex-basis:100%;margin-top:2px;}'
+        + '#kbBg input.kb-q{flex:1;min-width:200px;border:1px solid #d2d2d7;border-radius:10px;padding:8px 12px;font-size:.9rem;font-family:inherit;}'
+        + '#kbBg button{border:1px solid #d2d2d7 !important;background:#fff !important;color:#1d1d1f !important;border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:.85rem;font-family:inherit;}'
+        + '#kbBg input.kb-q{background:#fff !important;color:#1d1d1f !important;}'
+        + '#kbBg .kb-in{padding:18px 28px 60px;}'
+        + '#kbBg .kb-i{border:1px solid #e5e5ea;border-radius:14px;padding:14px 16px;margin-top:12px;}'
+        + '#kbBg .kb-i h4{margin:0;font-size:.95rem;}'
+        + '#kbBg .kb-i .by{font-size:.74rem;color:#86868b;font-weight:600;margin-left:8px;}'
+        + '#kbBg .kb-i pre{white-space:pre-wrap;font-family:inherit;font-size:.87rem;line-height:1.65;margin:8px 0 0;}'
+        + '#kbBg .kb-none{color:#86868b;padding:48px 0;text-align:center;}</style>';
+      var body = list.length ? list.map(function(x){
+          return '<div class="kb-i"><h4>' + _fnEsc(x.n) + '<span class="by">' + _fnEsc(x.by || '') + '　' + _fnWhen(x.at) + '</span></h4><pre>' + _fnEsc(x.t) + '</pre></div>';
+        }).join('') : '<div class="kb-none">還沒有人貼過。<br>在名單上展開任何一位學員 → 複製提問 → 自己去問 AI → 把回答貼回來，這裡就會開始累積。</div>';
+      var html = '<div id="kbBg">' + css
+        + '<div class="kb-hd"><div class="kb-hd-in"><h2>📚 ' + _fnEsc(org) + '　追註冊知識庫</h2>'
+        + '<input class="kb-q" type="search" placeholder="搜尋學員、關鍵字…" oninput="fnKbFilter(this)">'
+        + '<button onclick="fnKbClose()">✕ 關閉（Esc）</button>'
+        + '<div class="kb-sub">全院同仁自己去問 AI、再貼回來的追法，共 ' + list.length + ' 則。這裡只是知識庫的集結，不會自己去跑 AI。</div>'
+        + '</div></div><div class="kb-in">' + body + '</div></div>';
+      var old = document.getElementById('kbBg'); if (old) old.remove();
+      var w = document.createElement('div'); w.innerHTML = html;
+      document.body.appendChild(w.firstChild);
+      try { document.body.style.overflow = 'hidden'; } catch(e){}
+      try { document.addEventListener('keydown', _fnKbEsc); } catch(e){}
+    }
+    function fnKbFilter(inp){
+      var q = (inp.value || '').trim().toLowerCase();
+      Array.prototype.forEach.call(document.querySelectorAll('#kbBg .kb-i'), function(el){
+        el.style.display = (!q || el.textContent.toLowerCase().indexOf(q) >= 0) ? '' : 'none';
+      });
+    }
+    function fnKbClose(){
+      var el = document.getElementById('kbBg'); if (el) el.remove();
+      try { if (!document.getElementById('tvBg')) document.body.style.overflow = ''; } catch(e){}
+      try { document.removeEventListener('keydown', _fnKbEsc); } catch(e){}
+    }
+    function _fnKbEsc(e){ if (e.key === 'Escape'){ e.stopPropagation(); fnKbClose(); } }
+    // 🔁 待重新分配：本月名單上、已被標放棄或標換人的人
+    function _fnPendingReassign(org, ym, a){
+      if (!org || !a) return [];
+      var box = _fnCheckAll()[org] || {}, owner = {}, out = [];
+      ['mgmt','pool','lost','noteTrial','poolTrial','trialDue'].forEach(function(f){
+        (a[f] || []).forEach(function(x){ if (x && x.n && !(x.n in owner)) owner[x.n] = x.o || ''; });
+      });
+      Object.keys(box).forEach(function(n){
+        var c = box[n]; if (!c || (!c.gv && !c.rs)) return;
+        if (!(n in owner)) return;
+        out.push({ n:n, o:owner[n], gv:c.gv || null, rs:c.rs || null });
+      });
+      return out;
+    }
     function _fnCopyBtn(arr){
       var names = (arr || []).map(function(x){ return x.n; }).filter(Boolean);
       if (!names.length) return '';
@@ -9837,15 +10655,36 @@
     }
     function _fnNamesHtml(a, ym, s){
       s = s || { org:'', ext:null };
-      var li = function(x, extra){ return '<li><b>' + _fnEsc(x.n) + '</b><span>' + _fnEsc(x.o || '') + '</span>' + (extra ? '<em>' + extra + '</em>' : '') + '</li>'; };
-      var grp = function(title, cls, arr, fmt){ if (!arr.length) return ''; return '<div class="fn-ng ' + cls + '"><div class="fn-ng-t">' + title + ' <b>' + arr.length + '</b>' + _fnCopyBtn(arr) + '</div><ul>' + arr.map(function(x){ return li(x, fmt(x)); }).join('') + '</ul></div>'; };
-      var body = grp('當下註冊', 'g-on', a.onsite, function(x){ return '面談 ' + x.d + ' → 註冊 ' + x.r + (x.v ? '・' + _fnWan(x.v) : ''); })
+      // 名單已經照「組 → 業務」分好，每一行不用再重複寫一次承辦人（標頭就是他）
+      var li = function(x, extra){ return '<li><b>' + _fnEsc(x.n) + '</b>' + (extra ? '<em>' + extra + '</em>' : '') + '</li>'; };
+      // ✅ 還沒成交、還救得回來的名單 → 用可核對列（勾／筆記／何時確認／換人／沒機會／AI）
+      //    已經簽了的（當下、試聽後、追回、科數、人頭）維持純顯示，不用核對
+      var _ctx = _fnChkCtx(s.org || '', ym);
+      var _chkSet = [a.noteTrial, a.poolTrial, a.trialDue, a.trialUnsure || [], a.mgmt, a.pool, a.lost].concat((s.ext && s.ext.list) ? [s.ext.list] : []);
+      var grp = function(title, cls, arr, fmt){
+        if (!arr.length) return '';
+        var chk = _ctx.org && _chkSet.indexOf(arr) >= 0;
+        var liFn = chk ? function(x){ return _fnRowHtml(x, fmt(x), _ctx); } : function(x){ return li(x, fmt(x)); };
+        return '<div class="fn-ng ' + cls + '"><div class="fn-ng-t">' + title + ' <b>' + arr.length + '</b>' + _fnCopyBtn(arr) + '</div>'
+          + _fnGroupedHtml(arr, s.org || '', ym, liFn) + '</div>';
+      };
+      var _rsL = _fnPendingReassign(s.org || '', ym, a);
+      var _rsHtml = _rsL.length ? '<div class="fn-ng g-rs"><div class="fn-ng-t">🔁 待重新分配（業務標了沒機會／要換人）<b>' + _rsL.length + '</b>' + _fnCopyBtn(_rsL) + '</div>'
+        + _fnGroupedHtml(_rsL, s.org || '', ym, function(x){
+            return '<li><b>' + _fnEsc(x.n) + '</b><em>'
+              + (x.gv ? '🚫 ' + _fnEsc(x.gv.why) + (x.gv.memo ? '：' + _fnEsc(x.gv.memo) : '') + '　' + _fnEsc(x.gv.by) + ' ' + _fnWhen(x.gv.at) + ' 放棄' : '')
+              + (x.gv && x.rs ? '　｜　' : '')
+              + (x.rs ? '🔁 建議轉給 ' + _fnEsc(x.rs.v) + '（' + _fnEsc(x.rs.by) + ' ' + _fnWhen(x.rs.at) + ' 標記）' : '')
+              + '</em></li>';
+          }) + '</div>' : '';
+      var body = _rsHtml + grp('當下註冊', 'g-on', a.onsite, function(x){ return '面談 ' + x.d + ' → 註冊 ' + x.r + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('試聽後註冊', 'g-tr', a.trialReg, function(x){ return '面談 ' + x.d + ' → 註冊 ' + x.r + '（' + x.days + ' 天' + (x.trial ? '・有試聽' : '・無試聽') + '）' + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('追回（Ⓑ 舊名單：名單前幾個月進來、本月註冊）', 'g-hv', a.harvest, function(x){ return (x.oldList ? '名單 ' + _fnMonthLabel(x.ym) + ' 建檔・本月 ' + x.d + ' 面談' : _fnMonthLabel(x.ym) + ' 面談') + ' → ' + x.r + ' 註冊' + (x.trial ? '・有試聽' : '・無試聽') + (x.v ? '・' + _fnWan(x.v) : ''); })
         + grp('舊名單追回（3 個月內無面談紀錄）', 'g-hv', a.harvestOld, function(x){ return x.r + ' 註冊' + (x.v ? '・' + _fnWan(x.v) : '') + (x.ext ? '・🏫 外院（原 ' + _fnEsc(x.ext) + '）' : ''); })
         + (s.ext && s.ext.list.length ? grp('🏫 外院試聽（別家談過、我們安排試聽；不計入本院試聽數）', 'g-tr', s.ext.list, function(x){ return (x.src ? '原 ' + _fnEsc(x.src) + (x.o ? '・' + _fnEsc(x.o) : '') + (x.d ? '・' + x.d + ' 面談' : '') : '來源未填') + ' → ' + (x.st === 'reg' ? '✅ ' + (x.regAt === s.org ? '本院' : _fnEsc(x.regAt)) + ' 註冊' + (x.r ? ' ' + x.r : '') + (x.v ? '・' + _fnWan(x.v) : '') : '經營中' + (x.a ? '・報名 ' + x.a : (x.r ? '・繳 ' + x.v.toLocaleString() + '（未達 2 萬）' : ''))) + (x.manual ? '・🖐 ' + _fnEsc(x.by || '') + (x.grp ? '（' + _fnEsc(x.grp) + '）' : '') : '・🤖'); }) : '')
         + grp('📝 追蹤情形寫了試聽（沒繳報名費・計入安排試聽）', 'g-tr', a.noteTrial, function(x){ return '面談 ' + x.d + (x.td ? ' → 試聽 ' + x.td + (x.cross ? '（跨月）' : '') : ' → 試聽（未寫日期）') + (x.src === 'hist' ? '・🔎深挖' : '') + '・「' + _fnEsc(x.tx) + '」'; })
         + grp('前 1～3 個月面談・已排未來試聽日（另列，不計本月）', 'g-pl', a.poolTrial, function(x){ return _fnMonthLabel(x.ym) + ' 面談 → 試聽 ' + x.td + (x.cross ? '（跨月）' : '') + '・「' + _fnEsc(x.tx) + '」'; })
+        + grp('📝 待查證試聽（備註提過試聽，但 EIP 現在的備註看不到這段 → 沒有計入任何數字，請開 EIP 對一下）', 'g-ls', a.trialUnsure || [], function(x){ return '面談 ' + x.d + ' → 備註寫試聽 ' + (x.td || '（沒寫日期）') + '・這段是 ' + _fnWhen(x.seenAt) + ' 抓到的，EIP 現在的備註是「' + (x.cur ? _fnEsc(x.cur) : '（空白）') + '」' + '・原文「' + _fnEsc(x.tx) + '」'; })
         + grp('⚠️ 排了試聽沒來（試聽日已過、沒補排、也沒註冊 → 已從安排試聽扣掉）', 'g-ls', a.trialDue, function(x){ return '面談 ' + x.d + ' → 排 ' + x.td + ' 試聽・已過 ' + x.days + ' 天' + (x.src === 'hist' ? '・🔎深挖' : '') + '・「' + _fnEsc(x.tx) + '」'; })
         + grp('經營中（本月試聽、未註冊）→ 優先回追', 'g-mg', a.mgmt, function(x){ return '面談 ' + x.d + '・已 ' + x.days + ' 天' + (x.note ? '・📝備註試聽' : '') + (x.m ? '・' + _fnEsc(x.m.slice(0, 28)) : ''); })
         + (a.pool.length ? '<div class="fn-ng-note">' + _fnPoolNote(a, ym) + '</div>' : '')
@@ -9854,7 +10693,7 @@
         + grp('科數明細（每筆 ≥ 2 萬＝1 科）', 'g-on', a.courseList, function(x){ return _fnEsc(x.k) + '・' + _fnWan(x.v) + '・' + x.d + (x.add ? '・加購' : '・新生'); })
         + grp('新生人頭明細（同一新生加總 ≥ 2 萬）', 'g-on', a.headList.filter(function(h){ return h.vNew >= FN_COURSE_MIN; }), function(x){ return x.cnt + ' 筆・新生 ' + _fnWan(x.vNew) + (x.v !== x.vNew ? '・含加購合計 ' + _fnWan(x.v) : ''); })
         + grp('舊生加購（不算人頭）', 'g-pl', a.headList.filter(function(h){ return h.vNew < FN_COURSE_MIN; }), function(x){ return x.cnt + ' 筆・' + _fnWan(x.v); });
-      return '<details class="fn-names"><summary>👥 名單：當下 ' + a.onsite.length + '・試聽後 ' + a.trialReg.length + '・追回 ' + (a.harvest.length + a.harvestOld.length) + '・經營中 ' + a.mgmt.length + '・經營池 ' + a.pool.length + '・流失 ' + a.lost.length + (a.trialDue.length ? '・⚠️ 排了沒來 ' + a.trialDue.length : '') + (s.ext && s.ext.n ? '・🏫 外院 ' + s.ext.n : '') + '　｜　新生科數 ' + a.coursesNew + '・新生人頭 ' + a.headsNew + '（含加購 ' + a.courses + '／' + a.heads + '）</summary><div class="fn-names-b">' + body + '</div></details>';
+      return '<details class="fn-names"><summary>👥 名單：當下 ' + a.onsite.length + '・試聽後 ' + a.trialReg.length + '・追回 ' + (a.harvest.length + a.harvestOld.length) + '・經營中 ' + a.mgmt.length + '・經營池 ' + a.pool.length + '・流失 ' + a.lost.length + (a.trialDue.length ? '・⚠️ 排了沒來 ' + a.trialDue.length : '') + ((a.trialUnsure && a.trialUnsure.length) ? '・📝 待查證 ' + a.trialUnsure.length : '') + (s.ext && s.ext.n ? '・🏫 外院 ' + s.ext.n : '') + '　｜　新生科數 ' + a.coursesNew + '・新生人頭 ' + a.headsNew + '（含加購 ' + a.courses + '／' + a.heads + '）</summary><div class="fn-names-b">' + body + '</div></details>';
     }
     function _fnCardHtml(s, all, ym, isTotal, prevAll){
       var rateCls = function(key){
@@ -9873,13 +10712,14 @@
       var html = '<div class="fn-tile' + (isTotal ? ' total' : '') + '" data-org="' + _fnEsc(s.org) + '">'
         + '<div class="fn-head"><div class="fn-title">' + (isTotal ? '👑 ' : '<span class="dot" style="background:' + (CK_COLOR[s.org] || '#999') + '"></span>') + _fnEsc(s.org)
         + '<button class="fn-teach" onclick="fnTeach(\'' + ym + '\',\'' + (isTotal ? '__TOTAL__' : _fnEsc(s.org)) + '\')" title="用這張卡當下的真實數字，逐項解釋每個數字怎麼來的">📖 這張卡怎麼看</button></div>'
-        + '<div class="fn-sub"><span>註冊Ⓐ<b>' + s.regA + '</b></span><span>當下<b>' + s.onsite + '</b></span><span>註冊Ⓑ<b>' + s.regB + '</b></span>' + (s.harvest != null ? '<span title="本月註冊、面談在前 1～3 個月（含舊名單）">追回<b>' + s.harvest + '</b></span>' : '') + (s.courses != null ? '<span title="新生科數：本月每筆註冊業績合計 ≥ 2 萬算 1 科，排除「學員加購」（括號＝含舊生加購）">科數<b>' + s.coursesNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.courses + ')</small></span><span title="新生人頭：同一新生本月註冊加總 ≥ 2 萬算 1 人頭，排除「學員加購」（括號＝含舊生加購）">人頭<b>' + s.headsNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.heads + ')</small></span>' : '') + (s.newPerf ? '<span>新業績<b>' + _fnWan(s.newPerf) + '</b></span>' : '') + subWarn + '</div></div>'
+        + '<div class="fn-sub"><span>註冊Ⓐ<b>' + s.regA + '</b></span><span>當下<b>' + s.onsite + '</b></span><span>註冊Ⓑ<b>' + s.regB + '</b></span>' + (s.harvest != null ? '<span title="本月註冊、面談在前 1～3 個月（含舊名單）">追回<b>' + s.harvest + '</b></span>' : '') + (s.courses != null ? '<span title="新生科數：本月每筆註冊業績合計 ≥ 2 萬算 1 科，排除「學員加購」（括號＝含舊生加購）">科數<b>' + s.coursesNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.courses + ')</small></span><span title="新生人頭：同一新生本月註冊加總 ≥ 2 萬算 1 人頭，排除「學員加購」（括號＝含舊生加購）">人頭<b>' + s.headsNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.heads + ')</small></span>' : '') + (s.newPerf ? '<span class="lead">新業績<b>' + _fnWan(s.newPerf) + '</b></span>' : '') + subWarn + '</div></div>'
         + '<div class="fn-flow">'
         + '<div class="fn-step"><div class="lb">總報到</div><div class="v">' + s.checkin + '</div></div>'
         + '<div class="fn-step"><div class="lb">實際面談</div><div class="v">' + s.interview + '</div>' + (s.onsite ? '<div class="sm">當下註冊 ' + s.onsite + '</div>' : '') + '</div>'
         + '<div class="fn-step"><div class="lb">安排試聽</div><div class="v">' + s.trial + '</div>' + (s.auto ? '<div class="sm">有繳報名費 ' + s.auto.feeTrial + (s.auto.noteTrial.length ? ' ＋ 📝備註試聽 ' + s.auto.noteTrial.length : '') + (s.extra ? ' ＋ 報備 ' + s.extra : '') + '</div>'
               + (s.auto.poolTrial.length ? '<div class="sm" title="前 1～3 個月面談的人，追蹤情形排了未來的試聽日。不算在本月安排試聽裡。">前月面談排試聽 ' + s.auto.poolTrial.length + '（另列）</div>' : '')
               + (s.auto.trialDue.length ? '<div class="fn-noshow" title="排過試聽、日期已經過了，沒補排新的也還沒註冊 → 已從安排試聽扣掉">⚠️ 排了試聽沒來 <b>' + s.auto.trialDue.length + '</b></div>' : '')
+              + ((s.auto.trialUnsure && s.auto.trialUnsure.length) ? '<div class="fn-unsure" title="我們某次同步看到備註寫了試聽，但 EIP 現在的備註對不上這一段。沒有計入安排試聽，請開 EIP 查證後手動報備或忽略。">📝 待查證試聽 <b>' + s.auto.trialUnsure.length + '</b></div>' : '')
             : (s.extra ? '<div class="sm">報名 ' + s.signup + ' ＋ 報備 ' + s.extra + '</div>' : ''))
         + (s.ext && s.ext.n ? '<div class="fn-ext" title="別家學院談過、我們安排試聽的名單（自動偵測＋報備）。不計入上面的安排試聽與轉換率。">🏫 外院試聽 <b>+' + s.ext.n + '</b></div>' : '') + '</div>'
         + '<div class="fn-step res"><div class="lb">試聽後結果</div>' + (s.known
@@ -10104,8 +10944,10 @@
     //   排名：綜合分數為主，每一欄也都能點欄位標題單獨排序（找各家問題）。
     //   比較基準：跟上月比（↑↓）＋ 跟全台七家平均比（vs 全台）。
     // ══════════════════════════════════════════════════════════════
-    var fnView = (function(){ try { return localStorage.getItem('fn_view_v1') || 'card'; } catch(e){ return 'card'; } })();
-    function fnSetView(v){ fnView = v; try { localStorage.setItem('fn_view_v1', v); } catch(e){} fnRenderAll(); }
+    // ★ 每次開頁都從「卡片」開始 —— 儀表板資訊量大，要看再自己點（切換只在這次瀏覽有效，不記住）
+    var fnView = 'card';
+    function fnSetView(v){ fnView = v; fnRenderAll(); }
+    try { localStorage.removeItem('fn_view_v1'); } catch(e){}
     var fnSort = (function(){ try { return JSON.parse(localStorage.getItem('fn_sort_v1') || 'null') || { k:'score', d:-1 }; } catch(e){ return { k:'score', d:-1 }; } })();
     function fnSetSort(k){
       if (fnSort.k === k) fnSort.d = -fnSort.d; else fnSort = { k:k, d:-1 };
@@ -10339,6 +11181,7 @@
     function fnRenderAll(){
       var bar = document.getElementById('fnBar'), body = document.getElementById('fnBody');
       if (!bar || !body) return;
+      _fnPmCache = { k:'', m:null }; _fnNbCache = { k:'', m:null };   // 核對列用的快取只在這一輪重畫內有效
       var ymList = _fnYmList();
       var liveCk = _ckLiveYm(), livePp = _ppLiveYm();
       var selYm = (fnSelYm && ymList.indexOf(fnSelYm) >= 0) ? fnSelYm : (ymList.length ? ymList[ymList.length-1] : null);
@@ -10347,18 +11190,12 @@
         + ymList.map(function(ym){
             var y = parseInt(ym.slice(0,4),10), mo = parseInt(ym.slice(5),10);
             var isLive = (ym === liveCk || ym === livePp);
-            return '<button class="ck-region-btn' + (ym === selYm ? ' active' : '') + '" onclick="fnSetYm(\'' + ym + '\')">' + y + '年' + mo + '月' + (isLive ? ' 🟢' : ' 📦') + '</button>';
+            var isCold = !!_fnColdIdx()[ym];
+            return '<button class="ck-region-btn' + (ym === selYm ? ' active' : '') + (isCold ? ' cold' : '') + '" onclick="fnSetYmCold(\'' + ym + '\')"'
+              + (isCold ? ' title="這個月已搬到雲端保存，點一下會自動取回（幾秒）"' : '') + '>' + y + '年' + mo + '月' + (isCold ? ' 🧊' : (isLive ? ' 🟢' : ' 📦')) + '</button>';
           }).join('')
         + '</div>'
-        + '<div class="fn-trialbar" title="翻每個人的「狀態歷史記錄」，把業務寫在舊紀錄裡的試聽日抓出來。只挖本月面談、還沒繳費的人，沒變動的自動跳過。">'
-        + '<span class="fn-tb-t">🔎 試聽深挖</span>'
-        + ['central','taoyuan','south','all'].map(function(rg){
-            var lb = { central:'中區', taoyuan:'桃區', south:'南區', all:'全省七家' }[rg];
-            return '<button class="fn-tb-btn' + (rg === 'all' ? ' wide' : '') + '" onclick="fnTrialSync(\'' + rg + '\')">' + lb + '</button>';
-          }).join('')
-        + '<span class="fn-tb-ts">' + _fnTrialTsText() + '</span>'
-        + '</div>'
-        + '<button class="fn-tb-btn full" onclick="fnSyncFullAll()" title="平常按右上角「🔀 漏斗」就好（只補本月新資料）。這顆是完整重抓本月＋前 3 個月，約 10～12 分鐘，換月份或資料怪怪的時候用。">🔁 漏斗全抓</button>'
+        // ── 左邊：平常在看的（檢視切換 → 區域 → 複製／列印）──
         + '<div class="fn-seg">'
         +   '<button class="' + (fnView === 'card' ? 'on' : '') + '" onclick="fnSetView(\'card\')">▦ 卡片</button>'
         +   '<button class="' + (fnView === 'dash' ? 'on' : '') + '" onclick="fnSetView(\'dash\')">📊 儀表板</button>'
@@ -10367,6 +11204,25 @@
         + '<span style="width:8px"></span>'
         + '<button class="ck-region-btn" id="fnCopyBtn" onclick="fnCopyText()">📋 複製文字摘要（貼 LINE）</button>'
         + '<button class="ck-region-btn" onclick="window.print()">🖨 列印 / 存 PDF</button>'
+        // ── 右邊：會去打 EIP 的動作（推到最右，避免誤按）──
+        + '<div class="fn-actions">'
+        +   (function(){
+              try {
+                var due = _fnColdDue();
+                if (!due.length) return '';
+                return '<button class="fn-tb-btn cold" onclick="fnColdArchiveDue()" title="把超過 ' + FN_COLD_KEEP_MONTHS + ' 個月的逐人資料搬到雲端保存，本機變輕；月份按鈕會標 🧊，點了自動取回。同時會下載 JSON 讓你收進 Google Drive。">🧊 有 ' + due.length + ' 個月可以封存</button>';
+              } catch(e){ return ''; }
+            })()
+        +   '<button class="fn-tb-btn full" onclick="fnSyncFullAll()" title="平常按右上角「🔀 漏斗」就好（只補本月新資料）。這顆是完整重抓本月＋前 3 個月，約 10～12 分鐘，資料怪怪的時候才用。">🔁 漏斗全抓</button>'
+        +   '<div class="fn-trialbar" title="翻每個人的「狀態歷史記錄」，把業務寫在舊紀錄裡的試聽日抓出來。只挖本月面談、還沒繳費的人，沒變動的自動跳過。會打 EIP，按下去會先問你。">'
+        +     '<span class="fn-tb-t">🔎 試聽深挖</span>'
+        +     ['central','taoyuan','south','all'].map(function(rg){
+                var lb = { central:'中區', taoyuan:'桃區', south:'南區', all:'全省七家' }[rg];
+                return '<button class="fn-tb-btn' + (rg === 'all' ? ' wide' : '') + '" onclick="fnTrialSync(\'' + rg + '\')">' + lb + '</button>';
+              }).join('')
+        +     '<span class="fn-tb-ts">' + _fnTrialTsText() + '</span>'
+        +   '</div>'
+        + '</div>'
         + '<span class="ck-update-info">🟢 即時同步　📦 封存　｜　手填欄位全公司共享、自動同步</span>';
       if (!selYm){
         body.innerHTML = '<div class="ck-empty">尚無資料 — 請先到「🏆 激勵」分頁按「🔄 同步資料」（報到排名＋當月績效同步後，這裡會自動長出來）</div>';
@@ -10393,6 +11249,7 @@
       html += _fnStoryHtml(nr, total, selYm, all);
       html += '<div class="fn-grid">' + _fnCardHtml(total, all, selYm, true, prev) + all.map(function(s){ return _fnCardHtml(s, all, selYm, false, prev); }).join('') + '</div>';
       body.innerHTML = html;
+      fnChkCountAll();
     }
 
 
@@ -10465,6 +11322,6 @@
   </script>
 <script src="./nav-home.js"></script>
 <script src="day-mode-init.js"></script>
-<script src="./text-zoom.js?v=4"></script>
+<script src="./text-zoom.js?v=5"></script>
 </body>
 </html>
