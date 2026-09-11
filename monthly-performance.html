@@ -2548,6 +2548,25 @@
             }catch(e){}
             return null;
         }
+        // 這兩類 key 的「新舊」看它自己帶的時間戳：核對取各欄位 at 的最大值（含 _e 墓碑），知識庫取 at / delAt
+        function _chkStamp(raw){
+            try {
+                var o = JSON.parse(raw || 'null'); if (!o) return -1;
+                var t = 0;
+                Object.keys(o).forEach(function(f){
+                    var v = o[f];
+                    if (f === 'at' || f === 'delAt'){ t = Math.max(t, +v || 0); return; }
+                    if (v && typeof v === 'object' && v.at) t = Math.max(t, +v.at || 0);
+                });
+                return t;
+            } catch(e){ return -1; }
+        }
+        function _chkCloudWins(localRaw, cloudRaw){
+            if (localRaw === null || localRaw === undefined) return true;   // 本機沒有 → 收下
+            var lt = _chkStamp(localRaw), ct = _chkStamp(cloudRaw);
+            if (lt < 0 && ct < 0) return true;
+            return ct >= lt;                                               // 本機比較新 → 不要蓋
+        }
         // 每筆一個 key 的三類（報備試聽 / 名單核對 / 追註冊知識庫）→ 摘要時併成一行
         function _grpLabel(label){
             if (/^funnelrep_/.test(label)) return '🖐 報備試聽';
@@ -2703,9 +2722,10 @@
         try { document.addEventListener('DOMContentLoaded', function(){
             try { if (!_mpIsAdmin()){ var b = document.getElementById('cloudPushBtn'); if (b) b.style.display = 'none'; } } catch(e){}
         }); } catch(e){}
-        async function forcePushMpDataToCloud(){
-            if (!_mpIsAdmin()){ alert('☁️↑ 強制推送僅限管理者（黃柏翰）使用。\n你的填寫會自動同步，看不到新月份請按「☁️↓ 強制拉取」。'); return; }
-            var btn = document.getElementById('cloudPushBtn');
+        // silent = true → 同步完自動觸發，不跳確認、不跳提示，只在右下角冒一行
+        async function forcePushMpDataToCloud(silent){
+            if (!_mpIsAdmin()){ if (!silent) alert('☁️↑ 強制推送僅限管理者（黃柏翰）使用。\n你的填寫會自動同步，看不到新月份請按「☁️↓ 強制拉取」。'); return; }
+            var btn = document.getElementById('cloudPushBtn') || { style:{} };
             try{
                 btn.disabled = true; btn.textContent = '☁️↑ 推送中...';
                 // 1) 讀本機 IDB.mp_data_v1
@@ -2736,7 +2756,7 @@
                 var kbItemCount = (kb && Array.isArray(kb.items)) ? kb.items.length : 0;
 
                 if((!mp || !mpMonths.length) && !lsKeys.length && !kb){
-                    alert('❌ 本機沒有任何公司資料,請先匯入');
+                    if (!silent) alert('❌ 本機沒有任何公司資料,請先匯入');
                     return;
                 }
 
@@ -2757,7 +2777,7 @@
                 summary = summary.concat(_rest);
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
-                if(!confirm('☁️ 把所有公司資料推送到雲端?\n\n'+summary.join('\n')+'\n\n注意:會覆蓋雲端版本。其他電腦下次按「強制拉取」就能拿到最新版。')){
+                if(!silent && !confirm('☁️ 把所有公司資料推送到雲端?\n\n'+summary.join('\n')+'\n\n注意:會覆蓋雲端版本。其他電腦下次按「強制拉取」就能拿到最新版。')){
                     return;
                 }
 
@@ -3071,6 +3091,12 @@
                         if (k.slice(-14) === '_ck_archive_v1' && host && typeof host._fnAbsorbCkFunnel === 'function'){
                             var a = null; try{ a = JSON.parse(v || '{}') || {}; }catch(e4){}
                             if (a){ host._fnAbsorbCkFunnel(k.slice(0, -13), a); v = JSON.stringify(a); }
+                        }
+                        // ★ 2026/09：名單核對／追註冊知識庫是「每筆一個 key、自己帶時間戳」。
+                        //   直接用雲端蓋掉會把剛剛刪掉的紀錄復活（實測：清掉的測試資料自己長回來）。
+                        //   改成比時間戳，本機比較新就不要動它。
+                        if (k.indexOf('perf_compare_v1_chk_') === 0 || k.indexOf('perf_compare_v1_kb_') === 0){
+                            if (!_chkCloudWins(pLS.getItem(k), v)) return;
                         }
                         pLS.setItem(k, v);
                     }catch(e){

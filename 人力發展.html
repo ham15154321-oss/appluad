@@ -4216,7 +4216,7 @@ function perfOpen(){
   ov.classList.add('active');
   const frame=document.getElementById('perfFrame');
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
-  const TARGET_SRC='performance-compare.html?v=chk6';
+  const TARGET_SRC='performance-compare.html?v=redig5';
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes(TARGET_SRC.split('?')[1]))
     frame.src=TARGET_SRC;
   // ★ 用 sessionStorage 記住「業績數據中心曾開啟過」（重整後自動還原）
@@ -5653,5 +5653,74 @@ window.addEventListener('load',function(){
   window.addEventListener('orientationchange', function(){ setTimeout(fixMobileScroll, 200); });
 })();
 </script>
+
+<!-- ===== 業績數據自動上傳（2026-09-11 加入，實測通過） ===== -->
+<script>
+(function () {
+  var ENDPOINT = 'https://script.google.com/macros/s/AKfycbxBFayHnfG5NUoj0CjIe8qwlfdFwt0FQeVD-QH6ocBu3dhHWpioOEmLk908dsTGVlznYA/exec';
+  var OWNER = '黃柏翰';
+  var MAP = [
+    ['台中學院', '台一'], ['台中二部', '台二'], ['台中三部', '台三'],
+    ['中壢學院', '壢一'], ['中壢二部', '壢二'], ['中壢三部', '壢三'],
+    ['高雄建國', '建國']
+  ];
+  function findKey(sfx) {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf(OWNER) > -1 && k.indexOf('_motiv_' + sfx) > -1) return k;
+    }
+    return null;
+  }
+  function sumByOrg(node) {
+    var o = {};
+    MAP.forEach(function (m) { o[m[0]] = 0; });
+    var bk = (node && node.byKey) || {};
+    Object.keys(bk).forEach(function (k) {
+      var org = k.split('|')[0];
+      if (o[org] !== undefined) o[org] += Number(bk[k]) || 0;
+    });
+    return o;
+  }
+  function build() {
+    var ck = findKey('checkin_v1'), pk = findKey('perfp_v1');
+    if (!ck || !pk) return null;
+    var c, p;
+    try {
+      c = JSON.parse(localStorage.getItem(ck) || '{}');
+      p = JSON.parse(localStorage.getItem(pk) || '{}');
+    } catch (err) { return null; }
+    var F = sumByOrg(c.formal), N = sumByOrg(c.net), R = sumByOrg(c.rs);
+    var og = p.orgs || {};
+    return MAP.map(function (m) {
+      var arr = og[m[0]] || [], c1 = 0, c2 = 0, c3 = 0, c4 = 0;
+      arr.forEach(function (r) {
+        c1 += Number(r.count1) || 0; c2 += Number(r.count2) || 0;
+        c3 += Number(r.count3) || 0; c4 += Number(r.count4) || 0;
+      });
+      return {
+        org: m[1], formal: F[m[0]], net: N[m[0]], rs: R[m[0]],
+        c1: c1, c2: c2, c3: c3, c4: c4,
+        rate: c1 ? Math.round(c3 / c1 * 1000) / 10 : 0
+      };
+    });
+  }
+  var last = '';
+  function tick() {
+    var rows = build();
+    if (!rows) return;
+    var total = rows.reduce(function (s, r) { return s + r.formal + r.c1; }, 0);
+    if (!total) return;
+    var sig = JSON.stringify(rows);
+    if (sig === last) return;
+    last = sig;
+    fetch(ENDPOINT, { method: 'POST', body: JSON.stringify({ rows: rows }) })
+      .then(function () { console.log('[快照] 已上傳七家數字'); })
+      .catch(function (e) { console.log('[快照] 上傳失敗', e); });
+  }
+  setTimeout(tick, 5000);
+  setInterval(tick, 15000);
+})();
+</script>
+<!-- ===== 業績數據自動上傳 結束 ===== -->
 </body>
 </html>

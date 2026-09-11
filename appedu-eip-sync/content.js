@@ -563,18 +563,19 @@
   function _listRowsFromHtml(html){
     var doc = new DOMParser().parseFromString(html, 'text/html');
     var tables = doc.querySelectorAll('table');
-    var table = null, idxAcad = -1, idxOwner = -1;
+    var table = null, idxAcad = -1, idxOwner = -1, idxSrc = -1;
     for (var t = 0; t < tables.length; t++){
       var rows = getDirectRows(tables[t]);
       if (rows.length < 1) continue;
       var ths = getDirectCells(rows[0]);
-      var ia = -1, io = -1;
+      var ia = -1, io = -1, isr = -1;
       for (var c = 0; c < ths.length; c++){
         var h = ths[c].textContent.trim();
         if (ia < 0 && h === '學院') ia = c;
         if (io < 0 && h === '承辦人') io = c;
+        if (isr < 0 && h.indexOf('通路來源') >= 0) isr = c;   // 「通路來源(副)」→ 推算網路已報到用
       }
-      if (ia >= 0 && io >= 0){ table = tables[t]; idxAcad = ia; idxOwner = io; break; }
+      if (ia >= 0 && io >= 0){ table = tables[t]; idxAcad = ia; idxOwner = io; idxSrc = isr; break; }
     }
     if (!table) return null; // 連名單表都沒有 → 可能無權/登入頁，交給呼叫端判斷
     var out = [];
@@ -585,7 +586,8 @@
       var acad = tds[idxAcad].textContent.trim();
       var owner = tds[idxOwner].textContent.trim();
       var sig = trs[i].textContent.replace(/\s+/g, '').slice(0, 60);
-      out.push({ academy: acad, owner: owner, sig: sig });
+      out.push({ academy: acad, owner: owner, sig: sig,
+                 src: (idxSrc >= 0 && tds.length > idxSrc) ? tds[idxSrc].textContent.replace(/\s+/g, ' ').trim() : null });
     }
     return out;
   }
@@ -594,7 +596,9 @@
   //   權限說明：CSV 匯出(total_csv.php)的權限被關，但網頁版名單(total.php)使用者本人仍有權開啟，
   //   所以這是「用使用者自己的權限、模擬人工翻頁」，不是繞過權限。
   //   安全機制：節流 400ms/頁、去重（同一列不重複算）、遇空頁或無新資料即停、上限 80 頁。
-  async function fetchListCountsViaHtml(params, label){
+  async function fetchListCountsViaHtml(params, label, info){
+    info = info || {};
+    info.via = '網頁分頁'; info.pages = 0; info.capped = false;
     var counts = emptyCounts();
     var seen = {};
     var MAX_PAGES = 80;
@@ -622,15 +626,18 @@
         break; // 後面頁數拿不到表格 → 當作結束
       }
       got1stTable = true;
+      info.pages = pg;
       var added = 0;
       for (var i = 0; i < rows.length; i++){
         if (seen[rows[i].sig]) continue;      // 去重（保險：pg 超過末頁若回捲也不會重複算）
         seen[rows[i].sig] = 1;
         addCount(counts, rows[i].academy, rows[i].owner);
+        if (info.wantRows) (info.rows || (info.rows = [])).push({ academy: rows[i].academy, owner: rows[i].owner, src: rows[i].src });
         added++;
       }
       notify('status', { msg: label + '：網頁版分頁抓取中… 第 ' + pg + ' 頁（累計 ' + counts.total + ' 筆）' });
       if (rows.length === 0 || added === 0) break; // 空頁 or 這頁全是重複 → 結束
+      if (pg === MAX_PAGES) info.capped = true;      // 撞到上限＝可能沒抓完，要講出來
     }
     } finally {
       try { clearInterval(kaTimer); } catch(e){}   // 抓完（或出錯）都要停掉 keepalive ping
@@ -640,7 +647,9 @@
     return counts;
   }
 
-  async function fetchListCounts(params, label){
+  async function fetchListCounts(params, label, info){
+    info = info || {};
+    info.via = 'CSV'; info.pages = 1; info.rows = null;
     var qs = buildTotalQuery(params);
     var url = 'http://eip.appedu.com.tw/outlet/list/total_csv.php?' + qs;
     var delays = [0, 2000, 5000];   // 第一次立刻，之後等 2 秒、5 秒
@@ -654,13 +663,14 @@
         var counts = countsFromCSV(csv);
         if (!counts) counts = emptyCounts(); // 有 CSV 但解析不出表頭（可能該查詢本月 0 筆）→ 當成 0，不報錯
         console.log('[EIP Content] ' + label + ' CSV: ' + counts.total + ' 筆' + (attempt ? '（第 ' + (attempt+1) + ' 次嘗試成功）' : ''));
+        info.tries = attempt + 1;
         return counts;
       }
       // ★ v5.13：CSV 匯出權限被關（「您無權進入此頁」）→ 不重試，直接改用網頁版分頁 fallback。
       if (/無權|沒有權限|權限不足/.test(String(csv))){
         console.warn('[EIP Content] ' + label + ' CSV 無權 → 改用網頁版分頁抓取');
         notify('status', { msg: label + '：CSV 匯出權限已關，改用網頁版分頁抓取（較慢，請稍候）...' });
-        return await fetchListCountsViaHtml(params, label);
+        return await fetchListCountsViaHtml(params, label, info);
       }
       if (_looksLikeLogin(csv)){
         throw new Error(label + '：EIP 顯示登入頁 — 請在瀏覽器重新登入 EIP 後再同步');
@@ -669,7 +679,7 @@
     }
     // CSV 連續 HTML（忙線）→ 最後也退到網頁版分頁試一次
     console.warn('[EIP Content] ' + label + ' CSV 連續忙線 → 改用網頁版分頁');
-    return await fetchListCountsViaHtml(params, label);
+    return await fetchListCountsViaHtml(params, label, info);
   }
 
   function pad2(n){ return String(n).padStart(2, '0'); }
@@ -873,6 +883,93 @@
     return out;
   }
 
+
+  // ══════════════════════════════════════════════════════════════
+  //  ★ v5.34 報到排名：不要每次都整月重抓
+  //   ① 過去的月份 → 數字已經凍結，抓過一次就永久快取，之後 0 個請求。
+  //   ② 本月「已報到 / 網路已報到」→ 把月初到「七天前」切成一週一塊存起來，
+  //      每次只重抓最近這幾天。七天的緩衝是為了接住補登。
+  //   ③ 「預約報到」不切：它查的是今天到月底的預約，今天新約的可能落在下週，
+  //      切段一定會漏，所以永遠整段重抓。
+  //   ④ 上線前會自我驗證：同一組條件「切段加總」跟「整段」抓一次比對，
+  //      完全一致才啟用；只要對不上就永久停用切段並回報 —— 寧可慢也不要算錯。
+  //      （EIP 的 q8 迄日對某些狀態可能不生效，那會讓兩段各自回傳整月 → 數字變兩倍。）
+  // ══════════════════════════════════════════════════════════════
+  var CK_SEG_KEY = 'eip_ck_seg_v1';
+  function _ckSegLoad(){
+    try {
+      var o = JSON.parse(localStorage.getItem(CK_SEG_KEY) || 'null');
+      if (o && o.v === 1){
+        // 只留最近 6 個月，不然這份快取會一直長大（每個 key 存的是學院×承辦人的筆數表）
+        try {
+          var t = new Date(), keep = {};
+          for (var i = 0; i < 6; i++){ var d = new Date(t.getFullYear(), t.getMonth() - i, 1); keep[d.getFullYear() + '-' + pad2(d.getMonth() + 1)] = 1; }
+          var drop = 0;
+          Object.keys(o.seg || {}).forEach(function(k){ var pt = k.split('|'); if (pt.length > 1 && !keep[pt[1]]){ delete o.seg[k]; drop++; } });
+          if (drop) _ckSegSave(o);
+        } catch(e2){}
+        return o;
+      }
+    } catch(e){}
+    return { v:1, lab:{}, seg:{} };
+  }
+  function _ckSegSave(o){ try { localStorage.setItem(CK_SEG_KEY, JSON.stringify(o)); } catch(e){ console.warn('[EIP Content] 報到快取寫入失敗', e); } }
+  function _ckCloneCounts(c){ return { byKey: Object.assign({}, c.byKey), byAcademy: Object.assign({}, c.byAcademy), total: c.total }; }
+  function _ckAddCounts(a, b){
+    for (var k in b.byKey) a.byKey[k] = (a.byKey[k] || 0) + b.byKey[k];
+    for (var g in b.byAcademy) a.byAcademy[g] = (a.byAcademy[g] || 0) + b.byAcademy[g];
+    a.total += b.total;
+    return a;
+  }
+  function _ckSameCounts(a, b){
+    if (a.total !== b.total) return false;
+    var ka = Object.keys(a.byKey), kb = Object.keys(b.byKey);
+    if (ka.length !== kb.length) return false;
+    for (var i = 0; i < ka.length; i++){ if (a.byKey[ka[i]] !== b.byKey[ka[i]]) return false; }
+    return true;
+  }
+  function _ckDay(year, month, d){ return year + '/' + pad2(month) + '/' + pad2(d); }
+  // 本月切段計畫：回傳 { chunks:[{k,from,to,endDay}], freshFrom, settledEnd } —— chunk 的結束日必須離今天 ≥ 7 天
+  function _ckSegPlan(year, month, todayDay){
+    var chunks = [], settledEnd = 0;
+    for (var k = 0; k < 4; k++){
+      var endDay = (k + 1) * 7;
+      if (endDay > todayDay - 7) break;          // 還沒滿七天緩衝 → 不算凍結
+      chunks.push({ k:k, from:_ckDay(year, month, k * 7 + 1), to:_ckDay(year, month, endDay), endDay:endDay });
+      settledEnd = endDay;
+    }
+    if (!chunks.length) return null;
+    return { chunks: chunks, settledEnd: settledEnd, freshFrom: _ckDay(year, month, settledEnd + 1) };
+  }
+  // ── 網路已報到＝已報到的子集（主類別「網際網路」）──
+  //   名單表格只有「通路來源(副)」，但每個副類別只屬於一個主類別 → 學一次對照表就好：
+  //   某副類別出現在網路那份結果 ⇒ 它是網際網路；出現在已報到卻沒出現在網路 ⇒ 不是。
+  //   學完之後，整段抓已報到時直接推算網路，省掉一整段查詢（那段每頁要 3.7 秒，最貴）。
+  //   安全機制：推算值要跟實查完全一致才啟用；遇到沒學過的副類別那次照抓；每 7 天強制重驗。
+  var CK_NET_RECHECK_MS = 7 * 24 * 3600 * 1000;
+  function _ckNetState(box){ return box.net || (box.net = { ok:null, yes:{}, no:{}, checkedAt:0, why:'' }); }
+  function _ckNetDerive(st, rows){
+    if (!rows || !rows.length) return null;
+    var acc = emptyCounts(), unknown = {};
+    for (var i = 0; i < rows.length; i++){
+      var sc = rows[i].src;
+      if (sc === null || sc === undefined) return null;          // 這頁沒有通路來源欄 → 推算不了
+      if (st.yes[sc]) addCount(acc, rows[i].academy, rows[i].owner);
+      else if (!st.no[sc]) unknown[sc] = 1;
+    }
+    var uk = Object.keys(unknown);
+    if (uk.length) return { unknown: uk };
+    return { counts: acc };
+  }
+  function _ckNetLearn(st, formalRows, netRows){
+    var yes = {}, seen = {};
+    netRows.forEach(function(r){ if (r.src != null) yes[r.src] = 1; });
+    formalRows.forEach(function(r){ if (r.src != null) seen[r.src] = 1; });
+    st.yes = yes; st.no = {};
+    Object.keys(seen).forEach(function(sc){ if (!yes[sc]) st.no[sc] = 1; });
+  }
+  function _ckWith(params, over){ var o = {}; for (var k in params) o[k] = params[k]; for (var j in over) o[j] = over[j]; return o; }
+
   async function fetchCheckin(year, month){
     var monthStart = year + '/' + month + '/01';
     var lastDay = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
@@ -881,16 +978,180 @@
     var isCurrentMonth = (now.getFullYear() === parseInt(year, 10) && (now.getMonth() + 1) === parseInt(month, 10));
     var rsStart = isCurrentMonth ? (now.getFullYear() + '/' + pad2(now.getMonth() + 1) + '/' + pad2(now.getDate())) : monthStart;
 
-    notify('status', { msg: '正在同步已報到名單 (1/3)...' });
-    var formal = await fetchListCounts({ q7: monthStart, q16: 'formal' }, '已報到');
-    await sleep(EIP_THROTTLE_MS);
-    notify('status', { msg: '正在同步網路已報到 (2/3)...' });
-    var net = await fetchListCounts({ q7: monthStart, q16: 'formal', q13: '3' }, '網路已報到');
-    await sleep(EIP_THROTTLE_MS);
-    notify('status', { msg: '正在同步到月底預約報到 (3/3)...' });
-    var rs = await fetchListCounts({ q7: rsStart, q8: monthEnd, q16: '2' }, '預約報到');
+    var ym = year + '-' + pad2(month);
+    var todayDay = isCurrentMonth ? now.getDate() : 99;
+    var box = _ckSegLoad();
+    var stat = [], t0;
 
-    return { formal: formal, net: net, rs: rs, meta: { year: year, month: month, rsStart: rsStart, rsEnd: monthEnd } };
+    var step = async function(n, label, params, splitable, opt){
+      opt = opt || {};
+      notify('status', { msg: '正在同步' + label + ' (' + n + '/3)...' });
+      t0 = Date.now();
+      var info = { wantRows: !!opt.wantRows }, note = '', pages = 0;
+      var keepRows = function(){ if (opt.wantRows) opt.out.rows = info.rows || null; };
+      var rec = function(c, via){
+        keepRows();
+        stat.push({ label: label, n: c.total, sec: Math.round((Date.now() - t0) / 100) / 10,
+                    via: via, pages: pages, capped: !!info.capped, note: note });
+        return c;
+      };
+
+      // ① 過去的月份：整段抓一次就永久快取（數字不會再變）
+      if (!isCurrentMonth){
+        var fk = label + '|' + ym + '|FULL';
+        if (box.seg[fk]){ note = '整月快取（過去月份，0 個請求）'; return rec(_ckCloneCounts(box.seg[fk].counts), '快取'); }
+        var cFull0 = await fetchListCounts(params, label, info);
+        pages = info.pages || 1;
+        box.seg[fk] = { counts: _ckCloneCounts(cFull0), at: Date.now() }; _ckSegSave(box);
+        note = '已存成整月快取，這個月以後不用再抓';
+        return rec(cFull0, info.via || 'CSV');
+      }
+
+      var st = box.lab[label] || (box.lab[label] = { ok: null });
+      var plan = splitable ? _ckSegPlan(year, month, todayDay) : null;
+
+      // ② 已驗證通過 → 快取段 ＋ 只抓最近這幾天
+      if (plan && st.ok === 1){
+        var acc = emptyCounts(), missing = [], netAcc = emptyCounts(), netOk = true;
+        var nSt = _ckNetState(box);
+        for (var i = 0; i < plan.chunks.length; i++){
+          var ch = plan.chunks[i], key = label + '|' + ym + '|' + ch.k;
+          if (box.seg[key]){
+            _ckAddCounts(acc, box.seg[key].counts);
+            if (box.seg[key].net) _ckAddCounts(netAcc, box.seg[key].net); else netOk = false;
+          } else missing.push(ch);
+        }
+        // 缺的那幾塊補抓（一塊只會抓這一次，之後永遠命中）
+        for (var j = 0; j < missing.length; j++){
+          var m2 = missing[j], i2 = { wantRows: !!opt.wantRows };
+          var cm = await fetchListCounts(_ckWith(params, { q7: m2.from, q8: m2.to }), label + '（補 ' + m2.from + '~' + m2.to + '）', i2);
+          pages += i2.pages || 1;
+          var ent = { counts: _ckCloneCounts(cm), at: Date.now() };
+          if (opt.wantRows && i2.rows){
+            var dv2 = _ckNetDerive(nSt, i2.rows);
+            if (dv2 && dv2.counts){ ent.net = _ckCloneCounts(dv2.counts); _ckAddCounts(netAcc, dv2.counts); }
+            else netOk = false;
+          } else netOk = false;
+          box.seg[label + '|' + ym + '|' + m2.k] = ent;
+          _ckAddCounts(acc, cm);
+          await sleep(EIP_THROTTLE_MS);
+        }
+        if (missing.length) _ckSegSave(box);
+        var iF = { wantRows: !!opt.wantRows };
+        var fresh = await fetchListCounts(_ckWith(params, { q7: plan.freshFrom }), label + '（' + plan.freshFrom + ' 起）', iF);
+        pages += iF.pages || 1; info.capped = info.capped || iF.capped; info.rows = iF.rows || null;
+        if (opt.wantRows && netOk && info.rows) opt.out.netChunks = netAcc;    // 切段時的網路推算底子
+        note = '切段：1~' + plan.settledEnd + ' 號用快取' + (missing.length ? '（本次補 ' + missing.length + ' 塊）' : '') + '，只重抓 ' + plan.freshFrom + ' 起';
+        return rec(_ckAddCounts(acc, fresh), missing.length ? '切段＋補抓' : '切段');
+      }
+
+      // ③ 還沒驗證 / 驗證失敗 / 不能切 → 整段抓（這是權威值）
+      var cFull = await fetchListCounts(params, label, info);
+      pages = info.pages || 1;
+
+      // 沒驗過、可以切、而且這段真的在翻網頁分頁（走 CSV 的話切了也省不到）→ 順便驗一次
+      if (plan && st.ok === null && info.via === '網頁分頁'){
+        notify('status', { msg: label + '：第一次啟用切段，正在跟整段對帳（只有這一次會多抓）...' });
+        try {
+          var accV = emptyCounts(), okAll = true, tmp = {}, nSt2 = _ckNetState(box);
+          for (var v = 0; v < plan.chunks.length && okAll; v++){
+            var cv = plan.chunks[v], iv = { wantRows: !!opt.wantRows };
+            await sleep(EIP_THROTTLE_MS);
+            var cc = await fetchListCounts(_ckWith(params, { q7: cv.from, q8: cv.to }), label + '（對帳 ' + cv.from + '~' + cv.to + '）', iv);
+            pages += iv.pages || 1;
+            tmp[cv.k] = { counts: _ckCloneCounts(cc) };
+            // 順手把這一塊的網路筆數也算好存著，之後切段時網路照樣推算得出來
+            if (opt.wantRows && iv.rows && nSt2.ok === 1){
+              var dv3 = _ckNetDerive(nSt2, iv.rows);
+              if (dv3 && dv3.counts) tmp[cv.k].net = _ckCloneCounts(dv3.counts);
+            }
+            _ckAddCounts(accV, cc);
+          }
+          await sleep(EIP_THROTTLE_MS);
+          var iv2 = {};
+          var cvF = await fetchListCounts(_ckWith(params, { q7: plan.freshFrom }), label + '（對帳 ' + plan.freshFrom + ' 起）', iv2);
+          pages += iv2.pages || 1;
+          _ckAddCounts(accV, cvF);
+          if (_ckSameCounts(accV, cFull)){
+            st.ok = 1; st.checkedAt = Date.now(); st.why = '';
+            for (var w in tmp) box.seg[label + '|' + ym + '|' + w] = { counts: tmp[w].counts, net: tmp[w].net || null, at: Date.now() };
+            note = '✅ 切段對帳通過（' + accV.total + ' = ' + cFull.total + '），下次開始只抓最近幾天';
+          } else {
+            st.ok = 0; st.why = '切段 ' + accV.total + ' ≠ 整段 ' + cFull.total;
+            note = '⛔ 切段對帳不符（' + st.why + '）→ 已永久停用切段，維持整月重抓';
+          }
+        } catch(eV){
+          st.ok = 0; st.why = '對帳時出錯：' + (eV.message || eV);
+          note = '⛔ 切段對帳失敗（' + st.why + '）→ 已永久停用切段';
+        }
+        _ckSegSave(box);
+      } else if (plan && st.ok === 0){
+        note = '切段已停用（' + (st.why || '對帳不符') + '）';
+      } else if (!splitable){
+        note = (label === '預約報到') ? '不切段：查的是今天到月底的預約，切了會漏掉新預約'
+                                      : '今天是定期重驗日 → 整段抓，好跟推算值對帳（每 7 天一次）';
+      } else if (!plan){
+        note = '本月還沒有滿七天緩衝的區段，先整段抓';
+      }
+      return rec(cFull, info.via || 'CSV');
+    };
+
+    var nst0 = _ckNetState(box);
+    // 每 7 天要跟實查對帳一次 → 那天連已報到也整段抓，才有完整名單可以比
+    var dueRecheck = !nst0.checkedAt || (Date.now() - nst0.checkedAt > CK_NET_RECHECK_MS);
+    var fOut = {};
+    var formal = await step(1, '已報到', { q7: monthStart, q16: 'formal' }, !(nst0.ok === 1 && dueRecheck), { wantRows: true, out: fOut });
+    await sleep(EIP_THROTTLE_MS);
+
+    // ── 網路已報到：能推算就不要再查一次 ──
+    var nst = nst0, net = null, netNote = '';
+    var fullFormalRows = (fOut.rows && fOut.rows.length && formal.total === fOut.rows.length) ? fOut.rows : null;  // 只有「整段抓」時列數才等於總數
+    if (nst.ok === 1 && !dueRecheck){
+      // 整段抓 → 直接推算；切段抓 → 快取塊的網路數 ＋ 只推算最近這幾天
+      var base = fullFormalRows ? null : (fOut.netChunks || null);
+      var rowsForDerive = fullFormalRows || fOut.rows;
+      if (rowsForDerive && (fullFormalRows || base)){
+        var dv = _ckNetDerive(nst, rowsForDerive);
+        if (dv && dv.counts){
+          net = base ? _ckAddCounts(_ckCloneCounts(base), dv.counts) : dv.counts;
+          netNote = base ? '快取段的網路數 ＋ 最近這幾天推算（省掉一整段查詢）' : '從已報到推算（省掉一整段查詢）';
+          stat.push({ label:'網路已報到', n: net.total, sec: 0, via:'推算', pages: 0, capped: false, note: netNote });
+        } else if (dv && dv.unknown){
+          netNote = '出現沒學過的通路來源「' + dv.unknown.slice(0, 3).join('、') + '」→ 這次照抓並學起來';
+        }
+      }
+    }
+    if (!net){
+      var nOut = {};
+      net = await step(2, '網路已報到', { q7: monthStart, q16: 'formal', q13: '3' }, true, { wantRows: true, out: nOut });
+      // 兩邊都是整段、都有列 → 學對照表並對帳
+      var fullNetRows = (nOut.rows && nOut.rows.length && net.total === nOut.rows.length) ? nOut.rows : null;
+      if (fullFormalRows && fullNetRows){
+        var prevOk = nst.ok;
+        _ckNetLearn(nst, fullFormalRows, fullNetRows);
+        var chk = _ckNetDerive(nst, fullFormalRows);
+        if (chk && chk.counts && _ckSameCounts(chk.counts, net)){
+          nst.ok = 1; nst.checkedAt = Date.now(); nst.why = '';
+          var st2 = stat[stat.length - 1];
+          st2.note = (st2.note ? st2.note + '　' : '') + (netNote ? netNote + '　' : '')
+            + '✅ 推算對帳通過（' + chk.counts.total + ' = ' + net.total + '）'
+            + (prevOk === 1 ? '（定期重驗）' : '，下次開始不用再查這一段');
+        } else {
+          nst.ok = 0; nst.checkedAt = Date.now();
+          nst.why = '推算 ' + ((chk && chk.counts) ? chk.counts.total : '?') + ' ≠ 實查 ' + net.total;
+          var st3 = stat[stat.length - 1];
+          st3.note = (st3.note ? st3.note + '　' : '') + '⛔ 推算對帳不符（' + nst.why + '）→ 已停用推算，維持實際查詢';
+        }
+      } else if (netNote){
+        var st4 = stat[stat.length - 1];
+        st4.note = (st4.note ? st4.note + '　' : '') + netNote;
+      }
+      _ckSegSave(box);
+    }
+    await sleep(EIP_THROTTLE_MS);
+    var rs = await step(3, '預約報到', { q7: rsStart, q8: monthEnd, q16: '2' }, false);
+
+    return { formal: formal, net: net, rs: rs, stat: stat, meta: { year: year, month: month, rsStart: rsStart, rsEnd: monthEnd } };
   }
 
   // ══════════════════════════════════════
@@ -1002,6 +1263,10 @@
     notify('done', {
       mode: 'checkin', checkin: checkinData, updateTime: ts,
       msg: '🚪 報到排名同步完成！已報到 ' + checkinData.formal.total + ' / 網路 ' + checkinData.net.total + ' / 到月底 ' + checkinData.rs.total + ' 筆'
+        + (checkinData.stat ? '\n' + checkinData.stat.map(function(x){
+            return '　' + x.label + '：' + x.n + ' 筆・' + x.via + (x.pages > 1 ? ' ' + x.pages + ' 頁' : '') + '・' + x.sec + ' 秒'
+              + (x.capped ? '　⚠️ 翻到上限 80 頁，可能沒抓完' : '') + (x.note ? '\n　　└ ' + x.note : '');
+          }).join('\n') : '')
         + (_ckKeep.kept ? '　⚠️ 這次抓到空表，已保留上一次的資料，請稍後再同步一次' : '')
     });
   }
@@ -1592,12 +1857,28 @@
       }
       if (got && (rec.m || rec.d)) out.push(rec);
     }
+    // ★ 2026/09：原本這裡有一段「純文字備援」，用 /追蹤情形 …/ 去刮整頁文字。
+    //   問題是這個視窗是 JavaScript 畫出來的，抓回來的 HTML 只有腳本沒有表格 →
+    //   備援就刮到腳本原始碼，存了一堆「姓名」「狀態歸類」「").appendTo($tr3);」當成追蹤情形。
+    //   而且它「看起來成功」，所以錯了好幾天都沒人發現。寧可失敗，不要吞垃圾。
+    out = out.filter(_trialRecOk);
     if (!out.length){
-      // 純文字備援：抓「追蹤情形 …」後面那段
-      var re = /追蹤情形[\s:：]*([^\n]{2,160})/g, m;
-      while ((m = re.exec(body))) out.push({ d:'', s:'', m: m[1].trim() });
+      _trialDiag = '視窗抓到了但解析不出紀錄（可能是 JS 動態產生）。前 300 字：' + String(body).replace(/\s+/g, ' ').slice(0, 300);
+      return null;
     }
     return out.slice(0, 8);
+  }
+  // 一筆紀錄長得像不像真的追蹤情形（擋掉欄位標籤與腳本殘渣）
+  var TRIAL_LABELS = /^(姓名|狀態|狀態歸類|撥打日期|追蹤情形|承辦人|修改人|行銷人員|時間|時間\(狀態值\)|備註|學員狀況)$/;
+  function _trialRecOk(r){
+    var m = String((r && r.m) || '').trim();
+    var d = String((r && r.d) || '').trim();
+    if (!m && !d) return false;
+    if (TRIAL_LABELS.test(m)) return false;
+    if (/appendTo|\$\(|\$tr|function\s*\(|var\s+\w|=>|\)\s*;\s*$|<\/?[a-z]+[\s>]/i.test(m)) return false;
+    // 真的紀錄一定有撥打日期（YYYY/MM/DD）
+    if (!/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}/.test(d)) return false;
+    return true;
   }
   // 挖一個人
   var _trialTplLocked = false;   // 已經確認可用的樣板 → 之後每個人只打 1 個請求
@@ -1620,11 +1901,66 @@
       if (h){
         if (i > 0) tpls.unshift(tpls.splice(i, 1)[0]);   // 成功的樣板排到最前面
         _trialTplLocked = true;                          // 之後不再試其他候選
+        try { localStorage.setItem(TRIAL_TPL_KEY, tpls[0]); } catch(eT){}   // 記起來：下次重抓一個人只要 1 個請求
         console.log('[EIP Content] 狀態歷史記錄網址已鎖定：' + tpls[0]);
         return h;
       }
     }
     return null;
+  }
+  // ── 🔎 只重抓一個人的狀態歷史記錄 ──
+  //   組長在核對名單時，發現某個人的備註是舊的 → 按一下就去 EIP 把他最新的追蹤情形讀回來。
+  //   樣板記住的話只要 1 個請求；沒記住就多抓一次總表第一頁去探測。
+  var TRIAL_TPL_KEY = 'eip_trial_tpl_v1';
+  async function syncTrialOne(year, month, orgName, name, id, itvDate){
+    var y = parseInt(year, 10), m = parseInt(month, 10);
+    var org = PERF_ORGS.filter(function(o){ return o.name === orgName; })[0];
+    if (!org) throw new Error('找不到學院「' + orgName + '」');
+    notify('status', { msg: '🔎 正在讀 ' + name + ' 的狀態歷史記錄…' });
+    // 舊版抓回來的列沒有存 EIP 編號 → 用「他的面談日」把那一天的名單叫出來，從裡面找他
+    var lookupHtml = null;
+    if (!id){
+      if (!itvDate) throw new Error(name + '：本機沒有他的 EIP 編號，也沒有面談日可以查。請先按一次「🔀 漏斗」再試');
+      var oneUrl = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id
+        + '&q5=' + encodeURIComponent(itvDate) + '&q6=' + encodeURIComponent(itvDate) + '&pg=1';
+      lookupHtml = await fetchViaBackground(oneUrl);
+      if (_looksLikeLogin(lookupHtml)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再試');
+      var lr = _fnParseInterviewPage(lookupHtml) || [];
+      for (var li = 0; li < lr.length; li++){ if (lr[li].n === name && lr[li].id){ id = lr[li].id; break; } }
+      if (!id) throw new Error(name + '：在 ' + itvDate + ' 的面談名單裡找不到他的 EIP 編號');
+      await sleep(1000);
+    }
+    if (!_trialUrlTpl){
+      var saved = null; try { saved = localStorage.getItem(TRIAL_TPL_KEY); } catch(e){}
+      if (saved){ _trialUrlTpl = [saved]; _trialTplLocked = true; }
+    }
+    if (!_trialUrlTpl){
+      var lh = lookupHtml;
+      if (!lh){
+        var mStart = y + '/' + _fnPad2(m) + '/01', mEnd = y + '/' + _fnPad2(m) + '/' + _fnPad2(_fnLastDay(y, m));
+        var listUrl = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id
+          + '&q5=' + encodeURIComponent(mStart) + '&q6=' + encodeURIComponent(mEnd) + '&pg=1';
+        lh = await fetchViaBackground(listUrl);
+        if (_looksLikeLogin(lh)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再試');
+        await sleep(1000);
+      }
+      _trialUrlTpl = _trialFindTpl(lh, id);
+    }
+    var hist = await _trialFetchOne(id, _trialUrlTpl);
+    if (!hist) throw new Error(name + '：讀不到他的狀態歷史記錄。' + (_trialDiag ? '診斷 → ' + _trialDiag : '（抓不到那個視窗）'));
+    var cid = _cid(), key = cid + 'motiv_trial_v2';
+    var store = null;
+    try { store = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
+    if (!store) store = await _fnDbGet(key);
+    if (!store || !store.people) store = { meta: {}, people: {} };
+    var slot = store.people[orgName] || (store.people[orgName] = {});
+    slot[name] = { sig: (slot[name] && slot[name].sig) || '', h: hist, at: _nowStr(), ts: Date.now(), ym: y + '-' + _fnPad2(m) };
+    var okOne = await _fnDbPut(key, store);
+    if (!okOne) _safeSet(key, JSON.stringify(store));
+    notify('done', {
+      mode: 'trialone', trial: store, one: { org: orgName, name: name, n: hist.length, at: _nowStr() }, updateTime: _nowStr(),
+      msg: '🔎 ' + name + '：讀到 ' + hist.length + ' 筆追蹤情形' + (hist.length ? '，最新一筆「' + String(hist[0].m || '').slice(0, 24) + '」' : '')
+    });
   }
   async function syncTrial(year, month, region){
     var y = parseInt(year, 10), m = parseInt(month, 10);
@@ -1762,6 +2098,10 @@
       else if (mode === 'channel') await syncChannel(year, month);
       else if (mode === 'funnel') await syncFunnel(year, month, {});
       else if (mode === 'funnel:full') await syncFunnel(year, month, { full: true });
+      else if (mode.indexOf('trialone:') === 0){
+        var oneArg = JSON.parse(decodeURIComponent(mode.slice(9)));
+        await syncTrialOne(year, month, oneArg.org, oneArg.name, oneArg.id, oneArg.d);
+      }
       else if (mode === 'trial' || mode.indexOf('trial:') === 0) await syncTrial(year, month, mode.indexOf(':') > 0 ? mode.split(':')[1] : 'all');
       else throw new Error('未知的同步模式: ' + mode);
     } catch(err){
