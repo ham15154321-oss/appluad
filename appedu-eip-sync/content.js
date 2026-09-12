@@ -41,9 +41,9 @@
   var HTML_PAGE_THROTTLE_MS = 1200;
 
   // ── 透過 background fetch（單次，不含重試）──
-  function _fetchOnce(url){
+  function _fetchOnce(url, post){
     return new Promise(function(resolve, reject){
-      chrome.runtime.sendMessage({ action: 'fetchEip', url: url }, function(resp){
+      chrome.runtime.sendMessage({ action: 'fetchEip', url: url, post: post || null }, function(resp){
         if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
         if (!resp || !resp.ok) return reject(new Error(resp ? resp.error : '無回應'));
         resolve(resp.html);
@@ -65,7 +65,7 @@
     });
     return _eipGate;
   }
-  function fetchViaBackground(url){
+  function fetchViaBackground(url, post){
     var MAX_TRY = 3, TIMEOUT_MS = 35000;
     async function attempt(n){
       await _eipGateWait();          // ← 每一個請求都先過閘
@@ -75,7 +75,7 @@
           var timer = setTimeout(function(){
             if (!done){ done = true; reject(new Error('__TIMEOUT__')); }
           }, TIMEOUT_MS);
-          _fetchOnce(url).then(function(html){
+          _fetchOnce(url, post).then(function(html){
             if (!done){ done = true; clearTimeout(timer); resolve(html); }
           }, function(err){
             if (!done){ done = true; clearTimeout(timer); reject(err); }
@@ -1376,6 +1376,7 @@
         c: courses.slice(0, 4).join('、'),
         m: ix.note != null ? _fnTxt(tds[ix.note]).slice(0, 200) : '',
         id: _trialRowId(trs[i]),                        // 學員 id（深挖狀態歷史記錄用）
+        ids: _trialRowIds(trs[i]),                      // 同一列的所有候選編號（挑錯就換下一個）
         t: ix.paid != null ? parseFloat(_fnTxt(tds[ix.paid]).replace(/,/g, '')) || 0 : 0
       });
     }
@@ -1781,6 +1782,7 @@
   //     ⑤ 每人間隔 2 秒，一次一個請求
   // ══════════════════════════════════════════════════════════════
   var TRIAL_THROTTLE_MS = 2000, TRIAL_ORG_GAP_MS = 3000;
+  var TRIAL_REDIG_MS = 20 * 3600 * 1000;   // 挖過不到 20 小時（＝當天挖過）就不重挖
   var TRIAL_REGIONS = {
     all:     { label: '全省七家', orgs: ['台中學院','台中二部','台中三部','中壢學院','中壢二部','中壢三部','高雄建國'] },
     central: { label: '中區',     orgs: ['台中學院','台中二部','台中三部'] },
@@ -1789,85 +1791,37 @@
   };
   // 從列表的一列裡找出學員 id（新增按鈕的 onclick / href 參數）
   function _trialRowId(tr){
+    var a = _trialRowIds(tr);
+    return a.length ? a[0] : '';
+  }
+  // ★ 2026/09：一列裡不只一個編號（面談紀錄流水號、學員編號、承辦人編號…）。
+  //   以前只挑第一個，結果挑到面談流水號 → 打 API 對到別人。
+  //   現在全部留下來，讓上層逐一試、用姓名驗，對得上才算。
+  function _trialRowIds(tr){
     try {
-      var h = tr.innerHTML || '';
-      var m = /(?:onclick|href)\s*=\s*["'][^"']*?(?:\(|[?&][a-z_0-9]{1,12}=)\s*'?"?(\d{3,12})/i.exec(h);
-      if (m) return m[1];
-      var m2 = /\b(?:id|sid|student_id|q1)\s*=\s*["']?(\d{3,12})/i.exec(h);
-      return m2 ? m2[1] : '';
-    } catch(e){ return ''; }
+      var h = tr.innerHTML || '', out = [], seen = {}, m;
+      var push = function(v){ if (v && !seen[v] && String(v).length >= 3){ seen[v] = 1; out.push(String(v)); } };
+      var re1 = /(?:onclick|href)\s*=\s*["'][^"']*?(?:\(|[?&][a-z_0-9]{1,14}=)\s*'?"?(\d{3,12})/ig;
+      while ((m = re1.exec(h))) push(m[1]);
+      var re2 = /\b(?:id|sid|student_id|prestudent_id|pid|q1)\s*=\s*["']?(\d{3,12})/ig;
+      while ((m = re2.exec(h))) push(m[1]);
+      var re3 = /\b(\d{5,12})\b/g;                      // 最後才收裸數字，排序在後
+      while ((m = re3.exec(h))) push(m[1]);
+      return out.slice(0, 6);
+    } catch(e){ return []; }
   }
-  // 自動探測「新增狀態記錄」的網址樣板（{id} 會被換成學員 id）
-  var _trialUrlTpl = null, _trialDiag = '';
-  function _trialFindTpl(listHtml, sampleId){
-    var cands = [];
-    // ① 列表裡直接寫的 href
-    var re = /href\s*=\s*["']([^"']*(?:status|interview|record|call|track)[^"']*\.php[^"']*)["']/ig, m;
-    while ((m = re.exec(listHtml))) cands.push(m[1]);
-    // ② onclick 呼叫的函式 → 找函式本體裡的 .php 路徑
-    var fns = {}, re2 = /onclick\s*=\s*["']\s*([A-Za-z_$][\w$]*)\s*\(/g;
-    while ((m = re2.exec(listHtml))) fns[m[1]] = 1;
-    Object.keys(fns).forEach(function(fn){
-      var i = listHtml.indexOf('function ' + fn);
-      if (i < 0) return;
-      var body = listHtml.slice(i, i + 1200);
-      var re3 = /["']([^"']*\.php[^"']*)["']/g, m3;
-      while ((m3 = re3.exec(body))) cands.push(m3[1]);
-    });
-    // 整理成樣板
-    var out = [];
-    cands.forEach(function(u){
-      if (!u || /login|logout|\.js|\.css/i.test(u)) return;
-      var abs = u.indexOf('http') === 0 ? u : ('http://eip.appedu.com.tw/' + String(u).replace(/^\.?\//, ''));
-      abs = abs.replace(/(\?|&)([a-z_0-9]{1,14})=(\d{3,12})/i, '$1$2={id}');
-      if (abs.indexOf('{id}') < 0) abs += (abs.indexOf('?') > 0 ? '&' : '?') + 'id={id}';
-      if (out.indexOf(abs) < 0) out.push(abs);
-    });
-    // 常見備援樣板
-    ['class/student/student/interview/status.php?id={id}',
-     'class/student/student/interview/add.php?id={id}',
-     'class/student/student/interview/record.php?id={id}',
-     'class/student/student/status.php?id={id}'].forEach(function(u){
-      var abs = 'http://eip.appedu.com.tw/' + u;
-      if (out.indexOf(abs) < 0) out.push(abs);
-    });
-    _trialDiag = '候選：' + out.slice(0, 6).join(' ｜ ');
-    return out;
-  }
-  // 解析「狀態歷史記錄」：回傳 [{d:撥打日期, s:狀態, m:追蹤情形}]（最多 8 筆，新到舊）
-  function _trialParseHistory(html){
-    var doc = new DOMParser().parseFromString(html, 'text/html');
-    var body = doc.body ? doc.body.innerText || doc.body.textContent || '' : '';
-    if (body.indexOf('狀態歷史記錄') < 0) return null;
-    var out = [];
-    // 表格式：每筆一個小表，欄位是「撥打日期 / 狀態 / 追蹤情形 / 承辦人 / 時間(狀態值) / 修改人」
-    var tables = doc.querySelectorAll('table');
-    for (var t = 0; t < tables.length; t++){
-      var txt = tables[t].innerText || tables[t].textContent || '';
-      if (txt.indexOf('撥打日期') < 0 && txt.indexOf('追蹤情形') < 0) continue;
-      var cells = tables[t].querySelectorAll('td, th');
-      var rec = { d:'', s:'', m:'' }, got = false;
-      for (var c = 0; c < cells.length - 1; c++){
-        var lab = (cells[c].innerText || cells[c].textContent || '').replace(/\s+/g, '');
-        var val = (cells[c+1].innerText || cells[c+1].textContent || '').replace(/\s+/g, ' ').trim();
-        if (lab === '撥打日期'){ if (got && (rec.m || rec.d)) { out.push(rec); rec = { d:'', s:'', m:'' }; } rec.d = val; got = true; }
-        else if (lab === '狀態') rec.s = val;
-        else if (lab === '追蹤情形') rec.m = val.slice(0, 160);
-        else if (lab === '時間(狀態值)' && !rec.t) rec.t = val;
-      }
-      if (got && (rec.m || rec.d)) out.push(rec);
-    }
-    // ★ 2026/09：原本這裡有一段「純文字備援」，用 /追蹤情形 …/ 去刮整頁文字。
-    //   問題是這個視窗是 JavaScript 畫出來的，抓回來的 HTML 只有腳本沒有表格 →
-    //   備援就刮到腳本原始碼，存了一堆「姓名」「狀態歸類」「").appendTo($tr3);」當成追蹤情形。
-    //   而且它「看起來成功」，所以錯了好幾天都沒人發現。寧可失敗，不要吞垃圾。
-    out = out.filter(_trialRecOk);
-    if (!out.length){
-      _trialDiag = '視窗抓到了但解析不出紀錄（可能是 JS 動態產生）。前 300 字：' + String(body).replace(/\s+/g, ' ').slice(0, 300);
-      return null;
-    }
-    return out.slice(0, 8);
-  }
+  // ══════════════════════════════════════════════════════════════
+  //  🔎 狀態歷史記錄：直接打 EIP 自己在用的那支 AJAX（2026/09 從 Network 找出來的）
+  //    POST http://eip.appedu.com.tw/_ajax/outlet/prestudent.php
+  //         postFlag=loadCallAdd & id=<學員編號> & loadForm=0
+  //    回 JSON：data[0] = 學員主檔、data[1] = 歷史陣列，每列
+  //         [0]紀錄編號 [1]撥打日期 [2]追蹤情形 [3]狀態碼 [4]時間(狀態值) [8]承辦人 [9]修改人
+  //  ★ 之前是用猜的去試一堆 GET 網址，結果每個人都抓到 EIP 的選單頁，
+  //    再被寬鬆的文字備援刮成「姓名／狀態歸類／appendTo($tr3)」存起來，而且看起來還像成功。
+  //    現在改成打正確的端點、解析 JSON、姓名對不上就不存。
+  // ══════════════════════════════════════════════════════════════
+  var TRIAL_AJAX_URL = 'http://eip.appedu.com.tw/_ajax/outlet/prestudent.php';
+  var _trialDiag = '';
   // 一筆紀錄長得像不像真的追蹤情形（擋掉欄位標籤與腳本殘渣）
   var TRIAL_LABELS = /^(姓名|狀態|狀態歸類|撥打日期|追蹤情形|承辦人|修改人|行銷人員|時間|時間\(狀態值\)|備註|學員狀況)$/;
   function _trialRecOk(r){
@@ -1876,98 +1830,121 @@
     if (!m && !d) return false;
     if (TRIAL_LABELS.test(m)) return false;
     if (/appendTo|\$\(|\$tr|function\s*\(|var\s+\w|=>|\)\s*;\s*$|<\/?[a-z]+[\s>]/i.test(m)) return false;
-    // 真的紀錄一定有撥打日期（YYYY/MM/DD）
-    if (!/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}/.test(d)) return false;
+    if (!/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}/.test(d)) return false;   // 真的紀錄一定有撥打日期
     return true;
   }
-  // 挖一個人
-  var _trialTplLocked = false;   // 已經確認可用的樣板 → 之後每個人只打 1 個請求
-  async function _trialFetchOne(id, tpls){
-    if (_trialTplLocked){
-      try {
-        var html0 = await fetchViaBackground(tpls[0].replace('{id}', id));
-        if (_looksLikeLogin(html0)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再挖');
-        return _trialParseHistory(html0);
-      } catch(e){ if (String(e.message||'').indexOf('登入頁') >= 0) throw e; return null; }
-    }
-    // 還沒鎖定 → 逐一試候選，每個之間也停 1 秒，不要連發
-    for (var i = 0; i < tpls.length; i++){
-      if (i > 0) await sleep(1000);
-      var url = tpls[i].replace('{id}', id);
-      var html;
-      try { html = await fetchViaBackground(url); } catch(e){ continue; }
-      if (_looksLikeLogin(html)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再挖');
-      var h = _trialParseHistory(html);
-      if (h){
-        if (i > 0) tpls.unshift(tpls.splice(i, 1)[0]);   // 成功的樣板排到最前面
-        _trialTplLocked = true;                          // 之後不再試其他候選
-        try { localStorage.setItem(TRIAL_TPL_KEY, tpls[0]); } catch(eT){}   // 記起來：下次重抓一個人只要 1 個請求
-        console.log('[EIP Content] 狀態歷史記錄網址已鎖定：' + tpls[0]);
-        return h;
+  // ★ 面談紀錄總表那一列只有「面談流水號」跟手機，沒有學員編號（2026/09 實測確認）。
+  //   學員編號在通路名單總表，用姓名查得到（q9=姓名）。查到就存起來，同一個人不再查第二次。
+  function _trialParseNameRows(html, name){
+    var out = [];
+    try {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var tables = doc.querySelectorAll('table');
+      var norm = function(x){ return String(x || '').replace(/\s+/g, ''); };
+      for (var t = 0; t < tables.length; t++){
+        var trs = getDirectRows(tables[t]);
+        if (trs.length < 2) continue;
+        var ths = getDirectCells(trs[0]).map(function(c){ return _fnTxt(c); });
+        var iN = ths.indexOf('姓名'), iA = ths.indexOf('學院'), iP = ths.indexOf('行動電話');
+        if (iN < 0) continue;
+        for (var i = 1; i < trs.length; i++){
+          var tds = getDirectCells(trs[i]);
+          if (tds.length <= iN) continue;
+          if (norm(_fnTxt(tds[iN])) !== norm(name)) continue;
+          out.push({ ids: _trialRowIds(trs[i]),
+                     academy: (iA >= 0 && tds.length > iA) ? _fnTxt(tds[iA]) : '',
+                     phone: (iP >= 0 && tds.length > iP) ? _fnTxt(tds[iP]).replace(/\D/g, '') : '' });
+        }
+        break;                                     // 只認第一張有「姓名」表頭的表
       }
+    } catch(e){}
+    return out;
+  }
+  // 用姓名查通路名單總表拿學員編號。
+  //   ★ 不帶學院條件：同一個人可能面談掛 A 院、名單掛 B 院，帶了就查不到（2026/09 實測）。
+  //   同名的人用手機認，手機是唯一的；沒手機才退回學院比對，再退回「只有一列就是他」。
+  async function _trialFindIds(orgName, name, phone){
+    var url = 'http://eip.appedu.com.tw/outlet/list/total.php?' + buildTotalQuery({ q9: name }) + '&pg=1';
+    var html = await fetchViaBackground(url);
+    if (_looksLikeLogin(html)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再挖');
+    var rows = _trialParseNameRows(html, name);
+    if (!rows.length){ _trialDiag = '通路名單總表用姓名「' + name + '」查不到對應的列'; return []; }
+    var ph = String(phone || '').replace(/\D/g, '');
+    var pick = null;
+    if (ph) pick = rows.filter(function(r){ return r.phone && r.phone === ph; })[0] || null;
+    if (!pick) pick = rows.filter(function(r){ return r.academy === orgName; })[0] || null;
+    if (!pick && rows.length === 1) pick = rows[0];
+    if (!pick){ _trialDiag = '「' + name + '」查到 ' + rows.length + ' 列，手機與學院都對不上，不敢猜'; return []; }
+    if (!pick.ids.length){ _trialDiag = '「' + name + '」那一列裡找不到任何編號'; return []; }
+    return pick.ids;
+  }
+  // 挖一個人：候選編號逐一試，姓名對得上才採用。找到之後記住是第幾個，後面每個人只打 1 次。
+  var _trialIdIdx = -1, _trialLastId = '';
+  async function _trialDig(cands, expectName){
+    var list = (cands || []).filter(Boolean);
+    if (!list.length) return null;
+    var order = (_trialIdIdx >= 0 && list[_trialIdIdx]) ? [_trialIdIdx] : list.map(function(_, i){ return i; }).slice(0, 4);
+    var diags = [];
+    for (var k = 0; k < order.length; k++){
+      var i = order[k];
+      if (k > 0) await sleep(TRIAL_THROTTLE_MS);
+      var r = await _trialFetchOne(list[i], expectName);
+      if (r){ _trialLastId = list[i]; if (_trialIdIdx !== i){ _trialIdIdx = i; console.log('[EIP Content] 學員編號鎖定在候選第 ' + (i+1) + ' 個'); } return r; }
+      diags.push('#' + (i+1) + ' ' + list[i] + '：' + _trialDiag);
+      if (_trialIdIdx >= 0) break;            // 已鎖定卻失敗 → 不要整排重試（可能只是這個人沒紀錄）
     }
+    _trialDiag = diags.join('　｜　');
     return null;
   }
-  // ── 🔎 只重抓一個人的狀態歷史記錄 ──
-  //   組長在核對名單時，發現某個人的備註是舊的 → 按一下就去 EIP 把他最新的追蹤情形讀回來。
-  //   樣板記住的話只要 1 個請求；沒記住就多抓一次總表第一頁去探測。
-  var TRIAL_TPL_KEY = 'eip_trial_tpl_v1';
-  async function syncTrialOne(year, month, orgName, name, id, itvDate){
-    var y = parseInt(year, 10), m = parseInt(month, 10);
-    var org = PERF_ORGS.filter(function(o){ return o.name === orgName; })[0];
-    if (!org) throw new Error('找不到學院「' + orgName + '」');
-    notify('status', { msg: '🔎 正在讀 ' + name + ' 的狀態歷史記錄…' });
-    // 舊版抓回來的列沒有存 EIP 編號 → 用「他的面談日」把那一天的名單叫出來，從裡面找他
-    var lookupHtml = null;
-    if (!id){
-      if (!itvDate) throw new Error(name + '：本機沒有他的 EIP 編號，也沒有面談日可以查。請先按一次「🔀 漏斗」再試');
-      var oneUrl = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id
-        + '&q5=' + encodeURIComponent(itvDate) + '&q6=' + encodeURIComponent(itvDate) + '&pg=1';
-      lookupHtml = await fetchViaBackground(oneUrl);
-      if (_looksLikeLogin(lookupHtml)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再試');
-      var lr = _fnParseInterviewPage(lookupHtml) || [];
-      for (var li = 0; li < lr.length; li++){ if (lr[li].n === name && lr[li].id){ id = lr[li].id; break; } }
-      if (!id) throw new Error(name + '：在 ' + itvDate + ' 的面談名單裡找不到他的 EIP 編號');
-      await sleep(1000);
+  // 打一次 API。expectName 對不上就回 null（寧可沒有，也不要存錯人的）
+  async function _trialFetchOne(id, expectName){
+    if (!id) return null;
+    var body = 'postFlag=loadCallAdd&id=' + encodeURIComponent(id) + '&loadForm=0';
+    var txt = await fetchViaBackground(TRIAL_AJAX_URL, body);
+    if (_looksLikeLogin(txt)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再挖');
+    var j = null;
+    try { j = JSON.parse(txt); } catch(e){}
+    if (!j || String(j.result) !== 'true' || !Array.isArray(j.data)){
+      _trialDiag = 'id ' + id + ' 回應不是預期的 JSON。前 200 字：' + String(txt).replace(/\s+/g, ' ').slice(0, 200);
+      return null;
     }
-    if (!_trialUrlTpl){
-      var saved = null; try { saved = localStorage.getItem(TRIAL_TPL_KEY); } catch(e){}
-      if (saved){ _trialUrlTpl = [saved]; _trialTplLocked = true; }
+    var head = j.data[0] || {};
+    var norm = function(x){ return String(x || '').replace(/\s+/g, ''); };
+    if (expectName && head.name && norm(head.name) !== norm(expectName)){
+      _trialDiag = 'id ' + id + ' 對到的是「' + head.name + '」，不是「' + expectName + '」→ 這個編號不是學員編號';
+      return null;
     }
-    if (!_trialUrlTpl){
-      var lh = lookupHtml;
-      if (!lh){
-        var mStart = y + '/' + _fnPad2(m) + '/01', mEnd = y + '/' + _fnPad2(m) + '/' + _fnPad2(_fnLastDay(y, m));
-        var listUrl = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id
-          + '&q5=' + encodeURIComponent(mStart) + '&q6=' + encodeURIComponent(mEnd) + '&pg=1';
-        lh = await fetchViaBackground(listUrl);
-        if (_looksLikeLogin(lh)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再試');
-        await sleep(1000);
-      }
-      _trialUrlTpl = _trialFindTpl(lh, id);
+    var rows = Array.isArray(j.data[1]) ? j.data[1] : [];
+    var out = [];
+    for (var i = 0; i < rows.length; i++){
+      var r = rows[i];
+      if (!Array.isArray(r)) continue;
+      var rec = { d: String(r[1] || '').trim(), m: String(r[2] || '').trim().slice(0, 160),
+                  s: String(r[3] || ''), t: String(r[4] || ''), by: String(r[9] || r[8] || '') };
+      if (_trialRecOk(rec)) out.push(rec);
     }
-    var hist = await _trialFetchOne(id, _trialUrlTpl);
-    if (!hist) throw new Error(name + '：讀不到他的狀態歷史記錄。' + (_trialDiag ? '診斷 → ' + _trialDiag : '（抓不到那個視窗）'));
-    var cid = _cid(), key = cid + 'motiv_trial_v2';
-    var store = null;
-    try { store = JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){}
-    if (!store) store = await _fnDbGet(key);
-    if (!store || !store.people) store = { meta: {}, people: {} };
-    var slot = store.people[orgName] || (store.people[orgName] = {});
-    slot[name] = { sig: (slot[name] && slot[name].sig) || '', h: hist, at: _nowStr(), ts: Date.now(), ym: y + '-' + _fnPad2(m) };
-    var okOne = await _fnDbPut(key, store);
-    if (!okOne) _safeSet(key, JSON.stringify(store));
-    notify('done', {
-      mode: 'trialone', trial: store, one: { org: orgName, name: name, n: hist.length, at: _nowStr() }, updateTime: _nowStr(),
-      msg: '🔎 ' + name + '：讀到 ' + hist.length + ' 筆追蹤情形' + (hist.length ? '，最新一筆「' + String(hist[0].m || '').slice(0, 24) + '」' : '')
+    if (!out.length){
+      _trialDiag = 'id ' + id + '（' + (head.name || '?') + '）沒有任何一筆有效的追蹤情形';
+      return null;
+    }
+    // ★ 不要相信 API 給的順序：自己照撥打日期由新到舊排，h[0] 一定是最新一筆追蹤情形
+    out.sort(function(a, b){
+      var ta = Date.parse(String(a.d).replace(/\//g, '-')) || 0;
+      var tb = Date.parse(String(b.d).replace(/\//g, '-')) || 0;
+      return tb - ta;
     });
+    return out.slice(0, 12);
   }
   async function syncTrial(year, month, region){
     var y = parseInt(year, 10), m = parseInt(month, 10);
     var reg = TRIAL_REGIONS[region] || TRIAL_REGIONS.all;
     var orgs = PERF_ORGS.filter(function(o){ return reg.orgs.indexOf(o.name) >= 0; });
-    var mStart = y + '/' + _fnPad2(m) + '/01', mEnd = y + '/' + _fnPad2(m) + '/' + _fnPad2(_fnLastDay(y, m));
-    // ★ v5.23：狀態歷史記錄是「人」的屬性，不會因為換月就失效 → 跨月永久保留，只挖備註有變動的人。
+    var mEnd = y + '/' + _fnPad2(m) + '/' + _fnPad2(_fnLastDay(y, m));
+    // ★ v5.45：以前只查「本月面談」，所以經營池（前 1～3 個月面談、還沒簽）的人從來沒進過清單，
+    //   組長最需要看的那群反而永遠是舊備註。改成跟漏斗一樣往回 3 個月。
+    var _ms = new Date(y, m - 1 - FUNNEL_LOOKBACK_MONTHS, 1);
+    var mStart = _ms.getFullYear() + '/' + _fnPad2(_ms.getMonth() + 1) + '/01';
+    // ★ v5.23：狀態歷史記錄是「人」的屬性，不會因為換月就失效 → 跨月永久保留。
     //   結構：{ meta, people: { 學院: { 姓名: { sig, h, at, ym } } } }（舊版 orgs 會自動併過來）
     var cid = _cid(), key = cid + 'motiv_trial_v2';
     var store = null;
@@ -1985,7 +1962,7 @@
 
     notify('status', { msg: '🔎 試聽深挖（' + reg.label + '）：先抓本月面談名單…', prog: { org:0, total:orgs.length, phase:'start' } });
     var kaTimer = setInterval(function(){ try { chrome.runtime.sendMessage({ action:'keepalive' }, function(){ void chrome.runtime.lastError; }); } catch(e){} }, 12000);
-    var nScan = 0, nSkip = 0, nFail = 0, nPeople = 0;
+    var nScan = 0, nSkip = 0, nFail = 0, nPeople = 0, failWhy = {};
     try {
       for (var k = 0; k < orgs.length; k++){
         var org = orgs[k];
@@ -1999,7 +1976,7 @@
         if (rows.length >= 30){
           await sleep(TRIAL_THROTTLE_MS);
           // 第 1 頁已經在上面抓過了 → 從第 2 頁接著抓，不重複打 EIP
-          var more = await _fnFetchPaged(url, lab + ' 本月面談', _fnParseInterviewPage, 20, { org:k+1, total:orgs.length, name:org.name, phase:'itv' }, { startPg:2, seed:rows });
+          var more = await _fnFetchPaged(url, lab + ' 面談名單（含前 3 個月）', _fnParseInterviewPage, 40, { org:k+1, total:orgs.length, name:org.name, phase:'itv' }, { startPg:2, seed:rows });
           if (more.length > rows.length) rows = more;
         }
         var prev = store.people[org.name] || {};
@@ -2010,29 +1987,54 @@
           if (!r.n) return;
           nPeople++;
           var old = prev[r.n];
-          if (r.r > 0 || r.a > 0){ cur[r.n] = old || { skip:'已註冊/已繳報名費' }; nSkip++; return; }   // 答案已定
+          if (r.r > 0){ cur[r.n] = old || { skip:'已註冊' }; nSkip++; return; }          // 簽了，答案已定
+          // ★ v5.45：只挖組長真正在追的人 —— 未註冊，而且「有繳報名費（經營中／經營池）」或「本月剛面談」。
+          //   舊月份沒繳費也沒試聽的（早就放生的流失名單）不挖，不然清單會多好幾倍、每天跑太久。
+          var inThisMonth = String(r.d || '').slice(0, 7) === (y + '/' + _fnPad2(m));
+          if (!(r.a > 0 || inThisMonth)){ cur[r.n] = old || { skip:'舊月份流失，不追' }; nSkip++; return; }
           var sig = (r.m || '') + '|' + (r.d || '');
-          // ★ v5.31：一個人挖過一次就夠了。歷史視窗裡「只有它看得到」的是更早那幾筆；
-          //   之後新增的追蹤情形會變成名單頁的「備註」，每次同步就自動收進來（頁面會累積），不必再挖一次。
-          //   （舊規則是「備註有變就重挖」，業務每打一次電話就重挖一輪，月底會多花好幾倍時間。）
-          if (old && old.h && old.h.length){ cur[r.n] = old; nSkip++; return; }
-          todo.push({ n:r.n, id:r.id, sig:sig, o:r.o, d:r.d });
+          // ★ v5.45 重挖規則：還在經營中的人，備註天天都可能變 → 每天重挖一次。
+          //   同一天內重複按不會重挖（擋連點）；跨到隔天就重新讀，備註永遠是當天的。
+          //   已註冊／已繳報名費的人在上面就跳掉了，不在這裡。
+          //   只有「挖到過真的紀錄」才算挖過；舊版存進來的垃圾（腳本殘渣）不算。
+          var fresh = old && old.ts && (Date.now() - old.ts) < TRIAL_REDIG_MS && old.h && old.h.some(_trialRecOk);
+          if (fresh){ cur[r.n] = old; nSkip++; return; }
+          todo.push({ n:r.n, id:r.id, ph:r.p, ids:(r.ids && r.ids.length ? r.ids : (r.id ? [r.id] : [])), sig:sig, o:r.o, d:r.d });
         });
-        if (!_trialUrlTpl) _trialUrlTpl = _trialFindTpl(firstHtml, todo.length ? todo[0].id : '');
         notify('status', { msg: lab + '：本月面談 ' + rows.length + ' 人，要挖 ' + todo.length + ' 人（其餘已確定或沒變動）', prog: { org:k+1, total:orgs.length, name:org.name, phase:'scan', rows:todo.length } });
         for (var i = 0; i < todo.length; i++){
           var t = todo[i];
           if (i > 0) await sleep(TRIAL_THROTTLE_MS);
           var hist = null;
-          if (t.id){ try { hist = await _trialFetchOne(t.id, _trialUrlTpl); } catch(eOne){ if (String(eOne.message||'').indexOf('登入頁') >= 0) throw eOne; } }
+          try {
+            var cached = (store.ids && store.ids[org.name] && store.ids[org.name][t.n]) || '';
+            var cands = cached ? [cached] : await _trialFindIds(org.name, t.n, t.ph);
+            if (!cached && cands.length) await sleep(TRIAL_THROTTLE_MS);
+            if (cands.length){
+              hist = await _trialDig(cands, t.n);
+              if (hist){
+                if (!store.ids) store.ids = {};
+                if (!store.ids[org.name]) store.ids[org.name] = {};
+                store.ids[org.name][t.n] = _trialLastId;     // 學員編號存起來，下次只要 1 個請求
+              } else if (cached){
+                delete store.ids[org.name][t.n];             // 快取的編號失效 → 丟掉，下次重查
+              }
+            }
+          } catch(eOne){ if (String(eOne.message||'').indexOf('登入頁') >= 0) throw eOne; }
           if (hist){ cur[t.n] = { sig:t.sig, h:hist, at:_nowStr(), ts:Date.now(), ym:y + '-' + _fnPad2(m) }; nScan++; }
           else {
             cur[t.n] = { sig:t.sig, h:[], at:_nowStr(), ts:Date.now(), ym:y + '-' + _fnPad2(m), fail:1 }; nFail++;
+            // 失敗歸類，完成訊息才講得出是卡在哪一段
+            var why = /查不到對應的列/.test(_trialDiag) ? '名單總表查不到這個人'
+                    : (/不是「/.test(_trialDiag) ? '編號對到別人'
+                    : (/沒有任何一筆有效/.test(_trialDiag) ? '這個人沒有任何追蹤情形'
+                    : (/不是預期的 JSON/.test(_trialDiag) ? '回應不是預期格式' : '其他')));
+            failWhy[why] = (failWhy[why] || 0) + 1;
             // ★ 還沒鎖定樣板、又已經連續失敗 3 個人 → 代表網址猜不中，立刻停手（不要每個人都去試一輪候選壓 EIP）
-            if (!_trialTplLocked && nFail >= 3){
+            if (nScan === 0 && nFail >= 3){
               store.people[org.name] = cur;
               await _fnDbPut(key, store);
-              throw new Error('找不到「狀態歷史記錄」視窗的網址（已試 ' + nFail + ' 人就停手，避免壓到 EIP）。請把這行回報給開發者 → ' + _trialDiag);
+              throw new Error('連續 ' + nFail + ' 人都讀不到狀態歷史記錄，先停手避免壓到 EIP。診斷 → ' + _trialDiag);
             }
           }
           notify('status', { msg: lab + ' 挖第 ' + (i+1) + '/' + todo.length + ' 人：' + t.n, prog: { org:k+1, total:orgs.length, name:org.name, phase:'dig', page:i+1, rows:todo.length } });
@@ -2054,7 +2056,8 @@
     }
     notify('done', {
       mode: 'trial', trial: store, updateTime: _nowStr(),
-      msg: '🔎 試聽深挖完成（' + reg.label + '）！本月面談 ' + nPeople + ' 人，新挖 ' + nScan + ' 人、跳過 ' + nSkip + ' 人（已註冊/已繳費，或先前挖過）' + (nFail ? '、失敗 ' + nFail + ' 人' : '')
+      msg: '🔎 試聽深挖完成（' + reg.label + '）！本月＋前 ' + FUNNEL_LOOKBACK_MONTHS + ' 個月面談共 ' + nPeople + ' 人，新挖 ' + nScan + ' 人、跳過 ' + nSkip + ' 人（已註冊/已繳費，或今天已挖過）' + (nFail ? '、失敗 ' + nFail + ' 人' : '')
+        + (nFail ? '\n失敗原因：' + Object.keys(failWhy).map(function(k){ return k + ' ' + failWhy[k] + ' 人'; }).join('、') : '')
     });
   }
 
@@ -2098,10 +2101,6 @@
       else if (mode === 'channel') await syncChannel(year, month);
       else if (mode === 'funnel') await syncFunnel(year, month, {});
       else if (mode === 'funnel:full') await syncFunnel(year, month, { full: true });
-      else if (mode.indexOf('trialone:') === 0){
-        var oneArg = JSON.parse(decodeURIComponent(mode.slice(9)));
-        await syncTrialOne(year, month, oneArg.org, oneArg.name, oneArg.id, oneArg.d);
-      }
       else if (mode === 'trial' || mode.indexOf('trial:') === 0) await syncTrial(year, month, mode.indexOf(':') > 0 ? mode.split(':')[1] : 'all');
       else throw new Error('未知的同步模式: ' + mode);
     } catch(err){

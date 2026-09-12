@@ -11,21 +11,27 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
     return false;
   }
   if (msg.action === 'fetchEip'){
-    doFetch(msg.url)
+    doFetch(msg.url, msg.post)
       .then(function(html){ sendResponse({ ok: true, html: html }); })
       .catch(function(err){ sendResponse({ ok: false, error: err.message }); });
     return true; // 非同步回應
   }
 });
 
-async function doFetch(url){
+async function doFetch(url, post){
   // ★ v5.6：加逾時 — EIP 沒回應時自動中斷，避免按鈕無限轉圈圈
   //   v5.15：30 秒→20 秒。EIP 正常 1~2 秒就回，20 秒已很寬裕；縮短可讓 content 端重試更快接手。
   var ctrl = new AbortController();
   var timer = setTimeout(function(){ ctrl.abort(); }, 20000);
   var resp;
   try {
-    resp = await fetch(url, { credentials: 'include', signal: ctrl.signal });
+    var opt = { credentials: 'include', signal: ctrl.signal };
+    if (post){                                   // 狀態歷史記錄那支 _ajax 是 POST
+      opt.method = 'POST';
+      opt.headers = { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' };
+      opt.body = post;
+    }
+    resp = await fetch(url, opt);
   } catch(e){
     clearTimeout(timer);
     if (e && e.name === 'AbortError') throw new Error('EIP 逾時無回應（20 秒）— 可能忙線，請稍後再試');
@@ -40,6 +46,8 @@ async function doFetch(url){
   try { textBig5 = new TextDecoder('big5').decode(buf); } catch(e){}
   try { textUtf8 = new TextDecoder('utf-8').decode(buf); } catch(e){}
 
+  // JSON 回應（_ajax 那幾支）一律當 UTF-8
+  try { JSON.parse(textUtf8); return textUtf8; } catch(e){}
   if (textUtf8.indexOf('學院') >= 0 || textUtf8.indexOf('姓名') >= 0 || textUtf8.indexOf('業績') >= 0){
     return textUtf8;
   }

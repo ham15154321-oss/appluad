@@ -94,21 +94,28 @@ body.day-mode li {
   color: inherit;
 }
 
-/* ── 按鈕 ── */
-body.day-mode button,
-body.day-mode .btn,
-body.day-mode [class*="btn"]:not(.tab-btn):not(.nav-tab) {
+/* ── 按鈕 ──
+   ★ 2026/09：這兩條是「一次刷白全站按鈕」的黑名單規則，權重 (0,6,2)，
+   會壓過任何沒有用 ID 的元件樣式（即使對方寫了 !important）。
+   實際災情：四顆同步鈕的漸層、切換器選中態、金色教學鈕、教學視窗主按鈕全部變白底。
+   （☁️↑推送／☁️↓拉取 之所以倖存，只因為漸層寫在 style="" 裡剛好命中 :not([style*="background"])
+     —— 同一排六顆按鈕兩種長相，判準跟設計無關。）
+   解法：把「顏色本身就是語意」的元件排除掉，讓它們回去吃自己的 CSS。
+   以後新增彩色按鈕，加 class="keep-color" 就會自動被放過。 */
+body.day-mode button:not(.keep-color):not([class*="hdr-mode-btn"]):not(.hdr-save-btn):not(.fn-teach):not(.fn-tb-btn):not(.fn-more):not(.fn-who):not(.tv-close):not(.tv-print):not(.tv-gold):not(.tv-who):not(.fn-b):not(.ck-region-btn):not(.fn-seg *):not(#tvBox *):not(#kbBg *),
+body.day-mode .btn:not(.keep-color):not([class*="hdr-mode-btn"]):not(.hdr-save-btn):not(.fn-teach):not(.fn-tb-btn):not(.fn-more):not(.fn-who):not(.tv-close):not(.tv-print):not(.tv-gold):not(.tv-who):not(.fn-b):not(.ck-region-btn):not(.fn-seg *):not(#tvBox *):not(#kbBg *),
+body.day-mode [class*="btn"]:not(.tab-btn):not(.nav-tab):not(.keep-color):not([class*="hdr-mode-btn"]):not(.hdr-save-btn):not(.fn-teach):not(.fn-tb-btn):not(.fn-more):not(.fn-who):not(.tv-close):not(.tv-print):not(.tv-gold):not(.tv-who):not(.fn-b):not(.ck-region-btn):not(.fn-seg *):not(#tvBox *):not(#kbBg *) {
   color: #1d1d1f !important;
 }
-body.day-mode button:not([style*="background"]):not([class*="active"]):not([class*="primary"]):not([class*="save"]):not([class*="danger"]) {
+body.day-mode button:not([style*="background"]):not([class*="active"]):not([class*="primary"]):not([class*="save"]):not([class*="danger"]):not(.keep-color):not([class*="hdr-mode-btn"]):not(.hdr-save-btn):not(.fn-teach):not(.fn-tb-btn):not(.fn-more):not(.fn-who):not(.tv-close):not(.tv-print):not(.tv-gold):not(.tv-who):not(.fn-b):not(.ck-region-btn):not(.fn-seg *):not(#tvBox *):not(#kbBg *) {
   background: rgba(255,255,255,0.6) !important;
   border-color: rgba(210,210,215,0.4) !important;
 }
 
 /* ── 輸入框 ── */
-body.day-mode input,
-body.day-mode textarea,
-body.day-mode select {
+body.day-mode input:not(#tvBox *):not(#kbBg *):not(.keep-color),
+body.day-mode textarea:not(#tvBox *):not(#kbBg *):not(.keep-color),
+body.day-mode select:not(#tvBox *):not(#kbBg *):not(.keep-color) {
   background: rgba(255,255,255,0.85) !important;
   color: #1d1d1f !important;
   border-color: rgba(210,210,215,0.4) !important;
@@ -124,11 +131,14 @@ body.day-mode th {
   background: rgba(233,233,236,0.3) !important;
   color: #1d1d1f !important;
 }
-body.day-mode td {
+/* ★ 2026/09：排除有色階的儲存格。原本這條把全省儀表板的五階熱力色全部刷成同一片白，
+   而圖例是 <span> 沒被打到 → 圖例五種紫、表格全白，看起來就是壞掉。 */
+body.day-mode td:not(.ds-td):not(.keep-color) {
   background: rgba(255,255,255,0.5) !important;
   color: #1d1d1f !important;
   border-color: rgba(233,233,236,0.2) !important;
 }
+body.day-mode td.ds-td { color: #1d1d1f !important; border-color: rgba(233,233,236,0.35) !important; }
 body.day-mode tr:hover td {
   background: rgba(235,235,238,0.3) !important;
 }
@@ -2410,4 +2420,82 @@ body.day-mode .save-toast {
   background: rgba(255,255,255,0.97) !important;
   color: #1d1d1f !important;
   border: 1px solid #d2d2d7 !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   ※ 2026/09 語意色搶救（放在最後，權重刻意高於上面的萬用覆蓋）
+
+   上面第 98–106 行的 `body.day-mode button:not(...)` 權重是 (0,6,2)，
+   會壓過任何沒有用 ID 選擇器的元件規則 —— 即使那些規則自己寫了 !important。
+   實際後果：四顆同步鈕的漸層、切換器的選中態、金色教學鈕、教學視窗的主要按鈕全部變成白底。
+   （☁️↑推送／☁️↓拉取 之所以沒事，只因為它們的漸層寫在 style="" 裡，剛好命中 :not([style*="background"])。
+     同一排六顆按鈕兩種長相，判準跟設計完全無關。）
+
+   長期解法是把那條黑名單改成白名單；在那之前，這一段先把有語意的顏色一個一個要回來。
+   新增彩色按鈕時，請一併加到這裡。
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 四顆同步鈕：藍／橘／紫／青是「這顆在做什麼」的識別，不能塌成灰白 ── */
+body.day-mode .hdr-mode-btn { color: #fff !important; border-color: rgba(255,255,255,.25) !important; }
+body.day-mode .hdr-mode-btn.motiv   { background: linear-gradient(135deg, #2563eb, #3b82f6) !important; }
+body.day-mode .hdr-mode-btn.checkin { background: linear-gradient(135deg, #d97706, #f59e0b) !important; }
+body.day-mode .hdr-mode-btn.channel { background: linear-gradient(135deg, #7c3aed, #a855f7) !important; }
+body.day-mode .hdr-mode-btn.funnel  { background: linear-gradient(135deg, #0f766e, #14b8a6) !important; }
+body.day-mode .hdr-save-btn { background: linear-gradient(135deg, #16a34a, #22c55e) !important; color: #fff !important; }
+
+/* ── 檢視切換：選中態被刷白之後，這顆切換器等於沒有任何回饋 ── */
+body.day-mode .fn-seg button.on { background: var(--fnAcc, #5b5bd6) !important; color: #fff !important; border-color: transparent !important; }
+body.day-mode .fn-seg button { background: transparent !important; border: none !important; }
+body.day-mode .fn-seg button:hover { color: var(--fnText, #1d1d1f) !important; }
+
+/* ── 📖 這張卡怎麼看（金色）── */
+body.day-mode .fn-teach {
+  background: linear-gradient(135deg,#ffe9a6,#ffd24a 55%,#e8ae1f) !important;
+  color: #5a3d00 !important; border-color: #e6b422 !important;
+}
+body.day-mode .fn-teach.fn-who1 { color: #5a3d00 !important; }
+
+/* ── 試聽工具列：三種語意色（橘＝深挖、青＝冷封存、綠＝完整）不能塌成同一個灰 ── */
+body.day-mode .fn-tb-btn       { background: #fff !important; color: #b45309 !important; border-color: rgba(245,158,11,.5) !important; }
+body.day-mode .fn-tb-btn.cold  { color: #0e7c86 !important; border-color: rgba(14,124,134,.55) !important; background: rgba(14,124,134,.08) !important; }
+body.day-mode .fn-tb-btn.full  { color: #0f766e !important; border-color: rgba(15,118,110,.5) !important; }
+body.day-mode .fn-tb-btn:hover      { background: #f59e0b !important; color: #fff !important; }
+body.day-mode .fn-tb-btn.cold:hover { background: #0e7c86 !important; color: #fff !important; }
+body.day-mode .fn-tb-btn.full:hover { background: #14b8a6 !important; color: #fff !important; }
+
+/* ── 教學視窗的按鈕（.tv-* 都是 (0,1,0)，全部輸給那條萬用規則）── */
+body.day-mode #tvBox .tv-close { background: var(--tvAcc) !important; color: #fff !important; border-color: var(--tvAcc) !important; }
+body.day-mode #tvBox .tv-print { background: var(--tvFill) !important; color: var(--tvInk) !important; border-color: var(--tvLine) !important; }
+body.day-mode #tvBox .tv-gold  { background: var(--tvGold) !important; color: var(--tvGoldOn) !important; border-color: var(--tvGold) !important; }
+body.day-mode #tvBox .tv-who.on{ background: var(--tvGold) !important; color: var(--tvGoldOn) !important; }
+body.day-mode #tvBox .fn-b.go  { background: var(--tvAcc) !important; color: #fff !important; border-color: var(--tvAcc) !important; }
+body.day-mode #tvBox .fn-b.warn{ background: var(--tvWarnSoft) !important; color: var(--tvOrange) !important; border-color: var(--tvOrange) !important; }
+body.day-mode #tvBox .fn-more  { background: var(--tvGoldSoft) !important; color: var(--tvGold) !important; border-color: var(--tvGold) !important; }
+body.day-mode #kbBg button     { background: var(--kbCard) !important; color: var(--kbInk) !important; border-color: var(--kbLine) !important; }
+
+/* ── 全省儀表板熱力表：td 那條 !important 把五階色階全部刷成同一片白，
+      但圖例（<span>）沒被打到 → 圖例五種紫、表格全白，看起來就像壞掉 ── */
+body.day-mode td.ds-td.ds-h1  { background: rgba(99,102,241,.07) !important; }
+body.day-mode td.ds-td.ds-h2  { background: rgba(99,102,241,.14) !important; }
+body.day-mode td.ds-td.ds-h3  { background: rgba(99,102,241,.22) !important; }
+body.day-mode td.ds-td.ds-h4  { background: rgba(99,102,241,.30) !important; }
+body.day-mode td.ds-td.ds-top { background: rgba(99,102,241,.42) !important; }
+
+/* ── 四象限圖的白色標籤靠 text-shadow 在淺色圓點上維持可讀，
+      但上面第 53 行的 `body.day-mode *` 用萬用選擇器把它清掉了 ── */
+body.day-mode .ds-dot2 span { text-shadow: 0 1px 2px rgba(0,0,0,.45) !important; }
+
+/* ── 鍵盤焦點：全站原本 0 個 :focus-visible，而現有的 :focus 都寫 outline:none
+      改用 border-color 當指示 —— 那個 border-color 又被上面的輸入框規則搶走。
+      結果是日間模式 Tab 過去完全看不到自己在哪一格。 ── */
+body.day-mode :focus-visible {
+  outline: 2px solid #5b5bd6 !important;
+  outline-offset: 2px !important;
+}
+body.day-mode input:focus-visible,
+body.day-mode textarea:focus-visible,
+body.day-mode select:focus-visible {
+  border-color: #5b5bd6 !important;
+  box-shadow: 0 0 0 3px rgba(91,91,214,.22) !important;
 }

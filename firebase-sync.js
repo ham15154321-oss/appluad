@@ -135,7 +135,13 @@ const IDB_LIST = [
   // ★ v6：客訴/獎懲 prCases/prRps/prNextId 從 LS 搬到這裡
   //   22 主角 × ~372 KB 每個 = 8MB+ LS 直接爆
   //   entries：'prCases:<charId>'、'prRps:<charId>'、'prNextId:<charId>'
-  { dbName: 'PrCasesDB',            dbVer: 1, stores: ['data'] }
+  { dbName: 'PrCasesDB',            dbVer: 1, stores: ['data'] },
+  // ★ v7（2026/09）：漏斗／深挖／面談池。以前不在這裡，等於「只存在同事自己那台電腦」——
+  //   LS 通道被 IDB_MIGRATED_LS_SUFFIXES 推拉雙封殺，而唯一的出口「☁️↑ 強制推送」只有管理者按得到。
+  //   結果就是同事做了一整天，別人一個字都看不到。加進來之後走一般同步，每個人都推得上去。
+  { dbName: 'FunnelDB',             dbVer: 1, stores: ['kv'] },
+  // ★ v7：錄音案例庫（ai_casedb_v1 搬到 IDB 之後從來沒被加進清單 → 完全沒上雲過）
+  { dbName: 'AiCasedbDB',           dbVer: 1, stores: ['cases'] }
 ];
 // 拉取時也要能讀取舊的音效 collection（向下相容），但推送時不再寫入
 const IDB_LIST_PULL_ONLY = [
@@ -187,15 +193,55 @@ setBadge('☁ 載入中…', '#ffd700');
     }
     return false;
   }
+  // ★ 2026/09：以前是「看到就丟掉」，結果真的撞到 Firestore 配額時現場完全查不出來。
+  //   改成：不洗版（只印第 1、5、20… 次），但累計次數，連續太多次就由推送端跳出提示。
+  window.__fsNoiseCount = 0;
+  function _noise(){
+    window.__fsNoiseCount++;
+    var n = window.__fsNoiseCount;
+    return !(n === 1 || n === 5 || n % 20 === 0);   // 這幾次照印，其餘吞掉
+  }
   console.error = function(){
-    if (_isFirestoreNoise(arguments)) return; // 靜音
+    if (_isFirestoreNoise(arguments)){ if (_noise()) return; _origWarn.call(console, '[FirebaseSync] Firestore 壅塞第 ' + window.__fsNoiseCount + ' 次'); return; }
     _origError.apply(console, arguments);
   };
   console.warn = function(){
-    if (_isFirestoreNoise(arguments)) return; // 靜音
+    if (_isFirestoreNoise(arguments)){ if (_noise()) return; }
     _origWarn.apply(console, arguments);
   };
 })();
+
+// === 看得見的同步錯誤條 ==============================================
+//   左下角那個 11px、半透明、pointer-events:none 的徽章，沒有人會注意到。
+//   真的推不上去必須擋在眼前，而且要能手動重試。
+var _syncBarEl = null;
+function showSyncError(msg, canRetry){
+  try {
+    if (!document.body) { document.addEventListener('DOMContentLoaded', function(){ showSyncError(msg, canRetry); }); return; }
+    if (!_syncBarEl){
+      _syncBarEl = document.createElement('div');
+      _syncBarEl.id = 'firebase-sync-errbar';
+      _syncBarEl.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#b3261e;color:#fff;'
+        + 'font:600 13px/1.5 -apple-system,"PingFang TC",sans-serif;padding:10px 16px;display:flex;gap:12px;'
+        + 'align-items:center;box-shadow:0 2px 12px rgba(0,0,0,.3);';
+      document.body.appendChild(_syncBarEl);
+    }
+    _syncBarEl.innerHTML = '<span style="flex:1;">⚠️ ' + String(msg).replace(/</g,'&lt;') + '</span>';
+    if (canRetry){
+      var b = document.createElement('button');
+      b.textContent = '重試';
+      b.style.cssText = 'border:1px solid #fff;background:transparent;color:#fff;border-radius:8px;padding:5px 14px;font-weight:800;cursor:pointer;font-family:inherit;';
+      b.onclick = function(){ hideSyncError(); pushToCloud(); };
+      _syncBarEl.appendChild(b);
+    }
+    var x = document.createElement('button');
+    x.textContent = '✕';
+    x.style.cssText = 'border:none;background:transparent;color:#fff;font-size:16px;cursor:pointer;';
+    x.onclick = hideSyncError;
+    _syncBarEl.appendChild(x);
+  } catch(e){}
+}
+function hideSyncError(){ try { if (_syncBarEl){ _syncBarEl.remove(); _syncBarEl = null; } } catch(e){} }
 
 // === 載入 SDK ========================================================
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.12.2/';
@@ -257,6 +303,7 @@ const LOCAL_ONLY_KEYS = [
   'profileImgData',
   'castle_flip_mode',
   '_fs_lastModified',  // ★ LWW: 本地時間戳 shadow map，純本地不同步
+  '_fs_pushedSig',     // ★ dirty-tracking 簽名表，純本地不同步
   // ★ 純 UI 狀態 keys — 不該同步雲端（避免每次切 tab/重整都觸發備份 banner）
   'perf_last_tab',     // 業績數據中心最後使用的 tab
   'ui_mode_v1',        // ✨ 簡約/展示模式偏好（每台裝置各自記,不同步）
@@ -347,27 +394,38 @@ let syncTimer = null;
 let currentUserUid = null;
 let currentUserEmail = null;
 let _pushing = false; // ★ 推送鎖：防止多個推送同時進行
+// ★ 2026/09：使用者刪掉的 key。整份程式以前沒有任何 delete，所以刪掉的東西下次 pull 會長回來。
+//   記在這裡，下次推送時連同雲端那份一起刪掉。
+let _pendingDeletes = {};
 let _pullingFromCloud = false; // ★ 拉取進行中：阻擋 schedulePush 觸發，避免 push 把預設值蓋過雲端真資料
 
 // ★ Dirty-tracking：記錄上次成功推送的每筆資料簽名（長度+前32字元）
 //   下次推送時只送「真正有改變」的 key，大幅減少 Firestore 寫入量
 let _lastPushedSig = {};  // { collectionPath: { key: signature } }
+// ★ 2026/09：簽名表以前是純記憶體，每次開頁歸零 → 每開一次頁就把所有資料全量重推一遍。
+//   FunnelDB 進清單之後這會是好幾 MB，直接撞 Firestore 配額。改成落地。
+try { _lastPushedSig = JSON.parse(localStorage.getItem('_fs_pushedSig') || '{}') || {}; } catch(e){ _lastPushedSig = {}; }
+var _sigSaveTimer = null;
+function _saveSigs(){
+  if (_sigSaveTimer) clearTimeout(_sigSaveTimer);
+  _sigSaveTimer = setTimeout(function(){
+    try { _origSet('_fs_pushedSig', JSON.stringify(_lastPushedSig)); } catch(e){ /* quota 就算了，最多多推一次 */ }
+  }, 3000);
+}
 
 const _origSet    = localStorage.setItem.bind(localStorage);
 const _origRemove = localStorage.removeItem.bind(localStorage);
 
-// ★ 新裝置/無痕視窗初始化：完全空白時預設身份為「楊雅筑」（主帳號）
-// 條件：沒有 activeCharacterId、沒有 castle_cards_v1、沒有 firebase_sync_code
-// 這樣首次同步會直接以楊雅筑身份從雲端拉完整資料，不需要手動腳本
+// ★ 2026/09 移除「新裝置預設楊雅筑」
+//   舊行為：空白環境自動把身份寫成楊雅筑，而且用 _origSet 繞過 override（不留時間戳）。
+//   問題：同事用無痕視窗或清過瀏覽器資料，會先以楊雅筑的身份跟雲端往返一輪；
+//         期間若觸發 push，就會把楊雅筑那個 bucket 的內容改掉。
+//   現在：不猜身份。沒登入就走 getCharacterId() 的 'default'，那個 bucket 是空的，動到也不會傷到任何人。
 (function _initNewDevice(){
   try {
     if (localStorage.getItem('activeCharacterId')) return;
     if (localStorage.getItem('castle_cards_v1')) return;
-    if (localStorage.getItem('firebase_sync_code')) return;
-    console.log('[FirebaseSync] 偵測到新裝置/全新環境，預設身份：楊雅筑');
-    _origSet('activeCharacterId', '楊雅筑');
-    _origSet('activeCharacterName', '楊雅筑');
-    _origSet('profileName', '楊雅筑');
+    console.log('[FirebaseSync] 新裝置／全新環境：不預設任何身份，等使用者登入後才綁定主角');
   } catch(e){ /* 私密模式可能擋 LS，忽略 */ }
 })();
 
@@ -435,8 +493,16 @@ const _LS_TS_KEY = '_fs_lastModified';
 var _localTsMap = {};
 try { _localTsMap = JSON.parse(localStorage.getItem(_LS_TS_KEY) || '{}') || {}; } catch(e) { _localTsMap = {}; }
 var _tsSaveTimer = null;
+// ★ 2026/09：原本直接把「這個分頁載入時的快照」整張寫回去，
+//   B 分頁存檔就會抹掉 A 分頁這段時間累積的所有時間戳 → LWW 判斷失真（程式碼註解自己承認過這件事）。
+//   改成寫入前先讀一次磁碟上的最新版，兩邊取較新的再寫回。
 function _saveLocalTsMap(){
-  try { _origSet(_LS_TS_KEY, JSON.stringify(_localTsMap)); } catch(e){}
+  try {
+    var onDisk = {};
+    try { onDisk = JSON.parse(localStorage.getItem(_LS_TS_KEY) || '{}') || {}; } catch(e){}
+    for (var k in onDisk){ if (!(k in _localTsMap) || (onDisk[k] || 0) > (_localTsMap[k] || 0)) _localTsMap[k] = onDisk[k]; }
+    _origSet(_LS_TS_KEY, JSON.stringify(_localTsMap));
+  } catch(e){}
 }
 function _recordLocalTs(k){
   if (isLocalOnlyKey(k) || k === _LS_TS_KEY) return;
@@ -813,7 +879,11 @@ function _sig(v){
   } else {
     s = String(v);
   }
-  return s.length + ':' + s.substring(0, 32) + (s.length > 64 ? s.substring(s.length - 32) : '');
+  // ★ 2026/09：原本只取頭尾 32 字元 → 中間改一個字偵測不到，資料永遠推不上去。
+  //   改成整串跑一次 FNV-1a 32bit，長度＋雜湊，成本 O(n) 但只在推送前算一次。
+  var h = 0x811c9dc5;
+  for (var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = (h + ((h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24))) >>> 0; }
+  return s.length + ':' + h.toString(36);
 }
 
 // 過濾出真正有改變的資料（跟上次推送相比）
@@ -852,6 +922,7 @@ function _recordSigs(collPath, dataMap){
   var sigs = {};
   for (var k in dataMap) sigs[k] = _sig(dataMap[k]);
   _lastPushedSig[collPath] = sigs;
+  _saveSigs();
 }
 
 // === 延遲工具 ==========================================================
@@ -912,9 +983,13 @@ function compressImage(dataUrl, maxBytes){
 // ★ 用 WriteBatch 把多個 doc.set 合併成單一原子操作
 //   → 在 Firestore write stream 裡只算「一次」寫入
 //   → 徹底避免 resource-exhausted: Write stream exhausted
-async function writeDataToFirestore(collRef, dataMap){
+async function writeDataToFirestore(collRef, dataMap, opts){
   const MAX_SINGLE_ENTRY = 500 * 1024;
-  const CHUNK_SIZE = 900 * 1024; // 大型資料分段大小
+  // ★ 2026/09：原本 900*1024 是「字元數」，但 Firestore 的 1MB 是「byte」。
+  //   中文一個字 3 bytes → 900K 字元 ≈ 2.7MB → 整批 invalid-argument，推送全滅且被靜音。
+  //   改成 300K 字元（最壞情況 900KB），確定進得去。
+  const CHUNK_SIZE = 300 * 1024;
+  opts = opts || {};
 
   // ★ 第一步：預處理 — 壓縮超大圖片，非圖片大資料保留（走分段存）
   // ★ 用 UTF-8 實際 byte 量測（中文 1 char = 3 bytes，不是 1）
@@ -991,6 +1066,47 @@ async function writeDataToFirestore(collRef, dataMap){
     // ★ 等伺服器真正消化完，再送下一批
     try { await fsDb.waitForPendingWrites(); } catch(e){}
     if (bEnd < allDocs.length) await delay(WRITE_LONG_PAUSE_MS);
+  }
+
+  // ★ 第五步（2026/09 新增）：清掉雲端多餘的 doc。
+  //   為什麼非做不可：整份程式以前沒有任何 delete，所以
+  //     (a) 本機刪掉的 key，雲端那份還在 → 下次 pull 又長回來（「刪不掉」的根因）
+  //     (b) 上次分成 5 個 chunk、這次只需要 2 個 → chunk_3~4 變孤兒，pull 時被 Object.assign 回來 → 舊資料復活
+  //   安全閥：只有呼叫端明講 prune 才做，而且本次要寫的 doc 數量若比雲端現有的少一半以上就放棄，
+  //          避免「空白/無痕環境推一次就把雲端清光」。
+  // ★ 保守版清理：只刪「確定該死」的兩種 doc，不做「雲端有、本機沒有就刪」。
+  //   原因：同一個 Firestore bucket 可能被兩個來源推 —— 本機 localhost 與線上網址是不同的 localStorage。
+  //   如果採用「本機沒有就刪」，兩邊會互相洗掉對方的 key，比原本的問題更糟。
+  //   只刪這兩種：
+  //     (a) 使用者這一輪明確刪掉的 key → 這才是「刪不掉、會長回來」的根治
+  //     (b) 這次用不到的舊 chunk_N（上次切 5 段、這次只要 2 段，chunk_3~5 是讀得到的孤兒 → 舊資料復活）
+  if (opts.prune){
+    try {
+      var keepIds = {};
+      for (var q = 0; q < allDocs.length; q++) keepIds[allDocs[q].id] = 1;
+      var delKeys = opts.deleteKeys || {};
+      var existing = await collRef.get();
+      var victims = [];
+      existing.forEach(function(ds){
+        if (keepIds[ds.id]) return;
+        if (ds.id.indexOf('chunk_') === 0){ victims.push(ds.ref); return; }   // (b) 孤兒分段
+        if (ds.id.indexOf('big_') === 0){
+          var _d = ds.data() || {};
+          if (_d.key && delKeys[_d.key]) victims.push(ds.ref);                // (a) 使用者刪掉的大型 key
+        }
+      });
+      if (victims.length){
+        for (var vs = 0; vs < victims.length; vs += WRITES_PER_PAUSE){
+          var dwb = fsDb.batch();
+          var vEnd = Math.min(vs + WRITES_PER_PAUSE, victims.length);
+          for (var vi = vs; vi < vEnd; vi++) dwb.delete(victims[vi]);
+          await dwb.commit();
+        }
+        console.log('[FirebaseSync] 🧹 清掉雲端 ' + victims.length + ' 個孤兒／已刪除的 doc');
+      }
+    } catch(_pruneErr){
+      console.warn('[FirebaseSync] prune 失敗（不影響本次寫入）', _pruneErr && (_pruneErr.code || _pruneErr.message));
+    }
   }
 
   console.log('[FirebaseSync] collection 寫入完成，共', totalWritten, '筆（', Math.ceil(allDocs.length / WRITES_PER_PAUSE), '次 batch）');
@@ -1082,13 +1198,16 @@ async function pushToCloud(opts){
 
     // 1. localStorage（排除本機專屬 key + 超大值）
     const lsData = {};
+    var _skippedKeys = {};      // ★ 這次刻意跳過的 key（超過 1MB／壓縮失敗）→ 清理雲端時不能連它們一起刪
     let skippedCount = 0;
     for (let i = 0; i < localStorage.length; i++){
       const k = localStorage.key(i);
       if (!k) continue;
       if (isLocalOnlyKey(k)) continue;
       // ★ 已搬到 IDB 的 key 不再走 LS push（雲端版本會被新版 IDB 取代）
-      if (_isIdbMigratedLsKey(k)) continue;
+      //   ★ 2026/09：但要保護它們在雲端的舊備份不被 prune 掉 —— IDB 那一份是這次推送的「後面」才寫，
+      //     萬一中途失敗，先把舊的刪了會變成兩邊都沒有。
+      if (_isIdbMigratedLsKey(k)){ _skippedKeys[k] = 1; continue; }
       var val = localStorage.getItem(k) || '';
       if (val.length > LS_MAX_VALUE_SIZE){
         if (isBase64Image(val)){
@@ -1099,7 +1218,7 @@ async function pushToCloud(opts){
             console.log('[FirebaseSync] LS 圖片已壓縮:', k, Math.round(val.length/1024)+'KB → '+Math.round(cVal.length/1024)+'KB');
             continue;
           }
-          skippedCount++;
+          skippedCount++; _skippedKeys[k] = 1;
           console.log('[FirebaseSync] LS 圖片壓縮失敗，跳過:', k);
           continue;
         }
@@ -1112,7 +1231,7 @@ async function pushToCloud(opts){
         if (val.length > 300000) {   // 先粗篩（>30 萬字才精算 byte 數，避免每個 key 都算）
           var _bytes = (typeof TextEncoder !== 'undefined') ? new TextEncoder().encode(val).length : val.length * 3;
           if (_bytes > 1000000){
-            skippedCount++;
+            skippedCount++; _skippedKeys[k] = 1;
             console.warn('[FirebaseSync] ⚠️ 跳過超過 Firestore 1MB 上限的 key（此類資料走 ☁️↑ 強制推送的分片通道）:', k, Math.round(_bytes/1024) + 'KB');
             continue;
           }
@@ -1136,10 +1255,16 @@ async function pushToCloud(opts){
 
     // ★ Dirty-tracking：只推送真正有改變的資料（force=true 時繞過）
     var lsChanged = _filterChanged(lsPath, lsDataChar, force);
+    var _delKeys = Object.keys(_pendingDeletes);
     var lsCount = 0;
-    if (Object.keys(lsChanged).length > 0){
+    if (Object.keys(lsChanged).length > 0 || _delKeys.length > 0){
       _changedKeysForLog = _changedKeysForLog.concat(Object.keys(lsChanged));  // ★ for audit
-      lsCount = await writeDataToFirestore(lsRef, lsChanged);
+      // ★★ 2026/09 關鍵修正：這裡以前傳的是 lsChanged（只有變更的那幾個 key），
+      //    而 writeDataToFirestore 用的是「無 merge 的 set」→ 雲端 main 會被換成只剩那幾個 key，
+      //    其餘全部消失。只要同一個分頁存過第二次檔就會發生。這就是同事資料「不見」的主因。
+      //    改成：dirty-tracking 只決定「要不要寫」，真正寫的一律是完整快照，並清掉多餘的 doc。
+      var _delMap = {}; for (var _dm = 0; _dm < _delKeys.length; _dm++) _delMap[_delKeys[_dm]] = 1;
+      lsCount = await writeDataToFirestore(lsRef, lsDataChar, { prune:true, deleteKeys:_delMap });
       // 成功後記住所有資料的簽名（包括沒改變的）
       _recordSigs(lsPath, lsDataChar);
       // ★ LWW: 把這批 changed keys 的時間戳推到 <charRef>/_meta/lsTs.ts
@@ -1147,7 +1272,15 @@ async function pushToCloud(opts){
         var _tsUpdates = {};
         for (var _ck in lsChanged) {
           // dot-path 寫入 nested map（key 不含「.」才安全；本專案的 LS keys 沒在用點號）
-          _tsUpdates['ts.' + _ck] = _localTsMap[_ck] || Date.now();
+          // ★ 2026/09：原本寫 `_localTsMap[_ck] || Date.now()`。但「頁面初始化時寫入的預設值」
+          //   刻意記成 0，而 0 是 falsy → 一整批從來沒人編輯過的空殼，上雲時全部拿到「現在」，
+          //   反過來蓋掉同事昨天的真資料。改成：沒真編輯過就給 1（＝很舊），永遠贏不過真編輯。
+          var _t = _localTsMap[_ck];
+          _tsUpdates['ts.' + _ck] = (typeof _t === 'number' && _t > 0) ? _t : 1;
+        }
+        // 刪掉的 key 把時間戳也清掉，不然它會永遠留在 ts map 裡
+        for (var _dk = 0; _dk < _delKeys.length; _dk++){
+          _tsUpdates['ts.' + _delKeys[_dk]] = firebase.firestore.FieldValue.delete();
         }
         var _tsDocRef = charRef.collection('_meta').doc('lsTs');
         try {
@@ -1184,7 +1317,8 @@ async function pushToCloud(opts){
           var globalCount = 0;
           for (var _gck in globalChanged){
             var _gcv = globalChanged[_gck];
-            var _gcTs = _localTsMap[_gck] || Date.now();
+            var _gct = _localTsMap[_gck];
+            var _gcTs = (typeof _gct === 'number' && _gct > 0) ? _gct : 1;   // ★ 同上：沒編輯過不給「現在」
             var docId = encodeURIComponent(_gck).substring(0, 1400);
             try {
               await globalRef.doc(docId).set({
@@ -1203,6 +1337,14 @@ async function pushToCloud(opts){
           await delay(WRITE_LONG_PAUSE_MS);
         } else {
           _recordSigs(globalPath, lsDataGlobal);
+        }
+        // ★ 2026/09：本機刪掉的全公司共享 key，雲端那份也要刪掉，否則下次 pull 又長回來。
+        //   （以前只能在應用層寫「墓碑」{_e:1} 繞過，每加一種資料就要多繞一次。）
+        for (var _gd = 0; _gd < _delKeys.length; _gd++){
+          var _gdk = _delKeys[_gd];
+          if (!isGlobalLsKey(_gdk)) continue;
+          try { await globalRef.doc(encodeURIComponent(_gdk).substring(0,1400)).delete(); console.log('[FirebaseSync] 🗑 已從雲端刪除共享 key:', _gdk); }
+          catch(_gdErr){ console.warn('[FirebaseSync] 刪除共享 key 失敗', _gdk, _gdErr && _gdErr.message); }
         }
       } catch(_globalPushErr){
         console.warn('[FirebaseSync] global push 失敗', _globalPushErr.message || _globalPushErr);
@@ -1231,16 +1373,19 @@ async function pushToCloud(opts){
           if (entryCount === 0) continue;
           const storeRef = charRef.collection('idb_' + idbInfo.dbName + '_' + storeName);
           const idbPath = storeRef.path;
-          // ★★★ FIX：IDB 永遠當作有變更，直接推（不走 dirty-tracking）
-          //   原本用 _sig 算 signature，但 sig 只看頭尾 32 字元，中間改動會漏掉
-          //   而且 IDB 物件先 JSON.stringify 再算 sig，5000 字元 JSON 改一個值若沒影響長度也會漏
-          //   IDB 資料寫入頻率本來就低（使用者操作觸發），每次推幾筆不會爆 Firebase 配額
-          //   ★ 永遠推 = 永遠正確同步
-          console.log('[FirebaseSync] IDB ' + idbInfo.dbName + '.' + storeName + ': ' + entryCount + ' 筆強制推送');
+          // ★ 2026/09 恢復 dirty-tracking：
+          //   以前停用是因為 _sig 只看頭尾 32 字元，中間改動偵測不到 —— 那個 bug 已經修掉
+          //   （現在是整串 FNV-1a 雜湊）。而 FunnelDB 進清單之後，「每次全量強推」
+          //   等於每 5 分鐘幾 MB × 每個分頁 × 每個人，必撞 Firestore 配額。
+          //   dirty-tracking 只決定「要不要寫」，真的要寫時仍然寫完整快照＋清孤兒，所以不會有殘缺問題。
+          var _idbChanged = _filterChanged(idbPath, entries, force);
+          if (Object.keys(_idbChanged).length === 0){ _recordSigs(idbPath, entries); continue; }
+          console.log('[FirebaseSync] IDB ' + idbInfo.dbName + '.' + storeName + ': ' + Object.keys(_idbChanged).length + '/' + entryCount + ' 筆有變更 → 推送完整快照');
           _changedKeysForLog = _changedKeysForLog.concat(
-            Object.keys(entries).map(function(k){ return 'idb:' + idbInfo.dbName + '/' + storeName + '/' + k; })
+            Object.keys(_idbChanged).map(function(k){ return 'idb:' + idbInfo.dbName + '/' + storeName + '/' + k; })
           );
-          const n = await writeDataToFirestore(storeRef, entries);
+          const n = await writeDataToFirestore(storeRef, entries, { prune:true });
+          _recordSigs(idbPath, entries);
           idbCount += n;
         }
         idb.close();
@@ -1260,9 +1405,11 @@ async function pushToCloud(opts){
       _writeAuditLog(charId, lsCount, idbCount, _changedKeysForLog).catch(function(){});
     }
 
+    _pendingDeletes = {};   // ★ 這一輪的刪除已經同步到雲端
     const msg = '✅ ' + lsCount + '+' + idbCount + ' 筆已同步';
     console.log('[FirebaseSync] 推送成功 localStorage:', lsCount, 'IndexedDB:', idbCount);
     setBadge(msg, '#00ff88');
+    _pushRetryN = 0; hideSyncError();
     setTimeout(() => {
       setBadge('☁ 同步中', '#00ff88');
       setTimeout(() => { if (badgeEl) badgeEl.style.opacity = '0.3'; }, 1500);
@@ -1275,20 +1422,38 @@ async function pushToCloud(opts){
       pushErrMsg = '權限不足 — Firestore 安全規則可能已過期';
     }
     setBadge('❌ 推送失敗\n' + pushErrMsg, '#ff6666');
+    // ★ 2026/09：以前失敗就只改那個 11px 徽章，沒有重試、沒有離線佇列、沒有人會發現。
+    //   改成指數退避重試 3 次（5s → 20s → 80s），還是失敗就把錯誤條擋在畫面上。
+    _pushRetryN++;
+    if (_pushRetryN <= 3){
+      var _wait = 5000 * Math.pow(4, _pushRetryN - 1);
+      console.log('[FirebaseSync] ' + (_wait/1000) + ' 秒後重試（第 ' + _pushRetryN + ' 次）');
+      setTimeout(function(){ _pushing = false; pushToCloud(); }, _wait);
+    } else {
+      showSyncError('資料沒有存上雲端（已重試 3 次）：' + String(pushErrMsg).replace(/\n/g, ' ') + '　—— 你剛剛做的修改目前只在這台電腦上，請不要關掉視窗。', true);
+    }
   } finally {
     _pushing = false;
   }
 }
 
+var _pushPending = false;      // 拉取期間累積的編輯，拉完要補推
+var _pushRetryN  = 0;          // 連續失敗次數（指數退避用）
 function schedulePush(){
   if (syncTimer) clearTimeout(syncTimer);
-  // ★ 拉取進行中 → 不要立即排程 push，避免覆蓋雲端真資料
-  //   等 pull 結束後第一次有人改 LS 才會 schedulePush
-  if (_pullingFromCloud){
-    return;
-  }
+  // ★ 2026/09：原本這裡是「砍掉排程 → 直接 return」，而首次完整拉取可能跑好幾十秒。
+  //   那段時間使用者打的每一個字都會把前一次排程砍掉又不重排 → 整段編輯完全不會上雲。
+  //   改成記旗標，拉完自動補推。
+  if (_pullingFromCloud){ _pushPending = true; return; }
   syncTimer = setTimeout(pushToCloud, SYNC_DEBOUNCE_MS);
 }
+// 網路回來 → 立刻補推（以前完全沒有處理離線）
+try {
+  window.addEventListener('online', function(){
+    console.log('[FirebaseSync] 🌐 網路恢復，補推一次');
+    hideSyncError(); _pushRetryN = 0; schedulePush();
+  });
+} catch(e){}
 
 // ★ 自動清理 LS quota — 當 setItem 因 quota 失敗時自動清重複/過長資料後重試
 //   這樣使用者就不會看到 quota error，系統自我清理
@@ -1416,7 +1581,14 @@ localStorage.setItem = function(k, v){
     schedulePush();
   }
 };
-localStorage.removeItem = function(k){ _origRemove(k); if(!isLocalOnlyKey(k)) schedulePush(); };
+localStorage.removeItem = function(k){
+  _origRemove(k);
+  if (!isLocalOnlyKey(k)){
+    _pendingDeletes[k] = 1;                 // ★ 記下來，推送時一併從雲端刪除
+    try { delete _localTsMap[k]; } catch(e){}
+    schedulePush();
+  }
+};
 
 // === 拉取 ============================================================
 async function pullFromCloud(opts){
@@ -1430,12 +1602,21 @@ async function pullFromCloud(opts){
   // ★ 決定這輪要拉哪些 character：輕量=只拉自己；完整=全部
   var _charDocs;
   if (_light){
+    // ★ 2026/09：輕量拉取以前「只拉登入者自己」，所以 onSnapshot 明明偵測到同事改了資料，
+    //   拉回來的卻是自己那一份 —— 畫面印「🔄 偵測到雲端更新」但一個字都沒更新。
+    //   改成：呼叫端可以指定 only=[誰變了]，把那些人一起拉進來。
     var _me = (typeof getCharacterId === 'function') ? getCharacterId() : null;
-    if (_me){
-      try { var _meSnap = await baseRef.doc(_me).get(); _charDocs = _meSnap.exists ? [_meSnap] : []; }
-      catch(e){ _charDocs = []; }
-    } else { _charDocs = []; }
-    console.log('[FirebaseSync] 🪶 輕量拉取：只拉登入者 [' + (_me||'?') + '] + 全公司共享（不掃全部人）');
+    var _want = {};
+    if (_me) _want[_me] = 1;
+    var _only = (opts && opts.only) || [];
+    for (var _oi = 0; _oi < _only.length; _oi++){ if (_only[_oi]) _want[_only[_oi]] = 1; }
+    _charDocs = [];
+    var _wantIds = Object.keys(_want);
+    for (var _wi = 0; _wi < _wantIds.length; _wi++){
+      try { var _sn = await baseRef.doc(_wantIds[_wi]).get(); if (_sn.exists) _charDocs.push(_sn); }
+      catch(e){}
+    }
+    console.log('[FirebaseSync] 🪶 輕量拉取：' + _wantIds.join('、') + ' + 全公司共享');
   } else {
     const allSnap = await baseRef.get();
     _charDocs = allSnap.docs;
@@ -1521,10 +1702,16 @@ async function pullFromCloud(opts){
         //       漏掉 course 導致「七月同步完，重整/重開機後課程銷售與主打課程實售歸零」
         //       （雲端舊版 motiv_course_v1 沒有 7 月，LWW 把本地 7 月吃掉）。
         if (/(?:^|_)motiv_(?:academy|sales|group_performance|reserve_performance|perfp|channel|checkin|course|synced_motiv|synced_checkin|synced_channel)(?:_v1|_meta)?$/.test(k) || /(?:^|_)motiv_updated_at$/.test(k)){
-          if (existingVal !== null && existingVal !== ''){
-            _skipCount++;            // 本地有值 → 保留本地（不讓雲端舊資料覆蓋）
+          // ★ 2026/09：舊規則是「本地有值 → 永遠不收雲端」，等於這批 key 的跨機同步是關閉的。
+          //   改成標準 LWW：雲端要「真的被編輯過」(ts>1) 而且比本機新，才收。
+          //   另外雲端近乎空殼而本機有料，一律不收（沿用原本的防呆）。
+          var _mc = cloudTs[k] || 0, _ml = _localTsMap[k] || 0;
+          var _hasLocal = (existingVal !== null && existingVal !== '');
+          var _emptyCloud = !v || String(v).length <= 2;
+          if (_hasLocal && (_emptyCloud || !(_mc > 1 && _mc > _ml))){
+            _skipCount++;            // 雲端不是更新的版本 → 保留本地
           } else {
-            try { _origSet(k, v); _localTsMap[k] = cloudTs[k] || Date.now(); totalLS++; } catch(qe){ _quotaSkipCount++; }
+            try { _origSet(k, v); _localTsMap[k] = _mc || 1; totalLS++; } catch(qe){ _quotaSkipCount++; }
           }
           continue;
         }
@@ -1845,11 +2032,17 @@ async function pullFromCloud(opts){
         //     3. 雙方都沒有 ts（舊資料）→ 回退舊 size 規則（雲端較大、或本地全空才覆蓋）
         var cloudTs = d.ts || 0;
         var localTs = _localTsMap[d.key] || 0;
+        // ★ 2026/09：ts <= 1 代表「這一份從來沒被真的編輯過」（見推送端的說明），不能當成有效時間戳。
+        //   另外平手改成保留本機 —— 原本 `cloudTs >= localTs` 會讓本機沒編輯過（localTs=0）時雲端無條件勝，
+        //   等於任何一台機器的空殼都能蓋掉別人的真資料。
+        var _cReal = cloudTs > 1, _lReal = localTs > 1;
         var _cloudWins;
         if (cloudSize <= 2 && localSize > 2){
           _cloudWins = false;
-        } else if (cloudTs > 0 || localTs > 0){
-          _cloudWins = (cloudTs >= localTs);
+        } else if (_cReal && _lReal){
+          _cloudWins = (cloudTs > localTs);
+        } else if (_cReal !== _lReal){
+          _cloudWins = _cReal;
         } else {
           _cloudWins = (localSize === 0) || (cloudSize > localSize);
         }
@@ -1896,6 +2089,7 @@ async function pullFromCloud(opts){
   window.dispatchEvent(new Event('firebase-sync-ready'));
   } finally {
     _pullingFromCloud = false; // ★ 拉取完成，解鎖 schedulePush
+    if (_pushPending){ _pushPending = false; if (ready) schedulePush(); }   // ★ 補推拉取期間的編輯
   }
 }
 
@@ -1930,7 +2124,7 @@ function setupRealtime(){
         while (_pushing && maxWait-- > 0){
           await new Promise(function(r){ setTimeout(r, 500); });
         }
-        await pullFromCloud({light:true});   // ★ 即時更新走輕量（只拉登入者＋共享），不掃全部人
+        await pullFromCloud({light:true, only: changes});   // ★ 誰變了就拉誰（含別人），不掃全部人
         console.log('[FirebaseSync] ✅ realtime pull 完成（輕量）');
         // pull 完才發事件 — 確保監聽端讀到的是新資料
         window.dispatchEvent(new Event('firebase-sync-updated'));
@@ -1945,6 +2139,7 @@ function setupRealtime(){
 //   不在 _pushing 中才 pull，避免衝突
 //   ★★★ 2026/06 加:頁面隱藏時跳過,避免閒置分頁累積記憶體被 Chrome 砍掉(錯誤碼 5)
 var PULL_INTERVAL_MS = 180 * 1000;  // ★ 效能：90秒 → 3分鐘（每輪 pull 會解析大量 JSON,降頻減少前景卡頓）
+var _periodicN = 0;
 function _startPeriodicPull(){
   setInterval(async function(){
     if (_pushing || _pullingFromCloud) return;
@@ -1952,7 +2147,10 @@ function _startPeriodicPull(){
     //   避免閒置分頁背景跑導致記憶體累積 → renderer 被 OS 砍掉(SBOX_FATAL_MEMORY_EXCEEDED 錯誤碼 5)
     if (typeof document !== 'undefined' && document.hidden) return;
     try {
-      await pullFromCloud({light:true});   // ★ 定期保險也走輕量（只拉登入者＋共享）→ 大幅降低記憶體，避免錯誤碼 5
+      // ★ 2026/09：每 4 輪（約 12 分鐘）做一次完整拉取。
+      //   原本永遠是輕量＝只拉自己，所以「別人的更新」實際上只有整頁重新整理才拿得到。
+      _periodicN++;
+      await pullFromCloud({ light: (_periodicN % 4 !== 0) });
       window.dispatchEvent(new Event('firebase-sync-updated'));
     } catch(e){ /* 失敗就靜默忽略，下個週期再試 */ }
   }, PULL_INTERVAL_MS);
