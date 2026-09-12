@@ -397,6 +397,8 @@ let _pushing = false; // ★ 推送鎖：防止多個推送同時進行
 // ★ 2026/09：使用者刪掉的 key。整份程式以前沒有任何 delete，所以刪掉的東西下次 pull 會長回來。
 //   記在這裡，下次推送時連同雲端那份一起刪掉。
 let _pendingDeletes = {};
+// ★ 拉取時因為本機 LS 爆滿而沒收下來的 key。推送時要保護它們在雲端的那一份。
+let _quotaSkippedKeys = {};
 let _pullingFromCloud = false; // ★ 拉取進行中：阻擋 schedulePush 觸發，避免 push 把預設值蓋過雲端真資料
 
 // ★ Dirty-tracking：記錄上次成功推送的每筆資料簽名（長度+前32字元）
@@ -409,7 +411,20 @@ var _sigSaveTimer = null;
 function _saveSigs(){
   if (_sigSaveTimer) clearTimeout(_sigSaveTimer);
   _sigSaveTimer = setTimeout(function(){
-    try { _origSet('_fs_pushedSig', JSON.stringify(_lastPushedSig)); } catch(e){ /* quota 就算了，最多多推一次 */ }
+    try {
+      // ★ 跟 _fs_lastModified 一樣的病：整份寫回會抹掉別的分頁這段時間記的簽名 → 先讀再合併。
+      var onDisk = {};
+      try { onDisk = JSON.parse(localStorage.getItem('_fs_pushedSig') || '{}') || {}; } catch(e){}
+      for (var p in onDisk){ if (!_lastPushedSig[p]) _lastPushedSig[p] = onDisk[p]; }
+      // ★ 只留現在這個主角的路徑，避免切換主角後無上限成長把 LS 5MB 吃光
+      var me = '/characters/' + getCharacterId() + '/';
+      var keep = {};
+      for (var q in _lastPushedSig){
+        if (q.indexOf(me) !== -1 || q.indexOf('/_global/') !== -1) keep[q] = _lastPushedSig[q];
+      }
+      _lastPushedSig = keep;
+      _origSet('_fs_pushedSig', JSON.stringify(_lastPushedSig));
+    } catch(e){ /* quota 就算了，最多多推一次 */ }
   }, 3000);
 }
 
@@ -496,11 +511,16 @@ var _tsSaveTimer = null;
 // ★ 2026/09：原本直接把「這個分頁載入時的快照」整張寫回去，
 //   B 分頁存檔就會抹掉 A 分頁這段時間累積的所有時間戳 → LWW 判斷失真（程式碼註解自己承認過這件事）。
 //   改成寫入前先讀一次磁碟上的最新版，兩邊取較新的再寫回。
+var _tsDeleted = {};   // 本機刪掉的 key：合併磁碟版本時不可以把它們撈回來
 function _saveLocalTsMap(){
   try {
     var onDisk = {};
     try { onDisk = JSON.parse(localStorage.getItem(_LS_TS_KEY) || '{}') || {}; } catch(e){}
-    for (var k in onDisk){ if (!(k in _localTsMap) || (onDisk[k] || 0) > (_localTsMap[k] || 0)) _localTsMap[k] = onDisk[k]; }
+    for (var k in onDisk){
+      if (_tsDeleted[k]) continue;                                   // ★ 已刪除，不復活
+      if (localStorage.getItem(k) === null && !(k in _localTsMap)) continue;  // 本機根本沒這個 key
+      if (!(k in _localTsMap) || (onDisk[k] || 0) > (_localTsMap[k] || 0)) _localTsMap[k] = onDisk[k];
+    }
     _origSet(_LS_TS_KEY, JSON.stringify(_localTsMap));
   } catch(e){}
 }
@@ -535,10 +555,14 @@ function idbOpen(dbName, dbVer, storeNames){
       };
       req.onsuccess = function(){
         var theDb = req.result;
+        // ★ 2026/09：這裡原本會 deleteDatabase()。那是 fire-and-forget 的刪整個資料庫，
+        //   而 FunnelDB（漏斗）與 AiCasedbDB（錄音案例庫）是使用者開到那一頁才 lazy 建立的。
+        //   只要我們 probe 的瞬間對方正要開始寫，那個 pending 的刪除會在連線關閉後生效，
+        //   把人家剛寫進去的整個 DB 砍掉。加進同步清單之後這個風險才暴露出來。
+        //   關掉連線、直接 reject 就好 —— 空 DB 留著完全無害。
         if (wasCreated) {
-          console.log('[FirebaseSync] DB 尚未初始化，跳過:', dbName);
+          console.log('[FirebaseSync] DB 尚未初始化，跳過（不刪除，留給該頁自己建）:', dbName);
           theDb.close();
-          try { indexedDB.deleteDatabase(dbName); } catch(e){}
           reject(new Error('DB not initialized: ' + dbName));
           return;
         }
@@ -547,7 +571,6 @@ function idbOpen(dbName, dbVer, storeNames){
           if (missing.length === storeNames.length) {
             console.log('[FirebaseSync] DB 缺少所有 store，跳過:', dbName, missing);
             theDb.close();
-            try { indexedDB.deleteDatabase(dbName); } catch(e){}
             reject(new Error('DB missing stores: ' + dbName));
             return;
           }
@@ -607,6 +630,15 @@ function idbOpenOrCreate(dbName, dbVer, storeNames){
         if (wasCreated || missing.length === 0){
           // 剛建立 / 已有全部 store → 直接用
           resolve(db);
+          return;
+        }
+        // ★ 2026/09：這兩個 DB 的擁有頁面是用固定版本號開的
+        //   （performance-compare.html: indexedDB.open('FunnelDB', 1)，onerror 直接 reject），
+        //   我們一升版就會讓整個漏斗功能讀不到也寫不進去。缺 store 就放棄，交給擁有它的頁面自己建。
+        if (dbName === 'FunnelDB' || dbName === 'AiCasedbDB'){
+          console.log('[FirebaseSync] ' + dbName + ' 缺 store，交由該功能頁自行建立（不升版）');
+          db.close();
+          reject(new Error('DB missing stores (owner will create): ' + dbName));
           return;
         }
         // DB 存在但缺 store → 升一個版本補建（保守做法，不撞固定版本號）
@@ -900,8 +932,10 @@ function _filterChanged(collPath, dataMap, force){
   var prev = _lastPushedSig[collPath] || {};
   var changed = {};
   var changedCount = 0, unchangedCount = 0;
+  _sigCache = { path: collPath, sigs: {} };   // ★ 算好的簽名留給 _recordSigs 用，不要整份資料再掃第二遍
   for (var k in dataMap){
     var sig = _sig(dataMap[k]);
+    _sigCache.sigs[k] = sig;
     if (prev[k] === sig){
       unchangedCount++;
     } else {
@@ -918,7 +952,14 @@ function _filterChanged(collPath, dataMap, force){
 }
 
 // 成功推送後，記住每筆資料的簽名
+var _sigCache = { path:'', sigs:null };
 function _recordSigs(collPath, dataMap){
+  // ★ _filterChanged 剛剛已經對同一批資料算過一次雜湊了，十幾 MB 掃兩遍會卡住主執行緒
+  if (_sigCache.path === collPath && _sigCache.sigs){
+    var _hit = true;
+    for (var _ck2 in dataMap){ if (!(_ck2 in _sigCache.sigs)){ _hit = false; break; } }
+    if (_hit){ _lastPushedSig[collPath] = _sigCache.sigs; _sigCache = { path:'', sigs:null }; _saveSigs(); return; }
+  }
   var sigs = {};
   for (var k in dataMap) sigs[k] = _sig(dataMap[k]);
   _lastPushedSig[collPath] = sigs;
@@ -1085,13 +1126,23 @@ async function writeDataToFirestore(collRef, dataMap, opts){
       var keepIds = {};
       for (var q = 0; q < allDocs.length; q++) keepIds[allDocs[q].id] = 1;
       var delKeys = opts.deleteKeys || {};
+      // ★ 這次刻意沒推上去的 key（超過 1MB、壓縮失敗、本機 LS 塞不下而沒拉下來的…）
+      //   它們不在 dataMap 裡，但雲端那份是有效資料，絕對不能當成孤兒刪掉。
+      var keepKeys = opts.keepKeys || {};
+      for (var kk in keepKeys) keepIds['big_' + encodeURIComponent(kk).substring(0,1400)] = 1;
       var existing = await collRef.get();
+      // ★ 安全閥：本次要寫的 doc 數量比雲端現有少一半以上 → 這台大概是空白／殘缺環境，放棄清理。
+      if (existing.size > 6 && allDocs.length < existing.size * 0.5){
+        console.warn('[FirebaseSync] ⚠️ 本次只有 ' + allDocs.length + ' 個 doc、雲端有 ' + existing.size + ' 個 —— 差太多，放棄清理');
+        return Object.keys(processedMap).length;
+      }
       var victims = [];
       existing.forEach(function(ds){
         if (keepIds[ds.id]) return;
         if (ds.id.indexOf('chunk_') === 0){ victims.push(ds.ref); return; }   // (b) 孤兒分段
         if (ds.id.indexOf('big_') === 0){
           var _d = ds.data() || {};
+          if (_d.key && keepKeys[_d.key]) return;                             // 這次跳過的，留著
           if (_d.key && delKeys[_d.key]) victims.push(ds.ref);                // (a) 使用者刪掉的大型 key
         }
       });
@@ -1264,7 +1315,9 @@ async function pushToCloud(opts){
       //    其餘全部消失。只要同一個分頁存過第二次檔就會發生。這就是同事資料「不見」的主因。
       //    改成：dirty-tracking 只決定「要不要寫」，真正寫的一律是完整快照，並清掉多餘的 doc。
       var _delMap = {}; for (var _dm = 0; _dm < _delKeys.length; _dm++) _delMap[_delKeys[_dm]] = 1;
-      lsCount = await writeDataToFirestore(lsRef, lsDataChar, { prune:true, deleteKeys:_delMap });
+      // 本機 LS 塞不下而沒拉下來的 key（pull 端 quota 跳過的）也要保護，否則「我這台存不下」＝「全公司都沒有」
+      try { for (var _qk in _quotaSkippedKeys) _skippedKeys[_qk] = 1; } catch(_e){}
+      lsCount = await writeDataToFirestore(lsRef, lsDataChar, { prune:true, deleteKeys:_delMap, keepKeys:_skippedKeys });
       // 成功後記住所有資料的簽名（包括沒改變的）
       _recordSigs(lsPath, lsDataChar);
       // ★ LWW: 把這批 changed keys 的時間戳推到 <charRef>/_meta/lsTs.ts
@@ -1338,24 +1391,36 @@ async function pushToCloud(opts){
         } else {
           _recordSigs(globalPath, lsDataGlobal);
         }
-        // ★ 2026/09：本機刪掉的全公司共享 key，雲端那份也要刪掉，否則下次 pull 又長回來。
-        //   （以前只能在應用層寫「墓碑」{_e:1} 繞過，每加一種資料就要多繞一次。）
-        for (var _gd = 0; _gd < _delKeys.length; _gd++){
-          var _gdk = _delKeys[_gd];
-          if (!isGlobalLsKey(_gdk)) continue;
-          try { await globalRef.doc(encodeURIComponent(_gdk).substring(0,1400)).delete(); console.log('[FirebaseSync] 🗑 已從雲端刪除共享 key:', _gdk); }
-          catch(_gdErr){ console.warn('[FirebaseSync] 刪除共享 key 失敗', _gdk, _gdErr && _gdErr.message); }
-        }
       } catch(_globalPushErr){
         console.warn('[FirebaseSync] global push 失敗', _globalPushErr.message || _globalPushErr);
       }
     }
 
+    // ★ 2026/09：本機刪掉的全公司共享 key，雲端那份也要刪掉，否則下次 pull 又長回來。
+    //   （以前只能在應用層寫「墓碑」{_e:1} 繞過，每加一種資料就要多繞一次。）
+    //   ★ 這一段必須在 lsDataGlobal 那個 if 之外：使用者刪掉的如果剛好是「最後一個」共享 key，
+    //     那個 if 進不去，刪除就永遠送不出去。
+    //   ★ 而且必須排除「這一輪又被重新建立」的 key —— 否則會發生剛 set 上去、下一行就 delete 掉，
+    //     而簽名已經記成最新，永遠不會補回去，雲端那個 key 就這樣人間蒸發。
+    if (_delKeys.length > 0 && currentUserUid){
+      try {
+        var _gDelRef = fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('localStorage');
+        for (var _gd = 0; _gd < _delKeys.length; _gd++){
+          var _gdk = _delKeys[_gd];
+          if (!isGlobalLsKey(_gdk)) continue;
+          if (localStorage.getItem(_gdk) !== null) continue;     // 刪掉後又建回來了 → 不能刪
+          try { await _gDelRef.doc(encodeURIComponent(_gdk).substring(0,1400)).delete(); console.log('[FirebaseSync] 🗑 已從雲端刪除共享 key:', _gdk); }
+          catch(_gdErr){ console.warn('[FirebaseSync] 刪除共享 key 失敗', _gdk, _gdErr && _gdErr.message); }
+        }
+      } catch(_gDelErr){ console.warn('[FirebaseSync] 共享 key 刪除流程失敗', _gDelErr && _gDelErr.message); }
+    }
+
     // 2. IndexedDB（只推送 IDB_LIST，不推送音效 DB）
     let idbCount = 0;
     for (const idbInfo of IDB_LIST){
+      var idb = null;
       try {
-        const idb = await idbOpen(idbInfo.dbName, idbInfo.dbVer, idbInfo.stores);
+        idb = await idbOpen(idbInfo.dbName, idbInfo.dbVer, idbInfo.stores);
         for (const storeName of idbInfo.stores){
           var rawEntries = await idbGetAllEntries(idb, storeName);
           // ★ 過濾掉音效和 blob 資料（以 blob_ / bgm_ 開頭的 key）
@@ -1370,7 +1435,14 @@ async function pushToCloud(opts){
           }
           if (_audioSkipCount > 0) console.log('[FirebaseSync] 跳過音效資料:', _audioSkipCount, '筆');
           var entryCount = Object.keys(entries).length;
-          if (entryCount === 0) continue;
+          // ★ 2026/09：原本這裡直接 continue，所以「本機把這個 store 清空」永遠傳不到雲端，
+          //   下次 pull 整批長回來。改成：清空也要走一次推送（會寫出空的 main 並清掉孤兒分段）。
+          //   但只在「上一輪確實推過東西」時才做，避免全新裝置一開頁就把雲端清掉。
+          if (entryCount === 0){
+            var _prevSig = _lastPushedSig[charRef.collection('idb_' + idbInfo.dbName + '_' + storeName).path];
+            if (!_prevSig || Object.keys(_prevSig).length === 0) continue;
+            console.log('[FirebaseSync] IDB ' + idbInfo.dbName + '.' + storeName + ' 本機已清空 → 同步清空雲端');
+          }
           const storeRef = charRef.collection('idb_' + idbInfo.dbName + '_' + storeName);
           const idbPath = storeRef.path;
           // ★ 2026/09 恢復 dirty-tracking：
@@ -1388,9 +1460,12 @@ async function pushToCloud(opts){
           _recordSigs(idbPath, entries);
           idbCount += n;
         }
-        idb.close();
       } catch(e){
         console.log('[FirebaseSync] IDB 推送跳過', idbInfo.dbName, e.message || e);
+      } finally {
+        // ★ 原本 idb.close() 在 try 的最後一行，只要寫入丟例外就不會執行 → 連線外洩，
+        //   後續別的分頁要升版就會被 onblocked 卡住。
+        try { if (idb) idb.close(); } catch(_ce){}
       }
     }
 
@@ -1405,11 +1480,13 @@ async function pushToCloud(opts){
       _writeAuditLog(charId, lsCount, idbCount, _changedKeysForLog).catch(function(){});
     }
 
-    _pendingDeletes = {};   // ★ 這一輪的刪除已經同步到雲端
+    // ★ 只清掉「這一輪真的送出去」的那幾個。整份清掉會把推送期間（好幾秒的等待）
+    //   使用者新產生的刪除一起吞掉，那些 key 下次 pull 就會復活。
+    for (var _pd = 0; _pd < _delKeys.length; _pd++) delete _pendingDeletes[_delKeys[_pd]];
     const msg = '✅ ' + lsCount + '+' + idbCount + ' 筆已同步';
     console.log('[FirebaseSync] 推送成功 localStorage:', lsCount, 'IndexedDB:', idbCount);
     setBadge(msg, '#00ff88');
-    _pushRetryN = 0; hideSyncError();
+    _pushRetryN = 0; if (_retryTimer){ clearTimeout(_retryTimer); _retryTimer = null; } hideSyncError();
     setTimeout(() => {
       setBadge('☁ 同步中', '#00ff88');
       setTimeout(() => { if (badgeEl) badgeEl.style.opacity = '0.3'; }, 1500);
@@ -1428,7 +1505,11 @@ async function pushToCloud(opts){
     if (_pushRetryN <= 3){
       var _wait = 5000 * Math.pow(4, _pushRetryN - 1);
       console.log('[FirebaseSync] ' + (_wait/1000) + ' 秒後重試（第 ' + _pushRetryN + ' 次）');
-      setTimeout(function(){ _pushing = false; pushToCloud(); }, _wait);
+      // ★ 不要在這裡動 _pushing —— finally 已經放鎖了，計時器到點時若正好有另一輪在跑，
+      //   這行會把別人的鎖解掉，變成兩輪同時寫完整快照又同時 prune，互刪對方剛寫好的 doc。
+      //   也要用單一計時器，不然 interval push、online 補推、重試各排一個會疊起來。
+      if (_retryTimer) clearTimeout(_retryTimer);
+      _retryTimer = setTimeout(function(){ _retryTimer = null; pushToCloud(); }, _wait);
     } else {
       showSyncError('資料沒有存上雲端（已重試 3 次）：' + String(pushErrMsg).replace(/\n/g, ' ') + '　—— 你剛剛做的修改目前只在這台電腦上，請不要關掉視窗。', true);
     }
@@ -1439,6 +1520,7 @@ async function pushToCloud(opts){
 
 var _pushPending = false;      // 拉取期間累積的編輯，拉完要補推
 var _pushRetryN  = 0;          // 連續失敗次數（指數退避用）
+var _retryTimer  = null;       // 單一重試計時器（多個疊起來會讓退避時間亂掉）
 function schedulePush(){
   if (syncTimer) clearTimeout(syncTimer);
   // ★ 2026/09：原本這裡是「砍掉排程 → 直接 return」，而首次完整拉取可能跑好幾十秒。
@@ -1585,7 +1667,9 @@ localStorage.removeItem = function(k){
   _origRemove(k);
   if (!isLocalOnlyKey(k)){
     _pendingDeletes[k] = 1;                 // ★ 記下來，推送時一併從雲端刪除
+    _tsDeleted[k] = 1;
     try { delete _localTsMap[k]; } catch(e){}
+    _saveLocalTsMap();                      // 立刻落地，否則刪除的時間戳下次讀回來又復活
     schedulePush();
   }
 };
@@ -1662,6 +1746,8 @@ async function pullFromCloud(opts){
       } catch(_tsReadErr) { /* 沒 ts doc 或網路問題就用空 map */ }
 
       var _skipCount = 0, _quotaSkipCount = 0, _quotaSkipKeys = [];
+      // ★ 本機 LS 塞不下而沒收下來的 key → 推送端要知道，才不會把雲端那份當孤兒刪掉
+      //   （否則「我這台存不下」就會變成「全公司都沒有」）
       var _cardsRescueCount = 0, _overwriteCount = 0;
       for (const [k, v] of Object.entries(lsData)){
         // ★ 全公司共享 keys 不在這裡處理 —— 之後從 _global 統一拉
@@ -1683,13 +1769,13 @@ async function pullFromCloud(opts){
             && _isRealCardsData(v)){
           try {
             _origSet(k, v);
-            _localTsMap[k] = cloudTs[k] || Date.now();
+            _localTsMap[k] = cloudTs[k] || 1;   /* ★ 收來的不是本機編輯，不給 now */
             totalLS++;
             _cardsRescueCount++;
             continue;
           } catch(qe){
             _quotaSkipCount++;
-            _quotaSkipKeys.push(k + '(' + Math.round((v||'').length/1024) + 'KB)');
+            _quotaSkipKeys.push(k + '(' + Math.round((v||'').length/1024) + 'KB)'); _quotaSkippedKeys[k] = 1;
             continue;
           }
         }
@@ -1740,7 +1826,7 @@ async function pullFromCloud(opts){
             }
           } catch(ePdr){ if (existingVal !== null && existingVal !== ''){ _skipCount++; continue; } }
           // 雲端確實較新（或本地沒有）→ 用雲端
-          try { _origSet(k, v); _localTsMap[k] = cloudTs[k] || Date.now(); totalLS++; _overwriteCount++; } catch(qe){ _quotaSkipCount++; }
+          try { _origSet(k, v); _localTsMap[k] = cloudTs[k] || 1;   /* ★ 收來的不是本機編輯，不給 now */ totalLS++; _overwriteCount++; } catch(qe){ _quotaSkipCount++; }
           continue;
         }
 
@@ -1776,7 +1862,7 @@ async function pullFromCloud(opts){
                 totalLS++;
               } catch(qe2){
                 _quotaSkipCount++;
-                _quotaSkipKeys.push(k + '(merge)');
+                _quotaSkipKeys.push(k + '(merge)'); _quotaSkippedKeys[k] = 1;
               }
             } else {
               console.log('[FirebaseSync] motiv_archive：本地皆為最新，無需更新');
@@ -1830,7 +1916,7 @@ async function pullFromCloud(opts){
                 totalLS++;
               } catch(qe3){
                 _quotaSkipCount++;
-                _quotaSkipKeys.push(k + '(merge)');
+                _quotaSkipKeys.push(k + '(merge)'); _quotaSkippedKeys[k] = 1;
               }
             }
             continue;
@@ -1868,7 +1954,7 @@ async function pullFromCloud(opts){
                 totalLS++;
               } catch(qe4){
                 _quotaSkipCount++;
-                _quotaSkipKeys.push(k + '(merge)');
+                _quotaSkipKeys.push(k + '(merge)'); _quotaSkippedKeys[k] = 1;
               }
             }
             continue;
@@ -1886,20 +1972,24 @@ async function pullFromCloud(opts){
         if (_isAssessmentKey(k)){
           if (existingVal !== null && existingVal !== ''){
             if (_assessContentFS(v) > _assessContentFS(existingVal)){
-              try { _origSet(k, v); _localTsMap[k] = Date.now(); totalLS++; _overwriteCount++; }
-              catch(qe){ _quotaSkipCount++; _quotaSkipKeys.push(k); }
+              try { _origSet(k, v); _localTsMap[k] = (cloudTs[k] || 1); totalLS++; _overwriteCount++; }
+              catch(qe){ _quotaSkipCount++; _quotaSkipKeys.push(k); _quotaSkippedKeys[k] = 1; }
             } else {
               _skipCount++;
             }
           } else {
             // 本機空 → 雲端有就補入
-            try { _origSet(k, v); _localTsMap[k] = Date.now(); totalLS++; } catch(qe){ _quotaSkipCount++; }
+            try { _origSet(k, v); _localTsMap[k] = (cloudTs[k] || 1); totalLS++; } catch(qe){ _quotaSkipCount++; }
           }
           continue;
         }
 
+        // ★ 2026/09：ts <= 1 代表「這份只是被收下來／從未真的編輯過」（推送端會把它寫成 1）。
+        //   直接用數字比會變成 1 > 0，雲端無條件勝，「平手保留本機」根本沒生效。
         var cTs = cloudTs[k] || 0;
         var lTs = _localTsMap[k] || 0;
+        if (cTs <= 1) cTs = 0;
+        if (lTs <= 1) lTs = 0;
         var valSize = (v || '').length;
 
         // 本地有值 → LWW 比較
@@ -1913,7 +2003,7 @@ async function pullFromCloud(opts){
                 _origRemove(testKeyA);
               } catch(spaceErr) {
                 _quotaSkipCount++;
-                _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)');
+                _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)'); _quotaSkippedKeys[k] = 1;
                 continue;
               }
             }
@@ -1924,7 +2014,7 @@ async function pullFromCloud(opts){
               _overwriteCount++;
             } catch(qe){
               _quotaSkipCount++;
-              _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)');
+              _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)'); _quotaSkippedKeys[k] = 1;
             }
           } else {
             // 本地較新或同時 → 跳過
@@ -1941,17 +2031,17 @@ async function pullFromCloud(opts){
             _origRemove(testKeyB);
           } catch(spaceErr) {
             _quotaSkipCount++;
-            _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)');
+            _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)'); _quotaSkippedKeys[k] = 1;
             continue;
           }
         }
         try {
           _origSet(k, v);
-          _localTsMap[k] = cTs || Date.now();
+          _localTsMap[k] = cTs || 1;   /* ★ 同上 */
           totalLS++;
         } catch(qe){
           _quotaSkipCount++;
-          _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)');
+          _quotaSkipKeys.push(k + '(' + Math.round(valSize/1024) + 'KB)'); _quotaSkippedKeys[k] = 1;
         }
       }
       if (_skipCount > 0) console.log('[FirebaseSync] [' + charId + '] 跳過覆蓋', _skipCount, '筆（本地較新）');
@@ -2053,7 +2143,7 @@ async function pullFromCloud(opts){
         }
         try {
           _origSet(d.key, d.value);
-          _localTsMap[d.key] = d.ts || Date.now();
+          _localTsMap[d.key] = d.ts || 1;   /* ★ 同上 */
           totalLS++;
           _globalLsCount++;
           _globalKeysOverwritten.push(d.key);
@@ -2081,6 +2171,8 @@ async function pullFromCloud(opts){
     }
   }
 
+  // ※ 已知取捨：pull 覆蓋本機之後，下一輪 push 會判定有變更、重推一次完整快照。
+  //   想省掉這一次就得「拉完把簽名對齊」，但那會連帶遮蔽掉使用者在拉取期間做的真編輯 —— 寧可多推一次。
   // ★ LWW: 把這輪 pull 中更新過的 _localTsMap 持久化到 LS（debounce 不適用，pull 結束直接寫）
   if (_tsSaveTimer) { clearTimeout(_tsSaveTimer); _tsSaveTimer = null; }
   _saveLocalTsMap();
@@ -2103,9 +2195,14 @@ function setupRealtime(){
     ? fsDb.collection('users').doc(currentUserUid).collection('characters')
     : fsDb.collection('characters');
   baseRef.onSnapshot(async snap => {
+    // ★ 2026/09：每次 push 都會 set({updatedAt:...})，所以自己推一次就會引發自己一次 pull。
+    //   把「本機還沒送達伺服器的寫入」和「自己這個主角」濾掉，只留別人真正的更新。
+    var _meNow = (typeof getCharacterId === 'function') ? getCharacterId() : '';
     var changes = [];
     snap.docChanges().forEach(ch => {
       if (ch.type === 'removed') return;
+      try { if (ch.doc.metadata && ch.doc.metadata.hasPendingWrites) return; } catch(e){}
+      if (ch.doc.id === _meNow && _pushing) return;
       changes.push(ch.doc.id);
     });
     // 第一次（init 觸發的）的 snapshot 不算 — pullFromCloud 已經在 init 跑過了
@@ -2120,7 +2217,7 @@ function setupRealtime(){
     _pullDebounceTimer = setTimeout(async function(){
       try {
         // 避免跟 push 撞車：如果正在 push 中，等等再 pull
-        var maxWait = 10;
+        var maxWait = 120;   // ★ 原本只等 5 秒，而一次 push 動輒數十秒 → pull 幾乎都壓著 push 在跑
         while (_pushing && maxWait-- > 0){
           await new Promise(function(r){ setTimeout(r, 500); });
         }
