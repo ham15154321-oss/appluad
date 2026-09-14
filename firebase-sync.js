@@ -304,6 +304,7 @@ const LOCAL_ONLY_KEYS = [
   'castle_flip_mode',
   '_fs_lastModified',  // ★ LWW: 本地時間戳 shadow map，純本地不同步
   '_fs_pushedSig',     // ★ dirty-tracking 簽名表，純本地不同步
+  '_fn_lastgood_v1',   // ★ 漏斗逐人資料自我檢查的「上次正常值」，純本地
   // ★ 純 UI 狀態 keys — 不該同步雲端（避免每次切 tab/重整都觸發備份 banner）
   'perf_last_tab',     // 業績數據中心最後使用的 tab
   'ui_mode_v1',        // ✨ 簡約/展示模式偏好（每台裝置各自記,不同步）
@@ -524,9 +525,14 @@ function _saveLocalTsMap(){
     _origSet(_LS_TS_KEY, JSON.stringify(_localTsMap));
   } catch(e){}
 }
+// ★ 2026/09：原本用 `ready`（＝首次完整拉取跑完）來判斷「這是不是頁面初始化寫的預設值」。
+//   但首次拉取要跑 2 分半，這段時間內使用者按擴充同步、填表，全部被當成預設值記 0 →
+//   推上雲端變成 1（＝沒編輯過）→ 其他電腦永遠不收。「我明明同步了，別人看不到」就是這樣來的。
+//   頁面初始化的預設值都是載入後前幾秒同步寫的，用「載入後 4 秒內」判斷就夠，之後一律算真編輯。
+var _pageLoadAt = Date.now();
 function _recordLocalTs(k){
   if (isLocalOnlyKey(k) || k === _LS_TS_KEY) return;
-  _localTsMap[k] = ready ? Date.now() : 0;
+  _localTsMap[k] = (Date.now() - _pageLoadAt > 4000) ? Date.now() : 0;
   if (_tsSaveTimer) clearTimeout(_tsSaveTimer);
   _tsSaveTimer = setTimeout(_saveLocalTsMap, 500);
 }
@@ -704,6 +710,56 @@ function _isValidImgData(d){
   return d && typeof d === 'string' && d.indexOf('data:image/') === 0 && d.length > 500;
 }
 
+// ★ 2026/09：FunnelDB 快照備份。雲端要覆蓋本機之前，先把本機那一版存起來（每個 key 留最近 5 版）。
+//   用獨立的 FunnelBackupDB，不動 FunnelDB 本身的版本（擁有頁面是用固定版本號開的）。
+function _fnBackupOpen(){
+  return new Promise(function(res, rej){
+    try {
+      var r = indexedDB.open('FunnelBackupDB', 1);
+      r.onupgradeneeded = function(e){ var d = e.target.result; if (!d.objectStoreNames.contains('snap')) d.createObjectStore('snap', { keyPath:'id' }); };
+      r.onsuccess = function(){ res(r.result); };
+      r.onerror = function(){ rej(r.error); };
+    } catch(e){ rej(e); }
+  });
+}
+async function _fnBackupSave(key, value, why){
+  try {
+    var bdb = await _fnBackupOpen();
+    var id = key + '@' + Date.now();
+    await new Promise(function(res, rej){
+      var tx = bdb.transaction('snap', 'readwrite'), st = tx.objectStore('snap');
+      st.put({ id:id, key:key, at:Date.now(), why:why || '', size:(value||'').length, value:value });
+      tx.oncomplete = res; tx.onerror = function(){ rej(tx.error); };
+    });
+    // 只留最近 5 版
+    await new Promise(function(res){
+      var tx = bdb.transaction('snap', 'readwrite'), st = tx.objectStore('snap');
+      var all = st.getAll();
+      all.onsuccess = function(){
+        var mine = (all.result || []).filter(function(x){ return x.key === key; }).sort(function(a,b){ return b.at - a.at; });
+        for (var i = 5; i < mine.length; i++) st.delete(mine[i].id);
+        res();
+      };
+      all.onerror = res;
+    });
+    bdb.close();
+  } catch(e){ console.warn('[FirebaseSync] FunnelDB 備份失敗（不影響同步）', e && e.message); }
+}
+window.__fnBackupList = async function(){
+  var bdb = await _fnBackupOpen();
+  return new Promise(function(res){ var tx = bdb.transaction('snap','readonly'); var g = tx.objectStore('snap').getAll(); g.onsuccess = function(){ bdb.close(); res((g.result||[]).map(function(x){ return { id:x.id, key:x.key, at:new Date(x.at).toLocaleString(), size:x.size, why:x.why }; }).sort(function(a,b){ return b.id < a.id ? -1 : 1; })); }; g.onerror = function(){ bdb.close(); res([]); }; });
+};
+window.__fnBackupRestore = async function(id){
+  var bdb = await _fnBackupOpen();
+  var rec = await new Promise(function(res){ var g = bdb.transaction('snap','readonly').objectStore('snap').get(id); g.onsuccess = function(){ res(g.result); }; g.onerror = function(){ res(null); }; });
+  bdb.close();
+  if (!rec) throw new Error('找不到這一版備份');
+  var fdb = await new Promise(function(res, rej){ var r = indexedDB.open('FunnelDB'); r.onsuccess = function(){ res(r.result); }; r.onerror = function(){ rej(r.error); }; });
+  await new Promise(function(res, rej){ var tx = fdb.transaction('kv','readwrite'); tx.objectStore('kv').put(rec.value, rec.key); tx.oncomplete = res; tx.onerror = function(){ rej(tx.error); }; });
+  fdb.close();
+  return rec.key;
+};
+
 function idbPutEntries(db, storeName, entries){
   return new Promise((resolve, reject) => {
     try {
@@ -729,9 +785,18 @@ function idbPutEntries(db, storeName, entries){
         if (isNaN(t)) t = Date.parse(s.replace(/\//g, '-'));
         return isNaN(t) ? 0 : t;
       }
+      // ★ 2026/09：FunnelDB 的擁有頁面（performance-compare.html）把每一筆存成 JSON 字串，
+      //   讀回來直接 JSON.parse。這裡若把它 parse 成物件寫回去，對方 parse 到 "[object Object]" 就整包讀不到。
+      //   這種 store 一律保持字串原樣。
+      //   （AiCasedbDB 相反：擁有頁面直接存陣列、直接讀 result，所以它要 parse 回物件，不能一起列進來。）
+      const _keepString = (db && db.name === 'FunnelDB');
+      var _fnGuardQueue = [];   // FunnelDB 的寫入先排隊，等備份與守門做完再寫
       for (const [k, v] of Object.entries(entries)){
         let val = v;
-        try { const parsed = JSON.parse(v); if (typeof parsed === 'object') val = parsed; } catch(e){}
+        if (!_keepString){
+          try { const parsed = JSON.parse(v); if (typeof parsed === 'object') val = parsed; } catch(e){}
+        }
+        if (_keepString){ _fnGuardQueue.push([k, String(v == null ? '' : v)]); continue; }
         // ★ MotivArchiveDB.archive（每月績效存檔：學院/業務/組別排名）：依 archivedAt 做 LWW。
         //   Bug：拉取會輪詢每個角色的雲端存檔「直接覆蓋」本機，且不比時間 →
         //        只要某角色雲端存的是舊快照且排在後面寫入，就把最新排名蓋回舊的（每天打開又變舊）。
@@ -883,12 +948,39 @@ function idbPutEntries(db, storeName, entries){
           store.put(val, k);
         }
       }
+      if (_fnGuardQueue.length){
+        // ★ FunnelDB：逐 key 讀本機舊值 → 備份 → 縮水守門 → 才寫
+        pendingChecks++;
+        (async function(){
+          try {
+            for (var gi = 0; gi < _fnGuardQueue.length; gi++){
+              var gk = _fnGuardQueue[gi][0], gv = _fnGuardQueue[gi][1];
+              var old = await new Promise(function(res){ try { var g = db.transaction(storeName,'readonly').objectStore(storeName).get(gk); g.onsuccess = function(){ res(g.result); }; g.onerror = function(){ res(undefined); }; } catch(e){ res(undefined); } });
+              var oldStr = (old == null) ? '' : (typeof old === 'string' ? old : (function(){ try { return JSON.stringify(old); } catch(e){ return ''; } })());
+              if (oldStr && oldStr !== gv){
+                await _fnBackupSave(gk, oldStr, '雲端覆蓋前');
+                // 縮水守門：雲端那份比本機小一半以上 → 極可能是別台的空殼／殘缺版，不收
+                if (oldStr.length > 10000 && gv.length < oldStr.length * 0.5){
+                  console.warn('[FirebaseSync] ⛔ FunnelDB ' + gk + '：雲端 ' + Math.round(gv.length/1024) + 'KB 比本機 ' + Math.round(oldStr.length/1024) + 'KB 小太多，不覆蓋（本機版已備份）');
+                  try { window.__fnGuardBlocked = (window.__fnGuardBlocked || 0) + 1; } catch(e){}
+                  continue;
+                }
+              }
+              await new Promise(function(res, rej){ try { var t2 = db.transaction(storeName,'readwrite'); t2.objectStore(storeName).put(gv, gk); t2.oncomplete = res; t2.onerror = function(){ rej(t2.error); }; } catch(e){ rej(e); } });
+            }
+          } catch(e){ console.warn('[FirebaseSync] FunnelDB 守門寫入失敗', e && e.message); }
+          pendingChecks--;
+          if (allDone && pendingChecks === 0) resolve();
+        })();
+      }
       tx.oncomplete = () => {
         if (_imgWriteCount > 0) console.log('[FirebaseSync] 從雲端補入圖片:', _imgWriteCount, '筆');
         if (_mpProtectCount > 0) console.log('[FirebaseSync] 保護 mp_data_v1（本地較新），跳過雲端覆蓋');
         if (_mpWriteCount > 0) console.log('[FirebaseSync] mp_data_v1 本地空，從雲端補入');
         if (_archWriteCount > 0 || _archSkipCount > 0) console.log('[FirebaseSync] MotivArchiveDB.archive LWW：採用雲端 ' + _archWriteCount + ' 筆，保留本地(雲端較舊) ' + _archSkipCount + ' 筆');
-        resolve();
+        allDone = true;
+        if (pendingChecks === 0) resolve();   // ★ FunnelDB 守門是另開 transaction 的非同步流程，還在跑就等它
+        else setTimeout(function(){ resolve(); }, 8000);   // 保險：最多等 8 秒，不讓 pull 卡死
       };
       tx.onerror = () => { resolve(); };
     } catch(e){ resolve(); }

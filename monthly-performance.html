@@ -574,7 +574,7 @@
         }
     </style>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=safe4"></script>
+<script defer src="./firebase-sync.js?v=safe7"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple5">
 </head>
 <body>
@@ -2777,10 +2777,6 @@
                 summary = summary.concat(_rest);
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
-                if(!silent && !confirm('☁️ 把所有公司資料推送到雲端?\n\n'+summary.join('\n')+'\n\n注意:會覆蓋雲端版本。其他電腦下次按「強制拉取」就能拿到最新版。')){
-                    return;
-                }
-
                 // ★ 用 parent helper(避免 iframe cross-realm bug)
                 //   payload 在 iframe 組成 JSON string,傳給 parent 由 parent realm 重建物件
                 var fsync = _getParentFirebaseSync();
@@ -2791,11 +2787,56 @@
                 Object.keys(lsBundle).forEach(function(k){ items['ls:' + k] = lsBundle[k]; });
                 if (kb) items['kb'] = JSON.stringify(kb);
 
+                // ★ 2026/09：先跟雲端比對，再問使用者。
+                //   以前是「問完才比對」，所以視窗列的是「這包裡有什麼」（23 份文件、8 筆核對…），
+                //   看起來像每次都重傳一次；實際上 v3 早就是逐項比簽章，沒變的一個位元組都不傳。
+                //   訊息也還停在 v1 的「會覆蓋雲端版本」。兩個都改掉。
+                if (!silent) showStatus('☁️ 正在跟雲端比對…', 'info');
                 var cloudMan = null;
                 try {
                     var cm = await fsync.readGlobalDoc('_global_perf_data', 'bundle');
                     if (cm && cm.data){ var pj = JSON.parse(cm.data); if (pj && pj.schema === 'company-bundle-v3') cloudMan = pj; }
                 } catch(eMan){ console.warn('[cloud-sync] 讀雲端 manifest 失敗，改為全量推送', eMan); }
+
+                var _preSig = {}, _preUp = [], _preSame = 0, _preUpChars = 0;
+                Object.keys(items).forEach(function(nm){
+                    var val = items[nm] || '';
+                    var sg = _sigOf(val);
+                    _preSig[nm] = sg;
+                    var oldI = cloudMan && cloudMan.items ? cloudMan.items[nm] : null;
+                    if (oldI && oldI.sig === sg){ _preSame++; return; }
+                    _preUp.push(nm); _preUpChars += val.length;
+                });
+
+                if (!silent){
+                    var _lbl = function(nm){
+                        if (nm === 'mpData') return '📅 每月績效';
+                        if (nm === 'kb') return '📚 AI 顧問知識庫';
+                        var raw = nm.replace(/^ls:/, '');
+                        if (/_ck_archive_v1$/.test(raw)) return '🗃 逐人資料封存（' + raw.replace(/^char_/,'').replace(/_ck_archive_v1$/,'') + '）';
+                        if (/_motiv_/.test(raw)) return '📊 ' + raw.replace(/^char_/,'');
+                        var k2 = raw.replace('perf_compare_v1','').replace(/^_/,'') || '比較';
+                        var g2 = _grpLabel(k2);
+                        if (g2) return g2;
+                        var L = {'channel_v1':'📋 各通路績效','lec_v1':'📊 每月講座','archives':'🗃 月季比較歷史','channel_v1_archives':'🗃 通路歷史','lec_v1_archives':'🗃 講座歷史','funnel_v1':'📌 漏斗手填/報備'};
+                        return L[k2] || k2;
+                    };
+                    var _upGrp = {};
+                    _preUp.forEach(function(nm){ var g = _lbl(nm); _upGrp[g] = (_upGrp[g]||0)+1; });
+                    var _upLines = Object.keys(_upGrp).map(function(g){ return '　• ' + g + (_upGrp[g] > 1 ? '（' + _upGrp[g] + ' 筆）' : ''); });
+                    var _msg;
+                    if (!_preUp.length){
+                        _msg = '☁️ 雲端已經是最新的，沒有東西需要上傳。\n\n'
+                             + '本機這包目前有：\n' + summary.join('\n')
+                             + '\n\n（' + _preSame + ' 項全部跟雲端一致）\n\n還是要按確定跑一次嗎？';
+                    } else {
+                        _msg = '☁️ 這次會上傳 ' + _preUp.length + ' 項（約 ' + Math.round(_preUpChars/1024) + ' KB）：\n'
+                             + _upLines.join('\n')
+                             + '\n\n其餘 ' + _preSame + ' 項跟雲端一模一樣，會直接跳過，不會重傳。\n'
+                             + '沒變的東西不會被動到，其他電腦按「強制拉取」就能拿到最新版。';
+                    }
+                    if (!confirm(_msg)) return;
+                }
 
                 var CHUNK = 200000;
                 var manifest = { schema: 'company-bundle-v3', items: {}, updatedAt: Date.now() };
@@ -2803,7 +2844,7 @@
                 var names = Object.keys(items);
                 for (var ii = 0; ii < names.length; ii++){
                     var nm = names[ii], val = items[nm] || '';
-                    var sig = _sigOf(val);
+                    var sig = _preSig[nm] || _sigOf(val);   // ★ 比對階段已經算過了，不重算
                     totalChars += val.length;
                     var old = cloudMan && cloudMan.items ? cloudMan.items[nm] : null;
                     if (old && old.sig === sig){                       // 沒變 → 沿用雲端既有分片，一個位元組都不上傳

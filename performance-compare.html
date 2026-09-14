@@ -1439,6 +1439,7 @@
     .fn-chip i { font-style:normal; font-size:.68rem; color:var(--fnAcc); font-weight:800; }
     /* 卡片格 */
     .fn-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(540px,1fr)); gap:16px; }
+    .fn-grid.fn-grid-solo > .fn-tile { grid-column:1 / -1; }   /* 只有一家學院：兩張卡都整排，不留空白半邊 */
     @media (max-width:640px){ .fn-grid { grid-template-columns:1fr; } }
     .fn-tile.total { grid-column:1 / -1; border-color:var(--fnGold) !important; }
     .fn-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px 12px; flex-wrap:wrap; margin-bottom:14px; }
@@ -2300,7 +2301,7 @@
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=safe4"></script>
+<script defer src="./firebase-sync.js?v=safe7"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple5">
 </head>
 <body>
@@ -3846,7 +3847,7 @@
 
     // Switch tabs
     // ★ 載入「每月績效」iframe（懶載入；表頭 ☁️↑ 推送鈕也會用到）
-    var MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle13';
+    var MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle15';
     function _pcEnsureMpLoaded(){
       var f = document.getElementById('mp-iframe');
       if (f && (!f.src || f.src.indexOf(MP_TARGET_SRC) < 0)) f.src = MP_TARGET_SRC;
@@ -6130,6 +6131,20 @@
             if (typeof motivRenderAll === 'function') motivRenderAll();
             if (typeof motivRenderArchiveChips === 'function') motivRenderArchiveChips();
           }catch(e){}
+          // ★ 2026/09：以前拉完只重畫「激勵」那一頁。報到排名／當月績效／月度漏斗總結、
+          //   還有上面四顆同步鈕的日期，全部停在開頁那一刻的舊資料 —— 雲端明明已經是 9/14 的，
+          //   畫面還是 9/11、預設月份還停在 8 月，看起來就像資料「不一樣了」，其實只是沒重畫。
+          //   改成：拉完把同步鈕日期刷新，正在看的那一頁重畫（使用者手正在打字時不動，避免焦點被打斷）。
+          try { if (typeof refreshSyncBtnLabels === 'function') refreshSyncBtnLabels(); } catch(e){}
+          try {
+            var _ae = document.activeElement;
+            var typing = _ae && /^(INPUT|TEXTAREA|SELECT)$/.test(_ae.tagName || '');
+            if (typing) return;
+            var on = function(id){ var t = document.getElementById(id); return !!(t && t.classList.contains('active')); };
+            if (on('tab-6') && typeof ckRenderAll === 'function') ckRenderAll();
+            if (on('tab-7') && typeof ppRenderAll === 'function') ppRenderAll();
+            if (on('tab-9') && typeof fnRenderAll === 'function' && !document.getElementById('tvBg')) fnRenderAll();
+          } catch(e){}
         };
         p.addEventListener('firebase-sync-ready', refresh);
         p.addEventListener('firebase-sync-updated', refresh);
@@ -9048,13 +9063,81 @@
         } catch(e){ rej(e); }
       });
     }
+    // ═══ 漏斗資料自我檢查（2026/09，因為同步層把它寫壞過一次）═══
+    //   載入後立刻檢查：本月逐人 raw 讀不讀得到？面談人數有沒有比上次暴跌？
+    //   有問題 → 畫面頂端一條紅色橫幅，一鍵還原上一版（備份由 firebase-sync 在雲端覆蓋前自動存）。
+    var FN_LKG = '_fn_lastgood_v1';   // 本機專屬，不同步
+    function _fnHealthCheck(){
+      var cid = _ckCid(), key = cid + 'motiv_funnel_v1';
+      var hasCache = !!(window._fnIdbCache || {})[key];
+      var raw = hasCache ? _fnIdbGet(key) : null;
+      var itv = 0; try { Object.keys((raw && raw.orgs) || {}).forEach(function(o){ itv += ((raw.orgs[o].itv) || []).length; }); } catch(e){}
+      var lkg = null; try { lkg = JSON.parse(localStorage.getItem(FN_LKG) || 'null'); } catch(e){}
+      var problem = '';
+      if (hasCache && !raw) problem = '漏斗逐人資料在本機，但讀不出來（格式壞掉）';
+      else if (lkg && lkg.itv >= 20 && itv < lkg.itv * 0.5) problem = '本月面談逐人資料從 ' + lkg.itv + ' 位掉到 ' + itv + ' 位';
+      else if (lkg && lkg.itv >= 20 && !raw) problem = '漏斗逐人資料不見了（上次有 ' + lkg.itv + ' 位）';
+      if (!problem){
+        if (raw && itv > 0){ try { localStorage.setItem(FN_LKG, JSON.stringify({ itv:itv, at:Date.now(), ym:(raw.meta && raw.meta.year + '-' + _ckPad2(parseInt(raw.meta.month,10))) })); } catch(e){} }
+        return;
+      }
+      console.error('[fn] ⛔ 自我檢查：' + problem);
+      _fnShowGuardBar(problem, key);
+    }
+    function _fnShowGuardBar(problem, key){
+      var old = document.getElementById('fnGuardBar'); if (old) old.remove();
+      var bar = document.createElement('div');
+      bar.id = 'fnGuardBar';
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#b3261e;color:#fff;font:600 13px/1.5 -apple-system,"PingFang TC",sans-serif;padding:10px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 12px rgba(0,0,0,.3);';
+      bar.innerHTML = '<span style="flex:1;">⛔ ' + _fnEsc(problem) + '。資料沒有丟，備份還在。</span>';
+      var b1 = document.createElement('button');
+      b1.textContent = '↩ 還原上一版';
+      b1.style.cssText = 'border:1px solid #fff;background:transparent;color:#fff;border-radius:8px;padding:5px 14px;font-weight:800;cursor:pointer;font-family:inherit;';
+      b1.onclick = async function(){
+        try {
+          var list = await (window.__fnBackupList || (window.parent && window.parent.__fnBackupList))();
+          var mine = list.filter(function(x){ return x.key === key; });
+          if (!mine.length){ alert('沒有這個 key 的備份（備份是從 2026/09 這版之後才開始存的）'); return; }
+          var pick = mine[0];
+          if (!confirm('還原到 ' + pick.at + ' 那一版（' + Math.round(pick.size/1024) + ' KB）？\n\n還原後頁面會重新整理。')) return;
+          await (window.__fnBackupRestore || window.parent.__fnBackupRestore)(pick.id);
+          location.reload();
+        } catch(e){ alert('還原失敗：' + (e && e.message || e)); }
+      };
+      var b2 = document.createElement('button');
+      b2.textContent = '✕';
+      b2.style.cssText = 'border:none;background:transparent;color:#fff;font-size:16px;cursor:pointer;';
+      b2.onclick = function(){ bar.remove(); };
+      bar.appendChild(b1); bar.appendChild(b2);
+      document.body.appendChild(bar);
+    }
+    // 給人手動查：在 console 打 __fnSelfTest()
+    window.__fnSelfTest = function(){
+      var cid = _ckCid(), raw = _fnIdbGet(cid + 'motiv_funnel_v1');
+      var out = { ok: !!raw, meta: raw && raw.meta, orgs: {} };
+      Object.keys((raw && raw.orgs) || {}).forEach(function(o){ out.orgs[o] = { itv:(raw.orgs[o].itv||[]).length, pay:(raw.orgs[o].pay||[]).length }; });
+      try { out.lastGood = JSON.parse(localStorage.getItem(FN_LKG) || 'null'); } catch(e){}
+      console.table(out.orgs); return out;
+    };
     function _fnIdbLoadAll(){
       return _fnIdbOpen().then(function(db){
         return new Promise(function(res){
           var out = {};
           try {
             var c = db.transaction(FN_IDB.store, 'readonly').objectStore(FN_IDB.store).openCursor();
-            c.onsuccess = function(){ var cur = c.result; if (cur){ out[String(cur.key)] = cur.value; cur.continue(); } else { db.close(); res(out); } };
+            // ★ 2026/09：cache 一律存 JSON 字串（_fnIdbGet 會 JSON.parse）。
+            //   雲端同步把 FunnelDB 拉回來時會寫成「物件」，直接塞進 cache 會讓 JSON.parse 吃到 "[object Object]"
+            //   → 整個漏斗逐人資料讀成 null → 卡片沒有名單、沒有 👤、教學視窗說「還沒同步逐人資料」。
+            //   載入時正規化，不管 IDB 裡是哪一種都能用。
+            c.onsuccess = function(){
+              var cur = c.result;
+              if (cur){
+                var v = cur.value;
+                if (v !== null && typeof v === 'object'){ try { v = JSON.stringify(v); } catch(e){ v = null; } }
+                if (v != null) out[String(cur.key)] = v;
+                cur.continue();
+              } else { db.close(); res(out); }
+            };
             c.onerror = function(){ db.close(); res(out); };
           } catch(e){ try { db.close(); } catch(_){} res(out); }
         });
@@ -9486,6 +9569,7 @@
         Object.keys(all).forEach(function(k){ window._fnIdbCache[k] = all[k]; });
       }).catch(function(e){ console.warn('[fn-idb] 開啟失敗（改用 localStorage 相容模式）', e); }).then(function(){
         window._fnIdbReady = true;
+        try { _fnHealthCheck(); } catch(e){ console.warn('[fn] 自我檢查失敗', e); }
         try { _fnMigrateLs(); } catch(e){}
         try { _fnCompactArchives(); } catch(e){}
         try {
@@ -11244,10 +11328,12 @@
       //   兩張卡共用同一個 _fnWho[學院]，點哪一張都會一起動。
       // 個人漏斗已經搬進「📖 這張卡怎麼看」全螢幕視窗 → 卡片永遠是全院，保持乾淨。
       var V = null;
+      // 合計卡底下只有一家學院有逐人資料（南區）→ 它的 📖 視窗已經有選擇器，卡片上也給一顆 👤，別讓人找不到
+      var _hasWho = isTotal ? ((all || []).filter(function(x){ return x.auto; }).length === 1) : !!s.auto;
       var html = '<div class="fn-tile' + (isTotal ? ' total' : '') + '" data-org="' + _fnEsc(s.org) + '">'
         + '<div class="fn-head"><div class="fn-title">' + (isTotal ? '👑 ' : '<span class="dot" style="background:' + (CK_COLOR[s.org] || '#999') + '"></span>') + _fnEsc(s.org)
         + '<button class="fn-teach" onclick="fnTeach(\'' + ym + '\',\'' + (isTotal ? '__TOTAL__' : _fnEsc(s.org)) + '\')" title="用這張卡當下的真實數字，逐項解釋每個數字怎麼來的">📖 這張卡怎麼看</button>'
-        + (s.auto ? '<button class="fn-teach fn-who1" onclick="fnTeach(\'' + ym + '\',\'' + (isTotal ? '__TOTAL__' : _fnEsc(s.org)) + '\')" title="開全螢幕視窗，在裡面選組、選業務，看他一個人的漏斗與名單">👤 看業務個人</button>' : '') + '</div>'
+        + (_hasWho ? '<button class="fn-teach fn-who1" onclick="fnTeach(\'' + ym + '\',\'' + (isTotal ? '__TOTAL__' : _fnEsc(s.org)) + '\')" title="開全螢幕視窗，在裡面選組、選業務，看他一個人的漏斗與名單">👤 看業務個人</button>' : '') + '</div>'
         + '<div class="fn-sub"><span>註冊Ⓐ<b>' + s.regA + '</b></span><span>當下<b>' + s.onsite + '</b></span><span>註冊Ⓑ<b>' + s.regB + '</b></span>' + (s.harvest != null ? '<span title="本月註冊、面談在前 1～3 個月（含舊名單）">追回<b>' + s.harvest + '</b></span>' : '') + (s.courses != null ? '<span title="新生科數：本月每筆註冊業績合計 ≥ 2 萬算 1 科，排除「學員加購」（括號＝含舊生加購）">科數<b>' + s.coursesNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.courses + ')</small></span><span title="新生人頭：同一新生本月註冊加總 ≥ 2 萬算 1 人頭，排除「學員加購」（括號＝含舊生加購）">人頭<b>' + s.headsNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.heads + ')</small></span>' : '') + (s.newPerf ? '<span class="lead">新業績<b>' + _fnWan(s.newPerf) + '</b></span>' : '') + subWarn + '</div>'
         + '</div>'
         + '<div class="fn-flow">'
@@ -11808,7 +11894,8 @@
       // 這個分區只有一家學院（南區）→ 合計卡等於學院卡，把天天在用的學院卡放前面，避免點錯
       var _totHtml = _fnCardHtml(total, all, selYm, true, prev);
       var _orgHtml = all.map(function(s){ return _fnCardHtml(s, all, selYm, false, prev); }).join('');
-      html += '<div class="fn-grid">' + (all.length === 1 ? _orgHtml + _totHtml : _totHtml + _orgHtml) + '</div>';
+      // 只有一家時，學院卡排前面（上週六改的）；但它會佔半寬、右邊留一大塊空白 → 加 class 讓它跟合計卡一樣整排通吃
+      html += '<div class="fn-grid' + (all.length === 1 ? ' fn-grid-solo' : '') + '">' + (all.length === 1 ? _orgHtml + _totHtml : _totHtml + _orgHtml) + '</div>';
       body.innerHTML = html;
       fnChkCountAll();
     }
