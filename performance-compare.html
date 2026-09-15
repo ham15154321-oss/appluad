@@ -1413,6 +1413,7 @@
     .pp-bonus-none { font-size:.82rem; opacity:.6; padding:6px 0 4px; }
     .pp-bonus-t { width:100%; border-collapse:collapse; font-size:.86rem; }
     .pp-bonus-t th { text-align:left; font-size:.72rem; font-weight:800; opacity:.6; padding:4px 8px; }
+    .pp-bonus-t th small { font-weight:600; opacity:.8; }
     .pp-bonus-t td { padding:7px 8px; border-top:1px solid rgba(128,128,128,.18); vertical-align:top; }
     .pp-bonus-t td.nm { font-weight:800; white-space:nowrap; }
     .pp-bonus-t td.amt { font-weight:900; font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -8140,17 +8141,27 @@
         });
         students.push({ n:n, courses:courses, amt:amt, owners:ol, skip:st.skip });
       });
-      // 門檻：當月績效的合計業績
-      var bizOf = {};
-      (ppRows || []).forEach(function(r){ var nm = String(r.employee_name || '').trim(); if (nm) bizOf[nm] = (bizOf[nm] || 0) + _ckNum(r.business); });
+      // ★ 門檻業績（2026/09/15 與柏翰確認）：新名單Ⓐ ＋ 追回 ＋ 報未註追回來的，全部算；只有「學員加購」不算。
+      //   所以直接用收支明細：本月每一筆「註冊」、副類別不是學員加購的，按承辦人加總。
+      //   （合作案在 EIP 本來就拆成各自那一列，各自加各自的，不用再分。）
+      //   當月績效表的「合計業績」含加購，只拿來對照顯示。
+      var bizOf = {}, bizAllOf = {};
+      (o.pay || []).forEach(function(r){
+        var d = _fnParseD(r.d); if (!d || d < mStart || d > mEnd) return;
+        if (r.st !== '註冊') return;
+        var ow = String(r.o || '').trim(); if (!ow) return;
+        var v = +r.v || 0;
+        if (r.sub !== '學員加購') bizOf[ow] = (bizOf[ow] || 0) + v;
+      });
+      (ppRows || []).forEach(function(r){ var nm = String(r.employee_name || '').trim(); if (nm) bizAllOf[nm] = (bizAllOf[nm] || 0) + _ckNum(r.business); });
       var list = Object.keys(byOwner).map(function(ow){
         var b = byOwner[ow], biz = bizOf[ow] || 0;
-        b.biz = biz; b.eligible = biz >= BONUS_MIN_BIZ; b.gap = Math.max(0, BONUS_MIN_BIZ - biz);
+        b.biz = biz; b.bizAll = bizAllOf[ow] || 0; b.eligible = biz >= BONUS_MIN_BIZ; b.gap = Math.max(0, BONUS_MIN_BIZ - biz);
         b.payable = b.eligible ? b.amt : 0;
         return b;
       });
       // 有業績但一毛獎金都沒有的人也列出來（讓組長看到「差多少」）
-      Object.keys(bizOf).forEach(function(nm){ if (byOwner[nm]) return; var biz = bizOf[nm]; if (biz <= 0) return; list.push({ owner:nm, amt:0, items:[], biz:biz, eligible: biz >= BONUS_MIN_BIZ, gap: Math.max(0, BONUS_MIN_BIZ - biz), payable:0 }); });
+      Object.keys(bizAllOf).forEach(function(nm){ if (byOwner[nm]) return; var biz = bizOf[nm] || 0; if (biz <= 0 && bizAllOf[nm] <= 0) return; list.push({ owner:nm, amt:0, items:[], biz:biz, bizAll:bizAllOf[nm] || 0, eligible: biz >= BONUS_MIN_BIZ, gap: Math.max(0, BONUS_MIN_BIZ - biz), payable:0 }); });
       list.sort(function(a,b){ return (b.payable - a.payable) || (b.amt - a.amt) || (b.biz - a.biz); });
       var tot = { amt:0, payable:0, students:students.filter(function(x){ return x.amt > 0; }).length, eligibleN:list.filter(function(x){ return x.eligible; }).length };
       list.forEach(function(b){ tot.amt += b.amt; tot.payable += b.payable; });
@@ -8163,7 +8174,7 @@
       var fm = function(n){ return (Math.round(n) || 0).toLocaleString(); };
       var html = '<div class="pp-bonus">'
         + '<div class="pp-bonus-h"><h3>🎁 ' + y + ' 年 ' + mo + ' 月　業務加碼獎勵</h3>'
-        + '<p>1 科 500・2 科 2,000・3 科以上 3,000。單筆註冊 ≥ 2 萬算 1 科；學員加購、乙級／戰鬥營不算。合作案平分。<b>個人合計業績 ≥ 15 萬才可領</b>；未達的顯示差多少。移帳／補繳／繳款異動這裡看不出來，發放前請人工再對一次。</p></div>';
+        + '<p>1 科 500・2 科 2,000・3 科以上 3,000。單筆註冊 ≥ 2 萬算 1 科；學員加購、乙級／戰鬥營不算。合作案平分。<b>門檻業績 ≥ 15 萬才可領</b> —— 門檻業績＝本月所有註冊（新名單＋追回＋報未註追回來的），<b>不含學員加購</b>；未達的顯示差多少。移帳／補繳／繳款異動這裡看不出來，發放前請人工再對一次。</p></div>';
       var grand = { amt:0, payable:0 };
       // 依區域分組（桃／中／南）
       var regionOf = {}; Object.keys(CK_REGIONS).forEach(function(rk){ if (rk === 'all') return; CK_REGIONS[rk].orgs.forEach(function(og){ regionOf[og] = CK_REGIONS[rk].label; }); });
@@ -8182,14 +8193,14 @@
           html += '<div class="pp-bonus-org"><div class="pp-bonus-org-h"><span class="dot" style="background:' + (CK_COLOR[r.org] || '#999') + '"></span>' + _fnEsc(r.org)
             + '<span>可領 <b>' + fm(r.tot.payable) + '</b> 元・' + r.tot.students + ' 位學生・' + r.tot.eligibleN + ' 人達門檻</span></div>';
           if (!r.list.length){ html += '<div class="pp-bonus-none">本月沒有符合的註冊</div></div>'; return; }
-          html += '<table class="pp-bonus-t"><thead><tr><th>業務</th><th>獎勵</th><th>合計業績</th><th>門檻 15 萬</th><th>明細</th></tr></thead><tbody>';
+          html += '<table class="pp-bonus-t"><thead><tr><th>業務</th><th>獎勵</th><th>門檻業績<small>（不含加購）</small></th><th>門檻 15 萬</th><th>明細</th></tr></thead><tbody>';
           r.list.forEach(function(b){
             var st = b.eligible ? '<span class="ok">✅ 可領</span>' : '<span class="no">差 ' + fm(b.gap) + '</span>';
             var det = b.items.map(function(it){
               return '<div class="pp-bonus-it"><b>' + _fnEsc(it.n) + '</b> ' + it.courses + ' 科 → ' + fm(it.amt) + (it.split > 1 ? '（' + it.split + ' 人合作，各 ' + fm(it.share) + '）' : '') + '<em>' + _fnEsc(it.courseNames.join('、')) + '</em>'
                 + (it.skip.length ? '<span class="skip">不算：' + it.skip.map(function(x){ return _fnEsc(x.k) + '（' + x.why + '）'; }).join('、') + '</span>' : '') + '</div>';
             }).join('');
-            html += '<tr class="' + (b.eligible ? 'ok' : 'no') + '"><td class="nm">' + _fnEsc(b.owner) + '</td><td class="amt">' + (b.amt ? fm(b.amt) : '—') + (b.amt && !b.eligible ? '<small>暫不發放</small>' : '') + '</td><td>' + fm(b.biz) + '</td><td>' + st + '</td><td>' + (det ? '<details><summary>' + b.items.length + ' 位學生</summary>' + det + '</details>' : '<span class="dim">—</span>') + '</td></tr>';
+            html += '<tr class="' + (b.eligible ? 'ok' : 'no') + '"><td class="nm">' + _fnEsc(b.owner) + '</td><td class="amt">' + (b.amt ? fm(b.amt) : '—') + (b.amt && !b.eligible ? '<small>暫不發放</small>' : '') + '</td><td>' + fm(b.biz) + (b.bizAll && Math.round(b.bizAll) !== Math.round(b.biz) ? '<small class="dim" style="display:block;">合計 ' + fm(b.bizAll) + '（含加購）</small>' : '') + '</td><td>' + st + '</td><td>' + (det ? '<details><summary>' + b.items.length + ' 位學生</summary>' + det + '</details>' : '<span class="dim">—</span>') + '</td></tr>';
           });
           html += '</tbody></table></div>';
         });
