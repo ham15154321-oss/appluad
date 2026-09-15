@@ -1394,6 +1394,39 @@
     .hdr-save-btn:hover { filter: brightness(1.12); }
 
     .ck-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    /* 🎁 加碼獎勵 */
+    .pp-bonus { margin-top:22px; padding:18px 20px; border:1px solid rgba(255,214,10,.35); border-radius:16px; background:rgba(255,214,10,.05); }
+    body.day-mode .pp-bonus { border-color:rgba(184,134,11,.35); background:rgba(184,134,11,.05); }
+    .pp-bonus-h h3 { margin:0; font-size:1.1rem; font-weight:900; }
+    .pp-bonus-h p { margin:6px 0 0; font-size:.8rem; opacity:.75; line-height:1.55; }
+    .pp-bonus-reg { margin-top:16px; }
+    .pp-bonus-reg-h { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; font-size:1rem; padding-bottom:6px; border-bottom:2px solid rgba(255,214,10,.5); }
+    body.day-mode .pp-bonus-reg-h { border-bottom-color:rgba(184,134,11,.5); }
+    .pp-bonus-reg-h b { font-size:1.15rem; font-weight:900; }
+    .pp-bonus-reg-h em { font-style:normal; font-weight:900; font-size:1.2rem; color:#ffd60a; }
+    body.day-mode .pp-bonus-reg-h em { color:#b8860b; }
+    .pp-bonus .dim { opacity:.6; font-size:.82rem; }
+    .pp-bonus-org { margin-top:12px; }
+    .pp-bonus-org-h { display:flex; align-items:center; gap:8px; font-weight:800; font-size:.95rem; margin-bottom:6px; }
+    .pp-bonus-org-h .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+    .pp-bonus-org-h span:last-child { margin-left:auto; font-weight:600; font-size:.85rem; opacity:.85; }
+    .pp-bonus-none { font-size:.82rem; opacity:.6; padding:6px 0 4px; }
+    .pp-bonus-t { width:100%; border-collapse:collapse; font-size:.86rem; }
+    .pp-bonus-t th { text-align:left; font-size:.72rem; font-weight:800; opacity:.6; padding:4px 8px; }
+    .pp-bonus-t td { padding:7px 8px; border-top:1px solid rgba(128,128,128,.18); vertical-align:top; }
+    .pp-bonus-t td.nm { font-weight:800; white-space:nowrap; }
+    .pp-bonus-t td.amt { font-weight:900; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .pp-bonus-t td.amt small { display:block; font-weight:600; font-size:.68rem; opacity:.6; }
+    .pp-bonus-t tr.ok td.amt { color:#30d158; } body.day-mode .pp-bonus-t tr.ok td.amt { color:#1b8a4b; }
+    .pp-bonus-t .ok { color:#30d158; font-weight:800; } body.day-mode .pp-bonus-t .ok { color:#1b8a4b; }
+    .pp-bonus-t .no { color:#ff9f0a; font-weight:800; } body.day-mode .pp-bonus-t .no { color:#b0590a; }
+    .pp-bonus-t details summary { cursor:pointer; font-weight:700; opacity:.85; }
+    .pp-bonus-it { font-size:.8rem; padding:5px 0 0 4px; line-height:1.5; }
+    .pp-bonus-it em { display:block; font-style:normal; opacity:.65; font-size:.74rem; }
+    .pp-bonus-it .skip { display:block; font-size:.72rem; opacity:.6; }
+    .pp-bonus-tot { margin-top:16px; padding-top:12px; border-top:2px solid rgba(255,214,10,.5); font-size:1.05rem; font-weight:800; }
+    .pp-bonus-tot b { font-size:1.4rem; font-weight:900; color:#ffd60a; } body.day-mode .pp-bonus-tot b { color:#b8860b; }
+    body.day-mode .pp-bonus-tot { border-top-color:rgba(184,134,11,.5); }
 
     /* ===== 📌 月度漏斗總結（tab-9）— Apple 風：一個強調色、大數字、細線、留白；夜間/日間兩套變數 ===== */
     /* ★ 2026/09 對比度校正：--fnMute 原本 #6b6b70 在 #111114 上只有 3.6:1（AA 要 4.5），
@@ -4349,9 +4382,10 @@
       try {
         var cid = '';
         try { var aid = localStorage.getItem('activeCharacterId'); if (aid) cid = 'char_' + aid + '_'; } catch(e){}
-        var s = localStorage.getItem(cid + 'motiv_channel_v1');
-        if (!s) return false;
-        var data = JSON.parse(s);
+        // ★ 2026/09/15：誰同步的最新就用誰的（同事自己那份可能比柏翰的舊）
+        var data = null;
+        try { data = _ckNewest('_motiv_channel_v1', '_motiv_synced_channel', function(d){ return !d || !d.channels; }); } catch(e0){}
+        if (!data){ var s = localStorage.getItem(cid + 'motiv_channel_v1'); if (!s) return false; data = JSON.parse(s); }
         if (!data || !data.meta || !data.channels) return false;
         var m = parseInt(data.meta.month, 10);
         if (!m || m < 1 || m > 12) return false;
@@ -7335,6 +7369,35 @@
     // ★ 2026/07 跨角色 fallback：報到是全公司資料，但同步時各角色各存一份 —
     //   自己名下沒有時，自動借用「其他角色最新的那一份」（例：王志軒沒同步過，但楊雅晴今天同步了 7 月 → 王志軒也看得到）
     //   規則：自己有 → 用自己的（不變）；自己沒有 → 掃所有 char_*_<key>，取 meta 年月最新者
+    // ★ 2026/09/15：「誰同步的最新就用誰的」。
+    //   報到／當月績效每個角色各存一份（char_<誰>_motiv_checkin_v1）。以前的規則是「自己有就用自己的」，
+    //   所以同事只要自己按過一次同步，之後不管柏翰同步幾次、雲端拉了幾次，他看到的永遠是自己那份舊的。
+    //   改成：全部角色的那一份都拿出來，用「同步時間」（char_<誰>_motiv_synced_checkin）挑最新的；
+    //   同步時間解析不到就退回比年月。
+    function _ckSyncTsOf(charKey, syncedSuffix, suffix){
+      try {
+        var s = localStorage.getItem(charKey.slice(0, -suffix.length) + syncedSuffix) || '';
+        var m = s.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/);
+        return m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]).getTime() : 0;
+      } catch(e){ return 0; }
+    }
+    function _ckNewest(suffix, syncedSuffix, isEmpty){
+      try {
+        var best = null, bestYm = '', bestTs = -1;
+        for (var i = 0; i < localStorage.length; i++){
+          var k = localStorage.key(i);
+          if (!k || k.indexOf('char_') !== 0 || k.slice(-suffix.length) !== suffix) continue;
+          try {
+            var d = JSON.parse(localStorage.getItem(k) || 'null');
+            if (!d || (isEmpty && isEmpty(d))) continue;          // 空殼不參賽
+            var ym = (d.meta && d.meta.year) ? (d.meta.year + '-' + String(d.meta.month||0).padStart(2,'0')) : '0000-00';
+            var ts = _ckSyncTsOf(k, syncedSuffix, suffix);
+            if (ym > bestYm || (ym === bestYm && ts > bestTs)){ best = d; bestYm = ym; bestTs = ts; }
+          } catch(e2){}
+        }
+        return best;
+      } catch(e){ return null; }
+    }
     function _ckBorrowLatest(suffix){
       try {
         var best = null, bestYm = '';
@@ -7381,16 +7444,16 @@
     }
     function ckGetCheckin(){
       try {
-        var s = localStorage.getItem(_ckCid() + 'motiv_checkin_v1');
-        var d = s ? JSON.parse(s) : _ckBorrowLatest('_motiv_checkin_v1');   // 自己沒有 → 借其他角色最新的
+        var d = _ckNewest('_motiv_checkin_v1', '_motiv_synced_checkin', _ckIsEmptyCheckin);   // ★ 誰同步的最新就用誰的
+        if (!d){ var s = localStorage.getItem(_ckCid() + 'motiv_checkin_v1'); d = s ? JSON.parse(s) : _ckBorrowLatest('_motiv_checkin_v1'); }
         if (d && _ckIsEmptyCheckin(d)){ var f = _ckArchFallback('checkin', d); if (f) return f; }
         return d;
       } catch(e){ return null; }
     }
     function ppGetData(){
       try {
-        var s = localStorage.getItem(_ckCid() + 'motiv_perfp_v1');
-        var d = s ? JSON.parse(s) : _ckBorrowLatest('_motiv_perfp_v1');     // 自己沒有 → 借其他角色最新的
+        var d = _ckNewest('_motiv_perfp_v1', '_motiv_synced_motiv', _ckIsEmptyPerfp);   // ★ 誰同步的最新就用誰的
+        if (!d){ var s = localStorage.getItem(_ckCid() + 'motiv_perfp_v1'); d = s ? JSON.parse(s) : _ckBorrowLatest('_motiv_perfp_v1'); }
         if (d && _ckIsEmptyPerfp(d)){ var f = _ckArchFallback('perfp', d); if (f) return f; }
         return d;
       } catch(e){ return null; }
@@ -8021,7 +8084,119 @@
         }
       }
       html += '</tbody></table></div>';
+      try { html += _ppBonusHtml(selYm || liveYm, pp); } catch(e){ console.warn('[bonus] 加碼獎勵計算失敗', e); }
       body.innerHTML = html;
+    }
+
+    // ═══════════ 🎁 業務加碼獎勵（2026/09 辦法）═══════════
+    //   放在當月績效表下面：組長對獎金就在他每天看的那張表上。
+    var BONUS_TIER = { 1:500, 2:2000, 3:3000 };
+    var BONUS_MIN_BIZ = 150000;
+    var BONUS_EXCLUDE_RE = /乙級|國際競賽|戰鬥營/;
+    function _ppBonusCalc(ym, org, ppRows){
+      var raw = _fnRawFor(ym); var o = raw && raw.orgs && raw.orgs[org]; if (!o) return null;
+      var y = +ym.slice(0,4), m = +ym.slice(5);
+      var mStart = new Date(y, m-1, 1), mEnd = new Date(y, m, 0);
+      // ★ 同一學生、同一課程 → 1 科。合作案在 EIP 會拆成兩列（各掛一個承辦人），
+      //   實測：董冠廷「數位商業攝影班」兩列各掛胡榮芳、范淯維 → 那是 1 科兩人分，不是 2 科。
+      //   所以先按「學生 × 課程」把金額加總、承辦人聯集，再判斷門檻與科數。
+      var SC = {};   // 學生 → 課程名 → { v, owners:{}, add:bool }
+      (o.pay || []).forEach(function(r){
+        var d = _fnParseD(r.d); if (!d || d < mStart || d > mEnd) return;
+        if (r.st !== '註冊') return;
+        var k = String(r.k || '').trim() || '（未填課程）';
+        var st = SC[r.n] || (SC[r.n] = {});
+        var c = st[k] || (st[k] = { k:k, v:0, owners:{}, add:true, d:_fnMD(d) });
+        c.v += (+r.v || 0);
+        var ow = String(r.o || '').trim(); if (ow) c.owners[ow] = 1;
+        if (r.sub !== '學員加購') c.add = false;     // 只要有一列不是加購，就不當加購
+      });
+      var S = {};
+      Object.keys(SC).forEach(function(n){
+        var st = S[n] = { n:n, ok:[], skip:[] };
+        Object.keys(SC[n]).forEach(function(k){
+          var c = SC[n][k], why = '';
+          if (c.add) why = '學員加購（已註冊之舊生）';
+          else if (BONUS_EXCLUDE_RE.test(k)) why = '乙級／戰鬥營不適用';
+          else if (c.v < FN_COURSE_MIN) why = '未達 2 萬（小科／短時數）';
+          var rec = { v:c.v, k:k, owners:Object.keys(c.owners), d:c.d, why:why };
+          (why ? st.skip : st.ok).push(rec);
+        });
+      });
+      // 每個學生算獎金，再依承辦人平分
+      var byOwner = {};   // 業務 → { amt, items:[] }
+      var students = [];
+      Object.keys(S).forEach(function(n){
+        var st = S[n]; if (!st.ok.length) { if (st.skip.length) students.push({ n:n, courses:0, amt:0, skip:st.skip, owners:[] }); return; }
+        var courses = st.ok.length;
+        var amt = BONUS_TIER[Math.min(3, courses)];
+        var owners = {}; st.ok.forEach(function(r){ (r.owners || []).forEach(function(ow){ owners[ow] = 1; }); });
+        var ol = Object.keys(owners); if (!ol.length) ol = ['（沒有承辦人）'];
+        var each = amt / ol.length;   // 三人合作 2000/3 不取整，總數才不會變 2001；顯示時再四捨五入
+        ol.forEach(function(ow){
+          var b = byOwner[ow] || (byOwner[ow] = { owner:ow, amt:0, items:[] });
+          b.amt += each;
+          b.items.push({ n:n, courses:courses, amt:amt, share:each, split:ol.length, courseNames:st.ok.map(function(r){ return r.k; }), skip:st.skip });
+        });
+        students.push({ n:n, courses:courses, amt:amt, owners:ol, skip:st.skip });
+      });
+      // 門檻：當月績效的合計業績
+      var bizOf = {};
+      (ppRows || []).forEach(function(r){ var nm = String(r.employee_name || '').trim(); if (nm) bizOf[nm] = (bizOf[nm] || 0) + _ckNum(r.business); });
+      var list = Object.keys(byOwner).map(function(ow){
+        var b = byOwner[ow], biz = bizOf[ow] || 0;
+        b.biz = biz; b.eligible = biz >= BONUS_MIN_BIZ; b.gap = Math.max(0, BONUS_MIN_BIZ - biz);
+        b.payable = b.eligible ? b.amt : 0;
+        return b;
+      });
+      // 有業績但一毛獎金都沒有的人也列出來（讓組長看到「差多少」）
+      Object.keys(bizOf).forEach(function(nm){ if (byOwner[nm]) return; var biz = bizOf[nm]; if (biz <= 0) return; list.push({ owner:nm, amt:0, items:[], biz:biz, eligible: biz >= BONUS_MIN_BIZ, gap: Math.max(0, BONUS_MIN_BIZ - biz), payable:0 }); });
+      list.sort(function(a,b){ return (b.payable - a.payable) || (b.amt - a.amt) || (b.biz - a.biz); });
+      var tot = { amt:0, payable:0, students:students.filter(function(x){ return x.amt > 0; }).length, eligibleN:list.filter(function(x){ return x.eligible; }).length };
+      list.forEach(function(b){ tot.amt += b.amt; tot.payable += b.payable; });
+      return { org:org, list:list, students:students, tot:tot };
+    }
+    function _ppBonusHtml(ym, pp){
+      if (!ym || !pp || !pp.orgs) return '';
+      var orgs = (ppOrg === 'SUMMARY') ? CK_ORG_LIST : [ppOrg];
+      var y = +ym.slice(0,4), mo = +ym.slice(5);
+      var fm = function(n){ return (Math.round(n) || 0).toLocaleString(); };
+      var html = '<div class="pp-bonus">'
+        + '<div class="pp-bonus-h"><h3>🎁 ' + y + ' 年 ' + mo + ' 月　業務加碼獎勵</h3>'
+        + '<p>1 科 500・2 科 2,000・3 科以上 3,000。單筆註冊 ≥ 2 萬算 1 科；學員加購、乙級／戰鬥營不算。合作案平分。<b>個人合計業績 ≥ 15 萬才可領</b>；未達的顯示差多少。移帳／補繳／繳款異動這裡看不出來，發放前請人工再對一次。</p></div>';
+      var grand = { amt:0, payable:0 };
+      // 依區域分組（桃／中／南）
+      var regionOf = {}; Object.keys(CK_REGIONS).forEach(function(rk){ if (rk === 'all') return; CK_REGIONS[rk].orgs.forEach(function(og){ regionOf[og] = CK_REGIONS[rk].label; }); });
+      var byRegion = {};
+      orgs.forEach(function(org){
+        var r = _ppBonusCalc(ym, org, pp.orgs[org] || []); if (!r) return;
+        var rg = regionOf[org] || '其他';
+        (byRegion[rg] || (byRegion[rg] = [])).push(r);
+      });
+      Object.keys(byRegion).forEach(function(rg){
+        var rs = byRegion[rg];
+        var rt = { amt:0, payable:0 }; rs.forEach(function(r){ rt.amt += r.tot.amt; rt.payable += r.tot.payable; });
+        grand.amt += rt.amt; grand.payable += rt.payable;
+        html += '<div class="pp-bonus-reg"><div class="pp-bonus-reg-h"><b>' + _fnEsc(rg) + '</b><span>可領 <em>' + fm(rt.payable) + '</em> 元</span><span class="dim">累計 ' + fm(rt.amt) + ' 元（含未達門檻）</span></div>';
+        rs.forEach(function(r){
+          html += '<div class="pp-bonus-org"><div class="pp-bonus-org-h"><span class="dot" style="background:' + (CK_COLOR[r.org] || '#999') + '"></span>' + _fnEsc(r.org)
+            + '<span>可領 <b>' + fm(r.tot.payable) + '</b> 元・' + r.tot.students + ' 位學生・' + r.tot.eligibleN + ' 人達門檻</span></div>';
+          if (!r.list.length){ html += '<div class="pp-bonus-none">本月沒有符合的註冊</div></div>'; return; }
+          html += '<table class="pp-bonus-t"><thead><tr><th>業務</th><th>獎勵</th><th>合計業績</th><th>門檻 15 萬</th><th>明細</th></tr></thead><tbody>';
+          r.list.forEach(function(b){
+            var st = b.eligible ? '<span class="ok">✅ 可領</span>' : '<span class="no">差 ' + fm(b.gap) + '</span>';
+            var det = b.items.map(function(it){
+              return '<div class="pp-bonus-it"><b>' + _fnEsc(it.n) + '</b> ' + it.courses + ' 科 → ' + fm(it.amt) + (it.split > 1 ? '（' + it.split + ' 人合作，各 ' + fm(it.share) + '）' : '') + '<em>' + _fnEsc(it.courseNames.join('、')) + '</em>'
+                + (it.skip.length ? '<span class="skip">不算：' + it.skip.map(function(x){ return _fnEsc(x.k) + '（' + x.why + '）'; }).join('、') + '</span>' : '') + '</div>';
+            }).join('');
+            html += '<tr class="' + (b.eligible ? 'ok' : 'no') + '"><td class="nm">' + _fnEsc(b.owner) + '</td><td class="amt">' + (b.amt ? fm(b.amt) : '—') + (b.amt && !b.eligible ? '<small>暫不發放</small>' : '') + '</td><td>' + fm(b.biz) + '</td><td>' + st + '</td><td>' + (det ? '<details><summary>' + b.items.length + ' 位學生</summary>' + det + '</details>' : '<span class="dim">—</span>') + '</td></tr>';
+          });
+          html += '</tbody></table></div>';
+        });
+        html += '</div>';
+      });
+      html += '<div class="pp-bonus-tot">合計可領 <b>' + fm(grand.payable) + '</b> 元　<span class="dim">累計 ' + fm(grand.amt) + ' 元（含未達門檻的）</span></div></div>';
+      return html;
     }
 
     // ========== 課程銷售分析（tab-8）==========
