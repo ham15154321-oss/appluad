@@ -2072,6 +2072,8 @@
   //         基準值存在 base 裡，逐日累積；第一次掃到的人沒有基準，標 first，不列入判定。
   // ══════════════════════════════════════════════════════════════
   var _edDates = null;              // 這次要抓的日期清單（YYYY/MM/DD），由頁面算好送來
+  var _edShort = null;              // 對帳對不上的紀錄
+  var _edNoTotal = 0;               // 讀不到「共 N 筆」的次數
   // 節流刻意放寬 —— 寧可跑久一點也不要影響公司的 EIP
   var EDIT_THROTTLE_MS = 1500;      // 每頁之間
   var EDIT_PAUSE_EVERY = 10;        // 每翻 N 頁
@@ -2086,12 +2088,13 @@
 
   // 一天一家：把該日被編輯過的列全部翻完
   async function _edFetchDay(org, dSlash, label){
-    var out = [], pg = 1, pageSize = 0, seen = {}, dropped = 0;
+    var out = [], pg = 1, pageSize = 0, seen = {}, dropped = 0, expect = null;
     while (pg <= EDIT_MAX_PAGES){
       var url = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id
         + '&q9=' + encodeURIComponent(dSlash) + '&q10=' + encodeURIComponent(dSlash) + '&pg=' + pg;
       var html = await fetchViaBackground(url);
       if (_looksLikeLogin(html)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再試');
+      if (pg === 1) expect = _edTotalOf(html);        // 「共 N 頁 M 筆」← 對帳基準
       var res = _edParsePage(html);
       if (!res || !res.raw) break;                    // 這一頁一列資料都沒有 ＝ 翻完了
       // ★ 判斷「還有沒有下一頁」只能看原始資料列數，不能看解析成功的筆數。
@@ -2105,6 +2108,7 @@
       seen[dup] = 1;
       out = out.concat(res.rows);
       notify('status', { msg: label + ' 第 ' + pg + ' 頁，累計 ' + out.length + ' 筆' });
+      if (expect && expect.pages && pg >= expect.pages) break;   // EIP 自己說只有這麼多頁
       if (res.raw < pageSize) break;                  // 不滿一頁 ＝ 最後一頁
       pg++;
       await sleep(EDIT_THROTTLE_MS);
@@ -2115,9 +2119,22 @@
     }
     if (pg > EDIT_MAX_PAGES) console.warn('[edits] ' + label + ' 翻到上限 ' + EDIT_MAX_PAGES + ' 頁還沒翻完，可能有遺漏');
     if (dropped) console.warn('[edits] ' + label + ' 有 ' + dropped + ' 列讀不到姓名被跳過');
+    // ★ 對帳：EIP 說幾筆，我們就該拿到幾筆。差太多代表翻頁或解析出問題，要講出來，不要默默少算。
+    if (expect && expect.rows != null){
+      _edShort = _edShort || [];
+      var got = out.length + dropped;
+      if (got !== expect.rows) _edShort.push(label + '：EIP 說 ' + expect.rows + ' 筆，實拿 ' + got + ' 筆');
+    } else {
+      _edNoTotal = (_edNoTotal || 0) + 1;
+    }
     return out;
   }
 
+  // EIP 頁尾會寫「共 28 頁 831 筆」—— 直接拿來對帳，比自己數可靠
+  function _edTotalOf(html){
+    var m = /共\s*([\d,]+)\s*頁\s*([\d,]+)\s*筆/.exec(String(html || '').replace(/<[^>]+>/g, ' '));
+    return m ? { pages: +m[1].replace(/,/g,''), rows: +m[2].replace(/,/g,'') } : null;
+  }
   function _edParsePage(html){
     var doc = new DOMParser().parseFromString(html, 'text/html');
     var table = doc.getElementById('students');
@@ -2170,6 +2187,7 @@
     try { store = await _fnDbGet(key); } catch(e){}
     if (!store || typeof store !== 'object') store = {};
     store.stats = store.stats || {};   // { 'YYYY-MM-DD': { 學院: { 編輯人: { n, empty, first } } } }
+    store.sOwn  = store.sOwn  || {};   // 同上，但按「承辦人」分 ← 他的名單被動了幾次（可能是別人代編）
     store.base  = store.base  || {};   // { 學院: { 姓名: 上次看到的備註 } }
     store.last  = store.last  || {};   // { 學院: { 姓名: { d, own, ed, st, note } } } ← 燈號用
     store.rows  = store.rows  || {};   // { 'YYYY-MM-DD': { 學院: [列] } }  只留最近幾天
@@ -2193,6 +2211,7 @@
     // 讓 background service worker 不要睡著（掃 7 家 × N 天可能跑好幾分鐘）
     var kaTimer = setInterval(function(){ try { chrome.runtime.sendMessage({ action:'keepalive' }, function(){ void chrome.runtime.lastError; }); } catch(e){} }, 12000);
     var totalRows = 0, totalEmpty = 0, totalFirst = 0;
+    _edShort = []; _edNoTotal = 0;
 
     // ── 時間軸守門 ──────────────────────────────────────────────
     // 「空編輯」＝這次的備註跟上次看到的一模一樣。基準值必須依時間往前推。
@@ -2209,13 +2228,14 @@
       for (var di = 0; di < dayList.length; di++){
         var dObj = dayList[di], dKey = _edDash(dObj), dS = _edSlash(dObj);
         store.stats[dKey] = store.stats[dKey] || {};
+        store.sOwn[dKey]  = store.sOwn[dKey]  || {};
         store.rows[dKey] = {};
         for (var k = 0; k < PERF_ORGS.length; k++){
           var org = PERF_ORGS[k];
           var lab = dS + ' ' + org.name;
           notify('status', { msg: '📝 ' + lab + ' 讀取中…', prog: { org:k+1, total:PERF_ORGS.length, name:org.name, phase:'edits', page:di+1, rows:days } });
           var rows = await _edFetchDay(org, dS, lab);
-          var byEd = {};
+          var byEd = {}, byOwn = {};
           var baseOrg = _baseFor(org.name);
           var lastOrg = store.last[org.name] || (store.last[org.name] = {});
           for (var r = 0; r < rows.length; r++){
@@ -2223,9 +2243,13 @@
             var ed = row.ed || '（沒有編輯人）';
             var b = byEd[ed] || (byEd[ed] = { n:0, empty:0, first:0 });
             b.n++;
+            // 同一列也記在承辦人身上 —— 他的名單被動了一次（不管是誰動的）
+            var ownName = row.own || '（沒有承辦人）';
+            var bw = byOwn[ownName] || (byOwn[ownName] = { n:0, empty:0, first:0, self:0 });
+            bw.n++; if (ownName === ed) bw.self++;
             var prev = baseOrg[row.n];
-            if (prev === undefined){ b.first++; totalFirst++; row.flag = 'first'; }
-            else if (prev === row.note){ b.empty++; totalEmpty++; row.flag = 'empty'; }
+            if (prev === undefined){ b.first++; bw.first++; totalFirst++; row.flag = 'first'; }
+            else if (prev === row.note){ b.empty++; bw.empty++; totalEmpty++; row.flag = 'empty'; }
             else { row.flag = 'real'; }
             baseOrg[row.n] = row.note;
             // 燈號看的是「最後一次被編輯是哪天」，只能往前走，不能被往回補的舊資料蓋掉
@@ -2250,6 +2274,7 @@
             }
           }
           store.stats[dKey][org.name] = byEd;
+          store.sOwn[dKey][org.name] = byOwn;
           store.rows[dKey][org.name] = rows;
           totalRows += rows.length;
           if (k < PERF_ORGS.length - 1) await sleep(EDIT_ORG_GAP_MS);
@@ -2274,6 +2299,9 @@
       mode: 'edits', edits: store, updateTime: _nowStr(),
       msg: '📝 編輯追蹤完成！掃了 ' + dayList.length + ' 天 × 七家（' + _edDash(dayList[0]) + ' ～ ' + _edDash(dayList[dayList.length-1]) + '），共 ' + totalRows + ' 筆編輯'
         + '（空編輯 ' + totalEmpty + ' 筆' + (totalFirst ? '、首次看到 ' + totalFirst + ' 筆不判定' : '') + '）'
+        + (_edShort && _edShort.length
+           ? '\n\n⚠️ 有 ' + _edShort.length + ' 次跟 EIP 的筆數對不上：\n' + _edShort.slice(0, 8).join('\n') + (_edShort.length > 8 ? '\n…' : '')
+           : '　✅ 每一天每一家都跟 EIP 頁尾的筆數對得上')
     });
   }
 
@@ -2282,6 +2310,10 @@
     try {
       var ks = Object.keys(store.stats).sort();
       while (ks.length > EDIT_KEEP_DAYS) delete store.stats[ks.shift()];
+      if (store.sOwn){
+        var os = Object.keys(store.sOwn).sort();
+        while (os.length > EDIT_KEEP_DAYS) delete store.sOwn[os.shift()];
+      }
       var rk = Object.keys(store.rows).sort();
       while (rk.length > EDIT_KEEP_ROWS) delete store.rows[rk.shift()];
       var mk = Object.keys(store.mon || {}).sort();
