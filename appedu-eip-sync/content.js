@@ -2086,17 +2086,26 @@
 
   // 一天一家：把該日被編輯過的列全部翻完
   async function _edFetchDay(org, dSlash, label){
-    var out = [], pg = 1;
+    var out = [], pg = 1, pageSize = 0, seen = {}, dropped = 0;
     while (pg <= EDIT_MAX_PAGES){
       var url = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id
         + '&q9=' + encodeURIComponent(dSlash) + '&q10=' + encodeURIComponent(dSlash) + '&pg=' + pg;
       var html = await fetchViaBackground(url);
       if (_looksLikeLogin(html)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再試');
-      var rows = _edParsePage(html);
-      if (!rows || !rows.length) break;
-      out = out.concat(rows);
+      var res = _edParsePage(html);
+      if (!res || !res.raw) break;                    // 這一頁一列資料都沒有 ＝ 翻完了
+      // ★ 判斷「還有沒有下一頁」只能看原始資料列數，不能看解析成功的筆數。
+      //   姓名空白的列會被跳過，用解析筆數判斷會在滿頁時提早收工，後面整批遺失。
+      if (!pageSize) pageSize = res.raw;              // 第一頁看到幾列 ＝ 這個清單的頁面大小
+      dropped += (res.raw - res.rows.length);
+      // 翻到重複的內容（EIP 超過末頁時會回最後一頁）→ 停，不然會一直疊
+      var sig = pg + '|' + res.raw + '|' + (res.rows[0] ? res.rows[0].n : '') + '|' + (res.rows[res.rows.length-1] ? res.rows[res.rows.length-1].n : '');
+      var dup = (res.rows[0] ? res.rows[0].n : '') + '|' + (res.rows[res.rows.length-1] ? res.rows[res.rows.length-1].n : '') + '|' + res.raw;
+      if (pg > 1 && seen[dup]) break;
+      seen[dup] = 1;
+      out = out.concat(res.rows);
       notify('status', { msg: label + ' 第 ' + pg + ' 頁，累計 ' + out.length + ' 筆' });
-      if (rows.length < 25) break;            // 最後一頁
+      if (res.raw < pageSize) break;                  // 不滿一頁 ＝ 最後一頁
       pg++;
       await sleep(EDIT_THROTTLE_MS);
       if (pg % EDIT_PAUSE_EVERY === 0){
@@ -2104,6 +2113,8 @@
         await sleep(EDIT_PAUSE_MS);
       }
     }
+    if (pg > EDIT_MAX_PAGES) console.warn('[edits] ' + label + ' 翻到上限 ' + EDIT_MAX_PAGES + ' 頁還沒翻完，可能有遺漏');
+    if (dropped) console.warn('[edits] ' + label + ' 有 ' + dropped + ' 列讀不到姓名被跳過');
     return out;
   }
 
@@ -2133,7 +2144,7 @@
       else if (h === '總實繳') ix.paid = i;
     });
     if (ix.n == null || ix.ed == null) return null;
-    var out = [];
+    var out = [], rawCount = Math.max(0, trs.length - 1);
     for (var i = 1; i < trs.length; i++){
       var tds = getDirectCells(trs[i]);
       if (tds.length <= ix.n) continue;
@@ -2149,7 +2160,7 @@
         paid: ix.paid != null ? (parseFloat(_fnTxt(tds[ix.paid]).replace(/,/g,'')) || 0) : 0
       });
     }
-    return out;
+    return { rows: out, raw: rawCount };
   }
 
   async function syncEdits(days){

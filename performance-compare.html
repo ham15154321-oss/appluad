@@ -1508,6 +1508,16 @@
     #tab-10 .ed-vd.good { background:rgba(31,143,69,.18); color:#1f8f45; }
     #tab-10 .ed-vd.low { background:var(--edFill); color:var(--edMute); }
     #tab-10 .ed-t tr.ed-warn td { background:rgba(255,107,90,.08); }
+    #tab-10 .ed-vd.na { background:transparent; border:1px solid var(--edLine); color:var(--edMute); }
+    #tab-10 .ed-cross { display:inline-block; margin-top:3px; font-size:.7rem; font-weight:700; cursor:help;
+      color:var(--edAcc); border-bottom:1px dotted var(--edAcc); }
+    #tab-10 td.ed-act { white-space:nowrap; }
+    #tab-10 .ed-staffbtn { margin-left:5px; opacity:.6; }
+    #tab-10 .ed-staffbtn:hover { opacity:1; }
+    #tab-10 .ed-hid { margin-top:10px; font-size:.82rem; color:var(--edDim); }
+    #tab-10 .ed-hid summary { cursor:pointer; }
+    #tab-10 .ed-hid-i { display:inline-flex; align-items:center; gap:7px; margin:8px 10px 0 0;
+      padding:4px 10px; border-radius:999px; background:var(--edFill); border:1px solid var(--edLine); }
     #tab-10 .ed-t tr.ed-detail td { background:var(--edFill); }
     #tab-10 .ed-empty, #tab-10 .ed-empty-row { padding:22px; color:var(--edDim); font-size:.86rem; line-height:1.7; }
     #tab-10 .ed-empty h3 { margin:0 0 6px; font-size:1.05rem; color:var(--edInk); }
@@ -8408,6 +8418,25 @@
       }
       return miss;   // 近→遠
     }
+    // ═══ 客服／非業務名單 ═══
+    //   全域 key（perf_compare_v1_ 前綴）→ 標一次，全公司都看得到同一份。
+    var ED_STAFF_KEY = 'perf_compare_v1_ed_staff';
+    function _edStaffAll(){
+      try { return JSON.parse(localStorage.getItem(ED_STAFF_KEY) || '{}') || {}; } catch(e){ return {}; }
+    }
+    function _edIsStaff(org, ed){ return !!_edStaffAll()[org + '|' + ed]; }
+    function edMarkStaff(org, ed){
+      if (!confirm('把「' + ed + '」標成客服／非業務？\n\n他會從業務排名移除，也不會再影響中位數。\n這個標記會同步給同事，之後可以在表格下方的「已標為客服」裡取消。')) return;
+      var m = _edStaffAll();
+      m[org + '|' + ed] = { by: (typeof _fnMe === 'function' ? (_fnMe() || '') : ''), at: new Date().toISOString().slice(0,10) };
+      try { localStorage.setItem(ED_STAFF_KEY, JSON.stringify(m)); } catch(e){}
+      edRenderAll();
+    }
+    function edUnmarkStaff(org, ed){
+      var m = _edStaffAll(); delete m[org + '|' + ed];
+      try { localStorage.setItem(ED_STAFF_KEY, JSON.stringify(m)); } catch(e){}
+      edRenderAll();
+    }
     function edSwitchRegion(r){ edRegion = r; try{ localStorage.setItem('ed_region', r); }catch(e){} edOpenOwner=''; edRenderAll(); }
     function edToggleOwner(org, own){ var k = org + '|' + own; edOpenOwner = (edOpenOwner === k) ? '' : k; edRenderAll(); }
     // 抓昨天：只補「昨天」那一格，已經有就不打 EIP
@@ -8459,13 +8488,15 @@
         days.forEach(function(dk){
           var byEd = (store.stats[dk] || {})[org] || {};
           Object.keys(byEd).forEach(function(ed){
-            var w = o.owners[ed] || (o.owners[ed] = { ed:ed, today:0, todayEmpty:0, w7:0, w7Empty:0, mon:0, monEmpty:0, monDays:0, monU:0, all:0, lastDay:'', lamps:{ l0:0,l1:0,l2:0,l3:0,l4:0 } });
+            var w = o.owners[ed] || (o.owners[ed] = { ed:ed, today:0, todayEmpty:0, w7:0, w7Empty:0, mon:0, monEmpty:0, monFirst:0, monDays:0, monU:0, all:0, lastDay:'', lamps:{ l0:0,l1:0,l2:0,l3:0,l4:0 } });
             var b = byEd[ed];
             w.all += b.n;
             if (b.n > 0 && (!w.lastDay || dk > w.lastDay)) w.lastDay = dk;
             if (dk === last){ w.today += b.n; w.todayEmpty += (b.empty || 0); }
             if (prev7.indexOf(dk) >= 0){ w.w7 += b.n; w.w7Empty += (b.empty || 0); }
-            if (dk.slice(0,7) === ymNow){ w.mon += b.n; w.monEmpty += (b.empty || 0); w.monDays++; }
+            // ★ first ＝ 我們第一次看到這個學生，沒有上一次的備註可以比 → 這一筆判不出空不空。
+            //   不把它從分母扣掉，一批全新名單永遠是 0% 空編輯，會被誤判成模範生。
+            if (dk.slice(0,7) === ymNow){ w.mon += b.n; w.monEmpty += (b.empty || 0); w.monFirst += (b.first || 0); w.monDays++; }
           });
         });
         // 學生軸：每個學生最後一次被編輯是幾天前 → 掛到「承辦人」身上（名單是誰的）
@@ -8476,7 +8507,7 @@
           var lamp = _edLampOf(dd); if (!lamp) return;
           o.lamps[lamp.k]++;
           var own = rec.own || '（沒有承辦人）';
-          var w = o.owners[own] || (o.owners[own] = { ed:own, today:0, todayEmpty:0, w7:0, w7Empty:0, mon:0, monEmpty:0, monDays:0, monU:0, all:0, lastDay:'', lamps:{ l0:0,l1:0,l2:0,l3:0,l4:0 } });
+          var w = o.owners[own] || (o.owners[own] = { ed:own, today:0, todayEmpty:0, w7:0, w7Empty:0, mon:0, monEmpty:0, monFirst:0, monDays:0, monU:0, all:0, lastDay:'', lamps:{ l0:0,l1:0,l2:0,l3:0,l4:0 } });
           w.lamps[lamp.k]++;
         });
         // 當月去重學生數（擴充端累積的）
@@ -8485,14 +8516,28 @@
           var w = o.owners[ed]; if (!w) return;
           w.monU = Object.keys(monOrg[ed].u || {}).length;
         });
-        o.list = Object.keys(o.owners).map(function(k){ return o.owners[k]; })
+        var all = Object.keys(o.owners).map(function(k){ return o.owners[k]; })
           .sort(function(a,b){ return (b.mon - a.mon) || (b.today - a.today) || a.ed.localeCompare(b.ed, 'zh-Hant'); });
+        // 客服／非業務做的是批次指派，量會是業務的幾百倍。留在排名裡不只沒意義，
+        // 還會把中位數整個壓垮，害其他人的倍數全部失真。移出去。
+        o.hidden = all.filter(function(w){ return _edIsStaff(o.org, w.ed); });
+        o.list   = all.filter(function(w){ return !_edIsStaff(o.org, w.ed); });
+        o.hidTot = o.hidden.reduce(function(a,w){ return a + w.mon; }, 0);
         // 落差：用「有在編輯的人」的中位數當基準（全月掛零的人不進中位數，不然基準會被拉歪）
         var act = o.list.filter(function(w){ return w.mon > 0; }).map(function(w){ return w.mon; }).sort(function(a,b){ return a-b; });
         o.med = act.length ? (act.length % 2 ? act[(act.length-1)/2] : Math.round((act[act.length/2-1] + act[act.length/2]) / 2)) : 0;
         o.monTot = o.list.reduce(function(a,w){ return a + w.mon; }, 0);
         o.list.forEach(function(w){ w.ratio = o.med ? (w.mon / o.med) : 0; });
         out.orgs.push(o);
+      });
+      // ★ 跨學院合計：表是分學院列的，但一個人可能同時編到別家的名單。
+      //   只看自己那一家會少算 —— 這裡把七家加起來，差很多就標出來。
+      out.byPerson = {};
+      out.orgs.forEach(function(o){
+        o.list.concat(o.hidden || []).forEach(function(w){
+          var p = out.byPerson[w.ed] || (out.byPerson[w.ed] = { tot:0, byOrg:{} });
+          p.tot += w.mon; p.byOrg[o.org] = w.mon;
+        });
       });
       return out;
     }
@@ -8563,11 +8608,15 @@
           + _fnEsc(o.org) + '<span class="ed-org-sum">' + data.lastDay + ' 共 <b>' + tot.today + '</b> 筆編輯'
           + (tot.empty ? '，其中 <b class="ed-bad">' + tot.empty + '</b> 筆空編輯' : '') + '</span></div>';
         if (!o.list.length){ html += '<div class="ed-empty-row">這一家沒有資料</div></div>'; return; }
-        html += '<div class="ed-gapline">本月 <b>' + o.monTot + '</b> 人次'
+        var monDays = (data.days || []).filter(function(d){ return d.slice(0,7) === data.ym; });
+        var rangeTxt = monDays.length ? (monDays[0].slice(5) + '～' + monDays[monDays.length-1].slice(5)) : '';
+        html += '<div class="ed-gapline">本月<b title="這裡只統計已經抓回來的日子，不是整個月">已抓 ' + monDays.length + ' 天</b>'
+          + (rangeTxt ? '（' + rangeTxt + '）' : '') + '　·　合計 <b>' + o.monTot + '</b> 人次'
           + (o.med ? '　·　中位數 <b>' + o.med + '</b> 人次（只算有在編輯的人）' : '')
+          + (o.hidden && o.hidden.length ? '　·　<span class="dim">另有 ' + o.hidden.length + ' 位標為客服／' + o.hidTot + ' 人次，不列入</span>' : '')
           + '　·　<span class="dim">倍數 ≥2 或 ≤0.5 會標出來，落差就在這裡</span></div>';
         html += '<table class="ed-t"><thead><tr>'
-          + '<th>業務</th><th>本月人次<small>／碰過幾人</small></th><th>vs 中位數</th><th>本月空編輯</th>'
+          + '<th>業務</th><th>已抓天數人次<small>／碰過幾人</small></th><th>vs 中位數</th><th>空編輯<small>／可判定</small></th>'
           + '<th>最後一天</th><th>近 7 天</th><th>幾天沒編輯</th><th>手上名單燈號</th><th></th>'
           + '</tr></thead><tbody>';
         o.list.forEach(function(w){
@@ -8576,30 +8625,61 @@
           var rate = w.today ? Math.round(w.todayEmpty / w.today * 100) : 0;
           var w7rate = w.w7 ? Math.round(w.w7Empty / w.w7 * 100) : 0;
           var key = o.org + '|' + w.ed;
-          var mRate = w.mon ? Math.round(w.monEmpty / w.mon * 100) : 0;
-          // 判讀：量跟「有沒有留下內容」要一起看，不然一鍵清空的人會排在最前面看起來最勤勞
+          // ★ 可判定筆數 ＝ 總筆數 − 首次看到。首次看到那幾筆沒有基準可比，不能拿來算空編輯率。
+          var judge = Math.max(0, w.mon - (w.monFirst || 0));
+          // 兩個門檻都要過：可判定至少 10 筆，而且要佔他總量三成以上。
+          //   只差第一個的話，一批 1163 筆全新名單裡剛好有 11 筆重覆，就能拿到好徽章 —— 那不能算數。
+          var canJudge = judge >= 10 && judge >= w.mon * 0.3;
+          var mRate = judge ? Math.round(w.monEmpty / judge * 100) : 0;
+          // 判讀：量跟「有沒有留下內容」要一起看，不然一鍵清空的人會排在最前面看起來最勤勞。
+          //   但判不出來的時候要說判不出來，不要因為「算不到空編輯」就給他好徽章。
           var verdict = '';
-          if (w.mon >= 30 && mRate >= 40) verdict = '<span class="ed-vd bad" title="動得很多，但大部分沒留下內容 —— 這是交差，不是追註冊">量大但空</span>';
-          else if (w.mon >= 30 && w.ratio >= 2 && mRate < 20) verdict = '<span class="ed-vd good" title="量遠高於中位數，而且幾乎都有留下內容">真的在跑</span>';
+          if (w.mon >= 30 && !canJudge){
+            verdict = '<span class="ed-vd na" title="這 ' + w.mon + ' 筆裡有 ' + (w.monFirst||0) + ' 筆是我們第一次看到這個學生，沒有上一次的備註可以比。可判定只有 ' + judge + ' 筆，太少，好壞都不該下結論。多抓幾天累積出基準就會自動變成正常判定。">資料不足・判不了</span>';
+          }
+          else if (w.mon >= 30 && canJudge && mRate >= 40) verdict = '<span class="ed-vd bad" title="動得很多，但大部分沒留下內容 —— 這是交差，不是追註冊">量大但空</span>';
+          else if (w.mon >= 30 && canJudge && w.ratio >= 2 && mRate < 20) verdict = '<span class="ed-vd good" title="量遠高於中位數，而且可判定的那些幾乎都有留下內容">真的在跑</span>';
           else if (w.ratio > 0 && w.ratio <= 0.5) verdict = '<span class="ed-vd low" title="量只有中位數的一半以下">量偏低</span>';
           var rTxt = w.ratio ? (Math.round(w.ratio * 10) / 10) + '×' : '—';
           var rCls = w.ratio >= 2 ? ' hi' : (w.ratio > 0 && w.ratio <= 0.5 ? ' lo' : '');
-          html += '<tr class="' + ((mRate >= 40 && w.mon >= 30) || (rate >= 50 && w.today >= 5) ? 'ed-warn' : '') + '">'
-            + '<td class="nm">' + _fnEsc(w.ed) + (verdict ? '<br>' + verdict : '') + '</td>'
+          html += '<tr class="' + ((canJudge && mRate >= 40 && w.mon >= 30) || (rate >= 50 && w.today >= 5) ? 'ed-warn' : '') + '">'
+            + '<td class="nm">' + _fnEsc(w.ed) + (verdict ? '<br>' + verdict : '')
+              + (function(){
+                  var p = (data.byPerson || {})[w.ed];
+                  if (!p || p.tot <= w.mon) return '';
+                  var parts = Object.keys(p.byOrg).filter(function(g){ return p.byOrg[g] > 0; })
+                    .sort(function(a,b){ return p.byOrg[b] - p.byOrg[a]; })
+                    .map(function(g){ return g + ' ' + p.byOrg[g]; });
+                  return '<br><span class="ed-cross" title="他也編到別家學院的名單。表是分學院列的，所以這一格只算 ' + _fnEsc(o.org) + ' 的部分。\n'
+                    + _fnEsc(parts.join('　')) + '\n（同名的人會被合併，如果真有同名要自己判斷）">七家合計 ' + p.tot + '</span>';
+                })() + '</td>'
             + '<td class="num ed-mon">' + (w.mon || '—') + (w.monU ? '<small>碰過 ' + w.monU + ' 人・' + w.monDays + ' 天' + (w.monU ? '・每人 ' + (Math.round(w.mon / w.monU * 10) / 10) + ' 次' : '') + '</small>' : '') + '</td>'
             + '<td class="num"><span class="ed-ratio' + rCls + '">' + rTxt + '</span></td>'
-            + '<td class="num">' + (w.monEmpty ? '<b class="ed-bad">' + w.monEmpty + '</b><small>' + mRate + '%</small>' : '—') + '</td>'
+            + '<td class="num" title="可判定 ' + judge + ' 筆（總 ' + w.mon + ' − 首次看到 ' + (w.monFirst||0) + '）">'
+              + (!canJudge ? '<span class="dim">判不了</span><small>可判定 ' + judge + ' 筆</small>'
+                 : (w.monEmpty ? '<b class="ed-bad">' + w.monEmpty + '</b><small>' + mRate + '%・可判定 ' + judge + '</small>'
+                    : '0<small>可判定 ' + judge + '</small>')) + '</td>'
             + '<td class="num">' + (w.today || '—') + (w.todayEmpty ? '<small>空 ' + w.todayEmpty + '</small>' : '') + '</td>'
             + '<td class="num">' + (w.w7 || '—') + (w.w7Empty ? '<small>空 ' + w7rate + '%</small>' : '') + '</td>'
             + '<td>' + (gap == null ? '<span class="dim">沒觀測到</span>' : '<span class="ed-gap ' + (gapLamp ? gapLamp.cls : '') + '">' + gap + ' 天</span>') + '</td>'
             + '<td>' + _edLampBar(w.lamps) + '</td>'
-            + '<td><button class="fn-tb-btn" onclick="edToggleOwner(\'' + _fnEsc(o.org) + '\',\'' + _fnEsc(w.ed) + '\')">' + (edOpenOwner === key ? '▲ 收合' : '▼ 看他編了誰') + '</button></td>'
+            + '<td class="ed-act"><button class="fn-tb-btn" onclick="edToggleOwner(\'' + _fnEsc(o.org) + '\',\'' + _fnEsc(w.ed) + '\')">' + (edOpenOwner === key ? '▲ 收合' : '▼ 看他編了誰') + '</button>'
+            + '<button class="fn-tb-btn ed-staffbtn" title="他不是業務（客服、行政、系統批次）→ 移出排名，也不再影響中位數" onclick="edMarkStaff(\'' + _fnEsc(o.org) + '\',\'' + _fnEsc(w.ed) + '\')">標為客服</button></td>'
             + '</tr>';
           if (edOpenOwner === key){
             html += '<tr class="ed-detail"><td colspan="9">' + _edOwnerDetail(store, o.org, w.ed, data.lastDay) + '</td></tr>';
           }
         });
-        html += '</tbody></table></div>';
+        html += '</tbody></table>';
+        if (o.hidden && o.hidden.length){
+          html += '<details class="ed-hid"><summary>已標為客服／非業務 ' + o.hidden.length + ' 位（不列入排名與中位數，共 ' + o.hidTot + ' 人次）</summary>'
+            + o.hidden.map(function(w){
+                return '<span class="ed-hid-i"><b>' + _fnEsc(w.ed) + '</b> ' + (w.mon || 0) + ' 人次'
+                  + '<button class="fn-tb-btn" onclick="edUnmarkStaff(\'' + _fnEsc(o.org) + '\',\'' + _fnEsc(w.ed) + '\')">↩︎ 放回排名</button></span>';
+              }).join('')
+            + '</details>';
+        }
+        html += '</div>';
       });
 
       body.innerHTML = html;
