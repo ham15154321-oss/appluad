@@ -23,6 +23,7 @@
     var mode = e.data.mode || 'motiv';
     if (e.data.region && mode === 'trial') mode = 'trial:' + e.data.region;
     if (mode === 'funnel' && e.data.full) mode = 'funnel:full';
+    if (mode === 'edits' && e.data.days) mode = 'edits:' + e.data.days;   // days = 往回幾天（預設 1＝只抓昨天）
     console.log('[EIP Content] 收到同步請求 year=' + year + ' month=' + month + ' mode=' + mode);
     doSync(year, month, mode);
   });
@@ -2061,6 +2062,179 @@
     });
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // 📝 編輯追蹤（v5.47）
+  //   目的：組長要看的不是「誰面談了幾個」，是「誰每天真的去動他的名單」。
+  //   做法：面談紀錄總表支援「編輯日期」過濾（q9 起、q10 迄），清單裡就有「編輯人」欄，
+  //         所以一頁 30 筆掃下來，誰編了幾筆、編了誰、備註寫什麼，全部都有。
+  //   空編輯：這一筆的備註跟上次看到的一模一樣 → 動過但沒留下內容（一鍵清空行事曆、只改狀態不寫字…都算）。
+  //         基準值存在 base 裡，逐日累積；第一次掃到的人沒有基準，標 first，不列入判定。
+  // ══════════════════════════════════════════════════════════════
+  var EDIT_THROTTLE_MS = 1000;      // 每頁之間
+  var EDIT_ORG_GAP_MS  = 2000;      // 每家之間
+  var EDIT_MAX_PAGES   = 60;        // 單日單家上限（高雄一鍵清空那天會到 42 頁）
+  var EDIT_KEEP_DAYS   = 90;        // 統計保留天數
+  var EDIT_KEEP_ROWS   = 3;         // 完整逐筆只留最近幾天（給鑽取用）
+
+  function _edDash(d){ return d.getFullYear() + '-' + _fnPad2(d.getMonth()+1) + '-' + _fnPad2(d.getDate()); }
+  function _edSlash(d){ return d.getFullYear() + '/' + _fnPad2(d.getMonth()+1) + '/' + _fnPad2(d.getDate()); }
+
+  // 一天一家：把該日被編輯過的列全部翻完
+  async function _edFetchDay(org, dSlash, label){
+    var out = [], pg = 1;
+    while (pg <= EDIT_MAX_PAGES){
+      var url = 'http://eip.appedu.com.tw/class/student/student/interview/total.php?q1=' + org.id
+        + '&q9=' + encodeURIComponent(dSlash) + '&q10=' + encodeURIComponent(dSlash) + '&pg=' + pg;
+      var html = await fetchViaBackground(url);
+      if (_looksLikeLogin(html)) throw new Error('EIP 顯示登入頁 — 請重新登入 EIP 後再試');
+      var rows = _edParsePage(html);
+      if (!rows || !rows.length) break;
+      out = out.concat(rows);
+      notify('status', { msg: label + ' 第 ' + pg + ' 頁，累計 ' + out.length + ' 筆' });
+      if (rows.length < 25) break;            // 最後一頁
+      pg++;
+      await sleep(EDIT_THROTTLE_MS);
+    }
+    return out;
+  }
+
+  function _edParsePage(html){
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var table = doc.getElementById('students');
+    if (!table){
+      var ts = doc.querySelectorAll('table');
+      for (var t = 0; t < ts.length; t++){
+        var h = _fnTxt(getDirectRows(ts[t])[0] || null);
+        if (h.indexOf('建檔日期') >= 0 && h.indexOf('編輯人') >= 0){ table = ts[t]; break; }
+      }
+    }
+    if (!table) return null;
+    var trs = getDirectRows(table);
+    if (!trs.length) return null;
+    var ths = getDirectCells(trs[0]).map(function(c){ return _fnTxt(c); });
+    var ix = {};
+    ths.forEach(function(h, i){
+      if (h === '姓名') ix.n = i;
+      else if (h === '承辦人') ix.own = i;
+      else if (h === '編輯人') ix.ed = i;
+      else if (h === '聯絡狀態') ix.st = i;
+      else if (h === '學員狀況') ix.stu = i;
+      else if (h === '備註') ix.note = i;
+      else if (h === '建檔日期') ix.cd = i;
+      else if (h === '總實繳') ix.paid = i;
+    });
+    if (ix.n == null || ix.ed == null) return null;
+    var out = [];
+    for (var i = 1; i < trs.length; i++){
+      var tds = getDirectCells(trs[i]);
+      if (tds.length <= ix.n) continue;
+      var nm = _fnTxt(tds[ix.n]); if (!nm) continue;
+      out.push({
+        n: nm,
+        own: ix.own != null ? _fnTxt(tds[ix.own]) : '',
+        ed:  _fnTxt(tds[ix.ed]),
+        st:  ix.st != null ? _fnTxt(tds[ix.st]) : '',
+        stu: ix.stu != null ? _fnTxt(tds[ix.stu]) : '',
+        note: ix.note != null ? _fnTxt(tds[ix.note]).slice(0, 160) : '',
+        cd: ix.cd != null ? _fnTxt(tds[ix.cd]) : '',
+        paid: ix.paid != null ? (parseFloat(_fnTxt(tds[ix.paid]).replace(/,/g,'')) || 0) : 0
+      });
+    }
+    return out;
+  }
+
+  async function syncEdits(days){
+    days = Math.max(1, Math.min(31, days || 1));
+    var cid = _cid(), key = cid + 'fn_edits_v1';
+    var store = null;
+    try { store = await _fnDbGet(key); } catch(e){}
+    if (!store || typeof store !== 'object') store = {};
+    store.stats = store.stats || {};   // { 'YYYY-MM-DD': { 學院: { 編輯人: { n, empty, first } } } }
+    store.base  = store.base  || {};   // { 學院: { 姓名: 上次看到的備註 } }
+    store.last  = store.last  || {};   // { 學院: { 姓名: { d, own, ed, st, note } } } ← 燈號用
+    store.rows  = store.rows  || {};   // { 'YYYY-MM-DD': { 學院: [列] } }  只留最近幾天
+    store.mon   = store.mon   || {};   // { 'YYYY-MM': { 學院: { 編輯人: { n:人次, u:{姓名:1} } } } } ← 當月去重用，留 2 個月
+
+    // 要掃哪幾天：從昨天往回 days 天（不含今天，今天還沒過完）
+    var dayList = [];
+    for (var i = 1; i <= days; i++){ var d = new Date(); d.setDate(d.getDate() - i); dayList.push(d); }
+    dayList.reverse();   // 舊→新，這樣基準值才會依時間推進
+
+    // 讓 background service worker 不要睡著（掃 7 家 × N 天可能跑好幾分鐘）
+    var kaTimer = setInterval(function(){ try { chrome.runtime.sendMessage({ action:'keepalive' }, function(){ void chrome.runtime.lastError; }); } catch(e){} }, 12000);
+    var totalRows = 0, totalEmpty = 0, totalFirst = 0;
+    try {
+      for (var di = 0; di < dayList.length; di++){
+        var dObj = dayList[di], dKey = _edDash(dObj), dS = _edSlash(dObj);
+        store.stats[dKey] = store.stats[dKey] || {};
+        store.rows[dKey] = {};
+        for (var k = 0; k < PERF_ORGS.length; k++){
+          var org = PERF_ORGS[k];
+          var lab = dS + ' ' + org.name;
+          notify('status', { msg: '📝 ' + lab + ' 讀取中…', prog: { org:k+1, total:PERF_ORGS.length, name:org.name, phase:'edits', page:di+1, rows:days } });
+          var rows = await _edFetchDay(org, dS, lab);
+          var byEd = {};
+          var baseOrg = store.base[org.name] || (store.base[org.name] = {});
+          var lastOrg = store.last[org.name] || (store.last[org.name] = {});
+          for (var r = 0; r < rows.length; r++){
+            var row = rows[r];
+            var ed = row.ed || '（沒有編輯人）';
+            var b = byEd[ed] || (byEd[ed] = { n:0, empty:0, first:0 });
+            b.n++;
+            var prev = baseOrg[row.n];
+            if (prev === undefined){ b.first++; totalFirst++; row.flag = 'first'; }
+            else if (prev === row.note){ b.empty++; totalEmpty++; row.flag = 'empty'; }
+            else { row.flag = 'real'; }
+            baseOrg[row.n] = row.note;
+            lastOrg[row.n] = { d:dKey, own:row.own, ed:ed, st:row.st, note:row.note };
+          }
+          // 當月累計：人次直接加，學生數用名字集合去重
+          var ym = dKey.slice(0, 7);
+          var mon = store.mon[ym] || (store.mon[ym] = {});
+          var monOrg2 = mon[org.name] || (mon[org.name] = {});
+          for (var q = 0; q < rows.length; q++){
+            var rr = rows[q], ee = rr.ed || '（沒有編輯人）';
+            var mm = monOrg2[ee] || (monOrg2[ee] = { n:0, empty:0, u:{} });
+            mm.n++; if (rr.flag === 'empty') mm.empty++; mm.u[rr.n] = 1;
+          }
+          store.stats[dKey][org.name] = byEd;
+          store.rows[dKey][org.name] = rows;
+          totalRows += rows.length;
+          if (k < PERF_ORGS.length - 1) await sleep(EDIT_ORG_GAP_MS);
+        }
+        // 每天存一次，中途關掉不會全白跑
+        _edTrim(store);
+        var ok = await _fnDbPut(key, store);
+        if (!ok) _safeSet(key, JSON.stringify(store));
+      }
+    } finally { try { clearInterval(kaTimer); } catch(e){} }
+
+    store.meta = { syncedAt: _nowStr(), days: days, lastDay: _edDash(dayList[dayList.length-1]) };
+    _edTrim(store);
+    var ok2 = await _fnDbPut(key, store);
+    if (!ok2) _safeSet(key, JSON.stringify(store));
+    _safeSet(cid + 'motiv_synced_edits', _nowStr());
+    _safeSet(cid + 'motiv_updated_at', _nowStr());
+
+    notify('done', {
+      mode: 'edits', edits: store, updateTime: _nowStr(),
+      msg: '📝 編輯追蹤完成！掃了 ' + days + ' 天 × 七家，共 ' + totalRows + ' 筆編輯'
+        + '（空編輯 ' + totalEmpty + ' 筆' + (totalFirst ? '、首次看到 ' + totalFirst + ' 筆不判定' : '') + '）'
+    });
+  }
+
+  // 統計留 90 天、逐筆只留最近 3 天（不然一個月就好幾 MB）
+  function _edTrim(store){
+    try {
+      var ks = Object.keys(store.stats).sort();
+      while (ks.length > EDIT_KEEP_DAYS) delete store.stats[ks.shift()];
+      var rk = Object.keys(store.rows).sort();
+      while (rk.length > EDIT_KEEP_ROWS) delete store.rows[rk.shift()];
+      var mk = Object.keys(store.mon || {}).sort();
+      while (mk.length > 2) delete store.mon[mk.shift()];   // 當月＋上個月就夠比了
+    } catch(e){}
+  }
+
   // ★ 跨分頁鎖：_syncBusy 只鎖得住自己這個分頁。同一台電腦開兩個分頁各按一次，
   //   EIP 就會被兩條線同時打。用 localStorage 當跨分頁鎖，每 5 秒心跳一次，30 秒沒心跳視為死鎖自動解開。
   var EIP_LOCK_KEY = 'eip_sync_lock_v1', EIP_LOCK_STALE_MS = 30000;
@@ -2102,6 +2276,7 @@
       else if (mode === 'funnel') await syncFunnel(year, month, {});
       else if (mode === 'funnel:full') await syncFunnel(year, month, { full: true });
       else if (mode === 'trial' || mode.indexOf('trial:') === 0) await syncTrial(year, month, mode.indexOf(':') > 0 ? mode.split(':')[1] : 'all');
+      else if (mode === 'edits' || mode.indexOf('edits:') === 0) await syncEdits(parseInt(mode.split(':')[1], 10) || 1);
       else throw new Error('未知的同步模式: ' + mode);
     } catch(err){
       console.error('[EIP Content] 同步失敗:', err);
