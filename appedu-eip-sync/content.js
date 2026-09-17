@@ -23,7 +23,8 @@
     var mode = e.data.mode || 'motiv';
     if (e.data.region && mode === 'trial') mode = 'trial:' + e.data.region;
     if (mode === 'funnel' && e.data.full) mode = 'funnel:full';
-    if (mode === 'edits' && e.data.days) mode = 'edits:' + e.data.days;   // days = 往回幾天（預設 1＝只抓昨天）
+    // 📝 編輯追蹤：頁面算好「還缺哪幾天」直接送日期清單過來，擴充不必自己推算，也不會重抓
+    if (mode === 'edits' && Array.isArray(e.data.dates) && e.data.dates.length) _edDates = e.data.dates.slice(0, 31);
     console.log('[EIP Content] 收到同步請求 year=' + year + ' month=' + month + ' mode=' + mode);
     doSync(year, month, mode);
   });
@@ -2070,8 +2071,12 @@
   //   空編輯：這一筆的備註跟上次看到的一模一樣 → 動過但沒留下內容（一鍵清空行事曆、只改狀態不寫字…都算）。
   //         基準值存在 base 裡，逐日累積；第一次掃到的人沒有基準，標 first，不列入判定。
   // ══════════════════════════════════════════════════════════════
-  var EDIT_THROTTLE_MS = 1000;      // 每頁之間
-  var EDIT_ORG_GAP_MS  = 2000;      // 每家之間
+  var _edDates = null;              // 這次要抓的日期清單（YYYY/MM/DD），由頁面算好送來
+  // 節流刻意放寬 —— 寧可跑久一點也不要影響公司的 EIP
+  var EDIT_THROTTLE_MS = 1500;      // 每頁之間
+  var EDIT_PAUSE_EVERY = 10;        // 每翻 N 頁
+  var EDIT_PAUSE_MS    = 3000;      //   多喘一下
+  var EDIT_ORG_GAP_MS  = 3000;      // 每家之間
   var EDIT_MAX_PAGES   = 60;        // 單日單家上限（高雄一鍵清空那天會到 42 頁）
   var EDIT_KEEP_DAYS   = 90;        // 統計保留天數
   var EDIT_KEEP_ROWS   = 3;         // 完整逐筆只留最近幾天（給鑽取用）
@@ -2094,6 +2099,10 @@
       if (rows.length < 25) break;            // 最後一頁
       pg++;
       await sleep(EDIT_THROTTLE_MS);
+      if (pg % EDIT_PAUSE_EVERY === 0){
+        notify('status', { msg: label + ' 已翻 ' + pg + ' 頁，停 3 秒讓 EIP 喘口氣…' });
+        await sleep(EDIT_PAUSE_MS);
+      }
     }
     return out;
   }
@@ -2155,14 +2164,36 @@
     store.rows  = store.rows  || {};   // { 'YYYY-MM-DD': { 學院: [列] } }  只留最近幾天
     store.mon   = store.mon   || {};   // { 'YYYY-MM': { 學院: { 編輯人: { n:人次, u:{姓名:1} } } } } ← 當月去重用，留 2 個月
 
-    // 要掃哪幾天：從昨天往回 days 天（不含今天，今天還沒過完）
+    // 要掃哪幾天
     var dayList = [];
-    for (var i = 1; i <= days; i++){ var d = new Date(); d.setDate(d.getDate() - i); dayList.push(d); }
-    dayList.reverse();   // 舊→新，這樣基準值才會依時間推進
+    if (_edDates && _edDates.length){
+      // 頁面算好的「還缺的日期」→ 只抓這些，已經有的一天都不會再打 EIP
+      for (var z = 0; z < _edDates.length; z++){
+        var mm2 = /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/.exec(String(_edDates[z]));
+        if (mm2) dayList.push(new Date(+mm2[1], +mm2[2]-1, +mm2[3]));
+      }
+      _edDates = null;
+    } else {
+      for (var i = 1; i <= days; i++){ var d = new Date(); d.setDate(d.getDate() - i); dayList.push(d); }
+    }
+    dayList.sort(function(a,b){ return a - b; });   // 舊→新，基準值才會依時間推進
+    if (!dayList.length){ notify('done', { mode:'edits', msg:'📝 沒有需要補的日期，全部都抓過了' }); return; }
 
     // 讓 background service worker 不要睡著（掃 7 家 × N 天可能跑好幾分鐘）
     var kaTimer = setInterval(function(){ try { chrome.runtime.sendMessage({ action:'keepalive' }, function(){ void chrome.runtime.lastError; }); } catch(e){} }, 12000);
     var totalRows = 0, totalEmpty = 0, totalFirst = 0;
+
+    // ── 時間軸守門 ──────────────────────────────────────────────
+    // 「空編輯」＝這次的備註跟上次看到的一模一樣。基準值必須依時間往前推。
+    // 分段往回補的時候，這一段比主基準還舊，如果拿主基準（比較新的備註）去比，
+    // 會把正常編輯誤判成空編輯。所以往回補時用「這一段自己的臨時基準」，跑完就丟掉。
+    var segNewest = _edDash(dayList[dayList.length - 1]);
+    var isBackfill = !!(store.baseDay && segNewest < store.baseDay);
+    var tmpBase = {};
+    function _baseFor(orgName){
+      if (isBackfill) return tmpBase[orgName] || (tmpBase[orgName] = {});
+      return store.base[orgName] || (store.base[orgName] = {});
+    }
     try {
       for (var di = 0; di < dayList.length; di++){
         var dObj = dayList[di], dKey = _edDash(dObj), dS = _edSlash(dObj);
@@ -2174,7 +2205,7 @@
           notify('status', { msg: '📝 ' + lab + ' 讀取中…', prog: { org:k+1, total:PERF_ORGS.length, name:org.name, phase:'edits', page:di+1, rows:days } });
           var rows = await _edFetchDay(org, dS, lab);
           var byEd = {};
-          var baseOrg = store.base[org.name] || (store.base[org.name] = {});
+          var baseOrg = _baseFor(org.name);
           var lastOrg = store.last[org.name] || (store.last[org.name] = {});
           for (var r = 0; r < rows.length; r++){
             var row = rows[r];
@@ -2186,16 +2217,26 @@
             else if (prev === row.note){ b.empty++; totalEmpty++; row.flag = 'empty'; }
             else { row.flag = 'real'; }
             baseOrg[row.n] = row.note;
-            lastOrg[row.n] = { d:dKey, own:row.own, ed:ed, st:row.st, note:row.note };
+            // 燈號看的是「最後一次被編輯是哪天」，只能往前走，不能被往回補的舊資料蓋掉
+            var prevLast = lastOrg[row.n];
+            if (!prevLast || !prevLast.d || dKey >= prevLast.d){
+              lastOrg[row.n] = { d:dKey, own:row.own, ed:ed, st:row.st, note:row.note };
+            }
           }
           // 當月累計：人次直接加，學生數用名字集合去重
-          var ym = dKey.slice(0, 7);
-          var mon = store.mon[ym] || (store.mon[ym] = {});
-          var monOrg2 = mon[org.name] || (mon[org.name] = {});
-          for (var q = 0; q < rows.length; q++){
-            var rr = rows[q], ee = rr.ed || '（沒有編輯人）';
-            var mm = monOrg2[ee] || (monOrg2[ee] = { n:0, empty:0, u:{} });
-            mm.n++; if (rr.flag === 'empty') mm.empty++; mm.u[rr.n] = 1;
+          // 同一天只累計一次 —— 手動重抓同一天也不會把人次灌大
+          store.monDays = store.monDays || {};
+          var mdKey = dKey + '|' + org.name;
+          if (!store.monDays[mdKey]){
+            store.monDays[mdKey] = 1;
+            var ym = dKey.slice(0, 7);
+            var mon = store.mon[ym] || (store.mon[ym] = {});
+            var monOrg2 = mon[org.name] || (mon[org.name] = {});
+            for (var q = 0; q < rows.length; q++){
+              var rr = rows[q], ee = rr.ed || '（沒有編輯人）';
+              var mm = monOrg2[ee] || (monOrg2[ee] = { n:0, empty:0, u:{} });
+              mm.n++; if (rr.flag === 'empty') mm.empty++; mm.u[rr.n] = 1;
+            }
           }
           store.stats[dKey][org.name] = byEd;
           store.rows[dKey][org.name] = rows;
@@ -2209,7 +2250,9 @@
       }
     } finally { try { clearInterval(kaTimer); } catch(e){} }
 
-    store.meta = { syncedAt: _nowStr(), days: days, lastDay: _edDash(dayList[dayList.length-1]) };
+    if (!isBackfill) store.baseDay = segNewest;
+    store.meta = { syncedAt: _nowStr(), days: dayList.length, lastDay: segNewest,
+                   range: _edDash(dayList[0]) + ' ~ ' + segNewest, backfill: isBackfill };
     _edTrim(store);
     var ok2 = await _fnDbPut(key, store);
     if (!ok2) _safeSet(key, JSON.stringify(store));
@@ -2218,7 +2261,7 @@
 
     notify('done', {
       mode: 'edits', edits: store, updateTime: _nowStr(),
-      msg: '📝 編輯追蹤完成！掃了 ' + days + ' 天 × 七家，共 ' + totalRows + ' 筆編輯'
+      msg: '📝 編輯追蹤完成！掃了 ' + dayList.length + ' 天 × 七家（' + _edDash(dayList[0]) + ' ～ ' + _edDash(dayList[dayList.length-1]) + '），共 ' + totalRows + ' 筆編輯'
         + '（空編輯 ' + totalEmpty + ' 筆' + (totalFirst ? '、首次看到 ' + totalFirst + ' 筆不判定' : '') + '）'
     });
   }
@@ -2232,6 +2275,13 @@
       while (rk.length > EDIT_KEEP_ROWS) delete store.rows[rk.shift()];
       var mk = Object.keys(store.mon || {}).sort();
       while (mk.length > 2) delete store.mon[mk.shift()];   // 當月＋上個月就夠比了
+      // monDays 只是「這天這家算過了」的記號，跟著 mon 一起清，免得無限長大
+      if (store.monDays){
+        var keepYm = {}; Object.keys(store.mon || {}).forEach(function(y){ keepYm[y] = 1; });
+        Object.keys(store.monDays).forEach(function(k){
+          if (!keepYm[k.slice(0, 7)]) delete store.monDays[k];
+        });
+      }
     } catch(e){}
   }
 

@@ -1394,6 +1394,63 @@
     .hdr-save-btn:hover { filter: brightness(1.12); }
 
     .ck-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    /* ═══ 🧭 學員旅程圖（在名單列展開區最上面）═══ */
+    .jr { --jrInk:#f5f5f7; --jrDim:#a1a1a6; --jrMute:#8a8a90; --jrLine:rgba(255,255,255,.13);
+      --jrFill:#1a1a1e; --jrBg2:#232327; --jrOk:#30d158; --jrBad:#ff6b5a; --jrWeak:#ffd60a; --jrAcc:#bf5af2;
+      margin:0 0 12px; padding:12px 14px; border:1px solid var(--jrLine); border-radius:14px;
+      background:var(--jrFill); color:var(--jrInk); }
+    body.day-mode .jr { --jrInk:#1d1d1f; --jrDim:#55555a; --jrMute:#6e6e73; --jrLine:rgba(0,0,0,.12);
+      --jrFill:#fafafc; --jrBg2:#f0f0f4; --jrOk:#1f8f45; --jrBad:#c0392b; --jrWeak:#a8820a; --jrAcc:#5b5bd6; }
+    .jr-hd { display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:.86rem; margin-bottom:10px; }
+    .jr-hd b { font-size:.92rem; }
+    .jr-badn { padding:2px 9px; border-radius:999px; background:var(--jrBad); color:#fff; font-weight:800; font-size:.76rem; }
+    .jr-okn { padding:2px 9px; border-radius:999px; border:1px solid var(--jrOk); color:var(--jrOk); font-weight:700; font-size:.76rem; }
+    .jr-marks { margin-left:auto; color:var(--jrDim); font-size:.78rem; }
+    /* 旅程帶 */
+    .jr-band { display:flex; align-items:stretch; gap:0; overflow-x:auto; padding:2px 0 6px; }
+    .jr-nd { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:1px;
+      min-width:78px; padding:7px 8px; border-radius:11px; border:1px solid var(--jrLine); background:var(--jrBg2); }
+    .jr-nd .jr-ic { font-size:1.05rem; line-height:1.2; }
+    .jr-nd .jr-lb { font-size:.74rem; font-weight:800; white-space:nowrap; }
+    .jr-nd .jr-dt2 { font-size:.72rem; color:var(--jrDim); font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .jr-done { border-color:var(--jrOk); }
+    .jr-done .jr-lb { color:var(--jrOk); }
+    .jr-miss { border-style:dashed; opacity:.85; }
+    .jr-miss .jr-lb { color:var(--jrBad); }
+    .jr-wait { border-color:var(--jrWeak); }
+    .jr-wait .jr-lb { color:var(--jrWeak); }
+    .jr-na, .jr-skip { opacity:.5; }
+    /* 節點之間：編輯小點 */
+    .jr-seg { flex:1 1 auto; min-width:34px; display:flex; align-items:center; justify-content:center;
+      gap:4px; flex-wrap:wrap; padding:0 7px; position:relative; }
+    .jr-seg::before { content:''; position:absolute; left:0; right:0; top:50%; height:2px;
+      background:var(--jrLine); border-radius:2px; }
+    .jr-tail { min-width:48px; }
+    .jr-dot { position:relative; width:11px; height:11px; padding:0; border-radius:50%; cursor:pointer;
+      border:2px solid var(--jrAcc); background:var(--jrAcc); transition:transform .12s; }
+    .jr-dot:hover { transform:scale(1.5); }
+    .jr-dot.blank { background:transparent; border-color:var(--jrBad); }
+    /* 檢查點 */
+    .jr-checks { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+    .jr-ck { font-size:.75rem; font-weight:700; padding:3px 9px; border-radius:999px;
+      border:1px solid var(--jrLine); background:var(--jrBg2); cursor:help; white-space:nowrap; }
+    .jr-v-ok   { border-color:var(--jrOk); color:var(--jrOk); }
+    .jr-v-bad  { border-color:var(--jrBad); color:#fff; background:var(--jrBad); }
+    .jr-v-weak { border-color:var(--jrWeak); color:var(--jrWeak); }
+    .jr-v-wait { color:var(--jrDim); }
+    .jr-v-na, .jr-v-skip { color:var(--jrMute); opacity:.75; }
+    /* 點開小點看內容 */
+    .jr-dt { margin-top:9px; padding:9px 11px; border-radius:11px; background:var(--jrBg2);
+      border:1px solid var(--jrLine); }
+    .jr-dt-h { font-size:.78rem; font-weight:800; margin-bottom:4px; }
+    .jr-dt .jr-by, .jr-dt .jr-st { font-weight:600; color:var(--jrDim); }
+    .jr-dt pre { margin:0; font-size:.82rem; line-height:1.6; white-space:pre-wrap; word-break:break-word;
+      font-family:inherit; color:var(--jrInk); }
+    .jr-src { margin-top:8px; font-size:.74rem; color:var(--jrMute); line-height:1.6; }
+    .jr-src .jr-warn { color:var(--jrBad); font-weight:700; }
+    .jr-none, .jr-err { font-size:.82rem; color:var(--jrDim); }
+    @media print { .jr-band { overflow:visible; flex-wrap:wrap; } .jr-dot { cursor:default; } }
+
     /* ═══ 📝 編輯追蹤（tab-10）═══ */
     #tab-10 { --edInk:#f5f5f7; --edDim:#a1a1a6; --edMute:#8a8a90; --edLine:rgba(255,255,255,.11);
       --edBg:#111114; --edBg2:#1c1c1f; --edFill:#1a1a1e; --edAcc:#bf5af2; --edBad:#ff6b5a; }
@@ -1403,6 +1460,10 @@
     #tab-10 .ed-head h2 { margin:0; font-size:1.35rem; font-weight:900; letter-spacing:-.01em; }
     #tab-10 .ed-head h2 small { font-size:.9rem; font-weight:700; color:var(--edDim); }
     #tab-10 .ed-head p { margin:5px 0 0; font-size:.82rem; color:var(--edDim); }
+    #tab-10 .ed-prog { display:inline-block; margin-top:8px !important; padding:5px 12px; border-radius:999px;
+      background:var(--edFill); border:1px solid var(--edLine); font-size:.8rem; }
+    #tab-10 .ed-prog b { color:var(--edAcc); }
+    #tab-10 .ed-prog.done { color:#1f8f45; border-color:rgba(31,143,69,.4); }
     #tab-10 .dim { color:var(--edMute); }
     /* 燈號：同一個色系五階，由淺到深 ＝ 由輕到重。綠色是唯一的另一個色相。 */
     #tab-10 .ed-lamp, #tab-10 .ed-gap { display:inline-flex; align-items:center; justify-content:center;
@@ -2406,7 +2467,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
 <script defer src="./firebase-sync.js?v=safe7"></script>
-<link rel="stylesheet" href="day-mode.css?v=apple5">
+<link rel="stylesheet" href="day-mode.css?v=apple6">
 </head>
 <body>
   <header>
@@ -7421,7 +7482,8 @@
       var year = (ys && ys.value) ? parseInt(ys.value, 10) : now.getFullYear();
       var month = (ms && ms.value) ? ms.value : String(now.getMonth() + 1).padStart(2, '0');
 
-      window.postMessage({ channel: 'appedu-eip-sync', action: 'request', year: year, month: month, mode: mode, region: (mode === 'trial' ? _fnTrialRegion : undefined), full: (mode === 'funnel' ? !!_fnFunnelFull : undefined), days: (mode === 'edits' ? _edDays : undefined) }, '*');
+      window.postMessage({ channel: 'appedu-eip-sync', action: 'request', year: year, month: month, mode: mode, region: (mode === 'trial' ? _fnTrialRegion : undefined), full: (mode === 'funnel' ? !!_fnFunnelFull : undefined), days: (mode === 'edits' ? _edDays : undefined), dates: (mode === 'edits' ? _edPendingDates : undefined) }, '*');
+      if (mode === 'edits') _edPendingDates = null;   // 用完就丟，免得下次別的地方觸發時沿用到舊日期
 
       setTimeout(function(){
         // ★ 只在「擴充從頭到尾沒回報過任何進度」時才兜底；有心跳的長流程（🔀 漏斗 8 分鐘、報到網頁版翻頁）交給 90 秒看門狗
@@ -8306,6 +8368,9 @@
     //     ② 學生軸：這個學生多久沒被碰（五階燈號）
     // ══════════════════════════════════════════════════════════════
     var _edDays = 1;                       // 這次要往回抓幾天
+    var _edPendingDates = null;            // 這次實際要抓的日期清單（只送「還缺的」，按幾次都不會重抓）
+    var ED_SEG = 7;                        // 一段幾天
+    var ED_WINDOW = 28;                    // 往回看幾天算「還缺」（28 ÷ 7 ＝ 剛好按四次）
     var edRegion = (function(){ try{ return localStorage.getItem('ed_region') || 'central'; }catch(e){ return 'central'; } })();
     var edOpenOwner = '';                  // 展開哪一位業務的明細
 
@@ -8332,13 +8397,50 @@
     function edGetStore(){
       try { return _fnIdbGet(_ckCid() + 'fn_edits_v1'); } catch(e){ return null; }
     }
+    // 往回 ED_WINDOW 天裡，哪幾天還沒抓過（不含今天）
+    function _edMissingDays(store){
+      var have = (store && store.stats) ? store.stats : {};
+      var miss = [];
+      for (var i = 1; i <= ED_WINDOW; i++){
+        var d = new Date(); d.setDate(d.getDate() - i);
+        var k = d.getFullYear() + '-' + _ckPad2(d.getMonth()+1) + '-' + _ckPad2(d.getDate());
+        if (!have[k]) miss.push({ key:k, slash: d.getFullYear() + '/' + _ckPad2(d.getMonth()+1) + '/' + _ckPad2(d.getDate()) });
+      }
+      return miss;   // 近→遠
+    }
     function edSwitchRegion(r){ edRegion = r; try{ localStorage.setItem('ed_region', r); }catch(e){} edOpenOwner=''; edRenderAll(); }
     function edToggleOwner(org, own){ var k = org + '|' + own; edOpenOwner = (edOpenOwner === k) ? '' : k; edRenderAll(); }
-    function edSync(days){
+    // 抓昨天：只補「昨天」那一格，已經有就不打 EIP
+    function edSyncYesterday(){
       if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
-      _edDays = Math.max(1, Math.min(31, days || 1));
-      var est = Math.round(_edDays * 1.8);
-      if (!confirm('📝 要抓「最近 ' + _edDays + ' 天」的編輯狀況嗎？\n\n會去 EIP 的面談紀錄總表，用「編輯日期」把那幾天被動過的名單全部翻一遍（七家）。\n・不會逐人深挖，只翻清單頁，對 EIP 很輕\n・七家一天大約 ' + est + ' 分鐘\n\n中途不要關頁面。要開始嗎？')) return;
+      var store = edGetStore();
+      var d = new Date(); d.setDate(d.getDate() - 1);
+      var k = d.getFullYear() + '-' + _ckPad2(d.getMonth()+1) + '-' + _ckPad2(d.getDate());
+      if (store && store.stats && store.stats[k]){
+        if (!confirm('📝 昨天（' + k + '）已經抓過了。\n\n重抓只是多打一次 EIP，資料不會變。還是要重抓嗎？')) return;
+      }
+      _edPendingDates = [d.getFullYear() + '/' + _ckPad2(d.getMonth()+1) + '/' + _ckPad2(d.getDate())];
+      motivTriggerEipSync('edits', null, true);
+    }
+    // 補上一段：自動挑「還缺的、離今天最近的」ED_SEG 天。按幾次就往回疊幾段，抓過的一天都不會重抓。
+    function edSyncSegment(){
+      if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      var store = edGetStore();
+      var miss = _edMissingDays(store);
+      if (!miss.length){ alert('📝 最近 ' + ED_WINDOW + ' 天全部都抓過了，不用再補。\n\n之後每天按一次「抓昨天」就好。'); return; }
+      var seg = miss.slice(0, ED_SEG);
+      var est = Math.max(1, Math.round(seg.length * 1.8));
+      var pages = seg.length * 70;
+      var hour = new Date().getHours();
+      var busy = (hour >= 10 && hour < 21) ? '\n\n⚠️ 現在是上班時間。這段期間 EIP 會比較忙，建議改在午休或下班後按。' : '';
+      var msg = '📝 要補這 ' + seg.length + ' 天嗎？\n\n'
+        + seg.map(function(x){ return '　' + x.key; }).join('\n')
+        + '\n\n・約 ' + pages + ' 頁請求、' + est + ' 分鐘（每頁間隔 1.5 秒，每 10 頁多停 3 秒）\n'
+        + '・已經抓過的日子不會重抓\n'
+        + '・還缺 ' + miss.length + ' 天，這次補完剩 ' + (miss.length - seg.length) + ' 天，下次按會接著補'
+        + busy + '\n\n中途不要關頁面。要開始嗎？';
+      if (!confirm(msg)) return;
+      _edPendingDates = seg.map(function(x){ return x.slash; });
       motivTriggerEipSync('edits', null, true);
     }
 
@@ -8414,15 +8516,16 @@
             return '<button class="ck-region-btn' + (edRegion === rk ? ' active' : '') + '" onclick="edSwitchRegion(\'' + rk + '\')">' + (rk==='central'?'🏯 ':rk==='taoyuan'?'🌸 ':rk==='south'?'🌊 ':'🏆 ') + CK_REGIONS[rk].label + '</button>';
           }).join('')
         + '<span style="flex:1;"></span>'
-        + '<button class="fn-tb-btn" onclick="edSync(1)">📝 抓昨天</button>'
-        + '<button class="fn-tb-btn wide" onclick="edSync(7)">📝 補抓 7 天</button>'
-        + '<button class="fn-tb-btn wide" onclick="edSync(30)">📝 補抓 30 天</button>'
+        + '<button class="fn-tb-btn" onclick="edSyncYesterday()">📝 抓昨天</button>'
+        + '<button class="fn-tb-btn wide" onclick="edSyncSegment()">📅 補上一段（' + ED_SEG + ' 天）</button>'
         + '</div>';
 
       if (!store || !store.stats || !Object.keys(store.stats).length){
         html += '<div class="ed-empty"><h3>還沒有編輯資料</h3>'
-          + '<p>按上面的「📝 抓昨天」開始。第一次建議先按「補抓 7 天」，這樣燈號跟空編輯才有基準可以比。</p>'
-          + '<p class="dim">資料來源：EIP 面談紀錄總表的「編輯日期」過濾。只翻清單頁，不逐人深挖。</p></div>';
+          + '<p>按 <b>「📅 補上一段」</b>開始。它一次補 ' + ED_SEG + ' 天（約 11 分鐘），會記得補到哪裡，'
+          + '下次按就接著往回補 —— <b>已經抓過的日子不會重抓</b>，所以按幾次都不會白打 EIP。</p>'
+          + '<p>連按四次就有完整一個月。建議挑午休或下班後。之後每天按一次「📝 抓昨天」，1.5 分鐘。</p>'
+          + '<p class="dim">資料來源：EIP 面談紀錄總表的「編輯日期」過濾。只翻清單頁，不逐人深挖；每頁間隔 1.5 秒、每 10 頁多停 3 秒。</p></div>';
         body.innerHTML = html; return;
       }
 
@@ -8431,7 +8534,15 @@
       html += '<div class="ed-head"><h2>📝 編輯追蹤　<small>' + _fnEsc(region.label) + '</small></h2>'
         + '<p>最後一個有資料的日子：<b>' + _fnEsc(data ? data.lastDay : '—') + '</b>'
         + (syncedAt ? '　·　同步於 ' + _fnEsc(syncedAt) : '')
-        + '　·　已累積 ' + (data ? data.days.length : 0) + ' 天</p></div>';
+        + '　·　已累積 ' + (data ? data.days.length : 0) + ' 天</p>'
+        + (function(){
+            var miss = _edMissingDays(store);
+            if (!miss.length) return '<p class="ed-prog done">✅ 最近 ' + ED_WINDOW + ' 天都補齊了，之後每天按一次「抓昨天」就好</p>';
+            var next = miss.slice(0, ED_SEG);
+            return '<p class="ed-prog">還缺 <b>' + miss.length + '</b> 天（最近 ' + ED_WINDOW + ' 天內）'
+              + '　·　下一段會補 ' + next[next.length-1].key + ' ～ ' + next[0].key
+              + '　·　再按 <b>' + Math.ceil(miss.length / ED_SEG) + '</b> 次就補齊</p>';
+          })() + '</div>';
 
       // 燈號說明
       html += '<div class="ed-legend"><b>燈號＝這位學生多久沒被編輯</b>'
@@ -11386,11 +11497,283 @@
         + '<button type="button" class="fn-more" title="展開：筆記／何時確認／換人／沒機會／AI 追法" onclick="fnChkMore(this)">▾</button>'
         + '</div><div class="fn-r2" style="display:none"></div></li>';
     }
-    function _fnRowFormHtml(org, name){
+
+    // ═══════════════════════════════════════════════════════════
+    // 🧭 學員旅程圖
+    //   資料本來就有，只是散在四個地方，這裡把它們排成一條線：
+    //     接觸日 / 面談日  ← 面談紀錄總表（itv.sd / itv.d）
+    //     繳 100 / 註冊    ← 營業收支（pay.st = 報名 / 註冊，帶入帳日期）
+    //     試聽日           ← 備註或深挖的狀態歷史，用 _fnTrialNote 從文字裡抓日期
+    //     每一次編輯       ← 深挖的狀態歷史 h[]（有日期、有內容、有誰寫的）
+    //     組長核對         ← perf_compare_v1_chk_（何時確認／要排的課／換人／放棄）
+    //   ★ 抓不到就標「沒資料」，不要用猜的填滿一條漂亮的線。
+    // ═══════════════════════════════════════════════════════════
+    function _jrD(x){                       // 任何日期寫法 → YYYY-MM-DD，抓不到給 ''
+      var t = String(x || '').trim();
+      var m = /(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/.exec(t);
+      return m ? (m[1] + '-' + _ckPad2(+m[2]) + '-' + _ckPad2(+m[3])) : '';
+    }
+    function _jrToday(){ var d = new Date(); return d.getFullYear() + '-' + _ckPad2(d.getMonth()+1) + '-' + _ckPad2(d.getDate()); }
+    function _jrDiff(a, b){                 // b - a 幾天
+      if (!a || !b) return null;
+      return Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+    }
+    function _jrMD(d){ return d ? d.slice(5).replace('-', '/') : ''; }
+
+    function _jrBuild(org, ym, name){
+      var out = { nodes:[], edits:[], checks:[], meta:{}, errs:[], ok:false };
+      var _err = function(where, e){ out.errs.push(where + '：' + (e && e.message || e)); };
+      if (!org || !name) return out;
+      var today = _jrToday();
+
+      // ── 面談紀錄：這個人這個月（含前幾個月）的那一列 ──────────
+      var itv = null;
+      try {
+        var raw = _fnRawFor(ym), o = raw && raw.orgs && raw.orgs[org];
+        var rows = (o && o.itv || []).filter(function(r){ return r && r.n === name; });
+        if (rows.length) itv = rows[rows.length - 1];
+      } catch(e){ _err('讀面談紀錄', e); }
+
+      // ── 收支：報名（繳 100）／註冊，各取最早一筆 ─────────────
+      var payApp = null, payReg = null, payAdd = null;
+      try {
+        var raw2 = _fnRawFor(ym), o2 = raw2 && raw2.orgs && raw2.orgs[org];
+        (o2 && o2.pay || []).forEach(function(r){
+          if (!r || r.n !== name) return;
+          var d = _jrD(r.d);
+          if (r.sub === '學員加購'){ if (!payAdd || d < payAdd.d) payAdd = { d:d, v:+r.v||0, k:r.k||'' }; return; }
+          if (r.st === '註冊'){ if (!payReg || d < payReg.d) payReg = { d:d, v:+r.v||0, k:r.k||'' }; }
+          else { if (!payApp || d < payApp.d) payApp = { d:d, v:+r.v||0, k:r.k||'' }; }
+        });
+      } catch(e){ _err('讀營業收支', e); }
+
+      // ── 編輯歷史：深挖的狀態歷史記錄（有日期、內容、誰寫的）────
+      var scan = null, edits = [];
+      try { scan = (_fnScanFor(ym, org) || {})[name] || null; } catch(e){ _err('讀狀態歷史', e); }
+      if (scan && scan.h && scan.h.length){
+        edits = scan.h.map(function(r){
+          return { d:_jrD(r.d), raw:String(r.d||''), m:String(r.m||'').trim(), st:String(r.s||''), by:String(r.by||'') };
+        }).filter(function(r){ return r.d; }).sort(function(a,b){ return a.d < b.d ? -1 : (a.d > b.d ? 1 : 0); });
+      }
+      var dug = !!(scan && scan.ts);
+      var digFail = !!(scan && scan.fail);
+
+      // ── 試聽日：從編輯內容裡把日期抓出來（推測，不是欄位）──────
+      var trial = null;
+      try {
+        var refD = new Date(); refD.setHours(0,0,0,0);
+        var pool = edits.slice();
+        var curNote = _fnCurNote({ org:org, ym:ym, nb:_fnNotesMapFor(org), scan:_fnScanFor(ym, org) || {} }, name);
+        if (curNote) pool.push({ d:'', m:String(curNote) });
+        pool.forEach(function(r){
+          var t = _fnTrialNote(r.m, refD, ym);
+          if (t && t.d){
+            var ds = t.d.getFullYear() + '-' + _ckPad2(t.d.getMonth()+1) + '-' + _ckPad2(t.d.getDate());
+            if (!trial || ds > trial.d) trial = { d:ds, from:r.d || '（目前備註）', txt:t.txt };
+          }
+        });
+      } catch(e){ _err('推測試聽日', e); }
+
+      // ── 組長核對 ───────────────────────────────────────────
+      var c = _fnCheckGet(org, name) || {};
+
+      // ── 節點 ──────────────────────────────────────────────
+      var contact = itv ? _jrD(itv.sd) : '';
+      var meet    = itv ? _jrD(itv.d)  : '';
+      function node(k, icon, label, date, state, src, detail){
+        out.nodes.push({ k:k, icon:icon, label:label, d:date||'', state:state, src:src||'', detail:detail||'' });
+      }
+      node('contact', '📞', '名單進來', contact, contact ? 'done' : 'na', '面談紀錄・通路建檔日期',
+           itv ? ('來源：' + (itv.s || '沒寫')) : '這個月的面談名單裡找不到他');
+      node('meet', '🗣', '面談', meet, meet ? 'done' : 'na', '面談紀錄・建檔日期',
+           itv ? ('承辦：' + (itv.o || '沒寫') + (itv.w ? '　想學：' + itv.w : '')) : '');
+      node('app', '💰', '繳報名費', payApp ? payApp.d : '', payApp ? 'done' : (payReg ? 'skip' : 'miss'), '營業收支・報名',
+           payApp ? (payApp.v.toLocaleString() + ' 元' + (payApp.k ? '　' + payApp.k : '')) : (payReg ? '直接註冊，沒有經過報名費這一格' : '收支裡沒有他的報名費'));
+      node('trial', '🎧', '試聽', trial ? trial.d : '', trial ? (trial.d <= today ? 'done' : 'wait') : 'na', '從備註文字推測',
+           trial ? ('出處：' + trial.from + '　「' + _fnEsc(trial.txt || '') + '」') : (dug ? '編輯內容裡沒有寫到試聽日期' : '還沒深挖過他的狀態歷史，看不到'));
+      node('reg', '✅', '註冊', payReg ? payReg.d : '', payReg ? 'done' : 'miss', '營業收支・註冊',
+           payReg ? (payReg.v.toLocaleString() + ' 元' + (payReg.k ? '　' + payReg.k : '')) : '還沒註冊'
+                  + (payAdd ? '（有加購 ' + payAdd.v.toLocaleString() + '，不算新生）' : ''));
+
+      out.edits = edits;
+      out.meta = {
+        owner: itv ? (itv.o || '') : '', want: itv ? (itv.w || '') : '', src: itv ? (itv.s || '') : '',
+        dug: dug, digFail: digFail, digAt: (scan && scan.at) || '',
+        reg: !!payReg, app: !!payApp, chk: c, itv: !!itv, today: today
+      };
+
+      // ── SOP 檢查點：判定不到就說判定不到 ─────────────────────
+      function chk(label, verdict, why, basis){ out.checks.push({ label:label, v:verdict, why:why, basis:basis }); }
+      var lastEd = edits.length ? edits[edits.length-1].d : '';
+
+      // ① 名單進來 → 三天內約到面談
+      if (contact && meet){
+        var g1 = _jrDiff(contact, meet);
+        chk('三天內約到', g1 <= 3 ? 'ok' : 'bad',
+            g1 <= 3 ? ('名單進來後 ' + g1 + ' 天就面談') : ('名單進來後 ' + g1 + ' 天才面談，SOP 是三天內'),
+            '通路建檔日期 → 建檔日期');
+      } else {
+        chk('三天內約到', 'na', contact ? '沒有面談日' : '沒有通路建檔日期', '面談紀錄');
+      }
+
+      // ② 面談後三天觀察期有沒有動作
+      if (meet && dug && !digFail){
+        var near = edits.filter(function(r){ var g = _jrDiff(meet, r.d); return g !== null && g >= 0 && g <= 3; });
+        chk('面談後三天有跟進', near.length ? 'ok' : 'bad',
+            near.length ? ('面談後三天內編輯了 ' + near.length + ' 次') : '面談後三天內一次都沒編輯',
+            '狀態歷史記錄');
+      } else {
+        chk('面談後三天有跟進', 'na', meet ? (digFail ? '深挖讀不到他的狀態歷史' : '還沒深挖過，沒有編輯紀錄') : '沒有面談日', '狀態歷史記錄');
+      }
+
+      // ③ 7 日保溫（只看還沒註冊的人）
+      if (payReg){
+        chk('7 日保溫', 'skip', '已經註冊，這一關不適用（接下來看的是 21 天金句與預防退費）', '營業收支');
+      } else if (meet && dug && !digFail){
+        var w7 = edits.filter(function(r){ var g = _jrDiff(meet, r.d); return g !== null && g >= 0 && g <= 7; });
+        chk('7 日保溫', w7.length >= 3 ? 'ok' : (w7.length ? 'weak' : 'bad'),
+            '面談後七天內編輯了 ' + w7.length + ' 次' + (w7.length >= 3 ? '' : '（SOP 是天天都要有服務動作）'),
+            '狀態歷史記錄');
+      } else {
+        chk('7 日保溫', 'na', meet ? '沒有編輯紀錄可以判定' : '沒有面談日', '狀態歷史記錄');
+      }
+
+      // ④ 試聽日過了有沒有補排
+      if (trial && trial.d <= today && !payReg){
+        var after = edits.filter(function(r){ return r.d > trial.d; });
+        chk('試聽後有沒有補排', after.length ? 'ok' : 'bad',
+            after.length ? ('試聽日 ' + _jrMD(trial.d) + ' 之後還編輯了 ' + after.length + ' 次') : ('試聽日 ' + _jrMD(trial.d) + ' 過了，之後一次都沒編輯'),
+            '試聽日為備註推測');
+      } else if (trial && trial.d > today){
+        chk('試聽後有沒有補排', 'wait', '試聽日 ' + _jrMD(trial.d) + ' 還沒到', '試聽日為備註推測');
+      } else {
+        chk('試聽後有沒有補排', 'na', payReg ? '已經註冊' : '沒有抓到試聽日', '試聽日為備註推測');
+      }
+
+      // ⑤ 多久沒動了
+      if (lastEd){
+        var idle = _jrDiff(lastEd, today);
+        var lv = idle <= 3 ? 'ok' : (idle <= 7 ? 'weak' : 'bad');
+        chk('多久沒動', payReg ? 'skip' : lv,
+            payReg ? '已經註冊' : ('最後一次編輯是 ' + _jrMD(lastEd) + '，' + idle + ' 天前'),
+            '狀態歷史記錄');
+      } else {
+        chk('多久沒動', 'na', dug ? (digFail ? '深挖讀不到' : 'EIP 上沒有任何追蹤情形（業務沒寫）') : '還沒深挖過他', '狀態歷史記錄');
+      }
+
+      // ⑥ 註冊後的 21 項預防退費 —— 這套系統沒有這份資料，只能提醒，不能判定
+      if (payReg){
+        chk('預防退費 21 項', 'na', '這份表在紙本／EIP 之外，系統看不到。註冊後七天內講清楚，退費機率下降八成', '沒有資料來源');
+      }
+
+      out.ok = !!(itv || payReg || payApp || edits.length);
+      return out;
+    }
+
+
+    // ── 旅程帶 HTML ────────────────────────────────────────────
+    var _JR_V = { ok:'✅', bad:'⚠️', weak:'△', wait:'⏳', skip:'—', na:'?' };
+    var _jrCache = {};        // key → build 結果，給點小點時取用
+    function _jrHtml(org, ym, name){
+      var j;
+      try { j = _jrBuild(org, ym, name); } catch(e){ return '<div class="jr jr-err">旅程圖算不出來：' + _fnEsc(e.message || e) + '</div>'; }
+      var ck = org + '|' + ym + '|' + name;
+      _jrCache[ck] = j;
+      if (!j.ok) return '<div class="jr"><div class="jr-none">這個月的面談名單、收支、深挖裡都找不到他，畫不出旅程。</div></div>';
+
+      var today = j.meta.today;
+      // 節點之間要塞哪些編輯
+      function editsBetween(a, b){
+        return j.edits.filter(function(r){
+          if (a && r.d < a) return false;
+          if (b && r.d > b) return false;
+          return true;
+        });
+      }
+      var placed = {}, band = '';
+      j.nodes.forEach(function(nd, i){
+        // 這一格之前的編輯小點
+        var prev = null;
+        for (var k = i - 1; k >= 0; k--){ if (j.nodes[k].d){ prev = j.nodes[k].d; break; } }
+        if (i > 0){
+          var segEds = nd.d ? editsBetween(prev, nd.d) : [];
+          if (nd.d) segEds.forEach(function(r){ placed[r.d + '|' + r.m] = 1; });
+          band += '<div class="jr-seg">' + segEds.map(function(r){
+            return '<button type="button" class="jr-dot' + (_fnEmptyNote(r.m) ? ' blank' : '')
+              + '" title="' + _fnEsc(_jrMD(r.d) + '　' + (r.by || '') + '\n' + (r.m || '（沒寫）')) + '"'
+              + ' onclick="jrDot(this)" data-ck="' + _fnEsc(ck) + '" data-d="' + _fnEsc(r.d) + '" data-m="' + _fnEsc(r.m) + '"></button>';
+          }).join('') + '</div>';
+        }
+        var late = (nd.d && nd.d > today);
+        band += '<div class="jr-nd jr-' + nd.state + '" title="' + _fnEsc(nd.src + (nd.detail ? '\n' + nd.detail : '')) + '">'
+          + '<span class="jr-ic">' + nd.icon + '</span>'
+          + '<span class="jr-lb">' + nd.label + '</span>'
+          + '<span class="jr-dt2">' + (nd.d ? (_jrMD(nd.d) + (late ? '（未到）' : '')) : (nd.state === 'skip' ? '跳過' : '沒資料')) + '</span>'
+          + '</div>';
+      });
+      // 最後一個有日期的節點之後，還有沒有編輯（＝註冊後／目前還在追的動作）
+      var lastNodeD = '';
+      j.nodes.forEach(function(nd){ if (nd.d && nd.d <= today && nd.d > lastNodeD) lastNodeD = nd.d; });
+      var tail = j.edits.filter(function(r){ return !placed[r.d + '|' + r.m] && (!lastNodeD || r.d > lastNodeD); });
+      if (tail.length){
+        band += '<div class="jr-seg jr-tail">' + tail.map(function(r){
+          return '<button type="button" class="jr-dot' + (_fnEmptyNote(r.m) ? ' blank' : '')
+            + '" title="' + _fnEsc(_jrMD(r.d) + '　' + (r.by || '') + '\n' + (r.m || '（沒寫）')) + '"'
+            + ' onclick="jrDot(this)" data-ck="' + _fnEsc(ck) + '" data-d="' + _fnEsc(r.d) + '" data-m="' + _fnEsc(r.m) + '"></button>';
+        }).join('') + '</div>';
+      }
+
+      // 檢查點
+      var bad = j.checks.filter(function(x){ return x.v === 'bad'; }).length;
+      var checks = j.checks.map(function(x){
+        return '<span class="jr-ck jr-v-' + x.v + '" title="' + _fnEsc(x.why + '\n判定依據：' + x.basis) + '">'
+          + _JR_V[x.v] + ' ' + _fnEsc(x.label) + '</span>';
+      }).join('');
+
+      // 組長已經做過的處置
+      var c = j.meta.chk || {}, marks = [];
+      if (c.due && (c.due.d || c.due.c)) marks.push('📅 ' + _fnEsc((c.due.d || '') + (c.due.c ? '　' + c.due.c : '')));
+      if (c.rs) marks.push('🔁 換 ' + _fnEsc(c.rs.v));
+      if (c.gv) marks.push('🚫 ' + _fnEsc(c.gv.why || '沒機會'));
+      if (c.ok) marks.push('✔ 核對過');
+
+      var srcNote = j.meta.dug
+        ? ('狀態歷史 ' + (j.meta.digAt ? _fnEsc(j.meta.digAt) + ' 讀的' : '已讀') + '，共 ' + j.edits.length + ' 筆編輯')
+        : '<b class="jr-warn">還沒深挖過他 —— 中間的編輯小點與一半的檢查點都看不到，按「🔎 試聽深挖」才有</b>';
+
+      return '<div class="jr">'
+        + '<div class="jr-hd"><b>🧭 旅程</b>'
+        + (bad ? '<span class="jr-badn">' + bad + ' 段沒照旅程走</span>' : '<span class="jr-okn">目前每一段都有跟上</span>')
+        + (marks.length ? '<span class="jr-marks">' + marks.join('　') + '</span>' : '')
+        + '</div>'
+        + '<div class="jr-band">' + band + '</div>'
+        + '<div class="jr-checks">' + checks + '</div>'
+        + '<div class="jr-dt" style="display:none"></div>'
+        + (j.errs && j.errs.length ? '<div class="jr-src"><b class="jr-warn">有幾段資料讀失敗，這條線是不完整的：' + _fnEsc(j.errs.join('；')) + '</b></div>' : '')
+        + '<div class="jr-src">' + srcNote + '　·　小點＝一次編輯，實心＝有寫字、空心＝留白（**）。點小點看那一筆寫什麼。</div>'
+        + '</div>';
+    }
+    function jrDot(btn){
+      var box = btn.closest('.jr').querySelector('.jr-dt');
+      var ck = btn.getAttribute('data-ck'), d = btn.getAttribute('data-d'), m = btn.getAttribute('data-m');
+      var j = _jrCache[ck];
+      var r = null;
+      if (j) for (var i = 0; i < j.edits.length; i++){ if (j.edits[i].d === d && j.edits[i].m === m){ r = j.edits[i]; break; } }
+      if (box.getAttribute('data-cur') === d + '|' + m){ box.style.display = 'none'; box.removeAttribute('data-cur'); return; }
+      box.setAttribute('data-cur', d + '|' + m);
+      box.innerHTML = '<div class="jr-dt-h">' + _fnEsc(r ? r.raw || _jrMD(d) : _jrMD(d))
+        + (r && r.by ? '　<span class="jr-by">' + _fnEsc(r.by) + '</span>' : '')
+        + (r && r.st ? '　<span class="jr-st">' + _fnEsc(r.st) + '</span>' : '') + '</div>'
+        + '<pre>' + (_fnEmptyNote(m) ? '（業務留白，只按了儲存）' : _fnEsc(m)) + '</pre>';
+      box.style.display = 'block';
+    }
+
+    function _fnRowFormHtml(org, name, ym){
       var c = _fnCheckGet(org, name) || {};
       var v = function(o, f){ return o ? _fnEsc(o[f] || '') : ''; };
       var who = function(o){ return (o && o.at) ? (_fnEsc(o.by || '') + ' ' + _fnWhen(o.at)) : ''; };
-      return '<div class="fn-fgrid">'
+      return (ym ? _jrHtml(org, ym, name) : '')
+        + '<div class="fn-fgrid">'
         + '<label>組長筆記<input type="text" class="fn-i-note" value="' + v(c.note, 'v') + '" placeholder="邊對邊打，離開欄位就存" onchange="fnChkSave(this,\'note\')"></label>'
         + '<label>何時確認<input type="date" class="fn-i-dued" value="' + v(c.due, 'd') + '" onchange="fnChkSave(this,\'due\')"></label>'
         + '<label>要排的課<input type="text" class="fn-i-duec" list="fnChkCourses" value="' + v(c.due, 'c') + '" placeholder="正課／單元課／講座" onchange="fnChkSave(this,\'due\')"></label>'
@@ -11420,7 +11803,7 @@
       li.className = 'fn-row' + (c.ok ? ' done' : '') + (c.gv ? ' gv' : '') + (c.rs ? ' rs' : '');
       var m = li.querySelector('.fn-meta'); if (m) m.innerHTML = _fnRowMeta(org, n, _fnChkCtx(org, ym), c);
       var box = li.querySelector('.fn-r2');
-      if (!keepForm && box && box.style.display !== 'none') box.innerHTML = _fnRowFormHtml(org, n);
+      if (!keepForm && box && box.style.display !== 'none') box.innerHTML = _fnRowFormHtml(org, n, ym);
       fnChkCountAll();
     }
     function fnChkMore(btn){
@@ -11432,7 +11815,7 @@
         dl.innerHTML = FN_CHK_COURSES.map(function(c){ return '<option value="' + _fnEsc(c) + '">'; }).join('');
         document.body.appendChild(dl);
       }
-      box.innerHTML = _fnRowFormHtml(li.getAttribute('data-org'), li.getAttribute('data-n'));
+      box.innerHTML = _fnRowFormHtml(li.getAttribute('data-org'), li.getAttribute('data-n'), li.getAttribute('data-ym'));
       box.style.display = 'block'; btn.textContent = '▴';
     }
     function fnChkToggle(btn){
