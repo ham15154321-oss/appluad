@@ -1417,6 +1417,29 @@
       background:var(--eFill); color:var(--eDim); border:1px solid var(--eLine); cursor:pointer; }
     #edDashBg .edd-tab:hover { color:var(--eInk); }
     #edDashBg .edd-tab.on { background:var(--eAcc); color:#fff; border-color:transparent; }
+    /* 範圍選擇 */
+    #edDashBg .edd-scope { flex-basis:100%; display:flex; align-items:center; gap:7px; flex-wrap:wrap; padding-top:4px; }
+    #edDashBg .edd-sclb { font-size:.86rem; font-weight:800; color:var(--eMute); margin-right:4px; }
+    #edDashBg .edd-sc { padding:7px 14px; border-radius:999px; font-size:.94rem; font-weight:700;
+      background:transparent; color:var(--eDim); border:1px solid var(--eLine); cursor:pointer; }
+    #edDashBg .edd-sc:hover { color:var(--eInk); border-color:var(--eAcc); }
+    #edDashBg .edd-sc.on { background:var(--eInk); color:var(--eFill); border-color:transparent; font-weight:800; }
+    /* 標題右邊的總數 */
+    #edDashBg .edd-tot { float:right; font-size:.94rem; font-weight:700; color:var(--eDim); }
+    /* 差距 */
+    #edDashBg .edd-gap2 { margin-top:14px; text-align:center; font-size:1.02rem; color:var(--eDim); }
+    #edDashBg .edd-gap2 b { font-size:1.25rem; color:var(--eInk); }
+    /* 直條下面的週增減 */
+    #edDashBg .edd-colnm small.up { color:var(--eOk); font-weight:800; }
+    #edDashBg .edd-colnm small.down { color:var(--eBad); font-weight:800; }
+    /* 幾乎沒在編的人 */
+    #edDashBg .edd-qwrap { display:flex; flex-wrap:wrap; gap:10px; }
+    #edDashBg .edd-q { display:inline-flex; flex-direction:column; gap:2px; padding:10px 16px; border-radius:13px;
+      background:var(--eBg2); border:1px dashed var(--eLine); cursor:help; }
+    #edDashBg .edd-q b { font-size:1.06rem; font-weight:800; }
+    #edDashBg .edd-q em { font-style:normal; font-size:.84rem; color:var(--eMute); }
+    #edDashBg .edd-quiet { border-color:var(--eBad); }
+    #edDashBg .edd-set td.num small { display:block; font-size:.74rem; font-weight:600; color:var(--eMute); }
     #edDashBg .edd-x { margin-left:auto; width:44px; height:44px; border-radius:50%; font-size:1.2rem;
       background:var(--eFill); color:var(--eDim); border:1px solid var(--eLine); cursor:pointer; }
     #edDashBg .edd-x:hover { color:var(--eBad); }
@@ -1637,6 +1660,8 @@
     #tab-10 td.ed-act { white-space:nowrap; }
     #tab-10 .ed-staffbtn { margin-left:5px; opacity:.6; }
     #tab-10 .ed-staffbtn:hover { opacity:1; }
+    #tab-10 .ed-quietn { margin-top:12px; padding:9px 14px; border-radius:11px; font-size:.92rem;
+      color:var(--edDim); background:var(--edFill); border:1px dashed var(--edLine); display:inline-block; cursor:help; }
     #tab-10 .ed-hid { margin-top:14px; font-size:.95rem; color:var(--edDim); }
     #tab-10 .ed-hid summary { cursor:pointer; }
     #tab-10 .ed-hid-i { display:inline-flex; align-items:center; gap:7px; margin:8px 10px 0 0;
@@ -8546,6 +8571,7 @@
     var ED_STAFF_KEY = 'perf_compare_v1_ed_staff';   // 不列入排名的人（客服、批次操作、資料不準的）
     var ED_TEAM_KEY  = 'perf_compare_v1_ed_team';    // 組別：{ '學院|姓名': 'A' }
     var ED_TEAMS = ['A', 'B', 'C', 'D'];
+    var ED_MIN = 10;   // 低於這個筆數的人不進排名（參考價值太低，只會把表拉長）
     function _edTeamAll(){ try { return JSON.parse(localStorage.getItem(ED_TEAM_KEY) || '{}') || {}; } catch(e){ return {}; } }
     function _edTeamOf(org, ed){ return _edTeamAll()[org + '|' + ed] || ''; }
     function edSetTeam(org, ed, t){
@@ -8659,45 +8685,42 @@
       var byOrg = {}, people = [];
       (data.orgs || []).forEach(function(o){
         var list = (o.list || []).filter(function(w){ return w.mon > 0 || w.pool > 0; });
-        byOrg[o.org] = { org:o.org, sum:0, pool:0, care0:0, list:list };
+        byOrg[o.org] = { org:o.org, sum:0, w7:0, w7prev:0, list:list, quiet:[] };
         list.forEach(function(w){
           byOrg[o.org].sum += w.mon;
-          byOrg[o.org].pool += (w.pool || 0);
-          byOrg[o.org].care0 += (w.lamps ? w.lamps.l0 : 0);
+          byOrg[o.org].w7 += (w.w7 || 0);
+          byOrg[o.org].w7prev += (w.w7prev || 0);
+          if (w.mon < ED_MIN) byOrg[o.org].quiet.push(w.ed);   // 幾乎沒在編的人，單一學院那頁會列出來
           people.push({
-            org:o.org, name:w.ed, mon:w.mon, care:w.care, pool:w.pool || 0, cold:w.cold || 0,
+            org:o.org, name:w.ed, mon:w.mon, pool:w.pool || 0, cold:w.cold || 0,
             w7:w.w7, w7prev:w.w7prev, delta:w.delta || 0, streak:w.streak || 0,
-            team:_edTeamOf(o.org, w.ed), lamps:w.lamps
+            team:_edTeamOf(o.org, w.ed), lamps:w.lamps, lastDay:w.lastDay || ''
           });
         });
       });
-      Object.keys(byOrg).forEach(function(k){
-        var o = byOrg[k];
-        o.care = o.pool ? Math.round(o.care0 / o.pool * 100) : null;
-      });
-      // 區域彙總
+      // 區域彙總：比總數（要張力），另外帶本週 vs 上週
       var regions = {};
       ['central','taoyuan','south'].forEach(function(rk){
-        var R = CK_REGIONS[rk], sum = 0, pool = 0, care0 = 0, n = 0;
+        var R = CK_REGIONS[rk], sum = 0, w7 = 0, w7p = 0, n = 0;
         R.orgs.forEach(function(g){
           var o = byOrg[g]; if (!o) return;
-          sum += o.sum; pool += o.pool; care0 += o.care0; n += o.list.length;
+          sum += o.sum; w7 += o.w7; w7p += o.w7prev; n += o.list.length;
         });
-        regions[rk] = { key:rk, label:R.label, orgs:R.orgs, sum:sum, pool:pool,
-                        care: pool ? Math.round(care0 / pool * 100) : null, heads:n,
-                        avg: n ? Math.round(sum / n) : 0 };
+        regions[rk] = { key:rk, label:R.label, orgs:R.orgs, sum:sum, heads:n,
+                        w7:w7, w7prev:w7p,
+                        wow: w7p ? Math.round((w7 - w7p) / w7p * 100) : null };
       });
       // 組別彙總
       var teams = {};
       people.forEach(function(p){
+        if (p.mon < ED_MIN) return;
         if (!p.team) return;
-        var t = teams[p.team] || (teams[p.team] = { team:p.team, n:0, sum:0, pool:0, care0:0, names:[] });
-        t.n++; t.sum += p.mon; t.pool += p.pool; t.care0 += (p.lamps ? p.lamps.l0 : 0); t.names.push(p.name);
+        var t = teams[p.team] || (teams[p.team] = { team:p.team, n:0, sum:0, names:[] });
+        t.n++; t.sum += p.mon; t.names.push(p.name);
       });
       Object.keys(teams).forEach(function(k){
         var t = teams[k];
         t.avg = t.n ? Math.round(t.sum / t.n) : 0;
-        t.care = t.pool ? Math.round(t.care0 / t.pool * 100) : null;
       });
       // 全部人（含被排除的）→ 排除面板要列
       var allPeople = [];
@@ -8713,6 +8736,7 @@
 
     // ═══ 📊 儀表板：畫面 ═════════════════════════════════════
     var edDashTab = 'rank';
+    var edDashScope = (function(){ try { return localStorage.getItem('ed_dash_scope') || 'central'; } catch(e){ return 'central'; } })();
     function edDashOpen(){
       if (document.getElementById('edDashBg')) return;
       var bg = document.createElement('div');
@@ -8732,6 +8756,23 @@
       try { edRenderAll(); } catch(e){}
     }
     function edDashTo(t){ edDashTab = t; edDashRender(); }
+    function edDashScopeTo(k){
+      edDashScope = k;
+      try { localStorage.setItem('ed_dash_scope', k); } catch(e){}
+      edDashRender();
+    }
+    // 目前範圍涵蓋哪幾家 ＋ 怎麼稱呼它
+    function _eddScope(){
+      if (edDashScope === 'all') return { label:'全省七家', orgs:CK_ORG_LIST, isOrg:false };
+      if (CK_REGIONS[edDashScope]) return { label:CK_REGIONS[edDashScope].label, orgs:CK_REGIONS[edDashScope].orgs, isOrg:false };
+      if (CK_ORG_LIST.indexOf(edDashScope) >= 0) return { label:edDashScope, orgs:[edDashScope], isOrg:true };
+      return { label:'中區', orgs:CK_REGIONS.central.orgs, isOrg:false };
+    }
+    // 範圍內、而且編超過門檻的人
+    function _eddPeople(M){
+      var sc = _eddScope();
+      return M.people.filter(function(p){ return sc.orgs.indexOf(p.org) >= 0 && p.mon >= ED_MIN; });
+    }
 
     // 橫條：名字排左邊正常讀，不用歪頭
     function _eddBars(rows, opt){
@@ -8744,24 +8785,26 @@
           + '<div class="edd-rk">' + (opt.noRank ? '' : (i + 1)) + '</div>'
           + '<div class="edd-nm">' + _fnEsc(r.name) + (r.sub ? '<small>' + _fnEsc(r.sub) + '</small>' : '') + '</div>'
           + '<div class="edd-track"><div class="edd-fill" style="width:' + pct.toFixed(1) + '%"></div></div>'
-          + '<div class="edd-v">' + (r.label != null ? r.label : r.v) + (r.v2 != null ? '<small>' + r.v2 + '</small>' : '') + '</div>'
+          + '<div class="edd-v">' + (r.label != null ? r.label : r.v) + (r.v2 ? '<small>' + _fnEsc(r.v2) + '</small>' : '') + '</div>'
           + '</div>';
       }).join('') + '</div>';
     }
-    // 直條：只有兩三根的時候用（區域比較）
+    // 直條：只有兩三根的時候用
     function _eddCols(cols){
       var max = Math.max.apply(null, cols.map(function(c){ return c.v || 0; })) || 1;
       return '<div class="edd-cols">' + cols.map(function(c){
         return '<div class="edd-col"' + (c.tip ? ' data-tip="' + _fnEsc(c.tip) + '"' : '') + '>'
           + '<div class="edd-colv">' + (c.label != null ? c.label : c.v) + '</div>'
           + '<div class="edd-colbar" style="height:' + Math.max(4, (c.v / max) * 100).toFixed(1) + '%' + (c.color ? ';background:' + c.color : '') + '"></div>'
-          + '<div class="edd-colnm">' + _fnEsc(c.name) + (c.sub ? '<small>' + _fnEsc(c.sub) + '</small>' : '') + '</div>'
+          + '<div class="edd-colnm">' + _fnEsc(c.name) + (c.sub ? '<small class="' + (c.subCls || '') + '">' + _fnEsc(c.sub) + '</small>' : '') + '</div>'
           + '</div>';
       }).join('') + '</div>';
     }
-    function _eddCare(p){
-      if (p.care == null) return { label:'—', v:0, tip:'手上沒有名單，算不出照顧率' };
-      return { label:p.care + '%', v:p.care };
+    function _eddWow(w){
+      if (w == null) return { txt:'上週沒有資料可比', cls:'' };
+      if (w > 0) return { txt:'比上週 +' + w + '%', cls:'up' };
+      if (w < 0) return { txt:'比上週 ' + w + '%', cls:'down' };
+      return { txt:'跟上週持平', cls:'' };
     }
 
     function edDashRender(){
@@ -8785,147 +8828,185 @@
     function _eddHead(M){
       var days = M ? M.days.filter(function(d){ return d.slice(0,7) === M.ym; }) : [];
       var range = days.length ? (days[0].slice(5).replace('-','/') + '～' + days[days.length-1].slice(5).replace('-','/')) : '';
-      var tabs = [['rank','🏆 中區排名'],['org','🏫 各學院'],['vs','⚔️ 桃區 vs 中區'],['boost','🔥 激勵'],['set','⚙️ 誰要列入']];
+      var tabs = [['rank','🏆 排名'],['org','🏫 各學院'],['vs','⚔️ 中區 vs 桃區'],['boost','🔥 激勵'],['set','⚙️ 誰要列入']];
+      var scopes = [['all','全省']].concat(
+        ['central','taoyuan','south'].map(function(k){ return [k, CK_REGIONS[k].label]; }),
+        CK_ORG_LIST.map(function(g){ return [g, g]; })
+      );
       return '<div class="edd-hd">'
         + '<div class="edd-t"><b>📊 編輯儀表板</b>'
-        + (days.length ? '<span>已抓 ' + days.length + ' 天' + (range ? '（' + range + '）' : '') + '</span>' : '')
+        + (days.length ? '<span>已抓 ' + days.length + ' 天' + (range ? '（' + range + '）' : '') + '　·　只列編 ' + ED_MIN + ' 筆以上的人</span>' : '')
         + '</div>'
         + '<div class="edd-tabs">' + tabs.map(function(t){
             return '<button class="edd-tab' + (edDashTab === t[0] ? ' on' : '') + '" onclick="edDashTo(\'' + t[0] + '\')">' + t[1] + '</button>';
           }).join('') + '</div>'
         + '<button class="edd-x" onclick="edDashClose()" data-tip="關閉（Esc）">✕</button>'
+        + '<div class="edd-scope"><span class="edd-sclb">看哪裡</span>'
+        + scopes.map(function(k){
+            return '<button class="edd-sc' + (edDashScope === k[0] ? ' on' : '') + '" onclick="edDashScopeTo(\'' + _fnEsc(k[0]) + '\')">' + _fnEsc(k[1]) + '</button>';
+          }).join('')
+        + '</div>'
         + '</div>';
     }
 
-    // ① 中區排名：量 ＋ 照顧率 並排
+    // ① 排名：跟著範圍走
     function _eddRank(M){
-      var orgs = CK_REGIONS.central.orgs;
-      var ppl = M.people.filter(function(p){ return orgs.indexOf(p.org) >= 0; });
-      return _eddTwoUp(ppl, '中區', orgs);
-    }
-    function _eddTwoUp(ppl, label, orgs){
-      if (!ppl.length) return '<div class="edd-none">' + label + '沒有資料</div>';
-      var byMon = ppl.slice().sort(function(a,b){ return b.mon - a.mon; }).map(function(p){
-        return { name:p.name, sub:p.org, v:p.mon, label:p.mon,
-                 tip: p.name + '（' + p.org + '）\n編過 ' + p.mon + ' 筆名單。\n手上 ' + p.pool + ' 位學生，3 天內動過 ' + (p.lamps?p.lamps.l0:0) + ' 位。\n連續 ' + p.streak + ' 天有編輯。' };
-      });
-      var byCare = ppl.filter(function(p){ return p.care != null; })
-        .sort(function(a,b){ return b.care - a.care; }).map(function(p){
-          return { name:p.name, sub:p.org + '・手上 ' + p.pool + ' 人', v:p.care, label:p.care + '%',
-                   cls: p.care >= 60 ? 'good' : (p.care < 30 ? 'bad' : ''),
-                   tip: p.name + '（' + p.org + '）\n手上 ' + p.pool + ' 位學生，其中 ' + (p.lamps?p.lamps.l0:0) + ' 位在 3 天內被動過 ＝ ' + p.care + '%。\n\n' + (p.cold ? '有 ' + p.cold + ' 位已經 15 天以上沒人碰。' : '沒有放超過 15 天的。') };
+      var sc = _eddScope(), ppl = _eddPeople(M);
+      var body = '';
+      if (!ppl.length){
+        body = '<div class="edd-none"><h3>' + _fnEsc(sc.label) + '沒有人編超過 ' + ED_MIN + ' 筆</h3>'
+          + '<p>可能是資料還沒抓夠，也可能真的都沒在編。</p></div>';
+      } else {
+        var rows = ppl.slice().sort(function(a,b){ return b.mon - a.mon; }).map(function(p){
+          var w = _eddWow(p.w7prev ? Math.round((p.w7 - p.w7prev) / p.w7prev * 100) : null);
+          return { name:p.name, sub:(sc.isOrg ? '' : p.org), v:p.mon, label:p.mon,
+                   v2: p.delta ? (p.delta > 0 ? '本週 +' + p.delta : '本週 ' + p.delta) : '',
+                   cls: p.delta > 0 ? 'good' : (p.delta < 0 ? 'bad' : ''),
+                   tip: p.name + (sc.isOrg ? '' : '（' + p.org + '）') + '\n編過 ' + p.mon + ' 筆名單。\n'
+                        + '本週 ' + p.w7 + ' 筆、上週 ' + p.w7prev + ' 筆　' + w.txt + '\n'
+                        + '連續 ' + p.streak + ' 天有編輯。\n最後一次編輯：' + (p.lastDay || '沒觀測到') };
         });
-      return '<div class="edd-2up">'
-        + '<div class="edd-card"><h3>' + label + '・編了幾筆名單</h3>'
-        + '<p class="edd-sub">看努力量。同一筆名單編五次只算一筆。</p>' + _eddBars(byMon) + '</div>'
-        + '<div class="edd-card"><h3>' + label + '・照顧率</h3>'
-        + '<p class="edd-sub">手上名單裡有幾成在 3 天內被動過。名單少的人不會吃虧。</p>' + _eddBars(byCare) + '</div>'
-        + '</div>'
-        + '<div class="edd-note">兩張圖一起看才準：<b>左高右低</b>＝量衝很大但一堆名單放著；<b>左低右高</b>＝名單不多但顧得很完整；<b>兩邊都低</b>＝要找他談。</div>';
+        var tot = ppl.reduce(function(a,p){ return a + p.mon; }, 0);
+        body = '<div class="edd-card"><h3>' + _fnEsc(sc.label) + '・編了幾筆名單'
+          + '<span class="edd-tot">' + tot.toLocaleString() + ' 筆　' + ppl.length + ' 人</span></h3>'
+          + '<p class="edd-sub">條子右邊的小字是「本週比上週多／少幾筆」。綠色＝本週往上衝，紅色＝掉下來。</p>'
+          + _eddBars(rows) + '</div>';
+      }
+      return body + (sc.isOrg ? _eddQuiet(M, sc) : '');
+    }
+
+    // 單一學院才出現：這家幾乎沒在編的人
+    function _eddQuiet(M, sc){
+      var o = M.byOrg[sc.orgs[0]];
+      if (!o) return '';
+      var q = o.list.filter(function(w){ return w.mon < ED_MIN; })
+        .sort(function(a,b){ return a.mon - b.mon; });
+      if (!q.length) return '<div class="edd-card"><h3>🫥 這家幾乎沒在編的人</h3>'
+        + '<p class="edd-sub">沒有人低於 ' + ED_MIN + ' 筆，全員都有在動。</p></div>';
+      return '<div class="edd-card edd-quiet"><h3>🫥 這家幾乎沒在編的人　<span class="edd-tot">' + q.length + ' 位</span></h3>'
+        + '<p class="edd-sub">這幾位低於 ' + ED_MIN + ' 筆，所以沒出現在上面的排名。開會前先看這一區。</p>'
+        + '<div class="edd-qwrap">' + q.map(function(w){
+            var gap = w.lastDay ? _edDiffDays(w.lastDay) : null;
+            return '<span class="edd-q" data-tip="' + _fnEsc(w.ed) + '\n這段期間只編了 ' + w.mon + ' 筆。\n'
+              + (gap == null ? '完全沒有觀測到他的編輯紀錄。' : '最後一次編輯是 ' + w.lastDay + '，' + gap + ' 天前。')
+              + '\n\n先問是不是手上沒名單、還是卡在哪，不要直接當作沒做事。">'
+              + '<b>' + _fnEsc(w.ed) + '</b><em>' + w.mon + ' 筆' + (gap == null ? '' : '・' + gap + ' 天前') + '</em></span>';
+          }).join('') + '</div></div>';
     }
 
     // ② 各學院
     function _eddOrg(M){
       var rows = CK_ORG_LIST.map(function(g){
         var o = M.byOrg[g]; if (!o) return null;
-        return { name:g, sub:o.list.length + ' 位業務', v:o.sum, label:o.sum,
-                 v2: o.care == null ? '' : '照顧 ' + o.care + '%',
-                 tip: g + '\n' + o.list.length + ' 位業務，共編過 ' + o.sum + ' 筆名單。\n手上名單 ' + o.pool + ' 位學生，照顧率 ' + (o.care == null ? '—' : o.care + '%') + '。\n平均每人 ' + (o.list.length ? Math.round(o.sum / o.list.length) : 0) + ' 筆。' };
+        var act = o.list.filter(function(w){ return w.mon >= ED_MIN; });
+        var sum = act.reduce(function(a, w){ return a + w.mon; }, 0);
+        var w = _eddWow(o.w7prev ? Math.round((o.w7 - o.w7prev) / o.w7prev * 100) : null);
+        return { name:g, sub:act.length + ' 人有在編' + (o.quiet.length ? '・' + o.quiet.length + ' 人幾乎沒動' : ''),
+                 v:sum, label:sum.toLocaleString(), v2:w.txt,
+                 cls: (w.cls === 'up' ? 'good' : (w.cls === 'down' ? 'bad' : '')),
+                 tip: g + '\n' + sum.toLocaleString() + ' 筆（只算編 ' + ED_MIN + ' 筆以上的 ' + act.length + ' 位）\n'
+                      + '本週 ' + o.w7 + ' 筆、上週 ' + o.w7prev + ' 筆　' + w.txt
+                      + (o.quiet.length ? '\n\n另有 ' + o.quiet.length + ' 位幾乎沒動：' + o.quiet.join('、') : '') };
       }).filter(Boolean).sort(function(a,b){ return b.v - a.v; });
-      var care = CK_ORG_LIST.map(function(g){
-        var o = M.byOrg[g]; if (!o || o.care == null) return null;
-        return { name:g, sub:'手上 ' + o.pool + ' 人', v:o.care, label:o.care + '%',
-                 cls: o.care >= 60 ? 'good' : (o.care < 30 ? 'bad' : '') };
-      }).filter(Boolean).sort(function(a,b){ return b.v - a.v; });
-      return '<div class="edd-2up">'
-        + '<div class="edd-card"><h3>七家學院・編了幾筆</h3><p class="edd-sub">整家加總。人多的學院本來就會比較高。</p>' + _eddBars(rows) + '</div>'
-        + '<div class="edd-card"><h3>七家學院・照顧率</h3><p class="edd-sub">跟人數無關，這是公平比較。</p>' + _eddBars(care) + '</div>'
-        + '</div>';
+      return '<div class="edd-card"><h3>七家學院・編了幾筆名單</h3>'
+        + '<p class="edd-sub">只算編 ' + ED_MIN + ' 筆以上的人。條子右邊是跟上週比。上面的「看哪裡」點學院名稱可以只看那一家。</p>'
+        + _eddBars(rows) + '</div>';
     }
 
-    // ③ 桃區 vs 中區
+    // ③ 中區 vs 桃區：比總數，條下小字是跟上週比
     function _eddVs(M){
-      var C = M.regions.central, T = M.regions.taoyuan, S = M.regions.south;
-      var cols = [
-        { name:'中區', sub:C.heads + ' 人', v:C.avg, label:C.avg, color:'#5b5bd6',
-          tip:'中區\n' + C.orgs.join('、') + '\n' + C.heads + ' 位業務，共 ' + C.sum + ' 筆。\n平均每人 ' + C.avg + ' 筆，照顧率 ' + (C.care==null?'—':C.care+'%') },
-        { name:'桃區', sub:T.heads + ' 人', v:T.avg, label:T.avg, color:'#e0562a',
-          tip:'桃區\n' + T.orgs.join('、') + '\n' + T.heads + ' 位業務，共 ' + T.sum + ' 筆。\n平均每人 ' + T.avg + ' 筆，照顧率 ' + (T.care==null?'—':T.care+'%') },
-        { name:'南區', sub:S.heads + ' 人', v:S.avg, label:S.avg, color:'#1f8f45',
-          tip:'南區\n' + S.orgs.join('、') + '\n' + S.heads + ' 位業務，共 ' + S.sum + ' 筆。\n平均每人 ' + S.avg + ' 筆，照顧率 ' + (S.care==null?'—':S.care+'%') }
-      ];
-      var care = [C,T,S].map(function(R){
-        return { name:R.label, sub:'手上 ' + R.pool + ' 人', v:R.care || 0, label:(R.care==null?'—':R.care+'%'),
-                 color: R.care >= 60 ? '#1f8f45' : (R.care < 30 ? '#c0392b' : '#e0a800') };
-      });
-      function side(R){
-        var ppl = M.people.filter(function(p){ return R.orgs.indexOf(p.org) >= 0; })
+      function sumOf(R){
+        var s = 0, w7 = 0, w7p = 0;
+        R.orgs.forEach(function(g){
+          var o = M.byOrg[g]; if (!o) return;
+          o.list.forEach(function(w){ if (w.mon >= ED_MIN){ s += w.mon; w7 += (w.w7||0); w7p += (w.w7prev||0); } });
+        });
+        return { sum:s, w7:w7, w7prev:w7p, wow: w7p ? Math.round((w7 - w7p) / w7p * 100) : null };
+      }
+      var C = sumOf(CK_REGIONS.central), T = sumOf(CK_REGIONS.taoyuan);
+      function col(R, d, color){
+        var w = _eddWow(d.wow);
+        return { name:R.label, sub:w.txt, subCls:w.cls, v:d.sum, label:d.sum.toLocaleString(), color:color,
+                 tip:R.label + '　' + d.sum.toLocaleString() + ' 筆\n' + R.orgs.join('、')
+                     + '\n\n本週 ' + d.w7.toLocaleString() + ' 筆、上週 ' + d.w7prev.toLocaleString() + ' 筆 → ' + w.txt
+                     + '\n\n只算編 ' + ED_MIN + ' 筆以上的人。' };
+      }
+      var diff = C.sum - T.sum, lead = diff > 0 ? '中區' : (diff < 0 ? '桃區' : '');
+      var lo = Math.min(C.sum, T.sum);
+      var pct = lo ? Math.round(Math.abs(diff) / lo * 100) : 0;
+      var side = function(R){
+        var ppl = M.people.filter(function(p){ return R.orgs.indexOf(p.org) >= 0 && p.mon >= ED_MIN; })
           .sort(function(a,b){ return b.mon - a.mon; }).slice(0, 10)
           .map(function(p){ return { name:p.name, sub:p.org, v:p.mon, label:p.mon }; });
         return '<div class="edd-card"><h3>' + R.label + ' 前 10 名</h3>' + _eddBars(ppl) + '</div>';
-      }
-      return '<div class="edd-card"><h3>平均每人編了幾筆</h3>'
-        + '<p class="edd-sub">用平均，不用總數 —— 中區三家、桃區三家、南區一家，人數不一樣，比總數不公平。</p>'
-        + _eddCols(cols) + '</div>'
-        + '<div class="edd-card"><h3>照顧率</h3><p class="edd-sub">手上名單有幾成 3 天內被動過。這個跟人數完全無關。</p>' + _eddCols(care) + '</div>'
-        + '<div class="edd-2up">' + side(C) + side(T) + '</div>';
+      };
+      return '<div class="edd-card"><h3>中區 vs 桃區・總共編了幾筆</h3>'
+        + '<p class="edd-sub">比總數。條子下面是跟上週比 —— 總數看規模，週增減看動能。</p>'
+        + _eddCols([col(CK_REGIONS.central, C, '#5b5bd6'), col(CK_REGIONS.taoyuan, T, '#e0562a')])
+        + (lead ? '<div class="edd-gap2"><b>' + lead + '多 ' + Math.abs(diff).toLocaleString() + ' 筆</b>'
+                  + (pct ? '　領先 ' + pct + '%' : '') + '</div>' : '')
+        + '</div>'
+        + '<div class="edd-2up">' + side(CK_REGIONS.central) + side(CK_REGIONS.taoyuan) + '</div>'
+        + '<div class="edd-note">南區只有一家，用區域比不對等，所以沒放進來。要看南區就在上面的「看哪裡」選<b>南區</b>或<b>高雄建國</b>。</div>';
     }
 
-    // ④ 激勵
+    // ④ 激勵：跟著範圍走
     function _eddBoost(M){
-      var ppl = M.people;
-      // 進步王：本週 − 上週
+      var sc = _eddScope(), ppl = _eddPeople(M);
       var up = ppl.filter(function(p){ return p.delta > 0; }).sort(function(a,b){ return b.delta - a.delta; }).slice(0, 5)
-        .map(function(p){ return { name:p.name, sub:p.org + '　上週 ' + p.w7prev + ' → 本週 ' + p.w7, v:p.delta, label:'+' + p.delta, cls:'good',
+        .map(function(p){ return { name:p.name, sub:(sc.isOrg ? '' : p.org + '　') + '上週 ' + p.w7prev + ' → 本週 ' + p.w7, v:p.delta, label:'+' + p.delta, cls:'good',
           tip:p.name + ' 本週多編了 ' + p.delta + ' 筆\n上週 ' + p.w7prev + ' 筆 → 本週 ' + p.w7 + ' 筆。\n\n進步幅度跟排名無關 —— 排最後的人也可以是進步王。' }; });
-      // 連續天數
       var st = ppl.filter(function(p){ return p.streak > 0; }).sort(function(a,b){ return b.streak - a.streak; }).slice(0, 10)
-        .map(function(p){ return { name:p.name, sub:p.org, v:p.streak, label:p.streak + ' 天', cls: p.streak >= 5 ? 'good' : '',
+        .map(function(p){ return { name:p.name, sub:(sc.isOrg ? '' : p.org), v:p.streak, label:p.streak + ' 天', cls: p.streak >= 5 ? 'good' : '',
           tip:p.name + ' 連續 ' + p.streak + ' 天都有編輯\n從最後一個抓到的日子往回數，中間沒有斷過。\n\n只算有抓到的日子，沒抓的日子不列入。' }; });
-      // 組 PK
+      var down = ppl.filter(function(p){ return p.delta < 0; }).sort(function(a,b){ return a.delta - b.delta; }).slice(0, 5)
+        .map(function(p){ return { name:p.name, sub:(sc.isOrg ? '' : p.org + '　') + '上週 ' + p.w7prev + ' → 本週 ' + p.w7, v:-p.delta, label:String(p.delta), cls:'bad',
+          tip:p.name + ' 本週少了 ' + (-p.delta) + ' 筆\n上週 ' + p.w7prev + ' 筆 → 本週 ' + p.w7 + ' 筆。\n\n先問發生什麼事：請假？名單分完了？還是卡住了？' }; });
       var tk = Object.keys(M.teams).sort();
       var pk = tk.length
         ? _eddCols(tk.map(function(k){ var t = M.teams[k];
-            return { name:t.team + ' 組', sub:t.n + ' 人', v:t.avg, label:t.avg,
-                     tip:t.team + ' 組\n' + t.n + ' 人：' + t.names.join('、') + '\n共 ' + t.sum + ' 筆，平均每人 ' + t.avg + ' 筆。\n照顧率 ' + (t.care==null?'—':t.care+'%') }; }))
+            return { name:t.team + ' 組', sub:t.n + ' 人', v:t.sum, label:t.sum.toLocaleString(),
+                     tip:t.team + ' 組\n' + t.n + ' 人：' + t.names.join('、') + '\n共 ' + t.sum.toLocaleString() + ' 筆，平均每人 ' + t.avg + ' 筆。' }; }))
         : '<div class="edd-none">還沒設定組別。到「⚙️ 誰要列入」那一頁，每個人選 A／B／C／D 就會出現。</div>';
-      // 要關心的人
-      var care = ppl.filter(function(p){ return p.pool >= 10 && p.care != null && p.care < 30; })
-        .sort(function(a,b){ return a.care - b.care; }).slice(0, 10)
-        .map(function(p){ return { name:p.name, sub:p.org + '　手上 ' + p.pool + ' 人・' + p.cold + ' 位放超過 15 天', v:100 - p.care, label:p.care + '%', cls:'bad',
-          tip:p.name + ' 手上 ' + p.pool + ' 位學生，只有 ' + p.care + '% 在 3 天內被動過\n其中 ' + p.cold + ' 位已經 15 天以上沒人碰。\n\n這不是罵人用的 —— 先問他是不是名單太多跑不完，還是卡在哪。' }; });
       return '<div class="edd-2up">'
-        + '<div class="edd-card"><h3>🚀 本週進步王</h3><p class="edd-sub">跟上週比多編了多少。排名墊底的人也拿得到。</p>'
+        + '<div class="edd-card"><h3>🚀 ' + _fnEsc(sc.label) + '・本週進步王</h3><p class="edd-sub">跟上週比多編了多少。排名墊底的人也拿得到。</p>'
         + (up.length ? _eddBars(up) : '<div class="edd-none">還沒有兩週的資料可以比。再抓幾天就會出現。</div>') + '</div>'
-        + '<div class="edd-card"><h3>🔥 連續天數</h3><p class="edd-sub">連續幾天都有動。斷掉就歸零。</p>' + _eddBars(st) + '</div>'
+        + '<div class="edd-card"><h3>🔥 連續天數</h3><p class="edd-sub">連續幾天都有動。斷掉就歸零。</p>'
+        + (st.length ? _eddBars(st) : '<div class="edd-none">沒有資料</div>') + '</div>'
         + '</div>'
-        + '<div class="edd-card"><h3>⚔️ 組 vs 組</h3><p class="edd-sub">比平均，不比總數。</p>' + pk + '</div>'
-        + '<div class="edd-card"><h3>🫱 要關心的人</h3><p class="edd-sub">手上 10 位以上，但照顧率不到三成。</p>'
-        + (care.length ? _eddBars(care, { noRank:true }) : '<div class="edd-none">沒有人落在這一區，很好。</div>') + '</div>'
+        + '<div class="edd-2up">'
+        + '<div class="edd-card"><h3>📉 本週掉最多</h3><p class="edd-sub">不是拿來罵的 —— 先問發生什麼事。</p>'
+        + (down.length ? _eddBars(down, { noRank:true }) : '<div class="edd-none">沒有人比上週掉，很好。</div>') + '</div>'
+        + '<div class="edd-card"><h3>⚔️ 組 vs 組</h3><p class="edd-sub">比總數。組別在「⚙️ 誰要列入」設定。</p>' + pk + '</div>'
+        + '</div>'
         + '<div class="edd-card edd-share"><h3>📋 戰報</h3>'
-        + '<p class="edd-sub">按一下複製，直接貼進 LINE 群組。</p>'
+        + '<p class="edd-sub">按一下複製，直接貼進 LINE 群組。內容跟著上面選的範圍走。</p>'
         + '<pre id="eddReport">' + _fnEsc(_eddReportText(M)) + '</pre>'
         + '<button class="fn-tb-btn go" onclick="eddCopy(this)">📋 複製戰報</button></div>';
     }
 
     function _eddReportText(M){
+      var sc = _eddScope(), ppl = _eddPeople(M);
       var days = M.days.filter(function(d){ return d.slice(0,7) === M.ym; });
       var L = [];
-      L.push('📊 編輯戰報　' + (M.lastDay || '').replace(/-/g,'/') + '（已抓 ' + days.length + ' 天）');
+      L.push('📊 ' + sc.label + '　編輯戰報　' + (M.lastDay || '').replace(/-/g,'/') + '（已抓 ' + days.length + ' 天）');
       L.push('');
-      var top = M.people.slice().sort(function(a,b){ return b.mon - a.mon; }).slice(0, 5);
+      var tot = ppl.reduce(function(a,p){ return a + p.mon; }, 0);
+      L.push('總共 ' + tot.toLocaleString() + ' 筆　' + ppl.length + ' 人');
+      L.push('');
+      var top = ppl.slice().sort(function(a,b){ return b.mon - a.mon; }).slice(0, 5);
       if (top.length){
         L.push('🏆 編輯量前五');
-        top.forEach(function(p, i){ L.push('　' + (i+1) + '. ' + p.name + '（' + p.org + '）' + p.mon + ' 筆'); });
+        top.forEach(function(p, i){ L.push('　' + (i+1) + '. ' + p.name + (sc.isOrg ? '' : '（' + p.org + '）') + ' ' + p.mon + ' 筆'); });
         L.push('');
       }
-      var up = M.people.filter(function(p){ return p.delta > 0; }).sort(function(a,b){ return b.delta - a.delta; }).slice(0, 3);
+      var up = ppl.filter(function(p){ return p.delta > 0; }).sort(function(a,b){ return b.delta - a.delta; }).slice(0, 3);
       if (up.length){
         L.push('🚀 本週進步王');
         up.forEach(function(p){ L.push('　' + p.name + '　上週 ' + p.w7prev + ' → 本週 ' + p.w7 + '（+' + p.delta + '）'); });
         L.push('');
       }
-      var st = M.people.filter(function(p){ return p.streak >= 3; }).sort(function(a,b){ return b.streak - a.streak; }).slice(0, 5);
+      var st = ppl.filter(function(p){ return p.streak >= 3; }).sort(function(a,b){ return b.streak - a.streak; }).slice(0, 5);
       if (st.length){
         L.push('🔥 連續天數');
         st.forEach(function(p){ L.push('　' + p.name + '　連續 ' + p.streak + ' 天'); });
@@ -8933,15 +9014,15 @@
       }
       var tk = Object.keys(M.teams).sort();
       if (tk.length){
-        L.push('⚔️ 組別平均');
-        tk.forEach(function(k){ L.push('　' + k + ' 組　平均 ' + M.teams[k].avg + ' 筆（' + M.teams[k].n + ' 人）'); });
+        L.push('⚔️ 組別總數');
+        tk.forEach(function(k){ L.push('　' + k + ' 組　' + M.teams[k].sum.toLocaleString() + ' 筆（' + M.teams[k].n + ' 人）'); });
         L.push('');
       }
-      L.push('照顧率 ＝ 手上名單裡 3 天內有動過的比例');
-      var R = M.regions;
-      L.push('　中區 ' + (R.central.care==null?'—':R.central.care+'%')
-           + '　桃區 ' + (R.taoyuan.care==null?'—':R.taoyuan.care+'%')
-           + '　南區 ' + (R.south.care==null?'—':R.south.care+'%'));
+      if (sc.isOrg){
+        var o = M.byOrg[sc.orgs[0]];
+        if (o && o.quiet.length){ L.push('🫥 幾乎沒在編（低於 ' + ED_MIN + ' 筆）'); L.push('　' + o.quiet.join('、')); L.push(''); }
+      }
+      L.push('※ 只列編 ' + ED_MIN + ' 筆以上的人');
       return L.join('\n');
     }
     function eddCopy(btn){
@@ -8955,12 +9036,11 @@
     // ⑤ 誰要列入
     function _eddSet(M){
       var rows = M.allPeople.map(function(p){
-        var key = p.org + '|' + p.name;
         return '<tr class="' + (p.hidden ? 'off' : '') + '">'
           + '<td><label class="edd-ck"><input type="checkbox" ' + (p.hidden ? '' : 'checked') + ' onchange="edToggleStaff(\'' + _fnEsc(p.org) + '\',\'' + _fnEsc(p.name) + '\')"><span></span></label></td>'
           + '<td class="nm">' + _fnEsc(p.name) + '</td>'
           + '<td class="dim">' + _fnEsc(p.org) + '</td>'
-          + '<td class="num">' + p.mon + '</td>'
+          + '<td class="num">' + p.mon + (p.mon < ED_MIN ? '<small>不進排名</small>' : '') + '</td>'
           + '<td>' + ED_TEAMS.map(function(t){
               return '<button class="edd-tm' + (p.team === t ? ' on' : '') + '" onclick="edSetTeam(\'' + _fnEsc(p.org) + '\',\'' + _fnEsc(p.name) + '\',\'' + (p.team === t ? '' : t) + '\')">' + t + '</button>';
             }).join('') + '</td>'
@@ -8969,6 +9049,7 @@
       return '<div class="edd-card"><h3>⚙️ 誰要列入排名</h3>'
         + '<p class="edd-sub">把勾拿掉，那個人就完全不進儀表板、不進排名、也不影響中位數。'
         + '客服、行政、用批次處理的人都該拿掉 —— 他們的數字不是「跑名單」，留著會把所有比較拉歪。<br>'
+        + '另外，編不到 ' + ED_MIN + ' 筆的人本來就不會進排名（只有在「看哪裡」選單一學院時，會另外列成「幾乎沒在編的人」）。<br>'
         + '右邊選 A／B／C／D 就會出現在「組 vs 組」。設定會同步給同事。</p>'
         + '<table class="edd-set"><thead><tr><th>列入</th><th>姓名</th><th>學院</th><th>筆數</th><th>組別</th></tr></thead>'
         + '<tbody>' + rows + '</tbody></table></div>';
@@ -9078,12 +9159,9 @@
         o.med = act.length ? (act.length % 2 ? act[(act.length-1)/2] : Math.round((act[act.length/2-1] + act[act.length/2]) / 2)) : 0;
         o.monTot = o.list.reduce(function(a,w){ return a + w.mon; }, 0);
         o.list.forEach(function(w){ w.ratio = o.med ? (w.mon / o.med) : 0; });
-        // 照顧率＝手上名單裡「3 天內有被動過」的比例。
-        //   跟「編了幾筆」互補：名單少的新人不會因為量小就吃虧，名單多的老鳥也躲不掉放生。
         o.list.concat(o.hidden || []).forEach(function(w){
           var L = w.lamps, tot = L.l0 + L.l1 + L.l2 + L.l3 + L.l4;
           w.pool = tot;
-          w.care = tot ? Math.round(L.l0 / tot * 100) : null;      // null ＝ 手上沒名單，不是 0%
           w.cold = L.l3 + L.l4;                                    // 15 天以上沒動的
           // 連續幾天有編輯：從最後一個「有抓到的日子」往回數
           var st = 0;
@@ -9194,7 +9272,10 @@
           + '<th>業務<small>／名單被編・七家合計</small></th><th>他編過幾筆名單<small>／幾天・幾位學生</small></th><th>vs 中位數</th><th>空編輯<small>／可判定</small></th>'
           + '<th>最後一天</th><th>近 7 天</th><th>幾天沒編輯</th><th>手上名單燈號</th><th></th>'
           + '</tr></thead><tbody>';
+        var quietN = 0;
         o.list.forEach(function(w){
+          // 低於門檻的人不列 —— 參考價值太低，只會把表拉長
+          if (w.mon < ED_MIN){ quietN++; return; }
           var gap = w.lastDay ? _edDiffDays(w.lastDay) : null;
           var gapLamp = _edLampOf(gap);
           var rate = w.today ? Math.round(w.todayEmpty / w.today * 100) : 0;
@@ -9294,6 +9375,12 @@
           }
         });
         html += '</tbody></table>';
+        if (quietN){
+          html += '<div class="ed-quietn" data-tip="還有 ' + quietN + ' 位低於 ' + ED_MIN + ' 筆\n'
+            + '他們的量太少，放進排名只會把表拉長，參考價值也不高，所以收起來了。\n\n'
+            + '要看是哪幾位：按「📊 打開儀表板」，上面「看哪裡」選這家學院，下面就會列出「這家幾乎沒在編的人」。">'
+            + '還有 ' + quietN + ' 位低於 ' + ED_MIN + ' 筆沒列出來（儀表板選這家學院可以看到是誰）</div>';
+        }
         if (o.hidden && o.hidden.length){
           html += '<details class="ed-hid"><summary>已標為客服／非業務 ' + o.hidden.length + ' 位（不列入排名與中位數，共 ' + o.hidTot + ' 筆）</summary>'
             + o.hidden.map(function(w){
