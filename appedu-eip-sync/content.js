@@ -2071,6 +2071,10 @@
   //   空編輯：這一筆的備註跟上次看到的一模一樣 → 動過但沒留下內容（一鍵清空行事曆、只改狀態不寫字…都算）。
   //         基準值存在 base 裡，逐日累積；第一次掃到的人沒有基準，標 first，不列入判定。
   // ══════════════════════════════════════════════════════════════
+  // 抓取邏輯的版本。每抓一天就蓋一個章，頁面靠它分辨「這天是舊版抓的，要重抓」。
+  //   1 = 初版（翻頁判斷有 bug，滿頁遇到空姓名會提早收工 → 少算）
+  //   2 = v5.50 起：改看原始列數，並跟 EIP 頁尾的「共 N 頁 M 筆」對帳
+  var EDIT_VER = 2;
   var _edDates = null;              // 這次要抓的日期清單（YYYY/MM/DD），由頁面算好送來
   var _edShort = null;              // 對帳對不上的紀錄
   var _edNoTotal = 0;               // 讀不到「共 N 筆」的次數
@@ -2188,6 +2192,7 @@
     if (!store || typeof store !== 'object') store = {};
     store.stats = store.stats || {};   // { 'YYYY-MM-DD': { 學院: { 編輯人: { n, empty, first } } } }
     store.sOwn  = store.sOwn  || {};   // 同上，但按「承辦人」分 ← 他的名單被動了幾次（可能是別人代編）
+    store.ver   = store.ver   || {};   // { 'YYYY-MM-DD': 抓這天時用的版本 }
     store.base  = store.base  || {};   // { 學院: { 姓名: 上次看到的備註 } }
     store.last  = store.last  || {};   // { 學院: { 姓名: { d, own, ed, st, note } } } ← 燈號用
     store.rows  = store.rows  || {};   // { 'YYYY-MM-DD': { 學院: [列] } }  只留最近幾天
@@ -2279,6 +2284,7 @@
           totalRows += rows.length;
           if (k < PERF_ORGS.length - 1) await sleep(EDIT_ORG_GAP_MS);
         }
+        store.ver[dKey] = EDIT_VER;     // 這天是用哪一版抓的
         // 每天存一次，中途關掉不會全白跑
         _edTrim(store);
         var ok = await _fnDbPut(key, store);
@@ -2319,6 +2325,10 @@
       var mk = Object.keys(store.mon || {}).sort();
       while (mk.length > 2) delete store.mon[mk.shift()];   // 當月＋上個月就夠比了
       // monDays 只是「這天這家算過了」的記號，跟著 mon 一起清，免得無限長大
+      if (store.ver){
+        var vs = Object.keys(store.ver).sort();
+        while (vs.length > EDIT_KEEP_DAYS) delete store.ver[vs.shift()];
+      }
       if (store.monDays){
         var keepYm = {}; Object.keys(store.mon || {}).forEach(function(y){ keepYm[y] = 1; });
         Object.keys(store.monDays).forEach(function(k){

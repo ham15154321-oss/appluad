@@ -1407,9 +1407,12 @@
       --eInk:#1d1d1f; --eDim:#55555a; --eMute:#6e6e73; --eLine:rgba(0,0,0,.1);
       --eFill:#f7f7f9; --eBg2:#eeeef2; --eAcc:#5b5bd6; --eOk:#1f8f45; --eBad:#c0392b; }
     /* 抬頭 */
-    #edDashBg .edd-hd { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:16px;
-      flex-wrap:wrap; padding:20px 26px 16px; background:inherit;
-      border-bottom:1px solid var(--eLine); }
+    /* ★ background:inherit 繼承到的是 #edDashBody 的透明，捲動時內容會從抬頭底下透出來。
+       這裡必須給實心色，日夜各一份。 */
+    #edDashBg .edd-hd { position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:16px;
+      flex-wrap:wrap; padding:20px 26px 16px; background:#0f0f12;
+      border-bottom:1px solid var(--eLine); box-shadow:0 10px 24px -14px rgba(0,0,0,.8); }
+    body.day-mode #edDashBg .edd-hd { background:#ffffff; box-shadow:0 10px 24px -16px rgba(0,0,0,.28); }
     #edDashBg .edd-t b { font-size:1.5rem; font-weight:900; letter-spacing:-.02em; }
     #edDashBg .edd-t span { display:block; margin-top:3px; font-size:.9rem; color:var(--eDim); }
     #edDashBg .edd-tabs { display:flex; gap:8px; flex-wrap:wrap; }
@@ -1424,6 +1427,12 @@
       background:transparent; color:var(--eDim); border:1px solid var(--eLine); cursor:pointer; }
     #edDashBg .edd-sc:hover { color:var(--eInk); border-color:var(--eAcc); }
     #edDashBg .edd-sc.on { background:var(--eInk); color:var(--eFill); border-color:transparent; font-weight:800; }
+    #edDashBg .edd-scope.off { opacity:.34; }
+    #edDashBg .edd-scope.off .edd-sc { cursor:not-allowed; }
+    #edDashBg .edd-scope.off .edd-sc:hover { color:var(--eDim); border-color:var(--eLine); }
+    #edDashBg .edd-scoff { margin-left:8px; font-size:.86rem; font-weight:700; color:var(--eMute);
+      border-bottom:1px dotted var(--eLine); cursor:help; opacity:1; }
+    #edDashBg .edd-scope.off .edd-scoff { opacity:3; }
     /* 標題右邊的總數 */
     #edDashBg .edd-tot { float:right; font-size:.94rem; font-weight:700; color:var(--eDim); }
     /* 差距 */
@@ -1604,6 +1613,8 @@
       background:var(--edFill); border:1px solid var(--edLine); font-size:.95rem; }
     #tab-10 .ed-prog b { color:var(--edAcc); }
     #tab-10 .ed-prog.done { color:#1f8f45; border-color:rgba(31,143,69,.4); }
+    #tab-10 .ed-prog.warn { color:#c0392b; border-color:rgba(192,57,43,.45); display:block; margin-right:auto; }
+    #tab-10 .ed-fixbtn { background:#c0392b !important; color:#fff !important; border-color:transparent !important; font-weight:800; }
     #tab-10 .dim { color:var(--edMute); }
     /* 燈號：同一個色系五階，由淺到深 ＝ 由輕到重。綠色是唯一的另一個色相。 */
     #tab-10 .ed-lamp, #tab-10 .ed-gap { display:inline-flex; align-items:center; justify-content:center;
@@ -8555,6 +8566,13 @@
     function edGetStore(){
       try { return _fnIdbGet(_ckCid() + 'fn_edits_v1'); } catch(e){ return null; }
     }
+    var ED_VER = 2;   // 跟擴充的 EDIT_VER 對齊
+    // 哪幾天是「舊版抓的」→ 數字少算，要重抓。沒有版本章的一律當舊版。
+    function _edStaleDays(store){
+      if (!store || !store.stats) return [];
+      var ver = store.ver || {};
+      return Object.keys(store.stats).sort().filter(function(d){ return (ver[d] || 1) < ED_VER; });
+    }
     // 往回 ED_WINDOW 天裡，哪幾天還沒抓過（不含今天）
     function _edMissingDays(store){
       var have = (store && store.stats) ? store.stats : {};
@@ -8582,27 +8600,42 @@
     }
     // 打勾排除／放回，不再每次都跳確認（面板上一排勾選框，要快）
     function edToggleStaff(org, ed){
-      var m = _edStaffAll(), k = org + '|' + ed;
-      if (m[k]) delete m[k];
-      else m[k] = { by: (typeof _fnMe === 'function' ? (_fnMe() || '') : ''), at: new Date().toISOString().slice(0,10) };
-      try { localStorage.setItem(ED_STAFF_KEY, JSON.stringify(m)); } catch(e){}
+      var m = _edStaffAll();
+      if (_edIsStaff(org, ed)){
+        delete m['*|' + ed];
+        CK_ORG_LIST.forEach(function(g){ delete m[g + '|' + ed]; });
+      } else {
+        m['*|' + ed] = { by: (typeof _fnMe === 'function' ? (_fnMe() || '') : ''), at: new Date().toISOString().slice(0,10) };
+      }
+      _edStaffSave(m);
       if (typeof edDashRender === 'function' && document.getElementById('edDashBg')) edDashRender();
       else edRenderAll();
     }
     function _edStaffAll(){
       try { return JSON.parse(localStorage.getItem(ED_STAFF_KEY) || '{}') || {}; } catch(e){ return {}; }
     }
-    function _edIsStaff(org, ed){ return !!_edStaffAll()[org + '|' + ed]; }
-    function edMarkStaff(org, ed){
-      if (!confirm('把「' + ed + '」標成客服／非業務？\n\n他會從業務排名移除，也不會再影響中位數。\n這個標記會同步給同事，之後可以在表格下方的「已標為客服」裡取消。')) return;
+    // ★ 以「姓名」為單位排除，一次蓋全公司七家。
+    //   客服／批次帳號在七家都會出現，要你一家一家點七次太蠢，而且漏點一家數字就髒了。
+    //   舊的 '學院|姓名' 格式還讀得到，不會把你之前標過的弄丟。
+    function _edIsStaff(org, ed){
       var m = _edStaffAll();
-      m[org + '|' + ed] = { by: (typeof _fnMe === 'function' ? (_fnMe() || '') : ''), at: new Date().toISOString().slice(0,10) };
+      return !!(m['*|' + ed] || m[org + '|' + ed]);
+    }
+    function _edStaffSave(m){
       try { localStorage.setItem(ED_STAFF_KEY, JSON.stringify(m)); } catch(e){}
+    }
+    function edMarkStaff(org, ed){
+      if (!confirm('把「' + ed + '」標成客服／非業務？\n\n他會從全公司七家的排名一起移除，也不會再影響中位數與各項合計。\n這個標記會同步給同事，之後可以在儀表板的「⚙️ 誰要列入」放回來。')) return;
+      var m = _edStaffAll();
+      m['*|' + ed] = { by: (typeof _fnMe === 'function' ? (_fnMe() || '') : ''), at: new Date().toISOString().slice(0,10) };
+      _edStaffSave(m);
       edRenderAll();
     }
     function edUnmarkStaff(org, ed){
-      var m = _edStaffAll(); delete m[org + '|' + ed];
-      try { localStorage.setItem(ED_STAFF_KEY, JSON.stringify(m)); } catch(e){}
+      var m = _edStaffAll();
+      delete m['*|' + ed];
+      CK_ORG_LIST.forEach(function(g){ delete m[g + '|' + ed]; });   // 連舊格式一起清
+      _edStaffSave(m);
       edRenderAll();
     }
 
@@ -8723,13 +8756,21 @@
         t.avg = t.n ? Math.round(t.sum / t.n) : 0;
       });
       // 全部人（含被排除的）→ 排除面板要列
-      var allPeople = [];
+      // ★ 一個人只列一次：排除是以姓名為單位，列七次只會讓人搞不清楚要點哪一個。
+      //   筆數顯示七家合計，括號裡標他出現在哪幾家。
+      var pm = {};
       (data.orgs || []).forEach(function(o){
         (o.list || []).concat(o.hidden || []).forEach(function(w){
-          if (w.mon > 0 || w.pool > 0) allPeople.push({ org:o.org, name:w.ed, mon:w.mon, hidden:_edIsStaff(o.org, w.ed), team:_edTeamOf(o.org, w.ed) });
+          if (!(w.mon > 0 || w.pool > 0)) return;
+          var r = pm[w.ed] || (pm[w.ed] = { name:w.ed, org:o.org, mon:0, orgs:[], hidden:_edIsStaff(o.org, w.ed), team:_edTeamOf(o.org, w.ed) });
+          r.mon += w.mon;
+          if (w.mon > 0) r.orgs.push(o.org + ' ' + w.mon);
+          if (_edIsStaff(o.org, w.ed)) r.hidden = true;
+          if (!r.team) r.team = _edTeamOf(o.org, w.ed);
         });
       });
-      allPeople.sort(function(a,b){ return b.mon - a.mon; });
+      var allPeople = Object.keys(pm).map(function(k){ return pm[k]; })
+        .sort(function(a,b){ return b.mon - a.mon; });
       return { data:data, byOrg:byOrg, people:people, regions:regions, teams:teams, allPeople:allPeople,
                days:data.days || [], ym:data.ym, lastDay:data.lastDay };
     }
@@ -8841,11 +8882,24 @@
             return '<button class="edd-tab' + (edDashTab === t[0] ? ' on' : '') + '" onclick="edDashTo(\'' + t[0] + '\')">' + t[1] + '</button>';
           }).join('') + '</div>'
         + '<button class="edd-x" onclick="edDashClose()" data-tip="關閉（Esc）">✕</button>'
-        + '<div class="edd-scope"><span class="edd-sclb">看哪裡</span>'
-        + scopes.map(function(k){
-            return '<button class="edd-sc' + (edDashScope === k[0] ? ' on' : '') + '" onclick="edDashScopeTo(\'' + _fnEsc(k[0]) + '\')">' + _fnEsc(k[1]) + '</button>';
-          }).join('')
-        + '</div>'
+        + (function(){
+            // 「各學院」本來就是七家並排、「中區 vs 桃區」本來就是兩區對打，
+            // 這兩頁不吃範圍。與其讓人按了沒反應，不如直接暗掉並講原因。
+            var live = (edDashTab === 'rank' || edDashTab === 'boost');
+            return '<div class="edd-scope' + (live ? '' : ' off') + '">'
+              + '<span class="edd-sclb">看哪裡</span>'
+              + scopes.map(function(k){
+                  return '<button class="edd-sc' + (edDashScope === k[0] ? ' on' : '') + '"'
+                    + (live ? ' onclick="edDashScopeTo(\'' + _fnEsc(k[0]) + '\')"' : ' disabled')
+                    + '>' + _fnEsc(k[1]) + '</button>';
+                }).join('')
+              + (live ? '' : '<span class="edd-scoff" data-tip="這一頁不吃範圍\n'
+                  + (edDashTab === 'org' ? '「各學院」本來就是七家並排比較，選單一學院沒有意義。\n\n要只看一家，切到「🏆 排名」或「🔥 激勵」再選。'
+                     : edDashTab === 'vs' ? '「中區 vs 桃區」本來就是兩個區在對打，範圍是固定的。\n\n要只看一家，切到「🏆 排名」或「🔥 激勵」再選。'
+                     : '這一頁是設定頁，列的是全部的人。')
+                  + '">這頁固定看全部</span>')
+              + '</div>';
+          })()
         + '</div>';
     }
 
@@ -9037,10 +9091,15 @@
     function _eddSet(M){
       var rows = M.allPeople.map(function(p){
         return '<tr class="' + (p.hidden ? 'off' : '') + '">'
-          + '<td><label class="edd-ck"><input type="checkbox" ' + (p.hidden ? '' : 'checked') + ' onchange="edToggleStaff(\'' + _fnEsc(p.org) + '\',\'' + _fnEsc(p.name) + '\')"><span></span></label></td>'
+          + '<td><label class="edd-ck" data-tip="' + (p.hidden ? '目前沒有列入' : '目前有列入') + '\n'
+            + '拿掉勾 ＝ ' + _fnEsc(p.name) + ' 從<b>全公司七家</b>的排名、合計、中位數一起移除。\n'
+            + '客服、行政、批次帳號都該拿掉。\n\n設定會同步給同事。">'
+            + '<input type="checkbox" ' + (p.hidden ? '' : 'checked') + ' onchange="edToggleStaff(\'' + _fnEsc(p.org) + '\',\'' + _fnEsc(p.name) + '\')"><span></span></label></td>'
           + '<td class="nm">' + _fnEsc(p.name) + '</td>'
-          + '<td class="dim">' + _fnEsc(p.org) + '</td>'
-          + '<td class="num">' + p.mon + (p.mon < ED_MIN ? '<small>不進排名</small>' : '') + '</td>'
+          + '<td class="dim">' + _fnEsc(p.orgs.length > 1 ? p.orgs.length + ' 家' : p.org) + '</td>'
+          + '<td class="num" data-tip="' + _fnEsc(p.name) + ' 七家合計 ' + p.mon + ' 筆\n'
+            + _fnEsc(p.orgs.length ? p.orgs.join('\n') : '這段期間沒有編輯紀錄') + '">'
+            + p.mon + (p.mon < ED_MIN ? '<small>不進排名</small>' : '') + '</td>'
           + '<td>' + ED_TEAMS.map(function(t){
               return '<button class="edd-tm' + (p.team === t ? ' on' : '') + '" onclick="edSetTeam(\'' + _fnEsc(p.org) + '\',\'' + _fnEsc(p.name) + '\',\'' + (p.team === t ? '' : t) + '\')">' + t + '</button>';
             }).join('') + '</td>'
@@ -9067,6 +9126,32 @@
         if (!confirm('📝 昨天（' + k + '）已經抓過了。\n\n重抓只是多打一次 EIP，資料不會變。還是要重抓嗎？')) return;
       }
       _edPendingDates = [d.getFullYear() + '/' + _ckPad2(d.getMonth()+1) + '/' + _ckPad2(d.getDate())];
+      motivTriggerEipSync('edits', null, true);
+    }
+    // 🔁 重抓已經抓過的日子。
+    //   v5.50 之前的翻頁判斷有 bug（用解析筆數而不是原始列數判斷最後一頁），
+    //   滿頁只要有幾列姓名空白就會提早收工，後面整批遺失 —— 那時候抓的日子都是少算的。
+    //   從當月 1 號往後，一次重抓 7 天，記得上次重到哪，按幾次就往後推。
+    function edSyncRedo(){
+      if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      var store = edGetStore() || {};
+      var stale = _edStaleDays(store);
+      if (!stale.length){
+        alert('✅ 沒有需要修正的日子。\n\n你抓回來的每一天都是用新版抓的，數字已經跟 EIP 對過帳了。');
+        return;
+      }
+      var todo = stale.slice(0, ED_SEG);
+      var est = Math.max(1, Math.round(todo.length * 1.8));
+      var hour = new Date().getHours();
+      var busy = (hour >= 10 && hour < 21) ? '\n\n⚠️ 現在是上班時間，建議改午休或下班後。' : '';
+      if (!confirm('🔁 要修正這 ' + todo.length + ' 天嗎？\n\n' + todo.join('\n')
+        + '\n\n這幾天是舊版抓的，數字少算了。\n'
+        + '舊版判斷「最後一頁」看的是解析成功的筆數，但 EIP 一頁 30 列，只要有幾列姓名空白就會提早收工，後面整批頁數丟掉。\n\n'
+        + '重抓會用新版覆蓋，而且會跟 EIP 頁尾的「共 N 頁 M 筆」對帳，對不上會直接告訴你。\n\n'
+        + '・約 ' + (todo.length * 70) + ' 頁請求、' + est + ' 分鐘\n'
+        + '・還有 ' + (stale.length - todo.length) + ' 天要修，下次按會接著'
+        + busy + '\n\n中途不要關頁面。要開始嗎？')) return;
+      _edPendingDates = todo.map(function(d){ return d.replace(/-/g, '/'); });
       motivTriggerEipSync('edits', null, true);
     }
     // 補上一段：自動挑「還缺的、離今天最近的」ED_SEG 天。按幾次就往回疊幾段，抓過的一天都不會重抓。
@@ -9208,6 +9293,17 @@
         + '<span style="flex:1;"></span>'
         + '<button class="fn-tb-btn" onclick="edSyncYesterday()">📝 抓昨天</button>'
         + '<button class="fn-tb-btn wide" onclick="edSyncSegment()">📅 補上一段（' + ED_SEG + ' 天）</button>'
+        + (function(){
+            var stale = _edStaleDays(store);
+            if (!stale.length) return '';   // 全部都是新版抓的 → 這顆按鈕直接不出現
+            return '<button class="fn-tb-btn wide ed-fixbtn" onclick="edSyncRedo()" data-tip="修正舊版抓的資料　還有 ' + stale.length + ' 天\n'
+              + '這 ' + stale.length + ' 天是舊版抓回來的，筆數少算了。\n\n'
+              + '舊版判斷「這是不是最後一頁」看的是解析成功的筆數。但 EIP 一頁 30 列，只要有幾列姓名空白，就會被當成最後一頁，後面整批頁數直接丟掉。\n\n'
+              + '這也是為什麼「比上週」會出現 +1833% 這種誇張數字 —— 不是團隊暴衝，是上一週被少算了。\n\n'
+              + '按一次修 7 天，系統自己知道還剩哪幾天，全部修完這顆按鈕就會消失。\n'
+              + '重抓時會跟 EIP 頁尾的「共 N 頁 M 筆」對帳，對不上會講出來。">'
+              + '🔁 修正舊資料（還有 ' + stale.length + ' 天）</button>';
+          })()
         + '<button class="fn-tb-btn wide edd-open" onclick="edDashOpen()">📊 打開儀表板</button>'
         + '</div>';
 
@@ -9228,11 +9324,13 @@
         + '　·　已累積 ' + (data ? data.days.length : 0) + ' 天</p>'
         + (function(){
             var miss = _edMissingDays(store);
-            if (!miss.length) return '<p class="ed-prog done">✅ 最近 ' + ED_WINDOW + ' 天都補齊了，之後每天按一次「抓昨天」就好</p>';
+            var stale = _edStaleDays(store);
+            var staleTxt = stale.length ? '<p class="ed-prog warn">⚠️ 有 <b>' + stale.length + '</b> 天是舊版抓的，筆數少算 —— 按「🔁 修正舊資料」修完之前，排名跟「比上週」都還不準</p>' : '';
+            if (!miss.length) return staleTxt + '<p class="ed-prog done">✅ 最近 ' + ED_WINDOW + ' 天都補齊了，之後每天按一次「抓昨天」就好</p>';
             var next = miss.slice(0, ED_SEG);
             return '<p class="ed-prog">還缺 <b>' + miss.length + '</b> 天（最近 ' + ED_WINDOW + ' 天內）'
               + '　·　下一段會補 ' + next[next.length-1].key + ' ～ ' + next[0].key
-              + '　·　再按 <b>' + Math.ceil(miss.length / ED_SEG) + '</b> 次就補齊</p>';
+              + '　·　再按 <b>' + Math.ceil(miss.length / ED_SEG) + '</b> 次就補齊</p>' + staleTxt;
           })() + '</div>';
 
       // 燈號說明
