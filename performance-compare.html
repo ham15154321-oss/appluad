@@ -1693,6 +1693,9 @@
     #tab-10 .ed-vd.na { background:transparent; border:1px solid var(--edLine); color:var(--edMute); }
     #tab-10 .ed-cross { display:inline-block; margin-top:6px; font-size:.9rem; font-weight:700; cursor:help;
       color:var(--edAcc); border-bottom:2px dotted var(--edAcc); padding-bottom:1px; }
+    #tab-10 .ed-own2.partial { color:#b86e00; border-bottom-color:#e0a800; }
+    #tab-10 .ed-part { font-style:normal; margin-left:6px; padding:1px 7px; border-radius:6px; font-size:.78rem;
+      background:rgba(224,168,0,.16); color:#b86e00; }
     #tab-10 .ed-own2 { display:inline-block; margin-top:6px; font-size:.9rem; font-weight:700; cursor:help;
       color:var(--edDim); border-bottom:2px dotted var(--edLine); padding-bottom:1px; }
     #tab-10 td.ed-act { white-space:nowrap; }
@@ -9388,6 +9391,10 @@
           });
           // 承辦人軸：他的名單這個月被動了幾次（含別人代編）
           var byOwn2 = ((store.sOwn || {})[dk] || {})[org] || {};
+          if (dk.slice(0,7) === ymNow){
+            o.dayN = (o.dayN || 0) + 1;
+            if (store.sOwn && store.sOwn[dk] && store.sOwn[dk][org]) o.ownDayN = (o.ownDayN || 0) + 1;
+          }
           Object.keys(byOwn2).forEach(function(ow){
             var w = o.owners[ow] || (o.owners[ow] = { ed:ow, today:0, todayEmpty:0, w7:0, w7Empty:0, w7prev:0, mon:0, monEmpty:0, monFirst:0, monDays:0, monU:0, all:0, lastDay:'', days:{}, lamps:{ l0:0,l1:0,l2:0,l3:0,l4:0 } });
             if (dk.slice(0,7) === ymNow){
@@ -9627,7 +9634,13 @@
               + (function(){
                   if (!w.ownDays || !w.ownMon) return '';
                   var others = w.ownMon - (w.ownSelf || 0);
-                  return '<br><span class="ed-own2" data-tip="他名下的名單被動了 ' + w.ownMon + ' 筆\n'
+                  var partial = (o.ownDayN || 0) < (o.dayN || 0);
+                  var gapTxt = partial
+                    ? '\n\n⚠️ 這個數字不完整：這家這個月抓了 ' + o.dayN + ' 天，只有 ' + (o.ownDayN||0) + ' 天有「承辦人」拆分。\n'
+                      + '　這項統計是 v5.51 才加的，之前抓的日子沒有這份資料，所以會比 EIP 少很多。\n'
+                      + '　按紫色按鈕把舊資料補齊（修正舊版那幾天）之後就會補上。'
+                    : '';
+                  return '<br><span class="ed-own2' + (partial ? ' partial' : '') + '" data-tip="他名下的名單被動了 ' + w.ownMon + ' 筆\n'
                     + '這跟上面那個數字是兩件事：\n\n'
                     + '・他自己編的（編輯人＝他）　' + w.mon + ' 筆\n'
                     + '・他名下的名單被編的（承辦人＝他）　' + w.ownMon + ' 筆\n'
@@ -9635,8 +9648,9 @@
                     + '★ 去 EIP 對數字的時候：\n'
                     + '　「在職承辦人」那格填他 → 會得到 ' + w.ownMon + '\n'
                     + '　「編輯人」那格填他 → 會得到 ' + w.mon + '\n\n'
-                    + '別人幫他編很多，通常代表這些名單實際上是別人在跑。">'
-                    + '名單被編 ' + w.ownMon + (others ? '（別人 ' + others + '）' : '') + '</span>';
+                    + '別人幫他編很多，通常代表這些名單實際上是別人在跑。' + gapTxt + '">'
+                    + '名單被編 ' + w.ownMon + (others ? '（別人 ' + others + '）' : '')
+                    + (partial ? '<i class="ed-part">只有 ' + (o.ownDayN||0) + '/' + o.dayN + ' 天</i>' : '') + '</span>';
                 })()
               + (function(){
                   var p = (data.byPerson || {})[w.ed];
