@@ -2193,6 +2193,11 @@
     store.stats = store.stats || {};   // { 'YYYY-MM-DD': { 學院: { 編輯人: { n, empty, first } } } }
     store.sOwn  = store.sOwn  || {};   // 同上，但按「承辦人」分 ← 他的名單被動了幾次（可能是別人代編）
     store.ver   = store.ver   || {};   // { 'YYYY-MM-DD': 抓這天時用的版本 }
+    // { 'YYYY-MM-DD': 隔幾天才抓的 }
+    //   EIP 的「編輯日期」只記最後一次編輯。同一筆名單在 9/17 和 9/19 都被編過，
+    //   它現在只會出現在 9/19。所以隔愈久才回頭抓那一天，被後面的日子吃掉的就愈多。
+    //   隔天抓 lag=1（幾乎全拿得到）；隔三天抓 lag=3（中間被重編過的都不見了）。
+    store.lag   = store.lag   || {};
     store.base  = store.base  || {};   // { 學院: { 姓名: 上次看到的備註 } }
     store.last  = store.last  || {};   // { 學院: { 姓名: { d, own, ed, st, note } } } ← 燈號用
     store.rows  = store.rows  || {};   // { 'YYYY-MM-DD': { 學院: [列] } }  只留最近幾天
@@ -2285,6 +2290,11 @@
           if (k < PERF_ORGS.length - 1) await sleep(EDIT_ORG_GAP_MS);
         }
         store.ver[dKey] = EDIT_VER;     // 這天是用哪一版抓的
+        (function(){
+          var t0 = new Date(); t0.setHours(0,0,0,0);
+          var d0 = new Date(dObj.getFullYear(), dObj.getMonth(), dObj.getDate());
+          store.lag[dKey] = Math.max(0, Math.round((t0 - d0) / 86400000));
+        })();
         // 每天存一次，中途關掉不會全白跑
         _edTrim(store);
         var ok = await _fnDbPut(key, store);
@@ -2328,6 +2338,10 @@
       if (store.ver){
         var vs = Object.keys(store.ver).sort();
         while (vs.length > EDIT_KEEP_DAYS) delete store.ver[vs.shift()];
+      }
+      if (store.lag){
+        var ls = Object.keys(store.lag).sort();
+        while (ls.length > EDIT_KEEP_DAYS) delete store.lag[ls.shift()];
       }
       if (store.monDays){
         var keepYm = {}; Object.keys(store.mon || {}).forEach(function(y){ keepYm[y] = 1; });

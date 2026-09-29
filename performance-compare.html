@@ -1417,16 +1417,24 @@
     #edDashBg .edd-t span { display:block; margin-top:3px; font-size:.9rem; color:var(--eDim); }
     #edDashBg .edd-tabs { display:flex; gap:8px; flex-wrap:wrap; }
     #edDashBg .edd-tab { padding:10px 18px; border-radius:12px; font-size:1rem; font-weight:800;
-      background:var(--eFill); color:var(--eDim); border:1px solid var(--eLine); cursor:pointer; }
-    #edDashBg .edd-tab:hover { color:var(--eInk); }
-    #edDashBg .edd-tab.on { background:var(--eAcc); color:#fff; border-color:transparent; }
+      background:var(--eFill); color:var(--eDim); border:1px solid var(--eLine); cursor:pointer;
+      opacity:.6; transition:opacity .15s, background .15s; }
+    #edDashBg .edd-tab:hover { opacity:1; color:var(--eInk); }
+    #edDashBg .edd-tab.on { opacity:1; background:var(--eAcc); color:#fff; border-color:transparent;
+      box-shadow:0 4px 14px -4px var(--eAcc); }
     /* 範圍選擇 */
     #edDashBg .edd-scope { flex-basis:100%; display:flex; align-items:center; gap:7px; flex-wrap:wrap; padding-top:4px; }
     #edDashBg .edd-sclb { font-size:.86rem; font-weight:800; color:var(--eMute); margin-right:4px; }
-    #edDashBg .edd-sc { padding:7px 14px; border-radius:999px; font-size:.94rem; font-weight:700;
-      background:transparent; color:var(--eDim); border:1px solid var(--eLine); cursor:pointer; }
-    #edDashBg .edd-sc:hover { color:var(--eInk); border-color:var(--eAcc); }
-    #edDashBg .edd-sc.on { background:var(--eInk); color:var(--eFill); border-color:transparent; font-weight:800; }
+    #edDashBg .edd-sc { padding:8px 16px; border-radius:999px; font-size:.94rem; font-weight:700;
+      background:transparent; color:var(--eDim); border:1px solid var(--eLine); cursor:pointer;
+      opacity:.45; transition:opacity .15s, background .15s, color .15s; }
+    #edDashBg .edd-sc:hover { opacity:1; color:var(--eInk); border-color:var(--eAcc); }
+    /* 選中的：紫底白字、變大、其他全部退到背景去 */
+    #edDashBg .edd-sc.on { opacity:1; background:var(--eAcc); color:#fff; border-color:transparent;
+      font-weight:900; font-size:1.02rem; padding:9px 20px;
+      box-shadow:0 4px 14px -4px var(--eAcc); }
+    #edDashBg .edd-scope:hover .edd-sc { opacity:.75; }
+    #edDashBg .edd-scope:hover .edd-sc.on { opacity:1; }
     #edDashBg .edd-scope.off { opacity:.34; }
     #edDashBg .edd-scope.off .edd-sc { cursor:not-allowed; }
     #edDashBg .edd-scope.off .edd-sc:hover { color:var(--eDim); border-color:var(--eLine); }
@@ -1448,6 +1456,8 @@
     #edDashBg .edd-q b { font-size:1.06rem; font-weight:800; }
     #edDashBg .edd-q em { font-style:normal; font-size:.84rem; color:var(--eMute); }
     #edDashBg .edd-quiet { border-color:var(--eBad); }
+    #edDashBg .edd-daycard { border-color:var(--eAcc); }
+    #tab-10 .ed-daybtn { background:#5b5bd6 !important; color:#fff !important; border-color:transparent !important; font-weight:800; }
     #edDashBg .edd-set td.num small { display:block; font-size:.74rem; font-weight:600; color:var(--eMute); }
     #edDashBg .edd-x { margin-left:auto; width:44px; height:44px; border-radius:50%; font-size:1.2rem;
       background:var(--eFill); color:var(--eDim); border:1px solid var(--eLine); cursor:pointer; }
@@ -1458,6 +1468,9 @@
       background:var(--eFill); border:1px solid var(--eLine); }
     #edDashBg .edd-2up .edd-card { margin:18px 0 0; }
     #edDashBg .edd-card h3 { margin:0; font-size:1.2rem; font-weight:900; letter-spacing:-.01em; }
+    /* 標題前的色條 ＝ 現在看的是哪一個範圍。捲到畫面中間看不到上面的按鈕時，靠它認。 */
+    #edDashBg .edd-card h3 .edd-scb { display:inline-block; width:5px; height:1.05em; border-radius:3px;
+      background:var(--eAcc); vertical-align:-2px; margin-right:10px; }
     #edDashBg .edd-sub { margin:5px 0 14px; font-size:.92rem; color:var(--eDim); line-height:1.7; }
     #edDashBg .edd-note { margin:18px 26px 26px; padding:14px 18px; border-radius:14px;
       border:1px dashed var(--eLine); font-size:.95rem; color:var(--eDim); line-height:1.8; }
@@ -1614,7 +1627,21 @@
     #tab-10 .ed-prog b { color:var(--edAcc); }
     #tab-10 .ed-prog.done { color:#1f8f45; border-color:rgba(31,143,69,.4); }
     #tab-10 .ed-prog.warn { color:#c0392b; border-color:rgba(192,57,43,.45); display:block; margin-right:auto; }
-    #tab-10 .ed-fixbtn { background:#c0392b !important; color:#fff !important; border-color:transparent !important; font-weight:800; }
+    #tab-10 .ed-prog.late { color:#a8820a; border-color:rgba(168,130,10,.45); display:block; margin-right:auto; }
+    #tab-10 .ed-behind { margin:0 0 16px; padding:16px 20px; border-radius:16px; cursor:help;
+      background:rgba(192,57,43,.10); border:2px solid #c0392b; }
+    #tab-10 .ed-behind b { display:block; font-size:1.22rem; font-weight:900; color:#c0392b; margin-bottom:6px; }
+    #tab-10 .ed-behind span { display:block; font-size:.98rem; line-height:1.75; color:var(--edInk); }
+    #tab-10 .ed-behind .ed-behind-2 { margin-top:6px; color:#c0392b; font-weight:700; }
+    /* 頂端狀態列的編輯按鈕 */
+    .hdr-mode-btn.edits { background:linear-gradient(135deg,#4f3bbf,#6f5bef); color:#fff; border-color:transparent; }
+    #tab-10 .ed-one { font-weight:900 !important; font-size:1.06rem !important; padding:13px 26px !important;
+      border-color:transparent !important; display:inline-flex; align-items:baseline; gap:9px; }
+    #tab-10 .ed-one em { font-style:normal; font-weight:700; font-size:.88rem; opacity:.85; }
+    #tab-10 .ed-one-go  { background:#5b5bd6 !important; color:#fff !important; }
+    #tab-10 .ed-one-fix { background:#c0392b !important; color:#fff !important; }
+    #tab-10 .ed-one-ok  { background:var(--edFill) !important; color:var(--edMute) !important;
+      border:1px solid var(--edLine) !important; cursor:default; }
     #tab-10 .dim { color:var(--edMute); }
     /* 燈號：同一個色系五階，由淺到深 ＝ 由輕到重。綠色是唯一的另一個色相。 */
     #tab-10 .ed-lamp, #tab-10 .ed-gap { display:inline-flex; align-items:center; justify-content:center;
@@ -2636,7 +2663,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
 <script defer src="./firebase-sync.js?v=safe7"></script>
-<link rel="stylesheet" href="day-mode.css?v=apple6">
+<link rel="stylesheet" href="day-mode.css?v=apple7">
 </head>
 <body>
   <header>
@@ -2656,6 +2683,9 @@
       </button>
       <button id="syncBtn_funnel" class="hdr-mode-btn funnel" onclick="fnSyncAll()" data-tip="sync-funnel">
         <span class="hmb-line1">🔀 漏斗</span><span class="hmb-line2" id="syncTime_funnel">未同步</span>
+      </button>
+      <button id="syncBtn_edits" class="hdr-mode-btn edits" onclick="switchTab(10); setTimeout(edSyncNow, 120);" data-tip="sync-edits">
+        <span class="hmb-line1">📝 編輯</span><span class="hmb-line2" id="syncTime_edits">未同步</span>
       </button>
       <button id="hdrSaveBtn" class="hdr-save-btn" onclick="motivSaveCurrentToArchive()" data-tip="lock">💾 鎖定</button>
       <button id="pcPushBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#00695c,#00897b);color:#fff;border-color:transparent;" onclick="pcForcePushCompany()" data-tip="push">☁️↑ 推送</button>
@@ -7600,6 +7630,15 @@
               if (_ed && typeof _fnIdbPut === 'function'){ _fnIdbPut(_ek, _ed); try { localStorage.removeItem(_ek); } catch(e5){} }
             } catch(e3){}
             try { edRenderAll(); } catch(e2){}
+            // ⚡ 昨日覆盤：抓完就把覆盤畫面攤開
+            if (_edOpenDayAfter){
+              _edOpenDayAfter = false;
+              try {
+                if (typeof switchTab === 'function') switchTab(10);
+                edDashTab = 'day';
+                setTimeout(function(){ try { edDashOpen(); } catch(e6){} }, 350);
+              } catch(e6){}
+            }
           } else if (mode === 'trial'){
             // 🔎 深挖結果搬進 FunnelDB（不佔 localStorage 額度），再重畫
             try {
@@ -8538,6 +8577,7 @@
     // ══════════════════════════════════════════════════════════════
     var _edDays = 1;                       // 這次要往回抓幾天
     var _edPendingDates = null;            // 這次實際要抓的日期清單（只送「還缺的」，按幾次都不會重抓）
+    var _edOpenDayAfter = false;           // ⚡ 昨日覆盤按下去的 → 抓完自動攤開覆盤畫面
     var ED_SEG = 7;                        // 一段幾天
     var ED_WINDOW = 28;                    // 往回看幾天算「還缺」（28 ÷ 7 ＝ 剛好按四次）
     var edRegion = (function(){ try{ return localStorage.getItem('ed_region') || 'central'; }catch(e){ return 'central'; } })();
@@ -8567,6 +8607,17 @@
       try { return _fnIdbGet(_ckCid() + 'fn_edits_v1'); } catch(e){ return null; }
     }
     var ED_VER = 2;   // 跟擴充的 EDIT_VER 對齊
+    var ED_LAG_OK = 1;   // 隔一天內抓 ＝ 完整。隔愈久，被後面日子吃掉的愈多。
+    // 哪幾天是「太晚才抓」的 → 筆數會偏低。沒有紀錄的一律當不確定。
+    function _edLateDays(store){
+      if (!store || !store.stats) return [];
+      var lag = store.lag || {};
+      return Object.keys(store.stats).sort().filter(function(d){
+        var L = lag[d];
+        return L == null ? false : L > ED_LAG_OK;   // 沒紀錄的不誣賴，只標有紀錄且確實晚抓的
+      });
+    }
+    function _edLagOf(store, d){ var L = (store && store.lag) ? store.lag[d] : null; return L == null ? null : L; }
     // 哪幾天是「舊版抓的」→ 數字少算，要重抓。沒有版本章的一律當舊版。
     function _edStaleDays(store){
       if (!store || !store.stats) return [];
@@ -8727,7 +8778,7 @@
           people.push({
             org:o.org, name:w.ed, mon:w.mon, pool:w.pool || 0, cold:w.cold || 0,
             w7:w.w7, w7prev:w.w7prev, delta:w.delta || 0, streak:w.streak || 0,
-            team:_edTeamOf(o.org, w.ed), lamps:w.lamps, lastDay:w.lastDay || ''
+            team:_edTeamOf(o.org, w.ed), lamps:w.lamps, lastDay:w.lastDay || '', days:w.days || {}
           });
         });
       });
@@ -8854,10 +8905,11 @@
       try { M = _edDashModel(); } catch(e){ box.innerHTML = '<div class="edd-none">算不出來：' + _fnEsc(e.message || e) + '</div>'; return; }
       if (!M){
         box.innerHTML = _eddHead(null) + '<div class="edd-none"><h3>還沒有編輯資料</h3>'
-          + '<p>先關掉這個視窗，按「📅 補上一段」或「📝 抓昨天」把資料抓回來。</p></div>';
+          + '<p>先關掉這個視窗，按那顆紫色按鈕把資料抓回來。</p></div>';
         return;
       }
       var html = _eddHead(M);
+      if (edDashTab === 'day')   html += _eddDay(M);
       if (edDashTab === 'rank')  html += _eddRank(M);
       if (edDashTab === 'org')   html += _eddOrg(M);
       if (edDashTab === 'vs')    html += _eddVs(M);
@@ -8869,7 +8921,7 @@
     function _eddHead(M){
       var days = M ? M.days.filter(function(d){ return d.slice(0,7) === M.ym; }) : [];
       var range = days.length ? (days[0].slice(5).replace('-','/') + '～' + days[days.length-1].slice(5).replace('-','/')) : '';
-      var tabs = [['rank','🏆 排名'],['org','🏫 各學院'],['vs','⚔️ 中區 vs 桃區'],['boost','🔥 激勵'],['set','⚙️ 誰要列入']];
+      var tabs = [['day','⚡ 昨日'],['rank','🏆 排名'],['org','🏫 各學院'],['vs','⚔️ 中區 vs 桃區'],['boost','🔥 激勵'],['set','⚙️ 誰要列入']];
       var scopes = [['all','全省']].concat(
         ['central','taoyuan','south'].map(function(k){ return [k, CK_REGIONS[k].label]; }),
         CK_ORG_LIST.map(function(g){ return [g, g]; })
@@ -8885,7 +8937,7 @@
         + (function(){
             // 「各學院」本來就是七家並排、「中區 vs 桃區」本來就是兩區對打，
             // 這兩頁不吃範圍。與其讓人按了沒反應，不如直接暗掉並講原因。
-            var live = (edDashTab === 'rank' || edDashTab === 'boost');
+            var live = (edDashTab === 'rank' || edDashTab === 'boost' || edDashTab === 'day');
             return '<div class="edd-scope' + (live ? '' : ' off') + '">'
               + '<span class="edd-sclb">看哪裡</span>'
               + scopes.map(function(k){
@@ -8901,6 +8953,63 @@
               + '</div>';
           })()
         + '</div>';
+    }
+
+    // ⚡ 昨日覆盤：最後抓到的那一天，誰有動、誰沒動、誰比前一天好
+    function _eddDay(M){
+      var sc = _eddScope();
+      var day = M.lastDay || '';
+      if (!day) return '<div class="edd-none">還沒有任何一天的資料</div>';
+      var idx = M.days.indexOf(day);
+      var prev = idx > 0 ? M.days[idx - 1] : '';
+      var inScope = M.people.filter(function(p){ return sc.orgs.indexOf(p.org) >= 0; });
+
+      var moved = [], quiet = [];
+      inScope.forEach(function(p){
+        var n = (p.days && p.days[day]) || 0;
+        var pn = (prev && p.days && p.days[prev]) || 0;
+        (n > 0 ? moved : quiet).push({ p:p, n:n, pn:pn, d:n - pn });
+      });
+      moved.sort(function(a,b){ return b.n - a.n; });
+      quiet.sort(function(a,b){ return b.p.mon - a.p.mon; });
+
+      var tot = moved.reduce(function(a,x){ return a + x.n; }, 0);
+      var lag = _edLagOf(edGetStore(), day);
+      var lagTxt = lag == null ? '' : (lag <= 1 ? '（隔天抓的，完整）' : '（隔了 ' + lag + ' 天才抓，筆數偏低）');
+
+      var rows = moved.map(function(x){
+        var w = x.pn ? Math.round(x.d / x.pn * 100) : null;
+        return { name:x.p.name, sub:(sc.isOrg ? '' : x.p.org) + (prev ? '　前一天 ' + x.pn : ''),
+                 v:x.n, label:x.n,
+                 v2: prev ? (x.d > 0 ? '+' + x.d : (x.d < 0 ? String(x.d) : '持平')) : '',
+                 cls: x.d > 0 ? 'good' : (x.d < 0 ? 'bad' : ''),
+                 tip:x.p.name + (sc.isOrg ? '' : '（' + x.p.org + '）') + '\n'
+                     + day + ' 編了 ' + x.n + ' 筆'
+                     + (prev ? '\n' + prev + ' 編了 ' + x.pn + ' 筆 → ' + (x.d >= 0 ? '多 ' + x.d : '少 ' + (-x.d)) + ' 筆' + (w == null ? '' : '（' + (w > 0 ? '+' : '') + w + '%）') : '')
+                     + '\n\n連續 ' + x.p.streak + ' 天有編輯。這段期間共 ' + x.p.mon + ' 筆。' };
+      });
+
+      return '<div class="edd-card edd-daycard"><h3><i class="edd-scb"></i>⚡ ' + _fnEsc(sc.label) + '　' + day.replace(/-/g,'/') + ' 誰有動'
+        + '<span class="edd-tot">' + tot.toLocaleString() + ' 筆　' + moved.length + ' 人</span></h3>'
+        + '<p class="edd-sub">這是最後抓到的那一天' + lagTxt + '。右邊小字是跟前一天比。</p>'
+        + (rows.length ? _eddBars(rows) : '<div class="edd-none">這一天沒有人編輯</div>')
+        + '</div>'
+        + '<div class="edd-card edd-quiet"><h3>😴 ' + day.replace(/-/g,'/') + ' 完全沒動的人'
+        + '<span class="edd-tot">' + quiet.length + ' 位</span></h3>'
+        + '<p class="edd-sub">這幾位在這段期間有編過東西，但這一天一筆都沒有。先問是不是休假或有事，再談。</p>'
+        + (quiet.length
+           ? '<div class="edd-qwrap">' + quiet.map(function(x){
+               var gap = x.p.lastDay ? _edDiffDays(x.p.lastDay) : null;
+               return '<span class="edd-q" data-tip="' + _fnEsc(x.p.name) + (sc.isOrg ? '' : '（' + _fnEsc(x.p.org) + '）') + '\n'
+                 + day + ' 一筆都沒編。\n'
+                 + (gap == null ? '' : '最後一次編輯是 ' + x.p.lastDay + '，' + gap + ' 天前。\n')
+                 + '這段期間總共編了 ' + x.p.mon + ' 筆。\n\n'
+                 + '休假、外出、跑展場都會落在這裡 —— 先問，不要直接當作沒做事。">'
+                 + '<b>' + _fnEsc(x.p.name) + '</b><em>' + (sc.isOrg ? '' : x.p.org + '・') + '共 ' + x.p.mon + ' 筆</em></span>';
+             }).join('') + '</div>'
+           : '<div class="edd-none">每個人都有動，很好。</div>')
+        + '</div>'
+        + '<div class="edd-note">這一頁是給每天早上用的：先看誰有動，再看誰沒動，最後切到「🔥 激勵」看進步王跟連續天數，複製戰報貼群組。</div>';
     }
 
     // ① 排名：跟著範圍走
@@ -8921,7 +9030,7 @@
                         + '連續 ' + p.streak + ' 天有編輯。\n最後一次編輯：' + (p.lastDay || '沒觀測到') };
         });
         var tot = ppl.reduce(function(a,p){ return a + p.mon; }, 0);
-        body = '<div class="edd-card"><h3>' + _fnEsc(sc.label) + '・編了幾筆名單'
+        body = '<div class="edd-card"><h3><i class="edd-scb"></i>' + _fnEsc(sc.label) + '・編了幾筆名單'
           + '<span class="edd-tot">' + tot.toLocaleString() + ' 筆　' + ppl.length + ' 人</span></h3>'
           + '<p class="edd-sub">條子右邊的小字是「本週比上週多／少幾筆」。綠色＝本週往上衝，紅色＝掉下來。</p>'
           + _eddBars(rows) + '</div>';
@@ -9023,7 +9132,7 @@
                      tip:t.team + ' 組\n' + t.n + ' 人：' + t.names.join('、') + '\n共 ' + t.sum.toLocaleString() + ' 筆，平均每人 ' + t.avg + ' 筆。' }; }))
         : '<div class="edd-none">還沒設定組別。到「⚙️ 誰要列入」那一頁，每個人選 A／B／C／D 就會出現。</div>';
       return '<div class="edd-2up">'
-        + '<div class="edd-card"><h3>🚀 ' + _fnEsc(sc.label) + '・本週進步王</h3><p class="edd-sub">跟上週比多編了多少。排名墊底的人也拿得到。</p>'
+        + '<div class="edd-card"><h3><i class="edd-scb"></i>🚀 ' + _fnEsc(sc.label) + '・本週進步王</h3><p class="edd-sub">跟上週比多編了多少。排名墊底的人也拿得到。</p>'
         + (up.length ? _eddBars(up) : '<div class="edd-none">還沒有兩週的資料可以比。再抓幾天就會出現。</div>') + '</div>'
         + '<div class="edd-card"><h3>🔥 連續天數</h3><p class="edd-sub">連續幾天都有動。斷掉就歸零。</p>'
         + (st.length ? _eddBars(st) : '<div class="edd-none">沒有資料</div>') + '</div>'
@@ -9116,7 +9225,71 @@
 
     function edSwitchRegion(r){ edRegion = r; try{ localStorage.setItem('ed_region', r); }catch(e){} edOpenOwner=''; edRenderAll(); }
     function edToggleOwner(org, own){ var k = org + '|' + own; edOpenOwner = (edOpenOwner === k) ? '' : k; edRenderAll(); }
-    // 抓昨天：只補「昨天」那一格，已經有就不打 EIP
+    // ═══ ⚡ 一鍵更新 ═══════════════════════════════════════
+    //   優先序（便宜又有價值的先做）：
+    //     ① 昨天還沒抓      → 抓昨天（1.5 分）＋ 抓完攤開覆盤畫面
+    //     ② 有舊版少算的    → 修 7 天（數字錯比數字少更危險）
+    //     ③ 有沒抓過的日子  → 補 7 天
+    //     ④ 都好了          → 按鈕變灰，講「已是最新」
+    function _edNextJob(){
+      var store = edGetStore() || {};
+      var d = new Date(); d.setDate(d.getDate() - 1);
+      var yKey = d.getFullYear() + '-' + _ckPad2(d.getMonth()+1) + '-' + _ckPad2(d.getDate());
+      var have = (store.stats || {});
+
+      if (!have[yKey]){
+        return { job:'day', label:'⚡ 昨日覆盤', cls:'go',
+                 dates:[yKey.replace(/-/g,'/')], mins:2, openDay:true,
+                 why:'昨天（' + yKey + '）還沒抓。\n\n這是每天最重要的一件事 —— EIP 的「編輯日期」只記最後一次，'
+                    + '隔愈久回頭抓，被後面日子吃掉的就愈多。隔天抓幾乎全拿得到。\n\n'
+                    + '抓完會自動攤開覆盤畫面：昨天誰有動、誰完全沒動、誰比前一天進步。' };
+      }
+      var stale = _edStaleDays(store);
+      if (stale.length){
+        var st = stale.slice(0, ED_SEG);
+        return { job:'fix', label:'🔧 補齊資料', sub:'還有 ' + stale.length + ' 天', cls:'fix',
+                 dates:st.map(function(x){ return x.replace(/-/g,'/'); }),
+                 mins:Math.max(1, Math.round(st.length * 1.8)), left:stale.length - st.length,
+                 why:'有 ' + stale.length + ' 天是舊版抓回來的，筆數少算。\n\n'
+                    + '舊版判斷「最後一頁」看的是解析成功的筆數，但 EIP 一頁 30 列，'
+                    + '只要有幾列姓名空白就會提早收工，後面整批頁數丟掉。\n\n'
+                    + '這次先修這 ' + st.length + ' 天：\n' + st.join('\n')
+                    + '\n\n重抓會跟 EIP 頁尾的「共 N 頁 M 筆」對帳，對不上會講出來。' };
+      }
+      var miss = _edMissingDays(store);
+      if (miss.length){
+        var ms = miss.slice(0, ED_SEG);
+        return { job:'gap', label:'🔧 補齊資料', sub:'還缺 ' + miss.length + ' 天', cls:'fix',
+                 dates:ms.map(function(x){ return x.slash; }),
+                 mins:Math.max(1, Math.round(ms.length * 1.8)), left:miss.length - ms.length,
+                 why:'最近 ' + ED_WINDOW + ' 天裡有 ' + miss.length + ' 天沒抓過。\n\n'
+                    + '這次補這 ' + ms.length + ' 天：\n' + ms.map(function(x){ return x.key; }).join('\n')
+                    + '\n\n⚠️ 事後補的日子筆數本來就會偏低 —— 中間被重複編過的名單，EIP 已經把它們移到後面的日子了。'
+                    + '這救不回來，只能靠每天按一次避免。' };
+      }
+      return { job:'ok', label:'✅ 資料已是最新', cls:'ok',
+               why:'昨天抓了、沒有缺的日子、也沒有舊版少算的。\n\n明天再來按一次就好。' };
+    }
+
+    function edSyncNow(){
+      if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      var J = _edNextJob();
+      if (J.job === 'ok'){ alert('✅ 資料已經是最新的。\n\n' + J.why); return; }
+      var hour = new Date().getHours();
+      var busy = (hour >= 10 && hour < 21) ? '\n\n⚠️ 現在是上班時間，EIP 比較忙，建議改午休或下班後。' : '';
+      var msg = J.label + (J.sub ? '（' + J.sub + '）' : '') + '\n\n' + J.why
+        + '\n\n──────────\n'
+        + '・' + J.dates.length + ' 天 × 七家，約 ' + (J.dates.length * 70) + ' 頁請求、' + J.mins + ' 分鐘\n'
+        + (J.left ? '・跑完還有 ' + J.left + ' 天，再按一次會接著做\n' : '・跑完這一輪就完成了\n')
+        + '・每頁間隔 1.5 秒，每 10 頁多停 3 秒，不會壓到 EIP'
+        + busy + '\n\n中途不要關頁面。要開始嗎？';
+      if (!confirm(msg)) return;
+      _edPendingDates = J.dates;
+      _edOpenDayAfter = !!J.openDay;
+      motivTriggerEipSync('edits', null, true);
+    }
+
+    // ⚡ 昨日覆盤：抓昨天那一格 → 抓完直接攤開覆盤畫面。已經有就先問。
     function edSyncYesterday(){
       if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
       var store = edGetStore();
@@ -9125,7 +9298,16 @@
       if (store && store.stats && store.stats[k]){
         if (!confirm('📝 昨天（' + k + '）已經抓過了。\n\n重抓只是多打一次 EIP，資料不會變。還是要重抓嗎？')) return;
       }
+      // 昨天以前還有洞 → 提醒他那些日子補回來會偏低
+      var miss2 = _edMissingDays(store).filter(function(x){ return x.key < k; });
+      if (miss2.length){
+        if (!confirm('⚡ 昨日覆盤（' + k + '）。\n\n順帶一提：更早還有 ' + miss2.length + ' 天沒抓（最早 ' + miss2[miss2.length-1].key + '）。\n\n'
+          + '那些日子之後會自動排進來補，但筆數會偏低 —— EIP 的編輯日期只記最後一次，\n'
+          + '中間被重複編過的名單都已經被移到後面的日子了。\n\n'
+          + '要繼續嗎？')) return;
+      }
       _edPendingDates = [d.getFullYear() + '/' + _ckPad2(d.getMonth()+1) + '/' + _ckPad2(d.getDate())];
+      _edOpenDayAfter = true;        // 抓完直接把覆盤畫面攤開，不用自己再去點
       motivTriggerEipSync('edits', null, true);
     }
     // 🔁 重抓已經抓過的日子。
@@ -9159,7 +9341,7 @@
       if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
       var store = edGetStore();
       var miss = _edMissingDays(store);
-      if (!miss.length){ alert('📝 最近 ' + ED_WINDOW + ' 天全部都抓過了，不用再補。\n\n之後每天按一次「抓昨天」就好。'); return; }
+      if (!miss.length){ alert('📝 最近 ' + ED_WINDOW + ' 天全部都抓過了，不用再補。\n\n之後每天早上按一次那顆按鈕就好。'); return; }
       var seg = miss.slice(0, ED_SEG);
       var est = Math.max(1, Math.round(seg.length * 1.8));
       var pages = seg.length * 70;
@@ -9291,27 +9473,23 @@
             return '<button class="ck-region-btn' + (edRegion === rk ? ' active' : '') + '" onclick="edSwitchRegion(\'' + rk + '\')">' + (rk==='central'?'🏯 ':rk==='taoyuan'?'🌸 ':rk==='south'?'🌊 ':'🏆 ') + CK_REGIONS[rk].label + '</button>';
           }).join('')
         + '<span style="flex:1;"></span>'
-        + '<button class="fn-tb-btn" onclick="edSyncYesterday()">📝 抓昨天</button>'
-        + '<button class="fn-tb-btn wide" onclick="edSyncSegment()">📅 補上一段（' + ED_SEG + ' 天）</button>'
         + (function(){
-            var stale = _edStaleDays(store);
-            if (!stale.length) return '';   // 全部都是新版抓的 → 這顆按鈕直接不出現
-            return '<button class="fn-tb-btn wide ed-fixbtn" onclick="edSyncRedo()" data-tip="修正舊版抓的資料　還有 ' + stale.length + ' 天\n'
-              + '這 ' + stale.length + ' 天是舊版抓回來的，筆數少算了。\n\n'
-              + '舊版判斷「這是不是最後一頁」看的是解析成功的筆數。但 EIP 一頁 30 列，只要有幾列姓名空白，就會被當成最後一頁，後面整批頁數直接丟掉。\n\n'
-              + '這也是為什麼「比上週」會出現 +1833% 這種誇張數字 —— 不是團隊暴衝，是上一週被少算了。\n\n'
-              + '按一次修 7 天，系統自己知道還剩哪幾天，全部修完這顆按鈕就會消失。\n'
-              + '重抓時會跟 EIP 頁尾的「共 N 頁 M 筆」對帳，對不上會講出來。">'
-              + '🔁 修正舊資料（還有 ' + stale.length + ' 天）</button>';
+            var J = _edNextJob();
+            return '<button class="fn-tb-btn wide ed-one ed-one-' + J.cls + '"'
+              + (J.job === 'ok' ? ' disabled' : ' onclick="edSyncNow()"')
+              + ' data-tip="' + _fnEsc(J.label + (J.sub ? '（' + J.sub + '）' : '')) + '\n'
+              + _fnEsc(J.why) + (J.job === 'ok' ? '' : '\n\n約 ' + J.mins + ' 分鐘。按到它變成「✅ 資料已是最新」就結束。') + '">'
+              + J.label + (J.sub ? '<em>' + J.sub + '</em>' : '') + '</button>';
           })()
         + '<button class="fn-tb-btn wide edd-open" onclick="edDashOpen()">📊 打開儀表板</button>'
         + '</div>';
 
       if (!store || !store.stats || !Object.keys(store.stats).length){
         html += '<div class="ed-empty"><h3>還沒有編輯資料</h3>'
-          + '<p>按 <b>「📅 補上一段」</b>開始。它一次補 ' + ED_SEG + ' 天（約 11 分鐘），會記得補到哪裡，'
-          + '下次按就接著往回補 —— <b>已經抓過的日子不會重抓</b>，所以按幾次都不會白打 EIP。</p>'
-          + '<p>連按四次就有完整一個月。建議挑午休或下班後。之後每天按一次「📝 抓昨天」，1.5 分鐘。</p>'
+          + '<p>按上面那顆<b>紫色按鈕</b>開始。它會自己判斷現在該抓什麼 —— 先抓昨天，再往回補。</p>'
+          + '<p><b>按到它變成「✅ 資料已是最新」就結束。</b>一次跑 ' + ED_SEG + ' 天、約 13 分鐘，'
+          + '中途關掉也不會白跑，下次按會接著做。建議挑午休或下班後。</p>'
+          + '<p>之後每天早上按一次就好，1.5 分鐘，抓完會自動攤開昨日覆盤畫面。</p>'
           + '<p class="dim">資料來源：EIP 面談紀錄總表的「編輯日期」過濾。只翻清單頁，不逐人深挖；每頁間隔 1.5 秒、每 10 頁多停 3 秒。</p></div>';
         body.innerHTML = html; return;
       }
@@ -9319,14 +9497,49 @@
       var data = _edBuild(store, region.orgs);
       var syncedAt = (store.meta && store.meta.syncedAt) || '';
       html += '<div class="ed-head"><h2>📝 編輯追蹤　<small>' + _fnEsc(region.label) + '</small></h2>'
+        + (function(){
+            // 「上面都同步最新了，怎麼資料只到 9/16？」← 因為那排跟編輯追蹤是不同的資料。
+            //   落後超過一天就用紅字講出來，並且說清楚補回來的那幾天筆數會偏低。
+            if (!data || !data.lastDay) return '';
+            var y = new Date(); y.setDate(y.getDate() - 1); y.setHours(0,0,0,0);
+            var last = new Date(data.lastDay.replace(/-/g, '/')); last.setHours(0,0,0,0);
+            var behind = Math.round((y - last) / 86400000);
+            if (behind < 2) return '';
+            var yStr = y.getFullYear() + '-' + _ckPad2(y.getMonth()+1) + '-' + _ckPad2(y.getDate());
+            return '<div class="ed-behind" data-tip="編輯追蹤已經 ' + behind + ' 天沒更新\n'
+              + '最後有資料的是 ' + data.lastDay + '，昨天已經是 ' + yStr + '。\n\n'
+              + '★ 上面那排「激勵／報到／通路／漏斗」是四種不同的資料，跟編輯追蹤無關。\n'
+              + '　那排顯示今天同步過，不代表編輯追蹤也更新了。\n\n'
+              + '⚠️ 這 ' + behind + ' 天現在補回來，筆數一定會偏低：\n'
+              + '　EIP 的「編輯日期」只記最後一次編輯。這段期間被重複編過的名單，\n'
+              + '　已經被移到後面的日子了，回頭查那幾天就查不到 —— 這救不回來。\n\n'
+              + '先按右上角那顆按鈕把昨天抓回來，再慢慢往回補。">'
+              + '<b>⚠️ 編輯追蹤已經 ' + behind + ' 天沒更新</b>'
+              + '<span>最後有資料是 ' + data.lastDay + '，昨天已經是 ' + yStr + '。'
+              + '上面那排「激勵／報到／通路／漏斗」是別的資料，跟這裡無關。</span>'
+              + '<span class="ed-behind-2">這 ' + behind + ' 天現在補回來筆數會偏低，而且救不回來 —— 滑過來看原因。</span>'
+              + '</div>';
+          })()
         + '<p>最後一個有資料的日子：<b>' + _fnEsc(data ? data.lastDay : '—') + '</b>'
         + (syncedAt ? '　·　同步於 ' + _fnEsc(syncedAt) : '')
         + '　·　已累積 ' + (data ? data.days.length : 0) + ' 天</p>'
         + (function(){
             var miss = _edMissingDays(store);
             var stale = _edStaleDays(store);
-            var staleTxt = stale.length ? '<p class="ed-prog warn">⚠️ 有 <b>' + stale.length + '</b> 天是舊版抓的，筆數少算 —— 按「🔁 修正舊資料」修完之前，排名跟「比上週」都還不準</p>' : '';
-            if (!miss.length) return staleTxt + '<p class="ed-prog done">✅ 最近 ' + ED_WINDOW + ' 天都補齊了，之後每天按一次「抓昨天」就好</p>';
+            var staleTxt = stale.length ? '<p class="ed-prog warn">⚠️ 有 <b>' + stale.length + '</b> 天是舊版抓的，筆數少算 —— 修完之前，排名跟「比上週」都還不準</p>' : '';
+            var late = _edLateDays(store);
+            if (late.length){
+              var worst = late.map(function(d){ return _edLagOf(store, d); }).sort(function(a,b){ return b-a; })[0];
+              staleTxt += '<p class="ed-prog late" data-tip="這些日子是事後才補抓的，筆數偏低\n'
+                + 'EIP 的「編輯日期」只記最後一次編輯。\n\n'
+                + '同一筆名單如果 9/17 編過、9/19 又被編一次，它現在只掛在 9/19。\n'
+                + '所以你 9/20 才回頭抓 9/17，那一筆就抓不到了 —— 它被後面的日子吃掉。\n\n'
+                + '隔天抓（lag 1）幾乎全拿得到；隔愈久漏愈多。\n'
+                + '這些日子的數字只能當下限看，不能拿來跟即時抓的日子比高低。\n\n'
+                + '解法只有一個：養成每天早上按一次那顆按鈕的習慣。">'
+                + '🕓 有 <b>' + late.length + '</b> 天是事後補抓的（最久隔了 ' + worst + ' 天），筆數會偏低，滑過來看原因</p>';
+            }
+            if (!miss.length) return staleTxt + '<p class="ed-prog done">✅ 最近 ' + ED_WINDOW + ' 天都補齊了，之後每天早上按一次那顆按鈕就好</p>';
             var next = miss.slice(0, ED_SEG);
             return '<p class="ed-prog">還缺 <b>' + miss.length + '</b> 天（最近 ' + ED_WINDOW + ' 天內）'
               + '　·　下一段會補 ' + next[next.length-1].key + ' ～ ' + next[0].key
@@ -9347,9 +9560,9 @@
         + '<span class="ed-lg-note" data-tip="為什麼現在大家都是「還判斷不了」\n'
         + 'EIP 的「編輯日期」欄位，只記得住「最後一次編輯是哪天」，不是每一次編輯都留一筆紀錄。\n\n'
         + '所以回頭去補以前的日子，同一筆名單永遠只會出現在一天 —— 沒有「上一次的備註」可以拿來比，就判不出空編輯。\n\n'
-        + '唯一的解法是每天按一次「📝 抓昨天」。今天把備註存下來，過幾天他又編到同一筆，就比得出來了。跑兩三週這一欄就會活起來。"><b>⚠️ 為什麼現在大家都是「還判斷不了」？（滑過來看）</b>'
+        + '唯一的解法是每天早上按一次那顆紫色按鈕。今天把備註存下來，過幾天他又編到同一筆，就比得出來了。跑兩三週這一欄就會活起來。"><b>⚠️ 為什麼現在大家都是「還判斷不了」？（滑過來看）</b>'
         + 'EIP 只記「最後一次編輯是哪天」，不是每一次都留紀錄。回頭補的日子裡同一筆名單只會出現一次，沒有上一次可以比，所以空編輯判不出來。'
-        + '每天按一次「📝 抓昨天」往前累積，兩三週後這一欄才會有真正的判定。<br>'
+        + '每天早上按一次那顆紫色按鈕往前累積，兩三週後這一欄才會有真正的判定。<br>'
         + '人次高但人數少＝一直戳同幾個人；兩個都高＝面開得夠廣。<b>量一定要配空編輯率一起看</b> —— '
         + '量大但空 ＝ 交差；量大又幾乎沒空編輯 ＝ 真的在跑。</span></div>';
 
@@ -9361,7 +9574,7 @@
         if (!o.list.length){ html += '<div class="ed-empty-row">這一家沒有資料</div></div>'; return; }
         var monDays = (data.days || []).filter(function(d){ return d.slice(0,7) === data.ym; });
         var rangeTxt = monDays.length ? (monDays[0].slice(5) + '～' + monDays[monDays.length-1].slice(5)) : '';
-        html += '<div class="ed-gapline">本月<b data-tip="已經抓回來 ' + monDays.length + ' 天\n這裡只統計已經抓回來的日子，不是整個九月。\n\n缺的日子按「📅 補上一段」補，一次補七天。">已抓 ' + monDays.length + ' 天</b>'
+        html += '<div class="ed-gapline">本月<b data-tip="已經抓回來 ' + monDays.length + ' 天\n這裡只統計已經抓回來的日子，不是整個九月。\n\n缺的日子按上面那顆紫色按鈕補，一次七天。">已抓 ' + monDays.length + ' 天</b>'
           + (rangeTxt ? '（' + rangeTxt + '）' : '') + '　·　合計 <b>' + o.monTot + '</b> 筆名單被編過'
           + (o.med ? '　·　中位數 <b>' + o.med + '</b> 筆（只算有在編輯的人）' : '')
           + (o.hidden && o.hidden.length ? '　·　<span class="dim">另有 ' + o.hidden.length + ' 位標為客服／' + o.hidTot + ' 筆，不列入</span>' : '')
@@ -9394,7 +9607,7 @@
               + '要抓到空編輯，必須看過「同一筆名單的前一次備註」。\n'
               + '他這 ' + w.mon + ' 筆裡，有 ' + (w.monFirst||0) + ' 筆是我們第一次看到，沒有前一次可以比 —— 真正能比對的只剩 ' + judge + ' 筆，太少。\n\n'
               + '為什麼會這樣？因為 EIP 的「編輯日期」只記最後一次編輯。回頭補以前的日子，同一筆名單只會出現在一天，永遠比不出來。\n\n'
-              + '怎麼解決：每天按一次「📝 抓昨天」。今天把備註存起來，過幾天他又編到同一筆時，就比得出來了。跑兩三週這裡就會變成真正的判定。">'
+              + '怎麼解決：每天早上按一次那顆紫色按鈕。今天把備註存起來，過幾天他又編到同一筆時，就比得出來了。跑兩三週這裡就會變成真正的判定。">'
               + '⚠️ 還判斷不了</span>';
           }
           else if (w.mon >= 30 && canJudge && mRate >= 40) verdict = '<span class="ed-vd bad" data-tip="在交差，不是在追註冊\n'
@@ -9453,7 +9666,7 @@
               + '空編輯 ＝ 點開存檔了，但備註跟上次一模一樣。\n\n'
               + '他總共編了 ' + w.mon + ' 筆，其中 ' + (w.monFirst||0) + ' 筆是我們第一次看到（沒有上一次可以比）。\n'
               + '扣掉之後，真正「能拿來比對」的只有 ' + judge + ' 筆。\n\n'
-              + (!canJudge ? '能比的太少，這個百分比算出來也沒有參考價值，所以不顯示。每天按「📝 抓昨天」累積幾週就會有了。'
+              + (!canJudge ? '能比的太少，這個百分比算出來也沒有參考價值，所以不顯示。每天按「⚡ 昨日覆盤」累積幾週就會有了。'
                            : '這 ' + judge + ' 筆裡有 ' + w.monEmpty + ' 筆備註沒變 ＝ ' + mRate + '%。超過 40% 就算在交差。') + '">'
               + (!canJudge ? '<span class="dim">還不能比</span><small>只有 ' + judge + ' 筆能比</small>'
                  : (w.monEmpty ? '<b class="ed-bad">' + w.monEmpty + '</b><small>' + mRate + '%（' + judge + ' 筆能比）</small>'
