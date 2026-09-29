@@ -9429,7 +9429,7 @@
         o.list   = all.filter(function(w){ return !_edIsStaff(o.org, w.ed); });
         o.hidTot = o.hidden.reduce(function(a,w){ return a + w.mon; }, 0);
         // 落差：用「有在編輯的人」的中位數當基準（全月掛零的人不進中位數，不然基準會被拉歪）
-        var act = o.list.filter(function(w){ return w.mon > 0; }).map(function(w){ return w.mon; }).sort(function(a,b){ return a-b; });
+        var act = o.list.filter(function(w){ return w.mon >= ED_MIN; }).map(function(w){ return w.mon; }).sort(function(a,b){ return a-b; });
         o.med = act.length ? (act.length % 2 ? act[(act.length-1)/2] : Math.round((act[act.length/2-1] + act[act.length/2]) / 2)) : 0;
         o.monTot = o.list.reduce(function(a,w){ return a + w.mon; }, 0);
         o.list.forEach(function(w){ w.ratio = o.med ? (w.mon / o.med) : 0; });
@@ -9583,11 +9583,11 @@
         var rangeTxt = monDays.length ? (monDays[0].slice(5) + '～' + monDays[monDays.length-1].slice(5)) : '';
         html += '<div class="ed-gapline">本月<b data-tip="已經抓回來 ' + monDays.length + ' 天\n這裡只統計已經抓回來的日子，不是整個九月。\n\n缺的日子按上面那顆紫色按鈕補，一次七天。">已抓 ' + monDays.length + ' 天</b>'
           + (rangeTxt ? '（' + rangeTxt + '）' : '') + '　·　合計 <b>' + o.monTot + '</b> 筆名單被編過'
-          + (o.med ? '　·　中位數 <b>' + o.med + '</b> 筆（只算有在編輯的人）' : '')
+          + (o.med ? '　·　中位數 <b>' + o.med + '</b> 筆（只算編 ' + ED_MIN + ' 筆以上的人）' : '')
           + (o.hidden && o.hidden.length ? '　·　<span class="dim">另有 ' + o.hidden.length + ' 位標為客服／' + o.hidTot + ' 筆，不列入</span>' : '')
           + '　·　<span class="dim">倍數 ≥2 或 ≤0.5 會標出來，落差就在這裡</span></div>';
         html += '<table class="ed-t"><thead><tr>'
-          + '<th>業務<small>／名單被編・七家合計</small></th><th>他編過幾筆名單<small>／幾天・幾位學生</small></th><th>vs 中位數</th><th>空編輯<small>／可判定</small></th>'
+          + '<th>業務<small>／名單被編・七家合計</small></th><th>他編過幾筆名單<small>／幾天內</small></th><th>vs 中位數</th><th>空編輯<small>／可判定</small></th>'
           + '<th>最後一天</th><th>近 7 天</th><th>幾天沒編輯</th><th>手上名單燈號</th><th></th>'
           + '</tr></thead><tbody>';
         var quietN = 0;
@@ -9669,7 +9669,7 @@
               + '這 ' + (w.monDays||0) + ' 天裡，有 ' + w.mon + ' 筆名單的編輯人是他。\n\n'
               + '注意：同一筆名單編五次只算一筆。\n'
               + 'EIP 只記「最後一次編輯是哪天」，不是每一次都留紀錄，所以這是「筆數」不是「次數」。">'
-              + (w.mon || '—') + (w.monU ? '<small>' + w.monDays + ' 天內・' + w.monU + ' 位學生</small>' : '') + '</td>'
+              + (w.mon || '—') + (w.monDays ? '<small>' + w.monDays + ' 天內有編輯</small>' : '') + '</td>'
             + '<td class="num" data-tip="' + (w.ratio ? '他的量是全院中位數的 ' + rTxt : '沒有可比的中位數') + '\n'
               + '全院這幾天的中位數是 ' + o.med + ' 筆（只算有在編輯的人）。\n'
               + '他編了 ' + w.mon + ' 筆 → ' + rTxt + '\n\n'
