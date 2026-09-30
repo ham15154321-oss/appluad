@@ -1553,6 +1553,9 @@
     .fn-extbox b { font-size:1.55rem; font-weight:900; color:#0e7490; line-height:1.1; }
     .fn-extbox small { font-size:.68rem; color:#0e7490; opacity:.8; }
 
+    .fn-oldreg { margin:6px auto 2px; display:inline-block; padding:4px 12px; border-radius:10px; font-size:.86rem; font-weight:800;
+      color:#1f8f45; background:rgba(31,143,69,.10); border:1.5px solid #1f8f45; cursor:help; }
+    .fn-oldreg b { font-size:1.2rem; }
     /* ═══ 💬 大字說明泡泡 ═══ */
     .bigtip { position:fixed; z-index:99999; max-width:520px; max-height:calc(100vh - 24px); overflow:hidden; padding:14px 18px; border-radius:16px;
       background:#1c1c1f; color:#f5f5f7; border:1px solid rgba(255,255,255,.14);
@@ -11581,20 +11584,13 @@
         if (rowM){
           out.interview++;
           out.itvList.push({ n:name, o:rowM.o, d:_fnMD(rowM.d), sd:rowM.sd ? _fnYmOf(rowM.sd) : '', w:rowM.w });
-          // ★ 跟 EIP 註冊Ⓐ/Ⓑ 對齊：名單（通路建檔日期）當月建檔或空白＝Ⓐ 新名單 → 當下／試聽後；名單更早進來＝Ⓑ 舊名單 → 追回（即使本月才面談）
+          // ★ 2026/09/30 Ivan：本月面談、本月註冊 ＝ 當月（不管名單哪一年建檔）→ 3 天內當下、超過 3 天試聽後。
+          //   追回只留給「以前月份面談、本月才簽」的人，追回一律算試聽後結果（非當月）。
           var listNew = !rowM.sd || inM(rowM.sd) || rowM.sd > mEnd;
           if (regM && amt < FN_COURSE_MIN){
             // ★ 公司規則：本月註冊加總未達 2 萬「不能計算」→ 不算當下/試聽後/追回，視為經營中（標註已繳金額，人不會消失）
             seen[name] = 1; out.trial++; out.trialList.push({ n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), st:'未達 2 萬', inR3:true });
             out.mgmt.push({ n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), m:'💰已繳 ' + amt.toLocaleString() + '（未達 2 萬門檻，不計註冊）', w:rowM.w, days:_fnDays(rowM.d, new Date()), below:true });
-          } else if (regM && !listNew){
-            seen[name] = 1; out.regTotal++; out.regAmt += p.reg.filter(function(x){ return inM(x.d) && !x.coop; }).reduce(function(t,x){ return t + x.v; }, 0);
-            var _hv1 = { n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), ym:_fnYmOf(rowM.sd), r:_fnMD(regM.d), v:amt, w:rowM.w, trial: p.app.some(function(x){ return x.d <= regM.d; }), oldList:true, itvM:true };
-            // ★ 本月面談、有繳報名費 → 算本月面談試聽（跟 EIP 報名對齊）。註冊歸追回（註冊Ⓑ），所以不進試聽註冊率的分母。
-            if (_hv1.trial){ out.trial++; out.trialList.push({ n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), st:'已註冊・追回', r:_fnMD(regM.d), v:amt, inR3:false }); }
-            _hv1.noteTrial = _hasTrialWord(name, rowM.m);
-            out.harvest.push(_hv1);
-            if (_hv1.trial || _hv1.noteTrial) out.trialRegOld.push(Object.assign({}, _hv1, { m: rowM.m }));
           } else if (regM){
             seen[name] = 1; out.regTotal++; out.regAmt += p.reg.filter(function(x){ return inM(x.d) && !x.coop; }).reduce(function(t,x){ return t + x.v; }, 0);
             var days = _fnDays(rowM.d, regM.d);
@@ -11632,7 +11628,7 @@
             var _hv2 = { n:name, o:regM.o || last.o, d:_fnMD(last.d), ym:_fnYmOf(last.d), r:_fnMD(regM.d), v:amt, w:last.w, trial: hasApp };
             _hv2.noteTrial = _hasTrialWord(name, last.m);
             out.harvest.push(_hv2);
-            if (_hv2.trial || _hv2.noteTrial) out.trialRegOld.push(Object.assign({}, _hv2, { m: last.m }));
+            out.trialRegOld.push(Object.assign({}, _hv2, { m: last.m }));   // 追回一律算試聽後（非當月）
           } else if (hasApp && !regStatus){
             out.pool.push({ n:name, o:last.o, d:_fnMD(last.d), ym:_fnYmOf(last.d), m:last.m, w:last.w, days:_fnDays(last.d, new Date()) });
           }
@@ -11652,7 +11648,7 @@
         out.regTotal++; out.regAmt += amt2;
         var _hv3 = { n:nm, o:regs[0].o, r:_fnMD(regs[0].d), v:amt2, trial: P[nm].app.length > 0, noteTrial: _hasTrialWord(nm, '') };
         out.harvestOld.push(_hv3);
-        if (_hv3.trial || _hv3.noteTrial) out.trialRegOld.push(Object.assign({}, _hv3, { ym:'', d:'' }));
+        out.trialRegOld.push(Object.assign({}, _hv3, { ym:'', d:'' }));   // 追回一律算試聽後（非當月）
       }
       (function(){
         var n = 0;
@@ -11813,7 +11809,10 @@
         if (!hasOn) onsite = auto.onsite.length;
         // ★ 2026/09/15：當月試聽後註冊 ＝ 註冊Ⓐ − 當下（EIP 為準）。
         //   逐人資料對得到的列名字；EIP 有、但逐人對不到的（跨月入帳、名字不一致…）差額標出來，不再直接顯示 0。
-        var _byList = auto.trialReg.length, _byEip = Math.max(0, c3 - onsite);
+        // ★ 2026/09/30：EIP 的註冊Ⓐ ＝ 本月面談、本月註冊，包含「舊名單本月面談後註冊」。
+        //   我們把那些人歸在追回，所以要從 EIP 的差額裡扣掉，否則會被誤當成「試聽後註冊、對不到名字」。
+        var _hvItv = (auto.harvest || []).filter(function(x){ return x.itvM && x.quick; }).length;
+        var _byList = auto.trialReg.length, _byEip = Math.max(0, c3 - onsite - _hvItv);
         regCur = Math.max(_byList, _byEip);
         regUnmatched = Math.max(0, _byEip - _byList);
         regOld = (auto.trialRegOld || []).length;          // 非當月：追回裡有試聽字樣的
@@ -13613,7 +13612,8 @@
         + _fnTrialStep(s, isTotal)
         + '<div class="fn-step res"><div class="lb">試聽後結果</div>' + (s.known
             ? '<div class="row hot"><div class="v">' + s.reg + '</div><span>註冊</span></div>'
-              + ((s.regOld || s.regUnmatched) ? '<div class="sm" title="當月＝本月面談、本月註冊、面談後超過 3 天；非當月＝前幾個月面談、備註寫過試聽、本月才簽">當月 ' + (s.regCur||0) + (s.regOld ? ' ＋ 非當月 ' + s.regOld : '') + (s.regUnmatched ? '・' + s.regUnmatched + ' 位對不到名字' : '') + '</div>' : '')
+              + '<div class="sm">本月面談試聽後 ' + (s.regCur||0) + (s.regUnmatched ? '（' + s.regUnmatched + ' 位對不到名字）' : '') + '</div>'
+              + (s.regOld ? '<div class="fn-oldreg" data-tip="追回（非當月試聽後）　' + s.regOld + ' 位\n不是本月面談、這個月才簽的人，一律算試聽後的結果。\n\n' + _fnEsc(((s.auto && s.auto.trialRegOld) || []).map(function(x){ return x.n + '（' + (x.o || '') + '）' + (x.ym ? x.ym.slice(5) + ' 月面談' : '3 個月內無面談') + ' → ' + (x.r || '') + ' 註冊'; }).join('\n')) + '\n\n不算進本月的試聽註冊率。">＋ 追回（非當月試聽後）<b>' + s.regOld + '</b></div>' : '')
               + '<div class="row"><div class="v">' + s.mgmt + '</div><span>經營中</span></div>'
             : '<div class="v" style="font-size:1.1rem;color:var(--fnWarn);margin-top:10px;">待填當下</div><div class="sm">填「當下註冊」後自動計算</div>')
         + (s.ext && s.ext.n ? '<div class="fn-ext">🏫 外院：<b>' + s.ext.reg + '</b> 註冊／<b>' + s.ext.mgmt + '</b> 經營中</div>' : '') + '</div>')
