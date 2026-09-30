@@ -11546,14 +11546,16 @@
           out.signupOurs++;
           // ★ 用「業績承辦人」分業務（收支那筆報名費／註冊的承辦人），跟 EIP 個人績效同一個歸屬。
           //   例：陳雨璇面談承辦是吳郁瑾，但課程承辦是張承鈞 → EIP 算在張承鈞。
+          // 實測：改用業績承辦人差異反而變大（胡榮芳 2/3 → 2/6），EIP 是用面談承辦人分的
           var _payO = (p.app[0] && p.app[0].o) || (regM && regM.o) || '';
-          var _so = (_payO || rowM.o || '（沒有承辦人）');
+          var _so = (rowM.o || _payO || '（沒有承辦人）');
           out.signupBy[_so] = (out.signupBy[_so] || 0) + 1;
           // 狀態：已註冊（本月收支有註冊）／報名中／只有面談表勾報名、收支沒有報名費
           var _sameDay = regM && p.app.some(function(x){ return x.d && regM.d && x.d.getTime() === regM.d.getTime(); })
                           && !p.app.some(function(x){ return x.d < regM.d; });
           var _tag = regM ? (_sameDay ? '當天報名即註冊' : '已註冊') : (p.app.length ? '報名中' : '只勾報名沒繳費');
-          out.signupList.push({ n:name, o:_so, tag:_tag, itvO: (rowM.o && rowM.o !== _so) ? rowM.o : '' });
+          var _new = !rowM.sd || inM(rowM.sd) || rowM.sd > mEnd;   // 新名單（通路建檔在本月）＝Ⓐ
+          out.signupList.push({ n:name, o:_so, tag:_tag, oldList:!_new, payO: (_payO && _payO !== _so) ? _payO : '' });
         }
         if (rowM){
           out.interview++;
@@ -13431,7 +13433,7 @@
           SL.forEach(function(x){ cnt[x.tag] = (cnt[x.tag] || 0) + 1; });
           var lines = (s.signupDiff || []).slice(0, 12).map(function(x){
             var who = SL.filter(function(y){ return y.o === x.n && (!x.org || y.org === x.org); })
-              .map(function(y){ return y.n + (y.tag === '報名中' ? '' : '（' + y.tag + '）') + (y.itvO ? '〔面談：' + y.itvO + '〕' : ''); });
+              .map(function(y){ return y.n + (y.tag === '報名中' ? '' : '（' + y.tag + '）') + (y.oldList ? '〔舊名單〕' : ''); });
             return (x.org ? x.org + '・' : '') + x.n + '　EIP ' + x.eip + '／收支 ' + x.ours + (who.length ? '\n　　' + who.join('、') : '');
           });
           var hint = '';
@@ -13441,8 +13443,20 @@
             + '（收支裡這個月所有繳報名費的人，不管哪個月面談：' + s.signupAll + ' 位）\n\n'
             + '我這邊的 ' + s.signupOurs + ' 位：報名中 ' + cnt['報名中'] + '・隔天以後才註冊 ' + cnt['已註冊'] + '・當天報名即註冊 ' + cnt['當天報名即註冊'] + (cnt['只勾報名沒繳費'] ? '・只勾報名沒繳費 ' + cnt['只勾報名沒繳費'] : '') + '\n'
             + (function(){
-                var x = s.signupOurs - cnt['當天報名即註冊'];
-                return '→ 扣掉當天報名即註冊：' + x + (x === s.signup ? '　✅ 剛好等於 EIP，EIP 的報名不算當天就註冊的人' : '（EIP ' + s.signup + '，還差 ' + (s.signup - x) + '）');
+                var E = s.signup;
+                var old = SL.filter(function(y){ return y.oldList; }).length;
+                var sd  = cnt['當天報名即註冊'];
+                var oldSd = SL.filter(function(y){ return y.oldList && y.tag === '當天報名即註冊'; }).length;
+                var tries = [
+                  ['全部（現在的算法）', s.signupOurs],
+                  ['只算新名單（扣掉舊名單 ' + old + '）', s.signupOurs - old],
+                  ['扣掉當天報名即註冊 ' + sd, s.signupOurs - sd],
+                  ['只算新名單＋扣掉當天即註冊', s.signupOurs - old - sd + oldSd],
+                  ['只算還在報名中的', cnt['報名中']]
+                ];
+                return '試算哪一種算法等於 EIP ' + E + '：\n' + tries.map(function(t){
+                  return (t[1] === E ? '　✅ ' : '　　 ') + t[0] + '　→ ' + t[1] + (t[1] === E ? '　← 就是這個' : '（差 ' + (E - t[1]) + '）');
+                }).join('\n');
               })() + '\n\n'
             + (lines.length ? '對不上的業務：\n' + lines.join('\n') + '\n\n' : '')
             + '常見原因：EIP 的報名不含已註冊的人、承辦人歸屬不同、報名費還沒入帳或名字打錯。' + hint + '">'
