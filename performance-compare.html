@@ -11490,7 +11490,7 @@
       var P = {};
       pay.forEach(function(r){ if (r.sub === '學員加購') return; var d = _fnParseD(r.d); if (!d) return; var p = P[r.n] || (P[r.n] = { reg:[], app:[] }); p[r.st === '註冊' ? 'reg' : 'app'].push({ d:d, v:+r.v || 0, o:r.o, k:r.k }); });
       var I = {};
-      itv.forEach(function(r){ var d = _fnParseD(r.d); if (!d) return; var i = I[r.n] || (I[r.n] = { rows:[] }); i.rows.push({ d:d, sd:_fnParseD(r.sd), o:r.o, a:+r.a||0, r:+r.r||0, m:r.m||'', p:r.p||'', w:r.w||'', t:+r.t||0 }); });
+      itv.forEach(function(r){ var d = _fnParseD(r.d); if (!d) return; var i = I[r.n] || (I[r.n] = { rows:[] }); i.rows.push({ d:d, sd:_fnParseD(r.sd), o:r.o, a:+r.a||0, r:+r.r||0, m:r.m||'', p:r.p||'', w:r.w||'', t:+r.t||0, s:r.s||'' }); });
       var out = { interview:0, onsite:[], trialReg:[], harvest:[], harvestOld:[], trial:0, trialList:[], itvList:[], mgmt:[], pool:[], lost:[], regTotal:0, regAmt:0,
                   noteTrial:[], poolTrial:[], trialDue:[], trialUnsure:[], feeTrial:0, scanN:0,
                   signupOurs:0, signupAll:0, signupBy:{}, signupList:[] };
@@ -11555,7 +11555,7 @@
                           && !p.app.some(function(x){ return x.d < regM.d; });
           var _tag = regM ? (_sameDay ? '當天報名即註冊' : '已註冊') : (p.app.length ? '報名中' : '只勾報名沒繳費');
           var _new = !rowM.sd || inM(rowM.sd) || rowM.sd > mEnd;   // 新名單（通路建檔在本月）＝Ⓐ
-          out.signupList.push({ n:name, o:_so, tag:_tag, oldList:!_new, payO: (_payO && _payO !== _so) ? _payO : '' });
+          out.signupList.push({ n:name, o:_so, tag:_tag, oldList:!_new, src:String(rowM.s || '').trim(), payO: (_payO && _payO !== _so) ? _payO : '' });
         }
         if (rowM){
           out.interview++;
@@ -13447,14 +13447,20 @@
                 var old = SL.filter(function(y){ return y.oldList; }).length;
                 var sd  = cnt['當天報名即註冊'];
                 var oldSd = SL.filter(function(y){ return y.oldList && y.tag === '當天報名即註冊'; }).length;
+                var isRef = function(y){ return /學員介紹|轉介紹|介紹/.test(y.src || ''); };
+                var ref = SL.filter(isRef).length;
+                var bySrc = {}; SL.forEach(function(y){ var k = y.src || '（沒寫通路）'; bySrc[k] = (bySrc[k] || 0) + 1; });
+                var srcTxt = Object.keys(bySrc).sort(function(a,b){ return bySrc[b] - bySrc[a]; }).slice(0, 8)
+                  .map(function(k){ return k + ' ' + bySrc[k]; }).join('・');
                 var tries = [
                   ['全部（現在的算法）', s.signupOurs],
+                  ['扣掉學員介紹 ' + ref, s.signupOurs - ref],
                   ['只算新名單（扣掉舊名單 ' + old + '）', s.signupOurs - old],
                   ['扣掉當天報名即註冊 ' + sd, s.signupOurs - sd],
                   ['只算新名單＋扣掉當天即註冊', s.signupOurs - old - sd + oldSd],
                   ['只算還在報名中的', cnt['報名中']]
                 ];
-                return '試算哪一種算法等於 EIP ' + E + '：\n' + tries.map(function(t){
+                return s.signupOurs + ' 位的通路：' + srcTxt + '\n\n試算哪一種算法等於 EIP ' + E + '：\n' + tries.map(function(t){
                   return (t[1] === E ? '　✅ ' : '　　 ') + t[0] + '　→ ' + t[1] + (t[1] === E ? '　← 就是這個' : '（差 ' + (E - t[1]) + '）');
                 }).join('\n');
               })() + '\n\n'
