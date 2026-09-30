@@ -11550,7 +11550,9 @@
           var _so = (_payO || rowM.o || '（沒有承辦人）');
           out.signupBy[_so] = (out.signupBy[_so] || 0) + 1;
           // 狀態：已註冊（本月收支有註冊）／報名中／只有面談表勾報名、收支沒有報名費
-          var _tag = regM ? '已註冊' : (p.app.length ? '報名中' : '只勾報名沒繳費');
+          var _sameDay = regM && p.app.some(function(x){ return x.d && regM.d && x.d.getTime() === regM.d.getTime(); })
+                          && !p.app.some(function(x){ return x.d < regM.d; });
+          var _tag = regM ? (_sameDay ? '當天報名即註冊' : '已註冊') : (p.app.length ? '報名中' : '只勾報名沒繳費');
           out.signupList.push({ n:name, o:_so, tag:_tag, itvO: (rowM.o && rowM.o !== _so) ? rowM.o : '' });
         }
         if (rowM){
@@ -13425,7 +13427,7 @@
           chk = '<div class="fn-sgok" data-tip="報名對得上\nEIP 報名 ' + s.signup + '，收支裡找到本月面談、有繳報名費的人也是 ' + s.signupOurs + ' 位。">✓ 收支對得上</div>';
         } else {
           var SL = s.signupList || [];
-          var cnt = { '已註冊':0, '報名中':0, '只勾報名沒繳費':0 };
+          var cnt = { '已註冊':0, '報名中':0, '只勾報名沒繳費':0, '當天報名即註冊':0 };
           SL.forEach(function(x){ cnt[x.tag] = (cnt[x.tag] || 0) + 1; });
           var lines = (s.signupDiff || []).slice(0, 12).map(function(x){
             var who = SL.filter(function(y){ return y.o === x.n && (!x.org || y.org === x.org); })
@@ -13437,7 +13439,11 @@
           chk = '<div class="fn-sgbad" data-tip="報名對不上：差 ' + Math.abs(d) + ' 位\n'
             + 'EIP 報名 ' + s.signup + '，收支裡找到「本月面談、有繳報名費」的人 ' + s.signupOurs + ' 位。\n'
             + '（收支裡這個月所有繳報名費的人，不管哪個月面談：' + s.signupAll + ' 位）\n\n'
-            + '我這邊的 ' + s.signupOurs + ' 位：報名中 ' + cnt['報名中'] + '・已註冊 ' + cnt['已註冊'] + (cnt['只勾報名沒繳費'] ? '・只勾報名沒繳費 ' + cnt['只勾報名沒繳費'] : '') + '\n\n'
+            + '我這邊的 ' + s.signupOurs + ' 位：報名中 ' + cnt['報名中'] + '・隔天以後才註冊 ' + cnt['已註冊'] + '・當天報名即註冊 ' + cnt['當天報名即註冊'] + (cnt['只勾報名沒繳費'] ? '・只勾報名沒繳費 ' + cnt['只勾報名沒繳費'] : '') + '\n'
+            + (function(){
+                var x = s.signupOurs - cnt['當天報名即註冊'];
+                return '→ 扣掉當天報名即註冊：' + x + (x === s.signup ? '　✅ 剛好等於 EIP，EIP 的報名不算當天就註冊的人' : '（EIP ' + s.signup + '，還差 ' + (s.signup - x) + '）');
+              })() + '\n\n'
             + (lines.length ? '對不上的業務：\n' + lines.join('\n') + '\n\n' : '')
             + '常見原因：EIP 的報名不含已註冊的人、承辦人歸屬不同、報名費還沒入帳或名字打錯。' + hint + '">'
             + '⚠️ 收支找到 ' + s.signupOurs + '，' + (d > 0 ? '差 ' + d : '多 ' + (-d)) + '</div>';
