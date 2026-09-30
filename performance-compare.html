@@ -1540,6 +1540,7 @@
     @media (max-width:760px){ .fn-flow, .fn-rates { grid-template-columns:repeat(3, 1fr) !important; row-gap:12px; } }
     .fn-step .sm2 { font-size:.72rem; color:var(--fnMute); margin-top:2px; }
     .fn-sgok  { margin-top:6px; font-size:.8rem; font-weight:700; color:#1f8f45; cursor:help; }
+    .fn-sgnear { margin-top:6px; font-size:.8rem; font-weight:700; color:#6e6e73; cursor:help; }
     .fn-sgbad { margin-top:6px; display:inline-block; padding:3px 10px; border-radius:8px; font-size:.82rem; font-weight:800;
       color:#fff; background:#c0392b; cursor:help; }
     .fn-src { display:flex; justify-content:center; gap:14px; flex-wrap:wrap; margin-top:6px; }
@@ -13422,52 +13423,33 @@
     }
     // ── 報名：EIP 的數字當大字；收支自算一次，對不上就標紅 ──
     function _fnSignupStep(s, isTotal){
+      // ★ 實測（2026/09 中區）：EIP 學院績效總表的「報名」不算「學員介紹」進來的人。
+      //   收支自算 67 − 學員介紹 6 ＝ 61，EIP 60。所以對帳時用同一個定義比。
       var chk = '';
       if (s.signupOurs != null){
-        var d = s.signup - s.signupOurs;
+        var SL = s.signupList || [];
+        var isRef = function(y){ return /學員介紹|轉介紹/.test(y.src || ''); };
+        var ref = SL.filter(isRef).length;
+        var comp = s.signupOurs - ref;              // 跟 EIP 同定義的自算數
+        var d = s.signup - comp;
+        var why = '報名對帳\n'
+          + 'EIP 報名 ' + s.signup + '（EIP 的報名不算學員介紹）\n'
+          + '收支自算：本月面談、有繳報名費 ' + s.signupOurs + ' 位，扣掉學員介紹 ' + ref + ' 位 ＝ ' + comp + ' 位\n\n'
+          + '學員介紹的人雖然不算 EIP 報名，但他們有繳報名費，照樣算在右邊的「本月面談試聽」裡。';
         if (d === 0){
-          chk = '<div class="fn-sgok" data-tip="報名對得上\nEIP 報名 ' + s.signup + '，收支裡找到本月面談、有繳報名費的人也是 ' + s.signupOurs + ' 位。">✓ 收支對得上</div>';
+          chk = '<div class="fn-sgok" data-tip="' + _fnEsc(why) + '">✓ 收支對得上</div>';
+        } else if (Math.abs(d) <= 2){
+          chk = '<div class="fn-sgnear" data-tip="' + _fnEsc(why + '\n\n差 ' + Math.abs(d) + ' 位在誤差範圍內，多半是報名費入帳日期、或承辦人歸屬不同，不用追。') + '">≈ 收支 ' + comp + '（差 ' + Math.abs(d) + '，誤差內）</div>';
         } else {
-          var SL = s.signupList || [];
-          var cnt = { '已註冊':0, '報名中':0, '只勾報名沒繳費':0, '當天報名即註冊':0 };
-          SL.forEach(function(x){ cnt[x.tag] = (cnt[x.tag] || 0) + 1; });
           var lines = (s.signupDiff || []).slice(0, 12).map(function(x){
             var who = SL.filter(function(y){ return y.o === x.n && (!x.org || y.org === x.org); })
-              .map(function(y){ return y.n + (y.tag === '報名中' ? '' : '（' + y.tag + '）') + (y.oldList ? '〔舊名單〕' : ''); });
+              .map(function(y){ return y.n + (isRef(y) ? '（學員介紹）' : ''); });
             return (x.org ? x.org + '・' : '') + x.n + '　EIP ' + x.eip + '／收支 ' + x.ours + (who.length ? '\n　　' + who.join('、') : '');
           });
-          var hint = '';
-          if (d < 0 && cnt['已註冊'] >= -d) hint = '\n\n💡 我這邊有 ' + cnt['已註冊'] + ' 位是「報名後已註冊」。如果 EIP 的報名不算已經註冊的人，差距就是從這裡來的 —— 挑上面一位標「已註冊」的學生去 EIP 查，他如果不在 EIP 的報名裡就確定了。';
-          chk = '<div class="fn-sgbad" data-tip="報名對不上：差 ' + Math.abs(d) + ' 位\n'
-            + 'EIP 報名 ' + s.signup + '，收支裡找到「本月面談、有繳報名費」的人 ' + s.signupOurs + ' 位。\n'
-            + '（收支裡這個月所有繳報名費的人，不管哪個月面談：' + s.signupAll + ' 位）\n\n'
-            + '我這邊的 ' + s.signupOurs + ' 位：報名中 ' + cnt['報名中'] + '・隔天以後才註冊 ' + cnt['已註冊'] + '・當天報名即註冊 ' + cnt['當天報名即註冊'] + (cnt['只勾報名沒繳費'] ? '・只勾報名沒繳費 ' + cnt['只勾報名沒繳費'] : '') + '\n'
-            + (function(){
-                var E = s.signup;
-                var old = SL.filter(function(y){ return y.oldList; }).length;
-                var sd  = cnt['當天報名即註冊'];
-                var oldSd = SL.filter(function(y){ return y.oldList && y.tag === '當天報名即註冊'; }).length;
-                var isRef = function(y){ return /學員介紹|轉介紹|介紹/.test(y.src || ''); };
-                var ref = SL.filter(isRef).length;
-                var bySrc = {}; SL.forEach(function(y){ var k = y.src || '（沒寫通路）'; bySrc[k] = (bySrc[k] || 0) + 1; });
-                var srcTxt = Object.keys(bySrc).sort(function(a,b){ return bySrc[b] - bySrc[a]; }).slice(0, 8)
-                  .map(function(k){ return k + ' ' + bySrc[k]; }).join('・');
-                var tries = [
-                  ['全部（現在的算法）', s.signupOurs],
-                  ['扣掉學員介紹 ' + ref, s.signupOurs - ref],
-                  ['只算新名單（扣掉舊名單 ' + old + '）', s.signupOurs - old],
-                  ['扣掉當天報名即註冊 ' + sd, s.signupOurs - sd],
-                  ['只算新名單＋扣掉當天即註冊', s.signupOurs - old - sd + oldSd],
-                  ['只算還在報名中的', cnt['報名中']]
-                ];
-                return s.signupOurs + ' 位的通路：' + srcTxt + '\n\n試算哪一種算法等於 EIP ' + E + '：\n' + tries.map(function(t){
-                  return (t[1] === E ? '　✅ ' : '　　 ') + t[0] + '　→ ' + t[1] + (t[1] === E ? '　← 就是這個' : '（差 ' + (E - t[1]) + '）');
-                }).join('\n');
-              })() + '\n\n'
-            + (lines.length ? '對不上的業務：\n' + lines.join('\n') + '\n\n' : '')
-            + '常見原因：EIP 的報名不含已註冊的人、承辦人歸屬不同、報名費還沒入帳或名字打錯。' + hint + '">'
-            + '⚠️ 收支找到 ' + s.signupOurs + '，' + (d > 0 ? '差 ' + d : '多 ' + (-d)) + '</div>';
+          chk = '<div class="fn-sgbad" data-tip="' + _fnEsc(why + '\n\n差 ' + Math.abs(d) + ' 位，超過誤差，要查。\n\n' + (lines.length ? '對不上的業務：\n' + lines.join('\n') : '')) + '">'
+            + '⚠️ 收支 ' + comp + '，' + (d > 0 ? '差 ' + d : '多 ' + (-d)) + '</div>';
         }
+        if (ref) chk += '<div class="sm2">另有學員介紹 ' + ref + ' 位（EIP 不算）</div>';
       }
       return '<div class="fn-step fn-sg"><div class="lb">報名</div><div class="v">' + s.signup + '</div>'
         + '<div class="sm2">EIP 學院績效總表</div>' + chk + '</div>';
