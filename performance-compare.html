@@ -9606,7 +9606,7 @@
           + (o.hidden && o.hidden.length ? '　·　<span class="dim">另有 ' + o.hidden.length + ' 位標為客服／' + o.hidTot + ' 筆，不列入</span>' : '')
           + '　·　<span class="dim">倍數 ≥2 或 ≤0.5 會標出來，落差就在這裡</span></div>';
         html += '<table class="ed-t"><thead><tr>'
-          + '<th>業務<small>／名單被編・七家合計</small></th><th>他編過幾筆名單<small>／幾天內</small></th><th>vs 中位數</th><th>空編輯<small>／可判定</small></th>'
+          + '<th>業務<small>／名單被編＝EIP 查「承辦人」</small></th><th data-tip="他編過幾筆名單\n算的是：EIP 列表「編輯人」那一欄顯示是他的筆數（最後一手是他）。\n\n⚠️ 跟 EIP 上方篩選「編輯人＝他」查出來的數字不一樣：\n那個篩選會把「他編過、但後來被別人接手編」的名單也算進去，\n所以列表裡會出現編輯人欄是別人的資料，數字會比這裡大。">他編過幾筆名單<small>（最後一手是他）</small></th><th>vs 中位數</th><th>空編輯<small>／可判定</small></th>'
           + '<th>最後一天</th><th>近 7 天</th><th>幾天沒編輯</th><th>手上名單燈號</th><th></th>'
           + '</tr></thead><tbody>';
         var quietN = 0;
@@ -9688,7 +9688,7 @@
               + '這 ' + (w.monDays||0) + ' 天裡，有 ' + w.mon + ' 筆名單的編輯人是他。\n\n'
               + '注意：同一筆名單編五次只算一筆。\n'
               + 'EIP 只記「最後一次編輯是哪天」，不是每一次都留紀錄，所以這是「筆數」不是「次數」。">'
-              + (w.mon || '—') + (w.monDays ? '<small>' + w.monDays + ' 天內有編輯</small>' : '') + '</td>'
+              + (w.mon || '—') + (w.ownMon ? '<small>其中自己名下 ' + (w.ownSelf||0) + ' 筆</small>' : '') + '</td>'
             + '<td class="num" data-tip="' + (w.ratio ? '他的量是全院中位數的 ' + rTxt : '沒有可比的中位數') + '\n'
               + '全院這幾天的中位數是 ' + o.med + ' 筆（只算有在編輯的人）。\n'
               + '他編了 ' + w.mon + ' 筆 → ' + rTxt + '\n\n'
@@ -13509,8 +13509,17 @@
           + '\n學員介紹的人雖然不算 EIP 報名，但他們有繳報名費，照樣算在右邊的「本月面談試聽」裡。';
         if (d === 0){
           chk = '<div class="fn-sgok" data-tip="' + _fnEsc(why) + '">✓ 收支對得上</div>';
-        } else if (Math.abs(d) <= 2){
+        } else if (Math.abs(d) <= 2 || !isTotal){
+          // ★ 單一學院：實測 2026/09 中區三家分別差 +1／+3／−5，合計卻只差 1。
+          //   逐人查過：不是跨學院承辦（0 位移動），是 EIP 對合作案（報名費對分成 50、25…）與個別學生的歸屬規則，
+          //   我們從收支看不出來。單一學院的差距沒有行動意義，改成灰色提示；紅色只留給區域合計。
+          if (Math.abs(d) > 2){
+            chk = '<div class="fn-sgnear" data-tip="' + _fnEsc(why + '\n\n單一學院差 ' + Math.abs(d) + ' 位，但區域合計對得上。'
+              + '\n差異來自合作案（報名費對分成 50、25 元）與 EIP 個別學生的歸屬方式，從收支看不出 EIP 算給誰，不影響其他數字。'
+              + '\n要對帳請看區域合計那張卡。') + '">收支 ' + comp + '（差 ' + Math.abs(d) + '，看區域合計）</div>';
+          } else {
           chk = '<div class="fn-sgnear" data-tip="' + _fnEsc(why + '\n\n差 ' + Math.abs(d) + ' 位在誤差範圍內，多半是報名費入帳日期、或承辦人歸屬不同，不用追。') + '">≈ 收支 ' + comp + '（差 ' + Math.abs(d) + '，誤差內）</div>';
+          }
         } else {
           var lines = (s.signupDiff || []).slice(0, 12).map(function(x){
             var who = SL.filter(function(y){ return y.o === x.n && (!x.org || y.org === x.org); })
