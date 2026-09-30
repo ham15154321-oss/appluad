@@ -11495,15 +11495,21 @@
       // ★ 收支的「組織」是入帳的那一家，不一定是學生所屬的那一家。
       //   例：張維婷是台中二部易子莫的學生，但有一筆款項入帳在台中學院 → 二部看不到那筆錢（註冊金額被拆成兩半、都不到 2 萬），
       //   台中學院反而把她當成「外院試聽」。這裡把別家收支裡、承辦人就是本院面談她的人的款項併回本院。
+      //   ★ 合作案（業績對分）：同一個學生、同一堂課、同一天，拆兩筆入帳在兩家，承辦人不同。
+      //     例：張維婷（二部易子莫）Procreate 17,308 在二部、17,308 在台中學院（劉樺玲）。
+      //     只看自己那半會不到 2 萬、被誤判成經營中 → 這裡把另一半併回來判斷門檻（業績只算自己那半）。
+      var _ownKey = {};
+      pay.forEach(function(r){ if (r && r.n) _ownKey[r.n + '|' + (r.k || '') + '|' + r.d] = 1; });
       Object.keys(raw.orgs).forEach(function(og){
         if (og === org) return;
         (raw.orgs[og].pay || []).forEach(function(r){
           if (!r || !I[r.n] || r.sub === '學員加購') return;
-          var own = I[r.n].rows.some(function(x){ return x.o && x.o === r.o; });
-          if (!own) return;
+          var own  = I[r.n].rows.some(function(x){ return x.o && x.o === r.o; });
+          var coop = !own && _ownKey[r.n + '|' + (r.k || '') + '|' + r.d];
+          if (!own && !coop) return;
           var d = _fnParseD(r.d); if (!d) return;
           var pp = P[r.n] || (P[r.n] = { reg:[], app:[] });
-          pp[r.st === '註冊' ? 'reg' : 'app'].push({ d:d, v:+r.v || 0, o:r.o, k:r.k, xorg:og });
+          pp[r.st === '註冊' ? 'reg' : 'app'].push({ d:d, v:+r.v || 0, o:r.o, k:r.k, xorg:og, coop:!!coop });
         });
       });
       var out = { interview:0, onsite:[], trialReg:[], harvest:[], harvestOld:[], trial:0, trialList:[], itvList:[], mgmt:[], pool:[], lost:[], regTotal:0, regAmt:0,
@@ -11582,7 +11588,7 @@
             seen[name] = 1; out.trial++; out.trialList.push({ n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), st:'未達 2 萬', inR3:true });
             out.mgmt.push({ n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), m:'💰已繳 ' + amt.toLocaleString() + '（未達 2 萬門檻，不計註冊）', w:rowM.w, days:_fnDays(rowM.d, new Date()), below:true });
           } else if (regM && !listNew){
-            seen[name] = 1; out.regTotal++; out.regAmt += amt;
+            seen[name] = 1; out.regTotal++; out.regAmt += p.reg.filter(function(x){ return inM(x.d) && !x.coop; }).reduce(function(t,x){ return t + x.v; }, 0);
             var _hv1 = { n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), ym:_fnYmOf(rowM.sd), r:_fnMD(regM.d), v:amt, w:rowM.w, trial: p.app.some(function(x){ return x.d <= regM.d; }), oldList:true, itvM:true };
             // ★ 本月面談、有繳報名費 → 算本月面談試聽（跟 EIP 報名對齊）。註冊歸追回（註冊Ⓑ），所以不進試聽註冊率的分母。
             if (_hv1.trial){ out.trial++; out.trialList.push({ n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), st:'已註冊・追回', r:_fnMD(regM.d), v:amt, inR3:false }); }
@@ -11590,7 +11596,7 @@
             out.harvest.push(_hv1);
             if (_hv1.trial || _hv1.noteTrial) out.trialRegOld.push(Object.assign({}, _hv1, { m: rowM.m }));
           } else if (regM){
-            seen[name] = 1; out.regTotal++; out.regAmt += amt;
+            seen[name] = 1; out.regTotal++; out.regAmt += p.reg.filter(function(x){ return inM(x.d) && !x.coop; }).reduce(function(t,x){ return t + x.v; }, 0);
             var days = _fnDays(rowM.d, regM.d);
             var rec = { n:name, o:rowM.o || regM.o, d:_fnMD(rowM.d), r:_fnMD(regM.d), v:amt, w:rowM.w, days:days, trial: p.app.some(function(x){ return x.d <= regM.d; }) };
             if (days <= FN_ONSITE_DAYS) out.onsite.push(rec); else out.trialReg.push(rec);
@@ -11622,7 +11628,7 @@
             seen[name] = 1;
             out.pool.push({ n:name, o:last.o, d:_fnMD(last.d), ym:_fnYmOf(last.d), m:'💰已繳 ' + amt.toLocaleString() + '（未達 2 萬門檻，不計追回）', w:last.w, days:_fnDays(last.d, new Date()), below:true });
           } else if (regM){
-            seen[name] = 1; out.regTotal++; out.regAmt += amt;
+            seen[name] = 1; out.regTotal++; out.regAmt += p.reg.filter(function(x){ return inM(x.d) && !x.coop; }).reduce(function(t,x){ return t + x.v; }, 0);
             var _hv2 = { n:name, o:regM.o || last.o, d:_fnMD(last.d), ym:_fnYmOf(last.d), r:_fnMD(regM.d), v:amt, w:last.w, trial: hasApp };
             _hv2.noteTrial = _hasTrialWord(name, last.m);
             out.harvest.push(_hv2);
@@ -11691,6 +11697,12 @@
           if (!appM.length && !regsM.length) continue;
           // 承辦人就是別家面談他的人 → 別家的學生，錢只是入帳在這裡（該筆會併回別家計算）
           if (appM.concat(regsM).some(function(x){ return x.o && x.o === oi.o; })) continue;
+          // 合作案：他面談的那家也有「同學生、同一堂課、同一天」的入帳 → 是業績對分，不是外院試聽
+          var _homePay = (raw.orgs[oi.org] && raw.orgs[oi.org].pay) || [];
+          var _isCoop = pay.some(function(r){
+            return r.n === nmE && _homePay.some(function(h){ return h.n === r.n && (h.k || '') === (r.k || '') && h.d === r.d; });
+          });
+          if (_isCoop){ (out.coop || (out.coop = [])).push({ n:nmE, home:oi.org, o:oi.o }); continue; }
           var amtE = regsM.reduce(function(t,x){ return t + x.v; }, 0);
           out.ext.push({ n:nmE, src:oi.org, o:oi.o, d:_fnMD(oi.d), ym:_fnYmOf(oi.d), a: appM.length ? _fnMD(appM[0].d) : '', r: regsM.length ? _fnMD(regsM[0].d) : '', v:amtE,
                          st: amtE >= FN_COURSE_MIN ? 'reg' : 'mgmt', regAt: amtE >= FN_COURSE_MIN ? org : '', auto:true, ours:(regsM[0] || appM[0]).o || '' });
