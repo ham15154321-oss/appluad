@@ -11544,11 +11544,14 @@
         }
         if (rowM && hasApp){
           out.signupOurs++;
-          var _so = (rowM.o || '（沒有承辦人）');
+          // ★ 用「業績承辦人」分業務（收支那筆報名費／註冊的承辦人），跟 EIP 個人績效同一個歸屬。
+          //   例：陳雨璇面談承辦是吳郁瑾，但課程承辦是張承鈞 → EIP 算在張承鈞。
+          var _payO = (p.app[0] && p.app[0].o) || (regM && regM.o) || '';
+          var _so = (_payO || rowM.o || '（沒有承辦人）');
           out.signupBy[_so] = (out.signupBy[_so] || 0) + 1;
           // 狀態：已註冊（本月收支有註冊）／報名中／只有面談表勾報名、收支沒有報名費
           var _tag = regM ? '已註冊' : (p.app.length ? '報名中' : '只勾報名沒繳費');
-          out.signupList.push({ n:name, o:_so, tag:_tag });
+          out.signupList.push({ n:name, o:_so, tag:_tag, itvO: (rowM.o && rowM.o !== _so) ? rowM.o : '' });
         }
         if (rowM){
           out.interview++;
@@ -13426,7 +13429,7 @@
           SL.forEach(function(x){ cnt[x.tag] = (cnt[x.tag] || 0) + 1; });
           var lines = (s.signupDiff || []).slice(0, 12).map(function(x){
             var who = SL.filter(function(y){ return y.o === x.n && (!x.org || y.org === x.org); })
-              .map(function(y){ return y.n + (y.tag === '報名中' ? '' : '（' + y.tag + '）'); });
+              .map(function(y){ return y.n + (y.tag === '報名中' ? '' : '（' + y.tag + '）') + (y.itvO ? '〔面談：' + y.itvO + '〕' : ''); });
             return (x.org ? x.org + '・' : '') + x.n + '　EIP ' + x.eip + '／收支 ' + x.ours + (who.length ? '\n　　' + who.join('、') : '');
           });
           var hint = '';
