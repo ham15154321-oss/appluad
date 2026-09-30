@@ -1553,7 +1553,7 @@
     .fn-extbox small { font-size:.68rem; color:#0e7490; opacity:.8; }
 
     /* ═══ 💬 大字說明泡泡 ═══ */
-    .bigtip { position:fixed; z-index:99999; max-width:460px; padding:14px 18px; border-radius:16px;
+    .bigtip { position:fixed; z-index:99999; max-width:520px; max-height:calc(100vh - 24px); overflow:hidden; padding:14px 18px; border-radius:16px;
       background:#1c1c1f; color:#f5f5f7; border:1px solid rgba(255,255,255,.14);
       box-shadow:0 18px 50px rgba(0,0,0,.5); opacity:0; visibility:hidden;
       transform:translateY(4px); transition:opacity .13s ease, transform .13s ease;
@@ -11493,7 +11493,7 @@
       itv.forEach(function(r){ var d = _fnParseD(r.d); if (!d) return; var i = I[r.n] || (I[r.n] = { rows:[] }); i.rows.push({ d:d, sd:_fnParseD(r.sd), o:r.o, a:+r.a||0, r:+r.r||0, m:r.m||'', p:r.p||'', w:r.w||'', t:+r.t||0 }); });
       var out = { interview:0, onsite:[], trialReg:[], harvest:[], harvestOld:[], trial:0, trialList:[], itvList:[], mgmt:[], pool:[], lost:[], regTotal:0, regAmt:0,
                   noteTrial:[], poolTrial:[], trialDue:[], trialUnsure:[], feeTrial:0, scanN:0,
-                  signupOurs:0, signupAll:0, signupBy:{} };
+                  signupOurs:0, signupAll:0, signupBy:{}, signupList:[] };
       var refD = _fnRefDate(raw, ym);
       var scan = _fnScanFor(ym, org);   // 🔎 深挖：狀態歷史記錄逐筆追蹤情形
       var noteBox = _fnNotesFor(org);   // 📒 歷次同步看到的備註（不用重挖就能累積）
@@ -11546,6 +11546,9 @@
           out.signupOurs++;
           var _so = (rowM.o || '（沒有承辦人）');
           out.signupBy[_so] = (out.signupBy[_so] || 0) + 1;
+          // 狀態：已註冊（本月收支有註冊）／報名中／只有面談表勾報名、收支沒有報名費
+          var _tag = regM ? '已註冊' : (p.app.length ? '報名中' : '只勾報名沒繳費');
+          out.signupList.push({ n:name, o:_so, tag:_tag });
         }
         if (rowM){
           out.interview++;
@@ -11781,18 +11784,20 @@
                regA:c3, regB:c4, onsite:onsite, reg:trialReg, regCur:regCur, regOld:regOld, regUnmatched:regUnmatched, mgmt:mgmt, filled:filled, mismatch:mismatch, known:known, overTrial:overTrial, overInterview:overInterview, suspicious:suspicious, onsiteRate:onsiteRate, filledBy:ent.filledBy||'', filledAt:ent.filledAt||'',
                biz:biz, newPerf:np, payBack:pb,
                signupOurs: auto ? auto.signupOurs : null, signupAll: auto ? auto.signupAll : null, signupDiff:signupDiff,
+               signupList: auto ? (auto.signupList || []).map(function(x){ return Object.assign({ org:org }, x); }) : [],
                trialFeeN: auto ? auto.trialFeeN : null, trialNoteN: auto ? auto.trialNoteN : null, trialR3:trialR3,
                r1: checkin ? c1/checkin*100 : 0, r2: c1 ? trial/c1*100 : 0, r3: (known && trialR3) ? Math.min(100, (auto ? regCur : trialReg)/trialR3*100) : 0,
                note: ent.note || '', hasData: !!(checkin || rows.length) };
     }
     function _fnSum(list, org){
       var t = { org: org || '合計', checkin:0, interview:0, signup:0, extra:0, trial:0, regA:0, regB:0, onsite:0, reg:0, mgmt:0, biz:0, newPerf:0, payBack:0, note:'', hasData:false, filled:'sum', mismatch:false, known:true, overTrial:false, knownTrial:0, unknownOrgs:[], harvest:null, poolOpen:null, poolHarvest:null, autoN:0, ext:{ n:0, reg:0, mgmt:0, list:[] } };
-      t.signupOurs = null; t.signupAll = null; t.trialFeeN = null; t.trialNoteN = null; t.signupDiff = []; t.knownTrialR3 = 0;
+      t.signupOurs = null; t.signupAll = null; t.trialFeeN = null; t.trialNoteN = null; t.signupDiff = []; t.signupList = []; t.knownTrialR3 = 0;
       list.forEach(function(s){ ['checkin','interview','signup','extra','trial','regA','regB','biz','newPerf','payBack'].forEach(function(k){ t[k] += s[k] || 0; }); if (s.hasData) t.hasData = true; if (s.mismatch) t.mismatch = true;
         if (s.signupOurs != null){
           t.signupOurs = (t.signupOurs || 0) + s.signupOurs; t.signupAll = (t.signupAll || 0) + s.signupAll;
           t.trialFeeN = (t.trialFeeN || 0) + s.trialFeeN; t.trialNoteN = (t.trialNoteN || 0) + s.trialNoteN;
           (s.signupDiff || []).forEach(function(d){ t.signupDiff.push(Object.assign({ org:s.org }, d)); });
+          t.signupList = t.signupList.concat(s.signupList || []);
         }
         if (s.auto){ t.autoN++; t.harvest = (t.harvest||0) + s.harvest; t.poolOpen = (t.poolOpen||0) + s.poolOpen; t.poolHarvest = (t.poolHarvest||0) + s.poolHarvest;
           t.courses = (t.courses||0) + s.courses; t.coursesNew = (t.coursesNew||0) + s.coursesNew; t.heads = (t.heads||0) + s.heads; t.headsNew = (t.headsNew||0) + s.headsNew; }
@@ -13416,14 +13421,22 @@
         if (d === 0){
           chk = '<div class="fn-sgok" data-tip="報名對得上\nEIP 報名 ' + s.signup + '，收支裡找到本月面談、有繳報名費的人也是 ' + s.signupOurs + ' 位。">✓ 收支對得上</div>';
         } else {
+          var SL = s.signupList || [];
+          var cnt = { '已註冊':0, '報名中':0, '只勾報名沒繳費':0 };
+          SL.forEach(function(x){ cnt[x.tag] = (cnt[x.tag] || 0) + 1; });
           var lines = (s.signupDiff || []).slice(0, 12).map(function(x){
-            return (x.org ? x.org + '・' : '') + x.n + '　EIP ' + x.eip + '／收支 ' + x.ours;
+            var who = SL.filter(function(y){ return y.o === x.n && (!x.org || y.org === x.org); })
+              .map(function(y){ return y.n + (y.tag === '報名中' ? '' : '（' + y.tag + '）'); });
+            return (x.org ? x.org + '・' : '') + x.n + '　EIP ' + x.eip + '／收支 ' + x.ours + (who.length ? '\n　　' + who.join('、') : '');
           });
+          var hint = '';
+          if (d < 0 && cnt['已註冊'] >= -d) hint = '\n\n💡 我這邊有 ' + cnt['已註冊'] + ' 位是「報名後已註冊」。如果 EIP 的報名不算已經註冊的人，差距就是從這裡來的 —— 挑上面一位標「已註冊」的學生去 EIP 查，他如果不在 EIP 的報名裡就確定了。';
           chk = '<div class="fn-sgbad" data-tip="報名對不上：差 ' + Math.abs(d) + ' 位\n'
             + 'EIP 報名 ' + s.signup + '，收支裡找到「本月面談、有繳報名費」的人 ' + s.signupOurs + ' 位。\n'
             + '（收支裡這個月所有繳報名費的人，不管哪個月面談：' + s.signupAll + ' 位）\n\n'
+            + '我這邊的 ' + s.signupOurs + ' 位：報名中 ' + cnt['報名中'] + '・已註冊 ' + cnt['已註冊'] + (cnt['只勾報名沒繳費'] ? '・只勾報名沒繳費 ' + cnt['只勾報名沒繳費'] : '') + '\n\n'
             + (lines.length ? '對不上的業務：\n' + lines.join('\n') + '\n\n' : '')
-            + '常見原因：報名費還沒入帳、名字打錯、或 EIP 把前幾個月面談的人也算進來。">'
+            + '常見原因：EIP 的報名不含已註冊的人、承辦人歸屬不同、報名費還沒入帳或名字打錯。' + hint + '">'
             + '⚠️ 收支找到 ' + s.signupOurs + '，' + (d > 0 ? '差 ' + d : '多 ' + (-d)) + '</div>';
         }
       }
