@@ -2878,7 +2878,7 @@
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=safe7"></script>
+<script defer src="./firebase-sync.js?v=safe9"></script>
 <link rel="stylesheet" href="day-mode.css?v=apple7">
 </head>
 <body>
@@ -12324,11 +12324,38 @@
       });
     }
     // 同步更新 cache（UI 立刻看得到）＋ 非同步寫 IDB。v 可以是物件或 JSON 字串；null = 刪除
+    // ★ 2026/10/03 分頁守門：開很久的舊分頁，記憶體裡是舊資料，一存檔就把 IDB 的新資料蓋回去。
+    //   漏斗 raw／編輯追蹤／月封存寫入前先看 IDB 現在那份：IDB 比較新 → 不寫，並把這個分頁的記憶體換成新的。
+    function _pgFresh(k, str){
+      try {
+        if (!str) return null; var o = typeof str === 'string' ? JSON.parse(str) : str; if (!o) return null;
+        var ts = function(x){ var m = /(\d{4})\D(\d{1,2})\D(\d{1,2})(?:\D+(\d{1,2}):(\d{1,2}))?/.exec(String(x || '')); return m ? new Date(+m[1], +m[2]-1, +m[3], +(m[4]||0), +(m[5]||0)).getTime() : 0; };
+        if (/_motiv_funnel_v1$/.test(k)) return (o.meta && o.meta.syncedAt) ? ts(o.meta.syncedAt) : null;
+        if (/_fn_edits_v1$/.test(k)){ var ks = Object.keys(o.stats || {}).sort(); return ks.length ? ts(ks[ks.length-1]) + ks.length : null; }
+        if (/_fn_archive_v1$/.test(k)){ var b = 0; Object.keys(o).forEach(function(y){ var t = Date.parse((o[y] && o[y].savedAt) || 0) || 0; if (t > b) b = t; }); return b || null; }
+      } catch(e){}
+      return null;
+    }
     function _fnIdbPut(k, v){
       window._fnIdbCache = window._fnIdbCache || {}; window._fnIdbObj = window._fnIdbObj || {};
       if (v === null || v === undefined){ delete window._fnIdbCache[k]; delete window._fnIdbObj[k]; }
       else window._fnIdbCache[k] = (typeof v === 'string') ? v : JSON.stringify(v);
-      return _fnIdbWrite(k, window._fnIdbCache[k] || null).catch(function(e){ console.error('[fn-idb] 寫入失敗', k, e); });
+      var nv = window._fnIdbCache[k] || null;
+      if (nv && /_(motiv_funnel|fn_edits|fn_archive)_v1$/.test(k)){
+        return _fnIdbOpen().then(function(db){
+          return new Promise(function(res){ var g = db.transaction(FN_IDB.store, 'readonly').objectStore(FN_IDB.store).get(k); g.onsuccess = function(){ db.close(); res(g.result); }; g.onerror = function(){ db.close(); res(null); }; });
+        }).then(function(cur){
+          var cs = cur == null ? null : (typeof cur === 'string' ? cur : JSON.stringify(cur));
+          var fc = _pgFresh(k, cs), fn = _pgFresh(k, nv);
+          if (fc != null && fn != null && fc > fn){
+            console.warn('[fn-idb] ⛔ 這個分頁的 ' + k + ' 比 IDB 舊，不寫入（改用 IDB 那份）');
+            window._fnIdbCache[k] = cs; try { delete window._fnIdbObj[k]; } catch(e){}
+            return;
+          }
+          return _fnIdbWrite(k, nv);
+        }).catch(function(e){ console.error('[fn-idb] 寫入失敗', k, e); });
+      }
+      return _fnIdbWrite(k, nv).catch(function(e){ console.error('[fn-idb] 寫入失敗', k, e); });
     }
     window._fnIdbPut = _fnIdbPut;
     function _fnIdbGet(k){

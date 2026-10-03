@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.53**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds25'`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds27'`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -128,7 +128,7 @@
 
 ## 2. 卡住／還沒解決
 
-1. **漏斗資料一直被退回 9/15（10/01 又發生一次）**：Ivan 9/30 拉取救回後，10/01 再看又變回 `syncedAt 2026/9/15 18:52`。9/30 下午 IDB 裡的 `char_黃柏翰_motiv_funnel_v1` 變成 9/15 版（但「已同步」時間顯示 11:39）。Ivan 按「拉取」後救回。**原因還沒查**，懷疑雲端舊版蓋掉本機新版（FunnelDB / firebase-sync.js / `_fnMigrateLs` 搬 LS→IDB）。
+1. ✅ 10/03 找到原因並修好：另一個裝置用同一帳號開著、存舊資料，推上雲端後把本機 FunnelDB 蓋回舊版（9/15、9/16 兩版來回互蓋）。修法：firebase-sync.js（v=safe8）加「新舊守門」`_fnFreshness`：漏斗看 meta.syncedAt、編輯追蹤看 stats 最後一天＋天數、月封存看 savedAt，雲端較舊就不覆蓋（本機版先備份）。救援：FunnelBackupDB（每 key 留 5 版，`__fnBackupList()`／`__fnBackupRestore(id)`）已還原編輯追蹤 9/29 版、漏斗 9/30 版。10/03 再加三層：① 雲端改存新位置 `idb_FunnelDB_kv_v2`（舊版程式只會寫舊位置，新版不讀）② 主分頁鎖 `fs_leader_v1`（同一瀏覽器只有一個分頁能推 FunnelDB）＋推送前比對雲端，雲端較新就保留雲端 ③ 頁面 `_fnIdbPut` 寫入前比 IDB 新舊，舊分頁不准蓋。firebase-sync.js v=safe9。原紀錄：Ivan 9/30 拉取救回後，10/01 再看又變回 `syncedAt 2026/9/15 18:52`。9/30 下午 IDB 裡的 `char_黃柏翰_motiv_funnel_v1` 變成 9/15 版（但「已同步」時間顯示 11:39）。Ivan 按「拉取」後救回。**原因還沒查**，懷疑雲端舊版蓋掉本機新版（FunnelDB / firebase-sync.js / `_fnMigrateLs` 搬 LS→IDB）。
 2. **EIP「編輯人」篩選 ≠ 我們的「他編過」**：EIP 篩選編輯人＝某人，會把「他編過、後來別人接手」的也算（繆秉岑 EIP 1953 vs 頁面 1437）。EIP 匯出 Excel **沒有編輯人欄位**，無法逐筆對。可用頁面存的名單跟 Excel 1953 人比對（不打 EIP），Ivan 還沒同意做。
 3. 當下 ＋ 本月試聽後 跟 EIP 註冊Ⓐ 差 1～2 位（台中學院 +2、台中三部 +1，例：楊雅晴 EIP 1 我們 2），原因未查。
 4. 學院層級報名數跟 EIP 差 ±3～5，推測是合作案拆報名費，從收支無法解釋，已接受。
@@ -138,7 +138,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds25`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds27`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單

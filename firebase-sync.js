@@ -139,10 +139,13 @@ const IDB_LIST = [
   // ★ v7（2026/09）：漏斗／深挖／面談池。以前不在這裡，等於「只存在同事自己那台電腦」——
   //   LS 通道被 IDB_MIGRATED_LS_SUFFIXES 推拉雙封殺，而唯一的出口「☁️↑ 強制推送」只有管理者按得到。
   //   結果就是同事做了一整天，別人一個字都看不到。加進來之後走一般同步，每個人都推得上去。
-  { dbName: 'FunnelDB',             dbVer: 1, stores: ['kv'] },
+  // ★ 2026/10/03：雲端改存到新位置 idb_FunnelDB_kv_v2（Ivan：舊分頁／舊裝置一推，雲端就變舊）。
+  //   還在跑舊版程式的分頁只會寫到舊位置 idb_FunnelDB_kv，新版完全不讀它 → 舊資料再也蓋不到新的。
+  { dbName: 'FunnelDB',             dbVer: 1, stores: ['kv'], cloudColl: { kv: 'idb_FunnelDB_kv_v2' } },
   // ★ v7：錄音案例庫（ai_casedb_v1 搬到 IDB 之後從來沒被加進清單 → 完全沒上雲過）
   { dbName: 'AiCasedbDB',           dbVer: 1, stores: ['cases'] }
 ];
+function _idbColl(info, storeName){ return (info.cloudColl && info.cloudColl[storeName]) || ('idb_' + info.dbName + '_' + storeName); }
 // 拉取時也要能讀取舊的音效 collection（向下相容），但推送時不再寫入
 const IDB_LIST_PULL_ONLY = [
   { dbName: 'waterfall_blob_store',  dbVer: 1, stores: ['blobs'] },
@@ -297,6 +300,7 @@ const WRITES_PER_PAUSE = 3;      // 每 3 筆寫入休息一次
 
 // 這些 key 是「本機專屬」設定，不應該被雲端覆蓋
 const LOCAL_ONLY_KEYS = [
+  'fs_leader_v1',          // ★ 2026/10/03 主分頁鎖：只在這台電腦有意義，不上雲
   'activeCharacterId',
   'activeCharacterName',
   'profileName',
@@ -745,6 +749,39 @@ async function _fnBackupSave(key, value, why){
     bdb.close();
   } catch(e){ console.warn('[FirebaseSync] FunnelDB 備份失敗（不影響同步）', e && e.message); }
 }
+// ★ 2026/10/03 主分頁鎖：同一台電腦同一個瀏覽器，只有一個分頁能推 FunnelDB
+//   每 5 秒心跳；主分頁 15 秒沒心跳（關掉了）就由下一個分頁接手
+var _fsTabId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+function _fsIsLeader(){
+  try {
+    var now = Date.now(), cur = JSON.parse(localStorage.getItem('fs_leader_v1') || 'null');
+    if (!cur || cur.id === _fsTabId || now - (cur.t || 0) > 15000){ localStorage.setItem('fs_leader_v1', JSON.stringify({ id:_fsTabId, t:now, url:location.pathname })); return true; }
+    return false;
+  } catch(e){ return true; }
+}
+try {
+  setInterval(function(){ try { var cur = JSON.parse(localStorage.getItem('fs_leader_v1') || 'null'); if (cur && cur.id === _fsTabId) localStorage.setItem('fs_leader_v1', JSON.stringify({ id:_fsTabId, t:Date.now(), url:location.pathname })); else _fsIsLeader(); } catch(e){} }, 5000);
+  window.addEventListener('beforeunload', function(){ try { var cur = JSON.parse(localStorage.getItem('fs_leader_v1') || 'null'); if (cur && cur.id === _fsTabId) localStorage.removeItem('fs_leader_v1'); } catch(e){} });
+  window.__fsIsLeader = _fsIsLeader;
+} catch(e){}
+// ★ 2026/10/03：FunnelDB 資料「新舊」分數（越大越新）。認不出來的 key 回 null → 不做新舊判斷
+function _fnFreshness(key, str){
+  try {
+    if (!str) return null;
+    var o = (typeof str === 'string') ? JSON.parse(str) : str; if (!o || typeof o !== 'object') return null;
+    var ts = function(s){ var m = /(\d{4})\D(\d{1,2})\D(\d{1,2})(?:\D+(\d{1,2}):(\d{1,2}))?/.exec(String(s || '')); return m ? new Date(+m[1], +m[2]-1, +m[3], +(m[4]||0), +(m[5]||0)).getTime() : 0; };
+    if (/_motiv_funnel_v1$/.test(key)) return (o.meta && o.meta.syncedAt) ? ts(o.meta.syncedAt) : null;
+    if (/_fn_edits_v1$/.test(key)){
+      var ks = Object.keys(o.stats || {}).sort(); if (!ks.length) return null;
+      return ts(ks[ks.length-1]) + ks.length;            // 最後一天為主，同一天比天數
+    }
+    if (/_fn_archive_v1$/.test(key)){
+      var best = 0; Object.keys(o).forEach(function(ym){ var t = Date.parse((o[ym] && o[ym].savedAt) || 0) || 0; if (t > best) best = t; });
+      return best || null;
+    }
+  } catch(e){}
+  return null;
+}
 window.__fnBackupList = async function(){
   var bdb = await _fnBackupOpen();
   return new Promise(function(res){ var tx = bdb.transaction('snap','readonly'); var g = tx.objectStore('snap').getAll(); g.onsuccess = function(){ bdb.close(); res((g.result||[]).map(function(x){ return { id:x.id, key:x.key, at:new Date(x.at).toLocaleString(), size:x.size, why:x.why }; }).sort(function(a,b){ return b.id < a.id ? -1 : 1; })); }; g.onerror = function(){ bdb.close(); res([]); }; });
@@ -962,6 +999,14 @@ function idbPutEntries(db, storeName, entries){
                 // 縮水守門：雲端那份比本機小一半以上 → 極可能是別台的空殼／殘缺版，不收
                 if (oldStr.length > 10000 && gv.length < oldStr.length * 0.5){
                   console.warn('[FirebaseSync] ⛔ FunnelDB ' + gk + '：雲端 ' + Math.round(gv.length/1024) + 'KB 比本機 ' + Math.round(oldStr.length/1024) + 'KB 小太多，不覆蓋（本機版已備份）');
+                  try { window.__fnGuardBlocked = (window.__fnGuardBlocked || 0) + 1; } catch(e){}
+                  continue;
+                }
+                // ★ 2026/10/03 新舊守門：雲端那份的資料比本機「舊」就不覆蓋（Ivan 踩到：別台舊資料一推，漏斗退回 9/15、編輯追蹤退回 9/16，兩版來回互蓋）
+                //   漏斗 raw 看 meta.syncedAt；編輯追蹤看 stats 最後一天＋天數；月封存看各月 savedAt 最大值
+                var _fo = _fnFreshness(gk, oldStr), _fn = _fnFreshness(gk, gv);
+                if (_fo != null && _fn != null && _fn < _fo){
+                  console.warn('[FirebaseSync] ⛔ FunnelDB ' + gk + '：雲端那份比本機舊，不覆蓋（本機版已備份）', _fn, '<', _fo);
                   try { window.__fnGuardBlocked = (window.__fnGuardBlocked || 0) + 1; } catch(e){}
                   continue;
                 }
@@ -1531,12 +1576,28 @@ async function pushToCloud(opts){
           //   下次 pull 整批長回來。改成：清空也要走一次推送（會寫出空的 main 並清掉孤兒分段）。
           //   但只在「上一輪確實推過東西」時才做，避免全新裝置一開頁就把雲端清掉。
           if (entryCount === 0){
-            var _prevSig = _lastPushedSig[charRef.collection('idb_' + idbInfo.dbName + '_' + storeName).path];
+            var _prevSig = _lastPushedSig[charRef.collection(_idbColl(idbInfo, storeName)).path];
             if (!_prevSig || Object.keys(_prevSig).length === 0) continue;
             console.log('[FirebaseSync] IDB ' + idbInfo.dbName + '.' + storeName + ' 本機已清空 → 同步清空雲端');
           }
-          const storeRef = charRef.collection('idb_' + idbInfo.dbName + '_' + storeName);
+          const storeRef = charRef.collection(_idbColl(idbInfo, storeName));
           const idbPath = storeRef.path;
+          // ★ 2026/10/03 推送前守門（FunnelDB）：
+          //   ① 同一台電腦開好幾個分頁 → 只有「主分頁」能推漏斗資料，其他分頁跳過
+          //   ② 雲端那一筆比本機新（別台剛推過）→ 這次推送改用雲端那一筆，不拿本機舊的去蓋
+          if (idbInfo.dbName === 'FunnelDB'){
+            if (!_fsIsLeader()){ console.log('[FirebaseSync] 不是主分頁，FunnelDB 不推送（避免舊分頁蓋掉新資料）'); continue; }
+            try {
+              var _cloudNow = await readDataFromFirestore(storeRef), _keptCloud = 0;
+              Object.keys(_cloudNow || {}).forEach(function(ck){
+                var cv = _cloudNow[ck], lv = entries[ck];
+                var cs = typeof cv === 'string' ? cv : JSON.stringify(cv), ls = lv == null ? '' : (typeof lv === 'string' ? lv : JSON.stringify(lv));
+                var fc = _fnFreshness(ck, cs), fl = _fnFreshness(ck, ls);
+                if (fc != null && (fl == null || fc > fl)){ entries[ck] = cv; _keptCloud++; }
+              });
+              if (_keptCloud) console.warn('[FirebaseSync] ⛔ FunnelDB 有 ' + _keptCloud + ' 筆雲端比本機新，推送時保留雲端那份');
+            } catch(_ge){ console.warn('[FirebaseSync] FunnelDB 推送前比對失敗，這次不推', _ge && _ge.message); continue; }
+          }
           // ★ 2026/09 恢復 dirty-tracking：
           //   以前停用是因為 _sig 只看頭尾 32 字元，中間改動偵測不到 —— 那個 bug 已經修掉
           //   （現在是整串 FNV-1a 雜湊）。而 FunnelDB 進清單之後，「每次全量強推」
@@ -2163,7 +2224,7 @@ async function pullFromCloud(opts){
     for (const idbInfo of IDB_LIST){
       for (const storeName of idbInfo.stores){
         try {
-          const collName = 'idb_' + idbInfo.dbName + '_' + storeName;
+          const collName = _idbColl(idbInfo, storeName);
           const entries = await readDataFromFirestore(charRef.collection(collName));
           if (Object.keys(entries).length === 0) continue;
           const idb = await _getIDB(idbInfo);
@@ -2565,7 +2626,7 @@ async function migrateFromAnonymous(){
     var subNames = ['localStorage'];
     IDB_LIST.concat(IDB_LIST_PULL_ONLY).forEach(function(info){
       info.stores.forEach(function(s){
-        subNames.push('idb_' + info.dbName + '_' + s);
+        subNames.push(_idbColl(info, s));
       });
     });
     for (var sn of subNames){
