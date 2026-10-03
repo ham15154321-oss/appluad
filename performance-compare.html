@@ -9581,7 +9581,10 @@
       head += '<div class="dsc-g">第' + '一二三'[M.gi] + '關</div></div>';
       var rows = vis.map(function(r){
         var st = _dsSt(r), c = DSC[st], pct = r.gateT ? r.cum / r.gateT : 0;
-        var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + c.bg + ';color:' + c.fg + _dsEdge(c) + '">' + _dsX('org:' + r.org, r.org) + '<b class="ds-nmrow">' + _fnEsc(CK_SHORT[r.org]) + _dsGB(r) + '</b><span>已做 ' + _dsW1(r.cum) + ' 萬</span><small>' + Math.round(pct * 100) + '%・' + c.tag + '</small></div>';
+        // ★ Ivan 10/03：當天贏了，左欄也跟著變紅（右欄仍看累計進度）
+        var lst = (r.res === 'win' && st !== 'top') ? 'ok' : st, lc = DSC[lst];
+        var ltag = (r.res === 'win' && st !== 'top' && st !== 'ok') ? '今日贏・進度' + c.tag : c.tag;
+        var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + lc.bg + ';color:' + lc.fg + _dsEdge(lc) + '">' + _dsX('org:' + r.org, r.org) + '<b class="ds-nmrow">' + _fnEsc(CK_SHORT[r.org]) + _dsGB(r) + '</b><span>已做 ' + _dsW1(r.cum) + ' 萬</span><small>' + Math.round(pct * 100) + '%・' + ltag + '</small></div>';
         days.forEach(function(d){
           var dk = _dsDate(M.ym, d), hol = _dsIsHol(M.ym, r.org, dk);
           var cm = _dsCommit(dk, r.org), tgt = (cm && cm.biz) ? cm.biz : (r.E.inc[d] || 0);
