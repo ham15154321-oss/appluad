@@ -1896,6 +1896,9 @@
     .ds-ld.ok { border-color:rgba(226,75,74,.55) !important; } .ds-ld.bad { border-color:rgba(99,153,34,.6) !important; }
     .ds-ldm .g { color:#A32D2D !important; border-color:#E24B4A !important; } .ds-ldm .r { color:#3B6D11 !important; border-color:#97C459 !important; }
     .ds-lr { color:#3B6D11 !important; }
+    .dsc-c.l { background:#FAFAF5 !important; color:#2C2C2A !important; border:1px solid #E7E5DC !important; border-bottom:4px solid #639922 !important; } .dsc-c.l b { color:#3B6D11 !important; } .dsc-c.l small { color:#5F5E5A !important; }
+    .ds-card.ds-lose { background:#FAFAF5 !important; border-color:#E7E5DC !important; border-left:6px solid #639922 !important; }
+    .dsa-t[style*="#FAFAF5"] { border-width:1px !important; border-left-width:6px !important; }
     /* ═══ 🔥 十月活動 ═══ */
     .evo-head { margin-top:10px; }
     .evo-rule { font-size:.82rem; opacity:.8; line-height:1.6; margin:4px 0 8px; }
@@ -9432,9 +9435,11 @@
     var DSC = {
       // ★ 2026/10/03 Ivan：照台股配色 —— 漲（達標）＝紅、跌（未達）＝綠
       top:{ bg:'#E24B4A', fg:'#FFFFFF', bar:'#A32D2D', tag:'領先' }, ok:{ bg:'#FCEBEB', fg:'#791F1F', bar:'#E24B4A', tag:'達標' },
-      warn:{ bg:'#EAF3DE', fg:'#27500A', bar:'#97C459', tag:'落後' }, bad:{ bg:'#C0DD97', fg:'#173404', bar:'#639922', tag:'危險' },
+      // 未達：奶油白底＋綠色左邊條（Ivan 10/03：整片綠看起來很衰）
+      warn:{ bg:'#FAFAF5', fg:'#3B6D11', bar:'#97C459', tag:'落後', edge:1 }, bad:{ bg:'#FAFAF5', fg:'#27500A', bar:'#639922', tag:'危險', edge:1 },
       hol:{ bg:'#F1EFE8', fg:'#5F5E5A', bar:'#B4B2A9', tag:'休假' }
     };
+    function _dsEdge(c){ return c && c.edge ? ';border-left:5px solid ' + c.bar + ';border-radius:0 8px 8px 0' : ''; }
     function _dsSt(r){
       if (r.hol && !r.cum) return 'hol';
       var q = r.exp ? r.cum / r.exp : (r.cum ? 9 : 0);
@@ -9519,7 +9524,7 @@
       var st = _dsSt(r), c = DSC[st], pct = r.gateT ? r.cum / r.gateT : 0, ep = r.gateT ? r.exp / r.gateT : 0;
       return '<div class="dsb-prog"><div class="dsb-bar"><span style="width:' + Math.min(100, pct * 100) + '%;background:' + c.bar + '"></span><i style="left:' + Math.min(100, ep * 100) + '%" title="今天應到"></i></div>'
         + '<div class="dsb-pt"><b style="color:' + c.fg + '">已做 ' + _dsW1(r.cum) + ' 萬</b>／第' + '一二三'[M.gi] + '關 ' + _dsW1(r.gateT) + ' 萬（' + Math.round(pct * 100) + '%）'
-        + '<span class="dsb-tag" style="background:' + c.bg + ';color:' + c.fg + '">' + c.tag + '</span>'
+        + '<span class="dsb-tag" style="background:' + c.bg + ';color:' + c.fg + _dsEdge(c) + '">' + c.tag + '</span>'
         + (_dsHid('need') ? '' : (r.gateT > r.cum ? (r.left ? '<em>還要 <b>每天 ' + _dsW1(r.need) + ' 萬 × ' + r.left + ' 天</b>　＝還差 ' + _dsW1(r.gateT - r.cum) + '</em>' : '<em>今天結算，還差 <b>' + _dsW1(r.gateT - r.cum) + ' 萬</b></em>') : '<em>✅ 已過關</em>')) + '</div></div>';
     }
     function _dsRegionBanner(M){
@@ -9530,7 +9535,7 @@
         var cum = 0, gt = 0, exp = 0, tdT = 0, tdG = 0, hol = rs.every(function(r){ return r.res === 'hol'; });
         rs.forEach(function(r){ cum += r.cum; gt += r.gateT; exp += r.exp; if (r.res !== 'hol'){ tdT += r.cm.biz; tdG += r.got ? r.got.biz : 0; } });
         var st = _dsSt({ cum:cum, exp:exp, hol:hol }), c = DSC[st], pct = gt ? cum / gt : 0;
-        return '<div class="dsb-reg" style="background:' + c.bg + ';color:' + c.fg + '"><small>' + rg[0] + (hol ? '・休假中' : '') + '</small>'
+        return '<div class="dsb-reg" style="background:' + c.bg + ';color:' + c.fg + _dsEdge(c) + '"><small>' + rg[0] + (hol ? '・休假中' : '') + '</small>'
           + '<b>' + _dsW1(cum) + '<u>萬</u></b><span>／' + _dsW1(gt) + ' 萬（' + Math.round(pct * 100) + '%）</span>'
           + '<div class="dsb-bar s"><span style="width:' + Math.min(100, pct * 100) + '%;background:' + c.bar + '"></span><i style="left:' + Math.min(100, (gt ? exp / gt : 0) * 100) + '%"></i></div>'
           + (hol ? '<em>今天不比</em>' : '<em>今日目標 ' + _dsW1(tdT) + ' 萬・實際 ' + _dsW1(tdG) + ' 萬 ' + (tdG >= tdT ? '✔' : '✘') + '</em>') + '</div>';
@@ -9576,7 +9581,7 @@
       head += '<div class="dsc-g">第' + '一二三'[M.gi] + '關</div></div>';
       var rows = vis.map(function(r){
         var st = _dsSt(r), c = DSC[st], pct = r.gateT ? r.cum / r.gateT : 0;
-        var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + c.bg + ';color:' + c.fg + '">' + _dsX('org:' + r.org, r.org) + '<b class="ds-nmrow">' + _fnEsc(CK_SHORT[r.org]) + _dsGB(r) + '</b><span>已做 ' + _dsW1(r.cum) + ' 萬</span><small>' + Math.round(pct * 100) + '%・' + c.tag + '</small></div>';
+        var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + c.bg + ';color:' + c.fg + _dsEdge(c) + '">' + _dsX('org:' + r.org, r.org) + '<b class="ds-nmrow">' + _fnEsc(CK_SHORT[r.org]) + _dsGB(r) + '</b><span>已做 ' + _dsW1(r.cum) + ' 萬</span><small>' + Math.round(pct * 100) + '%・' + c.tag + '</small></div>';
         days.forEach(function(d){
           var dk = _dsDate(M.ym, d), hol = _dsIsHol(M.ym, r.org, dk);
           var cm = _dsCommit(dk, r.org), tgt = (cm && cm.biz) ? cm.biz : (r.E.inc[d] || 0);
@@ -9592,7 +9597,7 @@
           else if (nos) h += '<div class="dsc-c hol"><small>沒快照</small><b>→</b><i>算進後一格</i></div>';
           else h += '<div class="dsc-c fut' + (d === M.day + 1 ? ' next' : '') + '"><small>目標</small><b>' + _dsW1(d > M.day ? (r.need || tgt) : tgt) + '</b><i>' + (d === M.day + 1 ? '明天' : '') + '</i></div>';
         });
-        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + '">' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
+        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + _dsEdge(c) + '">' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
         return h;
       }).join('');
       return '<div class="dsb">' + _dsGateTitle(M)
@@ -9664,7 +9669,7 @@
       head += '<div class="dsc-g">第' + '一二三'[M.gi] + '關</div></div>';
       var body = rows.map(function(r, idx){
         var st = _dsSt(r), c = DSC[st], pct = r.gateT ? r.cum / r.gateT : 0;
-        var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + c.bg + ';color:' + c.fg + '">' + _dsX(r.key, r.g.groupName)
+        var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + c.bg + ';color:' + c.fg + _dsEdge(c) + '">' + _dsX(r.key, r.g.groupName)
           + '<b>' + (idx + 1) + '. ' + _fnEsc((r.g.leader && r.g.leader.name) || '') + (r.g.kind === '儲備' ? '<em class="dsl-rsv">儲備</em>' : '') + _dsGB(r) + '<small class="dsl-g">' + _fnEsc(CK_SHORT[r.org] + ' ' + (r.g.groupName || '')) + '・' + r.names.length + ' 人</small></b>'
           + '<span>已做 ' + _dsW1(r.cum) + '／' + _dsW1(r.gateT) + ' 萬<em class="dsl-p">' + Math.round(pct * 100) + '%・' + c.tag + '</em></span></div>';
         days.forEach(function(d){
@@ -9682,7 +9687,7 @@
           else if (nos) h += '<div class="dsc-c hol"><small>沒快照</small><b>→</b></div>';
           else h += '<div class="dsc-c fut' + (d === M.day + 1 ? ' next' : '') + '"><small>目標</small><b>' + _dsW1(d > M.day ? (r.need || tgt) : tgt) + '</b><i>' + (d === M.day + 1 ? '明天' : '') + '</i></div>';
         });
-        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + '">' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
+        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + _dsEdge(c) + '">' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
         return h;
       }).join('');
       var _cmp = _dsV().shot && rows.length > 8;
