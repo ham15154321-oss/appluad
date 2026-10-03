@@ -1809,6 +1809,7 @@
     .ds-dl { display:inline-flex; gap:4px; } .ds-dl button { padding:7px 12px; border-radius:10px; border:2px solid #3B6D11; background:#EAF3DE; color:#173404; font-weight:900; cursor:pointer; }
     .ds-shot-on .ds-vbar > .ds-dl { display:inline-flex !important; position:absolute; top:18px; right:330px; } .ds-shot-on .ds-dl button { padding:5px 10px; font-size:.8rem; }
     .ds-shot-on .dsb { margin-top:6px; }
+    .ds-lchips { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; } .ds-shot-on .ds-lchips { display:none; }
     .ds-box { position:relative; }
     .ds-need b { display:block; white-space:nowrap; font-size:1.08rem; font-weight:900; line-height:1.2; } .ds-need small { display:block; font-size:.7rem; font-weight:700; opacity:.85; }
     .dsc-g small.t { display:block; font-size:.68rem; font-weight:800; opacity:.75; }
@@ -9285,7 +9286,7 @@
       if (!keys.length) return h + '<div class="ck-empty">還沒有任何一天的快照。<br>每天收工後到「🏆 激勵」同步一次當月績效，再打開這裡，就會存下當天的數字（早上 9 點前同步的算前一天）。<br>想先看版面，按上面的「🧪 看示範資料」。</div>';
       var M = _dsModel(ym, DS.date);
       if (DS.tab === 'road') return h + _dsRoadHtml(M);
-      if (DS.tab === 'lead') return h + _dsViewBar() + _dsLeadCalHtml(M) + (_dsV().shot ? '' : '<h4 style="margin:18px 0 0">各組明細（紅黃燈）</h4>' + _dsLeaderHtml(M));
+      if (DS.tab === 'lead') return h + _dsViewBar() + _dsLeadChips() + _dsLeadCalHtml(M) + (_dsV().shot ? '' : '<h4 style="margin:18px 0 0">各組明細（紅黃燈）</h4>' + _dsLeaderHtml(M));
       if (DS.tab === 'race') return h + _dsViewBar() + _dsRaceHtml(M);
       if (DS.tab === 'cal') return h + _dsViewBar() + _dsCalHtml(M);
       if (DS.tab === 'arena') return h + _dsViewBar() + _dsArenaHtml(M);
@@ -9505,7 +9506,7 @@
         window.html2canvas(el, { scale:3, backgroundColor:'#ffffff', useCORS:true, logging:false,
           ignoreElements:function(n){ return n.classList && n.classList.contains('ds-x'); } }).then(function(cv){
           el.style.zoom = z; if (sc) sc.style.overflow = ov;
-          var name = '每日總結_' + ({ race:'賽道排行', cal:'燈號月曆', arena:'三區擂台', lead:'組長戰力榜' })[DS.tab || 'cal'] + '_' + (DS.date || '') + (fmt === 'jpg' ? '.jpg' : '.png');
+          var name = '每日總結_' + ({ race:'賽道排行', cal:'燈號月曆', arena:'三區擂台', lead:'組長戰力榜' })[DS.tab || 'cal'] + (DS.tab === 'lead' && _dsLeadOrg() !== 'ALL' ? '_' + _dsLeadOrg() : '') + '_' + (DS.date || '') + (fmt === 'jpg' ? '.jpg' : '.png');
           var a = document.createElement('a'); a.download = name;
           a.href = cv.toDataURL(fmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.95);
           document.body.appendChild(a); a.click(); a.remove();
@@ -9652,9 +9653,20 @@
                  hol:_dsIsHol(M.ym, org, M.date), sumAt:sumAt, key:'grp:' + org + '|' + (g.groupName || '') };
       });
     }
+    function _dsLeadOrg(){ try { return localStorage.getItem('ds_lead_org') || 'ALL'; } catch(e){ return 'ALL'; } }
+    function dsLeadOrg(o){ try { localStorage.setItem('ds_lead_org', o); } catch(e){} dsumOpen('lead'); }
+    function _dsLeadChips(){
+      var cur = _dsLeadOrg(), opts = ['ALL','中區','桃區','南區'].concat(CK_ORG_LIST.filter(function(o){ return o !== '高雄建國'; }));
+      return '<div class="ds-lchips">' + opts.map(function(o){
+        return '<button class="ck-region-btn' + (cur === o ? ' active' : '') + '" onclick="dsLeadOrg(\'' + o + '\')">' + (o === 'ALL' ? '全部' : o) + '</button>';
+      }).join('') + '</div>';
+    }
     function _dsLeadCalHtml(M){
       var rows = _dsGroupRows(M);
       if (!rows) return '<div class="ck-empty">還沒有本月的小組績效表。到「🏆 激勵」按「同步激勵」（確認是本月）。</div>';
+      // ★ Ivan 10/04：組長太多 → 可以只看一家學院（或一區）
+      var _lo = _dsLeadOrg(), _reg = { '中區':['台中學院','台中二部','台中三部'], '桃區':['中壢學院','中壢二部','中壢三部'], '南區':['高雄建國'] };
+      if (_lo !== 'ALL') rows = rows.filter(function(x){ return _reg[_lo] ? _reg[_lo].indexOf(x.org) >= 0 : x.org === _lo; });
       rows = rows.filter(function(x){ return !_dsHid(x.key); }).sort(function(a,b){ return (b.cum / (b.gateT || 1)) - (a.cum / (a.gateT || 1)); });
       var g = M.G[M.gi], mo = +M.ym.slice(5), wk = '日一二三四五六';
       var days = [];
@@ -9694,7 +9706,7 @@
         return h;
       }).join('');
       var _cmp = _dsV().shot && rows.length > 8;
-      return '<div class="dsb' + (_cmp ? ' dsb-cmp' : '') + '"><div class="dsb-hd"><div><b>👥 組長戰力榜・第' + '一二三'[M.gi] + '關　' + mo + '/' + g[0] + '–' + mo + '/' + g[1] + '</b><span>' + (g[1] - M.day ? '倒數 <em>' + (g[1] - M.day) + '</em> 天' : '<em>今天結算</em>') + '</span></div><div class="dsb-hd-r">' + mo + '/' + M.day + ' 收工</div></div>'
+      return '<div class="dsb' + (_cmp ? ' dsb-cmp' : '') + '"><div class="dsb-hd"><div><b>👥 ' + (_lo === 'ALL' ? '' : _fnEsc(_lo) + '・') + '組長戰力榜・第' + '一二三'[M.gi] + '關　' + mo + '/' + g[0] + '–' + mo + '/' + g[1] + '</b><span>' + (g[1] - M.day ? '倒數 <em>' + (g[1] - M.day) + '</em> 天' : '<em>今天結算</em>') + '</span></div><div class="dsb-hd-r">' + mo + '/' + M.day + ' 收工</div></div>'
         + (_dsHid('note') ? '' : '<div class="dsc-note ds-hx">' + _dsX('note', '說明文字') + '整組合計（組長＋組員）。目標＝每個人當月績效的個人目標加總，沒設的用低標（組長 60 萬、組員 5 萬），每關三分之一，攤在學院上班日</div>')
         + '<div class="dsc">' + head + body + '</div>' + _dsLegend() + '</div>';
     }
