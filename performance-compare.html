@@ -1787,6 +1787,7 @@
     .ds-ldh { display:flex; gap:8px; align-items:baseline; } .ds-ldh small { opacity:.6; font-size:.74rem; } .ds-ldh span { margin-left:auto; font-weight:900; }
     .ds-pro { font-style:normal; color:#1f8f45; font-weight:800; font-size:.8rem; }
     .ds-ldm { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 2px; } .ds-ldm span { font-size:.82rem; padding:2px 8px; border-radius:8px; border:1px solid; }
+    .dsl-rsv { font-style:normal; margin-left:6px; font-size:.68rem; font-weight:900; padding:1px 6px; border-radius:6px; background:#26215C; color:#EEEDFE; vertical-align:2px; }
     .ds-ldm span small { margin-left:4px; font-size:.7rem; opacity:.75; }
     .ds-ldm .g { color:#1f8f45; border-color:#30d158; } .ds-ldm .r { color:#c0392b; border-color:#ff453a; }
     .ds-lr { font-size:.82rem; color:#c0392b; margin-top:2px; } .ds-ly { font-size:.82rem; color:#b0590a; margin-top:2px; }
@@ -1806,6 +1807,10 @@
     .ds-shot-on .ds-shot { position:absolute; top:18px; right:110px; padding:5px 12px; font-size:.8rem; }
     .ds-shot-on .dsb { margin-top:6px; }
     .ds-box { position:relative; }
+    .ds-need b { display:block; white-space:nowrap; font-size:1.08rem; font-weight:900; line-height:1.2; } .ds-need small { display:block; font-size:.7rem; font-weight:700; opacity:.85; }
+    .dsc-g small.t { display:block; font-size:.68rem; font-weight:800; opacity:.75; }
+    .ds-blk { display:flex; gap:2px; justify-content:center; margin-top:4px; } .ds-blk i { width:7px; height:9px; border-radius:2px; background:#ffffff; border:1px solid rgba(0,0,0,.18); } .ds-blk i.on { background:#3B6D11; border-color:#3B6D11; }
+    .ds-morn { border-color:#EF9F27 !important; }
     /* 🏁 截圖看板：固定淺色底 */
     .dsb { margin-top:12px; background:#ffffff; color:#1d1d1f; border-radius:16px; padding:14px 16px 12px; border:1px solid #D3D1C7; }
     .dsb-hd { display:flex; justify-content:space-between; align-items:center; background:#26215C; color:#EEEDFE; border-radius:12px; padding:12px 16px; }
@@ -9030,6 +9035,15 @@
       var t = 0; ((pp && pp.orgs && pp.orgs[org]) || []).forEach(function(r){ t += _ckNum(r.goal); });
       return t;
     }
+    // 10 號／20 號累計目標：有設就用設的（存成金額），沒設＝月目標的 1/3、2/3。小組照學院同一個比例縮放
+    function _dsGateRatio(ym, org, gi){
+      if (gi >= 2) return 1;
+      var c = _dsCfg(ym), v = +((gi === 0 ? c.g1 : c.g2) || {})[org] || 0;
+      if (!v) return (gi + 1) / 3;
+      var T = _dsTargetOf(ym, org, _ppPPFor(ym) || (DS.demo ? _ppPPFor('2026-09') : null));
+      return T ? Math.min(1, v / T) : (gi + 1) / 3;
+    }
+    function _dsGateCum(ym, org, T, gi){ return gi < 0 ? 0 : T * _dsGateRatio(ym, org, gi); }
     function _dsIsHol(ym, org, date){ var h = _dsCfg(ym).hol[org] || []; return h.indexOf(date) >= 0; }
 
     // ── 三關＋上班日 → 每天的應到累計 ──
@@ -9039,7 +9053,7 @@
       var n = _dsDays(ym), cum = [0], inc = [0], G = _dsGates(ym);
       G.forEach(function(g, gi){
         var work = []; for (var d = g[0]; d <= g[1]; d++) if (!_dsIsHol(ym, org, _dsDate(ym, d))) work.push(d);
-        var gInc = T / 3, per = work.length ? gInc / work.length : 0, base = T * gi / 3;
+        var base = _dsGateCum(ym, org, T, gi - 1), gInc = _dsGateCum(ym, org, T, gi) - base, per = work.length ? gInc / work.length : 0;
         var k = 0;
         for (var d2 = g[0]; d2 <= g[1]; d2++){
           var isW = work.indexOf(d2) >= 0; if (isW) k++;
@@ -9131,7 +9145,7 @@
           cm = Object.assign({}, cm || {}, { biz: Math.round(_sum) }); auto = true;
         }
         var res = hol ? 'hol' : (!got ? 'na' : (got.biz >= cm.biz ? 'win' : 'lose'));
-        var cum = c ? c.biz : 0, exp = E.cum[day] || 0, gateT = T * (gi + 1) / 3;
+        var cum = c ? c.biz : 0, exp = E.cum[day] || 0, gateT = _dsGateCum(ym, org, T, gi);
         var lamp = !c ? '' : (cum >= exp * 1.2 ? '✔+' : (cum >= exp ? '✔' : 'X'));
         var isGateDay = (day === G[gi][1]);
         var refundRate = c && c.biz ? c.pb / c.biz : 0, regRate = c && c.itv >= 10 ? c.reg / c.itv : null;
@@ -9184,7 +9198,7 @@
       ppEvId = '';
       var body = '';
       try { body = _dsBody(ym, keys); } catch(e){ body = '<div class="ck-empty">計算失敗：' + _fnEsc(String(e && e.message || e)) + '</div>'; console.error(e); }
-      var _sh = _dsV().shot && ['race','cal','arena'].indexOf(DS.tab) >= 0;
+      var _sh = _dsV().shot && ['race','cal','arena','lead'].indexOf(DS.tab) >= 0;
       bg.innerHTML = '<div class="pp-ev-box ds-box' + (_sh ? ' ds-shot-on' : '') + '"><div class="pp-ev-top"><b>📋 每日總結　' + (ym ? ym.slice(0,4) + ' 年 ' + (+ym.slice(5)) + ' 月' : '') + '</b>'
         + '<button class="pp-ev-x" onclick="ppEventClose()">✕ 關閉</button></div>' + body + '</div>';
       bg.style.display = 'flex';
@@ -9194,7 +9208,8 @@
       var h = '<div class="ds-bar">'
         + '<button class="ck-region-btn' + (DS.demo ? ' active' : '') + '" onclick="DS.demo=!DS.demo;DS.date=\'\';DS._demo=null;dsumOpen()">' + (DS.demo ? '🧪 示範資料中・點我關掉' : '🧪 看示範資料') + '</button>'
         + (keys.length ? '<select class="ds-date" onchange="dsumOpen(null,this.value)">' + keys.slice().reverse().map(function(k){ return '<option value="' + k + '"' + (k === DS.date ? ' selected' : '') + '>' + (+k.slice(5,7)) + '/' + (+k.slice(8)) + ' 收工</option>'; }).join('') + '</select>' : '')
-        + '<button class="ck-region-btn" onclick="dsCopy(\'boss\')">📋 複製主管版</button>'
+        + '<button class="ck-region-btn ds-morn" onclick="dsCopy(\'morn\')" data-tip="早上貼主管群\n每家只寫今天要入帳多少＋進度條，不放紅色。">☀️ 複製今日挑戰（早上版）</button>'
+        + '<button class="ck-region-btn" onclick="dsCopy(\'boss\')" data-tip="收工後貼主管群\n賀🎉、📌未達、10:30 晨會。">🌙 複製收工版</button>'
         + '<button class="ck-region-btn" onclick="dsCopy(\'lead\')">📋 複製組長版</button></div>'
         + (DS.demo ? '<div class="evo-warn">🧪 示範：用九月數字隨機攤成每天，只是看版面，不是真的成績</div>' : '')
         + '<div class="evo-tabs">' + tabs.map(function(t){ return '<button class="evo-tab' + (DS.tab === t[0] ? ' on' : '') + '" onclick="dsumOpen(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') + '</div>';
@@ -9203,7 +9218,7 @@
       if (!keys.length) return h + '<div class="ck-empty">還沒有任何一天的快照。<br>每天收工後到「🏆 激勵」同步一次當月績效，再打開這裡，就會存下當天的數字（早上 9 點前同步的算前一天）。<br>想先看版面，按上面的「🧪 看示範資料」。</div>';
       var M = _dsModel(ym, DS.date);
       if (DS.tab === 'road') return h + _dsRoadHtml(M);
-      if (DS.tab === 'lead') return h + _dsLeaderHtml(M);
+      if (DS.tab === 'lead') return h + _dsViewBar() + _dsLeadCalHtml(M) + (_dsV().shot ? '' : '<h4 style="margin:18px 0 0">各組明細（紅黃燈）</h4>' + _dsLeaderHtml(M));
       if (DS.tab === 'race') return h + _dsViewBar() + _dsRaceHtml(M);
       if (DS.tab === 'cal') return h + _dsViewBar() + _dsCalHtml(M);
       if (DS.tab === 'arena') return h + _dsViewBar() + _dsArenaHtml(M);
@@ -9325,7 +9340,7 @@
         var end = _dsDate(M.ym, g[1]); if (end > M.date) return;
         var S = M.S[end];
         var rs = M.rows.map(function(r){
-          var c = S && S.o[r.org] ? S.o[r.org].biz : null, tgt = r.T * (gi + 1) / 3;
+          var c = S && S.o[r.org] ? S.o[r.org].biz : null, tgt = _dsGateCum(M.ym, r.org, r.T, gi);
           var lamp = c == null ? '—' : (c >= tgt * 1.2 ? '✔+' : (c >= tgt ? '✔' : 'X'));
           var w = 0, l = 0; for (var d = g[0]; d <= g[1]; d++){ var dk = _dsDate(M.ym, d); if (!M.S[dk] || _dsIsHol(M.ym, r.org, dk)) continue; var mm = _dsModel(M.ym, dk).rows.filter(function(x){ return x.org === r.org; })[0]; if (mm.res === 'win') w++; if (mm.res === 'lose') l++; }
           var plan = lamp === 'X' ? (gi > 0 && _dsGateLost(M, r, gi - 1) ? '連兩關輸 → ' + (g[1] + 1) + ' 號 10:00 組長以上現場檢討；下一關每天 13:30 檢討會＋每晚 23:00 總結' : '今晚 23:00 視訊；下一關每天 13:30 檢討會（30 分鐘）') : (lamp === '✔+' ? '嘉許，維持節奏' : '持平，維持每日戰報');
@@ -9347,7 +9362,7 @@
       return '<div class="ds-sub">實線＝實際累計，虛線＝應到線，灰底＝休假日。10、20 號、月底收工後，上面會出現那一關的結算表。</div>'
         + (gateSum || '<div class="ds-sub dim">第一關 10 號收工後才會出結算表</div>') + '<div class="ds-minis">' + charts + '</div>';
     }
-    function _dsGateLost(M, r, gi){ var g = M.G[gi], S = M.S[_dsDate(M.ym, g[1])]; return !!(S && S.o[r.org] && S.o[r.org].biz < r.T * (gi + 1) / 3); }
+    function _dsGateLost(M, r, gi){ var g = M.G[gi], S = M.S[_dsDate(M.ym, g[1])]; return !!(S && S.o[r.org] && S.o[r.org].biz < _dsGateCum(M.ym, r.org, r.T, gi)); }
 
     // ═══ 🏁 截圖用三張大看板（2026/10/03 Ivan：三個都要、聚焦當日目標、進度要有顏色跟說明）═══
     //   顏色只有一個意思：綠＝贏／領先　橘＝落後　紅＝危險／輸　灰＝休假　深紫＝目標
@@ -9404,6 +9419,13 @@
         }).join('') + '<small>按鈕列、分頁一律在截圖模式藏起來</small></div>';
       return h;
     }
+    // 差額改寫法（Ivan 10/03）：大字＝每天要多少，小字＝× 幾天＝還差多少，再加 10 格進度
+    function _dsBlocks(pct){ var n = Math.max(0, Math.min(10, Math.round(pct * 10))); if (pct >= 0.05 && !n) n = 1; var h = ''; for (var i = 0; i < 10; i++) h += '<i class="' + (i < n ? 'on' : '') + '"></i>'; return '<span class="ds-blk">' + h + '</span>'; }
+    function _dsNeedHtml(r, cls){
+      if (r.gateT <= r.cum) return '<div class="ds-need ' + (cls || '') + '"><b>✅ 已過關</b></div>';
+      if (!r.left) return '<div class="ds-need ' + (cls || '') + '"><b>差 ' + _dsW1(r.gateT - r.cum) + ' 萬</b><small>今天結算</small></div>';
+      return '<div class="ds-need ' + (cls || '') + '"><b>每天 ' + _dsW1(r.need) + ' 萬</b><small>× ' + r.left + ' 天＝還差 ' + _dsW1(r.gateT - r.cum) + '</small></div>';
+    }
     function _dsVisRows(M){ return M.rows.filter(function(r){ return !_dsHid('org:' + r.org); }); }
 
     function _dsProg(r, M){
@@ -9411,7 +9433,7 @@
       return '<div class="dsb-prog"><div class="dsb-bar"><span style="width:' + Math.min(100, pct * 100) + '%;background:' + c.bar + '"></span><i style="left:' + Math.min(100, ep * 100) + '%" title="今天應到"></i></div>'
         + '<div class="dsb-pt"><b style="color:' + c.fg + '">已做 ' + _dsW1(r.cum) + ' 萬</b>／第' + '一二三'[M.gi] + '關 ' + _dsW1(r.gateT) + ' 萬（' + Math.round(pct * 100) + '%）'
         + '<span class="dsb-tag" style="background:' + c.bg + ';color:' + c.fg + '">' + c.tag + '</span>'
-        + (_dsHid('need') ? '' : (r.gateT > r.cum ? '<em>差 ' + _dsW1(r.gateT - r.cum) + ' 萬，剩 ' + r.left + ' 個上班日每天要 <b>' + _dsW1(r.need) + ' 萬</b></em>' : '<em>✅ 已過關</em>')) + '</div></div>';
+        + (_dsHid('need') ? '' : (r.gateT > r.cum ? (r.left ? '<em>還要 <b>每天 ' + _dsW1(r.need) + ' 萬 × ' + r.left + ' 天</b>　＝還差 ' + _dsW1(r.gateT - r.cum) + '</em>' : '<em>今天結算，還差 <b>' + _dsW1(r.gateT - r.cum) + ' 萬</b></em>') : '<em>✅ 已過關</em>')) + '</div></div>';
     }
     function _dsRegionBanner(M){
       if (_dsHid('regions')) return '';
@@ -9461,7 +9483,7 @@
         if (_dsHid('hol') && vis.length && vis.every(function(r){ return _dsIsHol(M.ym, r.org, dk0); })) continue;
         days.push(d0);
       }
-      var gcs = ' style="grid-template-columns:130px repeat(' + (days.length + 1) + ', minmax(66px, 1fr))"';
+      var gcs = ' style="grid-template-columns:130px repeat(' + days.length + ', minmax(62px, 1fr)) 132px"';
       var head = '<div class="dsc-r dsc-h"' + gcs + '><div class="dsc-l">學院／這關進度</div>';
       days.forEach(function(d){ var dt = new Date(+M.ym.slice(0,4), mo - 1, d), dk = _dsDate(M.ym, d); head += '<div class="dsc-c ds-hx' + (d === M.day ? ' now' : '') + '">' + _dsX('col:' + dk, mo + '/' + d) + mo + '/' + d + '<small>' + wk[dt.getDay()] + '</small></div>'; });
       head += '<div class="dsc-g">第' + '一二三'[M.gi] + '關</div></div>';
@@ -9485,7 +9507,7 @@
           else if (nos) h += '<div class="dsc-c hol"><small>沒快照</small><b>→</b><i>算進後一格</i></div>';
           else h += '<div class="dsc-c fut' + (d === M.day + 1 ? ' next' : '') + '"><small>目標</small><b>' + _dsW1(d > M.day ? (r.need || tgt) : tgt) + '</b><i>' + (d === M.day + 1 ? '明天' : '') + '</i></div>';
         });
-        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + '"><b>' + _dsW1(r.gateT) + '</b>' + (_dsHid('need') ? '' : '<small>' + (r.gateT > r.cum ? '差 ' + _dsW1(r.gateT - r.cum) : '✅ 過關') + '</small>') + '</div></div>';
+        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + '"><small class="t">關卡 ' + _dsW1(r.gateT) + '</small>' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
         return h;
       }).join('');
       return '<div class="dsb">' + _dsGateTitle(M)
@@ -9507,10 +9529,81 @@
             + '<div class="dsa-sub">第' + '一二三'[M.gi] + '關 ' + _dsW1(r.gateT) + ' 萬・' + Math.round(pct * 100) + '%</div>'
             + '<div class="dsb-bar s"><span style="width:' + Math.min(100, pct * 100) + '%;background:' + c.bar + '"></span><i style="left:' + Math.min(100, (r.gateT ? r.exp / r.gateT : 0) * 100) + '%"></i></div>'
             + _dsTodayBox(r, false)
-            + ((_dsHid('need') && (_dsHid('streak') || r.streak < 2)) ? '' : '<div class="dsa-need">' + (_dsHid('need') ? '' : (r.gateT > r.cum ? '差 ' + _dsW1(r.gateT - r.cum) + ' 萬・每天要 <b>' + _dsW1(r.need) + ' 萬</b>' : '✅ 已過關')) + ((!_dsHid('streak') && r.streak > 1) ? '・連' + (r.sk === 'win' ? '贏' : '輸') + r.streak + '天' : '') + '</div>') + '</div>';
+            + ((_dsHid('need') && (_dsHid('streak') || r.streak < 2)) ? '' : '<div class="dsa-need">' + (_dsHid('need') ? '' : (r.gateT > r.cum ? (r.left ? '還要 <b>每天 ' + _dsW1(r.need) + ' 萬 × ' + r.left + ' 天</b>＝還差 ' + _dsW1(r.gateT - r.cum) : '今天結算，還差 <b>' + _dsW1(r.gateT - r.cum) + ' 萬</b>') : '✅ 已過關')) + ((!_dsHid('streak') && r.streak > 1) ? '・連' + (r.sk === 'win' ? '贏' : '輸') + r.streak + '天' : '') + '</div>') + '</div>';
         }).join('') + '</div>';
       }).filter(Boolean);
       return '<div class="dsb">' + _dsGateTitle(M) + _dsRegionBanner(M) + '<div class="dsa" style="grid-template-columns:repeat(' + cols.length + ', 1fr)">' + cols.join('') + '</div>' + _dsLegend() + '</div>';
+    }
+
+    // ── 👥 組長版燈號月曆（2026/10/03 Ivan：整組合計、正式＋儲備混排、A／B／C 組這種沒名字的不放）──
+    function _dsGroupRows(M){
+      var ymNum = +M.ym.slice(5), yy = +M.ym.slice(0,4), src = [];
+      var okM = function(meta){ return meta && +meta.month === ymNum && +meta.year === yy; };
+      try {
+        if (okM(_motivGroupPerfMeta)) (_motivGroupPerf || []).forEach(function(g){ src.push(Object.assign({ kind:'正式' }, g)); });
+        if (okM(_motivReservePerfMeta)) (_motivReservePerf || []).forEach(function(g){ src.push(Object.assign({ kind:'儲備' }, g)); });
+      } catch(e){}
+      src = src.filter(function(g){ return CK_ORG_LIST.indexOf(g.academy) >= 0 && !/^\s*[A-Za-z０-９0-9]\s*組\s*$/.test(String(g.groupName || '')); });
+      if (!src.length) return null;
+      var GOAL = {}, pp = M.pp || _ppPPFor(M.ym);
+      CK_ORG_LIST.forEach(function(o){ ((pp && pp.orgs && pp.orgs[o]) || []).forEach(function(r){ var nm = String(r.employee_name || '').trim(); if (nm) GOAL[o + '|' + nm] = _ckNum(r.goal); }); });
+      var cur = M.S[M.date];
+      return src.map(function(g){
+        var org = g.academy, L = g.leader || {}, names = [L.name].concat((g.members || []).map(function(x){ return x && x.name; })).filter(Boolean);
+        var T = 0; names.forEach(function(nm, i){ var v = GOAL[org + '|' + nm]; T += v > 0 ? v : (i === 0 ? 600000 : 50000); });
+        var sumAt = function(dk){ var s = M.S[dk]; if (!s || !s.p) return null; var t = 0, hit = 0; names.forEach(function(nm){ var v = s.p[org + '|' + nm]; if (v){ t += +v[0] || 0; hit++; } }); return hit ? t : null; };
+        var cum = sumAt(M.date); if (cum == null) cum = +g.total || 0;
+        var E = _dsExpect(M.ym, org, T), gi = M.gi, G = M.G, gateT = _dsGateCum(M.ym, org, T, gi), exp = E.cum[M.day] || 0;
+        var left = 0; for (var d = M.day + 1; d <= G[gi][1]; d++) if (!_dsIsHol(M.ym, org, _dsDate(M.ym, d))) left++;
+        return { g:g, org:org, names:names, T:T, E:E, cum:cum, exp:exp, gateT:gateT, left:left, need: left ? Math.max(0, gateT - cum) / left : 0,
+                 hol:_dsIsHol(M.ym, org, M.date), sumAt:sumAt, key:'grp:' + org + '|' + (g.groupName || '') };
+      });
+    }
+    function _dsLeadCalHtml(M){
+      var rows = _dsGroupRows(M);
+      if (!rows) return '<div class="ck-empty">還沒有本月的小組績效表。到「🏆 激勵」按「同步激勵」（確認是本月）。</div>';
+      rows = rows.filter(function(x){ return !_dsHid(x.key); }).sort(function(a,b){ return (b.cum / (b.gateT || 1)) - (a.cum / (a.gateT || 1)); });
+      var g = M.G[M.gi], mo = +M.ym.slice(5), wk = '日一二三四五六';
+      var days = [];
+      for (var d0 = g[0]; d0 <= g[1]; d0++){
+        var dk0 = _dsDate(M.ym, d0);
+        if (_dsHid('col:' + dk0)) continue;
+        if (_dsHid('nos') && dk0 < M.date && !M.S[dk0]) continue;
+        if (_dsHid('future') && d0 > M.day + 1) continue;
+        if (_dsHid('hol') && rows.length && rows.every(function(r){ return _dsIsHol(M.ym, r.org, dk0); })) continue;
+        days.push(d0);
+      }
+      var gcs = ' style="grid-template-columns:170px repeat(' + days.length + ', minmax(58px, 1fr)) 132px"';
+      var head = '<div class="dsc-r dsc-h"' + gcs + '><div class="dsc-l">組長／整組這關進度</div>';
+      days.forEach(function(d){ var dt = new Date(+M.ym.slice(0,4), mo - 1, d), dk = _dsDate(M.ym, d); head += '<div class="dsc-c ds-hx' + (d === M.day ? ' now' : '') + '">' + _dsX('col:' + dk, mo + '/' + d) + mo + '/' + d + '<small>' + wk[dt.getDay()] + '</small></div>'; });
+      head += '<div class="dsc-g">第' + '一二三'[M.gi] + '關</div></div>';
+      var body = rows.map(function(r, idx){
+        var st = _dsSt(r), c = DSC[st], pct = r.gateT ? r.cum / r.gateT : 0;
+        var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + c.bg + ';color:' + c.fg + '">' + _dsX(r.key, r.g.groupName)
+          + '<b>' + (idx + 1) + '. ' + _fnEsc((r.g.leader && r.g.leader.name) || '') + (r.g.kind === '儲備' ? '<em class="dsl-rsv">儲備</em>' : '') + '</b>'
+          + '<small>' + _fnEsc(CK_SHORT[r.org] + ' ' + (r.g.groupName || '')) + '・' + r.names.length + ' 人</small>'
+          + '<span>已做 ' + _dsW1(r.cum) + '／' + _dsW1(r.gateT) + ' 萬</span><small>' + Math.round(pct * 100) + '%・' + c.tag + '</small></div>';
+        days.forEach(function(d){
+          var dk = _dsDate(M.ym, d), hol = _dsIsHol(M.ym, r.org, dk), tgt = r.E.inc[d] || 0, got = null, cls = '', span = 1;
+          if (!hol && M.S[dk] && dk <= M.date){
+            var pk = ''; M.keys.forEach(function(k){ if (k < dk) pk = k; });
+            var a = r.sumAt(dk), b = pk ? r.sumAt(pk) : 0;
+            tgt = 0; for (var dd = (pk ? +pk.slice(8) + 1 : 1); dd <= d; dd++) tgt += (r.E.inc[dd] || 0);
+            span = d - (pk ? +pk.slice(8) : 0);
+            if (a != null){ got = a - (b || 0); cls = got >= tgt ? (got >= tgt * 1.2 ? 'wp' : 'w') : 'l'; }
+          }
+          var nos = !hol && got == null && dk < M.date;
+          if (hol) h += '<div class="dsc-c hol' + (d === M.day ? ' now' : '') + '"><b>休</b></div>';
+          else if (got != null) h += '<div class="dsc-c ' + cls + (d === M.day ? ' now' : '') + '"><small>目標 ' + _dsW1(tgt) + '</small><b>' + _dsW1(got) + '</b><i>' + (cls === 'l' ? '✘' : (cls === 'wp' ? '✔+' : '✔')) + (span > 1 ? ' 含' + span + '天' : '') + '</i></div>';
+          else if (nos) h += '<div class="dsc-c hol"><small>沒快照</small><b>→</b></div>';
+          else h += '<div class="dsc-c fut' + (d === M.day + 1 ? ' next' : '') + '"><small>目標</small><b>' + _dsW1(d > M.day ? (r.need || tgt) : tgt) + '</b><i>' + (d === M.day + 1 ? '明天' : '') + '</i></div>';
+        });
+        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + '"><small class="t">關卡 ' + _dsW1(r.gateT) + '</small>' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
+        return h;
+      }).join('');
+      return '<div class="dsb"><div class="dsb-hd"><div><b>👥 組長戰力榜・第' + '一二三'[M.gi] + '關　' + mo + '/' + g[0] + '–' + mo + '/' + g[1] + '</b><span>' + (g[1] - M.day ? '倒數 <em>' + (g[1] - M.day) + '</em> 天' : '<em>今天結算</em>') + '</span></div><div class="dsb-hd-r">' + mo + '/' + M.day + ' 收工</div></div>'
+        + (_dsHid('note') ? '' : '<div class="dsc-note ds-hx">' + _dsX('note', '說明文字') + '整組合計（組長＋組員）。目標＝每個人當月績效的個人目標加總，沒設的用低標（組長 60 萬、組員 5 萬），每關三分之一，攤在學院上班日</div>')
+        + '<div class="dsc">' + head + body + '</div>' + _dsLegend() + '</div>';
     }
 
     // ═══ 📊 明細（提案 A）═══
@@ -9572,17 +9665,25 @@
       var rows = CK_ORG_LIST.map(function(org){
         var def = 0; ((pp && pp.orgs && pp.orgs[org]) || []).forEach(function(r){ def += _ckNum(r.goal); });
         var hol = (c.hol[org] || []).map(function(x){ return +x.slice(8); }).join(',');
+        var T0 = c.target[org] || def;
         return '<tr><td><b>' + _fnEsc(org) + '</b></td><td><input class="ds-in" type="number" step="10000" id="dss_t_' + org + '" value="' + (c.target[org] || '') + '" placeholder="' + def + '"></td>'
+          + '<td><input class="ds-in" type="number" step="10000" id="dss_g1_' + org + '" value="' + ((c.g1 || {})[org] || '') + '" placeholder="' + Math.round(T0 / 3) + '"></td>'
+          + '<td><input class="ds-in" type="number" step="10000" id="dss_g2_' + org + '" value="' + ((c.g2 || {})[org] || '') + '" placeholder="' + Math.round(T0 * 2 / 3) + '"></td>'
           + '<td><input class="ds-in w" id="dss_h_' + org + '" value="' + hol + '" placeholder="例：2,3,4,5,6"></td></tr>';
       }).join('');
-      return '<div class="ds-sub">月目標空白＝用當月績效的個人目標加總（灰字）。休假日填「幾號」，用逗號隔開：那幾天應到是 0、不判輸贏，該關的量攤到同一關其他上班日，關卡目標不變。</div>'
-        + '<table class="ds-t"><tr><th>學院</th><th>月目標（元）</th><th>休假日（幾號）</th></tr>' + rows + '</table>'
+      return '<div class="ds-sub">10 號、20 號填的是「到那天為止累計」要做到的金額；空白＝月目標的 1/3、2/3（灰字）。小組的關卡目標照學院同一個比例縮放。<br>月目標空白＝用當月績效的個人目標加總（灰字）。休假日填「幾號」，用逗號隔開：那幾天應到是 0、不判輸贏，該關的量攤到同一關其他上班日，關卡目標不變。</div>'
+        + '<table class="ds-t"><tr><th>學院</th><th>月目標（元）</th><th>10 號累計目標（第一關）</th><th>20 號累計目標（第二關）</th><th>休假日（幾號）</th></tr>' + rows + '</table>'
         + '<button class="pp-ev-btn live" style="margin-top:12px" onclick="dsSaveCfg()">💾 存設定</button>';
     }
     function dsSaveCfg(){
       var ym = DS.demo ? '2026-10' : _ppLiveYm(), c = _dsCfg(ym), n = _dsDays(ym);
       CK_ORG_LIST.forEach(function(org){
         var t = +document.getElementById('dss_t_' + org).value || 0; if (t) c.target[org] = t; else delete c.target[org];
+        c.g1 = c.g1 || {}; c.g2 = c.g2 || {};
+        var g1 = +document.getElementById('dss_g1_' + org).value || 0, g2 = +document.getElementById('dss_g2_' + org).value || 0;
+        if (g1) c.g1[org] = g1; else delete c.g1[org];
+        if (g2) c.g2[org] = g2; else delete c.g2[org];
+        if (g1 && g2 && g2 < g1){ alert(org + '：20 號累計目標比 10 號還小，請確認（20 號要填「累計」金額）'); }
         var h = String(document.getElementById('dss_h_' + org).value || '').split(/[,，\s]+/).map(function(x){ return parseInt(x, 10); }).filter(function(x){ return x >= 1 && x <= n; });
         c.hol[org] = h.map(function(d){ return _dsDate(ym, d); });
       });
@@ -9594,7 +9695,42 @@
     function dsCopy(kind){
       var ym = DS.demo ? '2026-10' : _ppLiveYm(); var S = _dsSnaps(ym); if (!Object.keys(S).length){ alert('還沒有快照'); return; }
       var M = _dsModel(ym, DS.date), L = [], gl = M.G[M.gi], left = gl[1] - M.day, gn = '第' + '一二三'[M.gi] + '關';
-      if (kind === 'boss'){
+      if (kind === 'morn'){
+        var tdy = new Date(Date.parse(M.date) + 86400000), tD = tdy.getDate(), tM = tdy.getMonth() + 1;
+        var gLeft = gl[1] - tD; var gnm = gn;
+        if (tD > gl[1]){ L.push('（今天是新的一關，明天的數字收工後再看）'); }
+        var blk = function(p){ var n = Math.max(0, Math.min(10, Math.round(p * 10))); if (p >= 0.05 && !n) n = 1; var t = ''; for (var i = 0; i < 10; i++) t += i < n ? '🟩' : '⬜'; return t; };
+        var holToday = function(r){ return _dsIsHol(M.ym, r.org, _dsDate(M.ym, tD)); };
+        var firstWork = function(r){ for (var d = tD; d <= gl[1]; d++) if (!_dsIsHol(M.ym, r.org, _dsDate(M.ym, d))) return d; return 0; };
+        L.push('☀️ ' + tM + '/' + tD + ' 今日挑戰｜' + gnm + (gLeft > 0 ? '倒數 ' + (gLeft + 1) + ' 天' : '今天結算'));
+        var pc = function(r){ return r.gateT ? r.cum / r.gateT : 0; };
+        var green = M.rows.filter(function(r){ return r.exp && r.cum >= r.exp; }).sort(function(a,b){ return pc(b) - pc(a); });
+        var hol = M.rows.filter(function(r){ return green.indexOf(r) < 0 && holToday(r); });
+        var chal = M.rows.filter(function(r){ return green.indexOf(r) < 0 && hol.indexOf(r) < 0; }).sort(function(a,b){ return pc(b) - pc(a); });
+        if (green.length){
+          L.push('');
+          green.forEach(function(r){
+            var fw = firstWork(r);
+            L.push(r.org + '｜🎉' + (green.length === 1 ? '七家唯一' : '') + '綠燈 ' + Math.round(pc(r) * 100) + '%');
+            L.push(gnm + ' ' + blk(pc(r)));
+            L.push(holToday(r) ? (fw ? tM + '/' + fw + ' 起每天 ' + _dsW1(r.need) + ' 萬' : '這關休假結束') : '今天入帳 ' + _dsW1(r.need) + ' 萬，繼續領先');
+          });
+        }
+        if (chal.length){
+          L.push('');
+          chal.forEach(function(r, i){
+            if (i) L.push('');
+            L.push(r.org + '｜🎯今天入帳 ' + _dsW1(r.need) + ' 萬');
+            L.push(gnm + ' ' + blk(pc(r)) + ' ' + Math.round(pc(r) * 100) + '%');
+            L.push(_dsW1(r.gateT) + ' 萬還差 ' + _dsW1(r.gateT - r.cum) + ' ＝ 每天 ' + _dsW1(r.need) + ' × ' + r.left + ' 天');
+          });
+        }
+        if (hol.length){
+          L.push('');
+          hol.forEach(function(r, i){ if (i) L.push(''); var fw = firstWork(r); L.push(r.org + '｜🏖 休假中' + (fw ? '，' + tM + '/' + fw + ' 開打，每天 ' + _dsW1(r.need) + ' 萬' : '')); L.push(gnm + ' ' + blk(pc(r))); });
+        }
+        L.push('', '13:40 回報：今天這一筆從哪裡來、誰收');
+      } else if (kind === 'boss'){
         var tune = ['數字是歷史、行動是未來','小目標小贏，步步為贏','今天的入帳，就是明天的底氣','承諾不是說出口，是做到'];
         L.push(tune[M.day % tune.length], '');
         L.push((+M.date.slice(5,7)) + '/' + M.day + ' ' + (left ? gn + '倒數 ' + left + ' 天' : gn + '結算'));
@@ -9649,7 +9785,7 @@
         L.push('小目標小贏，步步為贏');
       }
       var txt = L.join('\n').replace(/ 萬/g, '萬');
-      try { navigator.clipboard.writeText(txt).then(function(){ _syncToast('📋 已複製' + (kind === 'boss' ? '主管版' : '組長版'), '#4ade80'); }, function(){ prompt('複製這段：', txt); }); } catch(e){ prompt('複製這段：', txt); }
+      try { navigator.clipboard.writeText(txt).then(function(){ _syncToast('📋 已複製' + ({ boss:'收工版', morn:'今日挑戰（早上版）', lead:'組長版' })[kind], '#4ade80'); }, function(){ prompt('複製這段：', txt); }); } catch(e){ prompt('複製這段：', txt); }
     }
 
     // ═══════════ 🗂 活動登記表 ═══════════
