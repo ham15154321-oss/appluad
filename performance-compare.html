@@ -1803,6 +1803,7 @@
     .ds-hx { position:relative; }
     .ds-x { position:absolute; top:3px; right:3px; z-index:3; width:22px; height:22px; border-radius:50%; border:none; background:#E24B4A; color:#fff !important; font-size:12px; font-weight:900; cursor:pointer; opacity:0; transition:opacity .12s; line-height:22px; padding:0; }
     .ds-hx:hover > .ds-x { opacity:1; }
+    #ppEvBg .ds-x { position:absolute !important; margin:0 !important; }
     .ds-shot-on > .ds-bar, .ds-shot-on > .evo-tabs, .ds-shot-on > .evo-warn, .ds-shot-on .ds-cust, .ds-shot-on .ds-vbar > :not(.ds-shot) { display:none !important; }
     .ds-shot-on .ds-shot { position:absolute; top:18px; right:110px; padding:5px 12px; font-size:.8rem; }
     .ds-shot-on .dsb { margin-top:6px; }
@@ -1811,6 +1812,18 @@
     .dsc-g small.t { display:block; font-size:.68rem; font-weight:800; opacity:.75; }
     .ds-blk { display:flex; gap:2px; justify-content:center; margin-top:4px; } .ds-blk i { width:7px; height:9px; border-radius:2px; background:#ffffff; border:1px solid rgba(0,0,0,.18); } .ds-blk i.on { background:#3B6D11; border-color:#3B6D11; }
     .ds-morn { border-color:#EF9F27 !important; }
+    /* 緊湊列（截圖模式、組數多） */
+    .dsl-g { display:block; font-size:.74rem; font-weight:700; margin-top:2px; } .dsl-p { display:block; font-style:normal; font-size:.74rem; font-weight:800; margin-top:2px; }
+    .dsb-cmp .dsc-l { padding:3px 8px !important; } .dsb-cmp .dsc-l b, .dsb-cmp .dsc-l span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; } .dsb-cmp .dsc-l b { font-size:.9rem !important; } .dsb-cmp .dsl-g { display:inline; margin-left:6px; font-size:.68rem; }
+    .dsb-cmp .dsc-l span { font-size:.8rem !important; } .dsb-cmp .dsl-p { display:inline; margin-left:6px; font-size:.7rem; }
+    .dsb-cmp .dsc-c small { display:block !important; font-size:.56rem !important; line-height:1.1; } .dsb-cmp .dsc-c b { font-size:.9rem !important; line-height:1.15; }
+    .dsb-cmp .dsc-c i:empty { display:none; } .dsb-cmp .dsc-c i { font-size:.58rem !important; line-height:1.1; }
+    .dsb-cmp .dsc-g small.t { display:none; } .dsb-cmp .ds-need small { font-size:.56rem !important; line-height:1.1; }
+    .dsb-cmp .dsc-r { margin-bottom:3px; }
+    .dsb-cmp .dsc-l { padding:3px 8px; } .dsb-cmp .dsc-l b { display:inline; font-size:.92rem; } .dsb-cmp .dsc-l small { display:inline; margin-left:6px; }
+    .dsb-cmp .dsc-l span { display:block; font-size:.82rem; }
+    .dsb-cmp .dsc-c { padding:2px; } .dsb-cmp .dsc-c small { display:inline; font-size:.6rem; } .dsb-cmp .dsc-c b { font-size:.92rem; } .dsb-cmp .dsc-c i { font-size:.62rem; }
+    .dsb-cmp .dsc-g { padding:2px 4px; } .dsb-cmp .ds-need b { font-size:.9rem; } .dsb-cmp .ds-need small, .dsb-cmp .dsc-g small.t { font-size:.6rem; } .dsb-cmp .ds-blk { margin-top:2px; }
     /* 🏁 截圖看板：固定淺色底 */
     .dsb { margin-top:12px; background:#ffffff; color:#1d1d1f; border-radius:16px; padding:14px 16px 12px; border:1px solid #D3D1C7; }
     .dsb-hd { display:flex; justify-content:space-between; align-items:center; background:#26215C; color:#EEEDFE; border-radius:12px; padding:12px 16px; }
@@ -9202,6 +9215,15 @@
       bg.innerHTML = '<div class="pp-ev-box ds-box' + (_sh ? ' ds-shot-on' : '') + '"><div class="pp-ev-top"><b>📋 每日總結　' + (ym ? ym.slice(0,4) + ' 年 ' + (+ym.slice(5)) + ' 月' : '') + '</b>'
         + '<button class="pp-ev-x" onclick="ppEventClose()">✕ 關閉</button></div>' + body + '</div>';
       bg.style.display = 'flex';
+      if (_sh){
+        // ★ 截圖模式：整張看板縮到一個螢幕放得下（Ivan：組長 14 組截不完）
+        setTimeout(function(){
+          var b = bg.querySelector('.dsb'); if (!b) return;
+          b.style.zoom = '';
+          var room = window.innerHeight - b.getBoundingClientRect().top - 24, h = b.scrollHeight;
+          if (h > room && room > 200) b.style.zoom = Math.max(0.45, room / h).toFixed(3);
+        }, 30);
+      }
     }
     function _dsBody(ym, keys){
       var tabs = [['day','⚔️ 今日對戰'],['race','🏁 賽道排行'],['cal','🗓 燈號月曆'],['arena','🏟 三區擂台'],['lead','👥 組長'],['road','🛣 三關路線'],['commit','✏️ 填承諾'],['set','⚙️ 設定']];
@@ -9573,16 +9595,15 @@
         if (_dsHid('hol') && rows.length && rows.every(function(r){ return _dsIsHol(M.ym, r.org, dk0); })) continue;
         days.push(d0);
       }
-      var gcs = ' style="grid-template-columns:170px repeat(' + days.length + ', minmax(58px, 1fr)) 132px"';
+      var gcs = ' style="grid-template-columns:' + (_dsV().shot && rows.length > 8 ? 250 : 170) + 'px repeat(' + days.length + ', minmax(58px, 1fr)) 132px"';
       var head = '<div class="dsc-r dsc-h"' + gcs + '><div class="dsc-l">組長／整組這關進度</div>';
       days.forEach(function(d){ var dt = new Date(+M.ym.slice(0,4), mo - 1, d), dk = _dsDate(M.ym, d); head += '<div class="dsc-c ds-hx' + (d === M.day ? ' now' : '') + '">' + _dsX('col:' + dk, mo + '/' + d) + mo + '/' + d + '<small>' + wk[dt.getDay()] + '</small></div>'; });
       head += '<div class="dsc-g">第' + '一二三'[M.gi] + '關</div></div>';
       var body = rows.map(function(r, idx){
         var st = _dsSt(r), c = DSC[st], pct = r.gateT ? r.cum / r.gateT : 0;
         var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + c.bg + ';color:' + c.fg + '">' + _dsX(r.key, r.g.groupName)
-          + '<b>' + (idx + 1) + '. ' + _fnEsc((r.g.leader && r.g.leader.name) || '') + (r.g.kind === '儲備' ? '<em class="dsl-rsv">儲備</em>' : '') + '</b>'
-          + '<small>' + _fnEsc(CK_SHORT[r.org] + ' ' + (r.g.groupName || '')) + '・' + r.names.length + ' 人</small>'
-          + '<span>已做 ' + _dsW1(r.cum) + '／' + _dsW1(r.gateT) + ' 萬</span><small>' + Math.round(pct * 100) + '%・' + c.tag + '</small></div>';
+          + '<b>' + (idx + 1) + '. ' + _fnEsc((r.g.leader && r.g.leader.name) || '') + (r.g.kind === '儲備' ? '<em class="dsl-rsv">儲備</em>' : '') + '<small class="dsl-g">' + _fnEsc(CK_SHORT[r.org] + ' ' + (r.g.groupName || '')) + '・' + r.names.length + ' 人</small></b>'
+          + '<span>已做 ' + _dsW1(r.cum) + '／' + _dsW1(r.gateT) + ' 萬<em class="dsl-p">' + Math.round(pct * 100) + '%・' + c.tag + '</em></span></div>';
         days.forEach(function(d){
           var dk = _dsDate(M.ym, d), hol = _dsIsHol(M.ym, r.org, dk), tgt = r.E.inc[d] || 0, got = null, cls = '', span = 1;
           if (!hol && M.S[dk] && dk <= M.date){
@@ -9601,7 +9622,8 @@
         h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + '"><small class="t">關卡 ' + _dsW1(r.gateT) + '</small>' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
         return h;
       }).join('');
-      return '<div class="dsb"><div class="dsb-hd"><div><b>👥 組長戰力榜・第' + '一二三'[M.gi] + '關　' + mo + '/' + g[0] + '–' + mo + '/' + g[1] + '</b><span>' + (g[1] - M.day ? '倒數 <em>' + (g[1] - M.day) + '</em> 天' : '<em>今天結算</em>') + '</span></div><div class="dsb-hd-r">' + mo + '/' + M.day + ' 收工</div></div>'
+      var _cmp = _dsV().shot && rows.length > 8;
+      return '<div class="dsb' + (_cmp ? ' dsb-cmp' : '') + '"><div class="dsb-hd"><div><b>👥 組長戰力榜・第' + '一二三'[M.gi] + '關　' + mo + '/' + g[0] + '–' + mo + '/' + g[1] + '</b><span>' + (g[1] - M.day ? '倒數 <em>' + (g[1] - M.day) + '</em> 天' : '<em>今天結算</em>') + '</span></div><div class="dsb-hd-r">' + mo + '/' + M.day + ' 收工</div></div>'
         + (_dsHid('note') ? '' : '<div class="dsc-note ds-hx">' + _dsX('note', '說明文字') + '整組合計（組長＋組員）。目標＝每個人當月績效的個人目標加總，沒設的用低標（組長 60 萬、組員 5 萬），每關三分之一，攤在學院上班日</div>')
         + '<div class="dsc">' + head + body + '</div>' + _dsLegend() + '</div>';
     }
