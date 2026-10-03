@@ -9095,6 +9095,7 @@
       return d.getFullYear() + '-' + _ckPad2(d.getMonth()+1) + '-' + _ckPad2(d.getDate());
     }
     function _dsCapture(){
+      try { _dsEipImport(); } catch(e){}
       var ym = _ppLiveYm(); if (!ym) return;
       var date = _dsSyncDate(); if (!date || _dsYmOf(date) !== ym) return;
       var pp = ppGetData(), d = _fnDataFor(ym); if (!pp || !pp.orgs) return;
@@ -9117,6 +9118,28 @@
       var out = {}, pre = DS.pfx + 's_' + ym;
       try { for (var i = 0; i < localStorage.length; i++){ var k = localStorage.key(i); if (k && k.indexOf(pre) === 0){ var v = _dsGet(k); if (v && v.o) out[k.slice(DS.pfx.length + 2)] = v; } } } catch(e){}
       return out;
+    }
+    // ★ 2026/10/03：EIP「查詢今日業績」的單日業績（擴充 v5.54 同步激勵時順便抓）→ 全公司共享 perf_compare_v1_dsum_d_<日期>
+    function _dsEipImport(){
+      var best = null, bt = '';
+      try { for (var i = 0; i < localStorage.length; i++){ var k = localStorage.key(i); if (k && k.slice(-15) === '_motiv_today_v1'){ var v = JSON.parse(localStorage.getItem(k) || 'null'); if (v && v.days && String(v.at || '') >= bt){ bt = String(v.at || ''); best = v; } } } } catch(e){}
+      if (!best) return;
+      Object.keys(best.days).forEach(function(d){
+        var key = DS.pfx + 'd_' + d, cur = _dsGet(key) || {}, nv = best.days[d], ch = false;
+        Object.keys(nv).forEach(function(o){ if (cur[o] !== nv[o]){ cur[o] = nv[o]; ch = true; } });
+        if (ch) _dsSet(key, cur);
+      });
+    }
+    function _dsEipDay(date, org){ if (DS.demo) return null; var d = _dsGet(DS.pfx + 'd_' + date); return (d && typeof d[org] === 'number') ? d[org] : null; }
+    // 某一天的單日入帳：先用 EIP 單日業績，沒有才用快照相減（隔幾天就是幾天的合計）
+    function _dsDayGot(ym, S, keys, dk, org, E){
+      var d = +dk.slice(8), e = _dsEipDay(dk, org);
+      if (e != null) return { v:e, span:1, tAuto:(E.inc[d] || 0), src:'eip' };
+      if (!S[dk] || !S[dk].o[org]) return null;
+      var pk = ''; keys.forEach(function(k){ if (k < dk) pk = k; });
+      var pc = pk ? S[pk].o[org] : null, t = 0, from = pk ? +pk.slice(8) + 1 : 1;
+      for (var x = from; x <= d; x++) t += (E.inc[x] || 0);
+      return { v:S[dk].o[org].biz - (pc ? pc.biz : 0), span:d - from + 1, tAuto:t, src:'snap' };
     }
     function _dsCommit(date, org){ return DS.demo ? (DS._demoC || {})[date + '|' + org] || null : _dsGet(DS.pfx + 'c_' + date + '__' + org); }
 
@@ -9155,14 +9178,11 @@
         var T = _dsTargetOf(ym, org, pp), E = _dsExpect(ym, org, T);
         var c = cur && cur.o[org], p = prev && prev.o[org];
         var hol = _dsIsHol(ym, org, date);
-        var got = c ? { biz:c.biz - (p ? p.biz : 0), ck:c.ck - (p ? p.ck : 0), itv:c.itv - (p ? p.itv : 0) } : null;
-        var span = prevKey ? Math.round((Date.parse(date) - Date.parse(prevKey)) / 86400000) : day;
+        var _dg = _dsDayGot(ym, S, keys, date, org, E);
+        var got = _dg ? { biz:_dg.v, ck: c ? c.ck - (p ? p.ck : 0) : 0, itv: c ? c.itv - (p ? p.itv : 0) : 0, src:_dg.src } : null;
+        var span = _dg ? _dg.span : 1;
         var cm = _dsCommit(date, org), auto = false;
-        if (!cm || !cm.biz){
-          var _from = prevKey ? +prevKey.slice(8) + 1 : 1, _sum = 0;
-          for (var _d = _from; _d <= day; _d++) _sum += (E.inc[_d] || 0);   // 隔了幾天才有快照 → 目標也是這幾天加總，才對得上入帳
-          cm = Object.assign({}, cm || {}, { biz: Math.round(_sum) }); auto = true;
-        }
+        if (!cm || !cm.biz){ cm = Object.assign({}, cm || {}, { biz: Math.round(_dg ? _dg.tAuto : (E.inc[day] || 0)) }); auto = true; }   // 隔幾天才有資料 → 目標也是這幾天加總
         var res = hol ? 'hol' : (!got ? 'na' : (got.biz >= cm.biz ? 'win' : 'lose'));
         var cum = c ? c.biz : 0, exp = E.cum[day] || 0, gateT = _dsGateCum(ym, org, T, gi);
         var lamp = !c ? '' : (cum >= exp * 1.2 ? '✔+' : (cum >= exp ? '✔' : 'X'));
@@ -9172,13 +9192,12 @@
         var streak = 0, sk = '';
         if (res === 'win' || res === 'lose'){
           sk = res; streak = 1;
-          for (var i = keys.indexOf(date) - 1; i >= 0; i--){
-            var dk = keys[i]; if (_dsIsHol(ym, org, dk)) continue;
-            var pk = i > 0 ? keys[i-1] : null, cc = S[dk].o[org], pc = pk ? S[pk].o[org] : null;
-            if (!cc) break;
-            var g2 = cc.biz - (pc ? pc.biz : 0), cm2 = _dsCommit(dk, org);
-            var t2 = (cm2 && cm2.biz) ? cm2.biz : _dsExpect(ym, org, T).inc[+dk.slice(8)];
-            var r2 = g2 >= t2 ? 'win' : 'lose'; if (r2 !== sk) break; streak++;
+          for (var dd0 = day - 1; dd0 >= 1; dd0--){
+            var dk = _dsDate(ym, dd0); if (_dsIsHol(ym, org, dk)) continue;
+            var g2o = _dsDayGot(ym, S, keys, dk, org, E); if (!g2o) break;
+            var cm2 = _dsCommit(dk, org), t2 = (cm2 && cm2.biz) ? cm2.biz : g2o.tAuto;
+            var r2 = g2o.v >= t2 ? 'win' : 'lose'; if (r2 !== sk) break; streak++;
+            if (g2o.span > 1) dd0 -= (g2o.span - 1);
           }
         }
         // 當關剩幾個上班日、每日需入帳
@@ -9317,12 +9336,10 @@
     function _dsHit(M, r){
       var g = M.G[M.gi], w = 0, n = 0;
       for (var d = g[0]; d <= M.day; d++){
-        var dk = _dsDate(M.ym, d); if (!M.S[dk] || _dsIsHol(M.ym, r.org, dk)) continue;
-        var pk = ''; M.keys.forEach(function(k){ if (k < dk) pk = k; });
-        var c = M.S[dk].o[r.org], pc = pk ? M.S[pk].o[r.org] : null; if (!c) continue;
-        var got = c.biz - (pc ? pc.biz : 0), cm = _dsCommit(dk, r.org), t = 0;
-        if (cm && cm.biz) t = cm.biz; else { for (var dd = (pk ? +pk.slice(8) + 1 : 1); dd <= d; dd++) t += (r.E.inc[dd] || 0); }
-        n++; if (got >= t) w++;
+        var dk = _dsDate(M.ym, d); if (_dsIsHol(M.ym, r.org, dk)) continue;
+        var go = _dsDayGot(M.ym, M.S, M.keys, dk, r.org, r.E); if (!go) continue;
+        var cm = _dsCommit(dk, r.org), t = (cm && cm.biz) ? cm.biz : go.tAuto;
+        n++; if (go.v >= t) w++;
       }
       return { w:w, n:n };
     }
@@ -9546,15 +9563,13 @@
           var dk = _dsDate(M.ym, d), hol = _dsIsHol(M.ym, r.org, dk);
           var cm = _dsCommit(dk, r.org), tgt = (cm && cm.biz) ? cm.biz : (r.E.inc[d] || 0);
           var cls = '', got = null, span = 1;
-          if (!hol && M.S[dk] && dk <= M.date){
-            var pk = ''; M.keys.forEach(function(k){ if (k < dk) pk = k; });
-            var cc = M.S[dk].o[r.org], pc = pk ? M.S[pk].o[r.org] : null;
-            if (!(cm && cm.biz)){ tgt = 0; for (var dd = (pk ? +pk.slice(8) + 1 : 1); dd <= d; dd++) tgt += (r.E.inc[dd] || 0); }
-            span = d - (pk ? +pk.slice(8) : 0);
-            if (cc){ got = cc.biz - (pc ? pc.biz : 0); cls = got >= tgt ? (got >= tgt * 1.2 ? 'wp' : 'w') : 'l'; }
+          if (!hol && dk <= M.date){
+            var go = _dsDayGot(M.ym, M.S, M.keys, dk, r.org, r.E);
+            if (go){ got = go.v; span = go.span; if (!(cm && cm.biz)) tgt = go.tAuto; cls = got >= tgt ? (got >= tgt * 1.2 ? 'wp' : 'w') : 'l'; }
           }
           var nos = !hol && got == null && dk < M.date;
-          if (hol) h += '<div class="dsc-c hol' + (d === M.day ? ' now' : '') + '"><b>休</b></div>';
+          var holGot = hol ? _dsEipDay(dk, r.org) : null;
+          if (hol) h += '<div class="dsc-c hol' + (d === M.day ? ' now' : '') + '"><b>休</b>' + (holGot ? '<i>入帳 ' + _dsW1(holGot) + '</i>' : '') + '</div>';
           else if (got != null) h += '<div class="dsc-c ' + cls + (d === M.day ? ' now' : '') + '"><small>目標 ' + _dsW1(tgt) + '</small><b>' + _dsW1(got) + '</b><i>' + (cls === 'l' ? '✘' : (cls === 'wp' ? '✔+' : '✔')) + (span > 1 ? ' 含' + span + '天' : '') + '</i></div>';
           else if (nos) h += '<div class="dsc-c hol"><small>沒快照</small><b>→</b><i>算進後一格</i></div>';
           else h += '<div class="dsc-c fut' + (d === M.day + 1 ? ' next' : '') + '"><small>目標</small><b>' + _dsW1(d > M.day ? (r.need || tgt) : tgt) + '</b><i>' + (d === M.day + 1 ? '明天' : '') + '</i></div>';

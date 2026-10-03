@@ -1226,7 +1226,29 @@
       console.warn('[EIP Content] 單頁分組個人績效不足（covered=' + (grouped?grouped.covered:0) + '），改逐學院補抓');
       perfPData = await fetchPerfPPerOrg(year, month);
     }
+    // ★ v5.54（2026/10/03）：營業收支查詢「查詢今日業績」— 一頁就有七家「昨日／今日業績合計」（單日入帳）
+    //   只在同步「本月」時抓，1 個請求；失敗不影響其他資料
+    var todayRep = null;
+    try {
+      var _nw = new Date();
+      if (+year === _nw.getFullYear() && +month === _nw.getMonth() + 1){
+        notify('status', { msg: '正在抓今日業績（單日入帳）...' });
+        var tHtml = await fetchViaBackground('http://eip.appedu.com.tw/class/report/performance/business.php?q1=&q2=&q3=&q18=&q19=&q20=&q21=&q22=&q4=&q5=&q6=&q7=&q8=&q25=&q26=&q27=&q9=&q10=&q11=&q23=&q29=&q12=&q13=&q14=&q15=&q16=&q17=&btnq=%E6%9F%A5%E8%A9%A2%E4%BB%8A%E6%97%A5%E6%A5%AD%E7%B8%BE');
+        todayRep = _parseTodayPerf(tHtml);
+      }
+    } catch(_te){ console.warn('[EIP Content] 今日業績抓取失敗', _te); }
     var cid = _cid(), ts = _nowStr();
+    if (todayRep && todayRep.orgs && Object.keys(todayRep.orgs).length){
+      try {
+        var _tk = cid + 'motiv_today_v1', _old = {}; try { _old = JSON.parse(localStorage.getItem(_tk) || '{}') || {}; } catch(e){}
+        var _d = todayRep.date, _y = todayRep.yday; _old.days = _old.days || {};
+        _old.days[_d] = _old.days[_d] || {}; _old.days[_y] = _old.days[_y] || {};
+        Object.keys(todayRep.orgs).forEach(function(o){ var r = todayRep.orgs[o]; _old.days[_d][o] = r.tPerf; _old.days[_y][o] = r.yPerf; });
+        _old.last = todayRep; _old.at = ts;
+        Object.keys(_old.days).forEach(function(k){ if (k < _d.slice(0,7) + '-00' && k.slice(0,7) < _y.slice(0,7)) delete _old.days[k]; });   // 只留本月＋上個月最後一天
+        _safeSet(_tk, JSON.stringify(_old));
+      } catch(_se){ console.warn('[EIP Content] 今日業績存檔失敗', _se); }
+    }
     var _perfPKeep = _keepIfEmpty(cid + 'motiv_perfp_v1', perfPData || { orgs:{}, meta:{ year: year, month: month } }, year, month, _perfpRows);
     var perfPTotal = _perfpRows(_perfPKeep.data);
     var pairs = [
@@ -1251,6 +1273,26 @@
       msg: '🏆 激勵同步完成！學院 ' + academyData.length + ' / 業務 ' + salesData.length + ' / 正式 ' + groupData.length + ' 組 / 儲備 ' + reserveData.length + ' 組 / 個人績效 ' + perfPTotal + ' 人'
         + (_perfPKeep.kept ? '　⚠️ 這次個人績效抓到空表（EIP 可能逾時或權限問題），已保留上一次的資料，請稍後再同步一次' : '')
     });
+  }
+
+  // 解析「查詢今日業績」表格（table#performances）＋頁首 data-today 日期
+  function _parseTodayPerf(html){
+    if (!html) return null;
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var dc = doc.querySelector('[data-today]'), dt = dc ? dc.getAttribute('data-today') : '';
+    var m = /(\d{4})\D(\d{1,2})\D(\d{1,2})/.exec(dt || ''); if (!m) return null;
+    var d = new Date(+m[1], +m[2]-1, +m[3]), yd = new Date(+m[1], +m[2]-1, +m[3] - 1);
+    var f = function(x){ return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0'); };
+    var tb = doc.querySelector('#performances'); if (!tb) return null;
+    var num = function(t){ var n = parseFloat(String(t || '').replace(/[,%\s]/g, '')); return isNaN(n) ? 0 : n; };
+    var out = { date:f(d), yday:f(yd), orgs:{} };
+    Array.prototype.forEach.call(tb.querySelectorAll('tr'), function(tr){
+      var td = tr.querySelectorAll('td'); if (td.length < 10) return;
+      var org = (td[0].textContent || '').trim(); if (!org || org === '合計') return;
+      out.orgs[org] = { yPay:num(td[1].textContent), yPerf:num(td[2].textContent), tPay:num(td[3].textContent), tPerf:num(td[4].textContent),
+        cancel:num(td[5].textContent), cancelPrev:num(td[6].textContent), total:num(td[7].textContent), est:num(td[8].textContent), target:num(td[9].textContent) };
+    });
+    return out;
   }
 
   // ── 模式 B：報到排名（已報到 / 網路已報到 / 到月底預約報到，全走 CSV） ──

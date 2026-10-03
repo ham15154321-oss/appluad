@@ -9,8 +9,8 @@
 - 專案位置：`iCloud/基本功/營銷部每月簡報/2022年/遊戲化實踐版`
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
-- Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.53**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds27'`
+- Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.54**），改了 manifest 要到 chrome://extensions 重新載入
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds28'`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -107,6 +107,7 @@
 - 顯示控制（localStorage `ds_view_v1`，只存這台電腦）：📸 截圖模式（藏按鈕列、分頁＋⚙️自訂要藏的：沒快照／整欄休假／未來日子／三區橫幅／說明／圖例／連贏連輸／差多少）；滑到欄、學院、區塊點 ✕ 藏，「↩︎ 還原 N 個」
 - ⬇️ 高清 PNG／JPG：html2canvas（cdnjs，用到才載入）3 倍解析度下載看板，四張看板都有
 - 截圖模式自動縮放（zoom）讓整張看板一個螢幕放得下；組長榜超過 8 組自動用緊湊列
+- 單日入帳改用 EIP「營業收支查詢 → 查詢今日業績」（business.php?btnq=查詢今日業績，table#performances，頁首 data-today）：擴充 v5.54 同步激勵（本月）時順便抓，存 `char_*_motiv_today_v1`（days[日期][學院]＝業績合計，今日＋昨日），頁面轉存共享 `perf_compare_v1_dsum_d_<日期>`；有 EIP 單日就不用快照相減。這頁不能查過去日期（入帳日期欄無效），只能每天抓今天＋昨天
 - 隔幾天才有快照：系統代填目標＝這幾天應到加總，標「這 N 天目標」
 - 🧪 示範資料：九月數字隨機攤成每天，只看版面
 - 👥 組長分頁：資料＝激勵分頁正式／儲備小組績效表（_motivGroupPerf／_motivReservePerf），每人用當月績效「個人目標」，沒設才用低標（組長 60 萬、組員 5 萬）× 學院今日應到比例；紅燈＝組長未達／組長最低／掛零組員，黃燈＝兩人組組長扛 80%，儲備追上正式＝可升
@@ -138,7 +139,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds27`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds28`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
