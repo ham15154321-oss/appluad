@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.53**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds6'`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds13'`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -99,8 +99,11 @@
 - 今日入帳＝當天快照累計 − 前一份快照。快照在打開當月績效或每日總結時自動存，日期取最新一次「激勵」同步時間，早上 9 點前同步算前一天
 - 資料 key（perf_compare_v1_ 開頭＝全公司雲端同步）：`dsum_s_<日期>` 快照、`dsum_c_<日期>__<學院>` 承諾、`dsum_cfg_<YYYY-MM>` 設定
 - 📋 主管版／組長版 LINE 文字照 hegrn-record-high-playbook 格式；組長版用部門（業務A組…）分組，列今天沒入帳的人
+- 截圖看板三張（固定淺色底）：🏁 賽道排行（三區橫幅＋排名＋進度條＋紫色今日目標大框）、🗓 燈號月曆（每格上＝目標、下＝實際）、🏟 三區擂台；顏色：綠贏／橘落後／紅危險／灰休／深紫目標；進度色＝累計 ÷ 今日應到（≥120% 領先、≥100% 達標、≥80% 落後、<80% 危險）
+- 顯示控制（localStorage `ds_view_v1`，只存這台電腦）：📸 截圖模式（藏按鈕列、分頁＋⚙️自訂要藏的：沒快照／整欄休假／未來日子／三區橫幅／說明／圖例／連贏連輸／差多少）；滑到欄、學院、區塊點 ✕ 藏，「↩︎ 還原 N 個」
+- 隔幾天才有快照：系統代填目標＝這幾天應到加總，標「這 N 天目標」
 - 🧪 示範資料：九月數字隨機攤成每天，只看版面
-- 👥 組長分頁：資料＝激勵分頁正式／儲備小組績效表（_motivGroupPerf／_motivReservePerf），組長 60 萬、組員 5 萬 × 學院今日應到比例；紅燈＝組長未達／組長最低／掛零組員，黃燈＝兩人組組長扛 80%，儲備追上正式＝可升
+- 👥 組長分頁：資料＝激勵分頁正式／儲備小組績效表（_motivGroupPerf／_motivReservePerf），每人用當月績效「個人目標」，沒設才用低標（組長 60 萬、組員 5 萬）× 學院今日應到比例；紅燈＝組長未達／組長最低／掛零組員，黃燈＝兩人組組長扛 80%，儲備追上正式＝可升
 - 卡片加「這關目標達成 X／Y 天」（Ivan 舊 Numbers 的「當日目標達 5/7」）、🏆 今日入帳最高
 - Ivan 舊 Numbers（秘密基地/每月績效/給ai每月績效排名拷貝.numbers）：舊制關卡 30%/35%、70%/75%、100%/105%；現行以 skill 的 1/3＋120% 為準
 
@@ -128,7 +131,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds6`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds13`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
