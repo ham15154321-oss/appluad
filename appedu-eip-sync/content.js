@@ -1705,6 +1705,8 @@
       for (var k = 0; k < PERF_ORGS.length; k++){
         var org = PERF_ORGS[k];
         var lab = '🔀 ' + org.name + '（' + (k+1) + '/' + PERF_ORGS.length + '）';
+       // ★ v5.55（2026/10/04）：一家出錯不再整批停掉 —— 原本台三一失敗，後面壢一～建國全部沒抓，10 月面談一直是 0
+       try {
         data.nIncOrg = nIncOrg; data.nFullOrg = nFullOrg; data.nSeg = nSeg;
         var oc = cache[org.name] || null;
         var cov = _covOf(oc, prev && prev.meta);
@@ -1788,6 +1790,16 @@
         // ★ 每家抓完就存一次：中途關掉頁面也不會整批白跑，下次接著跑
         await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, k < PERF_ORGS.length - 1);
         if (k < PERF_ORGS.length - 1){ notify('status', { msg: lab + ' 完成，停 4 秒讓 EIP 喘口氣…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } }); await sleep(FUNNEL_ORG_GAP_MS); }
+       } catch(orgErr){
+        // 這家失敗：保留上一輪的資料（不讓它消失），記下原因，繼續下一家
+        var em = String((orgErr && orgErr.message) || orgErr || '未知錯誤').slice(0, 160);
+        console.error('[EIP Content] 漏斗 ' + org.name + ' 抓取失敗，沿用上次資料：', orgErr);
+        data.meta.orgErr = data.meta.orgErr || {}; data.meta.orgErr[org.name] = em;
+        if (prev && prev.orgs && prev.orgs[org.name]) data.orgs[org.name] = prev.orgs[org.name];
+        notify('status', { msg: '⚠️ ' + org.name + ' 抓取失敗（' + em + '），先沿用上次資料，繼續下一家…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } });
+        try { await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, true); } catch(e2){}
+        await sleep(FUNNEL_ORG_GAP_MS);
+       }
       }
     } finally {
       try { clearInterval(kaTimer); } catch(e){}
@@ -1807,7 +1819,7 @@
     _safeSet(cid + 'motiv_updated_at', ts);
     notify('done', {
       mode: 'funnel', funnel: data, updateTime: ts,
-      msg: '🔀 漏斗同步完成！面談紀錄 ' + nI + ' 人（含往回 3 個月）／ 報名・註冊明細 ' + nP + ' 筆'
+      msg: (data.meta.orgErr ? '⚠️ 漏斗同步完成，但 ' + Object.keys(data.meta.orgErr).join('、') + ' 抓取失敗（沿用上次資料）：' + Object.keys(data.meta.orgErr).map(function(o){ return o + '＝' + data.meta.orgErr[o]; }).join('；') + '　' : '🔀 漏斗同步完成！') + '面談紀錄 ' + nI + ' 人（含往回 3 個月）／ 報名・註冊明細 ' + nP + ' 筆'
         + (data.meta.paySrc === 'csv' ? '　💵 收支走 CSV（1 個請求，省下逐頁）' : '')
         + (data.meta.incremental ? '　⚡ 增量：' + data.nIncOrg + ' 家沿用快取、只補沒涵蓋的日期' + (data.nChanged ? '（另更新 ' + data.nChanged + ' 列有變動的舊紀錄）' : '') + (data.nFullOrg ? '、' + data.nFullOrg + ' 家第一次完整抓' : '') : '　（完整重抓）')
     });

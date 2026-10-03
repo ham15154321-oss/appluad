@@ -9657,7 +9657,8 @@
       var cur = M.S[M.date];
       return src.map(function(g){
         var org = g.academy, L = g.leader || {}, names = [L.name].concat((g.members || []).map(function(x){ return x && x.name; })).filter(Boolean);
-        var T = 0; names.forEach(function(nm, i){ var v = GOAL[org + '|' + nm]; T += v > 0 ? v : (i === 0 ? 600000 : 50000); });
+        // ★ Ivan 10/04：組的月目標＝正式組 150 萬、培訓（儲備）組 120 萬；⚙️ 設定可以逐組改
+        var T = _dsGrpTarget(M.ym, org, g);
         var sumAt = function(dk){ var s = M.S[dk]; if (!s || !s.p) return null; var t = 0, hit = 0; names.forEach(function(nm){ var v = s.p[org + '|' + nm]; if (v){ t += +v[0] || 0; hit++; } }); return hit ? t : null; };
         var cum = sumAt(M.date); if (cum == null) cum = +g.total || 0;
         var E = _dsExpect(M.ym, org, T), gi = M.gi, G = M.G, gateT = _dsGateCum(M.ym, org, T, gi), exp = E.cum[M.day] || 0;
@@ -9673,6 +9674,12 @@
       return '<div class="ds-lchips">' + opts.map(function(o){
         return '<button class="ck-region-btn' + (cur === o ? ' active' : '') + '" onclick="dsLeadOrg(\'' + o + '\')">' + (o === 'ALL' ? '全部' : o) + '</button>';
       }).join('') + '</div>';
+    }
+    function _dsGrpKey(org, g){ return org + '|' + (g.groupName || ''); }
+    function _dsGrpTarget(ym, org, g){
+      var c = _dsCfg(ym), d = c.grpDef || {}, o = (c.grpT || {})[_dsGrpKey(org, g)];
+      if (o) return +o;
+      return g.kind === '儲備' ? (+d['儲備'] || 1200000) : (+d['正式'] || 1500000);
     }
     function _dsLeadCalHtml(M){
       var rows = _dsGroupRows(M);
@@ -9720,7 +9727,7 @@
       }).join('');
       var _cmp = _dsV().shot && rows.length > 8;
       return '<div class="dsb' + (_cmp ? ' dsb-cmp' : '') + '"><div class="dsb-hd"><div><b>👥 ' + (_lo === 'ALL' ? '' : _fnEsc(_lo) + '・') + '組長戰力榜・第' + '一二三'[M.gi] + '關　' + mo + '/' + g[0] + '–' + mo + '/' + g[1] + '</b><span>' + (g[1] - M.day ? '倒數 <em>' + (g[1] - M.day) + '</em> 天' : '<em>今天結算</em>') + '</span></div><div class="dsb-hd-r">' + mo + '/' + M.day + ' 收工</div></div>'
-        + (_dsHid('note') ? '' : '<div class="dsc-note ds-hx">' + _dsX('note', '說明文字') + '整組合計（組長＋組員）。目標＝每個人當月績效的個人目標加總，沒設的用低標（組長 60 萬、組員 5 萬），每關三分之一，攤在學院上班日</div>')
+        + (_dsHid('note') ? '' : '<div class="dsc-note ds-hx">' + _dsX('note', '說明文字') + '整組合計（組長＋組員）。月目標：正式組 ' + _dsW1(((_dsCfg(M.ym).grpDef || {})['正式']) || 1500000) + ' 萬、培訓組 ' + _dsW1(((_dsCfg(M.ym).grpDef || {})['儲備']) || 1200000) + ' 萬（⚙️ 設定可逐組改），照學院的關卡比例切三關，攤在學院上班日</div>')
         + '<div class="dsc">' + head + body + '</div>' + _dsLegend() + '</div>';
     }
 
@@ -9791,7 +9798,36 @@
       }).join('');
       return '<div class="ds-sub">10 號、20 號填的是「到那天為止累計」要做到的金額；空白＝月目標的 1/3、2/3（灰字）。小組的關卡目標照學院同一個比例縮放。<br>月目標空白＝用當月績效的個人目標加總（灰字）。休假日填「幾號」，用逗號隔開：那幾天應到是 0、不判輸贏，該關的量攤到同一關其他上班日，關卡目標不變。</div>'
         + '<table class="ds-t"><tr><th>學院</th><th>月目標（元）</th><th>10 號累計目標（第一關）</th><th>20 號累計目標（第二關）</th><th>休假日（幾號）</th></tr>' + rows + '</table>'
-        + '<button class="pp-ev-btn live" style="margin-top:12px" onclick="dsSaveCfg()">💾 存設定</button>';
+        + '<button class="pp-ev-btn live" style="margin-top:12px" onclick="dsSaveCfg()">💾 存設定</button>'
+        + _dsGrpSetHtml(ym);
+    }
+    // 組長目標設定：預設正式 150 萬、培訓（儲備）120 萬，可逐組改
+    function _dsGrpSetHtml(ym){
+      var c = _dsCfg(ym), d = c.grpDef || {}, ymNum = +ym.slice(5), list = [];
+      var okM = function(meta){ return meta && +meta.month === ymNum; };
+      try {
+        if (okM(_motivGroupPerfMeta)) (_motivGroupPerf || []).forEach(function(g){ list.push(Object.assign({ kind:'正式' }, g)); });
+        if (okM(_motivReservePerfMeta)) (_motivReservePerf || []).forEach(function(g){ list.push(Object.assign({ kind:'儲備' }, g)); });
+      } catch(e){}
+      list = list.filter(function(g){ return CK_ORG_LIST.indexOf(g.academy) >= 0 && !/^\s*[A-Za-z０-９0-9]\s*組\s*$/.test(String(g.groupName || '')); })
+        .sort(function(a,b){ return CK_ORG_LIST.indexOf(a.academy) - CK_ORG_LIST.indexOf(b.academy); });
+      var rows = list.map(function(g, i){
+        var k = _dsGrpKey(g.academy, g), v = (c.grpT || {})[k] || '';
+        return '<tr><td>' + _fnEsc(g.academy) + '</td><td><b>' + _fnEsc(g.groupName || '') + '</b>' + (g.kind === '儲備' ? '<em class="dsl-rsv">培訓</em>' : '') + '</td><td>' + _fnEsc((g.leader && g.leader.name) || '') + '</td>'
+          + '<td><input class="ds-in" type="number" step="10000" data-gk="' + _fnEsc(k) + '" id="dsg_' + i + '" value="' + v + '" placeholder="' + (g.kind === '儲備' ? (+d['儲備'] || 1200000) : (+d['正式'] || 1500000)) + '"></td></tr>';
+      }).join('');
+      return '<h4 style="margin:22px 0 4px">👥 組長戰力榜的組目標（整組月目標）</h4>'
+        + '<div class="ds-sub">預設：正式組 <input class="ds-in" type="number" step="10000" id="dsg_def_f" value="' + (+d['正式'] || 1500000) + '">　培訓組 <input class="ds-in" type="number" step="10000" id="dsg_def_r" value="' + (+d['儲備'] || 1200000) + '"><br>下面每一組空白＝用預設；要個別調整就填金額。關卡切法照學院的 10 號／20 號比例。</div>'
+        + (rows ? '<table class="ds-t"><tr><th>學院</th><th>組</th><th>組長</th><th>月目標（元）</th></tr>' + rows + '</table>' : '<div class="ck-empty">還沒有本月的小組績效表（到「🏆 激勵」同步本月）</div>')
+        + '<button class="pp-ev-btn live" style="margin-top:12px" onclick="dsSaveGrp()">💾 存組目標</button>';
+    }
+    function dsSaveGrp(){
+      var ym = DS.demo ? '2026-10' : _ppLiveYm(), c = _dsCfg(ym);
+      c.grpDef = { '正式': +document.getElementById('dsg_def_f').value || 1500000, '儲備': +document.getElementById('dsg_def_r').value || 1200000 };
+      c.grpT = {};
+      Array.prototype.forEach.call(document.querySelectorAll('input[data-gk]'), function(el){ var v = +el.value || 0; if (v) c.grpT[el.getAttribute('data-gk')] = v; });
+      c.by = (_fnMe && _fnMe()) || ''; c.at = Date.now();
+      _dsSet(DS.pfx + 'cfg_' + ym, c); _syncToast('💾 組目標已存', '#4ade80'); dsumOpen('set');
     }
     function dsSaveCfg(){
       var ym = DS.demo ? '2026-10' : _ppLiveYm(), c = _dsCfg(ym), n = _dsDays(ym);

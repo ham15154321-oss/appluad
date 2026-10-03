@@ -9,8 +9,8 @@
 - 專案位置：`iCloud/基本功/營銷部每月簡報/2022年/遊戲化實踐版`
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
-- Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.54**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds33'`
+- Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.55**），改了 manifest 要到 chrome://extensions 重新載入
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds34'`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -113,12 +113,14 @@
 - 隔幾天才有快照：系統代填目標＝這幾天應到加總，標「這 N 天目標」
 - 🧪 示範資料：九月數字隨機攤成每天，只看版面
 - 👥 組長分頁：資料＝激勵分頁正式／儲備小組績效表（_motivGroupPerf／_motivReservePerf），每人用當月績效「個人目標」，沒設才用低標（組長 60 萬、組員 5 萬）× 學院今日應到比例；紅燈＝組長未達／組長最低／掛零組員，黃燈＝兩人組組長扛 80%，儲備追上正式＝可升
-- 👥 組長戰力榜（組長分頁最上面的燈號月曆）：整組合計（組長＋組員快照累計），目標＝每人個人目標加總（沒設：組長 60 萬、組員 5 萬），正式＋儲備混排（儲備標籤），A／B／C 組這種沒名字的不放
+- 👥 組長戰力榜（組長分頁最上面的燈號月曆）：整組合計（組長＋組員快照累計），組月目標＝正式 150 萬／培訓（儲備）120 萬（10/04 Ivan），⚙️ 設定可改預設與逐組調整（cfg.grpDef／grpT），關卡照學院比例，正式＋儲備混排（儲備標籤），A／B／C 組這種沒名字的不放
 - 組長戰力榜可選 全部／中區／桃區／南區／單一學院（localStorage `ds_lead_org`），下載檔名帶學院
 - 卡片加「這關目標達成 X／Y 天」（Ivan 舊 Numbers 的「當日目標達 5/7」）、🏆 今日入帳最高
 - Ivan 舊 Numbers（秘密基地/每月績效/給ai每月績效排名拷貝.numbers）：舊制關卡 30%/35%、70%/75%、100%/105%；現行以 skill 的 1/3＋120% 為準
 
 ### 漏斗按鈕
+
+- 10/04 問題：台三、壢一、壢二、壢三、建國 10 月面談 0 筆（停在 9/30 11:38），只有台一、台二更新。原因：fetchFunnel 迴圈沒有每家 try/catch，台三一出錯整批中斷（只存了前兩家的 partial）。v5.55 改成每家獨立 try/catch：失敗的沿用上次資料、記 `meta.orgErr`、繼續下一家，完成訊息會列出哪家失敗＋原因
 
 - 右上角「🔀 漏斗」（一鍵三連：激勵→報到→漏斗增量）會自動判斷：本機沒快取、缺學院、某家沒面談資料或沒 cov → 自動改全抓；否則增量。「🔁 漏斗全抓」保留給手動整批重來
 
@@ -146,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds33`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds34`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
