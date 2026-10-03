@@ -1804,8 +1804,10 @@
     .ds-x { position:absolute; top:3px; right:3px; z-index:3; width:22px; height:22px; border-radius:50%; border:none; background:#E24B4A; color:#fff !important; font-size:12px; font-weight:900; cursor:pointer; opacity:0; transition:opacity .12s; line-height:22px; padding:0; }
     .ds-hx:hover > .ds-x { opacity:1; }
     #ppEvBg .ds-x { position:absolute !important; margin:0 !important; }
-    .ds-shot-on > .ds-bar, .ds-shot-on > .evo-tabs, .ds-shot-on > .evo-warn, .ds-shot-on .ds-cust, .ds-shot-on .ds-vbar > :not(.ds-shot) { display:none !important; }
+    .ds-shot-on > .ds-bar, .ds-shot-on > .evo-tabs, .ds-shot-on > .evo-warn, .ds-shot-on .ds-cust, .ds-shot-on .ds-vbar > :not(.ds-shot):not(.ds-dl) { display:none !important; }
     .ds-shot-on .ds-shot { position:absolute; top:18px; right:110px; padding:5px 12px; font-size:.8rem; }
+    .ds-dl { display:inline-flex; gap:4px; } .ds-dl button { padding:7px 12px; border-radius:10px; border:2px solid #3B6D11; background:#EAF3DE; color:#173404; font-weight:900; cursor:pointer; }
+    .ds-shot-on .ds-vbar > .ds-dl { display:inline-flex !important; position:absolute; top:18px; right:330px; } .ds-shot-on .ds-dl button { padding:5px 10px; font-size:.8rem; }
     .ds-shot-on .dsb { margin-top:6px; }
     .ds-box { position:relative; }
     .ds-need b { display:block; white-space:nowrap; font-size:1.08rem; font-weight:900; line-height:1.2; } .ds-need small { display:block; font-size:.7rem; font-weight:700; opacity:.85; }
@@ -1824,6 +1826,10 @@
     .dsb-cmp .dsc-l span { display:block; font-size:.82rem; }
     .dsb-cmp .dsc-c { padding:2px; } .dsb-cmp .dsc-c small { display:inline; font-size:.6rem; } .dsb-cmp .dsc-c b { font-size:.92rem; } .dsb-cmp .dsc-c i { font-size:.62rem; }
     .dsb-cmp .dsc-g { padding:2px 4px; } .dsb-cmp .ds-need b { font-size:.9rem; } .dsb-cmp .ds-need small, .dsb-cmp .dsc-g small.t { font-size:.6rem; } .dsb-cmp .ds-blk { margin-top:2px; }
+    .ds-gb { display:inline-block; margin-left:6px; padding:3px 9px; border-radius:7px; background:#26215C; color:#FAC775 !important; font-size:1rem; font-weight:900; white-space:nowrap; vertical-align:1px; letter-spacing:.2px; }
+    .ds-nmrow { display:flex !important; align-items:center; flex-wrap:wrap; gap:2px; }
+    .dsb-nm .ds-gb { margin:4px 0 2px; font-size:.9rem; }
+    .dsb-cmp .ds-gb { font-size:.72rem; padding:1px 6px; }
     /* 🏁 截圖看板：固定淺色底 */
     .dsb { margin-top:12px; background:#ffffff; color:#1d1d1f; border-radius:16px; padding:14px 16px 12px; border:1px solid #D3D1C7; }
     .dsb-hd { display:flex; justify-content:space-between; align-items:center; background:#26215C; color:#EEEDFE; border-radius:12px; padding:12px 16px; }
@@ -1839,7 +1845,7 @@
     .dsb-bar.s { height:10px; margin-top:6px; }
     .dsb-bar span { position:absolute; left:0; top:0; bottom:0; border-radius:8px; }
     .dsb-bar i { position:absolute; top:-4px; bottom:-4px; width:3px; border-radius:2px; background:#26215C; }
-    .dsb-row { display:grid; grid-template-columns:38px 110px 1fr 210px 64px; gap:12px; align-items:center; padding:10px 6px; border-top:1px solid #F1EFE8; }
+    .dsb-row { display:grid; grid-template-columns:38px 150px 1fr 210px 64px; gap:12px; align-items:center; padding:10px 6px; border-top:1px solid #F1EFE8; }
     .dsb-rk { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; background:#F1EFE8; color:#5F5E5A; }
     .dsb-nm b { display:block; font-size:1.08rem; } .dsb-nm small { font-size:.76rem; font-weight:800; } .dsb-nm .w { color:#27500A; } .dsb-nm .l { color:#A32D2D; }
     .dsb-pt { font-size:.88rem; margin-top:6px; line-height:1.6; } .dsb-pt b { font-size:1rem; font-weight:900; }
@@ -1865,7 +1871,7 @@
     .dsc-c.w { background:#C0DD97; color:#173404; } .dsc-c.wp { background:#639922; color:#fff; } .dsc-c.wp small { color:#EAF3DE; }
     .dsc-c.l { background:#F7C1C1; color:#501313; } .dsc-c.hol { background:#F1EFE8; color:#888780; }
     .dsc-c.fut { background:#ffffff; border:1.5px dashed #AFA9EC; color:#26215C; } .dsc-c.next { border:2.5px solid #534AB7; background:#EEEDFE; }
-    .dsc-c.now { box-shadow:0 0 0 2.5px #FAC775 inset; }
+    .dsc-c.now { border:2.5px solid #FAC775 !important; }   /* 不用 inset 陰影：下載高清圖（html2canvas）會畫成一整片黃 */
     .dsc-g { border-radius:8px; text-align:center; padding:4px; } .dsc-g b { display:block; font-weight:900; } .dsc-g small { font-size:.72rem; font-weight:800; }
     .dsa { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:8px; }
     .dsa-rh { font-weight:900; font-size:1rem; text-align:center; padding:6px; border-radius:8px; background:#26215C; color:#EEEDFE; margin-bottom:8px; }
@@ -9433,6 +9439,7 @@
       var lab = function(k){ if (k.indexOf('org:') === 0) return k.slice(4); if (k.indexOf('col:') === 0) return (+k.slice(9, 11)) + '/' + (+k.slice(12)); var f = DS_ITEMS.filter(function(x){ return x[0] === k; })[0]; return f ? f[1] : k; };
       var h = '<div class="ds-vbar">'
         + '<button class="ds-shot' + (v.shot ? ' on' : '') + '" onclick="dsShot()">' + (v.shot ? '📸 截圖模式中・點我退出' : '📸 截圖模式') + '</button>'
+        + '<span class="ds-dl"><button onclick="dsDownload(\'png\')" title="下載高清 PNG（3 倍解析度）">⬇️ 高清 PNG</button><button onclick="dsDownload(\'jpg\')" title="下載高清 JPG（3 倍解析度，檔案較小）">⬇️ JPG</button></span>'
         + '<button class="ck-region-btn' + (DS.custom ? ' active' : '') + '" onclick="DS.custom=!DS.custom;dsumOpen()">⚙️ 自訂截圖模式要藏什麼</button>'
         + (nx ? '<button class="ck-region-btn" onclick="dsUnhideAll()" title="' + _fnEsc(Object.keys(v.x).map(lab).join('、')) + '">↩︎ 還原 ' + nx + ' 個用 ✕ 藏起來的</button>' : '<span class="ds-vtip">滑到任何一欄、一家學院、一個區塊，右上角會出現 ✕，點了就藏</span>')
         + '</div>';
@@ -9448,6 +9455,29 @@
       if (!r.left) return '<div class="ds-need ' + (cls || '') + '"><b>差 ' + _dsW1(r.gateT - r.cum) + ' 萬</b><small>今天結算</small></div>';
       return '<div class="ds-need ' + (cls || '') + '"><b>每天 ' + _dsW1(r.need) + ' 萬</b><small>× ' + r.left + ' 天＝還差 ' + _dsW1(r.gateT - r.cum) + '</small></div>';
     }
+    // ⬇️ 下載高清圖（Ivan 10/03：截圖解析度不夠）— html2canvas 3 倍解析度，用到才載入
+    function dsDownload(fmt){
+      var el = document.querySelector('#ppEvBg .dsb'); if (!el){ alert('先打開一張看板'); return; }
+      var go = function(){
+        var z = el.style.zoom; el.style.zoom = '';
+        var sc = el.querySelector('.dsc'), ov = sc ? sc.style.overflow : ''; if (sc) sc.style.overflow = 'visible';
+        _syncToast('⏳ 產生高清圖中…', '#e6a817');
+        window.html2canvas(el, { scale:3, backgroundColor:'#ffffff', useCORS:true, logging:false,
+          ignoreElements:function(n){ return n.classList && n.classList.contains('ds-x'); } }).then(function(cv){
+          el.style.zoom = z; if (sc) sc.style.overflow = ov;
+          var name = '每日總結_' + ({ race:'賽道排行', cal:'燈號月曆', arena:'三區擂台', lead:'組長戰力榜' })[DS.tab || 'cal'] + '_' + (DS.date || '') + (fmt === 'jpg' ? '.jpg' : '.png');
+          var a = document.createElement('a'); a.download = name;
+          a.href = cv.toDataURL(fmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.95);
+          document.body.appendChild(a); a.click(); a.remove();
+          _syncToast('⬇️ 已下載 ' + name, '#4ade80');
+        }).catch(function(e){ el.style.zoom = z; if (sc) sc.style.overflow = ov; alert('產生圖片失敗：' + (e && e.message || e)); });
+      };
+      if (window.html2canvas) return go();
+      var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      s.onload = go; s.onerror = function(){ alert('載入截圖工具失敗，請確認有連網路'); }; document.head.appendChild(s);
+    }
+    // 🎯 關卡目標徽章：深紫底＋金字，放在學院／組長名字後面（Ivan 10/03）
+    function _dsGB(r){ return '<span class="ds-gb" title="這一關的累計目標">🎯 ' + _dsW1(r.gateT) + ' 萬</span>'; }
     function _dsVisRows(M){ return M.rows.filter(function(r){ return !_dsHid('org:' + r.org); }); }
 
     function _dsProg(r, M){
@@ -9485,7 +9515,7 @@
       var rows = rs.map(function(r, i){
         var st = r.res === 'hol' ? 'hol' : r.res;
         return '<div class="dsb-row ds-hx ' + st + '">' + _dsX('org:' + r.org, r.org) + '<span class="dsb-rk" style="' + (i < 3 ? 'background:' + medal[i] + ';color:' + mfg[i] : '') + '">' + (i + 1) + '</span>'
-          + '<div class="dsb-nm"><b>' + _fnEsc(r.org) + '</b>' + _dsStreak(r) + '</div>'
+          + '<div class="dsb-nm"><b>' + _fnEsc(r.org) + '</b>' + _dsGB(r) + _dsStreak(r) + '</div>'
           + _dsProg(r, M) + _dsTodayBox(r, true)
           + '<span class="dsb-stamp ' + st + '">' + ({ win:'WIN', lose:'LOSE', hol:'休', na:'—' })[st] + '</span></div>';
       }).join('');
@@ -9505,13 +9535,13 @@
         if (_dsHid('hol') && vis.length && vis.every(function(r){ return _dsIsHol(M.ym, r.org, dk0); })) continue;
         days.push(d0);
       }
-      var gcs = ' style="grid-template-columns:130px repeat(' + days.length + ', minmax(62px, 1fr)) 132px"';
+      var gcs = ' style="grid-template-columns:185px repeat(' + days.length + ', minmax(60px, 1fr)) 132px"';
       var head = '<div class="dsc-r dsc-h"' + gcs + '><div class="dsc-l">學院／這關進度</div>';
       days.forEach(function(d){ var dt = new Date(+M.ym.slice(0,4), mo - 1, d), dk = _dsDate(M.ym, d); head += '<div class="dsc-c ds-hx' + (d === M.day ? ' now' : '') + '">' + _dsX('col:' + dk, mo + '/' + d) + mo + '/' + d + '<small>' + wk[dt.getDay()] + '</small></div>'; });
       head += '<div class="dsc-g">第' + '一二三'[M.gi] + '關</div></div>';
       var rows = vis.map(function(r){
         var st = _dsSt(r), c = DSC[st], pct = r.gateT ? r.cum / r.gateT : 0;
-        var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + c.bg + ';color:' + c.fg + '">' + _dsX('org:' + r.org, r.org) + '<b>' + _fnEsc(CK_SHORT[r.org]) + '</b><span>已做 ' + _dsW1(r.cum) + ' 萬</span><small>' + Math.round(pct * 100) + '%・' + c.tag + '</small></div>';
+        var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + c.bg + ';color:' + c.fg + '">' + _dsX('org:' + r.org, r.org) + '<b class="ds-nmrow">' + _fnEsc(CK_SHORT[r.org]) + _dsGB(r) + '</b><span>已做 ' + _dsW1(r.cum) + ' 萬</span><small>' + Math.round(pct * 100) + '%・' + c.tag + '</small></div>';
         days.forEach(function(d){
           var dk = _dsDate(M.ym, d), hol = _dsIsHol(M.ym, r.org, dk);
           var cm = _dsCommit(dk, r.org), tgt = (cm && cm.biz) ? cm.biz : (r.E.inc[d] || 0);
@@ -9529,7 +9559,7 @@
           else if (nos) h += '<div class="dsc-c hol"><small>沒快照</small><b>→</b><i>算進後一格</i></div>';
           else h += '<div class="dsc-c fut' + (d === M.day + 1 ? ' next' : '') + '"><small>目標</small><b>' + _dsW1(d > M.day ? (r.need || tgt) : tgt) + '</b><i>' + (d === M.day + 1 ? '明天' : '') + '</i></div>';
         });
-        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + '"><small class="t">關卡 ' + _dsW1(r.gateT) + '</small>' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
+        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + '">' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
         return h;
       }).join('');
       return '<div class="dsb">' + _dsGateTitle(M)
@@ -9546,7 +9576,7 @@
         return '<div class="dsa-col"><div class="dsa-rh">' + rg[0] + '</div>' + rs.map(function(r){
           var st = _dsSt(r), c = DSC[st], pct = r.gateT ? r.cum / r.gateT : 0;
           return '<div class="dsa-t ds-hx" style="background:' + c.bg + ';color:' + c.fg + ';border-color:' + c.bar + '">' + _dsX('org:' + r.org, r.org)
-            + '<div class="dsa-th"><b>' + _fnEsc(r.org) + '</b><span>' + c.tag + '</span></div>'
+            + '<div class="dsa-th"><b>' + _fnEsc(r.org) + _dsGB(r) + '</b><span>' + c.tag + '</span></div>'
             + '<div class="dsa-big">已做 ' + _dsW1(r.cum) + '<u>萬</u></div>'
             + '<div class="dsa-sub">第' + '一二三'[M.gi] + '關 ' + _dsW1(r.gateT) + ' 萬・' + Math.round(pct * 100) + '%</div>'
             + '<div class="dsb-bar s"><span style="width:' + Math.min(100, pct * 100) + '%;background:' + c.bar + '"></span><i style="left:' + Math.min(100, (r.gateT ? r.exp / r.gateT : 0) * 100) + '%"></i></div>'
@@ -9602,7 +9632,7 @@
       var body = rows.map(function(r, idx){
         var st = _dsSt(r), c = DSC[st], pct = r.gateT ? r.cum / r.gateT : 0;
         var h = '<div class="dsc-r"' + gcs + '><div class="dsc-l ds-hx" style="background:' + c.bg + ';color:' + c.fg + '">' + _dsX(r.key, r.g.groupName)
-          + '<b>' + (idx + 1) + '. ' + _fnEsc((r.g.leader && r.g.leader.name) || '') + (r.g.kind === '儲備' ? '<em class="dsl-rsv">儲備</em>' : '') + '<small class="dsl-g">' + _fnEsc(CK_SHORT[r.org] + ' ' + (r.g.groupName || '')) + '・' + r.names.length + ' 人</small></b>'
+          + '<b>' + (idx + 1) + '. ' + _fnEsc((r.g.leader && r.g.leader.name) || '') + (r.g.kind === '儲備' ? '<em class="dsl-rsv">儲備</em>' : '') + _dsGB(r) + '<small class="dsl-g">' + _fnEsc(CK_SHORT[r.org] + ' ' + (r.g.groupName || '')) + '・' + r.names.length + ' 人</small></b>'
           + '<span>已做 ' + _dsW1(r.cum) + '／' + _dsW1(r.gateT) + ' 萬<em class="dsl-p">' + Math.round(pct * 100) + '%・' + c.tag + '</em></span></div>';
         days.forEach(function(d){
           var dk = _dsDate(M.ym, d), hol = _dsIsHol(M.ym, r.org, dk), tgt = r.E.inc[d] || 0, got = null, cls = '', span = 1;
@@ -9619,7 +9649,7 @@
           else if (nos) h += '<div class="dsc-c hol"><small>沒快照</small><b>→</b></div>';
           else h += '<div class="dsc-c fut' + (d === M.day + 1 ? ' next' : '') + '"><small>目標</small><b>' + _dsW1(d > M.day ? (r.need || tgt) : tgt) + '</b><i>' + (d === M.day + 1 ? '明天' : '') + '</i></div>';
         });
-        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + '"><small class="t">關卡 ' + _dsW1(r.gateT) + '</small>' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
+        h += '<div class="dsc-g" style="background:' + c.bg + ';color:' + c.fg + '">' + (_dsHid('need') ? '' : _dsNeedHtml(r)) + _dsBlocks(pct) + '</div></div>';
         return h;
       }).join('');
       var _cmp = _dsV().shot && rows.length > 8;
