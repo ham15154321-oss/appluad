@@ -1879,6 +1879,23 @@
     .dsa-th { display:flex; justify-content:space-between; } .dsa-th b { font-size:1.05rem; } .dsa-th span { font-size:.76rem; font-weight:900; }
     .dsa-big { font-size:1.6rem; font-weight:900; margin-top:4px; } .dsa-sub { font-size:.82rem; font-weight:700; }
     .dsa-t .dsb-today { margin-top:8px; } .dsa-need { font-size:.8rem; margin-top:6px; font-weight:700; }
+    /* ★ 台股配色：達標＝紅、未達＝綠（覆蓋前面的設定） */
+    .dsc-c.w { background:#F7C1C1 !important; color:#501313 !important; } .dsc-c.w small { color:#791F1F !important; }
+    .dsc-c.wp { background:#E24B4A !important; color:#fff !important; } .dsc-c.wp small { color:#FCEBEB !important; }
+    .dsc-c.l { background:#C0DD97 !important; color:#173404 !important; } .dsc-c.l small { color:#27500A !important; }
+    .dsb-stamp.win { background:#E24B4A !important; } .dsb-stamp.lose { background:#639922 !important; }
+    .ds-card.ds-win { border-color:#E24B4A !important; background:rgba(226,75,74,.06) !important; } .ds-card.ds-lose { border-color:#639922 !important; background:rgba(99,153,34,.07) !important; }
+    .ds-win .ds-stamp { background:#E24B4A !important; } .ds-lose .ds-stamp { background:#639922 !important; }
+    .ds-blk i.on { background:#E24B4A !important; border-color:#E24B4A !important; }
+    .dsb-today i.w { color:#A32D2D !important; } .dsb-today i.l { color:#3B6D11 !important; }
+    .dsb-nm .w, .ds-p.good, .evo-pb { color:#A32D2D !important; } .dsb-nm .l, .ds-p.bad { color:#3B6D11 !important; }
+    .ds-l.ok { color:#A32D2D !important; border-color:#E24B4A !important; } .ds-l.ng { color:#3B6D11 !important; border-color:#97C459 !important; }
+    .ds-act { background:rgba(99,153,34,.14) !important; color:#27500A !important; }
+    .ds-t td.win { color:#A32D2D !important; } .ds-t td.lose { color:#3B6D11 !important; }
+    .ds-t tr.good td { background:rgba(226,75,74,.08) !important; } .ds-t tr.bad td { background:rgba(99,153,34,.10) !important; }
+    .ds-ld.ok { border-color:rgba(226,75,74,.55) !important; } .ds-ld.bad { border-color:rgba(99,153,34,.6) !important; }
+    .ds-ldm .g { color:#A32D2D !important; border-color:#E24B4A !important; } .ds-ldm .r { color:#3B6D11 !important; border-color:#97C459 !important; }
+    .ds-lr { color:#3B6D11 !important; }
     /* ═══ 🔥 十月活動 ═══ */
     .evo-head { margin-top:10px; }
     .evo-rule { font-size:.82rem; opacity:.8; line-height:1.6; margin:4px 0 8px; }
@@ -9324,7 +9341,7 @@
             + (x.promote ? '<em class="ds-pro">🎉 追上正式組，可評估升正式</em>' : '') + '</div>'
             + '<div class="ds-ldm"><span class="' + ((+x.L.value || 0) >= x.LN ? 'g' : 'r') + '">👑 ' + _fnEsc(x.L.name) + ' ' + _dsW(x.L.value) + '<small>／目標 ' + _dsW(x.LG) + '・應到 ' + _dsW(x.LN) + '</small></span>'
             + x.mem.map(function(m){ return '<span class="' + ((+m.value || 0) >= m.need ? 'g' : 'r') + '">' + _fnEsc(m.name) + ' ' + _dsW(m.value) + '<small>／目標 ' + _dsW(m.goal) + '・應到 ' + _dsW(m.need) + '</small></span>'; }).join('') + '</div>'
-            + x.red.map(function(t){ return '<div class="ds-lr">🔴 ' + _fnEsc(t) + '</div>'; }).join('')
+            + x.red.map(function(t){ return '<div class="ds-lr">🟢 ' + _fnEsc(t) + '</div>'; }).join('')
             + x.yellow.map(function(t){ return '<div class="ds-ly">🟡 ' + _fnEsc(t) + '</div>'; }).join('') + '</div>';
         });
         h += '</div>';
@@ -9413,8 +9430,9 @@
     //   顏色只有一個意思：綠＝贏／領先　橘＝落後　紅＝危險／輸　灰＝休假　深紫＝目標
     //   看板一律淺色底（不跟夜間模式），截圖貼 LINE 才清楚
     var DSC = {
-      top:{ bg:'#C0DD97', fg:'#173404', bar:'#3B6D11', tag:'領先' }, ok:{ bg:'#EAF3DE', fg:'#27500A', bar:'#639922', tag:'達標' },
-      warn:{ bg:'#FAEEDA', fg:'#633806', bar:'#EF9F27', tag:'落後' }, bad:{ bg:'#FCEBEB', fg:'#791F1F', bar:'#E24B4A', tag:'危險' },
+      // ★ 2026/10/03 Ivan：照台股配色 —— 漲（達標）＝紅、跌（未達）＝綠
+      top:{ bg:'#E24B4A', fg:'#FFFFFF', bar:'#A32D2D', tag:'領先' }, ok:{ bg:'#FCEBEB', fg:'#791F1F', bar:'#E24B4A', tag:'達標' },
+      warn:{ bg:'#EAF3DE', fg:'#27500A', bar:'#97C459', tag:'落後' }, bad:{ bg:'#C0DD97', fg:'#173404', bar:'#639922', tag:'危險' },
       hol:{ bg:'#F1EFE8', fg:'#5F5E5A', bar:'#B4B2A9', tag:'休假' }
     };
     function _dsSt(r){
@@ -9766,7 +9784,7 @@
         var tdy = new Date(Date.parse(M.date) + 86400000), tD = tdy.getDate(), tM = tdy.getMonth() + 1;
         var gLeft = gl[1] - tD; var gnm = gn;
         if (tD > gl[1]){ L.push('（今天是新的一關，明天的數字收工後再看）'); }
-        var blk = function(p){ var n = Math.max(0, Math.min(10, Math.round(p * 10))); if (p >= 0.05 && !n) n = 1; var t = ''; for (var i = 0; i < 10; i++) t += i < n ? '🟩' : '⬜'; return t; };
+        var blk = function(p){ var n = Math.max(0, Math.min(10, Math.round(p * 10))); if (p >= 0.05 && !n) n = 1; var t = ''; for (var i = 0; i < 10; i++) t += i < n ? '🟥' : '⬜'; return t; };
         var holToday = function(r){ return _dsIsHol(M.ym, r.org, _dsDate(M.ym, tD)); };
         var firstWork = function(r){ for (var d = tD; d <= gl[1]; d++) if (!_dsIsHol(M.ym, r.org, _dsDate(M.ym, d))) return d; return 0; };
         L.push('☀️ ' + tM + '/' + tD + ' 今日挑戰｜' + gnm + (gLeft > 0 ? '倒數 ' + (gLeft + 1) + ' 天' : '今天結算'));
