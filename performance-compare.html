@@ -7684,6 +7684,19 @@
     var _fnFunnelFull = false;   // true = 這次漏斗要完整重抓三個月
     function fnSyncAll(full){
       if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      // ★ 2026/10/04 Ivan：不用分兩顆按 —— 右上角「🔀 漏斗」自己判斷要不要全抓
+      //   本機快取缺學院、某家沒有面談資料、或根本沒有快取 → 自動改成全抓；其餘照增量（不加重 EIP）
+      if (!full){
+        try {
+          var _rw = fnGetRaw(), _need = '';
+          if (!_rw || !_rw.orgs) _need = '電腦裡還沒有漏斗逐人資料';
+          else {
+            var _miss = CK_ORG_LIST.filter(function(o){ var x = _rw.orgs[o]; return !x || !x.itv || !x.itv.length || !x.cov; });
+            if (_miss.length) _need = _miss.join('、') + ' 的逐人資料不完整';
+          }
+          if (_need){ full = true; _syncToast('🔁 ' + _need + '，這次自動改成完整重抓（約 10～12 分鐘）', '#e6a817'); }
+        } catch(e){}
+      }
       _fnFunnelFull = !!full;
       fnProgressStart(true);
       _fnProgState.kind = 'chain'; _fnProgState.orgList = null;

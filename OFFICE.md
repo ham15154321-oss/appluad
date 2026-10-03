@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.54**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds32'`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds33'`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -118,6 +118,10 @@
 - 卡片加「這關目標達成 X／Y 天」（Ivan 舊 Numbers 的「當日目標達 5/7」）、🏆 今日入帳最高
 - Ivan 舊 Numbers（秘密基地/每月績效/給ai每月績效排名拷貝.numbers）：舊制關卡 30%/35%、70%/75%、100%/105%；現行以 skill 的 1/3＋120% 為準
 
+### 漏斗按鈕
+
+- 右上角「🔀 漏斗」（一鍵三連：激勵→報到→漏斗增量）會自動判斷：本機沒快取、缺學院、某家沒面談資料或沒 cov → 自動改全抓；否則增量。「🔁 漏斗全抓」保留給手動整批重來
+
 ### 2026-09 中區驗證結果（資料到 9/30）
 
 | | 台中學院 | 台中二部 | 台中三部 |
@@ -142,7 +146,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds32`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds33`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
