@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.55**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds34'`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds36'（monthly-performance：mpbundle17）`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds34`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds36`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -186,3 +186,25 @@
 - 他看不懂的專有名詞（舊名單、對不到名字、修正舊資料）要用白話＋實例（學生名字）解釋
 - 先講結論再講原因；我說錯就直接承認（曾錯判「1970 是今天的編輯」「非當月 4 位」）
 - 回答前先查資料，不要用猜的
+
+## 🗂 面談追蹤卡＋面談檢討＋主管回饋（2026/10/04，ds35）
+- 位置：📌 月度漏斗總結 → 👥 名單 → 「面談後流失（沒報名也沒註冊）」那一組。組上方多一塊「🗂 面談追蹤」面板（今天到期／逾期未回／原因不一致／待檢討 四清單、各組 📋 複製今天回饋、📥 貼上回覆、📊 本週／本月統計、🏷 組名外號表）；學生列按 ▾ 展開，最上面是追蹤卡。學生列本身、標題、組→業務→學生順序都沒動
+- 存法（localStorage，前綴 perf_compare_v1_ → firebase 全公司自動同步＋跟著 ☁️↑ 推送）：
+  - `perf_compare_v1_trk_<學院>__<全名>__<面談日>` 追蹤卡主體（原因、真因、誰決定、下一步、再約日、中途聯絡日、兌換7天、申請／確認放棄、愛心卡、原因一致手動標）
+  - `perf_compare_v1_trkf_<同上>__<亂數>` 主管回饋（每則一 key，只增不改）
+  - `perf_compare_v1_trkr_<同上>__<亂數>` 面談檢討（每筆一 key；「已練」改同一 key）
+  - `perf_compare_v1_trks_<同上>` 留底（第一次出現在流失名單就記；內容每台一樣，不會蓋掉真的卡）→ 救回／報名後離開名單仍追得到
+  - `perf_compare_v1_trkcfg_alias`／`_faults` 外號表、面談缺點清單
+  - 本機 `trk_push_at_local` 最後一次 pushCloud 時間（判斷「未推送」）
+  - monthly-performance 拉取時 trk* 比 at 時間戳，本機較新不被蓋
+- 自動判斷：EIP 收支有註冊≥2萬→結案：報名（之前有報名費＝試聽後報名）；有報名費或進了經營中／備註試聽→救回；面談日隔天 14:30 沒原因→逾期未回；原因不一致＝自動（EIP 備註跟回覆原因的關鍵字分類對不上）＋主管可手動改；申請放棄／不一致沒檢討→待檢討，主管確認鈕不出現
+- window 函式：getTracking(學院)、getReviewStats(學院,'週'|'月')、addFeedback(學院,組名,全名,內容)（寫的人＝柏翰）、addReply(學院,全名,{原因,下一步,再約日})、pushCloud()（＝forcePushMpDataToCloud(true)，跟 ☁️↑ 推送同一段，silent 不跳視窗；推送中再呼叫回「推送中，請稍後」）。學院可寫全名或簡稱（台一…建國）
+- 英文字母組（A/B/C組）：_fnGroupsFor 把組長併回組員 → 不顯示組長、沒有 👑
+- 組名外號同時用在：名單組標、每日總結組長月曆／組長卡、組長目標表、組長版 LINE 文字
+
+## 🔔 更新通知（2026/10/04，ds36）— Ivan：「更新／上傳／同步了什麼都要有一則通知帶我去點」
+- 表頭「☁️↓ 拉取」右邊多一顆紫色「🔔 通知」，紅點＝沒看過的則數；右上角會跳一張卡，按「👉 去哪裡」＝切分頁、打開那段、捲過去、黃框閃三下
+- 存在 `pc_notify_v1`（最多 60 則）；改版紀錄在程式裡的 `PCN_NOTES`，`pc_notify_ver` 記看到哪一版
+- ★ 以後每次改版：在 PCN_NOTES 最後加一筆 { ver:'ds37', icon, title, detail, go }，go 指到新功能的位置（{tab:n} / {fn:'trk', org, n} / {sel:'#id'} / {fn:'fnTop'}）
+- 會跳通知的時機：改版、EIP 同步完成／失敗（激勵→🏆激勵、報到→🚪報到排名、通路→📋各通路、漏斗／深挖→📌漏斗、編輯→📝編輯追蹤）、同步後自動推上雲端（接在同一則後面）、pushCloud 成功（有寫追蹤卡就帶到最後那位學生）、☁️↓ 拉取完重新整理後、別人寫了新的主管回饋／面談檢討／組長回覆（每分鐘查本機一次，自己寫的不通知自己）
+- 捲動容器是 `.content`，不是整頁 → _pcnFlash 自己算 scrollTop

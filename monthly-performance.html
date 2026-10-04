@@ -2572,6 +2572,7 @@
             if (/^funnelrep_/.test(label)) return '🖐 報備試聽';
             if (/^chk_/.test(label)) return '✅ 名單核對紀錄';
             if (/^kb_/.test(label)) return '📚 追註冊知識庫';
+            if (/^trk(f|r|cfg)?_/.test(label)) return '🗂 面談追蹤卡／回饋／檢討';
             return '';
         }
         function _isFnIdbKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1' || k.slice(-10) === '_fn_itv_v1' || k.slice(-12) === '_fn_notes_v1' || k.slice(-17) === '_fn_cold_index_v1' || k.slice(-15) === '_motiv_trial_v1' || k.slice(-15) === '_motiv_trial_v2'); }
@@ -2724,7 +2725,7 @@
         }); } catch(e){}
         // silent = true → 同步完自動觸發，不跳確認、不跳提示，只在右下角冒一行
         async function forcePushMpDataToCloud(silent){
-            if (!_mpIsAdmin()){ if (!silent) alert('☁️↑ 這顆是「把公司整包資料廣播給所有人」，只有管理者（黃柏翰）能按。\n\n你自己的資料不需要這顆 —— 2026/09 起漏斗、深挖、面談池已經納入自動同步，\n你做的每一筆都會自己上雲，別人也看得到。\n看不到新月份請按「☁️↓ 強制拉取」。'); return; }
+            if (!_mpIsAdmin()){ if (!silent) alert('☁️↑ 這顆是「把公司整包資料廣播給所有人」，只有管理者（黃柏翰）能按。\n\n你自己的資料不需要這顆 —— 2026/09 起漏斗、深挖、面談池已經納入自動同步，\n你做的每一筆都會自己上雲，別人也看得到。\n看不到新月份請按「☁️↓ 強制拉取」。'); return { ok:false, err:'只有管理者（黃柏翰）能推送' }; }
             var btn = document.getElementById('cloudPushBtn') || { style:{} };
             try{
                 btn.disabled = true; btn.textContent = '☁️↑ 推送中...';
@@ -2757,7 +2758,7 @@
 
                 if((!mp || !mpMonths.length) && !lsKeys.length && !kb){
                     if (!silent) alert('❌ 本機沒有任何公司資料,請先匯入');
-                    return;
+                    return { ok:false, err:'本機沒有任何公司資料' };
                 }
 
                 var summary = [];
@@ -2780,7 +2781,7 @@
                 // ★ 用 parent helper(避免 iframe cross-realm bug)
                 //   payload 在 iframe 組成 JSON string,傳給 parent 由 parent realm 重建物件
                 var fsync = _getParentFirebaseSync();
-                if(!fsync){ alert('❌ 找不到 firebaseSync.writeGlobalDoc(需在 parent)'); return; }
+                if(!fsync){ if (silent) return { ok:false, err:'找不到 firebaseSync（雲端模組還沒載好）' }; alert('❌ 找不到 firebaseSync.writeGlobalDoc(需在 parent)'); return; }
                 // ══ 增量推送（v3）：把資料拆成一項一項，只上傳簽章有變的 ══
                 var items = {};
                 if (mp) items['mpData'] = JSON.stringify(mp);
@@ -2861,7 +2862,7 @@
                 await fsync.writeGlobalDoc('_global_perf_data', 'bundle', JSON.stringify(manifest), _getCurrentUserName());
                 console.log('[cloud-sync] 增量推送完成：上傳 ' + nUp + ' 項（' + Math.round(upChars/1024) + 'K），沿用 ' + nSame + ' 項，總計 ' + Math.round(totalChars/1024) + 'K');
                 showStatus('✅ 已推送：' + nUp + ' 項有變動（' + Math.round(upChars/1024) + 'K）、' + nSame + ' 項沒變沿用雲端', 'success');
-                return;
+                return { ok:true, nUp:nUp, nSame:nSame, kb:Math.round(upChars/1024), at:Date.now() };   // ★ 2026/10/04 給 pushCloud() 用（按鈕行為不變）
                 // ── 以下為舊版全量路徑（保留不執行，方便回溯） ──
                 var bundle = {
                     mpData: mp ? JSON.stringify(mp) : '',
@@ -2904,6 +2905,7 @@
                 } else {
                     showStatus('❌ 推送失敗: '+msg, 'error');
                 }
+                return { ok:false, err:msg };
             }finally{
                 btn.disabled = false;
                 btn.textContent = '☁️↑ 強制推送公司資料';
@@ -3136,7 +3138,7 @@
                         // ★ 2026/09：名單核對／追註冊知識庫是「每筆一個 key、自己帶時間戳」。
                         //   直接用雲端蓋掉會把剛剛刪掉的紀錄復活（實測：清掉的測試資料自己長回來）。
                         //   改成比時間戳，本機比較新就不要動它。
-                        if (k.indexOf('perf_compare_v1_chk_') === 0 || k.indexOf('perf_compare_v1_kb_') === 0){
+                        if (k.indexOf('perf_compare_v1_chk_') === 0 || k.indexOf('perf_compare_v1_kb_') === 0 || k.indexOf('perf_compare_v1_trk') === 0){
                             if (!_chkCloudWins(pLS.getItem(k), v)) return;
                         }
                         pLS.setItem(k, v);
@@ -3156,6 +3158,10 @@
                 showStatus('✅ 已拉取 '+(mpMonths.length+lsKeyNames.length+(kbItemCount?1:0))+' 項公司資料'+(bundle._inc ? '（雲端共 ' + bundle._inc.total + ' 項：' + bundle._inc.got + ' 項有更新、' + bundle._inc.skip + ' 項本機已是最新）' : '')+',1.5 秒後重新整理', 'success');
                 console.log('[cloud-sync] ✅ 拉取成功' + (failed.length ? '（' + failed.length + ' 筆寫入失敗）' : ''));
                 // ★ 重整「整個」業績數據中心（原本只重整這個看不見的 iframe，外層畫面沒變 → 以為沒拉到）
+                // 🔔 重新整理後跳一則通知（performance-compare 開頁時讀 pc_notify_pending）
+                try{ localStorage.setItem('pc_notify_pending', JSON.stringify({ icon:'☁️', title:'已從雲端拉取公司資料',
+                    detail:'拉到 ' + (mpMonths.length+lsKeyNames.length+(kbItemCount?1:0)) + ' 項' + (bundle._inc ? '（' + bundle._inc.got + ' 項有更新、' + bundle._inc.skip + ' 項本機已是最新）' : '') + (failed.length ? '\n⚠️ ' + failed.length + ' 筆寫不進這台瀏覽器' : ''),
+                    go:{ tab:9, fn:'fnTop' } })); }catch(eN){}
                 setTimeout(function(){ try{ window.top.location.reload(); }catch(e){ location.reload(); } }, failed.length ? 3000 : 1500);
             }catch(e){
                 console.error('[cloud-sync] 拉取失敗', e);
