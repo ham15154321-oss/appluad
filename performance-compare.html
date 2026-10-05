@@ -9652,7 +9652,7 @@
         window.html2canvas(el, { scale:3, backgroundColor:(el.getAttribute('data-bg') || '#ffffff'), useCORS:true, logging:false,
           ignoreElements:function(n){ return n.classList && n.classList.contains('ds-x'); } }).then(function(cv){
           el.style.zoom = z; if (sc) sc.style.overflow = ov;
-          var name = '每日總結_' + ({ race:'賽道排行', cal:'燈號月曆', arena:'三區擂台', lead:'組長戰力榜', tt:(_ttView() === 'boss' ? '穿越_主管版' : '穿越_組長版') })[DS.tab || 'cal'] + ((DS.tab === 'lead' || DS.tab === 'tt') && _dsLeadOrg() !== 'ALL' ? '_' + _dsLeadOrg() : '') + '_' + (DS.date || '') + (fmt === 'jpg' ? '.jpg' : '.png');
+          var name = '每日總結_' + ({ race:'賽道排行', cal:'燈號月曆', arena:'三區擂台', lead:'組長戰力榜', tt:({ boss:'穿越_主管版', lead:'穿越_組長版', sales:'穿越_業務版' })[_ttView()] })[DS.tab || 'cal'] + ((DS.tab === 'lead' || DS.tab === 'tt') && _dsLeadOrg() !== 'ALL' ? '_' + _dsLeadOrg() : '') + '_' + (DS.date || '') + (fmt === 'jpg' ? '.jpg' : '.png');
           var a = document.createElement('a'); a.download = name;
           a.href = cv.toDataURL(fmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.95);
           document.body.appendChild(a); a.click(); a.remove();
@@ -10202,7 +10202,27 @@
     //   緊張：落後的點到「今天」線畫一段綠虛線（還差這一段）、紅色倒數牌、金色關線
     //   想穿越：過去灰、未來一格比一格深（像隧道）、超前的點拖紅色尾巴、穿越變金色
     function _ttTheme(){ try { return localStorage.getItem('tt_theme') === 'tunnel' ? 'tunnel' : 'night'; } catch(e){ return 'night'; } }
-    function _ttView(){ try { return localStorage.getItem('tt_view') === 'boss' ? 'boss' : 'lead'; } catch(e){ return 'lead'; } }
+    function _ttView(){ try { var v = localStorage.getItem('tt_view'); return (v === 'boss' || v === 'sales') ? v : 'lead'; } catch(e){ return 'lead'; } }
+    // 🧑 業務版（Ivan 10/05）：每位業務用自己的個人目標算；沒設個人目標的沒有線可以比，不列（下面寫幾位）
+    function _ttPersons(M){
+      var out = [], noGoal = [], cur = M.S[M.date], pp = M.pp || _ppPPFor(M.ym);
+      if (!cur || !cur.p || !pp || !pp.orgs) return { list:out, noGoal:noGoal };
+      var dates = M.keys.filter(function(k){ return k <= M.date; });
+      CK_ORG_LIST.forEach(function(org){
+        var gm = {}; try { gm = _fnOwnerGroupMap(org, M.ym) || {}; } catch(e){}
+        (pp.orgs[org] || []).forEach(function(r){
+          var nm = String(r.employee_name || '').trim(); if (!nm) return;
+          var T = _ckNum(r.goal), k = org + '|' + nm;
+          if (!(T > 0)){ noGoal.push({ org:org, name:nm }); return; }
+          var cum = cur.p[k] ? (+cur.p[k][0] || 0) : _ckNum(r.business);
+          var ser = dates.map(function(d){ var v = M.S[d] && M.S[d].p && M.S[d].p[k]; return v ? [d, +v[0] || 0] : null; }).filter(Boolean);
+          var I = _ttCalc(M.ym, org, T, cum, M.day, ser), g = gm[nm];
+          I.name = nm; I.kind = '業務'; I.key = 'p:' + k; I.grp = g ? _trkAlias(g.name) : ''; I.isLeader = !!(g && g.isLeader && !_trkIsLetterGrp(g.name));
+          out.push(I);
+        });
+      });
+      return { list:out, noGoal:noGoal };
+    }
     function ttSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} dsumOpen('tt'); }
     var TT_PAL = {
       night:{ past:'#141A33', fut:['#1E1650','#26215C','#2A1D6B','#3C3489'], nx:'#3C3489', nxFg:'#CECBF6', head:'#0F1530', headFg:'#B4B2A9', nowFg:'#FFFFFF',
@@ -10217,9 +10237,11 @@
       var view = _ttView(), th = _ttTheme(), P0 = TT_PAL[th];
       var keep = function(I){ return lo === 'ALL' ? true : (reg[lo] ? reg[lo].indexOf(I.org) >= 0 : I.org === lo); };
       var byAhead = function(a, b){ return (b.x - b.t) - (a.x - a.t); };
+      var _PS = view === 'sales' ? _ttPersons(M) : null;
       var list = view === 'boss'
         ? TM.orgs.filter(keep).filter(function(I){ return !_dsHid('org:' + I.org); }).sort(byAhead)
-        : TM.grps.filter(keep).filter(function(I){ return !_dsHid(I.key); }).sort(byAhead);
+        : (view === 'sales' ? _PS.list.filter(keep).filter(function(I){ return !_dsHid(I.key); }).sort(byAhead)
+        : TM.grps.filter(keep).filter(function(I){ return !_dsHid(I.key); }).sort(byAhead));
       var gi = M.gi, g = M.G[gi], mo = +M.ym.slice(5), NX = 3, nDay = g[1] - g[0] + 1, C = nDay + NX;
       var wk = '日一二三四五六', y = +M.ym.slice(0, 4), left = g[1] - M.day;
       var pct = function(p){ return (Math.max(0, Math.min(C, p)) / C * 100).toFixed(2) + '%'; };
@@ -10237,7 +10259,7 @@
       var todayP = (M.day - g[0]) + 1;
       // 切換鈕
       var sw = function(k, v, label, cur){ return '<button class="ck-region-btn' + (cur === v ? ' active' : '') + '" onclick="ttSet(\'' + k + '\',\'' + v + '\')">' + label + '</button>'; };
-      var bar = '<div class="tt-sw">' + sw('tt_view', 'boss', '🏫 主管版（七家學院）', view) + sw('tt_view', 'lead', '👥 組長版（各組）', view)
+      var bar = '<div class="tt-sw">' + sw('tt_view', 'boss', '🏫 主管版（七家學院）', view) + sw('tt_view', 'lead', '👥 組長版（各組）', view) + sw('tt_view', 'sales', '🧑 業務版（每個人）', view)
         + '<span class="tt-sw-gap"></span>' + sw('tt_theme', 'night', '🌌 夜空倒數', th) + sw('tt_theme', 'tunnel', '🌀 時光隧道', th) + '</div>';
       var head = '<div class="tt-r tt-h" style="background:' + P0.head + ';border-color:' + P0.line + '"><div class="tt-l" style="background:' + P0.head + ';color:' + P0.headFg + '">' + (lo === 'ALL' ? '全部' : _fnEsc(lo)) + '・第' + '一二三'[gi] + '關</div><div class="tt-track">';
       for (var d = g[0]; d <= g[1]; d++){
@@ -10281,7 +10303,7 @@
               return '<div class="tt-score" style="color:' + sc + '"><b>' + _dsW1(I.cum) + '</b><u>萬</u></div>'
                 + '<small style="color:' + P0.leftSub + '">' + (gi ? '這關 ' + _dsW1(I.gateCum) : '') + '／' + _dsW1(gT) + ' 萬・' + Math.round(gp * 100) + '%</small>'
                 + '<div class="tt-sbar" style="background:' + (th === 'night' ? '#26215C' : '#EEEDFE') + '"><span style="width:' + Math.min(100, gp * 100).toFixed(1) + '%;background:' + bc + '"></span></div>'
-                + (isOrg ? '' : '<small style="color:' + P0.leftSub + '">' + _fnEsc(CK_SHORT[I.org] + (I.kind === '儲備組' ? '・儲備' : '') + (I.leader ? '・' + I.leader : '')) + '</small>');
+                + (isOrg ? '' : '<small style="color:' + P0.leftSub + '">' + _fnEsc(view === 'sales' ? CK_SHORT[I.org] + (I.grp ? '・' + I.grp : '') + (I.isLeader ? '・組長' : '') : CK_SHORT[I.org] + (I.kind === '儲備組' ? '・儲備' : '') + (I.leader ? '・' + I.leader : '')) + '</small>');
             })() + '</div>'
           + '<div class="tt-track">' + cells + trail
           + '<div class="tt-today" style="left:' + pct(todayP) + ';background:' + P0.today + '"></div><div class="tt-fin" style="left:' + pct(nDay) + ';background:' + P0.fin + '"></div>'
@@ -10291,7 +10313,7 @@
           + '</div></div>';
       };
       var body = list.length ? list.map(row).join('')
-        : '<div class="tt-sep" style="background:' + P0.sep + ';color:' + P0.sepFg + '">' + (view === 'boss' ? '這個篩選沒有學院' : '還沒有本月的小組績效表（到 🏆 激勵 同步一次），或這個篩選沒有組') + '</div>';
+        : '<div class="tt-sep" style="background:' + P0.sep + ';color:' + P0.sepFg + '">' + (view === 'boss' ? '這個篩選沒有學院' : (view === 'sales' ? '這個篩選沒有設了個人目標的業務' : '還沒有本月的小組績效表（到 🏆 激勵 同步一次），或這個篩選沒有組')) + '</div>';
       var crossed = list.filter(function(I){ return I.crossCur; }).sort(function(a, b){ return b.crossCur.adv - a.crossCur.adv || (a.crossCur.date < b.crossCur.date ? -1 : 1); });
       var board;
       if (crossed.length) board = '<table class="tt-tb"><tr><th>誰</th><th>哪一天穿越</th><th>提前幾天</th></tr>' + crossed.map(function(I){ return '<tr><td>' + _fnEsc(view === 'boss' ? I.org : CK_SHORT[I.org] + '・' + I.name) + '</td><td>' + _ttMD(M.ym, +I.crossCur.date.slice(8)) + '</td><td><b>' + I.crossCur.adv + '</b> 天</td></tr>'; }).join('') + '</table>';
@@ -10299,7 +10321,11 @@
         var near = list.slice().sort(function(a, b){ return (a.gate.e - a.x) - (b.gate.e - b.x); })[0];
         board = '<div class="tt-none">本關尚無人穿越' + (near ? '，最接近的是 <b>' + _fnEsc(view === 'boss' ? near.org : near.name) + '</b>，差 ' + _ttN(Math.max(0, near.gate.e - near.x)) + ' 天' : '') + '</div>';
       }
-      var who = view === 'boss' ? '主管戰力' : '組長戰力';
+      var who = view === 'boss' ? '主管戰力' : (view === 'sales' ? '業務戰力' : '組長戰力');
+      if (_PS){
+        var ng = _PS.noGoal.filter(keep);
+        if (ng.length) body += '<div class="tt-sep" style="background:' + P0.sep + ';color:' + P0.sepFg + '">沒設個人目標、沒有線可以比的 ' + ng.length + ' 位：' + _fnEsc(ng.map(function(x){ return x.name; }).join('、')) + '（到當月績效補上目標就會出現）</div>';
+      }
       return bar + '<div class="dsb tt-wrap tt-' + th + '" data-bg="' + P0.bg + '" style="background:' + P0.bg + '">'
         + '<div class="tt-hd"><div><b>⏱ ' + who + '・穿越　第' + '一二三'[gi] + '關 ' + mo + '/' + g[0] + '–' + mo + '/' + g[1] + '</b><span>今天 ' + mo + '/' + M.day + '・站在深色區＝活在未來</span></div>'
         + '<div class="tt-cd' + (left <= 3 ? ' hot' : '') + '">' + (left > 0 ? '距關線 <b>' + left + '</b> 天' : '今天結算') + '</div></div>'
@@ -16012,7 +16038,8 @@
       { ver:'ds38', icon:'⏱', title:'新功能：穿越時間', detail:'每日總結多一個「⏱ 穿越」分頁（在 👥 組長 右邊）：每家、每組換算成「現在活在幾號」，超前紅、落後綠，提前到關線叫穿越。組長戰力榜、燈號月曆每格多一行「活在 幾號」；三個複製按鈕每家每組多一行；🏆 激勵頁最上面是年度時間存摺', go:{ fn:'ttTab' } },
       { ver:'ds39', icon:'🌌', title:'穿越跑道：主管版／組長版分開＋兩套配色', detail:'⏱ 穿越分頁上方兩組切換：🏫 主管版（只有七家學院）／👥 組長版（只有各組），截組長版不會帶到學院；🌌 夜空倒數（深色）／🌀 時光隧道（白底）。落後的點拉一段綠虛線「還差這一段」，超前拖紅色尾巴，穿越變金色，右上角紅色倒數牌最後 3 天會閃', go:{ fn:'ttTab' } },
       { ver:'ds40', icon:'💰', title:'穿越跑道左欄變計分板', detail:'每一組、每一家的現在業績放大字（超前紅、落後綠、穿越金），下面小字是這關目標和達成率，再加一條進度條', go:{ fn:'ttTab' } },
-      { ver:'ds41', icon:'🏫', title:'時間存摺可以選學院', detail:'🏆 激勵頁的年度時間存摺，組和個人那兩欄多一排學院篩選（全部／中區／桃區／南區／七家），按鈕後面的小數字是那家今年穿越過的人數', go:{ tab:4, sel:'#ttBook' } }
+      { ver:'ds41', icon:'🏫', title:'時間存摺可以選學院', detail:'🏆 激勵頁的年度時間存摺，組和個人那兩欄多一排學院篩選（全部／中區／桃區／南區／七家），按鈕後面的小數字是那家今年穿越過的人數', go:{ tab:4, sel:'#ttBook' } },
+      { ver:'ds42', icon:'🧑', title:'穿越跑道多一個業務版', detail:'⏱ 穿越分頁的切換多一顆「🧑 業務版（每個人）」：每位業務用自己的個人目標算活在幾號，左欄大字是他現在的業績，下面寫學院・組。沒設個人目標的列在最下面', go:{ fn:'ttTab' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
