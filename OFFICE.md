@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.55**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds39'（monthly-performance：mpbundle17）`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds41'（monthly-performance：mpbundle17）`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds39`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds41`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -225,3 +225,5 @@
 - window.getTimeTravel('2026-10' | '10' | 10)：當月給每家每組完整數字；過去月份給各關／月穿越紀錄
 - 程式：_ttLines/_ttX/_ttLabel/_ttCross/_ttCalc/_ttModel/_ttHtml/_ttMonthUnits/_ttBook/_ttBookRender/getTimeTravel（放在 dsCopy 後面、活動登記表前面）
 - ds39：⏱ 穿越分頁加兩組切換（localStorage tt_view＝boss/lead、tt_theme＝night/tunnel，預設 組長版＋夜空倒數）。主管版只畫七家、組長版只畫各組，各自一張穿越榜；PNG 檔名帶「穿越_主管版／組長版」，深色版下載底色跟著 data-bg。落後＝綠虛線到今天線（標籤放點左邊），超前＝紅尾巴，穿越＝金點金尾巴，倒數牌 ≤3 天閃。★ day-mode 有一條 [style*="color:rgba(255,255,255"] 會把字蓋成黑色，inline 樣式別寫 border-color:rgba(255,255,255…)，改用 #FFFFFF14
+- ds40：穿越跑道左欄改計分板（Ivan 選 A）：大字＝現在業績（月累計，超前紅／落後綠／穿越金），小字＝這關目標・達成率（第二關起寫「這關 X／Y」），細進度條；組長版再一行 學院・組長
+- ds41：時間存摺加學院篩選（localStorage tt_book_org，全部／中區／桃區／南區／七家，按鈕後小數字＝穿越過的人數）

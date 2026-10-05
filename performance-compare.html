@@ -2393,6 +2393,14 @@
     .tt-dot.x { box-shadow:0 0 0 4px rgba(250,199,117,.45); width:22px; height:22px; margin:-11px 0 0 -11px; }
     .tt-wrap .tt-fin { width:5px !important; margin-left:-2.5px !important; }
     .tt-wrap .tt-col small { color:inherit; opacity:.8; }
+
+    .tt-wrap .tt-r { grid-template-columns:215px 1fr; }
+    .tt-score { line-height:1.05; margin:2px 0 1px; } .tt-score b { font-size:1.55rem; font-weight:800; letter-spacing:-.5px; } .tt-score u { text-decoration:none; font-size:.8rem; margin-left:2px; }
+    .tt-sbar { height:5px; border-radius:3px; overflow:hidden; margin:3px 0 2px; width:92%; } .tt-sbar span { display:block; height:100%; border-radius:3px; }
+
+    .tt-borgs { flex-wrap:wrap; } .tt-borgs small { opacity:.65; margin-left:2px; }
+    .tt-book .tt-tb td:nth-child(2) { white-space:nowrap; } .tt-book .tt-tb td:nth-child(2) small { display:block; color:#888; }
+    .tt-book .tt-days { white-space:nowrap; } .tt-book .tt-days small { display:block; }
     /* 🔔 更新通知 */
     .pcn-bell { position:relative; background:linear-gradient(135deg,#6a1b9a,#8e24aa) !important; color:#fff !important; border-color:transparent !important; }
     .pcn-badge { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#E24B4A; color:#fff; font-size:11px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 0 0 2px #fff; }
@@ -10265,7 +10273,16 @@
         }
         return '<div class="tt-r" style="border-color:' + P0.line + '"><div class="tt-l ds-hx" style="background:' + P0.left + ';color:' + P0.leftFg + '">' + _dsX(isOrg ? 'org:' + I.org : I.key, I.name)
           + '<b>' + _fnEsc(isOrg ? I.org : I.name) + '</b>' + _ttBadge(I)
-          + '<small style="color:' + P0.leftSub + '">' + (isOrg ? '這關 ' : _fnEsc(CK_SHORT[I.org] + (I.kind === '儲備組' ? '・儲備' : '') + (I.leader ? '・' + I.leader : '')) + '・這關 ') + _dsW1(I.gateCum) + '／' + _dsW1(I.gate.line - I.gate.base) + ' 萬</small></div>'
+          + (function(){
+              // ★ Ivan 10/05：現在做多少要醒目 → 左欄變計分板：大字＝現在業績（月累計），小字＝這關進度，再一條進度條
+              var gT = I.gate.line - I.gate.base, gp = gT ? Math.max(0, I.gateCum) / gT : 0;
+              var sc = cross ? (th === 'night' ? '#FAC775' : '#854F0B') : (I.st === 'ahead' ? (th === 'night' ? '#F09595' : '#A32D2D') : (I.st === 'behind' ? (th === 'night' ? '#C0DD97' : '#3B6D11') : P0.leftFg));
+              var bc = cross ? '#FAC775' : (I.st === 'ahead' ? '#E24B4A' : (I.st === 'behind' ? '#97C459' : '#B4B2A9'));
+              return '<div class="tt-score" style="color:' + sc + '"><b>' + _dsW1(I.cum) + '</b><u>萬</u></div>'
+                + '<small style="color:' + P0.leftSub + '">' + (gi ? '這關 ' + _dsW1(I.gateCum) : '') + '／' + _dsW1(gT) + ' 萬・' + Math.round(gp * 100) + '%</small>'
+                + '<div class="tt-sbar" style="background:' + (th === 'night' ? '#26215C' : '#EEEDFE') + '"><span style="width:' + Math.min(100, gp * 100).toFixed(1) + '%;background:' + bc + '"></span></div>'
+                + (isOrg ? '' : '<small style="color:' + P0.leftSub + '">' + _fnEsc(CK_SHORT[I.org] + (I.kind === '儲備組' ? '・儲備' : '') + (I.leader ? '・' + I.leader : '')) + '</small>');
+            })() + '</div>'
           + '<div class="tt-track">' + cells + trail
           + '<div class="tt-today" style="left:' + pct(todayP) + ';background:' + P0.today + '"></div><div class="tt-fin" style="left:' + pct(nDay) + ';background:' + P0.fin + '"></div>'
           + '<div class="tt-dot' + (cross ? ' x' : '') + '" style="left:' + pct(P.p) + ';background:' + dot + ';border-color:' + P0.bg + '" title="' + _fnEsc(_ttHow(I)) + '" onclick="ttHow(this)"></div>'
@@ -10405,6 +10422,10 @@
     }
     var _ttBookTab = '學院';
     function ttBookTab(t){ _ttBookTab = t; _ttBookRender(); }
+    // ★ Ivan 10/05：組、個人要能選學院（不然人太多找不到）
+    var TT_BOOK_REG = { '中區':['台中學院','台中二部','台中三部'], '桃區':['中壢學院','中壢二部','中壢三部'], '南區':['高雄建國'] };
+    function _ttBookOrg(){ try { return localStorage.getItem('tt_book_org') || 'ALL'; } catch(e){ return 'ALL'; } }
+    function ttBookOrg(o){ try { localStorage.setItem('tt_book_org', o); } catch(e){} _ttBookRender(); }
     function _ttBookRender(){
       var host = document.getElementById('ttBook');
       if (!host){
@@ -10414,13 +10435,20 @@
       }
       var B; try { B = _ttBook(); } catch(e){ host.innerHTML = '<div class="ck-empty">時間存摺算不出來：' + _fnEsc(e.message || e) + '</div>'; return; }
       var tot = 0; B.list.filter(function(b){ return b.type === '學院'; }).forEach(function(b){ tot += b.days; });
-      var rows = B.list.filter(function(b){ return b.type === _ttBookTab; }).sort(function(a, b){ return b.days - a.days || b.recs.length - a.recs.length; });
+      var bo = _ttBookOrg();
+      var inOrg = function(b){ return bo === 'ALL' || (TT_BOOK_REG[bo] ? TT_BOOK_REG[bo].indexOf(b.org) >= 0 : b.org === bo); };
+      var rows = B.list.filter(function(b){ return b.type === _ttBookTab && inOrg(b); }).sort(function(a, b){ return b.days - a.days || b.recs.length - a.recs.length; });
+      var chips = '<div class="tt-btabs tt-borgs">' + ['ALL','中區','桃區','南區'].concat(CK_ORG_LIST).map(function(o){
+          var n = B.list.filter(function(b){ return b.type === _ttBookTab && b.days > 0 && (o === 'ALL' || (TT_BOOK_REG[o] ? TT_BOOK_REG[o].indexOf(b.org) >= 0 : b.org === o)); }).length;
+          return '<button class="ck-region-btn' + (bo === o ? ' active' : '') + '" onclick="ttBookOrg(\'' + o + '\')">' + (o === 'ALL' ? '全部' : o) + ' <small>' + n + '</small></button>';
+        }).join('') + '</div>';
       var shown = rows.filter(function(b){ return b.days > 0; });
       var cov = B.months.map(function(m){ return '<span class="tt-cov ' + m.src + '">' + (+m.ym.slice(5)) + '月 ' + ({ snap:'快照', pay:'回推', none:'無資料' })[m.src] + '</span>'; }).join('');
       host.innerHTML = '<div class="tt-bh"><div><b>⏱ 年度時間存摺</b><span>提前到關線＝穿越，提前的天數存進來</span></div>'
         + '<div class="tt-big"><b>' + tot + '</b><small>七家學院今年累積穿越天數</small></div></div>'
         + '<div class="tt-covs">' + cov + '<em>回推＝用漏斗收支的入帳日把錢排回每一天，再對齊 EIP 當月最終業績；無資料的月份不補 0</em></div>'
         + '<div class="tt-btabs">' + ['學院','組','個人'].map(function(t){ return '<button class="ck-region-btn' + (_ttBookTab === t ? ' active' : '') + '" onclick="ttBookTab(\'' + t + '\')">' + t + '</button>'; }).join('') + '</div>'
+        + chips
         + (shown.length ? '<table class="tt-tb"><tr><th>#</th><th>' + _ttBookTab + '</th><th>累積穿越</th><th>次數</th><th>連續穿越（關／月）</th><th>存摺</th></tr>'
           + shown.map(function(b, i){
               return '<tr><td>' + (i + 1) + '</td><td><b>' + _fnEsc(b.label) + '</b>' + (b.type !== '學院' ? '<small> ' + _fnEsc(CK_SHORT[b.org] || b.org) + '</small>' : '') + '</td>'
@@ -10428,7 +10456,7 @@
                 + '<td>' + (b.st.cur >= 2 ? '<span class="tt-streak">🔥 連 ' + b.st.cur + ' 關</span>' : '') + (b.mst.cur >= 2 ? '<span class="tt-streak">🔥 連 ' + b.mst.cur + ' 月</span>' : '') + (b.st.best >= 2 && b.st.best > b.st.cur ? '<small>最高連 ' + b.st.best + ' 關</small>' : '') + '</td>'
                 + '<td>' + b.recs.map(function(r){ return '<span class="tt-rec">' + (+r.ym.slice(5)) + '月' + r.what + '・' + (+r.date.slice(5, 7)) + '/' + (+r.date.slice(8)) + '・提前 ' + r.adv + ' 天</span>'; }).join('') + '</td></tr>';
             }).join('') + '</table>'
-          : '<div class="tt-none">這一欄今年還沒有人穿越過</div>');
+          : '<div class="tt-none">' + (bo === 'ALL' ? '這一欄今年還沒有人穿越過' : _fnEsc(bo) + ' 這一欄今年還沒有人穿越過') + '</div>');
     }
     (function(){ try { var _sw = switchTab; switchTab = function(i){ var r = _sw.apply(this, arguments); if (+i === 4) setTimeout(_ttBookRender, 60); return r; }; window.switchTab = switchTab; } catch(e){} })();
 
@@ -15982,7 +16010,9 @@
       { ver:'ds36', icon:'🔔', title:'新功能：更新通知', detail:'之後更新、同步、推上雲端、拉取、有人寫回饋，都會跳一張卡，按「👉 帶我去看」直接帶你到那個地方。看過的通知都收在右上角 🔔', go:{ sel:'#pcBellBtn' } },
       { ver:'ds37', icon:'🤖', title:'Claude 匯入網頁的內容會逐筆列出', detail:'以後 Claude 把三關總結的組長回覆、主管回饋寫進網頁，通知會一筆一筆寫「哪家・哪組・哪位學生｜寫了什麼」，每筆旁邊 👉 直接打開那張追蹤卡；卡上標「🤖 Claude 匯入」；每家面談追蹤面板多一格「🤖 今天 Claude 匯入」', go:{ fn:'trk' } },
       { ver:'ds38', icon:'⏱', title:'新功能：穿越時間', detail:'每日總結多一個「⏱ 穿越」分頁（在 👥 組長 右邊）：每家、每組換算成「現在活在幾號」，超前紅、落後綠，提前到關線叫穿越。組長戰力榜、燈號月曆每格多一行「活在 幾號」；三個複製按鈕每家每組多一行；🏆 激勵頁最上面是年度時間存摺', go:{ fn:'ttTab' } },
-      { ver:'ds39', icon:'🌌', title:'穿越跑道：主管版／組長版分開＋兩套配色', detail:'⏱ 穿越分頁上方兩組切換：🏫 主管版（只有七家學院）／👥 組長版（只有各組），截組長版不會帶到學院；🌌 夜空倒數（深色）／🌀 時光隧道（白底）。落後的點拉一段綠虛線「還差這一段」，超前拖紅色尾巴，穿越變金色，右上角紅色倒數牌最後 3 天會閃', go:{ fn:'ttTab' } }
+      { ver:'ds39', icon:'🌌', title:'穿越跑道：主管版／組長版分開＋兩套配色', detail:'⏱ 穿越分頁上方兩組切換：🏫 主管版（只有七家學院）／👥 組長版（只有各組），截組長版不會帶到學院；🌌 夜空倒數（深色）／🌀 時光隧道（白底）。落後的點拉一段綠虛線「還差這一段」，超前拖紅色尾巴，穿越變金色，右上角紅色倒數牌最後 3 天會閃', go:{ fn:'ttTab' } },
+      { ver:'ds40', icon:'💰', title:'穿越跑道左欄變計分板', detail:'每一組、每一家的現在業績放大字（超前紅、落後綠、穿越金），下面小字是這關目標和達成率，再加一條進度條', go:{ fn:'ttTab' } },
+      { ver:'ds41', icon:'🏫', title:'時間存摺可以選學院', detail:'🏆 激勵頁的年度時間存摺，組和個人那兩欄多一排學院篩選（全部／中區／桃區／南區／七家），按鈕後面的小數字是那家今年穿越過的人數', go:{ tab:4, sel:'#ttBook' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
