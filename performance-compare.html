@@ -2375,6 +2375,24 @@
     .tt-days b { font-size:1.2rem; color:#A32D2D; } .tt-days small { color:#888; }
     .tt-rec { display:inline-block; background:#FCEBEB; color:#791F1F; border-radius:999px; padding:1px 8px; margin:1px 2px; font-size:.72rem; }
     .tt-streak { display:inline-block; background:#E24B4A; color:#fff; border-radius:999px; padding:1px 8px; margin:1px 2px; font-size:.72rem; }
+
+    .tt-sw { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; } .tt-sw-gap { width:14px; }
+    .tt-wrap { border-radius:14px; padding:12px; }
+    .tt-hd { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 14px; border-radius:12px; margin-bottom:8px; }
+    .tt-night .tt-hd { background:#141A33; color:#FFFFFF; } .tt-tunnel .tt-hd { background:#26215C; color:#FFFFFF; }
+    .tt-hd b { font-size:1.15rem; } .tt-hd span { display:block; font-size:.78rem; opacity:.8; margin-top:2px; }
+    .tt-cd { background:#E24B4A; color:#FFFFFF; border-radius:999px; padding:6px 16px; font-size:.9rem; white-space:nowrap; } .tt-cd b { font-size:1.3rem; margin:0 2px; }
+    .tt-cd.hot { animation:ttBlink 1.1s ease-in-out infinite; }
+    @keyframes ttBlink { 0%,100% { background:#E24B4A; } 50% { background:#A32D2D; } }
+    .tt-note { font-size:.76rem; margin:0 0 8px; } .tt-night .tt-note { color:#B4B2A9; } .tt-tunnel .tt-note { color:#5F5E5A; }
+    .tt-bt { font-weight:700; margin:14px 0 6px; } .tt-night .tt-bt { color:#FAC775; } .tt-tunnel .tt-bt { color:#26215C; }
+    .tt-night .tt-tb { background:#141A33; color:#FFFFFF; } .tt-night .tt-tb th, .tt-night .tt-tb td { border-color:#26215C; }
+    .tt-night .tt-none { background:#141A33; color:#D3D1C7; } .tt-night .tt-none b { color:#FAC775; } .tt-night .tt-howbox { background:#26215C; color:#FFFFFF; }
+    .tt-trail { position:absolute; top:50%; height:8px; margin-top:-4px; border-radius:4px; z-index:3; }
+    .tt-gap { position:absolute; top:50%; height:0; margin-top:-2px; border-top:5px dashed #97C459; z-index:3; } .tt-gap.low { top:auto; bottom:5px; margin-top:0; }
+    .tt-dot.x { box-shadow:0 0 0 4px rgba(250,199,117,.45); width:22px; height:22px; margin:-11px 0 0 -11px; }
+    .tt-wrap .tt-fin { width:5px !important; margin-left:-2.5px !important; }
+    .tt-wrap .tt-col small { color:inherit; opacity:.8; }
     /* 🔔 更新通知 */
     .pcn-bell { position:relative; background:linear-gradient(135deg,#6a1b9a,#8e24aa) !important; color:#fff !important; border-color:transparent !important; }
     .pcn-badge { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#E24B4A; color:#fff; font-size:11px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 0 0 2px #fff; }
@@ -9376,7 +9394,7 @@
       ppEvId = '';
       var body = '';
       try { body = _dsBody(ym, keys); } catch(e){ body = '<div class="ck-empty">計算失敗：' + _fnEsc(String(e && e.message || e)) + '</div>'; console.error(e); }
-      var _sh = _dsV().shot && ['race','cal','arena','lead'].indexOf(DS.tab) >= 0;
+      var _sh = _dsV().shot && ['race','cal','arena','lead','tt'].indexOf(DS.tab) >= 0;
       bg.innerHTML = '<div class="pp-ev-box ds-box' + (_sh ? ' ds-shot-on' : '') + '"><div class="pp-ev-top"><b>📋 每日總結　' + (ym ? ym.slice(0,4) + ' 年 ' + (+ym.slice(5)) + ' 月' : '') + '</b>'
         + '<button class="pp-ev-x" onclick="ppEventClose()">✕ 關閉</button></div>' + body + '</div>';
       bg.style.display = 'flex';
@@ -9623,10 +9641,10 @@
         var z = el.style.zoom; el.style.zoom = '';
         var sc = el.querySelector('.dsc'), ov = sc ? sc.style.overflow : ''; if (sc) sc.style.overflow = 'visible';
         _syncToast('⏳ 產生高清圖中…', '#e6a817');
-        window.html2canvas(el, { scale:3, backgroundColor:'#ffffff', useCORS:true, logging:false,
+        window.html2canvas(el, { scale:3, backgroundColor:(el.getAttribute('data-bg') || '#ffffff'), useCORS:true, logging:false,
           ignoreElements:function(n){ return n.classList && n.classList.contains('ds-x'); } }).then(function(cv){
           el.style.zoom = z; if (sc) sc.style.overflow = ov;
-          var name = '每日總結_' + ({ race:'賽道排行', cal:'燈號月曆', arena:'三區擂台', lead:'組長戰力榜' })[DS.tab || 'cal'] + (DS.tab === 'lead' && _dsLeadOrg() !== 'ALL' ? '_' + _dsLeadOrg() : '') + '_' + (DS.date || '') + (fmt === 'jpg' ? '.jpg' : '.png');
+          var name = '每日總結_' + ({ race:'賽道排行', cal:'燈號月曆', arena:'三區擂台', lead:'組長戰力榜', tt:(_ttView() === 'boss' ? '穿越_主管版' : '穿越_組長版') })[DS.tab || 'cal'] + ((DS.tab === 'lead' || DS.tab === 'tt') && _dsLeadOrg() !== 'ALL' ? '_' + _dsLeadOrg() : '') + '_' + (DS.date || '') + (fmt === 'jpg' ? '.jpg' : '.png');
           var a = document.createElement('a'); a.download = name;
           a.href = cv.toDataURL(fmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.95);
           document.body.appendChild(a); a.click(); a.remove();
@@ -10172,72 +10190,106 @@
       return name + ' 今天 ' + td + '，剛好活在今天';
     }
 
-    // ── ⏱ 穿越 分頁：跑道圖 ──
+    // ── ⏱ 穿越 分頁：跑道圖（2026/10/05 Ivan：主管版／組長版分開截圖；配色兩套可切換）──
+    //   緊張：落後的點到「今天」線畫一段綠虛線（還差這一段）、紅色倒數牌、金色關線
+    //   想穿越：過去灰、未來一格比一格深（像隧道）、超前的點拖紅色尾巴、穿越變金色
+    function _ttTheme(){ try { return localStorage.getItem('tt_theme') === 'tunnel' ? 'tunnel' : 'night'; } catch(e){ return 'night'; } }
+    function _ttView(){ try { return localStorage.getItem('tt_view') === 'boss' ? 'boss' : 'lead'; } catch(e){ return 'lead'; } }
+    function ttSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} dsumOpen('tt'); }
+    var TT_PAL = {
+      night:{ past:'#141A33', fut:['#1E1650','#26215C','#2A1D6B','#3C3489'], nx:'#3C3489', nxFg:'#CECBF6', head:'#0F1530', headFg:'#B4B2A9', nowFg:'#FFFFFF',
+              left:'#0F1530', leftFg:'#FFFFFF', leftSub:'#888780', today:'#FFFFFF', fin:'#FAC775', line:'#FFFFFF14', tagBg:'rgba(11,16,38,.82)',
+              up:'#F7C1C1', dn:'#C0DD97', ev:'#D3D1C7', bg:'#0B1026', sep:'#141A33', sepFg:'#888780', hol:'#1b1f33' },
+      tunnel:{ past:'#F1EFE8', fut:['#EEEDFE','#CECBF6','#AFA9EC','#7F77DD'], nx:'#534AB7', nxFg:'#EEEDFE', head:'#FAFAF7', headFg:'#5F5E5A', nowFg:'#2C2C2A',
+              left:'#FFFFFF', leftFg:'#2C2C2A', leftSub:'#888780', today:'#2C2C2A', fin:'#BA7517', line:'#efefef', tagBg:'rgba(255,255,255,.9)',
+              up:'#791F1F', dn:'#27500A', ev:'#444441', bg:'#FFFFFF', sep:'#f6f5f0', sepFg:'#666', hol:'#E7E4DA' }
+    };
     function _ttHtml(M){
       var TM = _ttModel(M), lo = _dsLeadOrg(), reg = { '中區':['台中學院','台中二部','台中三部'], '桃區':['中壢學院','中壢二部','中壢三部'], '南區':['高雄建國'] };
+      var view = _ttView(), th = _ttTheme(), P0 = TT_PAL[th];
       var keep = function(I){ return lo === 'ALL' ? true : (reg[lo] ? reg[lo].indexOf(I.org) >= 0 : I.org === lo); };
       var byAhead = function(a, b){ return (b.x - b.t) - (a.x - a.t); };
-      var orgs = TM.orgs.filter(keep).filter(function(I){ return !_dsHid('org:' + I.org); }).sort(byAhead);
-      var grps = TM.grps.filter(keep).filter(function(I){ return !_dsHid(I.key); }).sort(byAhead);
+      var list = view === 'boss'
+        ? TM.orgs.filter(keep).filter(function(I){ return !_dsHid('org:' + I.org); }).sort(byAhead)
+        : TM.grps.filter(keep).filter(function(I){ return !_dsHid(I.key); }).sort(byAhead);
       var gi = M.gi, g = M.G[gi], mo = +M.ym.slice(5), NX = 3, nDay = g[1] - g[0] + 1, C = nDay + NX;
-      var wk = '日一二三四五六', y = +M.ym.slice(0, 4);
+      var wk = '日一二三四五六', y = +M.ym.slice(0, 4), left = g[1] - M.day;
       var pct = function(p){ return (Math.max(0, Math.min(C, p)) / C * 100).toFixed(2) + '%'; };
-      // 跑道上的位置（欄單位）：每一欄一天，點站在「第 k 個上班日做到幾成」
       var posOf = function(I){
         var q = I.L.gates[gi], x = I.x;
         if (x <= q.s + 1e-9) return { p:0, clampL: x < q.s - 0.05 };
-        if (x > q.e){
-          var nq = I.L.gates[gi + 1], ex = x - q.e;
-          return { p: nDay + Math.min(ex, NX), clampR: ex > NX, next: !!nq };
-        }
+        if (x > q.e){ var ex = x - q.e; return { p: nDay + Math.min(ex, NX), clampR: ex > NX }; }
         var kk = x - q.s, k = Math.max(1, Math.ceil(kk - 1e-9)), fr = kk - (k - 1), dk = q.work[k - 1] || q.to;
         return { p:(dk - g[0]) + fr };
       };
+      // 未來的欄：離今天越遠、越靠近關線，顏色越深
+      var futN = Math.max(1, g[1] - M.day);
+      var colBg = function(d){ if (d <= M.day) return P0.past; var i = Math.min(P0.fut.length - 1, Math.floor((d - M.day - 1) / futN * P0.fut.length)); return P0.fut[i]; };
+      var colFg = function(d){ if (d <= M.day) return P0.headFg; var bg = colBg(d); return (bg === '#7F77DD' || th === 'night') ? '#EEEDFE' : '#3C3489'; };
       var todayP = (M.day - g[0]) + 1;
-      var head = '<div class="tt-r tt-h"><div class="tt-l">' + (lo === 'ALL' ? '全部' : _fnEsc(lo)) + '・第' + '一二三'[gi] + '關</div><div class="tt-track tt-cols">';
+      // 切換鈕
+      var sw = function(k, v, label, cur){ return '<button class="ck-region-btn' + (cur === v ? ' active' : '') + '" onclick="ttSet(\'' + k + '\',\'' + v + '\')">' + label + '</button>'; };
+      var bar = '<div class="tt-sw">' + sw('tt_view', 'boss', '🏫 主管版（七家學院）', view) + sw('tt_view', 'lead', '👥 組長版（各組）', view)
+        + '<span class="tt-sw-gap"></span>' + sw('tt_theme', 'night', '🌌 夜空倒數', th) + sw('tt_theme', 'tunnel', '🌀 時光隧道', th) + '</div>';
+      var head = '<div class="tt-r tt-h" style="background:' + P0.head + ';border-color:' + P0.line + '"><div class="tt-l" style="background:' + P0.head + ';color:' + P0.headFg + '">' + (lo === 'ALL' ? '全部' : _fnEsc(lo)) + '・第' + '一二三'[gi] + '關</div><div class="tt-track">';
       for (var d = g[0]; d <= g[1]; d++){
         var dt = new Date(y, mo - 1, d);
-        head += '<div class="tt-col' + (d > M.day ? ' fut' : '') + (d === M.day ? ' now' : '') + '" style="left:' + pct(d - g[0]) + ';width:' + pct(1) + '">' + mo + '/' + d + '<small>' + wk[dt.getDay()] + '</small></div>';
+        head += '<div class="tt-col' + (d === M.day ? ' now' : '') + '" style="left:' + pct(d - g[0]) + ';width:' + pct(1) + ';background:' + colBg(d) + ';color:' + (d === M.day ? P0.nowFg : colFg(d)) + ';border-color:' + P0.line + '">' + mo + '/' + d + '<small>' + (d === M.day ? '今天' : wk[dt.getDay()]) + '</small></div>';
       }
       var nxt = M.G[gi + 1];
-      head += '<div class="tt-col nx" style="left:' + pct(nDay) + ';width:' + pct(NX) + '">' + (nxt ? '第' + '一二三'[gi + 1] + '關 →' : '月底後 →') + '</div>';
-      head += '</div></div>';
-      var row = function(I, isOrg){
-        var P = posOf(I), col = I.st === 'ahead' ? '#E24B4A' : (I.st === 'behind' ? '#97C459' : '#8a8984'), fg = I.st === 'ahead' ? '#791F1F' : (I.st === 'behind' ? '#27500A' : '#444');
-        var right = P.p < C * 0.62;
-        var lab = I.crossCur ? (_ttMD(M.ym, +I.crossCur.date.slice(8)) + ' 穿越・提前 ' + I.crossCur.adv + ' 天' + (I.nextRun ? '・第' + '一二三'[gi + 1] + '關已開跑' : ''))
-          : (I.st === 'ahead' ? '超前 ' + _ttN(I.ahead) + ' 天' : (I.st === 'behind' ? '落後 ' + _ttN(I.ahead) + ' 天' : '剛好在今天'));
+      head += '<div class="tt-col nx" style="left:' + pct(nDay) + ';width:' + pct(NX) + ';background:' + P0.nx + ';color:' + P0.nxFg + '">' + (nxt ? '第' + '一二三'[gi + 1] + '關 →' : '月底後 →') + '</div>';
+      head += '<div class="tt-fin" style="left:' + pct(nDay) + ';background:' + P0.fin + '"></div></div></div>';
+      var row = function(I){
+        var isOrg = view === 'boss', P = posOf(I), cross = !!I.crossCur;
+        var dot = cross ? '#FAC775' : (I.st === 'ahead' ? '#E24B4A' : (I.st === 'behind' ? '#97C459' : '#B4B2A9'));
+        var fg = cross ? (th === 'night' ? '#FAC775' : '#854F0B') : (I.st === 'ahead' ? P0.up : (I.st === 'behind' ? P0.dn : P0.ev));
+        // 標籤放哪邊：落後的放點的左邊（右邊要留給「還差這一段」綠虛線），太靠左放不下才放右邊、虛線改走下緣
+        var right, low = false;
+        if (I.st === 'behind' && !cross){ right = P.p < 2.6; low = right; }
+        else right = P.p < C * 0.72;
+        var lab = cross ? ('⏱ ' + _ttMD(M.ym, +I.crossCur.date.slice(8)) + ' 穿越・提前 ' + I.crossCur.adv + ' 天' + (I.nextRun ? '・第' + '一二三'[gi + 1] + '關已開跑' : ''))
+          : (I.st === 'ahead' ? '超前 ' + _ttN(I.ahead) + ' 天' : (I.st === 'behind' ? '落後 ' + _ttN(I.ahead) + ' 天，還差這一段' : '剛好在今天'));
         var cells = '';
         for (var d = g[0]; d <= g[1]; d++){
           var hol = _dsIsHol(M.ym, I.org, _dsDate(M.ym, d));
-          cells += '<div class="tt-cell' + (d > M.day ? ' fut' : '') + (hol ? ' hol' : '') + '" style="left:' + pct(d - g[0]) + ';width:' + pct(1) + '">' + (hol ? '休' : '') + '</div>';
+          cells += '<div class="tt-cell" style="left:' + pct(d - g[0]) + ';width:' + pct(1) + ';background:' + (hol ? P0.hol : colBg(d)) + ';border-color:' + P0.line + ';color:' + P0.leftSub + '">' + (hol ? '休' : '') + '</div>';
         }
-        cells += '<div class="tt-cell nx" style="left:' + pct(nDay) + ';width:' + pct(NX) + '"></div>';
-        return '<div class="tt-r' + (isOrg ? ' org' : '') + '"><div class="tt-l ds-hx">' + _dsX(isOrg ? 'org:' + I.org : I.key, I.name)
+        cells += '<div class="tt-cell" style="left:' + pct(nDay) + ';width:' + pct(NX) + ';background:' + P0.nx + ';opacity:.55"></div>';
+        // 尾巴／還差這一段
+        var trail = '';
+        if (I.st === 'ahead' || cross){
+          var a = Math.min(todayP, P.p), b = Math.max(todayP, P.p);
+          trail = '<div class="tt-trail" style="left:' + pct(a) + ';width:calc(' + pct(b) + ' - ' + pct(a) + ');background:linear-gradient(90deg, rgba(226,75,74,0), ' + (cross ? '#FAC775' : '#E24B4A') + ')"></div>';
+        } else if (I.st === 'behind'){
+          trail = '<div class="tt-gap' + (low ? ' low' : '') + '" style="left:' + pct(P.p) + ';width:calc(' + pct(todayP) + ' - ' + pct(P.p) + ');border-top-color:' + (th === 'night' ? '#97C459' : '#639922') + '"></div>';
+        }
+        return '<div class="tt-r" style="border-color:' + P0.line + '"><div class="tt-l ds-hx" style="background:' + P0.left + ';color:' + P0.leftFg + '">' + _dsX(isOrg ? 'org:' + I.org : I.key, I.name)
           + '<b>' + _fnEsc(isOrg ? I.org : I.name) + '</b>' + _ttBadge(I)
-          + '<small>' + (isOrg ? '學院' : _fnEsc(CK_SHORT[I.org] + (I.kind === '儲備組' ? '・儲備' : '') + (I.leader ? '・' + I.leader : ''))) + '・這關 ' + _dsW1(I.gateCum) + '／' + _dsW1(I.gate.line - I.gate.base) + ' 萬</small></div>'
-          + '<div class="tt-track">' + cells
-          + '<div class="tt-today" style="left:' + pct(todayP) + '"></div><div class="tt-fin" style="left:' + pct(nDay) + '"></div>'
-          + '<div class="tt-dot" style="left:' + pct(P.p) + ';background:' + col + '" title="' + _fnEsc(_ttHow(I)) + '" onclick="ttHow(this)"></div>'
-          + '<div class="tt-tag ' + (right ? 'r' : 'l') + '" style="left:' + pct(P.p) + ';color:' + fg + '" title="' + _fnEsc(_ttHow(I)) + '">'
+          + '<small style="color:' + P0.leftSub + '">' + (isOrg ? '這關 ' : _fnEsc(CK_SHORT[I.org] + (I.kind === '儲備組' ? '・儲備' : '') + (I.leader ? '・' + I.leader : '')) + '・這關 ') + _dsW1(I.gateCum) + '／' + _dsW1(I.gate.line - I.gate.base) + ' 萬</small></div>'
+          + '<div class="tt-track">' + cells + trail
+          + '<div class="tt-today" style="left:' + pct(todayP) + ';background:' + P0.today + '"></div><div class="tt-fin" style="left:' + pct(nDay) + ';background:' + P0.fin + '"></div>'
+          + '<div class="tt-dot' + (cross ? ' x' : '') + '" style="left:' + pct(P.p) + ';background:' + dot + ';border-color:' + P0.bg + '" title="' + _fnEsc(_ttHow(I)) + '" onclick="ttHow(this)"></div>'
+          + '<div class="tt-tag ' + (right ? 'r' : 'l') + '" style="left:' + pct(P.p) + ';color:' + fg + ';background:' + P0.tagBg + '" title="' + _fnEsc(_ttHow(I)) + '">'
           + (P.clampL ? '◀ ' : '') + '<b>活在 ' + _fnEsc(I.live.txt) + '</b><small>' + _fnEsc(lab) + '</small>' + (P.clampR ? ' ▶' : '') + '</div>'
           + '</div></div>';
       };
-      var body = orgs.map(function(I){ return row(I, true); }).join('') + (grps.length ? '<div class="tt-sep">各組（正式＋儲備同一張榜，照超前天數排）</div>' + grps.map(function(I){ return row(I, false); }).join('') : '<div class="tt-sep">還沒有本月的小組績效表（到 🏆 激勵 同步一次）</div>');
-      // 本關穿越榜
-      var all = orgs.concat(grps), crossed = all.filter(function(I){ return I.crossCur; }).sort(function(a, b){ return b.crossCur.adv - a.crossCur.adv || (a.crossCur.date < b.crossCur.date ? -1 : 1); });
+      var body = list.length ? list.map(row).join('')
+        : '<div class="tt-sep" style="background:' + P0.sep + ';color:' + P0.sepFg + '">' + (view === 'boss' ? '這個篩選沒有學院' : '還沒有本月的小組績效表（到 🏆 激勵 同步一次），或這個篩選沒有組') + '</div>';
+      var crossed = list.filter(function(I){ return I.crossCur; }).sort(function(a, b){ return b.crossCur.adv - a.crossCur.adv || (a.crossCur.date < b.crossCur.date ? -1 : 1); });
       var board;
-      if (crossed.length) board = '<table class="tt-tb"><tr><th>誰</th><th>哪一天穿越</th><th>提前幾天</th></tr>' + crossed.map(function(I){ return '<tr><td>' + _fnEsc(I.kind === '學院' ? I.org : CK_SHORT[I.org] + '・' + I.name) + '</td><td>' + _ttMD(M.ym, +I.crossCur.date.slice(8)) + '</td><td><b>' + I.crossCur.adv + '</b> 天</td></tr>'; }).join('') + '</table>';
+      if (crossed.length) board = '<table class="tt-tb"><tr><th>誰</th><th>哪一天穿越</th><th>提前幾天</th></tr>' + crossed.map(function(I){ return '<tr><td>' + _fnEsc(view === 'boss' ? I.org : CK_SHORT[I.org] + '・' + I.name) + '</td><td>' + _ttMD(M.ym, +I.crossCur.date.slice(8)) + '</td><td><b>' + I.crossCur.adv + '</b> 天</td></tr>'; }).join('') + '</table>';
       else {
-        var near = all.slice().sort(function(a, b){ return (a.gate.e - a.x) - (b.gate.e - b.x); })[0];
-        board = '<div class="tt-none">本關尚無人穿越' + (near ? '，最接近的是 <b>' + _fnEsc(near.kind === '學院' ? near.org : near.name) + '</b>，差 ' + _ttN(Math.max(0, near.gate.e - near.x)) + ' 天' : '') + '</div>';
+        var near = list.slice().sort(function(a, b){ return (a.gate.e - a.x) - (b.gate.e - b.x); })[0];
+        board = '<div class="tt-none">本關尚無人穿越' + (near ? '，最接近的是 <b>' + _fnEsc(view === 'boss' ? near.org : near.name) + '</b>，差 ' + _ttN(Math.max(0, near.gate.e - near.x)) + ' 天' : '') + '</div>';
       }
-      return '<div class="dsb tt-wrap"><div class="dsb-hd"><div><b>⏱ 穿越・第' + '一二三'[gi] + '關　' + mo + '/' + g[0] + '–' + mo + '/' + g[1] + '</b><span>今天 ' + mo + '/' + M.day + '，點站在虛線區＝活在未來</span></div><div class="dsb-hd-r">' + mo + '/' + M.day + ' 收工</div></div>'
-        + (_dsHid('note') ? '' : '<div class="dsc-note ds-hx">' + _dsX('note', '說明文字') + '基準速度＝這關目標 ÷ 這關上班日（每關定一次）。圓點＝累計換算成「做到第幾個上班日的份量」；粗線＝今天，右邊虛線＝還沒到的日子，最右邊是關線。點圓點看算式</div>')
-        + '<div class="tt-board">' + head + body + '</div><div class="tt-howbox" style="display:none"></div>'
-        + '<h4 style="margin:14px 0 6px">⏱ 本關穿越榜</h4>' + board + '</div>';
+      var who = view === 'boss' ? '主管戰力' : '組長戰力';
+      return bar + '<div class="dsb tt-wrap tt-' + th + '" data-bg="' + P0.bg + '" style="background:' + P0.bg + '">'
+        + '<div class="tt-hd"><div><b>⏱ ' + who + '・穿越　第' + '一二三'[gi] + '關 ' + mo + '/' + g[0] + '–' + mo + '/' + g[1] + '</b><span>今天 ' + mo + '/' + M.day + '・站在深色區＝活在未來</span></div>'
+        + '<div class="tt-cd' + (left <= 3 ? ' hot' : '') + '">' + (left > 0 ? '距關線 <b>' + left + '</b> 天' : '今天結算') + '</div></div>'
+        + (_dsHid('note') ? '' : '<div class="tt-note ds-hx">' + _dsX('note', '說明文字') + '圓點＝累計換算成「做到第幾個上班日的份量」。' + (th === 'night' ? '白線' : '黑線') + '＝今天，金線＝關線。紅色尾巴＝超前、綠色虛線＝還差的距離。點圓點看算式</div>')
+        + '<div class="tt-board" style="border-color:' + P0.line + ';background:' + P0.bg + '">' + head + body + '</div><div class="tt-howbox" style="display:none"></div>'
+        + '<div class="tt-bt">⏱ 本關穿越榜</div>' + board + '</div>';
     }
-
     function ttHow(el){
       var box = el.closest('.tt-wrap'), out = box && box.querySelector('.tt-howbox'); if (!out) return;
       var nm = el.closest('.tt-r').querySelector('.tt-l b').textContent;
@@ -15929,7 +15981,8 @@
       { ver:'ds35', icon:'🗂', title:'新功能：面談追蹤卡', detail:'月度漏斗總結 → 每家 👥 名單 →「面談後流失」上方多了追蹤面板；學生按 ▾ 展開就是追蹤卡（回覆原因、真因、再約日、主管回饋、面談檢討）', go:{ fn:'trk' } },
       { ver:'ds36', icon:'🔔', title:'新功能：更新通知', detail:'之後更新、同步、推上雲端、拉取、有人寫回饋，都會跳一張卡，按「👉 帶我去看」直接帶你到那個地方。看過的通知都收在右上角 🔔', go:{ sel:'#pcBellBtn' } },
       { ver:'ds37', icon:'🤖', title:'Claude 匯入網頁的內容會逐筆列出', detail:'以後 Claude 把三關總結的組長回覆、主管回饋寫進網頁，通知會一筆一筆寫「哪家・哪組・哪位學生｜寫了什麼」，每筆旁邊 👉 直接打開那張追蹤卡；卡上標「🤖 Claude 匯入」；每家面談追蹤面板多一格「🤖 今天 Claude 匯入」', go:{ fn:'trk' } },
-      { ver:'ds38', icon:'⏱', title:'新功能：穿越時間', detail:'每日總結多一個「⏱ 穿越」分頁（在 👥 組長 右邊）：每家、每組換算成「現在活在幾號」，超前紅、落後綠，提前到關線叫穿越。組長戰力榜、燈號月曆每格多一行「活在 幾號」；三個複製按鈕每家每組多一行；🏆 激勵頁最上面是年度時間存摺', go:{ fn:'ttTab' } }
+      { ver:'ds38', icon:'⏱', title:'新功能：穿越時間', detail:'每日總結多一個「⏱ 穿越」分頁（在 👥 組長 右邊）：每家、每組換算成「現在活在幾號」，超前紅、落後綠，提前到關線叫穿越。組長戰力榜、燈號月曆每格多一行「活在 幾號」；三個複製按鈕每家每組多一行；🏆 激勵頁最上面是年度時間存摺', go:{ fn:'ttTab' } },
+      { ver:'ds39', icon:'🌌', title:'穿越跑道：主管版／組長版分開＋兩套配色', detail:'⏱ 穿越分頁上方兩組切換：🏫 主管版（只有七家學院）／👥 組長版（只有各組），截組長版不會帶到學院；🌌 夜空倒數（深色）／🌀 時光隧道（白底）。落後的點拉一段綠虛線「還差這一段」，超前拖紅色尾巴，穿越變金色，右上角紅色倒數牌最後 3 天會閃', go:{ fn:'ttTab' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
