@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.55**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds37'（monthly-performance：mpbundle17）`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds38'（monthly-performance：mpbundle17）`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds37`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds38`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -215,3 +215,12 @@
 - 卡上：addFeedback 的回饋標「🤖 Claude 匯入」（rec.src='claude'），addReply 在卡上記 imp:{at,f}，卡頂顯示「🤖 Claude 匯入過：時間 組長回覆（原因、下一步、再約日）」
 - 每家面談追蹤面板多一格「🤖 今天 Claude 匯入」（紅色名字，點了展開那張卡）
 - ★ 三關 skill 寫進網頁後，一定要呼叫 pushCloud('三關總結 M/D 早上版／晚上版')，Ivan 才看得到這批是哪一次匯的
+
+## ⏱ 穿越時間（2026/10/05，ds38）
+- 每日總結新分頁「⏱ 穿越」（👥 組長 右邊，共用 全部／中區／桃區／南區／各學院 篩選＝ds_lead_org）：跑道圖、今天粗線、未來虛線、關線、第二關段、本關穿越榜；點圓點看算式
+- 算法：基準速度＝（這關關線−上一關關線）÷這關上班日；座標＝上一關結束的上班日數＋（月累計−上一關關線）÷基準速度；超出關線用下一關速度往後換算；活在＝第 floor(座標) 個上班日（≥.5 寫「半」）；超前＝座標（取一位小數）−今天第幾個上班日；穿越＝結算日前第一次看到累計≥關線的快照日，提前＝之後到結算日的上班日數（≥1 才算）。月層級＝月目標÷月上班日直線
+- 組長戰力榜／燈號月曆左欄加「活在 X・超前/落後 N 天」，穿越過加角標「⏱ M/D 穿越」；三個複製按鈕每家每組多一行
+- 🏆 激勵頁最上面「⏱ 年度時間存摺」（#ttBook，切到激勵時重畫）：學院／組／個人三欄，累積天數＝關卡穿越天數＋月穿越天數；連續穿越（關／月）
+- 資料來源：當月＝每日總結快照；過去月份快照 <15 張且有漏斗收支 → 回推（收支入帳日排回每天、等比例對齊 EIP 月底業績）；都沒有＝無資料。目前：6、7 月無資料，8、9 月回推，10 月快照
+- window.getTimeTravel('2026-10' | '10' | 10)：當月給每家每組完整數字；過去月份給各關／月穿越紀錄
+- 程式：_ttLines/_ttX/_ttLabel/_ttCross/_ttCalc/_ttModel/_ttHtml/_ttMonthUnits/_ttBook/_ttBookRender/getTimeTravel（放在 dsCopy 後面、活動登記表前面）
