@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.55**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds36'（monthly-performance：mpbundle17）`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds37'（monthly-performance：mpbundle17）`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds36`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds37`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -208,3 +208,10 @@
 - ★ 以後每次改版：在 PCN_NOTES 最後加一筆 { ver:'ds37', icon, title, detail, go }，go 指到新功能的位置（{tab:n} / {fn:'trk', org, n} / {sel:'#id'} / {fn:'fnTop'}）
 - 會跳通知的時機：改版、EIP 同步完成／失敗（激勵→🏆激勵、報到→🚪報到排名、通路→📋各通路、漏斗／深挖→📌漏斗、編輯→📝編輯追蹤）、同步後自動推上雲端（接在同一則後面）、pushCloud 成功（有寫追蹤卡就帶到最後那位學生）、☁️↓ 拉取完重新整理後、別人寫了新的主管回饋／面談檢討／組長回覆（每分鐘查本機一次，自己寫的不通知自己）
 - 捲動容器是 `.content`，不是整頁 → _pcnFlash 自己算 scrollTop
+
+## 🤖 Claude 匯入逐筆通知（2026/10/04，ds37）— Ivan：「我不知道你匯了什麼進去我的網頁」
+- addFeedback／addReply 每寫一筆就記「學院・組外號・學生｜類別：內容」；pushCloud(label) 成功後跳一則通知，標題＝label（例：pushCloud('三關總結 10/4 晚上版')），下面逐筆列，每筆一顆 👉 打開那張追蹤卡
+- 寫完 90 秒沒呼叫 pushCloud → 先跳「寫進網頁 N 筆（還沒推上雲端）」
+- 卡上：addFeedback 的回饋標「🤖 Claude 匯入」（rec.src='claude'），addReply 在卡上記 imp:{at,f}，卡頂顯示「🤖 Claude 匯入過：時間 組長回覆（原因、下一步、再約日）」
+- 每家面談追蹤面板多一格「🤖 今天 Claude 匯入」（紅色名字，點了展開那張卡）
+- ★ 三關 skill 寫進網頁後，一定要呼叫 pushCloud('三關總結 M/D 早上版／晚上版')，Ivan 才看得到這批是哪一次匯的

@@ -2355,6 +2355,14 @@
     .pcn-empty { color:#888; padding:20px 0; text-align:center; }
     .pcn-flash { outline:4px solid #ffd54a !important; outline-offset:4px; border-radius:10px; animation:pcnPulse 1.2s ease-in-out 3; }
     @keyframes pcnPulse { 0%,100% { outline-color:#ffd54a; } 50% { outline-color:rgba(255,213,74,.15); } }
+
+    .pcn-items { max-height:220px; overflow:auto; margin:6px 0; border:1px solid #eee; border-radius:10px; }
+    .pcn-item { display:flex; gap:6px; align-items:flex-start; padding:5px 8px; border-bottom:1px dashed #eee; font-size:.78rem; color:#333; line-height:1.45; }
+    .pcn-item:last-child { border-bottom:none; } .pcn-item span { flex:1; white-space:pre-wrap; }
+    .pcn-ig { flex:0 0 auto; border:none; background:#8e24aa; color:#fff; border-radius:999px; padding:2px 8px; cursor:pointer; font-size:.74rem; }
+    .pcn-more { font-size:.74rem; color:#888; padding:4px 8px; }
+    #tab-9 .trk-imp { display:inline-block; background:#FCEBEB; color:#791F1F; border:1px solid #E24B4A; border-radius:999px; padding:0 7px; margin-right:6px; font-size:.7rem; }
+    #tab-9 .trk-impline { background:#FCEBEB; color:#791F1F; border-radius:8px; padding:4px 8px; margin:0 0 6px; font-size:.76rem; }
     /* 🗂 面談追蹤卡（2026/10/04）*/
     #tab-9 .trk-card, #tab-9 .trk-panel { background:#fff; border:1px solid var(--fnLine); border-radius:12px; padding:10px 12px; margin:0 0 10px; color:#2b2b2b; font-size:.82rem; }
     #tab-9 .trk-panel { background:var(--fnFill); }
@@ -14979,8 +14987,9 @@
     }
     function _trkScan(pfx, org, name, dk){ return (_trkIndex().by[pfx + _trkSid(org, name, dk)] || []).slice(); }
     function _trkAllOf(pfx){ return (_trkIndex().all[pfx] || []).slice(); }
-    function _trkAddFb(org, name, dk, text, by){
+    function _trkAddFb(org, name, dk, text, by, src){
       var rec = { org:org, n:name, dk:dk, t:String(text).slice(0, 2000), by:by || _fnMe() || '未知', at:Date.now() };
+      if (src) rec.src = src;   // 'claude'＝Claude 用 addFeedback 匯入的
       _trkLsSet(TRK_FB + _trkSid(org, name, dk) + '__' + _trkRid(), rec); _trkTouch();
       return rec;
     }
@@ -15117,7 +15126,11 @@
           return '<button type="button" class="trk-tg' + (on ? ' on' : '') + '" onclick="trkToggleCause(this,\'' + _fnEsc(z) + '\')">' + _fnEsc(z) + '</button>';
         }).join('') + '</div>';
       }).join('');
-      var fbHtml = E.fbs.map(function(f){ return '<div class="trk-fb"><span class="fn-by">' + _fnEsc(f.by || '') + ' ' + _fnWhen(f.at) + '</span>' + _fnEsc(f.t) + '</div>'; }).join('');
+      var fbHtml = E.fbs.map(function(f){ return '<div class="trk-fb' + (f.src === 'claude' ? ' imp' : '') + '"><span class="fn-by">' + _fnEsc(f.by || '') + ' ' + _fnWhen(f.at) + '</span>' + (f.src === 'claude' ? '<span class="trk-imp">🤖 Claude 匯入</span>' : '') + _fnEsc(f.t) + '</div>'; }).join('');
+      var impFb = E.fbs.filter(function(f){ return f.src === 'claude'; });
+      var impTxt = [];
+      if (c.imp && c.imp.at) impTxt.push(_fnWhen(c.imp.at) + ' 組長回覆（' + (c.imp.f || []).join('、') + '）');
+      if (impFb.length) impTxt.push(_fnWhen(impFb[0].at) + ' 主管回饋 ' + impFb.length + ' 則');
       var faults = _trkFaults();
       var rvHtml = E.rvs.map(function(r){
         return '<div class="trk-rv"><div><b>' + _fnEsc(r.by || '') + '</b> ' + _fnWhen(r.at) + '・錄音' + (r.rec === 'y' ? _trkPill('聽了', true) : _trkPill('沒聽', false)) + '</div>'
@@ -15130,6 +15143,7 @@
       var me = _fnMe() || '';
       return '<div class="trk-card"' + dAttr + '>'
         + '<div class="trk-hd"><b>🗂 追蹤卡</b>' + _trkStPill(E) + chips + flags + pushTag + '</div>'
+        + (impTxt.length ? '<div class="trk-impline">🤖 Claude 匯入過：' + _fnEsc(impTxt.join('；')) + '</div>' : '')
         + '<div class="trk-row"><span class="trk-lb">① 業務備註（EIP，唯讀）</span><span class="trk-ro">' + (E.note ? _fnEsc(E.note) : '（EIP 上沒寫）') + '</span></div>'
         + '<div class="trk-grid">'
         + '<label>② 回覆原因<input type="text" value="' + v('reason') + '" placeholder="業務／組長回覆：為什麼沒報名" onchange="trkSave(this,\'reason\')"></label>'
@@ -15239,11 +15253,16 @@
       var pick = function(fn){ return E.filter(fn); };
       var L = [['今天到期', pick(function(e){ return e.dueToday; })], ['逾期未回', pick(function(e){ return e.overdue; })],
                ['原因不一致', pick(function(e){ return e.mm && e.st !== '結案'; })], ['待檢討', pick(function(e){ return e.waitRv; })]];
+      var _td = _trkToday(), _isTd = function(at){ if (!at) return false; var d = new Date(at); return d.getFullYear() + '-' + _ckPad2(d.getMonth() + 1) + '-' + _ckPad2(d.getDate()) === _td; };
+      var impToday = pick(function(e){ return (e.c.imp && _isTd(e.c.imp.at)) || e.fbs.some(function(f){ return f.src === 'claude' && _isTd(f.at); }); });
       var lists = L.map(function(p){
         return '<div class="trk-l"><b>' + p[0] + ' ' + p[1].length + '</b>' + (p[1].length ? p[1].map(function(e){
           return '<button type="button" class="trk-nm" style="background:' + TRK_GRN.bg + ';color:' + TRK_GRN.fg + '" onclick="trkJump(this,\'' + _fnEsc(e.x.n) + '\')">' + _fnEsc(e.x.n) + '</button>';
         }).join('') : '<span class="fn-by">沒有</span>') + '</div>';
       }).join('');
+      lists += '<div class="trk-l trk-l-imp"><b>🤖 今天 Claude 匯入 ' + impToday.length + '</b>' + (impToday.length ? impToday.map(function(e){
+          return '<button type="button" class="trk-nm" style="background:' + TRK_RED.bg + ';color:' + TRK_RED.fg + ';border-color:' + TRK_RED.bd + '" onclick="trkJump(this,\'' + _fnEsc(e.x.n) + '\')">' + _fnEsc(e.x.n) + '</button>';
+        }).join('') : '<span class="fn-by">沒有</span>') + '</div>';
       var groups = {};
       E.forEach(function(e){ (groups[e.grp] || (groups[e.grp] = [])).push(e); });
       var replied = E.filter(function(e){ return e.c.reason; }).length;
@@ -15423,10 +15442,10 @@
       }
       if (!hits.length) return '找不到';
       var h = hits[hits.length - 1];
-      _trkAddFb(org, name, h.x.dk, text, '柏翰');
+      _trkAddFb(org, name, h.x.dk, text, '柏翰', 'claude');
       if (!_trkGet(org, name, h.x.dk)) _trkSet(org, name, h.x.dk, {}, { o:h.x.o, w:h.x.w, g:_trkGrpOf(org, h.ym, h.x.o) });
       try { _trkPanelRefresh(org, h.ym); _trkRefreshOpen(); } catch(e){}
-      try { _pcnTrkWrote(org, name, '回饋'); } catch(e){}
+      try { _pcnTrkWrote(org, name, '主管回饋', text, h); } catch(e){}
       return '已寫入 ' + _trkMD(_trkToday());
     }
     function _trkAddReply(org, name, o, ym){
@@ -15444,14 +15463,16 @@
       }
       if (nx) p.next = nx;
       if (!Object.keys(p).length) return '沒有要寫的內容';
+      var _impF = []; if (p.reason) _impF.push('原因'); if (p.next) _impF.push('下一步'); if (p.reDate) _impF.push('再約日');
+      p.imp = { at:Date.now(), f:_impF };
       _trkSet(org, name, h.x.dk, p, { o:h.x.o, w:h.x.w, g:_trkGrpOf(org, h.ym, h.x.o) });
       try { _trkPanelRefresh(org, h.ym); _trkRefreshOpen(); } catch(e){}
-      try { _pcnTrkWrote(org, name, '回覆'); } catch(e){}
+      try { _pcnTrkWrote(org, name, '組長回覆', [p.reason ? '原因：' + p.reason : '', p.next ? '下一步：' + p.next : '', p.reDate ? '再約日：' + _trkMD(p.reDate) : ''].filter(Boolean).join('｜'), h); } catch(e){}
       return '已寫入 ' + _trkMD(_trkToday());
     }
     // ☁️ pushCloud：跟表頭「☁️↑ 推送」走同一條路（含追蹤卡），不觸發漏斗全抓、不跳視窗
     var _trkPushing = false, _trkAutoT = null;
-    async function pushCloud(){
+    async function pushCloud(label){
       if (_trkPushing) return '推送中，請稍後';
       _trkPushing = true;
       try {
@@ -15471,14 +15492,8 @@
         var d = new Date(now), msg = '已推送 ' + _ckPad2(d.getHours()) + ':' + _ckPad2(d.getMinutes()) + '（' + ((r && r.nUp) || 0) + ' 項有更新、追蹤卡 ' + nTrk + ' 張）';
         try {
           try { localStorage.setItem(PCN_TRK_SEEN, JSON.stringify(_pcnTrkStamp())); } catch(e){}
-          var P = _pcnTrkPend; _pcnTrkPend = [];
-          if (P.length){
-            var last = P[P.length - 1], by = {}, kinds = {};
-            P.forEach(function(q){ by[q.org] = (by[q.org] || 0) + 1; kinds[q.kind] = (kinds[q.kind] || 0) + 1; });
-            pcNotify({ icon:'🗂', title:'已寫進追蹤卡 ' + P.length + ' 筆，並推上雲端',
-              detail:Object.keys(kinds).map(function(k){ return k + ' ' + kinds[k] + ' 筆'; }).join('、') + '\n' + Object.keys(by).map(function(o){ return (CK_SHORT[o] || o) + ' ' + by[o]; }).join('・') + '\n最後一筆：' + last.n,
-              go:{ fn:'trk', tab:9, org:last.org, n:last.n } });
-          } else pcNotify({ icon:'☁️', title:'已推上雲端', detail:msg.replace(/^已推送 /, ''), go:{ tab:9, fn:'fnTop' } });
+          if (!_pcnImportNotify(true, label ? String(label) : '', msg))
+            pcNotify({ icon:'☁️', title:(label ? String(label) + '：' : '') + '已推上雲端', detail:msg.replace(/^已推送 /, ''), go:{ tab:9, fn:'fnTop' } });
         } catch(e){}
         return msg;
       } catch(e){ return '失敗：' + (e && e.message || e); }
@@ -15487,7 +15502,7 @@
         // 規格五-5：寫入函式本身不推送，一批寫完再呼叫 pushCloud()。這裡只留作廢索引。
     function _trkTouch(){ _trkIdx = null; }
     window.getTracking = getTracking; window.getReviewStats = getReviewStats; window.addFeedback = addFeedback;
-    window.addReply = function(org, name, o){ return _trkAddReply(org, name, o); }; window.pushCloud = pushCloud;
+    window.addReply = function(org, name, o){ return _trkAddReply(org, name, o); }; window.pushCloud = function(label){ return pushCloud(label); };
     (function(){
       if (document.getElementById('trkNextDl')) return;
       var dl = document.createElement('datalist'); dl.id = 'trkNextDl';
@@ -15503,7 +15518,8 @@
     var PCN_KEY = 'pc_notify_v1', PCN_MAX = 60;
     var PCN_NOTES = [   // 改版紀錄：新的放最後；ver 要跟 人力發展.html 的 ?v= 對得上
       { ver:'ds35', icon:'🗂', title:'新功能：面談追蹤卡', detail:'月度漏斗總結 → 每家 👥 名單 →「面談後流失」上方多了追蹤面板；學生按 ▾ 展開就是追蹤卡（回覆原因、真因、再約日、主管回饋、面談檢討）', go:{ fn:'trk' } },
-      { ver:'ds36', icon:'🔔', title:'新功能：更新通知', detail:'之後更新、同步、推上雲端、拉取、有人寫回饋，都會跳一張卡，按「👉 帶我去看」直接帶你到那個地方。看過的通知都收在右上角 🔔', go:{ sel:'#pcBellBtn' } }
+      { ver:'ds36', icon:'🔔', title:'新功能：更新通知', detail:'之後更新、同步、推上雲端、拉取、有人寫回饋，都會跳一張卡，按「👉 帶我去看」直接帶你到那個地方。看過的通知都收在右上角 🔔', go:{ sel:'#pcBellBtn' } },
+      { ver:'ds37', icon:'🤖', title:'Claude 匯入網頁的內容會逐筆列出', detail:'以後 Claude 把三關總結的組長回覆、主管回饋寫進網頁，通知會一筆一筆寫「哪家・哪組・哪位學生｜寫了什麼」，每筆旁邊 👉 直接打開那張追蹤卡；卡上標「🤖 Claude 匯入」；每家面談追蹤面板多一格「🤖 今天 Claude 匯入」', go:{ fn:'trk' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
@@ -15512,7 +15528,7 @@
     function _pcnSave(a){ try { localStorage.setItem(PCN_KEY, JSON.stringify(a.slice(-PCN_MAX))); } catch(e){} }
     function pcNotify(o){
       var a = _pcnList();
-      var n = { id:Date.now().toString(36) + Math.random().toString(36).slice(2, 5), at:Date.now(), icon:o.icon || '🔔', title:o.title || '', detail:o.detail || '', go:o.go || null, read:0 };
+      var n = { id:Date.now().toString(36) + Math.random().toString(36).slice(2, 5), at:Date.now(), icon:o.icon || '🔔', title:o.title || '', detail:o.detail || '', go:o.go || null, items:o.items || null, read:0 };
       a.push(n); _pcnSave(a); _pcnBadge(); _pcnPop(n);
       return n.id;
     }
@@ -15537,13 +15553,24 @@
         var el = document.createElement('div'); el.id = 'pcnPop'; el.className = 'pcn-pop'; el.setAttribute('data-id', n.id);
         el.innerHTML = '<div class="pcn-h"><span>' + n.icon + '</span><b>' + _fnEsc(n.title) + '</b><button type="button" class="pcn-x" title="收起來（🔔 裡還看得到）">✕</button></div>'
           + (n.detail ? '<div class="pcn-d">' + _fnEsc(n.detail) + '</div>' : '')
+          + _pcnItemsHtml(n, 6)
           + '<div class="pcn-a">' + (n.go ? '<button type="button" class="pcn-go">👉 ' + _fnEsc(_pcnGoLabel(n.go)) + '</button>' : '') + '<button type="button" class="pcn-later">稍後再看（收進 🔔）</button></div>';
         el.querySelector('.pcn-x').onclick = el.querySelector('.pcn-later').onclick = function(){ el.remove(); };
+        Array.prototype.forEach.call(el.querySelectorAll('.pcn-ig'), function(b){ b.onclick = function(){ el.remove(); pcNotifyGo(n.id, +b.getAttribute('data-i')); }; });
         if (n.go) el.querySelector('.pcn-go').onclick = function(){ el.remove(); pcNotifyGo(n.id); };
         document.body.appendChild(el);
         clearTimeout(_pcnPop._t);
         _pcnPop._t = setTimeout(function(){ if (el.parentNode && !el.matches(':hover')) el.remove(); }, 15000);
       } catch(e){}
+    }
+    // 逐筆清單：每筆一行＋👉（max＝最多顯示幾筆，0＝全部）
+    function _pcnItemsHtml(n, max, inline){
+      var it = n.items || []; if (!it.length) return '';
+      var show = max ? it.slice(0, max) : it;
+      return '<div class="pcn-items">' + show.map(function(x, i){
+        return '<div class="pcn-item"><span>' + _fnEsc(x.t) + '</span><button type="button" class="pcn-ig" data-i="' + i + '"'
+          + (inline ? ' onclick="document.getElementById(\'pcnBg\').remove();pcNotifyGo(\'' + n.id + '\',' + i + ')"' : '') + '>👉</button></div>';
+      }).join('') + (max && it.length > max ? '<div class="pcn-more">還有 ' + (it.length - max) + ' 筆，打開右上角 🔔 看全部</div>' : '') + '</div>';
     }
     function _pcnBadge(){
       var b = document.getElementById('pcBellBtn'); if (!b) return;
@@ -15561,6 +15588,7 @@
         + (a.length ? a.map(function(n){
             return '<div class="pcn-it' + (n.read ? '' : ' new') + '"><div class="pcn-ih"><span>' + n.icon + '</span><b>' + _fnEsc(n.title) + '</b><small>' + _fnWhen(n.at) + '</small></div>'
               + (n.detail ? '<div class="pcn-d">' + _fnEsc(n.detail) + '</div>' : '')
+              + _pcnItemsHtml(n, 0, true)
               + (n.go ? '<button type="button" class="pcn-go" onclick="document.getElementById(\'pcnBg\').remove();pcNotifyGo(\'' + n.id + '\')">👉 ' + _fnEsc(_pcnGoLabel(n.go)) + '</button>' : '') + '</div>';
           }).join('') : '<div class="pcn-empty">還沒有通知</div>')
         + '</div>';
@@ -15583,12 +15611,13 @@
       el.classList.remove('pcn-flash'); void el.offsetWidth; el.classList.add('pcn-flash');
       setTimeout(function(){ el.classList.remove('pcn-flash'); }, 3600);
     }
-    function pcNotifyGo(id){
+    function pcNotifyGo(id, idx){
       var a = _pcnList(), n = null;
       a.forEach(function(x){ if (x.id === id){ n = x; x.read = 1; } });
       _pcnSave(a); _pcnBadge();
-      if (!n || !n.go) return;
-      var go = n.go;
+      if (!n) return;
+      var go = (idx !== undefined && idx !== null && n.items && n.items[idx]) ? n.items[idx].go : n.go;
+      if (!go) return;
       if (go.fn === 'trk' && go.tab === undefined) go = Object.assign({ tab:9 }, go);
       if (go.tab !== undefined){ try { switchTab(go.tab); } catch(e){} }
       setTimeout(function(){
@@ -15648,8 +15677,32 @@
       } catch(e){}
     }
     // ── ⑥ Claude／自己寫入追蹤卡 → 推送成功後一則通知（帶到最後寫的那位）──
-    var _pcnTrkPend = [];
-    function _pcnTrkWrote(org, n, kind){ _pcnTrkPend.push({ org:org, n:n, kind:kind }); }
+    //   每一筆都記「哪家／哪組／哪位學生／寫了什麼」→ 通知裡逐筆列出來，每筆一顆 👉 直接帶到那張卡
+    var _pcnTrkPend = [], _pcnPendT = null;
+    function _pcnTrkWrote(org, n, kind, text, h){
+      var g = '';
+      try { g = _trkAlias(_trkGrpOf(org, h ? h.ym : _trkCurYm(), h && h.x ? h.x.o : '')); } catch(e){}
+      _pcnTrkPend.push({ org:org, n:n, kind:kind, text:String(text || ''), g:g, at:Date.now() });
+      // 寫完 90 秒還沒呼叫 pushCloud → 先跳一則「寫進網頁、還沒推上雲端」，免得不知道寫了什麼
+      if (_pcnPendT) clearTimeout(_pcnPendT);
+      _pcnPendT = setTimeout(function(){ _pcnPendT = null; if (_pcnTrkPend.length) _pcnImportNotify(false); }, 90000);
+    }
+    function _pcnImportItems(P){
+      return P.map(function(q){
+        return { t:(CK_SHORT[q.org] || q.org) + (q.g ? '・' + q.g : '') + '・' + q.n + '｜' + q.kind + '：' + q.text, go:{ fn:'trk', tab:9, org:q.org, n:q.n } };
+      });
+    }
+    function _pcnImportNotify(pushed, label, pushMsg){
+      var P = _pcnTrkPend; _pcnTrkPend = [];
+      if (_pcnPendT){ clearTimeout(_pcnPendT); _pcnPendT = null; }
+      if (!P.length) return false;
+      var kinds = {}; P.forEach(function(q){ kinds[q.kind] = (kinds[q.kind] || 0) + 1; });
+      var last = P[P.length - 1];
+      pcNotify({ icon:'🤖', title:(label ? label + '：' : 'Claude ') + '寫進網頁 ' + P.length + ' 筆' + (pushed ? '，已推上雲端' : '（還沒推上雲端）'),
+        detail:Object.keys(kinds).map(function(k){ return k + ' ' + kinds[k] + ' 筆'; }).join('、') + (pushMsg ? '\n' + pushMsg : '') + '\n每一筆在下面，按 👉 直接打開那張追蹤卡；卡上也會標「🤖 Claude 匯入」',
+        items:_pcnImportItems(P), go:{ fn:'trk', tab:9, org:last.org, n:last.n } });
+      return true;
+    }
 
     // ── 啟動：補上沒看過的改版通知、拉取後的通知、追蹤卡輪詢 ──
     function _pcnBoot(){
