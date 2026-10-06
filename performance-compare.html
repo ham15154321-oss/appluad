@@ -2401,6 +2401,9 @@
     .tt-borgs { flex-wrap:wrap; } .tt-borgs small { opacity:.65; margin-left:2px; }
     .tt-book .tt-tb td:nth-child(2) { white-space:nowrap; } .tt-book .tt-tb td:nth-child(2) small { display:block; color:#888; }
     .tt-book .tt-days { white-space:nowrap; } .tt-book .tt-days small { display:block; }
+
+    .hdr-mode-btn.sync-flash { animation:syncFlash .45s ease-in-out 3; }
+    @keyframes syncFlash { 0%,100% { filter:none; } 50% { filter:brightness(1.6); transform:scale(1.05); } }
     /* 🔔 更新通知 */
     .pcn-bell { position:relative; background:linear-gradient(135deg,#6a1b9a,#8e24aa) !important; color:#fff !important; border-color:transparent !important; }
     .pcn-badge { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#E24B4A; color:#fff; font-size:11px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 0 0 2px #fff; }
@@ -7719,6 +7722,20 @@
     }
 
     function _anySyncBusy(){ return Object.keys(SYNC_MODES).some(function(k){ return SYNC_MODES[k].busy; }); }
+    // ★ 2026/10/06 Ivan：「通路常常跑完沒顯示跑完、卡在那邊」→ 按鈕直接寫現在在幹嘛＋秒數，每秒更新
+    function _syncSec(m){ return m && m.t0 ? Math.round((Date.now() - m.t0) / 1000) : 0; }
+    function _syncTickNow(mode){ var m = SYNC_MODES[mode]; if (!m || !m.busy) return; _setModeBtn(mode, m.line1, (m.stage || '同步中') + ' ' + _syncSec(m) + ' 秒', true); }
+    function _syncDoneLabel(mode, txt){
+      try { refreshSyncBtnLabels(); } catch(e){}
+      var m = SYNC_MODES[mode]; _setModeBtn(mode, m ? m.line1 : null, txt);
+      setTimeout(function(){ try { if (!SYNC_MODES[mode].busy) refreshSyncBtnLabels(); } catch(e){} }, 60000);
+    }
+    function _syncBusyMsg(){
+      var k = Object.keys(SYNC_MODES).filter(function(x){ return SYNC_MODES[x].busy; })[0]; if (!k) return '⏳ 已有同步進行中，請等它跑完再按';
+      var m = SYNC_MODES[k], b = document.getElementById('syncBtn_' + k);
+      if (b){ b.classList.remove('sync-flash'); void b.offsetWidth; b.classList.add('sync-flash'); }
+      return '⏳ 「' + m.label + '」還在跑（第 ' + _syncSec(m) + ' 秒・' + (m.stage || '同步中') + '），等它跑完再按';
+    }
 
     // ★ v5.6：依序同步多個模式（例：按「報到」= 先激勵再報到，讓業績欄也是最新）
     function motivSyncSeq(modes){
@@ -7763,7 +7780,7 @@
       mode = mode || 'motiv';
       var m = SYNC_MODES[mode];
       if (!m){ if (onComplete) onComplete(false); return; }
-      if (m.busy){ if (onComplete) onComplete(false); return; }
+      if (m.busy){ _syncToast(_syncBusyMsg(), '#e6a817'); if (onComplete) onComplete(false); return; }
       if (!skipDupCheck){
         var todayTs = _syncedTodayLabel(mode);
         if (todayTs && !confirm(m.label + ' 今天已經同步過了（' + todayTs + '）。\n\nEIP 的資料過了當天幾乎不會再變，重抓只是多打一次 EIP。\n\n還是要重抓嗎？')){
@@ -7773,8 +7790,9 @@
       }
       // ★ v5.5：全域單一同步 — 有任何模式在跑就不准再開新的（避免同時抓 EIP）
       if (_anySyncBusy()){
-        var info0 = document.getElementById('motivUpdateInfo');
-        if (info0){ info0.textContent = '⏳ 已有同步進行中，請等它跑完再按'; info0.style.color = '#e6a817'; }
+        var info0 = document.getElementById('motivUpdateInfo'), bm = _syncBusyMsg();
+        if (info0){ info0.textContent = bm; info0.style.color = '#e6a817'; }
+        _syncToast(bm, '#e6a817');
         if (onComplete) onComplete(false);
         return;
       }
@@ -7799,7 +7817,7 @@
         if (!pingOk){
           window.removeEventListener('message', onPong);
           m.busy = false;
-          _setModeBtn(mode, m.line1, '擴充無回應', false);
+          _setModeBtn(mode, m.line1, '擴充沒回應・按 Cmd+R', false);
           var pingMsg = '⚠️ 擴充包沒回應 — 請把本頁重新整理（Cmd+R），並確認 chrome://extensions 已啟用「Appedu EIP 激勵同步」';
           if (info){ info.innerHTML = pingMsg; info.style.color = '#ff6b6b'; }
           _syncToast(pingMsg, '#ff6b6b');
@@ -7813,7 +7831,7 @@
     // ★ 一鍵三連：激勵 → 報到 → 漏斗（三個資料來源一次更新；面板從第 1 步就顯示）
     var _fnFunnelFull = false;   // true = 這次漏斗要完整重抓三個月
     function fnSyncAll(full){
-      if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      if (_anySyncBusy()){ _syncToast(_syncBusyMsg(), '#e6a817'); return; }
       // ★ 2026/10/04 Ivan：不用分兩顆按 —— 右上角「🔀 漏斗」自己判斷要不要全抓
       //   本機快取缺學院、某家沒有面談資料、或根本沒有快取 → 自動改成全抓；其餘照增量（不加重 EIP）
       if (!full){
@@ -7840,7 +7858,7 @@
     }
     // 🔎 試聽深挖：中區／桃區／南區／全省七家
     function fnTrialSync(region, skipAsk){
-      if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      if (_anySyncBusy()){ _syncToast(_syncBusyMsg(), '#e6a817'); return; }
       _fnTrialRegion = region || 'all';
       var lab = { all:'全省七家', central:'中區', taoyuan:'桃區', south:'南區' }[_fnTrialRegion] || '全省七家';
       // ★ 會去打 EIP、要跑幾分鐘 → 先確認一次，避免誤按
@@ -7963,7 +7981,10 @@
 
     function _motivStartSync(mode, info, settle){
       var m = SYNC_MODES[mode];
-      _setModeBtn(mode, m.line1, '同步中…', true);
+      m.t0 = Date.now(); m.stage = '同步中';
+      if (m.tk) clearInterval(m.tk);
+      m.tk = setInterval(function(){ if (!m.busy){ clearInterval(m.tk); m.tk = null; return; } _syncTickNow(mode); }, 1000);
+      _setModeBtn(mode, m.line1, '同步中 0 秒', true);
       if (info){ info.textContent = '⏳ 正在同步 ' + m.label + '...'; info.style.color = '#e6a817'; }
       _syncToast('⏳ 正在同步 ' + m.label + '...', '#e6a817');
 
@@ -7972,15 +7993,16 @@
       function _wdPoke(){
         if (wd) clearTimeout(wd);
         wd = setTimeout(function(){
-          window.removeEventListener('message', onMsg);
-          var msg = '⏰ ' + m.label + ' 同步逾時（90 秒沒回應）— EIP 可能忙線或擴充卡住，已自動解鎖，可直接再按一次重試';
+          // ★ 10/06：頁面先解鎖，但不再丟掉結果 —— EIP 晚到的資料，3 分鐘內回來照樣收進來
+          var msg = '⏰ ' + m.label + '：EIP 90 秒沒回，頁面先解鎖。擴充還在等，資料晚到會自動補上（再等 3 分鐘）';
           if (info){ info.textContent = msg; info.style.color = '#ff6b6b'; }
           _syncToast(msg, '#ff6b6b');
-          _setModeBtn(mode, m.line1, '逾時，可重試', false);
           finish(false);
+          _setModeBtn(mode, m.line1, '逾時，還在等 EIP', false);
+          setTimeout(function(){ window.removeEventListener('message', onMsg); }, 180000);
         }, 90000);
       }
-      function finish(ok){ if (settled) return; settled = true; if (wd) clearTimeout(wd); m.busy = false; refreshSyncBtnLabels();
+      function finish(ok){ if (settled) return; settled = true; if (wd) clearTimeout(wd); m.busy = false; if (m.tk){ clearInterval(m.tk); m.tk = null; } refreshSyncBtnLabels();
         // ★ 漏斗＝一鍵三連的最後一步；試聽深挖＝單獨跑的 → 兩者跑完都要收掉面板。
         //   其餘（激勵／報到）才是「還有下一步」。
         if (mode === 'funnel' || mode === 'trial') fnProgressEnd(ok);
@@ -7995,6 +8017,10 @@
         if (d.mode && d.mode !== mode) return; // 只處理本模式的訊息
         if (d.type === 'done'){
           window.removeEventListener('message', onMsg);
+          if (settled && m.busy) return;            // 晚到，但這個模式已經開了新的一輪 → 交給新的那一輪
+          var _late = settled, _procErr = null;
+          m.stage = '整理資料'; _syncTickNow(mode);
+          try {
           try { _motivBumpLocalTs(); } catch(e2){}
           motivLoadData(); motivRenderAll();
           // 依模式刷新對應分頁
@@ -8048,10 +8074,14 @@
             try { fnArchiveCurrent(); } catch(e2){}           // 逐人資料封存進該月
             try { fnRenderAll(); } catch(e2){}
           }
+          } catch(eP){ _procErr = eP; console.error('[sync] 收尾出錯（資料已存）', eP); }   // ★ 收尾出錯也一定走到完成，不再卡在「同步中」
+          try {
           if (info){ info.textContent = '✅ ' + d.msg; info.style.color = '#4ade80'; }
-          _syncToast('✅ ' + m.label + '：' + d.msg, '#4ade80');
+          _syncToast('✅ ' + m.label + '：' + d.msg + (_late ? '（晚到，已補上）' : '') + (_procErr ? '\n⚠️ 資料已存，但畫面重畫時出錯：' + (_procErr.message || _procErr) + '（重新整理頁面就會看到）' : ''), _procErr ? '#e6a817' : '#4ade80');
+          } catch(eT){}
           try { _pcnLastSyncId = pcNotify({ icon:'✅', title:m.label + ' 同步完成', detail:d.msg || '', go:PCN_SYNC_GO[mode] || null }); } catch(e2){}
           finish(true);
+          var _hm = new Date(); _syncDoneLabel(mode, _procErr ? '⚠️ 已存，畫面出錯' : (_late ? '✅ 完成（晚到）' : '✅ 完成 ' + _ckPad2(_hm.getHours()) + ':' + _ckPad2(_hm.getMinutes())));
           try { _pcAutoPush(m.label); } catch(e2){}   // ★ 同步完自動推上雲端
         } else if (d.type === 'error'){
           window.removeEventListener('message', onMsg);
@@ -8064,7 +8094,11 @@
           finish(false);
         } else if (d.type === 'status'){
           gotStatus = true;
+          if (settled) return;
           _wdPoke(); // 有心跳 → 重算逾時
+          // ★ 擴充 5.56：等 EIP 回傳時每 5 秒一聲心跳（hb），只更新按鈕，不洗提示框
+          if (d.hb){ m.stage = d.stage || '等 EIP 回傳'; _syncTickNow(mode); return; }
+          m.stage = '同步中';
           if (info){ info.textContent = '⏳ ' + d.msg; info.style.color = '#e6a817'; }
           _syncToast('⏳ ' + d.msg, '#e6a817');
           if ((mode === 'funnel' || mode === 'trial') && d.prog) fnProgressUpdate(d.prog, d.msg);
@@ -8084,12 +8118,13 @@
 
       setTimeout(function(){
         // ★ 只在「擴充從頭到尾沒回報過任何進度」時才兜底；有心跳的長流程（🔀 漏斗 8 分鐘、報到網頁版翻頁）交給 90 秒看門狗
-        if (m.busy && !gotStatus){
-          window.removeEventListener('message', onMsg);
+        if (m.busy && !gotStatus && !settled){
           if (info && info.textContent.indexOf('⏳') >= 0){
-            info.textContent = '⚠️ ' + m.label + ' 同步逾時，請確認已登入 EIP 後再試'; info.style.color = '#ff6b6b';
+            info.textContent = '⚠️ ' + m.label + ' 60 秒沒有任何回報，請確認已登入 EIP；資料晚到會自動補上'; info.style.color = '#ff6b6b';
           }
           finish(false);
+          _setModeBtn(mode, m.line1, '沒回報・確認 EIP 登入', false);
+          setTimeout(function(){ window.removeEventListener('message', onMsg); }, 180000);
         }
       }, 60000); // ★ v5.6 背景已有 30 秒抓取逾時，頁面端 60 秒兜底即可（不用等 3 分鐘）
     }
@@ -11405,7 +11440,7 @@
     }
 
     function edSyncNow(){
-      if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      if (_anySyncBusy()){ _syncToast(_syncBusyMsg(), '#e6a817'); return; }
       var J = _edNextJob();
       if (J.job === 'ok'){ alert('✅ 資料已經是最新的。\n\n' + J.why); return; }
       var hour = new Date().getHours();
@@ -11424,7 +11459,7 @@
 
     // ⚡ 昨日覆盤：抓昨天那一格 → 抓完直接攤開覆盤畫面。已經有就先問。
     function edSyncYesterday(){
-      if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      if (_anySyncBusy()){ _syncToast(_syncBusyMsg(), '#e6a817'); return; }
       var store = edGetStore();
       var d = new Date(); d.setDate(d.getDate() - 1);
       var k = d.getFullYear() + '-' + _ckPad2(d.getMonth()+1) + '-' + _ckPad2(d.getDate());
@@ -11448,7 +11483,7 @@
     //   滿頁只要有幾列姓名空白就會提早收工，後面整批遺失 —— 那時候抓的日子都是少算的。
     //   從當月 1 號往後，一次重抓 7 天，記得上次重到哪，按幾次就往後推。
     function edSyncRedo(){
-      if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      if (_anySyncBusy()){ _syncToast(_syncBusyMsg(), '#e6a817'); return; }
       var store = edGetStore() || {};
       var stale = _edStaleDays(store);
       if (!stale.length){
@@ -11471,7 +11506,7 @@
     }
     // 補上一段：自動挑「還缺的、離今天最近的」ED_SEG 天。按幾次就往回疊幾段，抓過的一天都不會重抓。
     function edSyncSegment(){
-      if (_anySyncBusy()){ _syncToast('⏳ 已有同步進行中，請等它跑完再按', '#e6a817'); return; }
+      if (_anySyncBusy()){ _syncToast(_syncBusyMsg(), '#e6a817'); return; }
       var store = edGetStore();
       var miss = _edMissingDays(store);
       if (!miss.length){ alert('📝 最近 ' + ED_WINDOW + ' 天全部都抓過了，不用再補。\n\n之後每天早上按一次那顆按鈕就好。'); return; }
@@ -16039,7 +16074,8 @@
       { ver:'ds39', icon:'🌌', title:'穿越跑道：主管版／組長版分開＋兩套配色', detail:'⏱ 穿越分頁上方兩組切換：🏫 主管版（只有七家學院）／👥 組長版（只有各組），截組長版不會帶到學院；🌌 夜空倒數（深色）／🌀 時光隧道（白底）。落後的點拉一段綠虛線「還差這一段」，超前拖紅色尾巴，穿越變金色，右上角紅色倒數牌最後 3 天會閃', go:{ fn:'ttTab' } },
       { ver:'ds40', icon:'💰', title:'穿越跑道左欄變計分板', detail:'每一組、每一家的現在業績放大字（超前紅、落後綠、穿越金），下面小字是這關目標和達成率，再加一條進度條', go:{ fn:'ttTab' } },
       { ver:'ds41', icon:'🏫', title:'時間存摺可以選學院', detail:'🏆 激勵頁的年度時間存摺，組和個人那兩欄多一排學院篩選（全部／中區／桃區／南區／七家），按鈕後面的小數字是那家今年穿越過的人數', go:{ tab:4, sel:'#ttBook' } },
-      { ver:'ds42', icon:'🧑', title:'穿越跑道多一個業務版', detail:'⏱ 穿越分頁的切換多一顆「🧑 業務版（每個人）」：每位業務用自己的個人目標算活在幾號，左欄大字是他現在的業績，下面寫學院・組。沒設個人目標的列在最下面', go:{ fn:'ttTab' } }
+      { ver:'ds42', icon:'🧑', title:'穿越跑道多一個業務版', detail:'⏱ 穿越分頁的切換多一顆「🧑 業務版（每個人）」：每位業務用自己的個人目標算活在幾號，左欄大字是他現在的業績，下面寫學院・組。沒設個人目標的列在最下面', go:{ fn:'ttTab' } },
+      { ver:'ds43', icon:'⏳', title:'同步鈕會寫現在在幹嘛＋秒數', detail:'六顆同步鈕跑的時候會寫「同步中 12 秒」「等 EIP 回傳 40 秒」「第 2 次重試」「整理資料」，跑完寫「✅ 完成 14:32」。EIP 太慢頁面會先解鎖，資料晚到 3 分鐘內照樣補上。擴充要升 5.56（到擴充功能頁重新載入）', go:{ sel:'#syncBtn_channel' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };

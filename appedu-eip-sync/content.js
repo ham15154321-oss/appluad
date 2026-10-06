@@ -71,6 +71,11 @@
     var MAX_TRY = 3, TIMEOUT_MS = 35000;
     async function attempt(n){
       await _eipGateWait();          // ← 每一個請求都先過閘
+      // ★ v5.56：等 EIP 超過 5 秒就每 5 秒回報一聲（hb），頁面按鈕會寫「等 EIP 回傳 N 秒」，也不會被頁面誤判逾時
+      var _t0 = Date.now(), _hb = setInterval(function(){
+        var sec = Math.round((Date.now() - _t0) / 1000);
+        notify('status', { hb: 1, stage: n > 1 ? 'EIP 第 ' + n + ' 次重試' : '等 EIP 回傳', msg: '等 EIP 回傳 ' + sec + ' 秒' });
+      }, 5000);
       try {
         return await new Promise(function(resolve, reject){
           var done = false;
@@ -82,13 +87,14 @@
           }, function(err){
             if (!done){ done = true; clearTimeout(timer); reject(err); }
           });
-        });
+        }).finally(function(){ clearInterval(_hb); });
       } catch(e){
         var msg = (e && e.message) || '';
         // 逾時、SW 掉包、背景 abort、context invalidated → 還有次數就重試
         if (n < MAX_TRY && (msg === '__TIMEOUT__' || msg.indexOf('逾時') >= 0 || msg.indexOf('message channel') >= 0 || msg.indexOf('無回應') >= 0 || msg.indexOf('Receiving end') >= 0)){
           var backoff = n === 1 ? 3000 : 8000;   // 3 秒 → 8 秒（EIP 忙的時候要讓它喘，不是連敲）
           console.warn('[EIP Content] 背景請求第 ' + n + ' 次無回應，' + (backoff/1000) + ' 秒後重試...');
+          notify('status', { hb: 1, stage: 'EIP 沒回，' + (backoff/1000) + ' 秒後第 ' + (n + 1) + ' 次重試', msg: 'EIP 沒回，準備重試' });
           await sleep(backoff);
           return attempt(n + 1);
         }
