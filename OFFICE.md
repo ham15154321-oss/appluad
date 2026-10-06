@@ -228,3 +228,11 @@
 - ds40：穿越跑道左欄改計分板（Ivan 選 A）：大字＝現在業績（月累計，超前紅／落後綠／穿越金），小字＝這關目標・達成率（第二關起寫「這關 X／Y」），細進度條；組長版再一行 學院・組長
 - ds41：時間存摺加學院篩選（localStorage tt_book_org，全部／中區／桃區／南區／七家，按鈕後小數字＝穿越過的人數）
 - ds42：⏱ 穿越加「🧑 業務版」（tt_view＝sales，_ttPersons(M)）：每位業務用個人目標、快照 p 的累計算；沒設目標的列在最下面一行；隱藏用 p:學院|姓名
+
+## 📤 業績數據自動上傳 v2（2026/10/06）
+- 人力發展.html 末尾上傳程式：payload 多帶 byPerson（七家每位業務：org 簡稱、name、formal、net、rs、c1–c4；全 0 的人不送）；上次送出的內容存 localStorage upload_last_sig_v2（重新整理不再重送）；七家全 0 不送；上一次沒回來不送下一次
+- Apps Script「業績數據橋接」（script.google.com/home/projects/106YOhBbZClf21KD0MYFpOnqxM1wPFFX7fZusS33uHC7PILJXrbODRcJV）已部署第 2 版，exec 網址不變；doGet 回 {v:2}
+  - 「數據」分頁欄位不變；新分頁「業務」：寫入時間、資料日期、學院、業務、目前總報到、網際網路、到月底報到、面談、報名、註冊A、註冊B
+  - 去重：ScriptProperties sig_org／sig_person（MD5），跟上次一樣不寫；七家全 0 不寫；LockService 排隊
+- 10/06 11:5x 第一批已寫進「業務」分頁（66 位）；同內容重新整理頁面不會再寫
+- 新版原始碼備份：outputs/apps-script-業績數據橋接-v2.gs；舊 html 備份 outputs/人力發展.bak.20261006.html
