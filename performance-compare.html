@@ -2404,6 +2404,17 @@
 
     .hdr-mode-btn.sync-flash { animation:syncFlash .45s ease-in-out 3; }
     @keyframes syncFlash { 0%,100% { filter:none; } 50% { filter:brightness(1.6); transform:scale(1.05); } }
+
+    #tab-9 .fn-manual { margin-top:6px; } #tab-9 .fn-manual > summary { cursor:pointer; font-size:.76rem; color:var(--fnDim); list-style:none; padding:4px 0; }
+    #tab-9 .fn-manual > summary::before { content:'▸ '; } #tab-9 .fn-manual[open] > summary::before { content:'▾ '; }
+
+    #edDashBg .edd-row.up .edd-fill { background:var(--eBad); } #edDashBg .edd-row.down .edd-fill { background:var(--eOk); }
+    #edDashBg .edd-row.up .edd-v small { color:var(--eBad); } #edDashBg .edd-row.down .edd-v small { color:var(--eOk); }
+    #edDashBg .edd-bars.x3 .edd-row { grid-template-columns:26px 152px 1fr 80px 80px; }
+    #edDashBg .edd-v3 { text-align:right; font-weight:800; font-size:1.25rem; color:var(--eAcc); }
+    #edDashBg .edd-row.edd-hdr { padding-top:0; padding-bottom:0; background:none !important; font-size:.74rem; color:var(--eMute, #888); }
+    #edDashBg .edd-row.edd-hdr .edd-v, #edDashBg .edd-row.edd-hdr .edd-v3 { font-size:.74rem; font-weight:700; color:var(--eMute, #888); }
+    @media (max-width:700px){ #edDashBg .edd-bars.x3 .edd-row { grid-template-columns:22px 90px 1fr 60px 60px; } }
     /* 🔔 更新通知 */
     .pcn-bell { position:relative; background:linear-gradient(135deg,#6a1b9a,#8e24aa) !important; color:#fff !important; border-color:transparent !important; }
     .pcn-badge { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#E24B4A; color:#fff; font-size:11px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 0 0 2px #fff; }
@@ -11039,13 +11050,17 @@
       opt = opt || {};
       if (!rows.length) return '<div class="edd-none">沒有資料</div>';
       var max = Math.max.apply(null, rows.map(function(r){ return Math.abs(r.v) || 0; })) || 1;
-      return '<div class="edd-bars">' + rows.map(function(r, i){
+      var x3 = !!opt.col3;   // ★ 10/07：多一欄（例：本月共幾筆）
+      return '<div class="edd-bars' + (x3 ? ' x3' : '') + '">'
+        + (x3 ? '<div class="edd-row edd-hdr"><div></div><div></div><div></div><div class="edd-v">' + _fnEsc(opt.col2 || '') + '</div><div class="edd-v3">' + _fnEsc(opt.col3) + '</div></div>' : '')
+        + rows.map(function(r, i){
         var pct = Math.max(1.5, Math.abs(r.v) / max * 100);
         return '<div class="edd-row' + (r.cls ? ' ' + r.cls : '') + '"' + (r.tip ? ' data-tip="' + _fnEsc(r.tip) + '"' : '') + '>'
           + '<div class="edd-rk">' + (opt.noRank ? '' : (i + 1)) + '</div>'
           + '<div class="edd-nm">' + _fnEsc(r.name) + (r.sub ? '<small>' + _fnEsc(r.sub) + '</small>' : '') + '</div>'
           + '<div class="edd-track"><div class="edd-fill" style="width:' + pct.toFixed(1) + '%"></div></div>'
           + '<div class="edd-v">' + (r.label != null ? r.label : r.v) + (r.v2 ? '<small>' + _fnEsc(r.v2) + '</small>' : '') + '</div>'
+          + (x3 ? '<div class="edd-v3">' + (r.v3 != null ? r.v3 : '') + '</div>' : '')
           + '</div>';
       }).join('') + '</div>';
     }
@@ -11142,6 +11157,11 @@
       quiet.sort(function(a,b){ return b.p.mon - a.p.mon; });
 
       var tot = moved.reduce(function(a,x){ return a + x.n; }, 0);
+      // ★ 10/07 Ivan：要看當月總共編了幾筆 → 每人本月（已抓到的日子）加總
+      var ymD = day.slice(0, 7), mDays = M.days.filter(function(k){ return k.slice(0, 7) === ymD; });
+      var monOf = function(p){ var t = 0; mDays.forEach(function(k){ t += (p.days && p.days[k]) || 0; }); return t; };
+      var monTot = inScope.reduce(function(a, p){ return a + monOf(p); }, 0);
+      var md = (+day.slice(5, 7)) + '/' + (+day.slice(8));
       var lag = _edLagOf(edGetStore(), day);
       var lagTxt = lag == null ? '' : (lag <= 1 ? '（隔天抓的，完整）' : '（隔了 ' + lag + ' 天才抓，筆數偏低）');
 
@@ -11150,17 +11170,18 @@
         return { name:x.p.name, sub:(sc.isOrg ? '' : x.p.org) + (prev ? '　前一天 ' + x.pn : ''),
                  v:x.n, label:x.n,
                  v2: prev ? (x.d > 0 ? '+' + x.d : (x.d < 0 ? String(x.d) : '持平')) : '',
-                 cls: x.d > 0 ? 'good' : (x.d < 0 ? 'bad' : ''),
+                 cls: x.d > 0 ? 'up' : (x.d < 0 ? 'down' : ''),   // ★ 10/07：台股色，比前一天多＝紅、少＝綠
+                 v3: monOf(x.p),
                  tip:x.p.name + (sc.isOrg ? '' : '（' + x.p.org + '）') + '\n'
                      + day + ' 編了 ' + x.n + ' 筆'
                      + (prev ? '\n' + prev + ' 編了 ' + x.pn + ' 筆 → ' + (x.d >= 0 ? '多 ' + x.d : '少 ' + (-x.d)) + ' 筆' + (w == null ? '' : '（' + (w > 0 ? '+' : '') + w + '%）') : '')
-                     + '\n\n連續 ' + x.p.streak + ' 天有編輯。這段期間共 ' + x.p.mon + ' 筆。' };
+                     + '\n\n本月（已抓 ' + mDays.length + ' 天）共 ' + monOf(x.p) + ' 筆。連續 ' + x.p.streak + ' 天有編輯。' };
       });
 
-      return '<div class="edd-card edd-daycard"><h3><i class="edd-scb"></i>⚡ ' + _fnEsc(sc.label) + '　' + day.replace(/-/g,'/') + ' 誰有動'
-        + '<span class="edd-tot">' + tot.toLocaleString() + ' 筆　' + moved.length + ' 人</span></h3>'
-        + '<p class="edd-sub">這是最後抓到的那一天' + lagTxt + '。右邊小字是跟前一天比。</p>'
-        + (rows.length ? _eddBars(rows) : '<div class="edd-none">這一天沒有人編輯</div>')
+      return '<div class="edd-card edd-daycard"><h3><i class="edd-scb"></i>⚡ ' + _fnEsc(sc.label) + '　' + md + ' 每人編了幾筆名單'
+        + '<span class="edd-tot">' + md + ' 共 ' + tot.toLocaleString() + ' 筆・' + moved.length + ' 人　｜　本月共 ' + monTot.toLocaleString() + ' 筆</span></h3>'
+        + '<p class="edd-sub">每一筆＝一位學生，那天他改過、最後一手是他' + lagTxt + '。' + md + ' 那欄的小字＝比前一天多或少幾筆（紅＝多、綠＝少）；最右欄＝本月到 ' + md + ' 總共編了幾筆' + (mDays.length < (+day.slice(8)) ? '（本月只抓到 ' + mDays.length + ' 天，沒抓的日子不算）' : '') + '。</p>'
+        + (rows.length ? _eddBars(rows, { col2: md, col3: '本月' }) : '<div class="edd-none">這一天沒有人編輯</div>')
         + '</div>'
         + '<div class="edd-card edd-quiet"><h3>😴 ' + day.replace(/-/g,'/') + ' 完全沒動的人'
         + '<span class="edd-tot">' + quiet.length + ' 位</span></h3>'
@@ -14054,6 +14075,8 @@
       return t;
     }
     // 上月經營池 → 本月收割（本月註冊Ⓑ ÷ 上月經營中）
+    // ★ 2026/10/06 Ivan：月初的比率沒有意義（追回、試聽後註冊都集中在月中後）→ 本月 15 號前當「還早」
+    function _fnEarly(ym){ var t = new Date(); return ym === (t.getFullYear() + '-' + _ckPad2(t.getMonth() + 1)) && t.getDate() < 15; }
     function _fnHarvest(s, prevAll){
       if (s.poolHarvest != null && (s.poolHarvest + s.poolOpen) > 0) return { pool: s.poolHarvest + s.poolOpen, got: s.poolHarvest, rate: s.poolHarvest / (s.poolHarvest + s.poolOpen) * 100, auto:true };
       if (!prevAll) return null;
@@ -14090,11 +14113,15 @@
       var dk = d.filter(function(x){ return x.known && x.trial >= 5; });
       if (s.known && s.trial >= 5 && dk.length > 1){
         var r3Rank = dk.slice().sort(function(a,b){ return b.r3-a.r3; }).findIndex(function(x){ return x.org === s.org; }) + 1, r3Avg = dk.reduce(function(a,x){ return a + x.r3; }, 0) / dk.length; n = dk.length;
-        if (r3Rank === 1) out.push({ h:'<b>試聽後收割力強：試聽註冊率 ' + _fnPct(s.r3) + '</b>（' + n + ' 家平均 ' + _fnPct(r3Avg) + '）' });
-        else if (r3Rank === n && s.r3 < r3Avg) out.push({ h:'試聽註冊率 <b>' + _fnPct(s.r3) + '</b> ' + n + ' 家最低（平均 ' + _fnPct(r3Avg) + '），經營中名單要優先回追', bad:true });
+        // ★ 10/06：0% 不能叫「強」——要大於 0、高於平均、分母至少 5 才誇；月初不比
+        if (_fnEarly(ym)){}
+        else if (r3Rank === 1 && s.r3 > 0 && s.r3 > r3Avg && (s.trialR3 == null || s.trialR3 >= 5)) out.push({ h:'<b>試聽後收割力強：試聽註冊率 ' + _fnPct(s.r3) + '</b>（' + n + ' 家平均 ' + _fnPct(r3Avg) + '）' });
+        else if (r3Rank === n && r3Avg > 0 && s.r3 < r3Avg) out.push({ h:'試聽註冊率 <b>' + _fnPct(s.r3) + '</b> ' + n + ' 家最低（平均 ' + _fnPct(r3Avg) + '），經營中名單要優先回追', bad:true });
       }
       if (s.mgmt > 0) out.push({ h:'<b>' + s.mgmt + ' 位試聽後經營中</b>，為 ' + _fnNextMonthLabel(ym) + ' 高意向收割池' });
       var hv = _fnHarvest(s, prevAll);
+      // ★ 10/06：月初追回本來就少，不算比例、不說「偏慢」，改成一個動作
+      if (hv && out.length < 3 && _fnEarly(ym)){ var _po = hv.pool - hv.got; if (_po > 0) out.push({ h:'經營池 <b>' + _po + '</b> 位可追，這週先挑 5 位約回來' }); hv = null; }
       if (hv && out.length < 3) out.push({ h: (hv.auto ? '前 3 個月經營池 ' + hv.pool + ' 位 → 本月追回 <b>' + hv.got + ' 位（' + _fnPct(hv.rate) + '）</b>，還有 ' + (hv.pool - hv.got) + ' 位可追' : _fnMonthLabel(_fnPrevYm(ym)) + ' ' + hv.pool + ' 位池 → ' + _fnMonthLabel(ym) + ' 已收 <b>' + hv.got + ' 位（' + _fnPct(hv.rate) + '）</b>') + (hv.rate < 20 ? '，收割偏慢' : ''), bad: hv.rate < 20 });
       if (out.length < 3 && s.checkin >= 10){
         if (s.r1 < 70) out.push({ h:'報到→面談 <b>' + _fnPct(s.r1) + '</b>（低於 70%），檢查報到後的面談安排', bad:true });
@@ -14114,8 +14141,9 @@
       if (t.unknownOrgs && t.unknownOrgs.length) out.push({ h:'尚有 <b>' + t.unknownOrgs.length + ' 家</b>未填當下註冊（' + t.unknownOrgs.join('、') + '），合計的試聽後結果只含已填的家數', bad:true });
       var c = d.filter(function(x){ return x.known && x.trial >= 5; }).sort(function(x,y){ return y.r3-x.r3; })[0];
       if (t.mgmt > 0) out.push({ h:'<b>' + t.mgmt + ' 位試聽後經營中</b>為 ' + _fnNextMonthLabel(ym) + ' 收割池' + (b && b.mgmt ? '，最大池在 ' + b.org + '（' + b.mgmt + ' 位）' : '') });
-      if (c) out.push({ h:'試聽註冊率最高：<b>' + c.org + ' ' + _fnPct(c.r3) + '</b>（合計 ' + _fnPct(t.r3) + '）' });
+      if (c && c.r3 > 0 && !_fnEarly(ym)) out.push({ h:'試聽註冊率最高：<b>' + c.org + ' ' + _fnPct(c.r3) + '</b>（合計 ' + _fnPct(t.r3) + '）' });
       var hv = _fnHarvest(t, prevAll ? [_fnSum(prevAll)] : null);
+      if (hv && _fnEarly(ym)){ var _po2 = hv.pool - hv.got; if (_po2 > 0) out.push({ h:'經營池 <b>' + _po2 + '</b> 位可追，月中前先把約得到的約回來' }); hv = null; }
       if (hv) out.push({ h:'收割閉環：' + (hv.auto ? '前 3 個月經營池 ' + hv.pool + ' 位 → 本月追回 <b>' + hv.got + ' 位（' + _fnPct(hv.rate) + '）</b>，還有 ' + (hv.pool - hv.got) + ' 位可追' : _fnMonthLabel(_fnPrevYm(ym)) + ' ' + hv.pool + ' 位池 → 本月註冊Ⓑ <b>' + hv.got + ' 位（' + _fnPct(hv.rate) + '）</b>'), bad: hv.rate < 20 });
       return out.slice(0, 4);
     }
@@ -16075,7 +16103,9 @@
       { ver:'ds40', icon:'💰', title:'穿越跑道左欄變計分板', detail:'每一組、每一家的現在業績放大字（超前紅、落後綠、穿越金），下面小字是這關目標和達成率，再加一條進度條', go:{ fn:'ttTab' } },
       { ver:'ds41', icon:'🏫', title:'時間存摺可以選學院', detail:'🏆 激勵頁的年度時間存摺，組和個人那兩欄多一排學院篩選（全部／中區／桃區／南區／七家），按鈕後面的小數字是那家今年穿越過的人數', go:{ tab:4, sel:'#ttBook' } },
       { ver:'ds42', icon:'🧑', title:'穿越跑道多一個業務版', detail:'⏱ 穿越分頁的切換多一顆「🧑 業務版（每個人）」：每位業務用自己的個人目標算活在幾號，左欄大字是他現在的業績，下面寫學院・組。沒設個人目標的列在最下面', go:{ fn:'ttTab' } },
-      { ver:'ds43', icon:'⏳', title:'同步鈕會寫現在在幹嘛＋秒數', detail:'六顆同步鈕跑的時候會寫「同步中 12 秒」「等 EIP 回傳 40 秒」「第 2 次重試」「整理資料」，跑完寫「✅ 完成 14:32」。EIP 太慢頁面會先解鎖，資料晚到 3 分鐘內照樣補上。擴充要升 5.56（到擴充功能頁重新載入）', go:{ sel:'#syncBtn_channel' } }
+      { ver:'ds43', icon:'⏳', title:'同步鈕會寫現在在幹嘛＋秒數', detail:'六顆同步鈕跑的時候會寫「同步中 12 秒」「等 EIP 回傳 40 秒」「第 2 次重試」「整理資料」，跑完寫「✅ 完成 14:32」。EIP 太慢頁面會先解鎖，資料晚到 3 分鐘內照樣補上。擴充要升 5.56（到擴充功能頁重新載入）', go:{ sel:'#syncBtn_channel' } },
+      { ver:'ds44', icon:'✂️', title:'漏斗卡片瘦身', detail:'月度漏斗總結每張卡：上排只留科數／人頭／新業績；對帳字樣對得上就不顯示；前月排試聽、排了沒來、待查證收進 👥 名單；月初（15 號前）不比試聽註冊率、不說追回偏慢；0% 不再被誇「強」；手填區收成「✏️ 手動修正」', go:{ tab:9, fn:'fnTop' } },
+      { ver:'ds45', icon:'📝', title:'編輯儀表板：每人編了幾筆＋本月總數', detail:'⚡ 昨日那張改名「台中學院 10/6 每人編了幾筆名單」，多一欄「本月」＝這個月到那天總共編了幾筆；跟前一天比改成台股色（多＝紅、少＝綠）', go:{ tab:10 } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
@@ -16550,9 +16580,10 @@
           + (mi.length ? '\n　移入：' + mi.slice(0, 8).map(function(x){ return x.n + '（' + x.o + '←' + x.from + '）'; }).join('、') : '')
           + '\n\n面談紀錄掛在這家、但承辦業務是別家的人，EIP 會把報名算在業務那一家，這裡照同樣方式歸。'
           + '\n學員介紹的人雖然不算 EIP 報名，但他們有繳報名費，照樣算在右邊的「本月面談試聽」裡。';
-        if (d === 0){
-          chk = '<div class="fn-sgok" data-tip="' + _fnEsc(why) + '">✓ 收支對得上</div>';
-        } else if (Math.abs(d) <= 2 || !isTotal){
+        // ★ 10/06：對得上、誤差內都不顯示（只留在滑鼠提示），只有真的對不上才亮
+        if (d === 0 || Math.abs(d) <= 2 || !isTotal){
+          chk = '';
+        } else if (false){
           // ★ 單一學院：實測 2026/09 中區三家分別差 +1／+3／−5，合計卻只差 1。
           //   逐人查過：不是跨學院承辦（0 位移動），是 EIP 對合作案（報名費對分成 50、25…）與個別學生的歸屬規則，
           //   我們從收支看不出來。單一學院的差距沒有行動意義，改成灰色提示；紅色只留給區域合計。
@@ -16572,10 +16603,9 @@
           chk = '<div class="fn-sgbad" data-tip="' + _fnEsc(why + '\n\n差 ' + Math.abs(d) + ' 位，超過誤差，要查。\n\n' + (lines.length ? '對不上的業務：\n' + lines.join('\n') : '')) + '">'
             + '⚠️ 收支 ' + comp + '，' + (d > 0 ? '差 ' + d : '多 ' + (-d)) + '</div>';
         }
-        if (ref) chk += '<div class="sm2">另有學員介紹 ' + ref + ' 位（EIP 不算）</div>';
       }
-      return '<div class="fn-step fn-sg"><div class="lb">報名</div><div class="v">' + s.signup + '</div>'
-        + '<div class="sm2">EIP 學院績效總表</div>' + chk + '</div>';
+      return '<div class="fn-step fn-sg"' + (why0(s) ? ' data-tip="' + _fnEsc(why0(s)) + '"' : '') + '><div class="lb">報名</div><div class="v">' + s.signup + '</div>' + chk + '</div>';
+      function why0(s){ return typeof why === 'string' ? why : ''; }
     }
     // ── 本月面談試聽：大字 ＋ 組成（次一級大字）＋ 外院色塊 ──
     function _fnTrialStep(s, isTotal){
@@ -16595,8 +16625,9 @@
         parts = '<div class="fn-src"><div class="fn-src-i"><span>報名</span><b>' + s.signup + '</b></div><div class="fn-src-i"><span>報備</span><b>' + s.extra + '</b></div></div>';
       }
       var a = s.auto;
-      var extras = a
-        ? (a.poolTrial.length ? '<div class="sm" title="前 1～3 個月面談的人，追蹤情形排了未來的試聽日。不算在本月面談試聽裡。">前月面談排試聽 ' + a.poolTrial.length + '（另列）</div>' : '')
+      // ★ 10/06：前月排試聽、排了沒來、待查證 → 收進「👥 名單」（摘要那行就有），卡片只留主數字
+      var extras = (a && false)
+        ? (a.poolTrial.length ? '' : '')
           + (a.trialDue.length ? '<div class="fn-noshow" title="排過試聽、日期已經過了，沒補排新的也還沒註冊 → 已從試聽扣掉">⚠️ 排了試聽沒來 <b>' + a.trialDue.length + '</b></div>' : '')
           + ((a.trialUnsure && a.trialUnsure.length) ? '<div class="fn-unsure" title="我們某次同步看到備註寫了試聽，但 EIP 現在的備註對不上這一段。沒有計入，請開 EIP 查證後手動報備或忽略。">📝 待查證試聽 <b>' + a.trialUnsure.length + '</b></div>' : '')
         : '';
@@ -16612,6 +16643,8 @@
         var l = all.filter(function(x){ return x.hasData && (key !== 'r3' || x.known) && x[key === 'r3' ? 'trial' : (key === 'r2' ? 'interview' : 'checkin')] >= (key === 'r3' ? 5 : 1); });
         if (isTotal || l.length < 2) return '';
         var sorted = l.slice().sort(function(a,b){ return b[key]-a[key]; });
+        if (!(sorted[0][key] > 0)) return '';                   // ★ 10/06：大家都是 0 就不標最高／最低
+        if (key === 'r3' && _fnEarly(ym)) return '';
         if (sorted[0].org === s.org) return ' hi';
         if (sorted[sorted.length-1].org === s.org) return ' lo';
         return '';
@@ -16619,7 +16652,7 @@
       var hls = isTotal ? _fnTotalHighlights(s, all, ym, prevAll) : _fnHighlights(s, all, ym, prevAll);
       var noteLines = (s.note || '').split('\n').map(function(t){ return t.trim(); }).filter(Boolean);
       var subWarn = s.mismatch ? '<span class="warn" title="當下＋試聽後註冊 ≠ 註冊Ⓐ">⚠️ 當下 ' + s.onsite + '＋試聽後 ' + s.reg + ' ≠ 註冊Ⓐ ' + s.regA + '</span>' : (s.filled === 'none' && s.regA > 0 && !isTotal ? '<span class="warn">未填當下</span>' : '');
-      if (s.auto) subWarn += '<span class="auto" title="擴充「🔀 漏斗」逐人資料自動分類。當下＋試聽後 ' + (s.auto.onsite.length + s.auto.trialReg.length) + ' vs EIP 註冊Ⓐ ' + s.regA + '（Ⓐ＝名單當月建檔；有差多半是跨月入帳／解約）">🤖 自動' + (s.autoDiff ? ' Ⓐ' + (s.autoDiff > 0 ? '+' : '') + s.autoDiff : ' Ⓐ✓') + '</span>';
+      if (s.auto && s.autoDiff) subWarn += '<span class="auto" title="擴充「🔀 漏斗」逐人資料自動分類。當下＋試聽後 ' + (s.auto.onsite.length + s.auto.trialReg.length) + ' vs EIP 註冊Ⓐ ' + s.regA + '（Ⓐ＝名單當月建檔；有差多半是跨月入帳／解約）">🤖 Ⓐ' + (s.autoDiff > 0 ? '+' : '') + s.autoDiff + '</span>';   // ★ 10/06：對得上就不顯示
       else if (isTotal && s.autoN) subWarn += '<span class="auto">🤖 ' + s.autoN + ' 家自動</span>';
       // 合計卡底下只有一家學院有逐人資料（例：南區＝高雄建國）→ 這張卡就等於那家，給它一樣的選擇器。
       //   兩張卡共用同一個 _fnWho[學院]，點哪一張都會一起動。
@@ -16631,7 +16664,7 @@
         + '<div class="fn-head"><div class="fn-title">' + (isTotal ? '👑 ' : '<span class="dot" style="background:' + (CK_COLOR[s.org] || '#999') + '"></span>') + _fnEsc(s.org)
         + '<button class="fn-teach" onclick="fnTeach(\'' + ym + '\',\'' + (isTotal ? '__TOTAL__' : _fnEsc(s.org)) + '\')" title="用這張卡當下的真實數字，逐項解釋每個數字怎麼來的">📖 這張卡怎麼看</button>'
         + (_hasWho ? '<button class="fn-teach fn-who1" onclick="fnTeach(\'' + ym + '\',\'' + (isTotal ? '__TOTAL__' : _fnEsc(s.org)) + '\')" title="開全螢幕視窗，在裡面選組、選業務，看他一個人的漏斗與名單">👤 看業務個人</button>' : '') + '</div>'
-        + '<div class="fn-sub"><span>註冊Ⓐ<b>' + s.regA + '</b></span><span>當下<b>' + s.onsite + '</b></span><span>註冊Ⓑ<b>' + s.regB + '</b></span>' + (s.harvest != null ? '<span title="本月註冊、面談在前 1～3 個月（含舊名單）">追回<b>' + s.harvest + '</b></span>' : '') + (s.courses != null ? '<span title="新生科數：本月每筆註冊業績合計 ≥ 2 萬算 1 科，排除「學員加購」（括號＝含舊生加購）">科數<b>' + s.coursesNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.courses + ')</small></span><span title="新生人頭：同一新生本月註冊加總 ≥ 2 萬算 1 人頭，排除「學員加購」（括號＝含舊生加購）">人頭<b>' + s.headsNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.heads + ')</small></span>' : '') + (s.newPerf ? '<span class="lead">新業績<b>' + _fnWan(s.newPerf) + '</b></span>' : '') + subWarn + '</div>'
+        + '<div class="fn-sub">' + (s.courses != null ? '<span title="新生科數：本月每筆註冊業績合計 ≥ 2 萬算 1 科，排除「學員加購」（括號＝含舊生加購）">科數<b>' + s.coursesNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.courses + ')</small></span><span title="新生人頭：同一新生本月註冊加總 ≥ 2 萬算 1 人頭，排除「學員加購」（括號＝含舊生加購）">人頭<b>' + s.headsNew + '</b><small style="color:var(--fnDim)">(含加購 ' + s.heads + ')</small></span>' : '') + (s.newPerf ? '<span class="lead">新業績<b>' + _fnWan(s.newPerf) + '</b></span>' : '') + subWarn + '</div>'
         + '</div>'
         + '<div class="fn-flow">'
         + (V
@@ -16668,24 +16701,27 @@
             + '<div class="fn-rate"><div class="pill">' + _fnPct(V.r2) + '</div><div class="cap">面談 → 試聽<br><span style="color:var(--fnMute)">全院 ' + _fnPct(s.r2) + '</span></div></div>'
             + '<div class="fn-rate"></div>'
             + '<div class="fn-rate"><div class="pill box"><small>試聽註冊率</small>' + _fnPct(V.r3) + '</div><div class="cap">試聽 → 註冊<br><span style="color:var(--fnMute)">全院 ' + (s.known ? _fnPct(s.r3) : '—') + '</span></div></div>'
-          : '<div class="fn-rate' + rateCls('r1') + '"><div class="pill">' + _fnPct(s.r1) + '</div><div class="cap">報到 → 面談' + (s.r1 > 100 ? '<br><span style="color:var(--fnWarn)">含班務／舊名單面談</span>' : '') + '</div></div>'
+          : (s.r1 > 100
+            ? '<div class="fn-rate' + rateCls('r1') + '" data-tip="面談比報到多，多出來的是班務、舊名單、轉介紹的面談"><div class="pill">面談 ' + s.interview + '</div><div class="cap">報到 ' + s.checkin + '＋舊名單 ' + (s.interview - s.checkin) + '</div></div>'
+            : '<div class="fn-rate' + rateCls('r1') + '"><div class="pill">' + _fnPct(s.r1) + '</div><div class="cap">報到 → 面談</div></div>')
         + '<div class="fn-rate"><div class="pill">' + _fnPct(s.interview ? s.signup / s.interview * 100 : 0) + '</div><div class="cap">面談 → 報名<br><span style="color:var(--fnMute)">＝EIP 面談率</span></div></div>'
         + '<div class="fn-rate' + rateCls('r2') + '"><div class="pill">' + _fnPct(s.r2) + '</div><div class="cap">面談 → 試聽</div></div>'
         + '<div class="fn-rate"></div>'
         + '<div class="fn-rate' + (s.known ? rateCls('r3') : '') + '" data-tip="試聽註冊率 ＝ 試聽後註冊 ÷ 真的去試聽的人\n'
           + '分母 ' + (s.trialR3 != null ? s.trialR3 : s.trial) + ' 位（本月面談試聽 ' + s.trial + ' 扣掉 3 天內就註冊、舊名單追回的人' + (s.regUnmatched ? '，再加上 EIP 算試聽後註冊、收支對不到名字的 ' + s.regUnmatched + ' 位' : '') + '）。\n\n'
-          + '那些人的註冊算在「當下」或「追回」，不在試聽後註冊裡；放在分母只會把比率拉低、失去參考價值。"><div class="pill box"><small>試聽註冊率</small>' + (s.known ? _fnPct(s.r3) : '—') + '</div><div class="cap">試聽 → 註冊' + ((s.known && s.trialR3) ? '<br><span style="color:var(--fnMute)">當月 ' + (s.regCur||0) + ' ÷ ' + s.trialR3 + '</span>' : '') + '</div></div>')
+          + '那些人的註冊算在「當下」或「追回」，不在試聽後註冊裡；放在分母只會把比率拉低、失去參考價值。"' + (_fnEarly(ym) ? ' style="opacity:.55"' : '') + '><div class="pill box"><small>試聽註冊率</small>' + (s.known ? _fnPct(s.r3) : '—') + '</div><div class="cap">試聽 → 註冊' + (_fnEarly(ym) ? '<br><span style="color:var(--fnMute)">月中後才準</span>' : ((s.known && s.trialR3) ? '<br><span style="color:var(--fnMute)">當月 ' + (s.regCur||0) + ' ÷ ' + s.trialR3 + '</span>' : '')) + '</div></div>')
         + '</div>'
-        + '<div class="fn-hl"><div class="tt">關鍵亮點</div><ul>'
+        + ((hls.length + noteLines.length) ? '<div class="fn-hl"><div class="tt">關鍵亮點</div><ul>'
         + hls.map(function(h){ return '<li' + (h.bad ? ' class="bad"' : (h.warn ? ' class="warn"' : '')) + '>' + h.h + '</li>'; }).join('')
         + noteLines.map(function(t){ return '<li>' + _fnEsc(t) + '</li>'; }).join('')
-        + (hls.length + noteLines.length === 0 ? '<li style="color:var(--fnDim);">尚無資料</li>' : '')
-        + '</ul></div>';
+        + '</ul></div>' : '');
       if (!isTotal && s.auto) html += _fnNamesHtml(s.auto, ym, s);
       if (!isTotal){
         var ent = fnGetEntry(ym, s.org);
         var o = _fnEsc(s.org);
-        html += '<div class="fn-tools">'
+        // ★ 10/06：漏斗已自動分類 → 手填區平常收起來，有對不上或沒有自動資料才展開
+        html += '<details class="fn-manual"' + ((!s.auto || s.mismatch || s.overInterview || s.overTrial) ? ' open' : '') + '><summary>✏️ 手動修正' + ((s.reports && s.reports.length) ? '・報備 ' + s.reports.length : '') + (s.note ? '・有補充' : '') + '</summary>'
+          + '<div class="fn-tools">'
           + '<label>當下註冊 <input type="number" min="0" step="1"' + ((s.mismatch || s.overInterview) ? ' class="bad"' : '') + ' value="' + (_fnHasVal(ent.onsite) ? _ckNum(ent.onsite) : '') + '" placeholder="—" onchange="fnSetField(\'' + ym + '\',\'' + o + '\',\'onsite\',this.value)"></label>'
           + '<label>試聽後註冊 <input type="number" min="0" step="1"' + ((s.mismatch || s.overTrial) ? ' class="bad"' : '') + ' value="' + (_fnHasVal(ent.trialReg) ? _ckNum(ent.trialReg) : '') + '" placeholder="—" onchange="fnSetField(\'' + ym + '\',\'' + o + '\',\'trialReg\',this.value)"></label>'
           + '<button onclick="fnOpenReports(\'' + ym + '\',\'' + o + '\')" style="border:1px solid rgba(120,140,220,.4);background:rgba(90,110,240,.12);color:inherit;border-radius:8px;padding:5px 12px;cursor:pointer;font-size:.8rem;font-weight:700;">🖐 報備試聽名單（' + ((s.reports && s.reports.length) || 0) + '）</button>'
@@ -16693,7 +16729,7 @@
           + '<button onclick="fnToggleNote(this)">✏️ 補充亮點</button>'
           + (s.filledBy ? '<span style="margin-left:auto;color:var(--fnDim);">✍️ ' + _fnEsc(s.filledBy) + ' ' + _fnEsc(s.filledAt) + ' 填</span>' : (s.auto ? '' : '<span style="margin-left:auto;color:var(--fnWarn);">尚未有人填寫</span>'))
           + '</div>'
-          + '<div class="fn-hl" style="display:none;margin-top:8px;"><div class="tt" style="margin-top:8px;">補充</div><textarea placeholder="一行一條，會接在關鍵亮點後面" onchange="fnSetField(\'' + ym + '\',\'' + o + '\',\'note\',this.value)">' + _fnEsc(s.note) + '</textarea></div>';
+          + '<div class="fn-hl" style="display:none;margin-top:8px;"><div class="tt" style="margin-top:8px;">補充</div><textarea placeholder="一行一條，會接在關鍵亮點後面" onchange="fnSetField(\'' + ym + '\',\'' + o + '\',\'note\',this.value)">' + _fnEsc(s.note) + '</textarea></div></details>';
       }
       html += '</div>';
       return html;

@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds43'（monthly-performance：mpbundle17）`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds45'（monthly-performance：mpbundle17）`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds43`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds45`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -242,3 +242,14 @@
 - done 處理整段包 try/catch，一定走到 finish；看門狗 90 秒／60 秒兜底逾時後不移除監聽，3 分鐘內晚到的 done 照樣收（按鈕「✅ 完成（晚到）」）
 - 擴充 fetchViaBackground：每個請求等超過 5 秒每 5 秒 notify('status',{hb:1,stage}); 重試前也送一聲；頁面收到 hb 只更新按鈕、重設看門狗，不洗提示框
 - 連按／別的同步在跑：按鈕閃三下＋提示「「X」還在跑（第 N 秒・階段）」；擴充沒回應寫「擴充沒回應・按 Cmd+R」
+
+## ✂️ 漏斗卡片瘦身（2026/10/06，ds44）
+- _fnEarly(ym)：本月 15 號前＝還早 → 不比試聽註冊率（亮點、hi/lo 標記都不出）、試聽註冊率格變淡寫「月中後才準」、追回比例改成「經營池 N 位可追，這週先挑 5 位約回來」
+- 試聽註冊率「強」要 >0、高於平均、分母 ≥5；大家都 0 不標 hi/lo；亮點全空就整段不出
+- 上排 fn-sub 只留 科數／人頭／新業績；🤖 自動 Ⓐ✓ 只在 Ⓐ 有差時出現
+- 報名格：EIP 學院績效總表、✓ 收支對得上、≈ 誤差內 都拿掉（說明留在滑鼠提示），只有區域合計差 >2 才亮 ⚠️
+- 試聽格：前月排試聽（另列）、排了沒來、待查證 移出卡片（👥 名單摘要已有）
+- 報到→面談 >100%：改寫「面談 17／報到 13＋舊名單 4」
+- 手填區收進 <details class="fn-manual">「✏️ 手動修正」，沒有自動資料或對不上時自動展開
+- 👥 名單、面談後流失、追蹤卡都沒動
+- ds45：編輯儀表板 ⚡ 昨日卡改名「{學院} M/D 每人編了幾筆名單」，_eddBars 加 opt.col3 第五欄「本月」（本月已抓到的日子加總，沒抓的日子不算），標頭「M/D 共 N 筆・N 人｜本月共 N 筆」；比前一天多＝紅（up）、少＝綠（down）
