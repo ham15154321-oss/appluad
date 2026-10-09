@@ -2416,6 +2416,7 @@
     #edDashBg .edd-row.edd-hdr .edd-v, #edDashBg .edd-row.edd-hdr .edd-v3 { font-size:.74rem; font-weight:700; color:var(--eMute, #888); }
     @media (max-width:700px){ #edDashBg .edd-bars.x3 .edd-row { grid-template-columns:22px 90px 1fr 60px 60px; } }
 
+    .evo-psec { font-size:.78rem; font-weight:700; opacity:.6; margin:10px 0 0; } .evo-pamt.dim small { opacity:.5; }
     .evo-paidsum { margin-left:auto; font-size:.8rem; font-weight:500; opacity:.8; } .evo-paidsum b { color:#A32D2D; font-size:1rem; }
     .evo-assume { background:#FCEBEB !important; color:#791F1F !important; border-color:#E24B4A !important; }
     .evo-prow { display:grid; grid-template-columns:150px 1fr 170px; gap:12px; align-items:center; padding:10px 6px; border-bottom:1px solid rgba(0,0,0,.07); }
@@ -9135,35 +9136,49 @@
       return html;
     }
 
-    // ── 💰 達標後你領多少（Ivan 10/09）：假設學院已過 300 萬，而且你衝到「下一級」——
-    //   還沒到 30 萬＝當作已做到 30 萬；30～45 萬＝當作已做到 45 萬…；90 萬以上＝照實際
-    //   大字＝那一級的活動加碼＋那一級業績的原本 5%
+    // ── 💰 達標後你領多少（Ivan 10/09 定版）──
+    //   假設學院已過 300 萬，加碼的門檻「當作已經達成下一級」；原本 5%／3% 照「實際」業績算
+    //   業務：下一級加碼（還沒到 30 萬＝1,500，30～45＝4,500…，90 萬以上＝27,000）＋實際業績 5%
+    //   學院主管：學院下一級加碼（還沒到 300 萬＝15,000，300～350＝26,250…）＋學院實際業績 3%（副主管領 1/2 只套在加碼）
+    //   助理／客服：學院下一級的每人獎金
+    function _evoNext(T, v){ var i = _evoTier(T, v), nx = T[i + 1]; return nx ? { lv:nx[0], add:nx[1], top:false } : { lv:T[i][0], add:T[i][1], top:true }; }
     function _evoPaid(M, orgs){
-      var html = '<p class="evo-sub">假設學院已做到 300 萬，而且你衝到<b>下一級</b>：十月可以領多少。大字＝那一級的活動加碼＋原本 5%。</p>';
+      var html = '<p class="evo-sub">假設學院已做到 300 萬，加碼門檻當作你<b>已經達成下一級</b>；原本 5%（主管 3%）照你<b>現在的實際業績</b>算。大字＝加碼＋原本 %。</p>';
       orgs.forEach(function(org){
+        var ob = M.orgBiz[org] || 0;
         var list = M.reps.filter(function(r){ return r.org === org; }).map(function(r){
-          var i = _evoTier(EVO.P, r.v), nx = EVO.P[i + 1], top = !nx;
-          var lv = top ? EVO.P[i][0] : nx[0];          // 用來算的業績
-          var add = top ? EVO.P[i][1] : nx[1];
-          var basis = top ? r.v : lv, base = Math.round(basis * 0.05);
-          return { r:r, i:i, top:top, lv:lv, add:add, base:base, basis:basis, tot:add + base, gap: top ? 0 : lv - r.v };
+          var n = _evoNext(EVO.P, r.v), base = Math.round(r.v * 0.05);
+          return { r:r, n:n, base:base, tot:n.add + base };
         }).sort(function(a,b){ return b.tot - a.tot || b.r.v - a.r.v; });
         var sum = list.reduce(function(a,x){ return a + x.tot; }, 0);
+        // 主管、助理客服
+        var b = EVO.boss[org], an = _evoNext(EVO.A, ob), aAdd = Math.round(an.add * (b && b.half ? 0.5 : 1)), aBase = Math.round(ob * 0.03);
+        var sn = _evoNext(EVO.S, ob);
         html += '<div class="evo-org"><h4><span class="dot" style="background:' + (CK_COLOR[org] || '#999') + '"></span>' + _fnEsc(org)
           + '<span class="evo-paidsum">業務合計可領 <b>' + _evoM(sum) + '</b></span></h4>'
-          + '<div class="evo-gate ok evo-assume">🔓 假設 ' + _fnEsc(org) + ' 已達 300 萬，每個人都衝到下一級</div>';
+          + '<div class="evo-gate ok evo-assume">🔓 假設 ' + _fnEsc(org) + ' 已達 300 萬，加碼都當作已達成下一級</div>';
+        html += '<div class="evo-psec">🏫 學院主管</div><div class="evo-prow">'
+          + '<div class="evo-nm"><b>' + (b ? _fnEsc(b.n) : '—') + '</b><small>' + (b ? _fnEsc(b.note || '學院主管') : '不發放學院主管獎金') + '</small></div>'
+          + '<div class="evo-pv"><span class="evo-lv">加碼以 ' + _evoW(an.lv) + ' 算' + (an.top ? '（已達）' : '') + '</span><small>學院現在 ' + _evoW(ob) + '</small></div>'
+          + (b ? '<div class="evo-pamt"><b>' + _evoM(aAdd + aBase) + '</b><small>加碼 ' + _evoM(aAdd) + (b.half ? '（1/2）' : '') + '＋3% ' + _evoM(aBase) + '</small></div>'
+               : '<div class="evo-pamt dim"><small>不發放</small></div>')
+          + '</div>';
+        html += '<div class="evo-psec">🧾 助理／客服</div><div class="evo-prow">'
+          + '<div class="evo-nm"><b>學院助理、客服</b><small>每人</small></div>'
+          + '<div class="evo-pv"><span class="evo-lv">以學院 ' + _evoW(sn.lv) + ' 算' + (sn.top ? '（已達）' : '') + '</span><small>學院現在 ' + _evoW(ob) + '</small></div>'
+          + '<div class="evo-pamt"><b>' + _evoM(sn.add) + '</b><small>每人</small></div></div>';
+        html += '<div class="evo-psec">👤 業務</div>';
         if (!list.length){ html += '<div class="pp-bonus-none">沒有業務資料</div></div>'; return; }
         list.forEach(function(x){
-          var lvTxt = x.top ? '已到最高級 90 萬' : '衝到 ' + _evoW(x.lv);
           html += '<div class="evo-prow">'
             + '<div class="evo-nm"><b>' + _fnEsc(x.r.n) + '</b><small>' + _fnEsc(x.r.dept) + '</small></div>'
-            + '<div class="evo-pv"><span class="evo-lv">' + lvTxt + '</span><small>現在 ' + _evoW(x.r.v) + (x.top ? '' : '・再 ' + _evoW(x.gap) + ' 就是這個數') + '</small></div>'
-            + '<div class="evo-pamt"><b>' + _evoM(x.tot) + '</b><small>加碼 ' + _evoM(x.add) + '＋5% ' + _evoM(x.base) + '</small></div>'
+            + '<div class="evo-pv"><span class="evo-lv">加碼以 ' + _evoW(x.n.lv) + ' 算' + (x.n.top ? '（已達）' : '') + '</span><small>現在 ' + _evoW(x.r.v) + '</small></div>'
+            + '<div class="evo-pamt"><b>' + _evoM(x.tot) + '</b><small>加碼 ' + _evoM(x.n.add) + '＋5% ' + _evoM(x.base) + '</small></div>'
             + '</div>';
         });
         html += '</div>';
       });
-      return html + '<p class="evo-sub" style="margin-top:10px">5% 用那一級的業績估（已到 90 萬的人用實際業績）；正式以公司結算（扣小科、乙級、戰鬥營等）為準。</p>';
+      return html + '<p class="evo-sub" style="margin-top:10px">5%、3% 用 EIP 合計業績估；正式以公司結算（扣小科、乙級、戰鬥營等）為準。多間學院／區主管看「🗺 多間學院／區主管」分頁。</p>';
     }
 
     function _evoBoss(M, D, orgs, H){
@@ -16146,7 +16161,7 @@
       { ver:'ds43', icon:'⏳', title:'同步鈕會寫現在在幹嘛＋秒數', detail:'六顆同步鈕跑的時候會寫「同步中 12 秒」「等 EIP 回傳 40 秒」「第 2 次重試」「整理資料」，跑完寫「✅ 完成 14:32」。EIP 太慢頁面會先解鎖，資料晚到 3 分鐘內照樣補上。擴充要升 5.56（到擴充功能頁重新載入）', go:{ sel:'#syncBtn_channel' } },
       { ver:'ds44', icon:'✂️', title:'漏斗卡片瘦身', detail:'月度漏斗總結每張卡：上排只留科數／人頭／新業績；對帳字樣對得上就不顯示；前月排試聽、排了沒來、待查證收進 👥 名單；月初（15 號前）不比試聽註冊率、不說追回偏慢；0% 不再被誇「強」；手填區收成「✏️ 手動修正」', go:{ tab:9, fn:'fnTop' } },
       { ver:'ds45', icon:'📝', title:'編輯儀表板：每人編了幾筆＋本月總數', detail:'⚡ 昨日那張改名「台中學院 10/6 每人編了幾筆名單」，多一欄「本月」＝這個月到那天總共編了幾筆；跟前一天比改成台股色（多＝紅、少＝綠）', go:{ tab:10 } },
-      { ver:'ds46', icon:'💰', title:'十月活動：達標後你領多少', detail:'十月活動視窗多一個分頁「💰 達標後你領多少」：假設學院已過 300 萬、每個人都衝到下一級（還沒到 30 萬就當作 30 萬），紅色大字＝那一級的加碼＋原本 5%，小字拆開', go:{ fn:'evoPaid' } }
+      { ver:'ds46', icon:'💰', title:'十月活動：達標後你領多少', detail:'十月活動視窗多一個分頁「💰 達標後你領多少」：假設學院已過 300 萬，加碼當作已達成下一級，原本 5%（主管 3%）照實際業績；每家有學院主管、助理客服、業務三段', go:{ fn:'evoPaid' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
