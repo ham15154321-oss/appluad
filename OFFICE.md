@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds46'（monthly-performance：mpbundle17）`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds47'（monthly-performance：mpbundle17）`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds46`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds47`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -254,3 +254,4 @@
 - 👥 名單、面談後流失、追蹤卡都沒動
 - ds45：編輯儀表板 ⚡ 昨日卡改名「{學院} M/D 每人編了幾筆名單」，_eddBars 加 opt.col3 第五欄「本月」（本月已抓到的日子加總，沒抓的日子不算），標頭「M/D 共 N 筆・N 人｜本月共 N 筆」；比前一天多＝紅（up）、少＝綠（down）
 - ds46：十月活動視窗加分頁「💰 達標後你領多少」（evoTab='paid'，_evoPaid）：假設學院已過 300 萬，用每位業務現在的 EIP 合計業績算級距；紅色大字＝加碼＋5%，小字拆開；每家標頭寫業務合計可領；下一級寫「再 N 萬到 X 萬，合計變 Y」
+- ds47：💰 達標後你領多少改成「假設學院達標＋每個人衝到下一級」：<30 萬當 30 萬（1,500＋15,000＝16,500）、30～45 當 45 萬（4,500＋22,500）…、≥90 萬照實際；中間寫「衝到 X 萬・現在 Y 萬・再 Z 萬就是這個數」
