@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds48'（monthly-performance：mpbundle17）`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds49'（monthly-performance：mpbundle17）`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 `?v=ds48`（如果還沒跑）
+1. 跑 `deploy.command` 上線 `?v=ds49`（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -256,3 +256,4 @@
 - ds46：十月活動視窗加分頁「💰 達標後你領多少」（evoTab='paid'，_evoPaid）：假設學院已過 300 萬，用每位業務現在的 EIP 合計業績算級距；紅色大字＝加碼＋5%，小字拆開；每家標頭寫業務合計可領；下一級寫「再 N 萬到 X 萬，合計變 Y」
 - ds47：💰 達標後你領多少改成「假設學院達標＋每個人衝到下一級」：<30 萬當 30 萬（1,500＋15,000＝16,500）、30～45 當 45 萬（4,500＋22,500）…、≥90 萬照實際；中間寫「衝到 X 萬・現在 Y 萬・再 Z 萬就是這個數」
 - ds48（定版，取代 ds47 的算法）：加碼「當作已達成下一級」（_evoNext），原本 5%／3% 照實際業績。業務＝下一級加碼＋實際×5%；學院主管＝學院下一級加碼（副主管 half 只套加碼）＋學院實際×3%；助理客服＝學院下一級每人獎金。每家三段：🏫 學院主管／🧾 助理客服／👤 業務；中間寫「加碼以 X 萬算・現在 Y 萬」
+- ds49：🏆 激勵頁的「⏱ 年度時間存摺」拿掉（Ivan：對推動團隊沒幫助）。_ttBook 計算保留給 getTimeTravel 的「年度存摺累積天數」，頁面不再畫；ds41 那則改版通知也刪了
