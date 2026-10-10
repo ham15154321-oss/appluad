@@ -2911,34 +2911,50 @@
                 btn.textContent = '☁️↑ 強制推送公司資料';
             }
         }
-        async function forcePullMpDataFromCloud(){
-            var btn = document.getElementById('cloudPullBtn');
+        // ★ 2026/10/10 Ivan：拉取不要整頁重整、範圍改小
+        //   opts.quick＝表頭「☁️↓ 拉取」預設：不問、不重整，只下載雲端簽章跟本機不同的項目（本來就是增量），拉完請外層原地重畫
+        //   opts.full＝進階：照舊問一次、mp 月份有變才重整
+        async function forcePullMpDataFromCloud(opts){
+            opts = opts || {}; var quick = !!opts.quick;
+            var btn = document.getElementById('cloudPullBtn') || { style:{} };
+            var _res = { ok:false };
             try{
                 btn.disabled = true; btn.textContent = '☁️↓ 拉取中...';
                 var fsync = _getParentFirebaseSync();
-                if(!fsync){ alert('❌ 找不到 firebaseSync.readGlobalDoc(需在 parent)'); return; }
+                if(!fsync){ if (!quick) alert('❌ 找不到 firebaseSync.readGlobalDoc(需在 parent)'); return { ok:false, err:'找不到雲端模組' }; }
                 console.log('[cloud-sync] 從 Firestore 讀 bundle...');
                 var doc = await fsync.readGlobalDoc('_global_perf_data', 'bundle');
                 if(!doc || !doc.data){
-                    alert('❌ 雲端沒有公司資料 bundle,請先在主機按「強制推送公司資料」');
-                    return;
+                    if (!quick) alert('❌ 雲端沒有公司資料 bundle,請先在主機按「強制推送公司資料」');
+                    return { ok:false, err:'雲端沒有公司資料' };
                 }
-                var bundle = JSON.parse(doc.data);
+                var bundle = JSON.parse(doc.data), got = {}, _mpLocalSigCache = null, _mpMonthsBefore = [];
+                // ★ 10/10：先讀本機 mp_data 一次，拿來比簽章（跟雲端一樣就不下載）＋ 記月份（拉完比對月份有沒有變）
+                try {
+                    var _db0 = await new Promise(function(res,rej){ var q = indexedDB.open('SpaceBaseDB'); q.onsuccess = function(){ res(q.result); }; q.onerror = function(){ rej(q.error); }; });
+                    var _v0 = await new Promise(function(res){ try { var g = _db0.transaction('images','readonly').objectStore('images').get('mp_data_v1'); g.onsuccess = function(){ res(g.result); }; g.onerror = function(){ res(null); }; } catch(e){ res(null); } });
+                    _db0.close();
+                    var _mp0 = (typeof _v0 === 'string') ? JSON.parse(_v0) : _v0;
+                    if (_mp0 && typeof _mp0 === 'object'){ _mpLocalSigCache = JSON.stringify(_mp0); _mpMonthsBefore = Object.keys(_mp0).sort(); }
+                } catch(e0){}
+                var _kbLocalSigCache = null;
+                try { var _kb0 = await _readKnowledgeBase(); if (_kb0) _kbLocalSigCache = JSON.stringify(_kb0); } catch(e1){}
                 // ★ 2026/09 增量格式 v3：逐項讀，本機已經一樣的項目直接跳過不下載
                 if (bundle && bundle.schema === 'company-bundle-v3'){
                     var pLS3 = _getParentLS(), host3 = _getFnHost();
                     var localOf = function(nm){
                         try {
-                            if (nm === 'mpData') return null;                       // mp 一律重讀（IDB，成本低）
-                            if (nm === 'kb') return null;
+                            if (nm === 'mpData') return _mpLocalSigCache;            // ★ 10/10：mp 也比簽章（快拉時本機已讀過）
+                            if (nm === 'kb') return _kbLocalSigCache;               // ★ 10/10：知識庫也比簽章
                             var k = nm.slice(3);
                             var v = null;
                             try { v = pLS3.getItem(k); } catch(e){}
                             if ((v === null || v === undefined) && host3){ try { v = host3._fnIdbCache[k]; } catch(e){} }
-                            return (v === null || v === undefined) ? null : String(v);
+                            if (v === null || v === undefined) return null;
+                            return (typeof v === 'string') ? v : JSON.stringify(v);   // ★ 10/10：IDB 快取是物件，要字串化才能比簽章
                         } catch(e){ return null; }
                     };
-                    var nm3 = Object.keys(bundle.items || {}), got = {}, nSkip3 = 0, nGet3 = 0;
+                    var nm3 = Object.keys(bundle.items || {}), nSkip3 = 0, nGet3 = 0;
                     for (var i3 = 0; i3 < nm3.length; i3++){
                         var name3 = nm3[i3], it3 = bundle.items[name3];
                         var loc3 = localOf(name3);
@@ -3019,8 +3035,10 @@
                 summary = summary.concat(_rest2);
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
-                if(!confirm('☁️ 把雲端公司資料合併到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n說明:依月份合併 — 雲端會更新/補上月份,但不會刪掉本機已有的月份。')){
-                    return;
+                var _nothingNew = bundle._inc && bundle._inc.got === 0;
+                if (quick && _nothingNew){ return { ok:true, got:0, skip:bundle._inc.skip, msg:'本機已經是最新', pushedBy:pushedBy, pushedAt:pushedAt }; }
+                if(!quick && !confirm('☁️ 把雲端公司資料合併到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n說明:依月份合併 — 雲端會更新/補上月份,但不會刪掉本機已有的月份。')){
+                    return { ok:false, err:'取消' };
                 }
                 // 1) 寫 IDB mp_data_v1（★依月份合併,不整包覆蓋 → 拉到舊 bundle 也不會把本機較新月份洗掉）
                 if(mp){
@@ -3151,9 +3169,17 @@
                 // 3) 寫 KnowledgeBaseDB.kb
                 if(kb){ await _writeKnowledgeBase(kb); }
 
-                if (failed.length){
+                if (failed.length && !quick){
                     alert('⚠️ 拉取完成，但有 ' + failed.length + ' 筆資料寫不進這台瀏覽器（通常是 localStorage 5MB 額度滿了）：\n\n' + failed.join('\n')
                         + '\n\n請把這個畫面截圖給管理者。其他資料已更新，3 秒後重新整理。');
+                }
+                // ★ quick：不重整，交給外層原地重畫（mp 月份有變才需要重整）
+                var _mpChanged = false;
+                try { if (mp){ var _after = {}; _mpMonthsBefore.forEach(function(m){ _after[m] = 1; }); Object.keys(mp).forEach(function(m){ if (!_after[m]) _mpChanged = true; }); } } catch(eM){}
+                _res = { ok:true, got:(bundle._inc ? bundle._inc.got : lsKeyNames.length), skip:(bundle._inc ? bundle._inc.skip : 0), total:(bundle._inc ? bundle._inc.total : 0), failed:failed.length, mpChanged:_mpChanged, pushedBy:pushedBy, pushedAt:pushedAt, keys:lsKeyNames };
+                if (quick){
+                    try { var _h = _getFnHost() || window.parent; if (_h && typeof _h._pcAfterPull === 'function') _h._pcAfterPull(_res); } catch(eA){}
+                    return _res;
                 }
                 showStatus('✅ 已拉取 '+(mpMonths.length+lsKeyNames.length+(kbItemCount?1:0))+' 項公司資料'+(bundle._inc ? '（雲端共 ' + bundle._inc.total + ' 項：' + bundle._inc.got + ' 項有更新、' + bundle._inc.skip + ' 項本機已是最新）' : '')+',1.5 秒後重新整理', 'success');
                 console.log('[cloud-sync] ✅ 拉取成功' + (failed.length ? '（' + failed.length + ' 筆寫入失敗）' : ''));
@@ -3166,10 +3192,12 @@
             }catch(e){
                 console.error('[cloud-sync] 拉取失敗', e);
                 showStatus('❌ 拉取失敗: '+(e.message||e), 'error');
+                _res = { ok:false, err:String(e && e.message || e) };
             }finally{
                 btn.disabled = false;
                 btn.textContent = '☁️↓ 強制拉取公司資料';
             }
+            return _res;
         }
 
         // Adjust layout if in iframe
