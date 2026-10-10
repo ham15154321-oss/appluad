@@ -1575,7 +1575,7 @@
     body.day-mode .bigtip span { color:#4a4a4f; }
     body.day-mode .bigtip::after { background:#ffffff; border-color:rgba(0,0,0,.12); }
     /* 有說明的東西要看得出來可以滑 */
-    [data-tip] { cursor:help; }
+    [data-pchelp] { cursor:help; }
 
     /* ═══ 🧭 學員旅程圖（在名單列展開區最上面）═══ */
     .jr { --jrInk:#f5f5f7; --jrDim:#a1a1a6; --jrMute:#8a8a90; --jrLine:rgba(255,255,255,.13);
@@ -2442,6 +2442,29 @@
     #tab-7 th[title] { cursor:help; text-decoration:underline dotted; text-underline-offset:3px; }
 
     #pcBusy { position:fixed; top:8px; left:50%; transform:translateX(-50%); z-index:100002; background:rgba(20,20,30,.92); color:#fff; padding:6px 14px; border-radius:999px; font-size:.8rem; display:none; box-shadow:0 4px 14px rgba(0,0,0,.3); }
+
+    .gc-box { margin:4px 0 14px; border-radius:16px; padding:12px; }
+    .gc-box.gc-race { background:#14113A; color:#EEEDFE; } .gc-box.gc-ecg { background:#022720; color:#E1F5EE; } .gc-box.gc-climb { background:#FDF6EA; color:#412402; }
+    .gc-box.full { position:fixed; inset:0; z-index:2147483000; margin:0; border-radius:0; overflow:auto; padding:18px 26px; }
+    html.gc-lock, html.gc-lock body { overflow:hidden; } html.gc-lock #navFloatBar, html.gc-lock .tz-control, html.gc-lock #pcFresh { display:none !important; }
+    .gc-bar { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+    .gc-box .gc-tabs button, .gc-box .gc-fullbtn, .gc-box .gc-chip { font-family:inherit; cursor:pointer; border-radius:999px; padding:6px 14px; font-size:.86rem; font-weight:700; border:1.5px solid #FFFFFF55; background:transparent; color:inherit; margin:2px; }
+    .gc-climb .gc-tabs button, .gc-climb .gc-fullbtn, .gc-climb .gc-chip { border-color:#B4B2A9; }
+    .gc-box .gc-tabs button.on { background:#E24B4A; border-color:#E24B4A; color:#FFFFFF; }
+    .gc-chips { margin:8px 0 4px; display:flex; flex-wrap:wrap; align-items:center; gap:2px; font-size:.82rem; } .gc-chips small { opacity:.7; margin-left:6px; }
+    .gc-box .gc-chip.on { color:#1B1747; } .gc-box .gc-chip.clr { border-style:dashed; }
+    .gc-svg { display:block; border-radius:12px; } .gc-box.full .gc-svg { max-height:calc(100vh - 250px); }
+    .gc-dot { cursor:pointer; } .gc-dot:hover { stroke:#FFFFFF; stroke-width:3; }
+    .gc-info { margin:8px 0; padding:8px 12px; border-radius:10px; background:#80808024; font-size:.86rem; display:flex; flex-wrap:wrap; gap:6px 14px; }
+    .gc-info.on { background:#E24B4A2E; } .gc-info em { font-style:normal; font-weight:800; font-size:1.1em; }
+    .gc-info .up, .gc-t.up { color:#E24B4A; font-weight:800; } .gc-info .dn, .gc-t.dn { color:#3B6D11; font-weight:800; }
+    .gc-race .gc-t.dn, .gc-ecg .gc-t.dn, .gc-race .gc-info .dn, .gc-ecg .gc-info .dn { color:#97C459; } .gc-race .gc-t.up, .gc-ecg .gc-t.up, .gc-race .gc-info .up, .gc-ecg .gc-info .up { color:#F09595; }
+    .gc-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:8px; }
+    .gc-card { border:1px solid #8080804D; border-radius:12px; padding:8px 10px; display:flex; flex-direction:column; gap:2px; font-size:.82rem; }
+    .gc-card b { border-left:5px solid; padding-left:6px; font-size:.95rem; } .gc-card small { opacity:.8; }
+    .gc-card.best { border:2px solid #E24B4A; } .gc-card.flat { border:2px dashed #639922; }
+    .gc-legend { margin-top:8px; font-size:.74rem; opacity:.75; }
+    .ds-oldmini summary { cursor:pointer; font-size:.8rem; opacity:.7; margin:8px 0; }
     /* 🔔 更新通知 */
     .pcn-bell { position:relative; background:linear-gradient(135deg,#6a1b9a,#8e24aa) !important; color:#fff !important; border-color:transparent !important; }
     .pcn-badge { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#E24B4A; color:#fff; font-size:11px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 0 0 2px #fff; }
@@ -3079,40 +3102,40 @@
       <button class="back-btn" onclick="goBack()">◀ 返回</button>
     </div>
     <div class="hdr-sync-group" id="hdrSyncGroup">
-      <button id="syncBtn_motiv"   class="hdr-mode-btn motiv"   onclick="motivTriggerEipSync('motiv')" data-tip="sync-motiv">
+      <button id="syncBtn_motiv"   class="hdr-mode-btn motiv"   onclick="motivTriggerEipSync('motiv')" data-pchelp="sync-motiv">
         <span class="hmb-line1">🏆 激勵</span><span class="hmb-line2" id="syncTime_motiv">未同步</span>
       </button>
-      <button id="syncBtn_checkin" class="hdr-mode-btn checkin" onclick="motivSyncSeq(['motiv','checkin'])" data-tip="sync-checkin">
+      <button id="syncBtn_checkin" class="hdr-mode-btn checkin" onclick="motivSyncSeq(['motiv','checkin'])" data-pchelp="sync-checkin">
         <span class="hmb-line1">🚪 報到</span><span class="hmb-line2" id="syncTime_checkin">未同步</span>
       </button>
-      <button id="syncBtn_channel" class="hdr-mode-btn channel" onclick="motivTriggerEipSync('channel')" data-tip="sync-channel">
+      <button id="syncBtn_channel" class="hdr-mode-btn channel" onclick="motivTriggerEipSync('channel')" data-pchelp="sync-channel">
         <span class="hmb-line1">📋 通路</span><span class="hmb-line2" id="syncTime_channel">未同步</span>
       </button>
-      <button id="syncBtn_funnel" class="hdr-mode-btn funnel" onclick="fnSyncAll()" data-tip="sync-funnel">
+      <button id="syncBtn_funnel" class="hdr-mode-btn funnel" onclick="fnSyncAll()" data-pchelp="sync-funnel">
         <span class="hmb-line1">🔀 漏斗</span><span class="hmb-line2" id="syncTime_funnel">未同步</span>
       </button>
-      <button id="syncBtn_edits" class="hdr-mode-btn edits" onclick="switchTab(10); setTimeout(edSyncNow, 120);" data-tip="sync-edits">
+      <button id="syncBtn_edits" class="hdr-mode-btn edits" onclick="switchTab(10); setTimeout(edSyncNow, 120);" data-pchelp="sync-edits">
         <span class="hmb-line1">📝 編輯</span><span class="hmb-line2" id="syncTime_edits">未同步</span>
       </button>
-      <button id="hdrSaveBtn" class="hdr-save-btn" onclick="motivSaveCurrentToArchive()" data-tip="lock">💾 鎖定</button>
-      <button id="pcPushBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#00695c,#00897b);color:#fff;border-color:transparent;" onclick="pcForcePushCompany()" data-tip="push">☁️↑ 推送</button>
-      <button id="pcPullBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#1565c0,#1e88e5);color:#fff;border-color:transparent;" onclick="pcForcePullCompany(event)" data-tip="pull">☁️↓ 拉取</button>
+      <button id="hdrSaveBtn" class="hdr-save-btn" onclick="motivSaveCurrentToArchive()" data-pchelp="lock">💾 鎖定</button>
+      <button id="pcPushBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#00695c,#00897b);color:#fff;border-color:transparent;" onclick="pcForcePushCompany()" data-pchelp="push">☁️↑ 推送</button>
+      <button id="pcPullBtn" class="hdr-mode-btn" style="background:linear-gradient(135deg,#1565c0,#1e88e5);color:#fff;border-color:transparent;" onclick="pcForcePullCompany(event)" data-pchelp="pull">☁️↓ 拉取</button>
     </div>
   </header>
 
   <div id="pcFresh" class="pc-fresh" style="display:none"></div>
   <div class="tabs-container">
-    <button class="tab-btn active" data-tab="0" data-tip="tab-0" onclick="switchTab(0)">📈 年度月/季比較</button>
-    <button class="tab-btn" data-tab="1" data-tip="tab-1" onclick="switchTab(1)">📊 每月講座成績表現</button>
-    <button class="tab-btn" data-tab="2" data-tip="tab-2" onclick="switchTab(2)">📋 各通路績效</button>
-    <button class="tab-btn" data-tab="8" data-tip="tab-8" onclick="switchTab(8)">🎓 課程銷售分析</button>
-    <button class="tab-btn" data-tab="6" data-tip="tab-6" onclick="switchTab(6)">🚪 報到排名</button>
-    <button class="tab-btn" data-tab="7" data-tip="tab-7" onclick="switchTab(7)">📆 當月績效</button>
-    <button class="tab-btn" data-tab="9" data-tip="tab-9" onclick="switchTab(9)">📌 月度漏斗總結</button>
-    <button class="tab-btn" data-tab="10" data-tip="tab-10" onclick="switchTab(10)">📝 編輯追蹤</button>
-    <button class="tab-btn" data-tab="3" data-tip="tab-3" onclick="switchTab(3)">📅 每月績效</button>
-    <button class="tab-btn" data-tab="4" data-tip="tab-4" onclick="switchTab(4)">🏆 激勵</button>
-    <button class="tab-btn" data-tab="5" data-tip="tab-5" onclick="switchTab(5)">📝 成績單</button>
+    <button class="tab-btn active" data-tab="0" data-pchelp="tab-0" onclick="switchTab(0)">📈 年度月/季比較</button>
+    <button class="tab-btn" data-tab="1" data-pchelp="tab-1" onclick="switchTab(1)">📊 每月講座成績表現</button>
+    <button class="tab-btn" data-tab="2" data-pchelp="tab-2" onclick="switchTab(2)">📋 各通路績效</button>
+    <button class="tab-btn" data-tab="8" data-pchelp="tab-8" onclick="switchTab(8)">🎓 課程銷售分析</button>
+    <button class="tab-btn" data-tab="6" data-pchelp="tab-6" onclick="switchTab(6)">🚪 報到排名</button>
+    <button class="tab-btn" data-tab="7" data-pchelp="tab-7" onclick="switchTab(7)">📆 當月績效</button>
+    <button class="tab-btn" data-tab="9" data-pchelp="tab-9" onclick="switchTab(9)">📌 月度漏斗總結</button>
+    <button class="tab-btn" data-tab="10" data-pchelp="tab-10" onclick="switchTab(10)">📝 編輯追蹤</button>
+    <button class="tab-btn" data-tab="3" data-pchelp="tab-3" onclick="switchTab(3)">📅 每月績效</button>
+    <button class="tab-btn" data-tab="4" data-pchelp="tab-4" onclick="switchTab(4)">🏆 激勵</button>
+    <button class="tab-btn" data-tab="5" data-pchelp="tab-5" onclick="switchTab(5)">📝 成績單</button>
   </div>
 
   <div class="content">
@@ -9308,7 +9331,7 @@
         + '<div class="evo-tools">'
         + (!pp || !pp.orgs ? '<button class="ck-region-btn' + (evoPreview ? ' active' : '') + '" onclick="evoPreview=!evoPreview;ppEventOpen(ppEvId)">' + (evoPreview ? '👀 預覽中（九月資料）・點我關掉' : '👀 還沒有十月資料 → 用九月資料預覽') + '</button>' : '')
         + '<button class="ck-region-btn" onclick="evoCopyLine()">📋 複製 LINE 戰報</button>'
-        + (evoPreview ? '' : '<button class="ck-region-btn" onclick="evoSnapNow()" data-tip="手動存一份本週快照\n每週五第一次打開會自動存，這顆是補存或重存用。">📸 存本週快照</button>')
+        + (evoPreview ? '' : '<button class="ck-region-btn" onclick="evoSnapNow()" data-pchelp="手動存一份本週快照\n每週五第一次打開會自動存，這顆是補存或重存用。">📸 存本週快照</button>')
         + '</div>'
         + (evoPreview ? '<div class="evo-warn">👀 預覽：下面全部是「九月數字套十月辦法」的試算，不是十月成績</div>' : '')
         + '<div class="evo-tabs">' + [['rep','👤 業務'],['paid','💰 達標後你領多少'],['boss','🏫 學院主管'],['multi','🗺 多間學院／區主管'],['staff','🧾 助理／客服'],['week','📅 每週五檢討']].map(function(t){
@@ -9765,8 +9788,8 @@
       var h = '<div class="ds-bar">'
         + '<button class="ck-region-btn' + (DS.demo ? ' active' : '') + '" onclick="DS.demo=!DS.demo;DS.date=\'\';DS._demo=null;dsumOpen()">' + (DS.demo ? '🧪 示範資料中・點我關掉' : '🧪 看示範資料') + '</button>'
         + (keys.length ? '<select class="ds-date" onchange="dsumOpen(null,this.value)">' + keys.slice().reverse().map(function(k){ return '<option value="' + k + '"' + (k === DS.date ? ' selected' : '') + '>' + (+k.slice(5,7)) + '/' + (+k.slice(8)) + ' 收工</option>'; }).join('') + '</select>' : '')
-        + '<button class="ck-region-btn ds-morn" onclick="dsCopy(\'morn\')" data-tip="早上貼主管群\n每家只寫今天要入帳多少＋進度條，不放紅色。">☀️ 複製今日挑戰（早上版）</button>'
-        + '<button class="ck-region-btn" onclick="dsCopy(\'boss\')" data-tip="收工後貼主管群\n賀🎉、📌未達、10:30 晨會。">🌙 複製收工版</button>'
+        + '<button class="ck-region-btn ds-morn" onclick="dsCopy(\'morn\')" data-pchelp="早上貼主管群\n每家只寫今天要入帳多少＋進度條，不放紅色。">☀️ 複製今日挑戰（早上版）</button>'
+        + '<button class="ck-region-btn" onclick="dsCopy(\'boss\')" data-pchelp="收工後貼主管群\n賀🎉、📌未達、10:30 晨會。">🌙 複製收工版</button>'
         + '<button class="ck-region-btn" onclick="dsCopy(\'lead\')">📋 複製組長版</button></div>'
         + (DS.demo ? '<div class="evo-warn">🧪 示範：用九月數字隨機攤成每天，只是看版面，不是真的成績</div>' : '')
         + '<div class="evo-tabs">' + tabs.map(function(t){ return '<button class="evo-tab' + (DS.tab === t[0] ? ' on' : '') + '" onclick="dsumOpen(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') + '</div>';
@@ -9899,7 +9922,7 @@
           var c = S && S.o[r.org] ? S.o[r.org].biz : null, tgt = _dsGateCum(M.ym, r.org, r.T, gi);
           var lamp = c == null ? '—' : (c >= tgt * 1.2 ? '✔+' : (c >= tgt ? '✔' : 'X'));
           var w = 0, l = 0; for (var d = g[0]; d <= g[1]; d++){ var dk = _dsDate(M.ym, d); if (!M.S[dk] || _dsIsHol(M.ym, r.org, dk)) continue; var mm = _dsModel(M.ym, dk).rows.filter(function(x){ return x.org === r.org; })[0]; if (mm.res === 'win') w++; if (mm.res === 'lose') l++; }
-          var plan = lamp === 'X' ? (gi > 0 && _dsGateLost(M, r, gi - 1) ? '連兩關輸 → ' + (g[1] + 1) + ' 號 10:00 組長以上現場檢討；下一關每天 13:30 檢討會＋每晚 23:00 總結' : '今晚 23:00 視訊；下一關每天 13:30 檢討會（30 分鐘）') : (lamp === '✔+' ? '嘉許，維持節奏' : '持平，維持每日戰報');
+          var plan = lamp === 'X' ? (gi > 0 && _dsGateLost(M, r, gi - 1) ? '連兩關輸 → ' + (g[1] + 1) + ' 號 13:40 組長以上現場檢討' : '隔天 13:40 關卡檢討，主管帶五個下一關作戰計畫') : (lamp === '✔+' ? '嘉許，維持節奏' : '持平，維持每日戰報');
           return '<tr class="' + (lamp === 'X' ? 'bad' : (lamp === '✔+' ? 'good' : '')) + '"><td>' + _fnEsc(r.org) + '</td><td>' + (c == null ? '—' : _dsW(c)) + '</td><td>' + _dsW(tgt) + '</td><td><b>' + lamp + '</b></td><td>' + w + ' 贏 ' + l + ' 輸</td><td class="pl">' + plan + '</td></tr>';
         }).join('');
         gateSum += '<div class="ds-gate"><h4>🏁 第' + '一二三'[gi] + '關結算（' + (+M.ym.slice(5)) + '/' + g[1] + '）</h4><table class="ds-t"><tr><th>學院</th><th>累計</th><th>關卡目標</th><th>結果</th><th>這關每日</th><th>下一步</th></tr>' + rs + '</table></div>';
@@ -9916,7 +9939,168 @@
           + (act.length ? '<polyline points="' + act.join(' ') + '" fill="none" stroke="#5b5bd6" stroke-width="2.5"/>' : '') + '</svg></div>';
       }).join('');
       return '<div class="ds-sub">實線＝實際累計，虛線＝應到線，灰底＝休假日。10、20 號、月底收工後，上面會出現那一關的結算表。</div>'
-        + (gateSum || '<div class="ds-sub dim">第一關 10 號收工後才會出結算表</div>') + '<div class="ds-minis">' + charts + '</div>';
+        + _gcHtml(M) + (gateSum || '<div class="ds-sub dim">第一關 10 號收工後才會出結算表</div>') + '<details class="ds-oldmini"><summary>舊版小圖（七家各一張）</summary><div class="ds-minis">' + charts + '</div></details>';
+    }
+    // ═══ 🎮 遊戲感趨勢圖（10/10 Ivan：三個都做，可切換截圖給不同主管）═══
+    //   A 賽道競速／B 動能心電圖／C 登山關卡地圖；全螢幕；點點看那天；多選比較
+    //   勢頭＝最近 3 個上班日入帳 ÷ 這 3 天該到（Ivan 10/10 同意）；≥100% 🔥
+    //   毫無改變＝連續 ≥2 個上班日入帳 0，假日不算（Ivan 10/10 同意）
+    var GC_COL = ['#EF9F27','#5DCAA5','#ED93B1','#85B7EB','#F0997B','#AFA9EC','#97C459'];
+    function _gcV(){ var v = null; try { v = JSON.parse(localStorage.getItem('gc_v1') || 'null'); } catch(e){} v = v || {}; v.theme = v.theme || 'race'; v.sel = v.sel || []; return v; }
+    function _gcSave(v){ try { localStorage.setItem('gc_v1', JSON.stringify(v)); } catch(e){} }
+    function _gcStats(M, r){
+      var keys = M.keys.filter(function(k){ return k <= M.date && M.S[k] && M.S[k].o && M.S[k].o[r.org]; });
+      var pts = [], prevCum = 0, prevDay = 0;
+      keys.forEach(function(k){
+        var d = +k.slice(8), cum = M.S[k].o[r.org].biz || 0, exp = 0, wd = 0;
+        for (var x = prevDay + 1; x <= d; x++){ var ei = (r.E.inc && r.E.inc[x]) || 0; if (ei > 0 && !_dsIsHol(M.ym, r.org, _dsDate(M.ym, x))){ exp += ei; wd++; } }
+        pts.push({ k:k, d:d, cum:cum, inc:Math.max(0, cum - prevCum), exp:exp, wd:wd });
+        prevCum = cum; prevDay = d;
+      });
+      var got3 = 0, exp3 = 0, n3 = 0, flat = 0, flatOn = true, flatFrom = null;
+      for (var i = pts.length - 1; i >= 0; i--){
+        var p = pts[i]; if (!p.wd) continue;
+        if (n3 < 3){ got3 += p.inc; exp3 += p.exp; n3 += p.wd; }
+        if (flatOn){ if (p.inc <= 0){ flat += p.wd; flatFrom = p; } else flatOn = false; }
+      }
+      var last = pts[pts.length - 1];
+      return { org:r.org, T:r.T || 1, pts:pts, cum:last ? last.cum : 0, pct:last ? last.cum / (r.T || 1) : 0,
+        mom: exp3 ? got3 / exp3 : null, got3:got3, exp3:exp3, flat: flat >= 2 ? flat : 0, flatFrom: flat >= 2 ? flatFrom : null };
+    }
+    function gcSet(k, val){
+      var v = _gcV();
+      if (k === 'sel'){ var i = v.sel.indexOf(val); if (i >= 0) v.sel.splice(i, 1); else v.sel.push(val); }
+      else if (k === 'clear') v.sel = [];
+      else v[k] = val;
+      _gcSave(v); _gcRedraw();
+    }
+    function gcFull(){
+      var b = document.getElementById('gcBox'); if (!b) return;
+      var on = !b.classList.contains('full');
+      b.classList.toggle('full', on); document.documentElement.classList.toggle('gc-lock', on);
+      var bt = document.getElementById('gcFullBtn'); if (bt) bt.textContent = on ? '✕ 離開全螢幕' : '⛶ 全螢幕';
+    }
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape'){ var b = document.getElementById('gcBox'); if (b && b.classList.contains('full')) gcFull(); } });
+    function _gcRedraw(){ var b = document.getElementById('gcBox'); if (!b || !window._GCM) return; var full = b.classList.contains('full'); b.outerHTML = _gcHtml(window._GCM, full); }
+    function gcPick(org, k){
+      var M = window._GCM, el = document.getElementById('gcInfo'); if (!M || !el) return;
+      var r = M.rows.filter(function(x){ return x.org === org; })[0]; if (!r) return;
+      var s = _gcStats(M, r), p = s.pts.filter(function(x){ return x.k === k; })[0]; if (!p) return;
+      var mr = null; try { mr = _dsModel(M.ym, k).rows.filter(function(x){ return x.org === org; })[0]; } catch(e){}
+      var res = mr ? ({ win:'贏', lose:'輸', hol:'休假', na:'—' }[mr.res] || '—') : '—';
+      el.innerHTML = '<b>' + _fnEsc(org) + '　' + (+k.slice(5,7)) + '/' + p.d + '</b>'
+        + '<span>當天入帳 <em>' + _dsW(p.inc) + '</em>' + (p.wd > 1 ? '（' + p.wd + ' 天合計）' : '') + '</span>'
+        + '<span>該到 ' + _dsW(p.exp) + '</span>'
+        + (mr && mr.cm ? '<span>承諾 ' + _dsW(mr.cm.biz) + '</span>' : '')
+        + '<span class="' + (res === '贏' ? 'up' : (res === '輸' ? 'dn' : '')) + '">' + res + '</span>'
+        + '<span>累計 ' + _dsW(p.cum) + '（' + Math.round(p.cum / s.T * 100) + '%）</span>'
+        + (mr && mr.streak > 1 ? '<span>連' + (mr.sk === 'win' ? '贏' : '輸') + ' ' + mr.streak + ' 天</span>' : '');
+      el.classList.add('on');
+    }
+    function _gcMomTag(s){
+      if (s.flat) return '<span class="gc-t dn">💤 ' + s.flat + ' 個上班日沒入帳</span>';
+      if (s.mom == null) return '<span class="gc-t">—</span>';
+      return '<span class="gc-t ' + (s.mom >= 1 ? 'up' : 'dn') + '">' + (s.mom >= 1 ? '🔥 ' : '') + '勢頭 ' + Math.round(s.mom * 100) + '%</span>';
+    }
+    function _gcShort(o){ return (typeof CK_SHORT !== 'undefined' && CK_SHORT[o]) || o; }
+    function _gcHtml(M, full){
+      window._GCM = M;
+      var v = _gcV(), n = _dsDays(M.ym), W = 960, H = 440, L = 44, R = 160, TP = 30, B = 26;
+      var all = M.rows.map(function(r){ return _gcStats(M, r); });
+      var sel = v.sel.filter(function(o){ return all.some(function(s){ return s.org === o; }); });
+      var on = function(s){ return !sel.length || sel.indexOf(s.org) >= 0; };
+      var col = {}; all.forEach(function(s, i){ col[s.org] = GC_COL[i % GC_COL.length]; });
+      var r0 = M.rows[0], E0 = r0 ? r0.E : null, T0 = (r0 && r0.T) || 1;
+      if (v.theme === 'ecg'){ var nOn = all.filter(on).length; H = Math.max(H, 40 + 96 * nOn); }
+      // 本關視角（預設）：鏡頭拉到「這一關結算日」，Y 軸拉到這關目標 ×1.25 → 月初線不會擠在底部
+      var focus = v.span !== 'month', nx = focus ? M.G[M.gi][1] : n;
+      var ymax = 1.15;
+      if (focus){ var pg = E0 ? (E0.cum[nx] || 0) / T0 : 0.33; ymax = Math.max(pg * 1.25, Math.max.apply(null, all.map(function(s){ return s.pct; }).concat([0.05])) * 1.15); }
+      var X = function(d){ return L + (W - L - R) * Math.min(d, nx) / nx; };
+      var Y = function(p){ return H - B - (H - B - TP) * Math.min(ymax, Math.max(0, p)) / ymax; };
+      var pace = []; if (E0){ for (var d = 0; d <= nx; d++) pace.push(X(d) + ',' + Y((E0.cum[d] || 0) / T0)); }
+      var gates = M.G.map(function(g, gi){ return { x:X(g[1]), d:g[1], p:(E0 && E0.cum[g[1]] || 0) / T0, lab:gi < 2 ? (+M.ym.slice(5)) + '/' + g[1] : '月底' }; }).filter(function(g){ return g.d <= nx; });
+      var stepP = ymax > 0.8 ? 0.25 : (ymax > 0.4 ? 0.1 : 0.05), grid = []; for (var gq = 0; gq <= ymax + 1e-9; gq += stepP) grid.push(Math.round(gq * 100) / 100);
+      var svg = '';
+      var line = function(s){ return s.pts.map(function(p){ return X(p.d) + ',' + Y(p.cum / s.T); }).join(' '); };
+      var dots = function(s, c, rr){ return s.pts.map(function(p){ return '<circle class="gc-dot" cx="' + X(p.d) + '" cy="' + Y(p.cum / s.T) + '" r="' + rr + '" fill="' + c + '" onclick="gcPick(\'' + s.org + '\',\'' + p.k + '\')"><title>' + _fnEsc(s.org) + ' ' + p.d + '日 入帳 ' + _dsW(p.inc) + '</title></circle>'; }).join(''); };
+      var stack = function(arr){ arr.sort(function(a,b){ return a.y - b.y; }); var ly = -99; arr.forEach(function(o){ o.ty = Math.max(o.y, ly + (o.gap || 22)); ly = o.ty; }); return arr; };
+
+      if (v.theme === 'race'){
+        svg += '<rect width="' + W + '" height="' + H + '" fill="#1B1747"/>';
+        grid.forEach(function(q){ svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(q) + '" y2="' + Y(q) + '" stroke="#3C3489"/><text x="' + (L - 6) + '" y="' + (Y(q) + 4) + '" fill="#AFA9EC" font-size="12" text-anchor="end">' + Math.round(q * 100) + '%</text>'; });
+        gates.forEach(function(g){ svg += '<line x1="' + g.x + '" x2="' + g.x + '" y1="' + TP + '" y2="' + (H - B) + '" stroke="#7F77DD" stroke-dasharray="6 5"/><text x="' + g.x + '" y="' + (TP - 10) + '" fill="#CECBF6" font-size="13" text-anchor="middle">🏁 ' + g.lab + '</text>'; });
+        svg += '<line x1="' + X(M.day) + '" x2="' + X(M.day) + '" y1="' + TP + '" y2="' + (H - B) + '" stroke="#FAC775" opacity=".45"/>';
+        if (pace.length) svg += '<polyline points="' + pace.join(' ') + '" fill="none" stroke="#D3D1C7" stroke-width="2" stroke-dasharray="7 5"/><text x="' + (X(M.day) + 6) + '" y="' + (Y((E0.cum[M.day] || 0) / T0) - 8) + '" fill="#D3D1C7" font-size="12">配速車（今天該到）</text>';
+        all.filter(function(s){ return !on(s); }).forEach(function(s){ svg += '<polyline points="' + line(s) + '" fill="none" stroke="#534AB7" stroke-width="2"/>'; });
+        var labs = [];
+        all.filter(on).forEach(function(s){
+          var c = s.flat ? '#888780' : col[s.org], lp = s.pts[s.pts.length - 1]; if (!lp) return;
+          var ly2 = Y(lp.cum / s.T);
+          if (s.flatFrom){ var fx = X(s.flatFrom.d - s.flatFrom.wd); svg += '<rect x="' + fx + '" y="' + (ly2 - 12) + '" width="' + Math.max(8, X(lp.d) - fx) + '" height="24" fill="#97C459" opacity=".22" rx="6"/>'; }
+          svg += '<polyline points="' + line(s) + '" fill="none" stroke="' + c + '" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>' + dots(s, c, 6);
+          svg += '<circle cx="' + X(lp.d) + '" cy="' + ly2 + '" r="11" fill="' + c + '" stroke="#fff" stroke-width="2"/>';
+          if (s.mom != null && s.mom >= 1 && !s.flat) svg += '<text x="' + (X(lp.d) - 30) + '" y="' + (ly2 + 7) + '" font-size="20">🔥</text>';
+          labs.push({ y:ly2, s:s, c:c });
+        });
+        stack(labs).forEach(function(l){ svg += '<text x="' + (W - R + 12) + '" y="' + (l.ty + 5) + '" fill="' + (l.s.flat ? '#B4B2A9' : l.c) + '" font-size="15" font-weight="700">' + _fnEsc(_gcShort(l.s.org)) + ' ' + Math.round(l.s.pct * 100) + '%' + (l.s.flat ? ' 熄火' : '') + '</text>'; });
+
+      } else if (v.theme === 'ecg'){
+        var list = all.filter(on), rh = (H - 40) / Math.max(1, list.length);
+        svg += '<rect width="' + W + '" height="' + H + '" fill="#04342C"/>';
+        for (var dd = 1; dd <= nx; dd++) svg += '<line x1="' + X(dd) + '" x2="' + X(dd) + '" y1="22" y2="' + (H - 8) + '" stroke="#085041"/>';
+        gates.forEach(function(g){ svg += '<line x1="' + g.x + '" x2="' + g.x + '" y1="16" y2="' + (H - 8) + '" stroke="#1D9E75" stroke-dasharray="5 4"/><text x="' + g.x + '" y="14" fill="#9FE1CB" font-size="12" text-anchor="middle">' + g.lab + '</text>'; });
+        list.forEach(function(s, i){
+          var base = 32 + rh * (i + 0.78), c = col[s.org], amp = rh * 0.6, w = Math.max(5, (X(1) - X(0)) * 0.35), path = [X(0) + ',' + base];
+          s.pts.forEach(function(p){
+            var h = p.exp ? Math.min(1.6, p.inc / p.exp) / 1.6 : (p.inc ? 0.5 : 0), x = X(p.d);
+            path.push((x - w) + ',' + base, (x - w / 2) + ',' + (base - amp * h), x + ',' + (base + (h ? amp * 0.15 : 0)), (x + w / 3) + ',' + base);
+          });
+          path.push(X(M.day) + ',' + base);
+          if (s.flatFrom){ var fx2 = X(s.flatFrom.d - s.flatFrom.wd); svg += '<rect x="' + fx2 + '" y="' + (base - amp) + '" width="' + Math.max(8, X(M.day) - fx2) + '" height="' + (amp + 10) + '" fill="#F09595" opacity=".2"/><text x="' + ((fx2 + X(M.day)) / 2) + '" y="' + (base + 20) + '" fill="#F7C1C1" font-size="13" text-anchor="middle">平線 ' + s.flat + ' 天</text>'; }
+          svg += '<polyline points="' + path.join(' ') + '" fill="none" stroke="' + c + '" stroke-width="3" stroke-linejoin="round"/>';
+          svg += s.pts.map(function(p){ return '<rect class="gc-dot" x="' + (X(p.d) - w) + '" y="' + (base - amp) + '" width="' + (w * 2) + '" height="' + (amp + 8) + '" fill="#fff" opacity="0.001" onclick="gcPick(\'' + s.org + '\',\'' + p.k + '\')"><title>' + p.d + '日 入帳 ' + _dsW(p.inc) + '</title></rect>'; }).join('');
+          svg += '<text x="6" y="' + (base - amp * 0.75) + '" fill="' + c + '" font-size="14" font-weight="700">' + _fnEsc(_gcShort(s.org)) + '</text>';
+          svg += '<text x="' + (W - R + 12) + '" y="' + (base - 4) + '" fill="' + (s.flat ? '#F7C1C1' : c) + '" font-size="15" font-weight="700">' + (s.flat ? '💤 ' + s.flat + ' 天沒心跳' : (s.mom != null ? (s.mom >= 1 ? '🔥 ' : '') + '勢頭 ' + Math.round(s.mom * 100) + '%' : '—')) + '</text>';
+        });
+
+      } else {
+        svg += '<rect width="' + W + '" height="' + H + '" fill="#FAEEDA"/>';
+        if (pace.length){ var mt = pace.slice(); mt.push(X(nx) + ',' + (H - B), X(0) + ',' + (H - B)); svg += '<polygon points="' + mt.join(' ') + '" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="2"/>'; }
+        gates.forEach(function(g, gi){ var gy = Y(g.p); svg += '<line x1="' + g.x + '" x2="' + g.x + '" y1="' + gy + '" y2="' + (gy - 30) + '" stroke="#854F0B" stroke-width="2"/><polygon points="' + g.x + ',' + (gy - 30) + ' ' + (g.x + 18) + ',' + (gy - 24) + ' ' + g.x + ',' + (gy - 18) + '" fill="#BA7517"/><text x="' + g.x + '" y="' + (gy - 36) + '" fill="#633806" font-size="13" text-anchor="middle">' + (g.d === n ? '⛰ 登頂・' + g.lab : (focus && g.d === nx ? '⛳ 本關終點・' + g.lab : '營地' + (gi + 1) + '・' + g.lab)) + '</text>'; });
+        all.filter(function(s){ return !on(s); }).forEach(function(s){ svg += '<polyline points="' + line(s) + '" fill="none" stroke="#D3D1C7" stroke-width="2"/>'; });
+        var cl = [];
+        all.filter(on).forEach(function(s){
+          var c = col[s.org], lp = s.pts[s.pts.length - 1]; if (!lp) return;
+          svg += '<polyline points="' + line(s) + '" fill="none" stroke="' + c + '" stroke-width="3.5" stroke-dasharray="1 7" stroke-linecap="round"/>' + dots(s, c, 5);
+          cl.push({ s:s, c:c, x:X(lp.d), y:Y(lp.cum / s.T), gap:34 });
+        });
+        cl.forEach(function(o){ svg += '<circle cx="' + o.x + '" cy="' + o.y + '" r="14" fill="' + o.c + '" stroke="#fff" stroke-width="3"/><text x="' + o.x + '" y="' + (o.y + 5) + '" font-size="14" text-anchor="middle">' + (o.s.flat ? '⏸' : '🧗') + '</text>'; });
+        stack(cl).forEach(function(o){
+          var gain = o.s.got3 / o.s.T;
+          svg += '<text x="' + (W - R + 12) + '" y="' + (o.ty + 3) + '" fill="#412402" font-size="15" font-weight="700">' + _fnEsc(_gcShort(o.s.org)) + ' ' + Math.round(o.s.pct * 100) + '%</text>'
+            + '<text x="' + (W - R + 12) + '" y="' + (o.ty + 19) + '" fill="' + (o.s.flat ? '#3B6D11' : '#A32D2D') + '" font-size="12">' + (o.s.flat ? '⏸ 坐了 ' + o.s.flat + ' 天' : '3 天爬 +' + (Math.round(gain * 1000) / 10) + '%') + '</text>';
+        });
+      }
+
+      var chips = all.map(function(s){ var a = sel.indexOf(s.org) >= 0; return '<button class="gc-chip' + (a ? ' on' : '') + '" style="' + (a ? 'background:' + col[s.org] + ';border-color:' + col[s.org] : '') + '" onclick="gcSet(\'sel\',\'' + s.org + '\')">' + _fnEsc(_gcShort(s.org)) + '</button>'; }).join('');
+      var vis = all.filter(on);
+      var best = vis.filter(function(s){ return !s.flat && s.mom != null; }).sort(function(a,b){ return b.mom - a.mom; })[0];
+      var cmp = vis.slice().sort(function(a,b){ return ((b.flat ? 1 : 0) - (a.flat ? 1 : 0)) || ((b.mom || 0) - (a.mom || 0)); });
+      var cards = cmp.map(function(s){
+        var isBest = best && best.org === s.org;
+        return '<div class="gc-card' + (isBest ? ' best' : '') + (s.flat ? ' flat' : '') + '"><b style="border-color:' + col[s.org] + '">' + _fnEsc(s.org) + (isBest ? '　🏆 勢頭最強' : '') + '</b>'
+          + _gcMomTag(s) + '<small>最近 3 個上班日入帳 ' + _dsW(s.got3) + '／該到 ' + _dsW(s.exp3) + '</small><small>累計 ' + _dsW(s.cum) + '（目標的 ' + Math.round(s.pct * 100) + '%）</small></div>';
+      }).join('');
+      var tabs = [['race','🏎 賽道競速'],['ecg','💓 動能心電圖'],['climb','🧗 登山關卡']].map(function(t){ return '<button class="' + (v.theme === t[0] ? 'on' : '') + '" onclick="gcSet(\'theme\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('');
+      return '<div id="gcBox" class="gc-box gc-' + v.theme + (full ? ' full' : '') + '">'
+        + '<div class="gc-bar"><span class="gc-tabs">' + tabs + '</span><span><button class="gc-fullbtn" onclick="gcSet(\'span\',\'' + (focus ? 'month' : 'gate') + '\')">' + (focus ? '🔭 看整月' : '🔍 只看這一關') + '</button><button id="gcFullBtn" class="gc-fullbtn" onclick="gcFull()">' + (full ? '✕ 離開全螢幕' : '⛶ 全螢幕') + '</button></span></div>'
+        + '<div class="gc-chips"><span>比較：</span>' + chips + (sel.length ? '<button class="gc-chip clr" onclick="gcSet(\'clear\')">看全部</button>' : '<small>點學院只看那幾家（可多選）</small>') + '</div>'
+        + '<svg class="gc-svg" viewBox="0 0 ' + W + ' ' + H + '" width="100%">' + svg + '</svg>'
+        + '<div id="gcInfo" class="gc-info">點線上任何一點，看那天入帳、承諾、輸贏</div>'
+        + '<div class="gc-cards">' + cards + '</div>'
+        + '<div class="gc-legend">高度＝做到自己目標的幾 %（目標不同也能公平比）　🔥＝勢頭 ≥100%（最近 3 個上班日入帳 ÷ 這 3 天該到）　💤／⏸＝連續 2 個上班日以上沒入帳（假日不算）</div>'
+        + '</div>';
     }
     function _dsGateLost(M, r, gi){ var g = M.G[gi], S = M.S[_dsDate(M.ym, g[1])]; return !!(S && S.o[r.org] && S.o[r.org].biz < _dsGateCum(M.ym, r.org, r.T, gi)); }
 
@@ -10894,10 +11078,10 @@
         + PP_EVENTS.map(function(ev){
             var _now = new Date(), _nowYm = _now.getFullYear() + '-' + _ckPad2(_now.getMonth() + 1);
             var ended = ev.ym < _nowYm;   // 用今天的日期判斷，不等 10 月資料同步
-            return '<button class="pp-ev-btn' + (ended ? ' ended' : ' live') + '" onclick="ppEventOpen(\'' + ev.id + '\')" data-tip="' + _fnEsc(ev.title + '\n' + ev.desc + '\n\n' + (ended ? '已結束，點開回查當時的結果' : '進行中')) + '">'
+            return '<button class="pp-ev-btn' + (ended ? ' ended' : ' live') + '" onclick="ppEventOpen(\'' + ev.id + '\')" data-pchelp="' + _fnEsc(ev.title + '\n' + ev.desc + '\n\n' + (ended ? '已結束，點開回查當時的結果' : '進行中')) + '">'
               + ev.btn + '<em>' + (ended ? '已結束' : '進行中') + '</em></button>';
           }).join('')
-        + '<span class="pp-ev-lb" style="margin-left:14px">📋 管理</span><button class="pp-ev-btn ds-btn" onclick="dsumOpen()" data-tip="每日總結\n每家主管每天的承諾 vs 實際入帳，看輸贏；10、20 號、月底出三關大總結。\n一鍵複製主管版、組長版貼 LINE。">📋 每日總結</button></div>';
+        + '<span class="pp-ev-lb" style="margin-left:14px">📋 管理</span><button class="pp-ev-btn ds-btn" onclick="dsumOpen()" data-pchelp="每日總結\n每家主管每天的承諾 vs 實際入帳，看輸贏；10、20 號、月底出三關大總結。\n一鍵複製主管版、組長版貼 LINE。">📋 每日總結</button></div>';
     }
     var ppEvScope = 'SUMMARY', ppEvId = '';
     function ppEventOpen(id, sc){
@@ -11172,7 +11356,7 @@
 
     // ═══ 💬 大字說明泡泡 ═══════════════════════════════════════
     //   原生 title 太小、要等一秒、常常整段看不完。改成自己畫：滑到就出現、字大、有標題。
-    //   任何元素加 data-tip="標題\n內文…" 就會有。
+    //   任何元素加 data-pchelp="標題\n內文…" 就會有。
     (function(){
       var el = null, cur = null, want = null, timer = null;
       function box(){
@@ -11187,13 +11371,13 @@
       function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
       function find(t){
         while (t && t !== document.body && t.nodeType === 1){
-          if (t.hasAttribute && t.hasAttribute('data-tip')) return t;
+          if (t.hasAttribute && t.hasAttribute('data-pchelp')) return t;
           t = t.parentNode;
         }
         return null;
       }
       function show(target){
-        var txt = target.getAttribute('data-tip'); if (!txt) return;
+        var txt = target.getAttribute('data-pchelp'); if (!txt) return;
         var b = box(), lines = String(txt).split('\n');
         var head = lines.shift(), body = lines.join('\n').replace(/^\n+/, '');
         b.innerHTML = '<b>' + esc(head) + '</b>' + (body ? '<span>' + esc(body) + '</span>' : '');
@@ -11356,7 +11540,7 @@
         + (x3 ? '<div class="edd-row edd-hdr"><div></div><div></div><div></div><div class="edd-v">' + _fnEsc(opt.col2 || '') + '</div><div class="edd-v3">' + _fnEsc(opt.col3) + '</div></div>' : '')
         + rows.map(function(r, i){
         var pct = Math.max(1.5, Math.abs(r.v) / max * 100);
-        return '<div class="edd-row' + (r.cls ? ' ' + r.cls : '') + '"' + (r.tip ? ' data-tip="' + _fnEsc(r.tip) + '"' : '') + '>'
+        return '<div class="edd-row' + (r.cls ? ' ' + r.cls : '') + '"' + (r.tip ? ' data-pchelp="' + _fnEsc(r.tip) + '"' : '') + '>'
           + '<div class="edd-rk">' + (opt.noRank ? '' : (i + 1)) + '</div>'
           + '<div class="edd-nm">' + _fnEsc(r.name) + (r.sub ? '<small>' + _fnEsc(r.sub) + '</small>' : '') + '</div>'
           + '<div class="edd-track"><div class="edd-fill" style="width:' + pct.toFixed(1) + '%"></div></div>'
@@ -11369,7 +11553,7 @@
     function _eddCols(cols){
       var max = Math.max.apply(null, cols.map(function(c){ return c.v || 0; })) || 1;
       return '<div class="edd-cols">' + cols.map(function(c){
-        return '<div class="edd-col"' + (c.tip ? ' data-tip="' + _fnEsc(c.tip) + '"' : '') + '>'
+        return '<div class="edd-col"' + (c.tip ? ' data-pchelp="' + _fnEsc(c.tip) + '"' : '') + '>'
           + '<div class="edd-colv">' + (c.label != null ? c.label : c.v) + '</div>'
           + '<div class="edd-colbar" style="height:' + Math.max(4, (c.v / max) * 100).toFixed(1) + '%' + (c.color ? ';background:' + c.color : '') + '"></div>'
           + '<div class="edd-colnm">' + _fnEsc(c.name) + (c.sub ? '<small class="' + (c.subCls || '') + '">' + _fnEsc(c.sub) + '</small>' : '') + '</div>'
@@ -11417,7 +11601,7 @@
         + '<div class="edd-tabs">' + tabs.map(function(t){
             return '<button class="edd-tab' + (edDashTab === t[0] ? ' on' : '') + '" onclick="edDashTo(\'' + t[0] + '\')">' + t[1] + '</button>';
           }).join('') + '</div>'
-        + '<button class="edd-x" onclick="edDashClose()" data-tip="關閉（Esc）">✕</button>'
+        + '<button class="edd-x" onclick="edDashClose()" data-pchelp="關閉（Esc）">✕</button>'
         + (function(){
             // 「各學院」本來就是七家並排、「中區 vs 桃區」本來就是兩區對打，
             // 這兩頁不吃範圍。與其讓人按了沒反應，不如直接暗掉並講原因。
@@ -11429,7 +11613,7 @@
                     + (live ? ' onclick="edDashScopeTo(\'' + _fnEsc(k[0]) + '\')"' : ' disabled')
                     + '>' + _fnEsc(k[1]) + '</button>';
                 }).join('')
-              + (live ? '' : '<span class="edd-scoff" data-tip="這一頁不吃範圍\n'
+              + (live ? '' : '<span class="edd-scoff" data-pchelp="這一頁不吃範圍\n'
                   + (edDashTab === 'org' ? '「各學院」本來就是七家並排比較，選單一學院沒有意義。\n\n要只看一家，切到「🏆 排名」或「🔥 激勵」再選。'
                      : edDashTab === 'vs' ? '「中區 vs 桃區」本來就是兩個區在對打，範圍是固定的。\n\n要只看一家，切到「🏆 排名」或「🔥 激勵」再選。'
                      : '這一頁是設定頁，列的是全部的人。')
@@ -11490,7 +11674,7 @@
         + (quiet.length
            ? '<div class="edd-qwrap">' + quiet.map(function(x){
                var gap = x.p.lastDay ? _edDiffDays(x.p.lastDay) : null;
-               return '<span class="edd-q" data-tip="' + _fnEsc(x.p.name) + (sc.isOrg ? '' : '（' + _fnEsc(x.p.org) + '）') + '\n'
+               return '<span class="edd-q" data-pchelp="' + _fnEsc(x.p.name) + (sc.isOrg ? '' : '（' + _fnEsc(x.p.org) + '）') + '\n'
                  + day + ' 一筆都沒編。\n'
                  + (gap == null ? '' : '最後一次編輯是 ' + x.p.lastDay + '，' + gap + ' 天前。\n')
                  + '這段期間總共編了 ' + x.p.mon + ' 筆。\n\n'
@@ -11540,7 +11724,7 @@
         + '<p class="edd-sub">這幾位低於 ' + ED_MIN + ' 筆，所以沒出現在上面的排名。開會前先看這一區。</p>'
         + '<div class="edd-qwrap">' + q.map(function(w){
             var gap = w.lastDay ? _edDiffDays(w.lastDay) : null;
-            return '<span class="edd-q" data-tip="' + _fnEsc(w.ed) + '\n這段期間只編了 ' + w.mon + ' 筆。\n'
+            return '<span class="edd-q" data-pchelp="' + _fnEsc(w.ed) + '\n這段期間只編了 ' + w.mon + ' 筆。\n'
               + (gap == null ? '完全沒有觀測到他的編輯紀錄。' : '最後一次編輯是 ' + w.lastDay + '，' + gap + ' 天前。')
               + '\n\n先問是不是手上沒名單、還是卡在哪，不要直接當作沒做事。">'
               + '<b>' + _fnEsc(w.ed) + '</b><em>' + w.mon + ' 筆' + (gap == null ? '' : '・' + gap + ' 天前') + '</em></span>';
@@ -11690,13 +11874,13 @@
     function _eddSet(M){
       var rows = M.allPeople.map(function(p){
         return '<tr class="' + (p.hidden ? 'off' : '') + '">'
-          + '<td><label class="edd-ck" data-tip="' + (p.hidden ? '目前沒有列入' : '目前有列入') + '\n'
+          + '<td><label class="edd-ck" data-pchelp="' + (p.hidden ? '目前沒有列入' : '目前有列入') + '\n'
             + '拿掉勾 ＝ ' + _fnEsc(p.name) + ' 從<b>全公司七家</b>的排名、合計、中位數一起移除。\n'
             + '客服、行政、批次帳號都該拿掉。\n\n設定會同步給同事。">'
             + '<input type="checkbox" ' + (p.hidden ? '' : 'checked') + ' onchange="edToggleStaff(\'' + _fnEsc(p.org) + '\',\'' + _fnEsc(p.name) + '\')"><span></span></label></td>'
           + '<td class="nm">' + _fnEsc(p.name) + '</td>'
           + '<td class="dim">' + _fnEsc(p.orgs.length > 1 ? p.orgs.length + ' 家' : p.org) + '</td>'
-          + '<td class="num" data-tip="' + _fnEsc(p.name) + ' 七家合計 ' + p.mon + ' 筆\n'
+          + '<td class="num" data-pchelp="' + _fnEsc(p.name) + ' 七家合計 ' + p.mon + ' 筆\n'
             + _fnEsc(p.orgs.length ? p.orgs.join('\n') : '這段期間沒有編輯紀錄') + '">'
             + p.mon + (p.mon < ED_MIN ? '<small>不進排名</small>' : '') + '</td>'
           + '<td>' + ED_TEAMS.map(function(t){
@@ -11947,7 +12131,7 @@
     function _edLampBar(lamps){
       return '<span class="ed-lampbar">' + ED_LAMPS.map(function(L){
         var n = lamps[L.k] || 0;
-        return '<span class="ed-lamp ' + L.cls + (n ? '' : ' zero') + '" data-tip="'
+        return '<span class="ed-lamp ' + L.cls + (n ? '' : ' zero') + '" data-pchelp="'
           + _fnEsc(L.label + '沒被編輯　' + n + ' 人') + '\n'
           + _fnEsc(L.desc + '。\n\n這一格是「他手上有幾個學生，已經 ' + L.label + '沒有人去動過」。\n'
             + '五個數字由左到右 ＝ 從最近到最久。愈右邊的數字大，代表愈多名單被放著沒人管。')
@@ -11971,7 +12155,7 @@
             var J = _edNextJob();
             return '<button class="fn-tb-btn wide ed-one ed-one-' + J.cls + '"'
               + (J.job === 'ok' ? ' disabled' : ' onclick="edSyncNow()"')
-              + ' data-tip="' + _fnEsc(J.label + (J.sub ? '（' + J.sub + '）' : '')) + '\n'
+              + ' data-pchelp="' + _fnEsc(J.label + (J.sub ? '（' + J.sub + '）' : '')) + '\n'
               + _fnEsc(J.why) + (J.job === 'ok' ? '' : '\n\n約 ' + J.mins + ' 分鐘。按到它變成「✅ 資料已是最新」就結束。') + '">'
               + J.label + (J.sub ? '<em>' + J.sub + '</em>' : '') + '</button>';
           })()
@@ -12000,7 +12184,7 @@
             var behind = Math.round((y - last) / 86400000);
             if (behind < 2) return '';
             var yStr = y.getFullYear() + '-' + _ckPad2(y.getMonth()+1) + '-' + _ckPad2(y.getDate());
-            return '<div class="ed-behind" data-tip="編輯追蹤已經 ' + behind + ' 天沒更新\n'
+            return '<div class="ed-behind" data-pchelp="編輯追蹤已經 ' + behind + ' 天沒更新\n'
               + '最後有資料的是 ' + data.lastDay + '，昨天已經是 ' + yStr + '。\n\n'
               + '★ 上面那排「激勵／報到／通路／漏斗」是四種不同的資料，跟編輯追蹤無關。\n'
               + '　那排顯示今天同步過，不代表編輯追蹤也更新了。\n\n'
@@ -12024,7 +12208,7 @@
             var late = _edLateDays(store);
             if (late.length){
               var worst = late.map(function(d){ return _edLagOf(store, d); }).sort(function(a,b){ return b-a; })[0];
-              staleTxt += '<p class="ed-prog late" data-tip="這些日子是事後才補抓的，筆數偏低\n'
+              staleTxt += '<p class="ed-prog late" data-pchelp="這些日子是事後才補抓的，筆數偏低\n'
                 + 'EIP 的「編輯日期」只記最後一次編輯。\n\n'
                 + '同一筆名單如果 9/17 編過、9/19 又被編一次，它現在只掛在 9/19。\n'
                 + '所以你 9/20 才回頭抓 9/17，那一筆就抓不到了 —— 它被後面的日子吃掉。\n\n'
@@ -12042,7 +12226,7 @@
 
       // 燈號說明
       html += '<div class="ed-legend"><b>燈號＝這位學生多久沒被編輯</b>'
-        + ED_LAMPS.map(function(L){ return '<span class="ed-lg" data-tip="' + _fnEsc(L.label + '沒被編輯') + '\n'
+        + ED_LAMPS.map(function(L){ return '<span class="ed-lg" data-pchelp="' + _fnEsc(L.label + '沒被編輯') + '\n'
             + _fnEsc(L.desc + '。\n\n每位業務那一列的五個數字，就是他手上各燈號各有幾個學生。') + '">'
             + '<i class="ed-lamp ' + L.cls + '"></i>' + L.label + '<em>' + L.desc + '</em></span>'; }).join('')
         + '<span class="ed-lg-note">業務那一列的五個數字，就是他手上各燈號各有幾個人。全綠＝照顧得很平均；右邊愈重＝愈多名單被放著。</span></div>';
@@ -12051,7 +12235,7 @@
       html += '<div class="ed-legend ed-legend-2"><b>空編輯＝動過但沒留下內容</b>'
         + '<span class="ed-lg-note">EIP 說他編輯了這一筆，但備註跟我們上次看到的一模一樣。一鍵清空行事曆、只改狀態不寫字、打完電話懶得記，都會落在這裡。'
         + '空編輯率高＝在交差，不是在追註冊。<b>首次看到的人不列入判定</b>（沒有基準可以比）。</span>'
-        + '<span class="ed-lg-note" data-tip="為什麼現在大家都是「還判斷不了」\n'
+        + '<span class="ed-lg-note" data-pchelp="為什麼現在大家都是「還判斷不了」\n'
         + 'EIP 的「編輯日期」欄位，只記得住「最後一次編輯是哪天」，不是每一次編輯都留一筆紀錄。\n\n'
         + '所以回頭去補以前的日子，同一筆名單永遠只會出現在一天 —— 沒有「上一次的備註」可以拿來比，就判不出空編輯。\n\n'
         + '唯一的解法是每天早上按一次那顆紫色按鈕。今天把備註存下來，過幾天他又編到同一筆，就比得出來了。跑兩三週這一欄就會活起來。"><b>⚠️ 為什麼現在大家都是「還判斷不了」？（滑過來看）</b>'
@@ -12068,13 +12252,13 @@
         if (!o.list.length){ html += '<div class="ed-empty-row">這一家沒有資料</div></div>'; return; }
         var monDays = (data.days || []).filter(function(d){ return d.slice(0,7) === data.ym; });
         var rangeTxt = monDays.length ? (monDays[0].slice(5) + '～' + monDays[monDays.length-1].slice(5)) : '';
-        html += '<div class="ed-gapline">本月<b data-tip="已經抓回來 ' + monDays.length + ' 天\n這裡只統計已經抓回來的日子，不是整個九月。\n\n缺的日子按上面那顆紫色按鈕補，一次七天。">已抓 ' + monDays.length + ' 天</b>'
+        html += '<div class="ed-gapline">本月<b data-pchelp="已經抓回來 ' + monDays.length + ' 天\n這裡只統計已經抓回來的日子，不是整個九月。\n\n缺的日子按上面那顆紫色按鈕補，一次七天。">已抓 ' + monDays.length + ' 天</b>'
           + (rangeTxt ? '（' + rangeTxt + '）' : '') + '　·　合計 <b>' + o.monTot + '</b> 筆名單被編過'
           + (o.med ? '　·　中位數 <b>' + o.med + '</b> 筆（只算編 ' + ED_MIN + ' 筆以上的人）' : '')
           + (o.hidden && o.hidden.length ? '　·　<span class="dim">另有 ' + o.hidden.length + ' 位標為客服／' + o.hidTot + ' 筆，不列入</span>' : '')
           + '　·　<span class="dim">倍數 ≥2 或 ≤0.5 會標出來，落差就在這裡</span></div>';
         html += '<table class="ed-t"><thead><tr>'
-          + '<th>業務<small>／名單被編＝EIP 查「承辦人」</small></th><th data-tip="他編過幾筆名單\n算的是：EIP 列表「編輯人」那一欄顯示是他的筆數（最後一手是他）。\n\n⚠️ 跟 EIP 上方篩選「編輯人＝他」查出來的數字不一樣：\n那個篩選會把「他編過、但後來被別人接手編」的名單也算進去，\n所以列表裡會出現編輯人欄是別人的資料，數字會比這裡大。">他編過幾筆名單<small>（最後一手是他）</small></th><th>vs 中位數</th><th>空編輯<small>／可判定</small></th>'
+          + '<th>業務<small>／名單被編＝EIP 查「承辦人」</small></th><th data-pchelp="他編過幾筆名單\n算的是：EIP 列表「編輯人」那一欄顯示是他的筆數（最後一手是他）。\n\n⚠️ 跟 EIP 上方篩選「編輯人＝他」查出來的數字不一樣：\n那個篩選會把「他編過、但後來被別人接手編」的名單也算進去，\n所以列表裡會出現編輯人欄是別人的資料，數字會比這裡大。">他編過幾筆名單<small>（最後一手是他）</small></th><th>vs 中位數</th><th>空編輯<small>／可判定</small></th>'
           + '<th>最後一天</th><th>近 7 天</th><th>幾天沒編輯</th><th>手上名單燈號</th><th></th>'
           + '</tr></thead><tbody>';
         var quietN = 0;
@@ -12096,7 +12280,7 @@
           //   但判不出來的時候要說判不出來，不要因為「算不到空編輯」就給他好徽章。
           var verdict = '';
           if (w.mon >= 30 && !canJudge){
-            verdict = '<span class="ed-vd na" data-tip="還沒辦法判斷他是不是在交差\n'
+            verdict = '<span class="ed-vd na" data-pchelp="還沒辦法判斷他是不是在交差\n'
               + '「空編輯」的意思是：他點開這筆名單、按了儲存，但備註跟上次一模一樣，等於沒做事。\n\n'
               + '要抓到空編輯，必須看過「同一筆名單的前一次備註」。\n'
               + '他這 ' + w.mon + ' 筆裡，有 ' + (w.monFirst||0) + ' 筆是我們第一次看到，沒有前一次可以比 —— 真正能比對的只剩 ' + judge + ' 筆，太少。\n\n'
@@ -12104,14 +12288,14 @@
               + '怎麼解決：每天早上按一次那顆紫色按鈕。今天把備註存起來，過幾天他又編到同一筆時，就比得出來了。跑兩三週這裡就會變成真正的判定。">'
               + '⚠️ 還判斷不了</span>';
           }
-          else if (w.mon >= 30 && canJudge && mRate >= 40) verdict = '<span class="ed-vd bad" data-tip="在交差，不是在追註冊\n'
+          else if (w.mon >= 30 && canJudge && mRate >= 40) verdict = '<span class="ed-vd bad" data-pchelp="在交差，不是在追註冊\n'
             + '他動了 ' + w.mon + ' 筆，但能比對的 ' + judge + ' 筆裡有 ' + mRate + '% 備註完全沒變。\n\n'
             + '點開存檔但一個字都沒改 —— 一鍵清空行事曆、只改狀態不寫字、打完電話懶得記，都會落在這裡。\n'
             + '量大不代表有做事，這一列要找他談。">🔴 量大但空</span>';
-          else if (w.mon >= 30 && canJudge && w.ratio >= 2 && mRate < 20) verdict = '<span class="ed-vd good" data-tip="真的在跑\n'
+          else if (w.mon >= 30 && canJudge && w.ratio >= 2 && mRate < 20) verdict = '<span class="ed-vd good" data-pchelp="真的在跑\n'
             + '量是全院中位數的 ' + (Math.round(w.ratio*10)/10) + ' 倍，而且能比對的 ' + judge + ' 筆裡只有 ' + mRate + '% 是空編輯。\n\n'
             + '動得多，而且每次都有留下新的內容。這是我們要的樣子。">🟢 真的在跑</span>';
-          else if (w.ratio > 0 && w.ratio <= 0.5) verdict = '<span class="ed-vd low" data-tip="編得太少\n'
+          else if (w.ratio > 0 && w.ratio <= 0.5) verdict = '<span class="ed-vd low" data-pchelp="編得太少\n'
             + '他編了 ' + w.mon + ' 筆，全院中位數是 ' + o.med + ' 筆，只有中位數的 ' + (Math.round(w.ratio*100)) + '%。\n\n'
             + '手上名單如果不少卻編這麼少，代表很多人被放著沒動。看右邊的燈號就知道放了多久。">🟡 編得太少</span>';
           var rTxt = w.ratio ? (Math.round(w.ratio * 10) / 10) + '×' : '—';
@@ -12127,7 +12311,7 @@
                       + '　這項統計是 v5.51 才加的，之前抓的日子沒有這份資料，所以會比 EIP 少很多。\n'
                       + '　按紫色按鈕把舊資料補齊（修正舊版那幾天）之後就會補上。'
                     : '';
-                  return '<br><span class="ed-own2' + (partial ? ' partial' : '') + '" data-tip="他名下的名單被動了 ' + w.ownMon + ' 筆\n'
+                  return '<br><span class="ed-own2' + (partial ? ' partial' : '') + '" data-pchelp="他名下的名單被動了 ' + w.ownMon + ' 筆\n'
                     + '這跟上面那個數字是兩件事：\n\n'
                     + '・他自己編的（編輯人＝他）　' + w.mon + ' 筆\n'
                     + '・他名下的名單被編的（承辦人＝他）　' + w.ownMon + ' 筆\n'
@@ -12145,25 +12329,25 @@
                   var parts = Object.keys(p.byOrg).filter(function(g){ return p.byOrg[g] > 0; })
                     .sort(function(a,b){ return p.byOrg[b] - p.byOrg[a]; })
                     .map(function(g){ return g + ' ' + p.byOrg[g]; });
-                  return '<br><span class="ed-cross" data-tip="他在全公司七家學院總共編了 ' + p.tot + ' 筆\n'
+                  return '<br><span class="ed-cross" data-pchelp="他在全公司七家學院總共編了 ' + p.tot + ' 筆\n'
                     + '這張表是一家一家分開列的，上面那個大數字只算「' + _fnEsc(o.org) + '」這一家。\n'
                     + '但他也會編到別家學院的名單，那些筆會被記在別家底下。\n\n'
                     + '七家分別是：\n' + _fnEsc(parts.join('\n')) + '\n\n'
                     + '所以跟 EIP 對數字時，如果你沒有限定組織，EIP 給的會是這個 ' + p.tot + '，不是上面那個。\n'
                     + '（同名同姓的人會被加在一起，如果真的有同名要自己判斷）">七家合計 ' + p.tot + ' 筆</span>';
                 })() + '</td>'
-            + '<td class="num ed-mon" data-tip="他編過 ' + w.mon + ' 筆名單\n'
+            + '<td class="num ed-mon" data-pchelp="他編過 ' + w.mon + ' 筆名單\n'
               + '這 ' + (w.monDays||0) + ' 天裡，有 ' + w.mon + ' 筆名單的編輯人是他。\n\n'
               + '注意：同一筆名單編五次只算一筆。\n'
               + 'EIP 只記「最後一次編輯是哪天」，不是每一次都留紀錄，所以這是「筆數」不是「次數」。">'
               + (w.mon || '—') + (w.ownMon ? '<small>其中自己名下 ' + (w.ownSelf||0) + ' 筆</small>' : '') + '</td>'
-            + '<td class="num" data-tip="' + (w.ratio ? '他的量是全院中位數的 ' + rTxt : '沒有可比的中位數') + '\n'
+            + '<td class="num" data-pchelp="' + (w.ratio ? '他的量是全院中位數的 ' + rTxt : '沒有可比的中位數') + '\n'
               + '全院這幾天的中位數是 ' + o.med + ' 筆（只算有在編輯的人）。\n'
               + '他編了 ' + w.mon + ' 筆 → ' + rTxt + '\n\n'
               + '2 倍以上會標紫色＝量特別大；0.5 倍以下＝量特別小。\n'
               + '倍數大不等於做得好，要配左邊的「空編輯」一起看。">'
               + '<span class="ed-ratio' + rCls + '">' + rTxt + '</span></td>'
-            + '<td class="num" data-tip="' + (!canJudge ? '這欄現在沒有意義' : '空編輯 ' + w.monEmpty + ' 筆（' + mRate + '%）') + '\n'
+            + '<td class="num" data-pchelp="' + (!canJudge ? '這欄現在沒有意義' : '空編輯 ' + w.monEmpty + ' 筆（' + mRate + '%）') + '\n'
               + '空編輯 ＝ 點開存檔了，但備註跟上次一模一樣。\n\n'
               + '他總共編了 ' + w.mon + ' 筆，其中 ' + (w.monFirst||0) + ' 筆是我們第一次看到（沒有上一次可以比）。\n'
               + '扣掉之後，真正「能拿來比對」的只有 ' + judge + ' 筆。\n\n'
@@ -12174,13 +12358,13 @@
                     : '0<small>' + judge + ' 筆能比</small>')) + '</td>'
             + '<td class="num">' + (w.today || '—') + (w.todayEmpty ? '<small>空 ' + w.todayEmpty + '</small>' : '') + '</td>'
             + '<td class="num">' + (w.w7 || '—') + (w.w7Empty ? '<small>空 ' + w7rate + '%</small>' : '') + '</td>'
-            + '<td data-tip="' + (gap == null ? '這幾天都沒看到他編任何東西' : '他上一次編輯是 ' + gap + ' 天前') + '\n'
+            + '<td data-pchelp="' + (gap == null ? '這幾天都沒看到他編任何東西' : '他上一次編輯是 ' + gap + ' 天前') + '\n'
               + (gap == null ? '在已經抓到的日子裡，完全沒有他的編輯紀錄。可能休假、可能離職、也可能真的沒在動。'
                              : '最後一次看到他編輯是 ' + (w.lastDay || '') + '。\n\n這是「他本人多久沒動作」，跟右邊那五個燈號不一樣 —— 那五個是「他手上的學生多久沒被動」。') + '">'
               + (gap == null ? '<span class="dim">沒觀測到</span>' : '<span class="ed-gap ' + (gapLamp ? gapLamp.cls : '') + '">' + gap + ' 天</span>') + '</td>'
             + '<td>' + _edLampBar(w.lamps) + '</td>'
             + '<td class="ed-act"><button class="fn-tb-btn" onclick="edToggleOwner(\'' + _fnEsc(o.org) + '\',\'' + _fnEsc(w.ed) + '\')">' + (edOpenOwner === key ? '▲ 收合' : '▼ 看他編了誰') + '</button>'
-            + '<button class="fn-tb-btn ed-staffbtn" data-tip="把他移出業務排名\n他不是業務（客服、行政、或系統批次操作）。\n\n標下去之後：\n・從這張排名表移除\n・不再影響中位數（一個人幾百筆會把中位數整個壓垮，害其他人的倍數全部失真）\n\n標記會同步給同事，之後在表格下方可以放回來。" onclick="edMarkStaff(\'' + _fnEsc(o.org) + '\',\'' + _fnEsc(w.ed) + '\')">標為客服</button></td>'
+            + '<button class="fn-tb-btn ed-staffbtn" data-pchelp="把他移出業務排名\n他不是業務（客服、行政、或系統批次操作）。\n\n標下去之後：\n・從這張排名表移除\n・不再影響中位數（一個人幾百筆會把中位數整個壓垮，害其他人的倍數全部失真）\n\n標記會同步給同事，之後在表格下方可以放回來。" onclick="edMarkStaff(\'' + _fnEsc(o.org) + '\',\'' + _fnEsc(w.ed) + '\')">標為客服</button></td>'
             + '</tr>';
           if (edOpenOwner === key){
             html += '<tr class="ed-detail"><td colspan="9">' + _edOwnerDetail(store, o.org, w.ed, data.lastDay) + '</td></tr>';
@@ -12188,7 +12372,7 @@
         });
         html += '</tbody></table>';
         if (quietN){
-          html += '<div class="ed-quietn" data-tip="還有 ' + quietN + ' 位低於 ' + ED_MIN + ' 筆\n'
+          html += '<div class="ed-quietn" data-pchelp="還有 ' + quietN + ' 位低於 ' + ED_MIN + ' 筆\n'
             + '他們的量太少，放進排名只會把表拉長，參考價值也不高，所以收起來了。\n\n'
             + '要看是哪幾位：按「📊 打開儀表板」，上面「看哪裡」選這家學院，下面就會列出「這家幾乎沒在編的人」。">'
             + '還有 ' + quietN + ' 位低於 ' + ED_MIN + ' 筆沒列出來（儀表板選這家學院可以看到是誰）</div>';
@@ -16421,7 +16605,9 @@
       { ver:'ds54', icon:'📅', title:'每月績效也自動更新了', detail:'以前每月績效（Excel 匯入）只有按 ☁️↓ 拉取才會更新。現在非管理者的頁面每小時會看一次雲端整包有沒有變，有變就自動增量拉進來；有新月份會提示重新整理', go:{ tab:3 } },
       { ver:'ds55', icon:'🙋', title:'開頁就是你自己的學院，你的那列標「你」', detail:'同事第一次開頁會落在「當月績效」、預設自己的學院，自己那一列紅底標「你」；報到排名、漏斗、編輯儀表板、每日總結組長榜、十月活動也都預設自己的學院／區；「👤 看業務個人」在自己學院打開會直接選到自己。表頭欄位（面談率、註冊Ⓐ…）滑鼠移上去有白話說明', go:{ tab:7 } },
       { ver:'ds56', icon:'💬', title:'每日總結的字改白話＋空頁面會告訴你下一步', detail:'「系統代填」→「沒填承諾・用今天該到」、「應到」→「今天該到」、「X」→「未達」；未達的動作改成 13:40 日會＋四項回報（跟三關規則一致）；組長榜說明改白話；沒資料的頁面會寫接下來按什麼；切分頁超過 0.3 秒會出現「處理中」；燈號月曆的 ✕ 滑過去才出現', go:{ fn:'dsDay' } },
-      { ver:'ds57', icon:'🪜', title:'追蹤卡「下一步」照面談九階梯排', detail:'面談後流失的追蹤卡，「下一步」下拉改成追註冊 skill 的九階梯（1 再約回來談 → 9 收 100 或保留單），組長選的就是一個真的動作；學生旅程圖在剛註冊那天會提醒「噁心簡訊 24 小時內」', go:{ fn:'trk' } }
+      { ver:'ds57', icon:'🪜', title:'追蹤卡「下一步」照面談九階梯排', detail:'面談後流失的追蹤卡，「下一步」下拉改成追註冊 skill 的九階梯（1 再約回來談 → 9 收 100 或保留單），組長選的就是一個真的動作；學生旅程圖在剛註冊那天會提醒「噁心簡訊 24 小時內」', go:{ fn:'trk' } },
+      { ver:'ds58', icon:'🧹', title:'滑鼠移到分頁不會再跳出「tab-9」這種小泡泡', detail:'只留下面那張說明小卡（📌 月度漏斗總結：靠哪顆更新、來源、頻率）' },
+      { ver:'ds59', icon:'🎮', title:'三關路線改成遊戲版趨勢圖，三種畫風可切換', detail:'每日總結 →「🛣 三關路線」：🏎 賽道競速（追配速車）／💓 動能心電圖（平線＝沒入帳）／🧗 登山關卡（營地＝10 號、20 號，月底登頂）。可全螢幕、點任何一點看那天入帳與輸贏、點學院只比那幾家。🔥＝最近 3 個上班日入帳 ≥ 該到；💤＝連 2 個上班日以上沒入帳；關卡未達的下一步改成 13:40', go:{ fn:'dsRoad' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
@@ -16448,6 +16634,7 @@
       if (go.sel === '#pcBellBtn') return '看 🔔 在哪裡';
       if (go.fn === 'ttTab') return '打開「⏱ 穿越」';
       if (go.fn === 'dsDay') return '打開每日總結';
+      if (go.fn === 'dsRoad') return '打開三關路線';
       if (go.fn === 'evoPaid') return '打開「💰 達標後你領多少」';
       if (go.tab !== undefined) return '去「' + (PCN_TAB_NAME[go.tab] || '分頁') + '」';
       return '帶我去看';
@@ -16525,6 +16712,7 @@
       if (!go) return;
       if (go.fn === 'ttTab'){ try { dsumOpen('tt'); } catch(e){} return; }
       if (go.fn === 'dsDay'){ try { dsumOpen('day'); } catch(e){} return; }
+      if (go.fn === 'dsRoad'){ try { dsumOpen('road'); } catch(e){} return; }
       if (go.fn === 'evoPaid'){ try { evoTab = 'paid'; ppEventOpen('2026-10-push'); } catch(e){} return; }
       if (go.fn === 'trk' && go.tab === undefined) go = Object.assign({ tab:9 }, go);
       if (go.tab !== undefined){ try { switchTab(go.tab); } catch(e){} }
@@ -16908,11 +17096,11 @@
           //   逐人查過：不是跨學院承辦（0 位移動），是 EIP 對合作案（報名費對分成 50、25…）與個別學生的歸屬規則，
           //   我們從收支看不出來。單一學院的差距沒有行動意義，改成灰色提示；紅色只留給區域合計。
           if (Math.abs(d) > 2){
-            chk = '<div class="fn-sgnear" data-tip="' + _fnEsc(why + '\n\n單一學院差 ' + Math.abs(d) + ' 位，但區域合計對得上。'
+            chk = '<div class="fn-sgnear" data-pchelp="' + _fnEsc(why + '\n\n單一學院差 ' + Math.abs(d) + ' 位，但區域合計對得上。'
               + '\n差異來自合作案（報名費對分成 50、25 元）與 EIP 個別學生的歸屬方式，從收支看不出 EIP 算給誰，不影響其他數字。'
               + '\n要對帳請看區域合計那張卡。') + '">收支 ' + comp + '（差 ' + Math.abs(d) + '，看區域合計）</div>';
           } else {
-          chk = '<div class="fn-sgnear" data-tip="' + _fnEsc(why + '\n\n差 ' + Math.abs(d) + ' 位在誤差範圍內，多半是報名費入帳日期、或承辦人歸屬不同，不用追。') + '">≈ 收支 ' + comp + '（差 ' + Math.abs(d) + '，誤差內）</div>';
+          chk = '<div class="fn-sgnear" data-pchelp="' + _fnEsc(why + '\n\n差 ' + Math.abs(d) + ' 位在誤差範圍內，多半是報名費入帳日期、或承辦人歸屬不同，不用追。') + '">≈ 收支 ' + comp + '（差 ' + Math.abs(d) + '，誤差內）</div>';
           }
         } else {
           var lines = (s.signupDiff || []).slice(0, 12).map(function(x){
@@ -16920,11 +17108,11 @@
               .map(function(y){ return y.n + (isRef(y) ? '（學員介紹）' : ''); });
             return (x.org ? x.org + '・' : '') + x.n + '　EIP ' + x.eip + '／收支 ' + x.ours + (who.length ? '\n　　' + who.join('、') : '');
           });
-          chk = '<div class="fn-sgbad" data-tip="' + _fnEsc(why + '\n\n差 ' + Math.abs(d) + ' 位，超過誤差，要查。\n\n' + (lines.length ? '對不上的業務：\n' + lines.join('\n') : '')) + '">'
+          chk = '<div class="fn-sgbad" data-pchelp="' + _fnEsc(why + '\n\n差 ' + Math.abs(d) + ' 位，超過誤差，要查。\n\n' + (lines.length ? '對不上的業務：\n' + lines.join('\n') : '')) + '">'
             + '⚠️ 收支 ' + comp + '，' + (d > 0 ? '差 ' + d : '多 ' + (-d)) + '</div>';
         }
       }
-      return '<div class="fn-step fn-sg"' + (why0(s) ? ' data-tip="' + _fnEsc(why0(s)) + '"' : '') + '><div class="lb">報名</div><div class="v">' + s.signup + '</div>' + chk + '</div>';
+      return '<div class="fn-step fn-sg"' + (why0(s) ? ' data-pchelp="' + _fnEsc(why0(s)) + '"' : '') + '><div class="lb">報名</div><div class="v">' + s.signup + '</div>' + chk + '</div>';
       function why0(s){ return typeof why === 'string' ? why : ''; }
     }
     // ── 本月面談試聽：大字 ＋ 組成（次一級大字）＋ 外院色塊 ──
@@ -16932,13 +17120,13 @@
       var parts = '';
       if (s.trialFeeN != null){
         parts = '<div class="fn-src">'
-          + '<div class="fn-src-i" data-tip="有繳報名費 ' + s.trialFeeN + ' 位\n本月面談、而且繳了報名費的人。\n同一天報名又註冊、舊名單報名後註冊，也都算在這裡。"><span>報名費</span><b>' + s.trialFeeN + '</b></div>'
-          + (s.trialNoteN ? '<div class="fn-src-i" data-tip="備註試聽 ' + s.trialNoteN + ' 位\n沒繳報名費，但追蹤情形寫了試聽＋未來的日期。\n（這一塊會受「試聽深挖」影響）"><span>備註試聽</span><b>' + s.trialNoteN + '</b></div>' : '')
-          + (s.extra ? '<div class="fn-src-i" data-tip="報備 ' + s.extra + ' 位\n手動報備的試聽，系統已經自動算到的不會重複加。"><span>報備</span><b>' + s.extra + '</b></div>' : '')
+          + '<div class="fn-src-i" data-pchelp="有繳報名費 ' + s.trialFeeN + ' 位\n本月面談、而且繳了報名費的人。\n同一天報名又註冊、舊名單報名後註冊，也都算在這裡。"><span>報名費</span><b>' + s.trialFeeN + '</b></div>'
+          + (s.trialNoteN ? '<div class="fn-src-i" data-pchelp="備註試聽 ' + s.trialNoteN + ' 位\n沒繳報名費，但追蹤情形寫了試聽＋未來的日期。\n（這一塊會受「試聽深挖」影響）"><span>備註試聽</span><b>' + s.trialNoteN + '</b></div>' : '')
+          + (s.extra ? '<div class="fn-src-i" data-pchelp="報備 ' + s.extra + ' 位\n手動報備的試聽，系統已經自動算到的不會重複加。"><span>報備</span><b>' + s.extra + '</b></div>' : '')
           + '</div>';
         // 對帳：試聽不該比報名少（有報名就一定算試聽）
         if (s.signupOurs != null && s.trial < s.signup){
-          parts += '<div class="fn-sgbad" data-tip="試聽比報名少\n照規則，本月面談有報名的人一定算試聽，所以試聽應該 ≥ 報名。\n\n'
+          parts += '<div class="fn-sgbad" data-pchelp="試聽比報名少\n照規則，本月面談有報名的人一定算試聽，所以試聽應該 ≥ 報名。\n\n'
             + '試聽 ' + s.trial + ' < EIP 報名 ' + s.signup + '，代表有 ' + (s.signup - s.trial) + ' 位 EIP 算報名、但收支裡找不到他的報名費（看左邊那格的對帳）。">⚠️ 比報名少 ' + (s.signup - s.trial) + '</div>';
         }
       } else if (s.extra){
@@ -16952,7 +17140,7 @@
           + ((a.trialUnsure && a.trialUnsure.length) ? '<div class="fn-unsure" title="我們某次同步看到備註寫了試聽，但 EIP 現在的備註對不上這一段。沒有計入，請開 EIP 查證後手動報備或忽略。">📝 待查證試聽 <b>' + a.trialUnsure.length + '</b></div>' : '')
         : '';
       var ext = (s.ext && s.ext.n)
-        ? '<div class="fn-extbox" data-tip="外院試聽 ' + s.ext.n + ' 位\n別家學院談過、在我們這裡安排試聽的人（自動偵測＋報備）。\n已註冊 ' + s.ext.reg + '・經營中 ' + s.ext.mgmt + '\n\n不算進本院的試聽數和轉換率 —— 他們不是本院面談的人，算進來轉換率會超過實際。">'
+        ? '<div class="fn-extbox" data-pchelp="外院試聽 ' + s.ext.n + ' 位\n別家學院談過、在我們這裡安排試聽的人（自動偵測＋報備）。\n已註冊 ' + s.ext.reg + '・經營中 ' + s.ext.mgmt + '\n\n不算進本院的試聽數和轉換率 —— 他們不是本院面談的人，算進來轉換率會超過實際。">'
           + '<span>🏫 外院試聽</span><b>' + s.ext.n + '</b><small>不計入本院</small></div>'
         : '';
       return '<div class="fn-step fn-tr"><div class="lb">本月面談試聽</div><div class="v">' + s.trial + '</div>'
@@ -17010,7 +17198,7 @@
         + '<div class="fn-step res"><div class="lb">試聽後結果</div>' + (s.known
             ? '<div class="row hot"><div class="v">' + s.reg + '</div><span>註冊</span></div>'
               + '<div class="sm">本月面談試聽後 ' + (s.regCur||0) + (s.regUnmatched ? '（' + s.regUnmatched + ' 位對不到名字）' : '') + '</div>'
-              + (s.regOld ? '<div class="fn-oldreg" data-tip="追回（非當月試聽後）　' + s.regOld + ' 位\n不是本月面談、這個月才簽的人，一律算試聽後的結果。\n\n' + _fnEsc(((s.auto && s.auto.trialRegOld) || []).map(function(x){ return x.n + '（' + (x.o || '') + '）' + (x.ym ? x.ym.slice(5) + ' 月面談' : '3 個月內無面談') + ' → ' + (x.r || '') + ' 註冊'; }).join('\n')) + '\n\n不算進本月的試聽註冊率。">＋ 追回（非當月試聽後）<b>' + s.regOld + '</b></div>' : '')
+              + (s.regOld ? '<div class="fn-oldreg" data-pchelp="追回（非當月試聽後）　' + s.regOld + ' 位\n不是本月面談、這個月才簽的人，一律算試聽後的結果。\n\n' + _fnEsc(((s.auto && s.auto.trialRegOld) || []).map(function(x){ return x.n + '（' + (x.o || '') + '）' + (x.ym ? x.ym.slice(5) + ' 月面談' : '3 個月內無面談') + ' → ' + (x.r || '') + ' 註冊'; }).join('\n')) + '\n\n不算進本月的試聽註冊率。">＋ 追回（非當月試聽後）<b>' + s.regOld + '</b></div>' : '')
               + '<div class="row"><div class="v">' + s.mgmt + '</div><span>經營中</span></div>'
             : '<div class="v" style="font-size:1.1rem;color:var(--fnWarn);margin-top:10px;">待填當下</div><div class="sm">填「當下註冊」後自動計算</div>')
         + (s.ext && s.ext.n ? '<div class="fn-ext">🏫 外院：<b>' + s.ext.reg + '</b> 註冊／<b>' + s.ext.mgmt + '</b> 經營中</div>' : '') + '</div>')
@@ -17022,12 +17210,12 @@
             + '<div class="fn-rate"></div>'
             + '<div class="fn-rate"><div class="pill box"><small>試聽註冊率</small>' + _fnPct(V.r3) + '</div><div class="cap">試聽 → 註冊<br><span style="color:var(--fnMute)">全院 ' + (s.known ? _fnPct(s.r3) : '—') + '</span></div></div>'
           : (s.r1 > 100
-            ? '<div class="fn-rate' + rateCls('r1') + '" data-tip="面談比報到多，多出來的是班務、舊名單、轉介紹的面談"><div class="pill">面談 ' + s.interview + '</div><div class="cap">報到 ' + s.checkin + '＋舊名單 ' + (s.interview - s.checkin) + '</div></div>'
+            ? '<div class="fn-rate' + rateCls('r1') + '" data-pchelp="面談比報到多，多出來的是班務、舊名單、轉介紹的面談"><div class="pill">面談 ' + s.interview + '</div><div class="cap">報到 ' + s.checkin + '＋舊名單 ' + (s.interview - s.checkin) + '</div></div>'
             : '<div class="fn-rate' + rateCls('r1') + '"><div class="pill">' + _fnPct(s.r1) + '</div><div class="cap">報到 → 面談</div></div>')
         + '<div class="fn-rate"><div class="pill">' + _fnPct(s.interview ? s.signup / s.interview * 100 : 0) + '</div><div class="cap">面談 → 報名<br><span style="color:var(--fnMute)">＝EIP 面談率</span></div></div>'
         + '<div class="fn-rate' + rateCls('r2') + '"><div class="pill">' + _fnPct(s.r2) + '</div><div class="cap">面談 → 試聽</div></div>'
         + '<div class="fn-rate"></div>'
-        + '<div class="fn-rate' + (s.known ? rateCls('r3') : '') + '" data-tip="試聽註冊率 ＝ 試聽後註冊 ÷ 真的去試聽的人\n'
+        + '<div class="fn-rate' + (s.known ? rateCls('r3') : '') + '" data-pchelp="試聽註冊率 ＝ 試聽後註冊 ÷ 真的去試聽的人\n'
           + '分母 ' + (s.trialR3 != null ? s.trialR3 : s.trial) + ' 位（本月面談試聽 ' + s.trial + ' 扣掉 3 天內就註冊、舊名單追回的人' + (s.regUnmatched ? '，再加上 EIP 算試聽後註冊、收支對不到名字的 ' + s.regUnmatched + ' 位' : '') + '）。\n\n'
           + '那些人的註冊算在「當下」或「追回」，不在試聽後註冊裡；放在分母只會把比率拉低、失去參考價值。"' + (_fnEarly(ym) ? ' style="opacity:.55"' : '') + '><div class="pill box"><small>試聽註冊率</small>' + (s.known ? _fnPct(s.r3) : '—') + '</div><div class="cap">試聽 → 註冊' + (_fnEarly(ym) ? '<br><span style="color:var(--fnMute)">月中後才準</span>' : ((s.known && s.trialR3) ? '<br><span style="color:var(--fnMute)">當月 ' + (s.regCur||0) + ' ÷ ' + s.trialR3 + '</span>' : '')) + '</div></div>')
         + '</div>'
@@ -17591,7 +17779,7 @@
       }
       function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]; }); }
       function show(el){
-        var k = el.getAttribute('data-tip'), d = UI_TIPS[k]; if (!d) return;
+        var k = el.getAttribute('data-pchelp'), d = UI_TIPS[k]; if (!d) return;
         if (hideT) clearTimeout(hideT);
         var t = ensure();
         var sync = /^sync-/.test(k), tab = /^tab-/.test(k);
@@ -17613,9 +17801,9 @@
         t.style.left = x + 'px'; t.style.top = y + 'px';
       }
       function hide(){ hideT = setTimeout(function(){ if (tipEl) tipEl.style.display = 'none'; }, 120); }
-      document.addEventListener('mouseover', function(e){ var el = e.target.closest && e.target.closest('[data-tip]'); if (el) show(el); });
-      document.addEventListener('mouseout', function(e){ var el = e.target.closest && e.target.closest('[data-tip]'); if (el && !(e.relatedTarget && el.contains(e.relatedTarget))) hide(); });
-      document.addEventListener('focusin', function(e){ var el = e.target.closest && e.target.closest('[data-tip]'); if (el) show(el); });
+      document.addEventListener('mouseover', function(e){ var el = e.target.closest && e.target.closest('[data-pchelp]'); if (el) show(el); });
+      document.addEventListener('mouseout', function(e){ var el = e.target.closest && e.target.closest('[data-pchelp]'); if (el && !(e.relatedTarget && el.contains(e.relatedTarget))) hide(); });
+      document.addEventListener('focusin', function(e){ var el = e.target.closest && e.target.closest('[data-pchelp]'); if (el) show(el); });
       document.addEventListener('focusout', hide);
       document.addEventListener('scroll', function(){ if (tipEl) tipEl.style.display = 'none'; }, true);
     })();

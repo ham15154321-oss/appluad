@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds57'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds59'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds57（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds59（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -374,3 +374,6 @@ C 主管
 1. 「我的一頁」新分頁要不要做
 2. skill 盤點表做哪幾項（建議：追註冊分型＋簡訊複製、組長紅燈）
 3. 21 項預防退費勾選表、衝班通路標籤（新增區塊）可不可以
+- ds58：data-tip 全改名 data-pchelp（Ivan 的 Chrome 有擴充會把 data-tip 原字「tab-9」秀成泡泡）；說明小卡 UI_TIPS 不變
+- ds59：🛣 三關路線改 🎮 遊戲趨勢圖 _gcHtml(M)（race／ecg／climb 三畫風、gc_v1 存畫風＋比較名單、⛶ 全螢幕 .gc-box.full＋Esc、點點 gcPick 看那天、多選比較卡）；勢頭＝最近 3 個上班日入帳÷該到（≥100% 🔥）、毫無改變＝連 ≥2 上班日入帳 0（Ivan 10/10 同意）；舊小圖收進 <details>；關卡結算『下一步』改 13:40
+  - ds59 追加：預設『本關視角』（X 到本關結算日、Y 到本關目標×1.25，gc_v1.span='month' 看整月）；全螢幕 z-index 頂層並藏 #navFloatBar／.tz-control／#pcFresh；實測三畫風＋點點＋比較卡 OK
