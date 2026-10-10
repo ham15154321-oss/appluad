@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds62'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds65'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds62（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds65（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -380,3 +380,8 @@ C 主管
 - ds60：🗺 北區六家（DS_NORTH）可加進每日總結賽局：開關 ds_north_v1、_dsOrgList()；_dsCapture 每次都存北區（來源＝_motivGetArchive()[本月].academy，o[org].nb=1）；月目標 _dsNorthPrevBiz＝上個月封存業績；_dsDayGot 前一份快照改找『有這家』的；擂台／區橫幅開北區變五區；無法補 10 月逐日（EIP 單日業績只有七家、封存一月一筆），北區從 10/10 開始累積；填承諾、組長、穿越仍只有七家
 - ds61：北區改成可單挑：ds_north_sel_v1（陣列）取代 ds_north_v1；按「🗺 北區 ▾」開 .ds-npanel 勾選；_dsOrgList＝七家＋勾的；_dsNorthRegs 只留有勾的區
 - ds62：_gcStats 加 est（第一份真實快照跨 >3 上班日時，照七家累計比例往前攤：預估累計＝第一份真實累計×七家當天累計÷七家第一份那天累計）；三畫風畫虛線＋空心點、gcPickEst 標「預估」；不進 mom/flat/輸贏
+- ds63：🔥 十月活動加「🧾 獎金明細」_evoBill(M, orgs)：5%＝業績×5%；現金10%＝motiv_channel_v1 channels.cash.ranking（現金、匯款、綠界刷卡、一卡通、Line Pay）×10%，月份不符顯示 0＋提示；達標 EVO_TGT（表一 15/30/45/60/75/90 萬＝1k/3k/8k/16k/24k/30k，只領最高一級、不等學院）；加碼＝EVO.P 現在級距（假設學院達標）；沒入帳＝_evoIdle 用 ds 快照 s.p；下一級＝達標表與加碼表最近門檻，+$＝5%增量＋兩表跳級差（不含現金）。Ivan 10/10 三題確認
+  - ⚠️ 發現：通路「現＋刷」(cash) 從 6 月起每月都是空的——content.js computeChannels 用『收支項目』比對 現金/匯款，但收支項目不是付款方式；本機也沒存收支原始列。現金 10% 暫時 0，等 Ivan 告訴我 EIP 收支明細裡付款方式的欄位名稱再改擴充（同一個 CSV、不多打 EIP）
+- ds64＋擴充 content.js（v5.57 內容，manifest 已補成 5.57）：computeChannels 現＋刷改『包含』比對（去掉 = " 空白；現金/匯款/刷卡/綠界/一卡通/LinePay/信用卡非分期；排除分期/學貸/融資），meta.itemStat 記錄收支項目出現的字；頁面 _evoCashMap 多承辦人平分、0 時顯示 itemStat。Ivan 指正：收支項目確實有現金/匯款，是判斷太嚴
+  - 10/10 實測 5.57：itemStat＝{(空白):538} → CSV 根本沒有「收支項目」這個欄名。5.58：moneyRowsFromCSV 找不到就試 付款選項/付款方式/收款方式/繳費方式/付款項目/收支方式/項目；meta 存 csvHeaders、itemCol；頁面 0 時顯示 CSV 欄位
+- ds65：獎金明細 達標／加碼改 _evoTierFloor（每人先暫放第一級 1,000／1,500，跳級照表），td.eb-hold 標『暫放』；下一級 +$ 也用 floor 算；現金獎資料時間改用 Date.parse 比（原本字串比，8/1 > 10/10）。現金獎 5.58 後已有數字（Ivan 截圖確認）

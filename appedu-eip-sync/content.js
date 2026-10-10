@@ -720,6 +720,14 @@
       }
     }
     if (hIdx < 0) return null;
+    // ★ v5.58（10/10）：CSV 的欄名跟網頁表格不一樣，「收支項目」在 CSV 找不到 → 現＋刷全空。依序試別的名字
+    if (col.item === undefined){
+      var ALT = ['付款選項','付款方式','收款方式','繳費方式','付款項目','收支方式','項目'];
+      for (var ai = 0; ai < ALT.length && col.item === undefined; ai++){
+        for (var c2 = 0; c2 < rows[hIdx].length; c2++){ if (String(rows[hIdx][c2]).trim().indexOf(ALT[ai]) >= 0){ col.item = c2; break; } }
+      }
+    }
+    var _hdr = rows[hIdx].map(function(h){ return String(h).trim(); });
     var out = [], skipNote = 0, skipOld = 0;
     var startCmp = monthStart.replace(/\//g, '-'); // YYYY-MM-DD 字串比較
     for (var i = hIdx + 1; i < rows.length; i++){
@@ -736,6 +744,8 @@
     console.log('[EIP Content] 收支明細: 取 ' + out.length + ' 筆（剔除 不計業績=' + skipNote + ' 非當月負向=' + skipOld + '）'
       + (col.stu !== undefined ? '，學員欄=第' + col.stu + '欄' : '，⚠️ 沒找到學員欄'));
     out._hasStuCol = (col.stu !== undefined);
+    out._headers = _hdr; out._itemCol = (col.item !== undefined ? _hdr[col.item] : '(找不到)');
+    console.log('[EIP Content] 收支 CSV 表頭:', _hdr.join(' | '), '→ 收支項目用欄:', out._itemCol);
     return out;
   }
 
@@ -797,6 +807,7 @@
     function renameOrg(o){ return CH_ORG_RENAME[o] || o; }
     var ch = { net:{}, purchase:{}, event:{}, referral:{}, cash:{}, admin:{} };   // 個人
     var ac = { net:{}, purchase:{}, event:{}, referral:{}, cash:{}, admin:{} };   // 學院
+    var itemStat = {};   // ★ v5.57：收支項目出現過哪些字（除錯用，存進 meta）
     function add(bucket, key, v){ if (!key) return; bucket[key] = (bucket[key] || 0) + v; }
 
     (moneyRows || []).forEach(function(r){
@@ -805,8 +816,14 @@
       if (r.main === '展場活動') keys.push('event');
       if (r.sub === '學員加購') keys.push('purchase');
       if (r.sub === '學員介紹') keys.push('referral');
-      var it = r.item || '';
-      if (it === '現金' || it === '匯款' || it.indexOf('一卡通') >= 0 || it.indexOf('綠界') >= 0 || it.indexOf('Line Pay') >= 0) keys.push('cash');
+      // ★ v5.57（10/10）：原本要「整格等於」現金／匯款，CSV 只要多一點符號（例 ="現金"）就全部對不上 → 6 月起現＋刷都是空的
+      //   改成「有包含就算」；信用分期／學貸／融資不算
+      var it = String(r.item || '').replace(/[="\s]/g, '');
+      var itL = it.toLowerCase();
+      var isCash = (it.indexOf('現金') >= 0 || it.indexOf('匯款') >= 0 || it.indexOf('刷卡') >= 0 || it.indexOf('綠界') >= 0 || it.indexOf('一卡通') >= 0 || itL.indexOf('linepay') >= 0
+                    || (it.indexOf('信用卡') >= 0 && it.indexOf('分期') < 0)) && it.indexOf('分期') < 0 && it.indexOf('學貸') < 0 && it.indexOf('融資') < 0;
+      if (isCash) keys.push('cash');
+      itemStat[it || '(空白)'] = (itemStat[it || '(空白)'] || 0) + 1;
       var org = renameOrg(r.org);
       keys.forEach(function(k){
         add(ch[k], r.owner, r.value);
@@ -837,7 +854,8 @@
         .filter(function(x){ return x.value !== 0; })
         .sort(function(a, b){ return b.value - a.value; });
     }
-    var out = { meta: { year: year, month: month }, channels: {} };
+    var out = { meta: { year: year, month: month, itemStat: itemStat, csvHeaders: (moneyRows && moneyRows._headers) || null, itemCol: (moneyRows && moneyRows._itemCol) || null }, channels: {} };
+    console.log('[EIP Content] 收支項目統計（現＋刷判斷用）:', itemStat);
     ['net','purchase','event','referral','admin','cash'].forEach(function(k){
       out.channels[k] = { ranking: toRanking(ch[k]), academies: toRanking(ac[k]) };
     });

@@ -2467,6 +2467,30 @@
     .ds-oldmini summary { cursor:pointer; font-size:.8rem; opacity:.7; margin:8px 0; }
     .ds-npanel { margin:6px 0 8px; padding:8px 10px; border-radius:10px; border:1px dashed #85B7EB; display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:.84rem; }
     .ds-npanel .ds-chip.on { background:#E24B4A; border-color:#E24B4A; color:#FFFFFF; }
+
+    .eb-card { margin:10px 0 18px; border:1px solid #D3D1C7; border-radius:16px; overflow:hidden; background:#FFFFFF; color:#2C2C2A; }
+    .eb-head { display:flex; align-items:center; gap:16px; padding:14px 18px; background:#FAEEDA; flex-wrap:wrap; }
+    .eb-head b { font-size:1.08rem; display:block; } .eb-head small { color:#854F0B; }
+    .eb-bar { flex:1; min-width:160px; height:8px; border-radius:99px; background:#E6E1D3; overflow:hidden; } .eb-bar b { display:block; height:100%; background:#BA7517; }
+    .eb-amt { font-family:ui-monospace,Menlo,monospace; color:#633806; font-weight:700; }
+    .eb-t { width:100%; border-collapse:collapse; font-size:.9rem; font-variant-numeric:tabular-nums; }
+    .eb-t th { background:#EEF0EC; color:#5F5E5A; font-weight:700; padding:9px 10px; text-align:right; } .eb-t th:first-child { text-align:left; }
+    .eb-t td { padding:9px 10px; text-align:right; border-top:1px solid #EEECE6; font-family:ui-monospace,Menlo,monospace; color:#5F5E5A; }
+    .eb-t td.eb-n { text-align:left; font-family:inherit; font-weight:800; color:#2C2C2A; } .eb-t td.eb-v { color:#2C2C2A; font-weight:700; }
+    .eb-t th.eb-tot { background:#DDF0E3; color:#27500A; } .eb-t td.eb-tot { background:#E7F5EC; color:#3B6D11; font-weight:800; font-size:1.02rem; }
+    .eb-t tr.eb-top td { background:#FBF3DF; } .eb-t tr.eb-top td.eb-tot { background:#B27A2E; color:#FFFFFF; }
+    .eb-t tr.eb-me td.eb-n { color:#A32D2D; }
+    .eb-t tr.eb-g td { text-align:left; font-family:inherit; font-weight:700; color:#5F5E5A; background:#FAFAF7; padding:6px 10px; }
+    .eb-t tr.eb-sum td { background:#EEF0EC; color:#2C2C2A; font-weight:800; border-top:2px solid #D3D1C7; } .eb-t tr.eb-sum td:first-child { text-align:left; font-family:inherit; }
+    .eb-0 { color:#B4B2A9; } .eb-crown sub { font-size:.65em; }
+    .eb-chip { display:inline-block; padding:1px 9px; border-radius:99px; background:#F1EFE8; color:#5F5E5A; font-family:inherit; font-weight:700; font-size:.82rem; }
+    .eb-chip.red { background:#FCEBEB; color:#A32D2D; } .eb-chip.ok { background:#FCEBEB; color:#E24B4A; }
+    .eb-t td.eb-next { display:flex; align-items:center; justify-content:flex-end; gap:10px; font-family:inherit; }
+    .eb-nx { display:flex; flex-direction:column; align-items:flex-end; gap:3px; } .eb-nx small { color:#5F5E5A; }
+    .eb-nx i { width:130px; height:5px; border-radius:99px; background:#EEECE6; overflow:hidden; } .eb-nx i b { display:block; height:100%; background:#0F6E56; }
+    .eb-plus { background:#E1F5EE; color:#085041; border-radius:99px; padding:3px 10px; font-weight:800; font-family:ui-monospace,Menlo,monospace; white-space:nowrap; }
+    .eb-warn { color:#A32D2D; }
+    .eb-t td.eb-hold { color:#B4B2A9; } .eb-t td.eb-hold small { display:block; font-size:.66rem; color:#BA7517; font-family:inherit; }
     /* 🔔 更新通知 */
     .pcn-bell { position:relative; background:linear-gradient(135deg,#6a1b9a,#8e24aa) !important; color:#fff !important; border-color:transparent !important; }
     .pcn-badge { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#E24B4A; color:#fff; font-size:11px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 0 0 2px #fff; }
@@ -9350,7 +9374,7 @@
         + (evoPreview ? '' : '<button class="ck-region-btn" onclick="evoSnapNow()" data-pchelp="手動存一份本週快照\n每週五第一次打開會自動存，這顆是補存或重存用。">📸 存本週快照</button>')
         + '</div>'
         + (evoPreview ? '<div class="evo-warn">👀 預覽：下面全部是「九月數字套十月辦法」的試算，不是十月成績</div>' : '')
-        + '<div class="evo-tabs">' + [['rep','👤 業務'],['paid','💰 達標後你領多少'],['boss','🏫 學院主管'],['multi','🗺 多間學院／區主管'],['staff','🧾 助理／客服'],['week','📅 每週五檢討']].map(function(t){
+        + '<div class="evo-tabs">' + [['rep','👤 業務'],['bill','🧾 獎金明細'],['paid','💰 達標後你領多少'],['boss','🏫 學院主管'],['multi','🗺 多間學院／區主管'],['staff','🧾 助理／客服'],['week','📅 每週五檢討']].map(function(t){
             return '<button class="evo-tab' + (evoTab === t[0] ? ' on' : '') + '" onclick="evoTab=\'' + t[0] + '\';ppEventOpen(ppEvId)">' + t[1] + '</button>';
           }).join('') + '</div></div>';
       if (!usePP || !usePP.orgs) return head + '<div class="ck-empty">還沒有十月的當月績效。' + _pcEmptyHint() + '；或先按上面的「用九月資料預覽」。</div>';
@@ -9363,6 +9387,7 @@
       var body = '';
       if (evoTab === 'rep') body = _evoRep(M, D, orgs, H);
       else if (evoTab === 'paid') body = _evoPaid(M, orgs);
+      else if (evoTab === 'bill') body = _evoBill(M, orgs);
       else if (evoTab === 'boss') body = _evoBoss(M, D, orgs, H);
       else if (evoTab === 'multi') body = _evoMulti(M, D, H);
       else if (evoTab === 'staff') body = _evoStaff(M, orgs);
@@ -9418,6 +9443,84 @@
     //   學院主管：學院下一級加碼（還沒到 300 萬＝15,000，300～350＝26,250…）＋學院實際業績 3%（副主管領 1/2 只套在加碼）
     //   助理／客服：學院下一級的每人獎金
     function _evoNext(T, v){ var i = _evoTier(T, v), nx = T[i + 1]; return nx ? { lv:nx[0], add:nx[1], top:false } : { lv:T[i][0], add:T[i][1], top:true }; }
+
+    // ═══ 🧾 獎金明細（10/10 Ivan：照他給的截圖；補上現金獎 10%、目標達成獎金）═══
+    //   5%＝業績 × 5%（課程銷售獎金）
+    //   現金 10%＝現金類收款（現金、匯款、刷卡／綠界、一卡通、Line Pay；學貸分期融資不算）× 10%，來源＝📋 通路同步的「現＋刷」
+    //   達標＝2025 獎金制度表一，只領最高一級，不用等學院
+    //   加碼＝十月活動個人加碼，先假設學院會達 300 萬（照現在業績的級距）
+    var EVO_TGT = [[150000,1000],[300000,3000],[450000,8000],[600000,16000],[750000,24000],[900000,30000]];
+    function _evoTierAmt(T, v){ var a = 0; T.forEach(function(t){ if (v >= t[0]) a = t[1]; }); return a; }
+    // ★ 10/10 Ivan：達標、加碼每個人先暫放第一級（達標 1,000、加碼 1,500），真的跳級才往上加
+    function _evoTierFloor(T, v){ return Math.max(T[0][1], _evoTierAmt(T, v)); }
+    function _evoCashMap(ym){
+      var out = { map:{}, ok:false, at:'' };
+      try {
+        var d = _ckNewest('_motiv_channel_v1', '_motiv_synced_channel', function(x){ return !x || !x.channels; });
+        if (!d){ var raw = localStorage.getItem(_ckCid() + 'motiv_channel_v1'); d = raw ? JSON.parse(raw) : null; }
+        if (d && d.meta && +d.meta.year === +ym.slice(0,4) && +d.meta.month === +ym.slice(5) && d.channels && d.channels.cash){
+          // 承辦人寫兩個人（例「楊雅晴,楊晏穎」）→ 現金獎平分
+          (d.channels.cash.ranking || []).forEach(function(x){
+            var ns = String(x.name || '').split(/[,，、\/]/).map(function(t){ return t.trim(); }).filter(Boolean), v = (+x.value || 0) / Math.max(1, ns.length);
+            ns.forEach(function(n){ out.map[n] = (out.map[n] || 0) + v; });
+          });
+          out.ok = true; out.items = (d.meta && d.meta.itemStat) || null; out.hdr = (d.meta && d.meta.csvHeaders) || null; out.itemCol = (d.meta && d.meta.itemCol) || '';
+        }
+        try { for (var i = 0; i < localStorage.length; i++){ var k = localStorage.key(i); if (k && k.slice(-21) === '_motiv_synced_channel'){ var t = localStorage.getItem(k) || '', tt = Date.parse(t.replace(/\//g, '-').replace(' ', 'T')) || Date.parse(t) || 0; if (tt > (out._atN || 0)){ out._atN = tt; out.at = t; } } } } catch(e2){}
+      } catch(e){}
+      return out;
+    }
+    // 沒入帳：最後一份快照往回數，離最近一次業績有增加過了幾天
+    function _evoIdle(ym, org, name){
+      try {
+        var S = _dsSnaps(ym), keys = Object.keys(S).sort(), key = org + '|' + name, last = null, prevV = 0, lastUp = null, any = false;
+        keys.forEach(function(k){ var pv = S[k].p && S[k].p[key]; if (!pv) return; var v = +pv[0] || 0; if (v > prevV + 0.5){ lastUp = k; any = true; } prevV = Math.max(prevV, v); last = k; });
+        if (!last) return null;
+        if (!any) return { none:true };
+        return { days: Math.round((new Date(last) - new Date(lastUp)) / 86400000) };
+      } catch(e){ return null; }
+    }
+    function _evoBill(M, orgs){
+      var C = _evoCashMap(M.ym || EVO.ym), ym = M.ym || EVO.ym;
+      var html = '<p class="evo-sub">5%＝業績 × 5%；現金 10%＝現金・匯款・刷卡的收款 × 10%（學貸、分期、融資不算）；達標＝獎金制度表一只領最高一級，<b>每個人先暫放 1,000</b>；加碼＝<b>先假設學院會達 300 萬</b>，<b>每個人先暫放 1,500</b>，真的跳級就往上加（45 萬 4,500、60 萬 9,000…）。'
+        + (C.ok && !Object.keys(C.map).length ? '<b class="eb-warn">現金 10% 暫時都是 0：請確認擴充是 5.58（重新載入）後再按一次「📋 通路」</b>' + (C.items ? '<br><small>收支項目實際有：' + _fnEsc(Object.keys(C.items).slice(0, 20).map(function(k){ return k + '×' + C.items[k]; }).join('、')) + '</small>' : '') + (C.hdr ? '<br><small>收支 CSV 的欄位：' + _fnEsc(C.hdr.join('｜')) + '（目前用「' + _fnEsc(C.itemCol || '找不到') + '」判斷現金）</small>' : '') : '')
+        + (C.ok && Object.keys(C.map).length ? '現金獎資料：📋 通路同步 ' + _fnEsc(C.at || '') : (C.ok ? '' : '<b class="eb-warn">還沒有十月的「現＋刷」資料，現金獎先顯示 0，' + _pcEmptyHint('按「📋 通路」') + '</b>')) + '</p>';
+      orgs.forEach(function(org){
+        var ob = M.orgBiz[org] || 0, gap = Math.max(0, EVO.gate - ob);
+        var rows = M.reps.filter(function(r){ return r.org === org; }).map(function(r){
+          var v = r.v || 0, cash = C.map[r.n] || 0;
+          var b5 = Math.round(v * 0.05), c10 = Math.round(cash * 0.1), tg = _evoTierFloor(EVO_TGT, v), ad = _evoTierFloor(EVO.P, v), tgHold = v < EVO_TGT[0][0], adHold = v < EVO.P[0][0];
+          var nxs = EVO_TGT.concat(EVO.P).map(function(t){ return t[0]; }).filter(function(x){ return x > v; }).sort(function(a,b){ return a - b; });
+          var nx = nxs[0] || null, gain = nx ? Math.round((nx - v) * 0.05) + (_evoTierFloor(EVO_TGT, nx) - tg) + (_evoTierFloor(EVO.P, nx) - ad) : 0;
+          return { r:r, v:v, cash:cash, b5:b5, c10:c10, tg:tg, ad:ad, tgHold:tgHold, adHold:adHold, tot:b5 + c10 + tg + ad, nx:nx, gain:gain, idle:_evoIdle(ym, org, r.n) };
+        });
+        if (!rows.length) return;
+        var rank = rows.slice().sort(function(a,b){ return b.tot - a.tot; }).slice(0, 3).map(function(x){ return x.r.n; });
+        var groups = {}, order = [];
+        rows.forEach(function(x){ var g = x.r.dept || '未分組'; if (!groups[g]){ groups[g] = []; order.push(g); } groups[g].push(x); });
+        order.sort();
+        var T = { v:0, b5:0, c10:0, tg:0, ad:0, tot:0 };
+        var body = order.map(function(g){
+          return '<tr class="eb-g"><td colspan="9">' + _fnEsc(g) + '</td></tr>' + groups[g].map(function(x){
+            ['v','b5','c10','tg','ad','tot'].forEach(function(k){ T[k] += x[k]; });
+            var ri = rank.indexOf(x.r.n), top = ri === 0 && x.tot > 0, me = x.r.n === _fnMe();
+            var z = function(n){ return n ? '$' + _evoM(n) : '<span class="eb-0">0</span>'; };
+            var idle = !x.idle ? '<span class="eb-chip">—</span>' : (x.idle.none ? '<span class="eb-chip red">未入帳</span>' : (x.idle.days === 0 ? '<span class="eb-chip ok">今天有</span>' : '<span class="eb-chip' + (x.idle.days >= 3 ? ' red' : '') + '">' + x.idle.days + ' 天</span>'));
+            var nxt = x.nx ? '<div class="eb-nx"><small>差 $' + _evoM(x.nx - x.v) + ' 到 ' + (x.nx / 10000) + ' 萬</small><i><b style="width:' + Math.min(100, x.v / x.nx * 100) + '%"></b></i></div><span class="eb-plus">+$' + _evoM(x.gain) + '</span>' : '<span class="eb-plus">已到最高級</span>';
+            return '<tr class="' + (top ? 'eb-top' : '') + (me ? ' eb-me' : '') + '"><td class="eb-n">' + _fnEsc(x.r.n) + (ri >= 0 && x.tot > 0 ? ' <span class="eb-crown">👑' + (ri ? '<sub>' + (ri + 1) + '</sub>' : '') + '</span>' : '') + (me ? '<span class="pp-metag">你</span>' : '') + '</td>'
+              + '<td class="eb-v">' + z(x.v) + '</td><td>' + z(x.b5) + '</td><td>' + z(x.c10) + '</td><td' + (x.tgHold ? ' class="eb-hold" title="還沒到 15 萬，先暫放第一級"' : '') + '>' + z(x.tg) + (x.tgHold ? '<small>暫放</small>' : '') + '</td><td' + (x.adHold ? ' class="eb-hold" title="還沒到 30 萬，先暫放第一級（假設學院達 300 萬）"' : '') + '>' + z(x.ad) + (x.adHold ? '<small>暫放</small>' : '') + '</td>'
+              + '<td class="eb-tot">$' + _evoM(x.tot) + '</td><td class="eb-idle">' + idle + '</td><td class="eb-next">' + nxt + '</td></tr>';
+          }).join('');
+        }).join('');
+        html += '<div class="eb-card"><div class="eb-head"><div><b>十月 ' + _fnEsc(org) + '・300 萬達成・個人業績加碼</b><small>獎金先以學院達標計算加碼・' + (gap ? '學院還差 $' + _evoM(gap) : '學院已達 300 萬') + '</small></div>'
+          + '<i class="eb-bar"><b style="width:' + Math.min(100, ob / EVO.gate * 100) + '%"></b></i><span class="eb-amt">$' + _evoM(ob) + ' / $' + _evoM(EVO.gate) + '</span></div>'
+          + '<table class="eb-t"><tr><th>業務</th><th class="eb-v">業績</th><th>5%</th><th>現金 10%</th><th>達標</th><th>加碼</th><th class="eb-tot">獎金合計</th><th>沒入帳</th><th class="eb-next">下一級</th></tr>'
+          + body
+          + '<tr class="eb-sum"><td>合計</td><td class="eb-v">$' + _evoM(T.v) + '</td><td>$' + _evoM(T.b5) + '</td><td>$' + _evoM(T.c10) + '</td><td>$' + _evoM(T.tg) + '</td><td>$' + _evoM(T.ad) + '</td><td class="eb-tot">$' + _evoM(T.tot) + '</td><td></td><td></td></tr>'
+          + '</table></div>';
+      });
+      return html + '<div class="evo-foot">下一級＝差多少到下一個門檻（達標表或加碼表，哪個近算哪個）；後面的 +$＝到那裡時多領的（5% 增加的部分＋達標跳級差額＋加碼跳級差額，不含現金獎）。沒入帳＝每天快照裡最後一次業績有增加，到今天隔了幾天。</div>';
+    }
     function _evoPaid(M, orgs){
       var html = '<p class="evo-sub">假設學院已做到 300 萬，加碼門檻當作你<b>已經達成下一級</b>；原本 5%（主管 3%）照你<b>現在的實際業績</b>算。大字＝加碼＋原本 %。</p>';
       orgs.forEach(function(org){
@@ -16679,7 +16782,10 @@
       { ver:'ds59', icon:'🎮', title:'三關路線改成遊戲版趨勢圖，三種畫風可切換', detail:'每日總結 →「🛣 三關路線」：🏎 賽道競速（追配速車）／💓 動能心電圖（平線＝沒入帳）／🧗 登山關卡（營地＝10 號、20 號，月底登頂）。可全螢幕、點任何一點看那天入帳與輸贏、點學院只比那幾家。🔥＝最近 3 個上班日入帳 ≥ 該到；💤＝連 2 個上班日以上沒入帳；關卡未達的下一步改成 13:40', go:{ fn:'dsRoad' } },
       { ver:'ds60', icon:'🗺', title:'每日總結可以把北區六家拉進來一起比', detail:'每日總結上面多一顆「🗺 ＋北區六家一起比」：站前、站二、館前、板橋、站前二部、東區二部會加進今日對戰、賽道排行、燈號月曆、擂台（變五區）跟三關路線遊戲圖；再按一次回到只看七家。北區業績＝激勵同步的學院績效表，月目標＝上個月業績', go:{ fn:'dsDay' } },
       { ver:'ds61', icon:'🎯', title:'北區可以只挑一家來比', detail:'每日總結的「🗺 北區加入比賽 ▾」點開，可以只勾東區二部（或任幾家）加進七家一起比，不用六家全進來；按「清掉，只看七家」就回原本', go:{ fn:'dsDay' } },
-      { ver:'ds62', icon:'📈', title:'北區 10/10 以前補上預估坡度', detail:'三關路線遊戲圖裡，北區學院 10/10 以前沒有逐日資料，現在照七家那幾天的入帳節奏攤出預估線（虛線＋空心點，點下去會寫「預估」），線有坡度比較好比；預估不算勢頭、不算輸贏', go:{ fn:'dsRoad' } }
+      { ver:'ds62', icon:'📈', title:'北區 10/10 以前補上預估坡度', detail:'三關路線遊戲圖裡，北區學院 10/10 以前沒有逐日資料，現在照七家那幾天的入帳節奏攤出預估線（虛線＋空心點，點下去會寫「預估」），線有坡度比較好比；預估不算勢頭、不算輸贏', go:{ fn:'dsRoad' } },
+      { ver:'ds63', icon:'🧾', title:'十月活動多一個「🧾 獎金明細」', detail:'每個人一列：業績、5%、現金 10%（現金・匯款・刷卡收款 × 10%）、達標（獎金制度表一，只領最高一級）、加碼（先假設學院會達 300 萬）、獎金合計、幾天沒入帳、差多少到下一級＋到時候多領多少。依組別分段，前三名有 👑', go:{ fn:'evoBill' } },
+      { ver:'ds64', icon:'💵', title:'現金 10% 修好了（要重新載入擴充＋按一次 📋 通路）', detail:'原本擴充判斷「現金／匯款」太嚴格，6 月起「現＋刷」都是空的；現在收支項目有包含現金、匯款、刷卡、信用卡（不含分期）、綠界、一卡通、Line Pay 就算。兩位承辦人的單，現金獎平分', go:{ fn:'evoBill' } },
+      { ver:'ds65', icon:'🧾', title:'獎金明細：達標、加碼每個人先暫放第一級', detail:'達標獎金每人先放 1,000、加碼每人先放 1,500（假設學院會達 300 萬），還沒到門檻的會標「暫放」；真的衝到 30 萬、45 萬…就照表往上跳', go:{ fn:'evoBill' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
@@ -16708,6 +16814,7 @@
       if (go.fn === 'dsDay') return '打開每日總結';
       if (go.fn === 'dsRoad') return '打開三關路線';
       if (go.fn === 'evoPaid') return '打開「💰 達標後你領多少」';
+      if (go.fn === 'evoBill') return '打開「🧾 獎金明細」';
       if (go.tab !== undefined) return '去「' + (PCN_TAB_NAME[go.tab] || '分頁') + '」';
       return '帶我去看';
     }
@@ -16786,6 +16893,7 @@
       if (go.fn === 'dsDay'){ try { dsumOpen('day'); } catch(e){} return; }
       if (go.fn === 'dsRoad'){ try { dsumOpen('road'); } catch(e){} return; }
       if (go.fn === 'evoPaid'){ try { evoTab = 'paid'; ppEventOpen('2026-10-push'); } catch(e){} return; }
+      if (go.fn === 'evoBill'){ try { evoTab = 'bill'; ppEventOpen('2026-10-push'); } catch(e){} return; }
       if (go.fn === 'trk' && go.tab === undefined) go = Object.assign({ tab:9 }, go);
       if (go.tab !== undefined){ try { switchTab(go.tab); } catch(e){} }
       setTimeout(function(){
