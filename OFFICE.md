@@ -4,13 +4,19 @@
 
 ---
 
+
+## ⭐ Ivan 的寫字規則（10/10 交代，每次都要照做）
+- 網頁上、報告裡給團隊看的字一律白話：不用「判定、可比對、中位數、門檻、佔比」這種詞，改講人話（例：空編輯＝點開學生資料、按了儲存，但備註一個字都沒改）
+- 每個數字都要能讓人看懂怎麼來的；表揚誰之前，先附上他的業績佐證
+- 講編輯追蹤用 EIP 的說法：說「編輯」不說「寫」（例：每次點開、每次編輯都寫得很完整）；表揚要寫成具體行動＋價值觀，不是只丟數字
+
 ## 0. 開工前先看
 
 - 專案位置：`iCloud/基本功/營銷部每月簡報/2022年/遊戲化實踐版`
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds68'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds79'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds68（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds79（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -388,3 +394,14 @@ C 主管
 - ds66：『tab-9』泡泡真因＝ds58 把 UI_TIPS 的 data-tip 改名成 data-pchelp，撞到大字泡泡 .bigtip（讀 data-pchelp 原字顯示）。改：UI_TIPS 代號屬性改 data-uitip（tab-N/sync-*/lock/push/pull），UI_TIPS 監聽改 [data-uitip]；其他說明文字仍走 data-pchelp 大字泡泡
 - ds67：每日總結分區看 ds_region_sel_v1（tao/central/south/north，空＝全部，可複選），套在 _dsOrgList（快照、預估節奏仍用七家全部）；.ds-regbar；『七家第一』改成『這 N 家第一』
 - ds68：每日總結加「📕 關卡總結」tab='sum'，_dsSumHtml（ds_sum_view boss/lead）。關卡＝最後一個 end≤今天的關（沒有就預覽目前關）。主管版 _dsSumBoss：單日最高(_dsDayGot span1)/最長連勝(_dsModel 逐日 res)/個人 MVP(endKey p)＋封存＋翻頁宣告；組長版 _dsSumLead：最高組/零掛零組/MVP＋賽後戰報（結果、轉折日＝合計最高日、最痛＝連續低於日均一半最長段、掛零人數）＋封存含掛零名字＋翻頁組長宣告。沒有『比九月同期』（9 月無逐日快照、組員會調動）
+- ds69：關卡總結改 C（Ivan 選）：封存＋翻頁合併 → _dsHero（過關金卡）＋_dsCards（每組／每家一張小卡，大字＝下一關每天要、紅框＝掛零、點開看名字）＋一行宣告；組長版有人過關時拿掉『本關最高組』獎（跟海報重複），沒人過關改『最接近過關』；標題改米白底深紫字＋!important（PNG 下載時深底深字看不見）
+- ds70：關卡總結總額變主角：_dsTotalBar（全體合計／目標）、金卡大字＝金額、小卡照金額排名（#1–3 金銀銅、大字已做金額、% 小標籤、培訓標、下面一條下一關每天要），過關的也進排名
+- ds71：.dss-flip 被 day-mode 蓋成黑字 → 加 .dss 前綴＋!important 白字；金卡 % 標籤 #633806；stamp/sec small/foot 也加 !important
+- ds72：主管版總結加雙贏區（Ivan：不要假想敵／零和，《與成功有約》雙贏）：_dsUnlockHtml（每家離 EVO.gate 300 萬、解鎖後業務人數×1,500／主管 15,000（half 7,500）／助理客服 2,000；EVO.multi 兩家 600 萬、三家 900 萬）＋_dsSwapHtml（指標：新名單／加購／展場佔比＝通路 academies÷當月績效、約到月底報到、面談、掛零天數；能教＝排名最好、想學＝相對排名最差→跟該項第一借；互補兩家 🤝）
+- ds73：拿掉兩家／三家一起拉（EVO.multi 區塊）；解鎖卡的『解鎖後誰拿什麼』只在達標時改成嘉許 .dsu-yay；交換所報到、面談改 ÷業務人數（EVO.notRep 外）；老師指派：比自己名次好、BIG（高雄建國）最多一次，差距大的先指派；互補判斷改用 teacher
+- ds74：主管版三個獎下面 _dsChTop3：motiv_channel_v1 六通路 ranking 前三（多承辦人平分、依 pp 對學院、跟著分區篩選）
+- ds75：10/8 沒快照真因＝_dsCapture 只在 dsumOpen 跑，那天沒人開每日總結；10/10 00:58 那次照『9 點前算前一天』存成 10/9。修：_dsAutoSnap（激勵同步完＋網頁載入 8 秒後）；_dsFillGaps 用漏斗 motiv_funnel_v1 orgs[].pay（d 日期、o 承辦人、v）把前後兩份快照之間的增加量依每人每天入帳比例分到缺的日子，快照標 est:'pay'、by:'自動補（入帳明細）'
+- ds76：DS_STARS['2026-10|0']（Ivan 親寫表揚，三層：名字業績→態度一句→具體行動）＋_dsStarsHtml；_dsChTop3 前面加 🚪 報到王（checkin.formal.byKey）。之後每關要表揚就在 DS_STARS 加 '月份|關卡' 一筆
+- ds77：dsDownloadMobile（📱 手機版 PNG）：複製 #ppEvBg .ds-box 到畫面外 420px，拿掉工具列／按鈕，月曆把表頭日期塞進每格（.dsm-dt）再刪表頭，套 .dsm 手機 CSS（多欄→1/2 欄、dsc-r 4 欄卡片），html2canvas scale 3
+- ds78：手機版 PNG 切張：MAXH 860px（420 寬≈手機一屏），用 SEL 卡片元素算『不切斷』的切點，從整張 canvas 切片＋右下『i / N』，逐張下載（間隔 450ms）
+- ds79：_dsChTop3 第二張報到王＝桃區＋中區（排除建國、北區）；只選桃中分區時（沒有建國）不重複顯示
