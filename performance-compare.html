@@ -9998,9 +9998,25 @@
         if (n3 < 3){ if (!n3 && p.wd > 3){ n3 = 99; got3 = 0; exp3 = 0; } else { got3 += p.inc; exp3 += p.exp; n3 += p.wd; } }   // 最新一份就跨超過 3 個上班日（例：北區第一份＝月初到今天）→ 算不出勢頭
         if (flatOn){ if (p.inc <= 0){ flat += p.wd; flatFrom = p; } else flatOn = false; }
       }
+      // ★ 10/10 Ivan：北區 10/10 前沒有逐日資料 → 照七家的節奏攤出預估（只畫虛線，不算勢頭、不算輸贏）
+      //   某天預估累計 ＝ 第一份真實累計 × （七家那天的累計合計 ÷ 七家第一份那天的累計合計）
+      var est = [];
+      if (pts.length && pts[0].wd > 3){
+        var fk = pts[0].k, base = _gcSevenSum(M, fk);
+        if (base > 0) M.keys.forEach(function(k){ if (k >= fk) return; var v = _gcSevenSum(M, k); if (v > 0) est.push({ k:k, d:+k.slice(8), cum:Math.round(pts[0].cum * Math.min(1, v / base)), est:1 }); });
+      }
       var last = pts[pts.length - 1];
-      return { org:r.org, T:r.T || 1, pts:pts, cum:last ? last.cum : 0, pct:last ? last.cum / (r.T || 1) : 0,
+      return { org:r.org, T:r.T || 1, pts:pts, est:est, cum:last ? last.cum : 0, pct:last ? last.cum / (r.T || 1) : 0,
         mom: exp3 ? got3 / exp3 : null, got3:got3, exp3:exp3, flat: flat >= 2 ? flat : 0, flatFrom: flat >= 2 ? flatFrom : null };
+    }
+    function _gcSevenSum(M, k){ var S = M.S[k], t = 0; if (!S || !S.o) return 0; CK_ORG_LIST.forEach(function(o){ if (S.o[o]) t += S.o[o].biz || 0; }); return t; }
+    function gcPickEst(org, k){
+      var M = window._GCM, el = document.getElementById('gcInfo'); if (!M || !el) return;
+      var r = M.rows.filter(function(x){ return x.org === org; })[0]; if (!r) return;
+      var s = _gcStats(M, r), p = s.est.filter(function(x){ return x.k === k; })[0]; if (!p) return;
+      el.innerHTML = '<b>' + _fnEsc(org) + '　' + (+k.slice(5,7)) + '/' + p.d + '</b><span>預估累計 ' + _dsW(p.cum) + '（' + Math.round(p.cum / s.T * 100) + '%）</span>'
+        + '<span class="dn">預估，不是真的數字：' + (+s.pts[0].k.slice(5,7)) + '/' + s.pts[0].d + ' 以前沒有逐日資料，照七家那幾天的節奏攤</span>';
+      el.classList.remove('on');
     }
     function gcSet(k, val){
       var v = _gcV();
@@ -10059,6 +10075,10 @@
       var svg = '';
       var line = function(s){ return s.pts.map(function(p){ return X(p.d) + ',' + Y(p.cum / s.T); }).join(' '); };
       var dots = function(s, c, rr){ return s.pts.map(function(p){ return '<circle class="gc-dot" cx="' + X(p.d) + '" cy="' + Y(p.cum / s.T) + '" r="' + rr + '" fill="' + c + '" onclick="gcPick(\'' + s.org + '\',\'' + p.k + '\')"><title>' + _fnEsc(s.org) + ' ' + p.d + '日 入帳 ' + _dsW(p.inc) + '</title></circle>'; }).join(''); };
+      var estLine = function(s){ if (!s.est || !s.est.length) return ''; var f = s.pts[0]; return [X(0) + ',' + Y(0)].concat(s.est.map(function(p){ return X(p.d) + ',' + Y(p.cum / s.T); })).concat([X(f.d) + ',' + Y(f.cum / s.T)]).join(' '); };
+      var estSvg = function(s, c, w, op){ var l = estLine(s); if (!l) return ''; return '<polyline points="' + l + '" fill="none" stroke="' + c + '" stroke-width="' + w + '" stroke-dasharray="6 6" stroke-linecap="round" opacity="' + op + '"/>'; };
+      var estDots = function(s, c){ return (s.est || []).map(function(p){ return '<circle class="gc-dot" cx="' + X(p.d) + '" cy="' + Y(p.cum / s.T) + '" r="5" fill="none" stroke="' + c + '" stroke-width="2" onclick="gcPickEst(\'' + s.org + '\',\'' + p.k + '\')"><title>' + _fnEsc(s.org) + ' ' + p.d + '日 預估累計 ' + _dsW(p.cum) + '</title></circle>'; }).join(''); };
+      var estTag = function(s, c){ if (!s.est || !s.est.length) return ''; var m = s.est[Math.floor(s.est.length / 2)]; return '<text x="' + X(m.d) + '" y="' + (Y(m.cum / s.T) - 10) + '" fill="' + c + '" font-size="11" text-anchor="middle" opacity=".85">預估</text>'; };
       var stack = function(arr){ arr.sort(function(a,b){ return a.y - b.y; }); var ly = -99; arr.forEach(function(o){ o.ty = Math.max(o.y, ly + (o.gap || 22)); ly = o.ty; }); return arr; };
 
       if (v.theme === 'race'){
@@ -10067,12 +10087,13 @@
         gates.forEach(function(g){ svg += '<line x1="' + g.x + '" x2="' + g.x + '" y1="' + TP + '" y2="' + (H - B) + '" stroke="#7F77DD" stroke-dasharray="6 5"/><text x="' + g.x + '" y="' + (TP - 10) + '" fill="#CECBF6" font-size="13" text-anchor="middle">🏁 ' + g.lab + '</text>'; });
         svg += '<line x1="' + X(M.day) + '" x2="' + X(M.day) + '" y1="' + TP + '" y2="' + (H - B) + '" stroke="#FAC775" opacity=".45"/>';
         if (pace.length) svg += '<polyline points="' + pace.join(' ') + '" fill="none" stroke="#D3D1C7" stroke-width="2" stroke-dasharray="7 5"/><text x="' + (X(M.day) + 6) + '" y="' + (Y((E0.cum[M.day] || 0) / T0) - 8) + '" fill="#D3D1C7" font-size="12">配速車（今天該到）</text>';
-        all.filter(function(s){ return !on(s); }).forEach(function(s){ svg += '<polyline points="' + line(s) + '" fill="none" stroke="#534AB7" stroke-width="2"/>'; });
+        all.filter(function(s){ return !on(s); }).forEach(function(s){ svg += estSvg(s, '#534AB7', 2, 1) + '<polyline points="' + line(s) + '" fill="none" stroke="#534AB7" stroke-width="2"/>'; });
         var labs = [];
         all.filter(on).forEach(function(s){
           var c = s.flat ? '#888780' : col[s.org], lp = s.pts[s.pts.length - 1]; if (!lp) return;
           var ly2 = Y(lp.cum / s.T);
           if (s.flatFrom){ var fx = X(s.flatFrom.d - s.flatFrom.wd); svg += '<rect x="' + fx + '" y="' + (ly2 - 12) + '" width="' + Math.max(8, X(lp.d) - fx) + '" height="24" fill="#97C459" opacity=".22" rx="6"/>'; }
+          svg += estSvg(s, c, 3.5, 0.8) + estDots(s, c) + estTag(s, c);
           svg += '<polyline points="' + line(s) + '" fill="none" stroke="' + c + '" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>' + dots(s, c, 6);
           svg += '<circle cx="' + X(lp.d) + '" cy="' + ly2 + '" r="11" fill="' + c + '" stroke="#fff" stroke-width="2"/>';
           if (s.mom != null && s.mom >= 1 && !s.flat) svg += '<text x="' + (X(lp.d) - 30) + '" y="' + (ly2 + 7) + '" font-size="20">🔥</text>';
@@ -10087,9 +10108,21 @@
         gates.forEach(function(g){ svg += '<line x1="' + g.x + '" x2="' + g.x + '" y1="16" y2="' + (H - 8) + '" stroke="#1D9E75" stroke-dasharray="5 4"/><text x="' + g.x + '" y="14" fill="#9FE1CB" font-size="12" text-anchor="middle">' + g.lab + '</text>'; });
         list.forEach(function(s, i){
           var base = 32 + rh * (i + 0.78), c = col[s.org], amp = rh * 0.6, w = Math.max(5, (X(1) - X(0)) * 0.35), path = [X(0) + ',' + base];
-          s.pts.forEach(function(p){
-            var h = p.exp ? Math.min(1.6, p.inc / p.exp) / 1.6 : (p.inc ? 0.5 : 0), x = X(p.d);
-            path.push((x - w) + ',' + base, (x - w / 2) + ',' + (base - amp * h), x + ',' + (base + (h ? amp * 0.15 : 0)), (x + w / 3) + ',' + base);
+          var beat = function(arr, x, h){ arr.push((x - w) + ',' + base, (x - w / 2) + ',' + (base - amp * h), x + ',' + (base + (h ? amp * 0.15 : 0)), (x + w / 3) + ',' + base); };
+          var expOf = function(d0, d1){ var t = 0; for (var x = d0 + 1; x <= d1; x++) t += (s.pts.length && M.rows.filter(function(rr){ return rr.org === s.org; })[0].E.inc[x]) || 0; return t; };
+          var firstFix = null;
+          if (s.est && s.est.length){
+            var ep = [X(0) + ',' + base], pc = 0, pd = 0;
+            s.est.forEach(function(p){ var ex = expOf(pd, p.d), inc = p.cum - pc; beat(ep, X(p.d), ex ? Math.min(1.6, inc / ex) / 1.6 : 0); pc = p.cum; pd = p.d; });
+            ep.push(X(s.pts[0].d - 1) + ',' + base);
+            svg += '<polyline points="' + ep.join(' ') + '" fill="none" stroke="' + c + '" stroke-width="2" stroke-dasharray="5 4" opacity=".6" stroke-linejoin="round"/>';
+            var le = s.est[s.est.length - 1]; firstFix = { inc:s.pts[0].cum - le.cum, exp:expOf(le.d, s.pts[0].d) };
+            path = [X(s.pts[0].d - 1) + ',' + base];
+          }
+          s.pts.forEach(function(p, pi){
+            var inc = (pi === 0 && firstFix) ? firstFix.inc : p.inc, ex = (pi === 0 && firstFix) ? firstFix.exp : p.exp;
+            var h = ex ? Math.min(1.6, inc / ex) / 1.6 : (inc ? 0.5 : 0);
+            beat(path, X(p.d), h);
           });
           path.push(X(M.day) + ',' + base);
           if (s.flatFrom){ var fx2 = X(s.flatFrom.d - s.flatFrom.wd); svg += '<rect x="' + fx2 + '" y="' + (base - amp) + '" width="' + Math.max(8, X(M.day) - fx2) + '" height="' + (amp + 10) + '" fill="#F09595" opacity=".2"/><text x="' + ((fx2 + X(M.day)) / 2) + '" y="' + (base + 20) + '" fill="#F7C1C1" font-size="13" text-anchor="middle">平線 ' + s.flat + ' 天</text>'; }
@@ -10102,11 +10135,12 @@
       } else {
         svg += '<rect width="' + W + '" height="' + H + '" fill="#FAEEDA"/>';
         if (pace.length){ var mt = pace.slice(); mt.push(X(nx) + ',' + (H - B), X(0) + ',' + (H - B)); svg += '<polygon points="' + mt.join(' ') + '" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="2"/>'; }
-        gates.forEach(function(g, gi){ var gy = Y(g.p); svg += '<line x1="' + g.x + '" x2="' + g.x + '" y1="' + gy + '" y2="' + (gy - 30) + '" stroke="#854F0B" stroke-width="2"/><polygon points="' + g.x + ',' + (gy - 30) + ' ' + (g.x + 18) + ',' + (gy - 24) + ' ' + g.x + ',' + (gy - 18) + '" fill="#BA7517"/><text x="' + g.x + '" y="' + (gy - 36) + '" fill="#633806" font-size="13" text-anchor="middle">' + (g.d === n ? '⛰ 登頂・' + g.lab : (focus && g.d === nx ? '⛳ 本關終點・' + g.lab : '營地' + (gi + 1) + '・' + g.lab)) + '</text>'; });
-        all.filter(function(s){ return !on(s); }).forEach(function(s){ svg += '<polyline points="' + line(s) + '" fill="none" stroke="#D3D1C7" stroke-width="2"/>'; });
+        gates.forEach(function(g, gi){ var gy = Y(g.p); svg += '<line x1="' + g.x + '" x2="' + g.x + '" y1="' + gy + '" y2="' + (gy - 30) + '" stroke="#854F0B" stroke-width="2"/><polygon points="' + g.x + ',' + (gy - 30) + ' ' + (g.x + 18) + ',' + (gy - 24) + ' ' + g.x + ',' + (gy - 18) + '" fill="#BA7517"/><text x="' + (g.x - 22) + '" y="' + (gy - 36) + '" fill="#633806" font-size="13" text-anchor="end">' + (g.d === n ? '⛰ 登頂・' + g.lab : (focus && g.d === nx ? '⛳ 本關終點・' + g.lab : '營地' + (gi + 1) + '・' + g.lab)) + '</text>'; });
+        all.filter(function(s){ return !on(s); }).forEach(function(s){ svg += estSvg(s, '#D3D1C7', 2, 1) + '<polyline points="' + line(s) + '" fill="none" stroke="#D3D1C7" stroke-width="2"/>'; });
         var cl = [];
         all.filter(on).forEach(function(s){
           var c = col[s.org], lp = s.pts[s.pts.length - 1]; if (!lp) return;
+          svg += estSvg(s, c, 2.5, 0.7) + estDots(s, c) + estTag(s, c);
           svg += '<polyline points="' + line(s) + '" fill="none" stroke="' + c + '" stroke-width="3.5" stroke-dasharray="1 7" stroke-linecap="round"/>' + dots(s, c, 5);
           cl.push({ s:s, c:c, x:X(lp.d), y:Y(lp.cum / s.T), gap:34 });
         });
@@ -10114,7 +10148,7 @@
         stack(cl).forEach(function(o){
           var gain = o.s.got3 / o.s.T;
           svg += '<text x="' + (W - R + 12) + '" y="' + (o.ty + 3) + '" fill="#412402" font-size="15" font-weight="700">' + _fnEsc(_gcShort(o.s.org)) + ' ' + Math.round(o.s.pct * 100) + '%</text>'
-            + '<text x="' + (W - R + 12) + '" y="' + (o.ty + 19) + '" fill="' + (o.s.flat ? '#3B6D11' : '#A32D2D') + '" font-size="12">' + (o.s.flat ? '⏸ 坐了 ' + o.s.flat + ' 天' : '3 天爬 +' + (Math.round(gain * 1000) / 10) + '%') + '</text>';
+            + '<text x="' + (W - R + 12) + '" y="' + (o.ty + 19) + '" fill="' + (o.s.flat ? '#3B6D11' : '#A32D2D') + '" font-size="12">' + (o.s.flat ? '⏸ 坐了 ' + o.s.flat + ' 天' : (o.s.mom == null ? '前段是預估' : '3 天爬 +' + (Math.round(gain * 1000) / 10) + '%')) + '</text>';
         });
       }
 
@@ -10134,7 +10168,7 @@
         + '<svg class="gc-svg" viewBox="0 0 ' + W + ' ' + H + '" width="100%">' + svg + '</svg>'
         + '<div id="gcInfo" class="gc-info">點線上任何一點，看那天入帳、承諾、輸贏</div>'
         + '<div class="gc-cards">' + cards + '</div>'
-        + '<div class="gc-legend">高度＝做到自己目標的幾 %（目標不同也能公平比）　🔥＝勢頭 ≥100%（最近 3 個上班日入帳 ÷ 這 3 天該到）　💤／⏸＝連續 2 個上班日以上沒入帳（假日不算）</div>'
+        + '<div class="gc-legend">高度＝做到自己目標的幾 %（目標不同也能公平比）　🔥＝勢頭 ≥100%（最近 3 個上班日入帳 ÷ 這 3 天該到）　💤／⏸＝連續 2 個上班日以上沒入帳（假日不算）　虛線＋空心點＝預估（北區 10/10 前沒有逐日資料，照七家那幾天的節奏攤，不算勢頭、不算輸贏）</div>'
         + '</div>';
     }
     function _dsGateLost(M, r, gi){ var g = M.G[gi], S = M.S[_dsDate(M.ym, g[1])]; return !!(S && S.o[r.org] && S.o[r.org].biz < _dsGateCum(M.ym, r.org, r.T, gi)); }
@@ -16644,7 +16678,8 @@
       { ver:'ds58', icon:'🧹', title:'滑鼠移到分頁不會再跳出「tab-9」這種小泡泡', detail:'只留下面那張說明小卡（📌 月度漏斗總結：靠哪顆更新、來源、頻率）' },
       { ver:'ds59', icon:'🎮', title:'三關路線改成遊戲版趨勢圖，三種畫風可切換', detail:'每日總結 →「🛣 三關路線」：🏎 賽道競速（追配速車）／💓 動能心電圖（平線＝沒入帳）／🧗 登山關卡（營地＝10 號、20 號，月底登頂）。可全螢幕、點任何一點看那天入帳與輸贏、點學院只比那幾家。🔥＝最近 3 個上班日入帳 ≥ 該到；💤＝連 2 個上班日以上沒入帳；關卡未達的下一步改成 13:40', go:{ fn:'dsRoad' } },
       { ver:'ds60', icon:'🗺', title:'每日總結可以把北區六家拉進來一起比', detail:'每日總結上面多一顆「🗺 ＋北區六家一起比」：站前、站二、館前、板橋、站前二部、東區二部會加進今日對戰、賽道排行、燈號月曆、擂台（變五區）跟三關路線遊戲圖；再按一次回到只看七家。北區業績＝激勵同步的學院績效表，月目標＝上個月業績', go:{ fn:'dsDay' } },
-      { ver:'ds61', icon:'🎯', title:'北區可以只挑一家來比', detail:'每日總結的「🗺 北區加入比賽 ▾」點開，可以只勾東區二部（或任幾家）加進七家一起比，不用六家全進來；按「清掉，只看七家」就回原本', go:{ fn:'dsDay' } }
+      { ver:'ds61', icon:'🎯', title:'北區可以只挑一家來比', detail:'每日總結的「🗺 北區加入比賽 ▾」點開，可以只勾東區二部（或任幾家）加進七家一起比，不用六家全進來；按「清掉，只看七家」就回原本', go:{ fn:'dsDay' } },
+      { ver:'ds62', icon:'📈', title:'北區 10/10 以前補上預估坡度', detail:'三關路線遊戲圖裡，北區學院 10/10 以前沒有逐日資料，現在照七家那幾天的入帳節奏攤出預估線（虛線＋空心點，點下去會寫「預估」），線有坡度比較好比；預估不算勢頭、不算輸贏', go:{ fn:'dsRoad' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };

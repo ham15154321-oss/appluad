@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds61'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds62'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds61（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds62（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -379,3 +379,4 @@ C 主管
   - ds59 追加：預設『本關視角』（X 到本關結算日、Y 到本關目標×1.25，gc_v1.span='month' 看整月）；全螢幕 z-index 頂層並藏 #navFloatBar／.tz-control／#pcFresh；實測三畫風＋點點＋比較卡 OK
 - ds60：🗺 北區六家（DS_NORTH）可加進每日總結賽局：開關 ds_north_v1、_dsOrgList()；_dsCapture 每次都存北區（來源＝_motivGetArchive()[本月].academy，o[org].nb=1）；月目標 _dsNorthPrevBiz＝上個月封存業績；_dsDayGot 前一份快照改找『有這家』的；擂台／區橫幅開北區變五區；無法補 10 月逐日（EIP 單日業績只有七家、封存一月一筆），北區從 10/10 開始累積；填承諾、組長、穿越仍只有七家
 - ds61：北區改成可單挑：ds_north_sel_v1（陣列）取代 ds_north_v1；按「🗺 北區 ▾」開 .ds-npanel 勾選；_dsOrgList＝七家＋勾的；_dsNorthRegs 只留有勾的區
+- ds62：_gcStats 加 est（第一份真實快照跨 >3 上班日時，照七家累計比例往前攤：預估累計＝第一份真實累計×七家當天累計÷七家第一份那天累計）；三畫風畫虛線＋空心點、gcPickEst 標「預估」；不進 mom/flat/輸贏
