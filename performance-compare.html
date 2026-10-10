@@ -2465,6 +2465,8 @@
     .gc-card.best { border:2px solid #E24B4A; } .gc-card.flat { border:2px dashed #639922; }
     .gc-legend { margin-top:8px; font-size:.74rem; opacity:.75; }
     .ds-oldmini summary { cursor:pointer; font-size:.8rem; opacity:.7; margin:8px 0; }
+    .ds-npanel { margin:6px 0 8px; padding:8px 10px; border-radius:10px; border:1px dashed #85B7EB; display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:.84rem; }
+    .ds-npanel .ds-chip.on { background:#E24B4A; border-color:#E24B4A; color:#FFFFFF; }
     /* 🔔 更新通知 */
     .pcn-bell { position:relative; background:linear-gradient(135deg,#6a1b9a,#8e24aa) !important; color:#fff !important; border-color:transparent !important; }
     .pcn-badge { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#E24B4A; color:#fff; font-size:11px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 0 0 2px #fff; }
@@ -8415,9 +8417,15 @@
     //   業績＝激勵同步的「學院績效表」（本來就抓得到，不多打 EIP）；月目標＝上個月業績（⚙️ 可改）
     var DS_NORTH = ['站前學院','站二學院','館前學院','板橋學院','站前二部','東區二部'];
     var DS_NORTH_REGS = [['北一區',['站前學院','站二學院','館前學院','板橋學院']],['北二區',['站前二部','東區二部']]];
-    function _dsNorthOn(){ try { return localStorage.getItem('ds_north_v1') === '1'; } catch(e){ return false; } }
-    function dsNorthToggle(){ try { localStorage.setItem('ds_north_v1', _dsNorthOn() ? '0' : '1'); } catch(e){} dsumOpen(); }
-    function _dsOrgList(){ return _dsNorthOn() ? CK_ORG_LIST.concat(DS_NORTH) : CK_ORG_LIST; }
+    // ★ 10/10 Ivan：北區要能只挑一家（例：只跟東區二部比），全部加進來會失焦
+    function _dsNorthSel(){ var a = null; try { a = JSON.parse(localStorage.getItem('ds_north_sel_v1') || 'null'); } catch(e){} return (a || []).filter(function(o){ return DS_NORTH.indexOf(o) >= 0; }); }
+    function _dsNorthOn(){ return _dsNorthSel().length > 0; }
+    function _dsNorthSave(a){ try { localStorage.setItem('ds_north_sel_v1', JSON.stringify(a)); } catch(e){} }
+    function dsNorthPick(org){ var a = _dsNorthSel(), i = a.indexOf(org); if (i >= 0) a.splice(i, 1); else a.push(org); _dsNorthSave(a); dsumOpen(); }
+    function dsNorthAll(on){ _dsNorthSave(on ? DS_NORTH.slice() : []); dsumOpen(); }
+    function dsNorthPanel(){ DS.northOpen = !DS.northOpen; dsumOpen(); }
+    function _dsOrgList(){ var sel = _dsNorthSel(); return CK_ORG_LIST.concat(DS_NORTH.filter(function(o){ return sel.indexOf(o) >= 0; })); }
+    function _dsNorthRegs(){ var sel = _dsNorthSel(); return DS_NORTH_REGS.map(function(rg){ return [rg[0], rg[1].filter(function(o){ return sel.indexOf(o) >= 0; })]; }).filter(function(rg){ return rg[1].length; }); }
     var CK_COLOR = { '台中學院':'#4ade80','台中二部':'#38bdf8','台中三部':'#fbbf24','中壢學院':'#f472b6','中壢二部':'#a78bfa','中壢三部':'#fb923c','高雄建國':'#2dd4bf' };
     var CK_REGIONS = {
       central: { label:'中區', orgs:['台中學院','台中二部','台中三部'] },
@@ -9814,8 +9822,10 @@
         + '<button class="ck-region-btn ds-morn" onclick="dsCopy(\'morn\')" data-pchelp="早上貼主管群\n每家只寫今天要入帳多少＋進度條，不放紅色。">☀️ 複製今日挑戰（早上版）</button>'
         + '<button class="ck-region-btn" onclick="dsCopy(\'boss\')" data-pchelp="收工後貼主管群\n賀🎉、📌未達、10:30 晨會。">🌙 複製收工版</button>'
         + '<button class="ck-region-btn" onclick="dsCopy(\'lead\')">📋 複製組長版</button>'
-        + '<button class="ck-region-btn ds-north' + (_dsNorthOn() ? ' active' : '') + '" onclick="dsNorthToggle()" title="北區六家（站前、站二、館前、板橋、站前二部、東區二部）一起比。業績＝激勵同步的學院績效表，月目標＝上個月業績（⚙️ 可改）。只影響今日對戰、賽道排行、燈號月曆、擂台、三關路線">' + (_dsNorthOn() ? '🗺 北區六家比賽中・點我只看七家' : '🗺 ＋北區六家一起比') + '</button></div>'
-        + (_dsNorthOn() ? '<div class="evo-warn">🗺 北區六家加入中：業績來自激勵同步的學院績效表、月目標＝上個月業績；北區 10/10 才開始存每天的數字，之前沒有逐日資料，前幾天的勢頭會先顯示「—」</div>' : '')
+        + '<button class="ck-region-btn ds-north' + (_dsNorthOn() || DS.northOpen ? ' active' : '') + '" onclick="dsNorthPanel()" title="從北區挑一家或幾家加進來比（站前、站二、館前、板橋、站前二部、東區二部）">🗺 北區' + (_dsNorthOn() ? '：' + _dsNorthSel().map(function(o){ return CK_SHORT[o] || o; }).join('、') : '加入比賽') + ' ▾</button></div>'
+        + (DS.northOpen ? '<div class="ds-npanel"><b>挑北區要跟誰比：</b>' + DS_NORTH.map(function(o){ var on = _dsNorthSel().indexOf(o) >= 0; return '<button class="ds-chip' + (on ? ' on' : '') + '" onclick="dsNorthPick(\'' + o + '\')">' + (on ? '✔ ' : '') + o + '</button>'; }).join('')
+            + '<button class="ds-chip" onclick="dsNorthAll(1)">六家全加</button><button class="ds-chip" onclick="dsNorthAll(0)">清掉，只看七家</button><button class="ds-chip" onclick="dsNorthPanel()">收起</button></div>' : '')
+        + (_dsNorthOn() ? '<div class="evo-warn">🗺 北區加入：' + _dsNorthSel().join('、') + '。業績來自激勵同步的學院績效表、月目標＝上個月業績；北區 10/10 才開始存每天的數字，前幾天勢頭先顯示「—」</div>' : '')
         + (DS.demo ? '<div class="evo-warn">🧪 示範：用九月數字隨機攤成每天，只是看版面，不是真的成績</div>' : '')
         + '<div class="evo-tabs">' + tabs.map(function(t){ return '<button class="evo-tab' + (DS.tab === t[0] ? ' on' : '') + '" onclick="dsumOpen(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') + '</div>';
       if (DS.tab === 'set') return h + _dsSetHtml(ym);
@@ -10229,7 +10239,7 @@
     }
     function _dsRegionBanner(M){
       if (_dsHid('regions')) return '';
-      var regs = (_dsNorthOn() ? DS_NORTH_REGS : []).concat([['中區',['台中學院','台中二部','台中三部']],['桃區',['中壢學院','中壢二部','中壢三部']],['南區',['高雄建國']]]);
+      var regs = _dsNorthRegs().concat([['中區',['台中學院','台中二部','台中三部']],['桃區',['中壢學院','中壢二部','中壢三部']],['南區',['高雄建國']]]);
       return '<div class="dsb-regs ds-hx">' + _dsX('regions', '三區橫幅') + regs.map(function(rg){
         var rs = M.rows.filter(function(r){ return rg[1].indexOf(r.org) >= 0; });
         var cum = 0, gt = 0, exp = 0, tdT = 0, tdG = 0, hol = rs.every(function(r){ return r.res === 'hol'; });
@@ -10312,7 +10322,7 @@
 
     // ── 提案三：🏟 三區擂台 ──
     function _dsArenaHtml(M){
-      var regs = (_dsNorthOn() ? DS_NORTH_REGS : []).concat([['中區',['台中學院','台中二部','台中三部']],['桃區',['中壢學院','中壢二部','中壢三部']],['南區',['高雄建國']]]);
+      var regs = _dsNorthRegs().concat([['中區',['台中學院','台中二部','台中三部']],['桃區',['中壢學院','中壢二部','中壢三部']],['南區',['高雄建國']]]);
       var vis = _dsVisRows(M);
       var cols = regs.map(function(rg){
         var rs = vis.filter(function(r){ return rg[1].indexOf(r.org) >= 0; }); if (!rs.length) return '';
@@ -16633,7 +16643,8 @@
       { ver:'ds57', icon:'🪜', title:'追蹤卡「下一步」照面談九階梯排', detail:'面談後流失的追蹤卡，「下一步」下拉改成追註冊 skill 的九階梯（1 再約回來談 → 9 收 100 或保留單），組長選的就是一個真的動作；學生旅程圖在剛註冊那天會提醒「噁心簡訊 24 小時內」', go:{ fn:'trk' } },
       { ver:'ds58', icon:'🧹', title:'滑鼠移到分頁不會再跳出「tab-9」這種小泡泡', detail:'只留下面那張說明小卡（📌 月度漏斗總結：靠哪顆更新、來源、頻率）' },
       { ver:'ds59', icon:'🎮', title:'三關路線改成遊戲版趨勢圖，三種畫風可切換', detail:'每日總結 →「🛣 三關路線」：🏎 賽道競速（追配速車）／💓 動能心電圖（平線＝沒入帳）／🧗 登山關卡（營地＝10 號、20 號，月底登頂）。可全螢幕、點任何一點看那天入帳與輸贏、點學院只比那幾家。🔥＝最近 3 個上班日入帳 ≥ 該到；💤＝連 2 個上班日以上沒入帳；關卡未達的下一步改成 13:40', go:{ fn:'dsRoad' } },
-      { ver:'ds60', icon:'🗺', title:'每日總結可以把北區六家拉進來一起比', detail:'每日總結上面多一顆「🗺 ＋北區六家一起比」：站前、站二、館前、板橋、站前二部、東區二部會加進今日對戰、賽道排行、燈號月曆、擂台（變五區）跟三關路線遊戲圖；再按一次回到只看七家。北區業績＝激勵同步的學院績效表，月目標＝上個月業績', go:{ fn:'dsDay' } }
+      { ver:'ds60', icon:'🗺', title:'每日總結可以把北區六家拉進來一起比', detail:'每日總結上面多一顆「🗺 ＋北區六家一起比」：站前、站二、館前、板橋、站前二部、東區二部會加進今日對戰、賽道排行、燈號月曆、擂台（變五區）跟三關路線遊戲圖；再按一次回到只看七家。北區業績＝激勵同步的學院績效表，月目標＝上個月業績', go:{ fn:'dsDay' } },
+      { ver:'ds61', icon:'🎯', title:'北區可以只挑一家來比', detail:'每日總結的「🗺 北區加入比賽 ▾」點開，可以只勾東區二部（或任幾家）加進七家一起比，不用六家全進來；按「清掉，只看七家」就回原本', go:{ fn:'dsDay' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
