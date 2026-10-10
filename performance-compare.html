@@ -8409,7 +8409,15 @@
     // ========== 報到排名（tab-6）+ 當月績效（tab-7） ==========
     // 資料來源：EIP 激勵同步擴充 v4.8 寫入的 motiv_checkin_v1 / motiv_perfp_v1
     var CK_ORG_LIST = ['台中學院','台中二部','台中三部','中壢學院','中壢二部','中壢三部','高雄建國'];
-    var CK_SHORT = { '台中學院':'台一','台中二部':'台二','台中三部':'台三','中壢學院':'壢一','中壢二部':'壢二','中壢三部':'壢三','高雄建國':'建國' };
+    var CK_SHORT = { '台中學院':'台一','台中二部':'台二','台中三部':'台三','中壢學院':'壢一','中壢二部':'壢二','中壢三部':'壢三','高雄建國':'建國',
+      '站前學院':'站前','站二學院':'站二','館前學院':'館前','板橋學院':'板橋','站前二部':'站前二','東區二部':'東二' };
+    // ★ 10/10 Ivan：北區六家可以加進每日總結的賽局（預設不加，按「＋北區」才加）
+    //   業績＝激勵同步的「學院績效表」（本來就抓得到，不多打 EIP）；月目標＝上個月業績（⚙️ 可改）
+    var DS_NORTH = ['站前學院','站二學院','館前學院','板橋學院','站前二部','東區二部'];
+    var DS_NORTH_REGS = [['北一區',['站前學院','站二學院','館前學院','板橋學院']],['北二區',['站前二部','東區二部']]];
+    function _dsNorthOn(){ try { return localStorage.getItem('ds_north_v1') === '1'; } catch(e){ return false; } }
+    function dsNorthToggle(){ try { localStorage.setItem('ds_north_v1', _dsNorthOn() ? '0' : '1'); } catch(e){} dsumOpen(); }
+    function _dsOrgList(){ return _dsNorthOn() ? CK_ORG_LIST.concat(DS_NORTH) : CK_ORG_LIST; }
     var CK_COLOR = { '台中學院':'#4ade80','台中二部':'#38bdf8','台中三部':'#fbbf24','中壢學院':'#f472b6','中壢二部':'#a78bfa','中壢三部':'#fb923c','高雄建國':'#2dd4bf' };
     var CK_REGIONS = {
       central: { label:'中區', orgs:['台中學院','台中二部','台中三部'] },
@@ -9580,7 +9588,15 @@
     function _dsTargetOf(ym, org, pp){
       var c = _dsCfg(ym); if (c.target[org]) return +c.target[org];
       var t = 0; ((pp && pp.orgs && pp.orgs[org]) || []).forEach(function(r){ t += _ckNum(r.goal); });
+      if (!t && DS_NORTH.indexOf(org) >= 0) t = _dsNorthPrevBiz(ym, org);
       return t;
+    }
+    function _dsNorthPrevBiz(ym, org){
+      try {
+        var y = +ym.slice(0,4), m = +ym.slice(5) - 1; if (m < 1){ m = 12; y--; }
+        var a = _motivGetArchive()[y + '-' + _ckPad2(m)], hit = a && a.academy ? a.academy.filter(function(x){ return x.name === org; })[0] : null;
+        return hit ? _ckNum(hit.value) : 0;
+      } catch(e){ return 0; }
     }
     // 10 號／20 號累計目標：有設就用設的（存成金額），沒設＝月目標的 1/3、2/3。小組照學院同一個比例縮放
     function _dsGateRatio(ym, org, gi){
@@ -9637,6 +9653,13 @@
         });
         s.o[org] = { biz:biz, itv:itv, reg:reg, pb:pb, ck:_ckNum(ck[org]) };
       });
+      try {
+        var _arc = (typeof _motivGetArchive === 'function') ? _motivGetArchive() : {}, _ae = _arc && _arc[ym];
+        if (_ae && _ae.academy) DS_NORTH.forEach(function(org){
+          var hit = _ae.academy.filter(function(a){ return a.name === org; })[0];
+          if (hit) s.o[org] = { biz:_ckNum(hit.value), itv:0, reg:0, pb:0, ck:0, nb:1 };
+        });
+      } catch(e){}
       var old = _dsGet(DS.pfx + 's_' + date);
       if (old && old.o && JSON.stringify(old.o) === JSON.stringify(s.o)) return;
       _dsSet(DS.pfx + 's_' + date, s);
@@ -9664,7 +9687,7 @@
       var d = +dk.slice(8), e = _dsEipDay(dk, org);
       if (e != null) return { v:e, span:1, tAuto:(E.inc[d] || 0), src:'eip' };
       if (!S[dk] || !S[dk].o[org]) return null;
-      var pk = ''; keys.forEach(function(k){ if (k < dk) pk = k; });
+      var pk = ''; keys.forEach(function(k){ if (k < dk && S[k].o && S[k].o[org]) pk = k; });
       var pc = pk ? S[pk].o[org] : null, t = 0, from = pk ? +pk.slice(8) + 1 : 1;
       for (var x = from; x <= d; x++) t += (E.inc[x] || 0);
       return { v:S[dk].o[org].biz - (pc ? pc.biz : 0), span:d - from + 1, tAuto:t, src:'snap' };
@@ -9702,7 +9725,7 @@
       var prevKey = ''; keys.forEach(function(k){ if (k < date) prevKey = k; });
       var cur = S[date], prev = prevKey ? S[prevKey] : null;
       var rows = [];
-      CK_ORG_LIST.forEach(function(org){
+      _dsOrgList().forEach(function(org){
         var T = _dsTargetOf(ym, org, pp), E = _dsExpect(ym, org, T);
         var c = cur && cur.o[org], p = prev && prev.o[org];
         var hol = _dsIsHol(ym, org, date);
@@ -9790,7 +9813,9 @@
         + (keys.length ? '<select class="ds-date" onchange="dsumOpen(null,this.value)">' + keys.slice().reverse().map(function(k){ return '<option value="' + k + '"' + (k === DS.date ? ' selected' : '') + '>' + (+k.slice(5,7)) + '/' + (+k.slice(8)) + ' 收工</option>'; }).join('') + '</select>' : '')
         + '<button class="ck-region-btn ds-morn" onclick="dsCopy(\'morn\')" data-pchelp="早上貼主管群\n每家只寫今天要入帳多少＋進度條，不放紅色。">☀️ 複製今日挑戰（早上版）</button>'
         + '<button class="ck-region-btn" onclick="dsCopy(\'boss\')" data-pchelp="收工後貼主管群\n賀🎉、📌未達、10:30 晨會。">🌙 複製收工版</button>'
-        + '<button class="ck-region-btn" onclick="dsCopy(\'lead\')">📋 複製組長版</button></div>'
+        + '<button class="ck-region-btn" onclick="dsCopy(\'lead\')">📋 複製組長版</button>'
+        + '<button class="ck-region-btn ds-north' + (_dsNorthOn() ? ' active' : '') + '" onclick="dsNorthToggle()" title="北區六家（站前、站二、館前、板橋、站前二部、東區二部）一起比。業績＝激勵同步的學院績效表，月目標＝上個月業績（⚙️ 可改）。只影響今日對戰、賽道排行、燈號月曆、擂台、三關路線">' + (_dsNorthOn() ? '🗺 北區六家比賽中・點我只看七家' : '🗺 ＋北區六家一起比') + '</button></div>'
+        + (_dsNorthOn() ? '<div class="evo-warn">🗺 北區六家加入中：業績來自激勵同步的學院績效表、月目標＝上個月業績；北區 10/10 才開始存每天的數字，之前沒有逐日資料，前幾天的勢頭會先顯示「—」</div>' : '')
         + (DS.demo ? '<div class="evo-warn">🧪 示範：用九月數字隨機攤成每天，只是看版面，不是真的成績</div>' : '')
         + '<div class="evo-tabs">' + tabs.map(function(t){ return '<button class="evo-tab' + (DS.tab === t[0] ? ' on' : '') + '" onclick="dsumOpen(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') + '</div>';
       if (DS.tab === 'set') return h + _dsSetHtml(ym);
@@ -9945,7 +9970,7 @@
     //   A 賽道競速／B 動能心電圖／C 登山關卡地圖；全螢幕；點點看那天；多選比較
     //   勢頭＝最近 3 個上班日入帳 ÷ 這 3 天該到（Ivan 10/10 同意）；≥100% 🔥
     //   毫無改變＝連續 ≥2 個上班日入帳 0，假日不算（Ivan 10/10 同意）
-    var GC_COL = ['#EF9F27','#5DCAA5','#ED93B1','#85B7EB','#F0997B','#AFA9EC','#97C459'];
+    var GC_COL = ['#EF9F27','#5DCAA5','#ED93B1','#85B7EB','#F0997B','#AFA9EC','#97C459','#FAC775','#9FE1CB','#F4C0D1','#B5D4F4','#C0DD97','#CECBF6'];
     function _gcV(){ var v = null; try { v = JSON.parse(localStorage.getItem('gc_v1') || 'null'); } catch(e){} v = v || {}; v.theme = v.theme || 'race'; v.sel = v.sel || []; return v; }
     function _gcSave(v){ try { localStorage.setItem('gc_v1', JSON.stringify(v)); } catch(e){} }
     function _gcStats(M, r){
@@ -9960,7 +9985,7 @@
       var got3 = 0, exp3 = 0, n3 = 0, flat = 0, flatOn = true, flatFrom = null;
       for (var i = pts.length - 1; i >= 0; i--){
         var p = pts[i]; if (!p.wd) continue;
-        if (n3 < 3){ got3 += p.inc; exp3 += p.exp; n3 += p.wd; }
+        if (n3 < 3){ if (!n3 && p.wd > 3){ n3 = 99; got3 = 0; exp3 = 0; } else { got3 += p.inc; exp3 += p.exp; n3 += p.wd; } }   // 最新一份就跨超過 3 個上班日（例：北區第一份＝月初到今天）→ 算不出勢頭
         if (flatOn){ if (p.inc <= 0){ flat += p.wd; flatFrom = p; } else flatOn = false; }
       }
       var last = pts[pts.length - 1];
@@ -10204,7 +10229,7 @@
     }
     function _dsRegionBanner(M){
       if (_dsHid('regions')) return '';
-      var regs = [['中區',['台中學院','台中二部','台中三部']],['桃區',['中壢學院','中壢二部','中壢三部']],['南區',['高雄建國']]];
+      var regs = (_dsNorthOn() ? DS_NORTH_REGS : []).concat([['中區',['台中學院','台中二部','台中三部']],['桃區',['中壢學院','中壢二部','中壢三部']],['南區',['高雄建國']]]);
       return '<div class="dsb-regs ds-hx">' + _dsX('regions', '三區橫幅') + regs.map(function(rg){
         var rs = M.rows.filter(function(r){ return rg[1].indexOf(r.org) >= 0; });
         var cum = 0, gt = 0, exp = 0, tdT = 0, tdG = 0, hol = rs.every(function(r){ return r.res === 'hol'; });
@@ -10287,7 +10312,7 @@
 
     // ── 提案三：🏟 三區擂台 ──
     function _dsArenaHtml(M){
-      var regs = [['中區',['台中學院','台中二部','台中三部']],['桃區',['中壢學院','中壢二部','中壢三部']],['南區',['高雄建國']]];
+      var regs = (_dsNorthOn() ? DS_NORTH_REGS : []).concat([['中區',['台中學院','台中二部','台中三部']],['桃區',['中壢學院','中壢二部','中壢三部']],['南區',['高雄建國']]]);
       var vis = _dsVisRows(M);
       var cols = regs.map(function(rg){
         var rs = vis.filter(function(r){ return rg[1].indexOf(r.org) >= 0; }); if (!rs.length) return '';
@@ -16607,7 +16632,8 @@
       { ver:'ds56', icon:'💬', title:'每日總結的字改白話＋空頁面會告訴你下一步', detail:'「系統代填」→「沒填承諾・用今天該到」、「應到」→「今天該到」、「X」→「未達」；未達的動作改成 13:40 日會＋四項回報（跟三關規則一致）；組長榜說明改白話；沒資料的頁面會寫接下來按什麼；切分頁超過 0.3 秒會出現「處理中」；燈號月曆的 ✕ 滑過去才出現', go:{ fn:'dsDay' } },
       { ver:'ds57', icon:'🪜', title:'追蹤卡「下一步」照面談九階梯排', detail:'面談後流失的追蹤卡，「下一步」下拉改成追註冊 skill 的九階梯（1 再約回來談 → 9 收 100 或保留單），組長選的就是一個真的動作；學生旅程圖在剛註冊那天會提醒「噁心簡訊 24 小時內」', go:{ fn:'trk' } },
       { ver:'ds58', icon:'🧹', title:'滑鼠移到分頁不會再跳出「tab-9」這種小泡泡', detail:'只留下面那張說明小卡（📌 月度漏斗總結：靠哪顆更新、來源、頻率）' },
-      { ver:'ds59', icon:'🎮', title:'三關路線改成遊戲版趨勢圖，三種畫風可切換', detail:'每日總結 →「🛣 三關路線」：🏎 賽道競速（追配速車）／💓 動能心電圖（平線＝沒入帳）／🧗 登山關卡（營地＝10 號、20 號，月底登頂）。可全螢幕、點任何一點看那天入帳與輸贏、點學院只比那幾家。🔥＝最近 3 個上班日入帳 ≥ 該到；💤＝連 2 個上班日以上沒入帳；關卡未達的下一步改成 13:40', go:{ fn:'dsRoad' } }
+      { ver:'ds59', icon:'🎮', title:'三關路線改成遊戲版趨勢圖，三種畫風可切換', detail:'每日總結 →「🛣 三關路線」：🏎 賽道競速（追配速車）／💓 動能心電圖（平線＝沒入帳）／🧗 登山關卡（營地＝10 號、20 號，月底登頂）。可全螢幕、點任何一點看那天入帳與輸贏、點學院只比那幾家。🔥＝最近 3 個上班日入帳 ≥ 該到；💤＝連 2 個上班日以上沒入帳；關卡未達的下一步改成 13:40', go:{ fn:'dsRoad' } },
+      { ver:'ds60', icon:'🗺', title:'每日總結可以把北區六家拉進來一起比', detail:'每日總結上面多一顆「🗺 ＋北區六家一起比」：站前、站二、館前、板橋、站前二部、東區二部會加進今日對戰、賽道排行、燈號月曆、擂台（變五區）跟三關路線遊戲圖；再按一次回到只看七家。北區業績＝激勵同步的學院績效表，月目標＝上個月業績', go:{ fn:'dsDay' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
