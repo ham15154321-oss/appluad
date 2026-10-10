@@ -10,7 +10,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds65'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds68'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -148,7 +148,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds65（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds68（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -385,3 +385,6 @@ C 主管
 - ds64＋擴充 content.js（v5.57 內容，manifest 已補成 5.57）：computeChannels 現＋刷改『包含』比對（去掉 = " 空白；現金/匯款/刷卡/綠界/一卡通/LinePay/信用卡非分期；排除分期/學貸/融資），meta.itemStat 記錄收支項目出現的字；頁面 _evoCashMap 多承辦人平分、0 時顯示 itemStat。Ivan 指正：收支項目確實有現金/匯款，是判斷太嚴
   - 10/10 實測 5.57：itemStat＝{(空白):538} → CSV 根本沒有「收支項目」這個欄名。5.58：moneyRowsFromCSV 找不到就試 付款選項/付款方式/收款方式/繳費方式/付款項目/收支方式/項目；meta 存 csvHeaders、itemCol；頁面 0 時顯示 CSV 欄位
 - ds65：獎金明細 達標／加碼改 _evoTierFloor（每人先暫放第一級 1,000／1,500，跳級照表），td.eb-hold 標『暫放』；下一級 +$ 也用 floor 算；現金獎資料時間改用 Date.parse 比（原本字串比，8/1 > 10/10）。現金獎 5.58 後已有數字（Ivan 截圖確認）
+- ds66：『tab-9』泡泡真因＝ds58 把 UI_TIPS 的 data-tip 改名成 data-pchelp，撞到大字泡泡 .bigtip（讀 data-pchelp 原字顯示）。改：UI_TIPS 代號屬性改 data-uitip（tab-N/sync-*/lock/push/pull），UI_TIPS 監聽改 [data-uitip]；其他說明文字仍走 data-pchelp 大字泡泡
+- ds67：每日總結分區看 ds_region_sel_v1（tao/central/south/north，空＝全部，可複選），套在 _dsOrgList（快照、預估節奏仍用七家全部）；.ds-regbar；『七家第一』改成『這 N 家第一』
+- ds68：每日總結加「📕 關卡總結」tab='sum'，_dsSumHtml（ds_sum_view boss/lead）。關卡＝最後一個 end≤今天的關（沒有就預覽目前關）。主管版 _dsSumBoss：單日最高(_dsDayGot span1)/最長連勝(_dsModel 逐日 res)/個人 MVP(endKey p)＋封存＋翻頁宣告；組長版 _dsSumLead：最高組/零掛零組/MVP＋賽後戰報（結果、轉折日＝合計最高日、最痛＝連續低於日均一半最長段、掛零人數）＋封存含掛零名字＋翻頁組長宣告。沒有『比九月同期』（9 月無逐日快照、組員會調動）
