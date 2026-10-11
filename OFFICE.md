@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds79'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds87'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds79（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds87（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -405,3 +405,38 @@ C 主管
 - ds77：dsDownloadMobile（📱 手機版 PNG）：複製 #ppEvBg .ds-box 到畫面外 420px，拿掉工具列／按鈕，月曆把表頭日期塞進每格（.dsm-dt）再刪表頭，套 .dsm 手機 CSS（多欄→1/2 欄、dsc-r 4 欄卡片），html2canvas scale 3
 - ds78：手機版 PNG 切張：MAXH 860px（420 寬≈手機一屏），用 SEL 卡片元素算『不切斷』的切點，從整張 canvas 切片＋右下『i / N』，逐張下載（間隔 450ms）
 - ds79：_dsChTop3 第二張報到王＝桃區＋中區（排除建國、北區）；只選桃中分區時（沒有建國）不重複顯示
+
+## 第三夜（10/11 凌晨，Ivan 睡前交代：我的一頁、skill 項目、21 項預防退費、衝班通路標籤）
+- ds80：tab-11『🙋 我的一頁』myRender/_myHtml（非管理者只看自己；管理者 my_page_who 選人）：頭卡業績＋學院/七家名次、報到/面談/新生註冊/退費、每天入帳（ds 快照 s.p）、獎金（同獎金明細算法）、通路（channel ranking）、穿越（_ttPersons）、編輯追蹤（_edBuild）、追蹤卡（getTracking 逾期／今天到期）、我的學生（_fnRawFor itv 當月、承辦人含本人）：四型 MY_TYPES＋三招、加溫／暖心簡訊複製、預防退費 21 項＋LINE 7 項勾選（perf_compare_v1_prv_<學院>__<學生>__<面談日>，全公司共享）
+- ds81：_dsLeaders 每組加：退費率＝組內 pay_back÷business >10% 紅；面談 count1≥5 且 count3÷count1 <20% 黃（組長手冊標準）
+- ds82：tab-2 上方 #chHealth chHealthRender：近 3 個月 itv 依通路副類別 s 統計 面談/有報名/註冊、註冊比例→ CH_HEALTH 門檻（30/15/5%，待 Ivan 確認；衝班 skill 原本用電話 d+e 比例，那份資料沒有記），面談 ≥10 才列；每通路最會收的學院（≥3 位）；details 開合存 ch_health_open
+- 第三夜回歸（ds82）：從 人力發展.html perfOpen 進，12 個分頁、每日總結 9 張看板、關卡總結兩版、獎金明細都 ok，console 0 錯誤；沒按同步、沒打 EIP
+- 測試時誤點一位學生的「邏輯型」已還原成空白（perf_compare_v1_prv_ 那筆 type:''）
+- ⏳ 早上問 Ivan：①通路體質門檻 30/15/5% 對不對 ②我的一頁要不要變成同事打開的預設分頁 ③21 項勾選要不要讓主管看到「全院幾位學生勾完」的總表
+- ds83：非管理者載入一律 switchTab(11)（管理者照 perf_last_tab，允許到 11）；_myPrvSummaryHtml（_myIsBoss＝管理者或 EVO.notRep）：每家本月 itv r>0 學生的 21 項勾完／部分／未開始＋未勾完名單可點開；Ivan 第 1 題（通路體質門檻）沒回，維持 30/15/5%
+- ds84：我的一頁時間範圍 my_range_v1 {mode m/q/y, v}：非本月走 _myRangeHtml（過去月份＝SpaceBaseDB mp_data_v1 sheet3 每人一列，沒有才用 _ppPPFor 封存；合計業績／目標／面談／註冊Ⓐ Ⓑ／退費、同期七家名次、每月業績長條、通路＝getChSK 月資料）；獎金／穿越／編輯／追蹤卡／每天入帳／學生只看本月
+
+## 第四夜（10/11 晚，Ivan 指令：5 輪優化，美化／版型只列提案）
+### 第 1 輪 走查＋測速（ds84，從 人力發展.html 進）
+- 網頁載入 1.0 秒；分頁切換都 <0.3 秒（漏斗 231ms、我的一頁 155ms）
+- 每日總結：關卡總結主管版 925ms、三關路線 683ms、明細表 682ms ← 超過 0.3 秒；穿越 157、組長 106、月曆 75，其他 <20ms
+- 主因：_dsModel(ym,日期) 一次 13ms，關卡總結裡「每家 × 每天」重算約 80 次（最長連勝、賽後戰報）；三關路線結算表、明細表也一樣
+- 走查記下：①我的一頁的追蹤卡名字不能點 ②通知「帶我去看」可以更直達 ③關卡總結開 0.9 秒才出來（有處理中，但可以更快）④localStorage 829 個 key，掃描型函式多
+### 第 2 輪 速度（ds85）
+- _dsSnaps／_dsModel 加 1.5 秒快取（_dsMemo；鑰匙含月份、日期、示範、學院清單；_dsSet 存檔就 _dsMemoClear）；原函式改名 _dsSnapsRaw／_dsModelRaw
+- 改前→改後：關卡總結 925→182ms、三關路線 683→12ms（單獨開 118）、明細表 682→6ms（單獨開 233）；穿越 157→150、組長 106→100 不變
+- 12 個畫面（每日總結 9 張＋組長版總結＋我的一頁＋獎金明細）改前改後文字逐字比對：完全一樣
+- 偶發 600–800ms 尖峰＝背景雲端同步剛好在跑，不是畫面本身
+### 第 3 輪 流暢（ds86）
+- 我的一頁：追蹤卡逾期名字變連結 → pcNotifyGo({fn:'trk', org, n}) 直接開那張卡；我的學生上方提醒「還有 N 位註冊了、21 項沒勾完」＋名字；空狀態改 _pcEmptyHint
+- 手機 420px（頁內小框模擬）：我的一頁、關卡總結沒有被切；管理者同步鈕列撐寬整頁 → @media ≤640 flex-wrap；主管總表表頭不換字
+- 追蹤卡名字連結原本叫 pcNotifyGo（只收通知編號）沒反應 → 拆出 _pcGoTo(go) 共用，trk 有 org 時先把 fnScope 切到那區；實測點名字跳 tab-9、展開那筆並閃一下
+### 第 4 輪 管理者推業績（ds87）
+- 當月績效名字可點（_myIsBoss：管理者＋EVO.notRep 主管）→ myOpenFor(name) 開那個人的我的一頁；_myWho 主管可切換（預設自己學院第一位），選人選單主管也看得到
+- 我的一頁加「📋 複製今日回報」myCopyReport：照 13:40 四項回報格式，帶今天入帳（最後一份快照差值）、本月／目標／%、追蹤卡該回覆名單、21 項未勾完學生
+- 第 4 輪補：主管（EVO.notRep）的名字不給點（我的一頁只收業務，點了會跳到別人）
+### 第 5 輪 回歸（ds87）
+- 從 人力發展.html 進：12 分頁、每日總結 11 種、關卡總結兩版、十月活動 7 頁、我的一頁本月／9 月／Q3／全年 全部 ok，console 0 錯誤；手機版 PNG 切 5 張正常
+- 業務身份（易子莫，上次停在激勵）重開 → 直接進我的一頁、沒有選人選單、有「複製今日回報」
+- 沒按同步、沒打 EIP、沒寫入公司資料（我的一頁測試只用複製，沒勾 21 項、沒選分型）
+- 提案（等 Ivan）：①主管晨會「今天該盯誰」清單 ②組長在我的一頁看整組 ③我的學生按「註冊幾天」排序並標 7 天期限 ④我的一頁的每天入帳加上目標線
