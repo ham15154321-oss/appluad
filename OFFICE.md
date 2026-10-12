@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds87'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds92'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds87（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds92（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -440,3 +440,18 @@ C 主管
 - 業務身份（易子莫，上次停在激勵）重開 → 直接進我的一頁、沒有選人選單、有「複製今日回報」
 - 沒按同步、沒打 EIP、沒寫入公司資料（我的一頁測試只用複製，沒勾 21 項、沒選分型）
 - 提案（等 Ivan）：①主管晨會「今天該盯誰」清單 ②組長在我的一頁看整組 ③我的學生按「註冊幾天」排序並標 7 天期限 ④我的一頁的每天入帳加上目標線
+
+### ⏳ 10/12 Ivan：第四夜的 4 個提案「睡前再來跑」（已同意方向，晚上動工）
+1. 主管晨會「今天該盯誰」：我的一頁最上面（主管看），每家列連 2 天以上沒入帳、追蹤卡逾期最多、21 項沒勾
+2. 組長在我的一頁看整組：「我的組員」每人一行業績、今天有沒有入帳、該回覆幾張
+3. 我的學生照「註冊第幾天」排序：快滿 7 天沒勾完排最上面標紅
+4. 我的一頁每天入帳加「每天該到」目標線
+- ds88（10/12 Ivan 同意）：漏斗工具列拿掉「🔁 漏斗全抓」按鈕和「🔎 試聽深挖」整排；右上 🔀 漏斗 Shift＋按＝fnSyncFullAll；fnTrialSync／深挖資料保留照算（實測拿掉深挖 9、10 月七家試聽數一樣，歷次備註 fn_notes_v1 已涵蓋）；單人重抓鈕保留；說明文字改成「每天按漏斗」
+- ds89（第五夜 ①–④）：_myWatchHtml（主管：每家連 2 天沒入帳／追蹤卡該回覆前 3／21 項沒勾完）、_myTeamHtml＋_myGroupOfLeader（小組績效本月 meta，組長在 _myWho 可看自己組員，↩ 回到我自己）、_myIdleOf、_myTrkDueMap（業務欄拆多人）；_myStuHtml 依註冊第幾天排序（pay st=註冊 最早日，找不到用面談日）＋.todo 紅框；_myDailyHtml 每天該到＝goal÷本月非休假日（_dsIsHol），虛線 .my-dbar em，到紅沒到綠
+- ds90（第五夜 ⑤⑥）：refreshSyncBtnLabels 依日曆日判斷今天 → .done-today（✓＋「✓ 今天 HH:MM」、紅外框）／.stale（白底虛線、「⚠ N 天沒同步」；選擇器要壓過 body.day-mode .hdr-mode-btn.motiv !important）。syncAllRun（#syncBtn_all，只管理者，load 後插在激勵前）：SYNC_ALL_ORDER motiv→checkin→funnel→channel→edits，_syncAllPlan 用 _syncAgeMin≤30 跳過、edits 再看 _edNextJob ok 跳過；每段 motivTriggerEipSync(md, cb, true)，cb(false) 就停；段間 1.5 秒；#syncAllBox 進度框。夜裡只用 stub 測（成功、跳過、通路失敗停下三種）
+- 第五夜 第 1 輪測速（ms）：切分頁 tab11 我的一頁 138–167、tab9 漏斗 150–211、tab7 第一次 219 之後 10、其他 <25；每日總結 sum 174、tt 143、road 138、lead 86、cal 56、其他 <30；我的一頁裡 _ttPersons 66–111（穿越算法不碰）、今天該盯誰 35
+- ds91（第五夜 第 2 輪速度）：fnRenderAll 包一層 _fnPass（只在這次重畫內有效）→ _fnAuto(ym|org)、_fnSignupXOrg(ym) 同一次重畫只算一次（原本 _fnSxCache 用物件身分比，但 perfp、上月 raw 每次都是新物件，等於沒快取）。全省卡片 419→90、儀表板 211→53、重畫 150→50；八個畫面（四區×卡片/儀表板）innerText 改前改後逐字一樣
+- ds92（第五夜 第 3 輪手機 420px）：.my-watch ≤640px 改成一家一張（td data-l 當小標）；其他新區塊 420px 不會超出（組員表 394、每天入帳 368/366、表頭同步鈕換行正常）
+- 第五夜 第 4 輪（管理者 10:30／13:40／收工）：10:30 我的一頁最上面今天該盯誰（35ms）；13:40 主管切人按 📋 複製今日回報，易子莫：入帳 1.5 萬、追蹤卡該回覆 6 張、21 項沒勾完 3 位，跟今天該盯誰一致；收工 每日總結關卡總結 178ms、⚡ 全部（stub）。沒有改東西
+- 第五夜 第 5 輪回歸：從 人力發展.html 開（src=ds92-…），12 個分頁切過無錯誤、console 無錯誤；perf_compare_v1_* 近 6 小時沒有任何寫入；node 語法檢查通過
+- 第五夜提案（等 Ivan）：①每天該到要不要扣掉個人休假（現在只扣學院休假日，建國沒設休假→31 天）②_ckNewest 每次掃整個 localStorage（激勵資料讀一次 4–10ms），要加快得動到讀取方式，先不做 ③今天該盯誰的「沒入帳」是看最新一次同步，早上還沒同步時會顯示「1 天」
