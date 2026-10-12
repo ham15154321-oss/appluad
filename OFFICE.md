@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds92'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds95'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds92（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds95（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -455,3 +455,7 @@ C 主管
 - 第五夜 第 4 輪（管理者 10:30／13:40／收工）：10:30 我的一頁最上面今天該盯誰（35ms）；13:40 主管切人按 📋 複製今日回報，易子莫：入帳 1.5 萬、追蹤卡該回覆 6 張、21 項沒勾完 3 位，跟今天該盯誰一致；收工 每日總結關卡總結 178ms、⚡ 全部（stub）。沒有改東西
 - 第五夜 第 5 輪回歸：從 人力發展.html 開（src=ds92-…），12 個分頁切過無錯誤、console 無錯誤；perf_compare_v1_* 近 6 小時沒有任何寫入；node 語法檢查通過
 - 第五夜提案（等 Ivan）：①每天該到要不要扣掉個人休假（現在只扣學院休假日，建國沒設休假→31 天）②_ckNewest 每次掃整個 localStorage（激勵資料讀一次 4–10ms），要加快得動到讀取方式，先不做 ③今天該盯誰的「沒入帳」是看最新一次同步，早上還沒同步時會顯示「1 天」
+- 10/12 Ivan：第五夜提案①「每天該到扣個人休假」→ 先不要做（沒有休假資料來源）；影響範圍也先不做
+- ds93（10/12 Ivan 同意提案②）：_ckNewest 改用 _ckKeysFor(suffix)（符合的 char_ 存檔名單記 2 秒，localStorage.length 變了立刻重找）＋_ckParseMemo(k)（每次都 getItem，字串跟上次完全一樣才沿用解析結果）。實測我的一頁一次呼叫 245 次、每日總結 347 次，原本佔掉 120／128ms。改後 tab11 126→49–85、關卡總結 130→9–18、穿越 120→20、組長 67→13、月曆 47→9；12 分頁＋3 次重切＋9 個每日總結畫面，改前改後逐字一樣（只差「產生時間」），連跑兩輪也一樣（沒有人改到共用的物件）
+- ds94（10/12 Ivan 第一次真跑 ⚡：通路 ✕）：syncChannel 只送一次 status，收支 CSV 下載中沒心跳 → 頁面 90 秒看門狗 finish(false)，擴充其實還在等、晚到照收（按鈕變 ✓ 今天 10:56）。⚡ 的 cb(false) 改成：80ms 後抓按鈕上的真原因，進 wait2 每 5 秒看這段 tsKey 有沒有 ≥ 開始那分鐘、且不在 busy → 當完成（late）接著跑；180 秒沒有才停。不加 EIP 請求、不改擴充
+- ds95（10/12 Ivan：編輯追蹤也要跟 ⚡ 一起跑完）：⚡ 的 edits 段改成 edRun 迴圈，每輪跑完再看 _edNextJob，不是 ok 就停 3 秒接下一輪（最多 8 輪），小框顯示第幾輪、這輪在做什麼；一輪一請求序列，不並行

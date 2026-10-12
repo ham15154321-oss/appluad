@@ -8849,11 +8849,24 @@
       while (S.i < S.plan.length && S.plan[S.i].skip) S.i++;
       if (S.i >= S.plan.length) return _syncAllEnd(true, '全部跑完');
       var step = S.plan[S.i]; step.st = 'run'; step.t0 = Date.now(); _syncAllRender();
+      var okGo = function(late){ step.sec = Math.round((Date.now() - step.t0) / 1000); step.st = 'ok'; step.late = !!late; S.i++; _syncAllRender(); setTimeout(_syncAllNext, 1500); };
       var cb = function(ok){
         step.sec = Math.round((Date.now() - step.t0) / 1000);
-        if (ok === false){ step.st = 'fail'; return _syncAllEnd(false, SYNC_MODES[step.md].label + ' 沒有跑完（' + (_syncAllWhy(step.md) || 'EIP 沒回或擴充沒回應') + '），後面的先不跑。看一下按鈕上的訊息，處理好再按一次 ⚡，跑過的會自動跳過'); }
-        step.st = 'ok'; S.i++; _syncAllRender();
-        setTimeout(_syncAllNext, 1500);
+        if (ok !== false) return okGo(false);
+        // ★ 10/12 Ivan「為何通路是 ✕？」：通路一次下載整個月收支，中間沒有心跳，超過 90 秒頁面就先當失敗，其實擴充還在等、資料晚一點會進來
+        //   → 先不要停：再等最多 3 分鐘，這一段的同步時間有更新（資料真的進來了）就當完成接著跑；沒更新才停下來。不會多打 EIP
+        setTimeout(function(){
+          var why = _syncAllWhy(step.md) || 'EIP 沒回或擴充沒回應', start = Math.floor(step.t0 / 60000) * 60000, waited = 0;
+          step.st = 'wait2'; step.why2 = why; _syncAllRender();
+          var poll = setInterval(function(){
+            if (!_syncAll || _syncAll !== S || !S.running){ clearInterval(poll); return; }
+            waited += 5;
+            var nw = _syncNewestTs(SYNC_MODES[step.md].tsKey);
+            if (nw.t && nw.t >= start && !SYNC_MODES[step.md].busy){ clearInterval(poll); return okGo(true); }
+            if (waited >= 180){ clearInterval(poll); step.sec = Math.round((Date.now() - step.t0) / 1000); step.st = 'fail';
+              _syncAllEnd(false, SYNC_MODES[step.md].label + ' 沒有跑完（' + why + '），多等了 3 分鐘資料也沒進來，後面的先不跑。確認 EIP 有登入再按一次 ⚡，跑過的會自動跳過'); }
+          }, 5000);
+        }, 80);
       };
       try {
         if (step.md === 'funnel'){
@@ -8863,8 +8876,19 @@
         } else if (step.md === 'edits'){
           var J = _edNextJob();
           if (J.job === 'ok'){ step.st = 'skip'; step.skip = true; step.why = '編輯追蹤已經是最新'; S.i++; return _syncAllNext(); }
-          _edPendingDates = J.dates; _edOpenDayAfter = false;
-          motivTriggerEipSync('edits', cb, true);
+          // ★ 10/12 Ivan：編輯追蹤也要在 ⚡ 裡一次跑完 → 一輪只補 7 天，跑完還有缺就接著跑下一輪（一輪跑完才開下一輪，中間停 3 秒），最多 8 輪
+          step.round = 1; step.left = J.left || 0;
+          var edRun = function(Jx){
+            _edPendingDates = Jx.dates; _edOpenDayAfter = false; step.job = Jx.label + (Jx.sub ? '・' + Jx.sub : '');
+            _syncAllRender();
+            motivTriggerEipSync('edits', function(ok){
+              if (ok === false) return cb(false);
+              var Jn = null; try { Jn = _edNextJob(); } catch(e){}
+              if (Jn && Jn.job !== 'ok' && step.round < 8 && S.running){ step.round++; step.left = Jn.left || 0; step.job = Jn.label + (Jn.sub ? '・' + Jn.sub : '') + '，3 秒後開始'; _syncAllRender(); setTimeout(function(){ edRun(Jn); }, 3000); return; }
+              cb(true);
+            }, true);
+          };
+          edRun(J);
         } else {
           motivTriggerEipSync(step.md, cb, true);
         }
@@ -8881,15 +8905,15 @@
       var S = _syncAll, el = document.getElementById('syncAllBox');
       if (!S){ if (el) el.remove(); return; }
       if (!el){ el = document.createElement('div'); el.id = 'syncAllBox'; document.body.appendChild(el); }
-      var run = S.plan.filter(function(x){ return !x.skip; }), k = run.filter(function(x){ return x.st === 'ok'; }).length, cur = S.plan.filter(function(x){ return x.st === 'run'; })[0];
+      var run = S.plan.filter(function(x){ return !x.skip; }), k = run.filter(function(x){ return x.st === 'ok'; }).length, cur = S.plan.filter(function(x){ return x.st === 'run' || x.st === 'wait2'; })[0];
       var sec = Math.round(((S.t1 || Date.now()) - S.t0) / 1000), tm = Math.floor(sec / 60) + ' 分 ' + (sec % 60) + ' 秒';
-      var ico = { wait:'⬜', run:'⏳', ok:'✅', skip:'⏭', fail:'❌' };
+      var ico = { wait:'⬜', run:'⏳', ok:'✅', skip:'⏭', fail:'❌', wait2:'⏳' };
       el.className = S.running ? 'run' : (S.ok === false ? 'fail' : 'ok');
       el.innerHTML = '<div class="sa-h"><b>⚡ 全部同步</b><span>' + (S.running ? (cur ? '第 ' + (run.indexOf(cur) + 1) + '／' + run.length + ' 步：' + SYNC_MODES[cur.md].label : '準備下一步…') : (S.ok === false ? '停下來了' : '完成')) + '・' + tm + '</span>'
         + (S.running ? '' : '<button onclick="_syncAll=null;_syncAllRender()">✕</button>') + '</div>'
         + '<ol>' + S.plan.map(function(x){
-            return '<li class="' + x.st + '">' + ico[x.st] + ' ' + SYNC_MODES[x.md].label
-              + '<small>' + (x.st === 'skip' ? '跳過：' + _fnEsc(x.why) : (x.st === 'run' ? '跑了 ' + Math.round((Date.now() - x.t0) / 1000) + ' 秒' + (SYNC_MODES[x.md].stage ? '・' + _fnEsc(SYNC_MODES[x.md].stage) : '') : (x.st === 'ok' ? x.sec + ' 秒' : (x.st === 'fail' ? '沒跑完' : '等著')))) + '</small></li>';
+            return '<li class="' + (x.st === 'wait2' ? 'run' : x.st) + '">' + ico[x.st] + ' ' + SYNC_MODES[x.md].label
+              + '<small>' + (x.st === 'skip' ? '跳過：' + _fnEsc(x.why) : (x.st === 'run' ? (x.md === 'edits' && x.round ? '第 ' + x.round + ' 輪' + (x.job ? '（' + _fnEsc(x.job) + '）' : '') + '・' : '') + '跑了 ' + Math.round((Date.now() - x.t0) / 1000) + ' 秒' + (SYNC_MODES[x.md].stage ? '・' + _fnEsc(SYNC_MODES[x.md].stage) : '') : (x.st === 'ok' ? x.sec + ' 秒' + (x.md === 'edits' && x.round > 1 ? '・跑了 ' + x.round + ' 輪' : '') + (x.late ? '（資料晚到，有進來）' : '') : (x.st === 'fail' ? '沒跑完' : (x.st === 'wait2' ? 'EIP 回得慢，再等資料進來（最多 3 分鐘）' : '等著'))))) + '</small></li>';
           }).join('') + '</ol>'
         + (S.msg ? '<p>' + _fnEsc(S.msg) + '</p>' : '<p>一次只跑一段，跑完一段才開下一段；中途不要關頁面</p>');
     }
@@ -9262,14 +9286,28 @@
         return m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]).getTime() : 0;
       } catch(e){ return 0; }
     }
+    // ★ 10/12 Ivan 同意（第五夜提案）：讀激勵資料原本每次都掃一遍全部存檔（852 個）再整份解析，我的一頁一次要讀 245 次
+    //   → ①哪些存檔名字符合，記 2 秒（存檔數量有變立刻重找）②內容每次都重新讀，跟上次一字不差才沿用上次解析好的，有任何一個字不同就重新解析
+    var _ckKL = {}, _ckPM = {};
+    function _ckKeysFor(suffix){
+      var n = localStorage.length, c = _ckKL[suffix];
+      if (c && c.n === n && Date.now() - c.at < 2000) return c.keys;
+      var ks = []; for (var i = 0; i < n; i++){ var k = localStorage.key(i); if (k && k.indexOf('char_') === 0 && k.slice(-suffix.length) === suffix) ks.push(k); }
+      _ckKL[suffix] = { n:n, at:Date.now(), keys:ks }; return ks;
+    }
+    function _ckParseMemo(k){
+      var s = localStorage.getItem(k) || 'null', c = _ckPM[k];
+      if (c && c.s === s) return c.o;
+      var o = JSON.parse(s); _ckPM[k] = { s:s, o:o }; return o;
+    }
     function _ckNewest(suffix, syncedSuffix, isEmpty){
       try {
         var best = null, bestYm = '', bestTs = -1;
-        for (var i = 0; i < localStorage.length; i++){
-          var k = localStorage.key(i);
-          if (!k || k.indexOf('char_') !== 0 || k.slice(-suffix.length) !== suffix) continue;
+        var _ks = _ckKeysFor(suffix);
+        for (var i = 0; i < _ks.length; i++){
+          var k = _ks[i];
           try {
-            var d = JSON.parse(localStorage.getItem(k) || 'null');
+            var d = _ckParseMemo(k);
             if (!d || (isEmpty && isEmpty(d))) continue;          // 空殼不參賽
             var ym = (d.meta && d.meta.year) ? (d.meta.year + '-' + String(d.meta.month||0).padStart(2,'0')) : '0000-00';
             var ts = _ckSyncTsOf(k, syncedSuffix, suffix);
@@ -18064,7 +18102,10 @@
       { ver:'ds89', icon:'🙋', title:'我的一頁：主管看今天該盯誰、組長看整組、學生照註冊第幾天排、每天入帳有目標線', detail:'主管打開我的一頁，最上面是「今天該盯誰」：每家連 2 天以上沒入帳的業務、追蹤卡最多該回覆的業務、註冊了還沒勾完 21 項的學生，點名字直接看他的一頁。組長多一張「我的組員」：每人本月業績、最近一天有沒有入帳、追蹤卡該回覆幾張，點名字看組員的一頁。我的學生改成快滿 7 天還沒勾完 21 項的排最上面、標紅、寫註冊第幾天。每天入帳多一條虛線＝每天該到（個人目標 ÷ 本月上班日），有到紅色、沒到綠色', go:{ tab:11 } },
       { ver:'ds90', icon:'⚡', title:'同步鈕一眼看出今天跑過沒，多一顆「⚡ 全部」', detail:'右上同步鈕今天跑過的會打勾、寫「✓ 今天 幾點」、維持實心；昨天以前的變成白底虛線框、寫「⚠ 幾天沒同步」。管理者多一顆「⚡ 全部」：照激勵 → 報到 → 漏斗 → 通路 → 編輯一段一段跑，一次只跑一段不會同時打 EIP，30 分鐘內抓過的自動跳過，右上角小框寫跑到第幾步、哪些跳過，任何一段失敗就停下來說明' },
       { ver:'ds91', icon:'⚡', title:'漏斗分頁打開變快', detail:'月度漏斗總結重畫時，本月和上個月的自動分類、跨學院報名只算一次：第一次打開從約 0.4 秒變 0.09 秒，之後切區域、切儀表板從約 0.15 秒變 0.05 秒。數字完全一樣（八個畫面逐字比對過）', go:{ tab:9 } },
-      { ver:'ds92', icon:'📱', title:'手機看「今天該盯誰」不用左右滑', detail:'手機寬度時，今天該盯誰改成一家一張：沒入帳、追蹤卡該回覆、21 項沒勾完一行一行往下排，不會擠成很窄的三欄', go:{ tab:11 } }
+      { ver:'ds92', icon:'📱', title:'手機看「今天該盯誰」不用左右滑', detail:'手機寬度時，今天該盯誰改成一家一張：沒入帳、追蹤卡該回覆、21 項沒勾完一行一行往下排，不會擠成很窄的三欄', go:{ tab:11 } },
+      { ver:'ds93', icon:'⚡', title:'我的一頁、每日總結打開變快', detail:'讀激勵資料時不再每次翻遍全部存檔：我的一頁從約 0.13 秒變 0.05 秒，每日總結的關卡總結從 0.13 秒變 0.02 秒、穿越從 0.12 秒變 0.02 秒。資料只要有一個字不同就會重新讀，數字完全一樣（24 個畫面逐字比對過）', go:{ tab:11 } },
+      { ver:'ds94', icon:'⚡', title:'⚡ 全部同步：通路回得慢不會再直接打 ✕', detail:'通路一次下載整個月收支，EIP 忙的時候超過 90 秒，以前就當失敗停下來，其實資料晚一點就進來了。現在會多等最多 3 分鐘，資料進來就打 ✅ 寫「資料晚到，有進來」並接著跑編輯；3 分鐘還沒進來才停下來，失敗原因也改成寫真正的原因。不會多打 EIP' },
+      { ver:'ds95', icon:'📝', title:'⚡ 全部同步：編輯追蹤一次補到最新', detail:'以前編輯追蹤一次只補 7 天，還缺的要再按。現在 ⚡ 會一輪一輪接著跑（跑完一輪才開下一輪，中間停 3 秒），直到昨天抓了、沒有缺的日子為止，最多 8 輪；小框寫跑到第幾輪。每頁間隔照舊，不會壓到 EIP' }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
