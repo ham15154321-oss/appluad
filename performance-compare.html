@@ -2701,6 +2701,20 @@
     #syncAllBox ol { list-style:none; margin:0; padding:0; } #syncAllBox li { padding:3px 0; border-top:1px solid #F1EFE8; display:flex; gap:6px; align-items:baseline; }
     #syncAllBox li small { margin-left:auto; color:#5F5E5A; font-size:.74rem; } #syncAllBox li.run { font-weight:800; color:#26215C; } #syncAllBox li.skip { color:#888780; } #syncAllBox li.ok small { color:#A32D2D; } #syncAllBox li.fail { color:#3B6D11; font-weight:800; }
     #syncAllBox p { margin:6px 0 0; font-size:.76rem; color:#444441; }
+
+    /* 🎬 90 秒回顧 劇本預覽 */
+    #rvBg { position:fixed; inset:0; z-index:100001; background:rgba(10,8,30,.72); display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:24px 12px; }
+    .rv-box { width:min(900px,96vw); background:#FFFFFF; color:#2C2C2A; border-radius:16px; padding:14px 18px 18px; box-shadow:0 20px 60px rgba(0,0,0,.4); }
+    .rv-top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; } .rv-top b { font-size:1.1rem; color:#26215C; } .rv-top > span { font-size:.84rem; color:#444441; }
+    .rv-gates button { margin-left:4px; padding:3px 9px; border-radius:8px; border:1px solid #CECBF6; background:#fff; cursor:pointer; } .rv-gates button.on { background:#26215C; color:#fff; }
+    .rv-x { margin-left:auto; border:0; background:#F1EFE8; border-radius:8px; padding:4px 10px; cursor:pointer; }
+    .rv-sub { font-size:.82rem; color:#5F5E5A; margin:6px 0 10px; }
+    .rv-s { display:flex; gap:12px; border-top:1px solid #E8E6DF; padding:10px 0; } .rv-n { min-width:44px; font-weight:800; color:#26215C; font-size:1.1rem; } .rv-n small { display:block; font-size:.7rem; color:#888780; font-weight:400; }
+    .rv-c { flex:1; } .rv-c h4 { margin:0 0 4px; font-size:1rem; color:#26215C; } .rv-c ul { margin:2px 0; padding-left:18px; } .rv-c li { margin:2px 0; font-size:.92rem; line-height:1.5; } .rv-c li small { margin-left:6px; color:#888780; font-size:.72rem; }
+    .rv-dim { color:#5F5E5A; font-size:.84rem; margin:0; } .rv-src { font-size:.72rem; color:#888780; margin:4px 0 0; }
+    .rv-note { display:flex; gap:8px; align-items:center; margin-top:6px; } .rv-note input { flex:1; padding:5px 8px; border:1px solid #CECBF6; border-radius:8px; font-size:.86rem; } .rv-note small { color:#888780; font-size:.72rem; white-space:nowrap; }
+    .rv-foot { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; } .rv-foot button { padding:6px 14px; border-radius:10px; border:1px solid #CECBF6; background:#EEEDFE; color:#26215C; cursor:pointer; } .rv-foot button:disabled { opacity:.5; cursor:not-allowed; }
+    .gc-fullbtn.rv-btn { background:linear-gradient(135deg,#E24B4A,#791F1F); color:#fff; border-color:transparent; }
     /* 🔔 更新通知 */
     .pcn-bell { position:relative; background:linear-gradient(135deg,#6a1b9a,#8e24aa) !important; color:#fff !important; border-color:transparent !important; }
     .pcn-badge { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#E24B4A; color:#fff; font-size:11px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 0 0 2px #fff; }
@@ -11046,6 +11060,315 @@
       if (s.mom == null) return '<span class="gc-t">—</span>';
       return '<span class="gc-t ' + (s.mom >= 1 ? 'up' : 'dn') + '">' + (s.mom >= 1 ? '🔥 ' : '') + '勢頭 ' + Math.round(s.mom * 100) + '%</span>';
     }
+
+    // ═══ 🎬 90 秒回顧（10/13 Ivan 同意）：網頁自己看數據寫劇本 ═══
+    //   只讀現有資料（快照、入帳明細、漏斗、報到、編輯追蹤、追蹤卡、小組表），不打 EIP、不叫 AI
+    //   規則：七家每家先有一句 🎉 → 三家放大 → 轉折前後哪兩個數字變最多（不寫「因為」）→ 三對盲點＋可以學＋明天一件事 → 收尾
+    //   不寫假想敵、不寫誰輸誰、中區三家不互比、建國最多當一次老師、0 寫「還沒開張」、名字不寫姓、句子輪流用
+    var RV_NICK = { '楊雅晴':'卡拉', '黃翰傑':'嘎嘎', '張承鈞':'鈞鈞', '楊雅筑':'mia', '范淯維':'阿蹦', '劉昀璇':'10' };
+    function _rvName(n){ n = String(n || '').trim(); if (RV_NICK[n]) return RV_NICK[n]; return n.length >= 3 ? n.slice(1) : n; }
+    function _rvW(v){ return _dsW1(v); }
+    function _rvRegion(org){ for (var k in CK_REGIONS){ if (k !== 'all' && CK_REGIONS[k].orgs.indexOf(org) >= 0) return k; } return ''; }
+    function _rvPick(arr, seed){ return arr[Math.abs(seed) % arr.length]; }
+    function _rvSeed(org){ var d = new Date(), doy = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000); return doy + CK_ORG_LIST.indexOf(org) * 7; }
+    function _rvSplitO(o){ return String(o || '').split(/[,，、\/]/).map(function(s){ return s.trim(); }).filter(Boolean); }
+    function _rvIsFair(sub){ return /展|博|節|PF|設計展|攝影展|加盟展/.test(String(sub || '')) && !/學員/.test(String(sub || '')); }
+
+    // ── 收集七家這一關的事實 ──
+    function _rvGather(ym, gi){
+      var S = _dsSnaps(ym), keys = Object.keys(S).sort(); if (!keys.length) return null;
+      var last = keys[keys.length - 1], M = _dsModel(ym, last), G = M.G;
+      var d0 = gi < 0 ? 1 : G[gi][0], d1 = gi < 0 ? _dsDays(ym) : G[gi][1], lastDay = +last.slice(8);
+      var endDay = Math.min(d1, lastDay), endKey = _dsDate(ym, endDay);
+      var pfxD = ym.replace('-', '/'), inRange = function(dstr){ var m = /(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/.exec(String(dstr || '')); if (!m) return false; var k = m[1] + '-' + _ckPad2(+m[2]) + '-' + _ckPad2(+m[3]); return k.slice(0,7) === ym && +m[3] >= d0 && +m[3] <= endDay; };
+      var raw = _fnRawFor(ym) || {}, fd = _fnDataFor(ym) || {}, ckRs = ((fd.checkin || {}).rs || {}).byAcademy || {};
+      var edStore = null; try { edStore = edGetStore(); } catch(e){}
+      var F = {}, Mend = _dsModel(ym, endKey);
+      CK_ORG_LIST.forEach(function(org){
+        var r = Mend.rows.filter(function(x){ return x.org === org; })[0]; if (!r) return;
+        var s = _gcStats(Mend, r), pts = s.pts.filter(function(p){ return p.d >= d0 && p.d <= endDay; });
+        var wd = 0, wdInc = 0; pts.forEach(function(p){ wd += p.wd; if (p.wd && p.inc > 1000) wdInc += 1; });
+        // 這一關前 3 個上班日的速度
+        var g0 = 0, e0 = 0, n0 = 0; for (var i = 0; i < pts.length && n0 < 3; i++){ if (!pts[i].wd) continue; g0 += pts[i].inc; e0 += pts[i].exp; n0 += pts[i].wd; }
+        var momEarly = e0 ? g0 / e0 : null;
+        // 每個人
+        var P = (S[endKey] && S[endKey].p) || {}, people = [], zero = 0, top = null, biz = 0;
+        Object.keys(P).forEach(function(k){ if (k.indexOf(org + '|') !== 0) return; var n = k.slice(org.length + 1), v = +P[k][0] || 0; if (typeof EVO !== 'undefined' && EVO.notRep[n]) return; people.push({ n:n, v:v }); biz += v; if (v < 1000) zero++; if (!top || v > top.v) top = { n:n, v:v }; });
+        var topShare = biz && top ? top.v / biz : 0;
+        // 小組：組員贏過組長
+        var mbl = [];
+        try { ((_motivGroupPerf || []).concat(_motivReservePerf || [])).forEach(function(g){ if (g.academy !== org || !g.leader) return; var lv = +g.leader.value || 0; (g.members || []).forEach(function(m){ if ((+m.value || 0) > lv && lv >= 0) mbl.push({ g:g.groupName, l:g.leader.name, m:m.name, lv:lv, mv:+m.value }); }); }); } catch(e){}
+        // 入帳明細
+        var pay = (((raw.orgs || {})[org] || {}).pay || []).filter(function(p){ return inRange(p.d) && (+p.v || 0) > 0; });
+        var tot = 0, buy = 0, fair = 0, fb = 0, blog = 0, intro = 0, coopN = 0, byStu = {}, byStuDay = {}, oldest = '', byNKD = {};
+        pay.forEach(function(p){ var v = +p.v || 0; tot += v; var sub = String(p.sub || '');
+          if (/學員加購/.test(sub)) buy += v; else if (_rvIsFair(sub)) { fair += v; var y = /(\d{4})/.exec(sub); if (y && (!oldest || y[1] < oldest)) oldest = y[1]; } else if (/FB|IG/i.test(sub)) fb += v; else if (/部落格/.test(sub)) blog += v; else if (/介紹/.test(sub)) intro += v;
+          var nkd = p.n + '|' + (p.k || '') + '|' + p.d; byNKD[nkd] = byNKD[nkd] || {}; _rvSplitO(p.o).forEach(function(o){ byNKD[nkd][o] = 1; });
+          byStu[p.n] = (byStu[p.n] || 0) + v;
+          var sd = p.n + '|' + p.d; byStuDay[sd] = byStuDay[sd] || {}; if (p.k) byStuDay[sd][p.k] = 1; });
+        coopN = Object.keys(byNKD).filter(function(k){ return Object.keys(byNKD[k]).length >= 2; }).length;
+        var formal = Object.keys(byStu).filter(function(n){ return byStu[n] >= 10000; }), deposit = Object.keys(byStu).length - formal.length;
+        var thisY = +ym.slice(0,4); if (oldest && +oldest > thisY - 2) oldest = '';
+        var avgFormal = formal.length ? formal.reduce(function(a, n){ return a + byStu[n]; }, 0) / formal.length : 0;
+        var three = Object.keys(byStuDay).filter(function(k){ return Object.keys(byStuDay[k]).length >= 3; }).length;
+        var single = Object.keys(byStuDay).filter(function(k){ return Object.keys(byStuDay[k]).length === 1; }).length;
+        // 漏斗
+        var itv = (((raw.orgs || {})[org] || {}).itv || []).filter(function(x){ return inRange(x.d); });
+        var itvN = itv.length, regN = itv.filter(function(x){ return x.r > 0; }).length, appNoReg = itv.filter(function(x){ return x.a > 0 && !(x.r > 0); }).length;
+        // 編輯追蹤
+        var ed = null; try { var B = _edBuild(edStore, [org]), o = B && B.orgs && B.orgs[0]; if (o){ var mon = 0, emp = 0; Object.keys(o.owners || {}).forEach(function(k){ mon += o.owners[k].mon || 0; emp += o.owners[k].monEmpty || 0; }); var L = o.lamps || {}; var tl = (L.l0||0)+(L.l1||0)+(L.l2||0)+(L.l3||0)+(L.l4||0); ed = { mon:mon, empty:emp, stale:(L.l3||0)+(L.l4||0), total:tl }; } } catch(e){}
+        var due = 0; try { due = (getTracking(org) || []).filter(function(c){ return c['逾期未回'] || c['今天到期']; }).length; } catch(e){}
+        var ck = (r.c && r.c.ck) || 0, rs = _ckNum(ckRs[org]);
+        F[org] = { org:org, T:r.T, cum:r.cum, pct:r.T ? r.cum / r.T : 0, exp:r.exp, gateT:r.gateT, lamp:r.lamp, cross:r.gateT ? r.cum >= r.gateT : false, refund:r.refundRate || 0,
+          mom:s.mom, momEarly:momEarly, got0:g0, exp0:e0, got3:s.got3, exp3:s.exp3, flat:s.flat, wd:wd, wdInc:wdInc, pts:pts, E:r.E,
+          people:people, zero:zero, top:top, topShare:topShare, mbl:mbl,
+          pay:pay, tot:tot, buyShare:tot ? buy / tot : 0, fairShare:tot ? fair / tot : 0, newShare:tot ? (fb + blog) / tot : 0, introShare:tot ? intro / tot : 0, oldest:oldest,
+          coopN:coopN, payN:pay.length, coopShare:pay.length ? coopN / pay.length : 0, formalN:formal.length, deposit:deposit, avgFormal:avgFormal, three:three, single:single, stuDays:Object.keys(byStuDay).length,
+          itvN:itvN, regN:regN, regRate:itvN >= 10 ? regN / itvN : null, appNoReg:appNoReg,
+          ed:ed, due:due, ck:ck, rs:rs, perCk:ck ? r.cum / ck : 0, need:r.need, left:r.left };
+      });
+      var list = Object.keys(F).map(function(o){ return F[o]; }).sort(function(a,b){ return b.pct - a.pct; });
+      list.forEach(function(f, i){ f.rank = i + 1; });
+      return { ym:ym, gi:gi, d0:d0, d1:d1, endDay:endDay, endKey:endKey, lastDay:lastDay, F:F, list:list, G:G, M:Mend, S:S, keys:keys };
+    }
+
+    // ── 十種故事：判斷、分數、句子（三種寫法輪流）──
+    var RV_STORIES = {
+      burst:   { name:'爆衝', test:function(f){ return f.mom != null && f.mom >= 1.0 && (f.momEarly == null || f.momEarly < 0.5); }, score:function(f){ return 100 + f.mom * 10; },
+        lines:[ function(f,R){ return '開頭三個上班日 ' + _rvW(f.got0) + ' 萬，最近三個上班日 ' + _rvW(f.got3) + ' 萬，七家平均 ' + _rvW(R.avgGot3) + ' 萬' + (R.got3Rank[f.org] === 1 ? '，七家最高' : '，排第 ' + R.got3Rank[f.org]); },
+                function(f,R){ return '最近三個上班日做了 ' + _rvW(f.got3) + ' 萬，比七家平均多 ' + _rvW(f.got3 - R.avgGot3) + ' 萬' + (R.got3Rank[f.org] === 1 ? '，七家最高' : ''); },
+                function(f,R){ return '三天做了 ' + _rvW(f.got3) + ' 萬，照目標這三天該做 ' + _rvW(f.exp3) + ' 萬，超過了，手感發燙'; } ] },
+      comeback:{ name:'谷底往上', test:function(f,R){ return f.mom != null && f.mom >= 0.8 && f.momEarly != null && f.mom - f.momEarly >= 0.3 && !(f.mom >= 1.0 && f.momEarly < 0.5); }, score:function(f,R){ return 90 + (f.mom - f.momEarly) * 20; },
+        lines:[ function(f,R){ return '開頭三個上班日 ' + _rvW(f.got0) + ' 萬，最近三個上班日 ' + _rvW(f.got3) + ' 萬，同樣三天做了 ' + (Math.round(f.got3 / Math.max(1, f.got0) * 10) / 10) + ' 倍' + (R.got3Rank[f.org] === 1 ? '，七家最高' : ''); },
+                function(f,R){ return '最近三個上班日 ' + _rvW(f.got3) + ' 萬，七家平均 ' + _rvW(R.avgGot3) + ' 萬，從後面追上來'; },
+                function(f,R){ return '開頭慢，最近三天做了 ' + _rvW(f.got3) + ' 萬，七家排第 ' + R.got3Rank[f.org] + '，前面落後的正在追回來'; } ] },
+      steady:  { name:'一直往上', test:function(f,R){ return f.wd >= 5 && f.wdInc / f.wd >= 0.8 && _rvTop(R, function(x){ return x.wd ? x.wdInc / x.wd : 0; }, 2).indexOf(f.org) >= 0; }, score:function(f){ return 70 + f.wdInc / f.wd * 20 + f.pct * 10; },
+        lines:[ function(f){ return f.wd + ' 個上班日裡 ' + f.wdInc + ' 天都有入帳，一天一天往上疊'; },
+                function(f){ return '沒有一天停下來，' + f.wd + ' 個上班日有 ' + f.wdInc + ' 天進帳'; },
+                function(f){ return '每天都有數字進來，' + f.wdInc + '／' + f.wd + ' 個上班日有入帳'; } ] },
+      allOpen: { name:'全員開張', test:function(f){ return f.people.length >= 3 && f.zero === 0; }, score:function(f){ return 60 + f.people.length * 2; },
+        lines:[ function(f){ return f.people.length + ' 位業務全部開張，沒有一個人掛零'; },
+                function(f){ return '全員有數字，' + f.people.length + ' 個人每一位都做出業績'; },
+                function(f){ return f.people.length + ' 個人全部開張，每個人都在場上'; } ] },
+      mbl:     { name:'組員贏過組長', test:function(f){ return f.mbl.length > 0; }, score:function(f){ return 65 + f.mbl.length * 5; },
+        lines:[ function(f){ var x = f.mbl[0]; return _rvName(x.m) + ' ' + _rvW(x.mv) + ' 萬，超過組長 ' + _rvName(x.l) + '，組長的業績寫在組員的名字後面'; },
+                function(f){ var x = f.mbl[0]; return _rvName(x.l) + ' 組裡，' + _rvName(x.m) + ' 做到 ' + _rvW(x.mv) + ' 萬，組員跑到組長前面'; },
+                function(f){ var x = f.mbl[0]; return '組員 ' + _rvName(x.m) + ' ' + _rvW(x.mv) + ' 萬，比組長還高，帶人帶出來了'; } ] },
+      big:     { name:'一件做大', test:function(f,R){ return f.formalN >= 3 && (_rvTop(R, function(x){ return x.three; }, 2).indexOf(f.org) >= 0 || _rvTop(R, function(x){ return x.formalN >= 3 ? x.avgFormal : 0; }, 2).indexOf(f.org) >= 0); }, score:function(f){ return 60 + f.three * 4 + f.avgFormal / 10000; },
+        lines:[ function(f,R){ return _rvBigIsThree(f, R) ? f.three + ' 件一次報三科，七家最多' : '正式學生一位平均簽 ' + _rvW(f.avgFormal) + ' 萬，七家最高' + (f.three ? '，' + f.three + ' 件三科' : ''); },
+                function(f,R){ return _rvBigIsThree(f, R) ? '一次報三科的有 ' + f.three + ' 件，一件做大不是口號' : '不是打得多，是每一件做大：一位平均 ' + _rvW(f.avgFormal) + ' 萬'; },
+                function(f,R){ return _rvBigIsThree(f, R) ? f.stuDays + ' 件裡 ' + f.three + ' 件三科，學生自己寫的想學都談到了' : f.formalN + ' 位正式學生，一位平均 ' + _rvW(f.avgFormal) + ' 萬'; } ] },
+      coop:    { name:'兩個人一起談', test:function(f,R){ return f.payN >= 5 && f.coopShare >= 0.3 && _rvTop(R, function(x){ return x.payN >= 5 ? x.coopShare : 0; }, 2).indexOf(f.org) >= 0; }, score:function(f){ return 55 + f.coopShare * 30; },
+        lines:[ function(f){ return f.payN + ' 件裡 ' + f.coopN + ' 件是兩個人一起談，沒有人一個人面談'; },
+                function(f){ return '合談 ' + f.coopN + ' 件，佔 ' + Math.round(f.coopShare*100) + '%，一筆名單兩個人接'; },
+                function(f){ return '十件有 ' + Math.round(f.coopShare*10) + ' 件兩個人談，新人不裸背'; } ] },
+      old:     { name:'舊名單撈回來', test:function(f,R){ return f.payN >= 8 && f.buyShare + f.fairShare >= 0.5 && _rvTop(R, function(x){ return x.tot ? x.buyShare + x.fairShare : 0; }, 2).indexOf(f.org) >= 0; }, score:function(f){ return 50 + (f.buyShare + f.fairShare) * 30; },
+        lines:[ function(f){ return '舊生加購佔 ' + Math.round(f.buyShare*100) + '%' + (f.fairShare >= 0.05 ? '，展場名單佔 ' + Math.round(f.fairShare*100) + '%' : '') + (f.oldest ? '，最老一筆是 ' + f.oldest + ' 年的展場' : '，班務有在經營'); },
+                function(f){ return '錢有 ' + Math.round((f.buyShare + f.fairShare)*100) + '% 來自舊生和舊展場，手上的名單沒有放掉'; },
+                function(f){ return '舊生加購 ' + Math.round(f.buyShare*100) + '%' + (f.fairShare >= 0.1 ? '、展場名單 ' + Math.round(f.fairShare*100) + '%' : '') + (f.oldest ? '，連 ' + f.oldest + ' 年的展場名單都撈回來' : '，手上的名單沒有放掉'); } ] },
+      cross:   { name:'穿越', test:function(f,R){ return f.cross && R.endDay <= R.lastDay; }, score:function(f){ return 95 + f.pct * 10; },
+        lines:[ function(f,R){ return (R.endDay < R.d1 ? '提前 ' + (R.d1 - R.endDay) + ' 天' : '') + '穿越第' + '一二三'[R.gi] + '關，累計 ' + _rvW(f.cum) + ' 萬，關卡目標 ' + _rvW(f.gateT) + ' 萬'; },
+                function(f,R){ return '第' + '一二三'[R.gi] + '關目標 ' + _rvW(f.gateT) + ' 萬，做到 ' + _rvW(f.cum) + ' 萬，先過關'; } ] },
+      ammo:    { name:'子彈最多', test:function(f,R){ return f.rs > 0 && f.rs === R.maxRs; }, score:function(f){ return 50 + f.rs / 5; },
+        lines:[ function(f){ return '到月底還有 ' + f.rs + ' 位要來報到，七家最多，下一關的子彈最足'; },
+                function(f){ return f.rs + ' 位已經約好到月底會來，子彈七家最多'; } ] },
+      perCk:   { name:'每個報到做最大', test:function(f,R){ return f.ck >= 5 && f.perCk === R.maxPerCk; }, score:function(f){ return 55 + f.perCk / 10000; },
+        lines:[ function(f){ return '報到 ' + f.ck + ' 位，每一個報到做出 ' + _rvW(f.perCk) + ' 萬，七家最高'; },
+                function(f){ return '報到不是最多，但每個報到值 ' + _rvW(f.perCk) + ' 萬，七家第一'; } ] }
+    };
+    function _rvBigIsThree(f, R){ return _rvTop(R, function(x){ return x.three; }, 1)[0] === f.org || _rvTop(R, function(x){ return x.formalN >= 3 ? x.avgFormal : 0; }, 2).indexOf(f.org) < 0; }
+    function _rvTop(R, get, n){ return R.list.slice().sort(function(a,b){ return get(b) - get(a); }).slice(0, n).filter(function(x){ return get(x) > 0; }).map(function(x){ return x.org; }); }
+    // 每家至少一句的保底
+    function _rvFallback(f, R){
+      var seed = _rvSeed(f.org);
+      if (f.rs > 0) return _rvPick([ '到月底還有 ' + f.rs + ' 位約好會來，這一關的數字還沒寫完', '累計 ' + _rvW(f.cum) + ' 萬，手上還有 ' + f.rs + ' 位到月底報到' ], seed);
+      if (f.people.length - f.zero > 0) return _rvPick([ (f.people.length - f.zero) + ' 位開張，累計 ' + _rvW(f.cum) + ' 萬，還在路上', '累計 ' + _rvW(f.cum) + ' 萬，' + (f.people.length - f.zero) + ' 個人有數字，邊跌倒邊修正' ], seed);
+      return '還沒開張，這一關的路還在走';
+    }
+
+    // ── 盲點 12 項 ＋ 可以學的 ＋ 明天一件事 ──
+    var RV_BLIND = [
+      { k:'regRate', name:'面談多、註冊少', dir:'hi', get:function(f){ return f.regRate; }, flagOnly:function(f){ return f.regRate != null && f.regRate < 0.15; },
+        blind:function(f){ return '面談 ' + f.itvN + ' 位，註冊 ' + f.regN + ' 位'; }, learn:function(b){ return '面談 ' + b.itvN + ' 位，註冊 ' + b.regN + ' 位'; },
+        act:[ '明天每一場面談，先弄清楚這位學生要用什麼方式才會被打動，和誰去講', '明天面談前組長先跟業務聊 10 分鐘，這位是誰、為什麼來' ] },
+      { k:'appNoReg', name:'報名了還沒註冊的人多', dir:'lo', get:function(f){ return f.itvN >= 5 && f.appNoReg >= 3 ? f.appNoReg / f.itvN : null; },
+        blind:function(f){ return '報名了還沒註冊 ' + f.appNoReg + ' 位，面談 ' + f.itvN + ' 位'; }, learn:function(b){ return '面談 ' + b.itvN + ' 位，' + (b.appNoReg ? '報名了還沒註冊只有 ' + b.appNoReg + ' 位' : '沒有一位報名了還沒註冊'); },
+        act:[ '明天從報未註名單挑兩位打，約一位回來再談一次，當天排試聽日', '明天把報名還沒註冊的名單全部重打一輪，用興趣方向當開場', '明天每位報未註的學生，先定誰可以來談、誰比較適合' ] },
+      { k:'flat', name:'連續幾天沒入帳', dir:'lo', get:function(f){ return f.flat >= 2 ? f.flat : null; },
+        blind:function(f){ return '連續 ' + f.flat + ' 個上班日沒入帳'; }, learn:function(b){ return b.wd + ' 個上班日有 ' + b.wdInc + ' 天入帳'; },
+        act:[ '明天從到月底報到裡挑三位，先談那三位', '明天 13:40 前，組長押一件：學生全名、三科組合、誰陪談', '明天每個人先打 20 通，約到的進教室前組長先聊清楚是誰' ] },
+      { k:'topShare', name:'一個人扛一半以上', dir:'lo', get:function(f){ return f.people.length >= 3 && f.topShare >= 0.45 ? f.topShare : null; },
+        blind:function(f){ return _rvName(f.top.n) + ' 一個人 ' + _rvW(f.top.v) + ' 萬，佔 ' + Math.round(f.topShare*100) + '%'; }, learn:function(b){ return '最高的一位只佔 ' + Math.round(b.topShare*100) + '%，' + (b.people.length - b.zero) + ' 個人都有數字'; },
+        act:[ '明天組長坐進組員的面談，一筆名單兩個人接', '明天最強的那一位各帶一位還沒開張的，合談一場', '明天組員各排一場面談，組長坐進去補刀，不自己另外談' ] },
+      { k:'zero', name:'還沒開張的人多', dir:'lo', get:function(f){ return f.people.length >= 3 && f.zero >= 2 ? f.zero / f.people.length : null; },
+        blind:function(f){ return f.people.length + ' 位業務，' + f.zero + ' 位還沒開張'; }, learn:function(b){ return b.people.length + ' 位業務，' + (b.zero ? b.zero + ' 位還沒開張' : '全部開張'); },
+        act:[ '明天還沒開張的各談到一位學生，組長陪著談', '明天還沒開張的先打 20 通，約到的那一場組長坐進去', '明天強的各帶一位還沒開張的合談一場' ] },
+      { k:'perCk', name:'每個報到做得小', dir:'hi', get:function(f){ return f.ck >= 5 ? f.perCk : null; },
+        blind:function(f){ return '報到 ' + f.ck + ' 位，每個報到做出 ' + _rvW(f.perCk) + ' 萬'; }, learn:function(b){ return '報到 ' + b.ck + ' 位，每個報到做出 ' + _rvW(b.perCk) + ' 萬'; },
+        act:[ '明天三科只從學生自己寫的想學組，價值講完才收', '明天每一位報到的學生，談完問三句：收到什麼、問題在哪裡、下一步約哪天' ] },
+      { k:'rs', name:'到月底報到少', dir:'hi', get:function(f){ return f.people.length ? f.rs / f.people.length : null; },
+        blind:function(f){ return '到月底報到 ' + f.rs + ' 位，' + f.people.length + ' 位業務一人不到 ' + Math.ceil(f.rs / f.people.length) + ' 位'; }, learn:function(b){ return '到月底報到 ' + b.rs + ' 位，一人 ' + (Math.round(b.rs / b.people.length * 10) / 10) + ' 位'; },
+        act:[ '明天每個人從報未註和 7 天線上到期的名單各挑三位打，約到的排進到月底報到', '明天 13:40 前每個人排好三筆預約報到，寫學生全名和日期', '明天先往明天約，三天內必約，每人約兩位' ] },
+      { k:'single', name:'單科件多', dir:'lo', get:function(f){ return f.stuDays >= 5 && f.single >= 3 ? f.single / f.stuDays : null; },
+        blind:function(f){ return f.stuDays + ' 件裡 ' + f.single + ' 件只報一科'; }, learn:function(b){ return b.stuDays + ' 件裡 ' + b.three + ' 件三科，一位平均 ' + _rvW(b.avgFormal) + ' 萬'; },
+        act:[ '明天三科只從學生自己寫的想學組，價值講完才收', '明天每一位先打包單門課再接正課，舊生談兩次', '明天面談表先圈出學生自己寫的三個想學，照九階梯談完才收' ] },
+      { k:'coop', name:'一個人面談多', dir:'hi', get:function(f){ return f.payN >= 5 ? f.coopShare : null; },
+        blind:function(f){ return f.payN + ' 件裡只有 ' + f.coopN + ' 件兩個人談'; }, learn:function(b){ return b.payN + ' 件裡 ' + b.coopN + ' 件兩個人談'; },
+        act:[ '明天強的各帶一位還沒開張的，合談一場', '明天組長坐進組員的面談，一筆名單兩個人接', '明天新人的每一場都有人陪，不一個人面談' ] },
+      { k:'buy', name:'舊生和展場名單用得少', dir:'hi', get:function(f){ return f.tot > 0 && f.payN >= 10 ? f.buyShare + f.fairShare : null; },
+        blind:function(f){ return '舊生加購加展場名單只佔 ' + Math.round((f.buyShare + f.fairShare)*100) + '%'; }, learn:function(b){ return '舊生加購加展場名單佔 ' + Math.round((b.buyShare + b.fairShare)*100) + '%'; },
+        act:[ '明天從班務舊生挑三位打，先問下一門想學什麼', '明天課前 15 分鐘、課後 10 分鐘到教室，跟舊生聊下一門', '明天把結業班的名單拿出來，每人挑兩位約回來談' ] },
+      { k:'stale', name:'名單沒人顧', dir:'lo', get:function(f){ return f.ed && f.ed.total >= 20 ? f.ed.stale / f.ed.total : null; },
+        blind:function(f){ return f.ed.stale + ' 位學生超過 15 天沒有人在 EIP 動過'; }, learn:function(b){ return '超過 15 天沒人動的只有 ' + b.ed.stale + ' 位'; },
+        act:[ '明天組長先把超過 15 天沒動的名單分給人，每人 10 筆，打完回報', '明天組長把超過 15 天沒動的名單分下去，每人 10 筆，每一通備註寫學生說了什麼、下一步約哪天' ] },
+      { k:'due', name:'面談過沒註冊的學生沒人追', dir:'lo', get:function(f){ return f.people.length && f.due >= 5 ? f.due / f.people.length : null; },
+        blind:function(f){ return f.due + ' 位面談過還沒註冊的學生，已經過了約好要再聯絡的日子，還沒有人寫原因和下一步'; }, learn:function(b){ return '過了約好的日子還沒寫下一步的只有 ' + b.due + ' 位'; },
+        act:[ '明天 13:40 前，這 {due} 位每一位在 EIP 寫清楚：沒報名的真正原因、下一步要做什麼、哪一天再約', '明天組長把這 {due} 位一位一位過，當場定誰去談、哪一天約回來' ] }
+    ];
+    function _rvPairs(R, used){
+      var list = R.list, out = [], kgOnce = false;
+      var cand = [];
+      list.forEach(function(f){
+        RV_BLIND.forEach(function(B){
+          var v = B.get(f); if (v == null) return;
+          var others = list.filter(function(o){ return o.org !== f.org && B.get(o) != null && !(_rvRegion(f.org) === 'central' && _rvRegion(o.org) === 'central'); });
+          if (!others.length) return;
+          var best = others.slice().sort(function(a,b){ return B.dir === 'hi' ? B.get(b) - B.get(a) : B.get(a) - B.get(b); })[0], bv = B.get(best);
+          var gap = B.dir === 'hi' ? (bv > 0 ? (bv - v) / bv : 0) : (v > 0 ? (v - bv) / v : 0);
+          if (B.dir === 'hi' ? v * 1.5 > bv : v < bv * 2) return;
+          cand.push({ org:f.org, B:B, v:v, best:best, bv:bv, gap:gap, f:f });
+        });
+      });
+      cand.sort(function(a,b){ return b.gap - a.gap; });
+      var orgDone = {}, kDone = {};
+      cand.forEach(function(c){
+        if (orgDone[c.org]) return;
+        if (out.length < 3 && kDone[c.B.k]) return;
+        if (c.best.org === '高雄建國'){ if (kgOnce) return; }
+        orgDone[c.org] = 1; kDone[c.B.k] = 1; if (c.best.org === '高雄建國') kgOnce = true;
+        var seed = _rvSeed(c.org) + (used[c.B.k] || 0);
+        out.push({ org:c.org, k:c.B.k, name:c.B.name, gap:c.gap, blind:c.B.blind(c.f), learnOrg:c.best.org, learn:c.B.learn(c.best), act:_rvPick(c.B.act, seed).replace(/\{due\}/g, c.f.due), red:c.f.refund > 0.1 ? '退費佔業績 ' + Math.round(c.f.refund*100) + '%，要先處理' : '' });
+      });
+      return out;
+    }
+
+    // ── 轉折：哪一天翻上來，前後哪兩個數字變最多 ──
+    function _rvTurn(R, f){
+      var pts = f.pts.filter(function(p){ return p.wd; }); if (pts.length < 5) return null;
+      var roll = pts.map(function(p, i){ var g = 0, e = 0; for (var j = Math.max(0, i - 2); j <= i; j++){ g += pts[j].inc; e += pts[j].exp; } return e ? g / e : null; });
+      var ti = -1; for (var i = 2; i < roll.length; i++){ if (roll[i] != null && roll[i] >= 1 && roll[i-1] != null && roll[i-1] < 0.6){ ti = i; break; } }
+      if (ti < 0 || pts.length - ti < 2) return null;
+      var tp = pts[ti], before = pts.slice(Math.max(0, ti - 3), ti).map(function(p){ return p.d; }), after = pts.slice(ti, ti + 3).map(function(p){ return p.d; });
+      var side = function(days){
+        var P = f.pay.filter(function(p){ var dd = +String(p.d).split(/[\/\-]/)[2]; return days.indexOf(dd) >= 0; });
+        var tot = 0, buy = 0, fair = 0, coop = 0, byStu = {}, byDay = {}, nkd = {};
+        P.forEach(function(p){ var k = p.n + '|' + (p.k || '') + '|' + p.d; nkd[k] = nkd[k] || {}; _rvSplitO(p.o).forEach(function(o){ nkd[k][o] = 1; }); }); coop = Object.keys(nkd).filter(function(k){ return Object.keys(nkd[k]).length >= 2; }).length;
+        P.forEach(function(p){ var v = +p.v || 0; tot += v; if (/學員加購/.test(p.sub)) buy += v; if (_rvIsFair(p.sub)) fair += v; byStu[p.n] = (byStu[p.n] || 0) + v; var k = p.n + '|' + p.d; byDay[k] = byDay[k] || {}; if (p.k) byDay[k][p.k] = 1; });
+        var formal = Object.keys(byStu).filter(function(n){ return byStu[n] >= 10000; });
+        var ck = 0, n = 0; days.forEach(function(d){ var k = _dsDate(R.ym, d), pk = _dsDate(R.ym, d - 1); var c = R.S[k] && R.S[k].o[f.org], p = R.S[pk] && R.S[pk].o[f.org]; if (c && p){ ck += Math.max(0, c.ck - p.ck); n++; } });
+        var sci = Object.keys(byDay).map(function(k){ return Object.keys(byDay[k]).length; });
+        return { ck: n ? ck / n : null, buy: tot ? buy / tot : null, fair: tot ? fair / tot : null, coop: coop, avg: formal.length ? formal.reduce(function(a, x){ return a + byStu[x]; }, 0) / formal.length : null, sci: sci.length ? sci.reduce(function(a, b){ return a + b; }, 0) / sci.length : null, n:P.length };
+      };
+      var A = side(before), B = side(after), ch = [];
+      var push = function(txt, score){ ch.push({ t:txt, s:score }); };
+      if (A.ck != null && B.ck != null && Math.abs(B.ck - A.ck) >= 1) push('每天報到 ' + Math.round(A.ck) + ' 位變 ' + Math.round(B.ck) + ' 位', Math.abs(B.ck - A.ck) / Math.max(1, A.ck));
+      if (A.buy != null && B.buy != null && Math.abs(B.buy - A.buy) >= 0.15) push('舊生加購從 ' + Math.round(A.buy*10) + ' 成變 ' + Math.round(B.buy*10) + ' 成', Math.abs(B.buy - A.buy) * 2);
+      if (A.fair != null && B.fair != null && Math.abs(B.fair - A.fair) >= 0.15) push('展場名單從 ' + Math.round(A.fair*10) + ' 成變 ' + Math.round(B.fair*10) + ' 成', Math.abs(B.fair - A.fair) * 2);
+      if (B.coop - A.coop >= 2) push('兩個人一起談從 ' + A.coop + ' 件變 ' + B.coop + ' 件', (B.coop - A.coop) / 3);
+      if (A.avg != null && B.avg != null && Math.abs(B.avg - A.avg) >= 10000) push('一位正式學生平均從 ' + _rvW(A.avg) + ' 萬變 ' + _rvW(B.avg) + ' 萬', Math.abs(B.avg - A.avg) / Math.max(10000, A.avg));
+      if (A.sci != null && B.sci != null && Math.abs(B.sci - A.sci) >= 0.5) push('一件平均從 ' + (Math.round(A.sci*10)/10) + ' 科變 ' + (Math.round(B.sci*10)/10) + ' 科', Math.abs(B.sci - A.sci));
+      if (B.n - A.n >= 3) push('入帳從 ' + A.n + ' 筆變 ' + B.n + ' 筆', (B.n - A.n) / Math.max(1, A.n));
+      ch.sort(function(a,b){ return b.s - a.s; });
+      return { day:tp.d, k:tp.k, lines:ch.slice(0, 2).map(function(x){ return x.t; }), beforeInc:pts.slice(0, ti).reduce(function(a, p){ return a + p.inc; }, 0), afterInc:pts.slice(ti).reduce(function(a, p){ return a + p.inc; }, 0) };
+    }
+
+    // ── 組劇本 ──
+    function _rvUsed(){ try { return JSON.parse(localStorage.getItem('rv_used_v1') || '{}'); } catch(e){ return {}; } }
+    function _rvNotes(ym, gi){ try { return JSON.parse(localStorage.getItem('perf_compare_v1_rv_' + ym + '_' + gi) || '{}'); } catch(e){ return {}; } }
+    function rvSaveNote(ym, gi, id, txt){ var n = _rvNotes(ym, gi); txt = String(txt || '').trim(); if (txt) n[id] = { t:txt, by:_fnMe(), at:Date.now() }; else delete n[id]; try { localStorage.setItem('perf_compare_v1_rv_' + ym + '_' + gi, JSON.stringify(n)); } catch(e){} _syncToast('✅ 這一句存起來了，主管們看到的是同一份', '#4ade80'); }
+    function _rvBuild(ym, gi){
+      var R = _rvGather(ym, gi); if (!R) return null;
+      R.avgPct = R.list.reduce(function(a, f){ return a + f.pct; }, 0) / R.list.length;
+      R.avgGot3 = R.list.reduce(function(a, f){ return a + (f.got3 || 0); }, 0) / R.list.length;
+      R.got3Rank = {}; R.list.slice().sort(function(a,b){ return (b.got3 || 0) - (a.got3 || 0); }).forEach(function(f, i){ R.got3Rank[f.org] = i + 1; });
+      R.maxRs = Math.max.apply(null, R.list.map(function(f){ return f.rs; })); R.maxPerCk = Math.max.apply(null, R.list.map(function(f){ return f.ck >= 5 ? f.perCk : 0; }));
+      var used = _rvUsed(), notes = _rvNotes(ym, gi), gName = gi < 0 ? '這個月' : '第' + '一二三'[gi] + '關', per = (gi < 0 ? '10/1' : (+ym.slice(5)) + '/' + R.d0) + '–' + (+ym.slice(5)) + '/' + R.endDay;
+      var slides = [];
+      slides.push({ id:'open', kind:'open', sec:5, title:gName + '走到 ' + (+ym.slice(5)) + '/' + R.endDay + '，七家各走了一條自己的路', sub:per, src:'每天的快照' });
+      slides.push({ id:'lines', kind:'lines', sec:8, title:'七條線一天一天長出來', src:'每天的快照，虛線＝照目標每天該做到的' });
+      // 七家各一句
+      var stories = [], typeN = {};
+      R.list.forEach(function(f){
+        var cands = [];
+        Object.keys(RV_STORIES).forEach(function(k){ var ST = RV_STORIES[k]; var ok = false; try { ok = ST.test(f, R); } catch(e){} if (!ok) return; cands.push({ k:k, sc:ST.score(f, R) - (used[k] || 0) * 3, ST:ST }); });
+        cands.sort(function(a,b){ return b.sc - a.sc; });
+        var best = cands.filter(function(c){ return (typeN[c.k] || 0) < 2; })[0] || null; if (best) typeN[best.k] = (typeN[best.k] || 0) + 1;
+        var seed = _rvSeed(f.org) + (best ? (used[best.k] || 0) : 0);
+        var line = best ? _rvPick(best.ST.lines, seed)(f, R) : _rvFallback(f, R);
+        stories.push({ org:f.org, k:best ? best.k : 'fb', name:best ? best.ST.name : '還在路上', sc:best ? best.sc : 0, line:line, f:f });
+      });
+      slides.push({ id:'seven', kind:'seven', sec:12, title:'七家，每一家都有一句', rows:stories.map(function(s){ return { org:s.org, line:'🎉' + _gcShort(s.org) + ' ' + s.line, name:s.name }; }), src:'每天的快照、入帳明細、漏斗、報到、小組表' });
+      // 三家放大（中區同一種故事合成一張）
+      var big = stories.filter(function(s){ return s.k !== 'fb'; }).sort(function(a,b){ return b.sc - a.sc; }), picked = [], centralK = {};
+      big.forEach(function(s){ if (picked.length >= 3) return; var reg = _rvRegion(s.org); if (reg === 'central' && centralK[s.k]){ centralK[s.k].push(s); return; } if (reg === 'central') centralK[s.k] = [s]; picked.push(s); });
+      picked.forEach(function(s, i){
+        var group = (_rvRegion(s.org) === 'central' && centralK[s.k] && centralK[s.k].length > 1) ? centralK[s.k] : [s];
+        var orgs = group.map(function(x){ return x.org; }), turn = null; try { if (s.k === 'burst' || s.k === 'comeback') turn = _rvTurn(R, s.f); } catch(e){}
+        var lines = group.length > 1 ? group.map(function(x){ return _gcShort(x.org) + ' ' + x.line; }) : [s.line];
+        if (turn){ lines.push((+ym.slice(5)) + '/' + turn.day + ' 那天開始：' + (turn.lines.length ? turn.lines.join('，') : '入帳從 ' + _rvW(turn.beforeInc) + ' 萬變 ' + _rvW(turn.afterInc) + ' 萬')); }
+        if (s.f.people.length >= 3 && s.f.zero === 0 && s.k !== 'allOpen') lines.push(s.f.people.length + ' 個人全員有數字');
+        var id = 'big' + (i + 1);
+        slides.push({ id:id, kind:'big', sec:9, orgs:orgs, title:'🎉' + (group.length > 1 ? '中區三家一起' : _gcShort(s.org)) + '　' + s.name, lines:lines, turn:turn, note:(notes[id] || {}).t || '', src:'每天的快照' + (turn ? '、入帳明細（轉折前後各 3 個上班日）' : '') });
+      });
+      // 三對盲點
+      var pairs = _rvPairs(R, used).slice(0, 7);
+      pairs.slice(0, 3).forEach(function(p, i){
+        var id = 'blind' + (i + 1);
+        slides.push({ id:id, kind:'blind', sec:8, orgs:[p.org], title:_gcShort(p.org) + '　' + p.name, lines:[ p.blind, '可以學：' + _gcShort(p.learnOrg) + ' ' + p.learn, p.act ].concat(p.red ? [p.red] : []), note:(notes[id] || {}).t || '', src:'漏斗、入帳明細、報到、編輯追蹤、追蹤卡' });
+      });
+      if (pairs.length > 3) slides.push({ id:'blindRest', kind:'blindRest', sec:6, title:'另外幾家，各一行', rows:pairs.slice(3).map(function(p){ return { org:p.org, line:_gcShort(p.org) + ' ' + p.blind + '　→ ' + p.act }; }), src:'同上' });
+      // 收尾
+      var nextGi = gi < 0 ? -1 : Math.min(2, gi + 1), nextLines = [];
+      if (gi >= 0 && gi < 2){
+        var G = R.G, nd = 0, needSum = 0;
+        R.list.forEach(function(f){ var left = 0; for (var d = Math.max(G[nextGi][0], R.lastDay + 1); d <= G[nextGi][1]; d++) if (!_dsIsHol(ym, f.org, _dsDate(ym, d))) left++; var tN = _dsGateCum(ym, f.org, f.T, nextGi); if (left){ needSum += Math.max(0, tN - f.cum) / left; nd = Math.max(nd, left); } });
+        nextLines.push('第' + '一二三'[nextGi] + '關，七家這條路每天要走 ' + _rvW(needSum) + ' 萬');
+      } else nextLines.push('這個月的路走到 ' + _rvW(R.list.reduce(function(a, f){ return a + f.cum; }, 0)) + ' 萬');
+      var rsSum = R.list.reduce(function(a, f){ return a + f.rs; }, 0); if (rsSum) nextLines.push('到月底報到七家加起來 ' + rsSum + ' 位，子彈夠');
+      nextLines.push('13:40 日會，主管先看組長押的那一件');
+      slides.push({ id:'end', kind:'end', sec:9, title:'', lines:nextLines, note:(notes.end || {}).t || '', src:'每天的快照、報到、十月活動' });
+      var total = slides.reduce(function(a, s){ return a + s.sec; }, 0);
+      return { ym:ym, gi:gi, gName:gName, per:per, slides:slides, total:total, R:R };
+    }
+
+    // ── 劇本預覽（播放畫面之後做）──
+    function rvOpen(gi){
+      var ym = _ppLiveYm(); if (!ym) return;
+      if (gi == null){ var M0 = _dsModel(ym, Object.keys(_dsSnaps(ym)).sort().pop()); gi = M0.gi; if (M0.day === M0.G[gi][0] && gi > 0) gi = gi - 1; }
+      var SC = null; try { SC = _rvBuild(ym, gi); } catch(e){ console.error(e); alert('劇本算不出來：' + (e.message || e)); return; }
+      if (!SC) return;
+      window._RV = SC;
+      var bg = document.getElementById('rvBg'); if (!bg){ bg = document.createElement('div'); bg.id = 'rvBg'; bg.onclick = function(e){ if (e.target === bg) bg.remove(); }; document.body.appendChild(bg); }
+      var h = '<div class="rv-box"><div class="rv-top"><b>🎬 90 秒回顧　劇本預覽</b><span>' + _fnEsc(SC.gName + '　' + SC.per) + '　共 ' + SC.slides.length + ' 張、約 ' + SC.total + ' 秒</span>'
+        + '<span class="rv-gates">' + [0,1,2].map(function(g){ return '<button class="' + (g === SC.gi ? 'on' : '') + '" onclick="rvOpen(' + g + ')">第' + '一二三'[g] + '關</button>'; }).join('') + '<button class="' + (SC.gi < 0 ? 'on' : '') + '" onclick="rvOpen(-1)">整個月</button></span>'
+        + '<button class="rv-x" onclick="document.getElementById(\'rvBg\').remove()">✕</button></div>'
+        + '<p class="rv-sub">這份劇本是網頁照規則從現在的數字寫出來的，沒有叫 AI。每張右下角寫數字從哪裡來。放大和盲點那幾張可以補一句，存起來全公司共享</p>';
+      SC.slides.forEach(function(s, i){
+        h += '<div class="rv-s"><div class="rv-n">' + (i + 1) + '<small>' + s.sec + ' 秒</small></div><div class="rv-c">'
+          + (s.title ? '<h4>' + _fnEsc(s.title) + '</h4>' : '') + (s.sub ? '<p class="rv-dim">' + _fnEsc(s.sub) + '</p>' : '')
+          + (s.rows ? '<ul>' + s.rows.map(function(r){ return '<li>' + _fnEsc(r.line) + (r.name ? '<small>' + _fnEsc(r.name) + '</small>' : '') + '</li>'; }).join('') + '</ul>' : '')
+          + (s.lines ? '<ul>' + s.lines.map(function(l){ return '<li>' + _fnEsc(l) + '</li>'; }).join('') + '</ul>' : '')
+          + (s.kind === 'big' || s.kind === 'blind' || s.kind === 'end' ? '<div class="rv-note"><input placeholder="補一句（例：回國第一天）" value="' + _fnEsc(s.note || '') + '" onchange="rvSaveNote(\'' + SC.ym + '\',' + SC.gi + ',\'' + s.id + '\', this.value)"><small>' + (s.note ? '已存，主管們看得到' : '打完按 Enter 存，全公司共享') + '</small></div>' : '')
+          + '<p class="rv-src">資料來源：' + _fnEsc(s.src || '') + '</p></div></div>';
+      });
+      h += '<div class="rv-foot"><button disabled title="播放畫面下一步做">▶ 播放（下一步做）</button><button onclick="rvCopy()">📋 複製劇本文字</button></div></div>';
+      bg.innerHTML = h; bg.style.display = 'flex';
+    }
+    function rvCopy(){
+      var SC = window._RV; if (!SC) return;
+      var t = SC.slides.map(function(s, i){ return (i + 1) + '. ' + (s.title || '') + (s.rows ? '\n' + s.rows.map(function(r){ return r.line; }).join('\n') : '') + (s.lines ? '\n' + s.lines.join('\n') : '') + (s.note ? '\n（補：' + s.note + '）' : ''); }).join('\n\n');
+      try { navigator.clipboard.writeText(t); _syncToast('📋 劇本文字已複製', '#4ade80'); } catch(e){}
+    }
     function _gcShort(o){ return (typeof CK_SHORT !== 'undefined' && CK_SHORT[o]) || o; }
     function _gcHtml(M, full){
       window._GCM = M;
@@ -11156,7 +11479,7 @@
       }).join('');
       var tabs = [['race','🏎 賽道競速'],['ecg','💓 動能心電圖'],['climb','🧗 登山關卡']].map(function(t){ return '<button class="' + (v.theme === t[0] ? 'on' : '') + '" onclick="gcSet(\'theme\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('');
       return '<div id="gcBox" class="gc-box gc-' + v.theme + (full ? ' full' : '') + '">'
-        + '<div class="gc-bar"><span class="gc-tabs">' + tabs + '</span><span><button class="gc-fullbtn" onclick="gcSet(\'span\',\'' + (focus ? 'month' : 'gate') + '\')">' + (focus ? '🔭 看整月' : '🔍 只看這一關') + '</button><button id="gcFullBtn" class="gc-fullbtn" onclick="gcFull()">' + (full ? '✕ 離開全螢幕' : '⛶ 全螢幕') + '</button></span></div>'
+        + '<div class="gc-bar"><span class="gc-tabs">' + tabs + '</span><span><button class="gc-fullbtn rv-btn" onclick="rvOpen()" title="網頁照規則從現在的數字寫出 90 秒的回顧劇本">🎬 90 秒回顧</button><button class="gc-fullbtn" onclick="gcSet(\'span\',\'' + (focus ? 'month' : 'gate') + '\')">' + (focus ? '🔭 看整月' : '🔍 只看這一關') + '</button><button id="gcFullBtn" class="gc-fullbtn" onclick="gcFull()">' + (full ? '✕ 離開全螢幕' : '⛶ 全螢幕') + '</button></span></div>'
         + '<div class="gc-chips"><span>比較：</span>' + chips + (sel.length ? '<button class="gc-chip clr" onclick="gcSet(\'clear\')">看全部</button>' : '<small>點學院只看那幾家（可多選）</small>') + '</div>'
         + '<svg class="gc-svg" viewBox="0 0 ' + W + ' ' + H + '" width="100%">' + svg + '</svg>'
         + '<div id="gcInfo" class="gc-info">點線上任何一點，看那天入帳、承諾、輸贏</div>'
@@ -18105,7 +18428,10 @@
       { ver:'ds92', icon:'📱', title:'手機看「今天該盯誰」不用左右滑', detail:'手機寬度時，今天該盯誰改成一家一張：沒入帳、追蹤卡該回覆、21 項沒勾完一行一行往下排，不會擠成很窄的三欄', go:{ tab:11 } },
       { ver:'ds93', icon:'⚡', title:'我的一頁、每日總結打開變快', detail:'讀激勵資料時不再每次翻遍全部存檔：我的一頁從約 0.13 秒變 0.05 秒，每日總結的關卡總結從 0.13 秒變 0.02 秒、穿越從 0.12 秒變 0.02 秒。資料只要有一個字不同就會重新讀，數字完全一樣（24 個畫面逐字比對過）', go:{ tab:11 } },
       { ver:'ds94', icon:'⚡', title:'⚡ 全部同步：通路回得慢不會再直接打 ✕', detail:'通路一次下載整個月收支，EIP 忙的時候超過 90 秒，以前就當失敗停下來，其實資料晚一點就進來了。現在會多等最多 3 分鐘，資料進來就打 ✅ 寫「資料晚到，有進來」並接著跑編輯；3 分鐘還沒進來才停下來，失敗原因也改成寫真正的原因。不會多打 EIP' },
-      { ver:'ds95', icon:'📝', title:'⚡ 全部同步：編輯追蹤一次補到最新', detail:'以前編輯追蹤一次只補 7 天，還缺的要再按。現在 ⚡ 會一輪一輪接著跑（跑完一輪才開下一輪，中間停 3 秒），直到昨天抓了、沒有缺的日子為止，最多 8 輪；小框寫跑到第幾輪。每頁間隔照舊，不會壓到 EIP' }
+      { ver:'ds95', icon:'📝', title:'⚡ 全部同步：編輯追蹤一次補到最新', detail:'以前編輯追蹤一次只補 7 天，還缺的要再按。現在 ⚡ 會一輪一輪接著跑（跑完一輪才開下一輪，中間停 3 秒），直到昨天抓了、沒有缺的日子為止，最多 8 輪；小框寫跑到第幾輪。每頁間隔照舊，不會壓到 EIP' },
+      { ver:'ds96', icon:'🎬', title:'90 秒回顧：先出劇本預覽', detail:'每日總結 → 🛣 三關路線 → 賽道圖右上多一顆「🎬 90 秒回顧」。網頁照規則從現在的數字寫出劇本：七家每家一句 🎉、三家放大、轉折前後哪兩個數字變最多、三對盲點＋可以學＋明天一件事、收尾。可以切第一關、第二關、整個月，放大和盲點可以補一句（全公司共享）。播放畫面下一步做', go:{ fn:'dsRoad' } },
+      { ver:'ds97', icon:'🎬', title:'90 秒回顧：句子改成人話', detail:'「速度 102%」改寫成「最近三個上班日該到 40 萬，做了 41 萬」；名單沒人顧只寫幾位超過 15 天沒動，不寫名單池總數；追蹤卡那一張寫清楚是面談過還沒註冊的學生、到期沒人寫下一步；拿掉「談完排試聽日」「收一樣東西」「再做 X 萬到 300 萬」這幾句', go:{ fn:'dsRoad' } },
+      { ver:'ds98', icon:'🎬', title:'90 秒回顧：不說配速車、不說卡', detail:'最近三個上班日的數字改成跟七家平均比、寫排第幾；追蹤卡那一張改寫成「N 位面談過還沒註冊的學生，過了約好要再聯絡的日子，還沒有人寫原因和下一步」', go:{ fn:'dsRoad' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };

@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds95'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds98'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds95（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds98（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -459,3 +459,6 @@ C 主管
 - ds93（10/12 Ivan 同意提案②）：_ckNewest 改用 _ckKeysFor(suffix)（符合的 char_ 存檔名單記 2 秒，localStorage.length 變了立刻重找）＋_ckParseMemo(k)（每次都 getItem，字串跟上次完全一樣才沿用解析結果）。實測我的一頁一次呼叫 245 次、每日總結 347 次，原本佔掉 120／128ms。改後 tab11 126→49–85、關卡總結 130→9–18、穿越 120→20、組長 67→13、月曆 47→9；12 分頁＋3 次重切＋9 個每日總結畫面，改前改後逐字一樣（只差「產生時間」），連跑兩輪也一樣（沒有人改到共用的物件）
 - ds94（10/12 Ivan 第一次真跑 ⚡：通路 ✕）：syncChannel 只送一次 status，收支 CSV 下載中沒心跳 → 頁面 90 秒看門狗 finish(false)，擴充其實還在等、晚到照收（按鈕變 ✓ 今天 10:56）。⚡ 的 cb(false) 改成：80ms 後抓按鈕上的真原因，進 wait2 每 5 秒看這段 tsKey 有沒有 ≥ 開始那分鐘、且不在 busy → 當完成（late）接著跑；180 秒沒有才停。不加 EIP 請求、不改擴充
 - ds95（10/12 Ivan：編輯追蹤也要跟 ⚡ 一起跑完）：⚡ 的 edits 段改成 edRun 迴圈，每輪跑完再看 _edNextJob，不是 ok 就停 3 秒接下一輪（最多 8 輪），小框顯示第幾輪、這輪在做什麼；一輪一請求序列，不並行
+- ds96（10/13 Ivan 同意「開工」）🎬 90 秒回顧 劇本引擎（播放畫面下一步）：_rvGather(ym, gi) 收七家事實（快照 _gcStats 勢頭／前 3 上班日速度、每人業績掛零一人扛、小組表組員贏組長、入帳明細 pay 通路佔比／合談（同學生同課同天承辦人 ≥2）／正式學生 ≥1 萬平均／三科／單科、漏斗 itv 面談註冊報未註、報到 ck 與 rs 到月底、_edBuild 超過 15 天沒動、追蹤卡該回覆）；RV_STORIES 十種故事各 3 句型（相對七家 _rvTop 前二才算，同一種最多兩家，每家保底一句）；_rvTurn 轉折（3 上班日滾動速度 <0.6→≥1，前後各 3 天比報到／加購／展場／合談／平均簽／科數／筆數，取變最多兩個，後面不足 2 天不寫）；RV_BLIND 12 項盲點各有門檻＋配對（best 要差 1.5／2 倍才算可以學，中區不互配，建國最多一次，前三對不同項）＋3 句動作輪流；收尾下一關每天該走（七家 need 加總）、rs 總數、13:40、EVO 最接近 300 萬那家。句型輪流用 _rvSeed（日期＋學院）。補一句存 perf_compare_v1_rv_<ym>_<gi>（全公司共享，rvSaveNote 只在 Enter 時寫）。按鈕在 _gcHtml gc-bar（🛣 三關路線）；rvOpen(gi) 預覽 #rvBg、rvCopy。實測第一關／第二關／整月各 91 秒 11 張、算 131ms
+- ds97（10/13 Ivan 看完劇本）：爆衝／谷底往上句子改用「該到 X 萬做了 Y 萬」（F 多存 got0/exp0 前三上班日）；stale 盲點不寫 ed.total；due 盲點寫成「N 位面談過還沒註冊、追蹤卡到期沒人寫下一步」、動作帶 {due}；Ivan 判廢話永久拿掉：談完收一樣東西／當天排好試聽日／再做 X 萬到 300 萬 加碼；留「組長把超過 15 天沒動的名單分給人每人 10 筆打完回報」
+- ds98（10/13 Ivan）：回顧句子不說「配速車」（業務看不懂）→ 最近三個上班日跟七家平均比＋排第幾（R.avgGot3、R.got3Rank）；不說「卡」→ due 盲點改寫成面談過還沒註冊的學生、過了約好再聯絡的日子沒人寫原因和下一步
