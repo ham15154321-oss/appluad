@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds98'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds101'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds98（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds101（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -462,3 +462,6 @@ C 主管
 - ds96（10/13 Ivan 同意「開工」）🎬 90 秒回顧 劇本引擎（播放畫面下一步）：_rvGather(ym, gi) 收七家事實（快照 _gcStats 勢頭／前 3 上班日速度、每人業績掛零一人扛、小組表組員贏組長、入帳明細 pay 通路佔比／合談（同學生同課同天承辦人 ≥2）／正式學生 ≥1 萬平均／三科／單科、漏斗 itv 面談註冊報未註、報到 ck 與 rs 到月底、_edBuild 超過 15 天沒動、追蹤卡該回覆）；RV_STORIES 十種故事各 3 句型（相對七家 _rvTop 前二才算，同一種最多兩家，每家保底一句）；_rvTurn 轉折（3 上班日滾動速度 <0.6→≥1，前後各 3 天比報到／加購／展場／合談／平均簽／科數／筆數，取變最多兩個，後面不足 2 天不寫）；RV_BLIND 12 項盲點各有門檻＋配對（best 要差 1.5／2 倍才算可以學，中區不互配，建國最多一次，前三對不同項）＋3 句動作輪流；收尾下一關每天該走（七家 need 加總）、rs 總數、13:40、EVO 最接近 300 萬那家。句型輪流用 _rvSeed（日期＋學院）。補一句存 perf_compare_v1_rv_<ym>_<gi>（全公司共享，rvSaveNote 只在 Enter 時寫）。按鈕在 _gcHtml gc-bar（🛣 三關路線）；rvOpen(gi) 預覽 #rvBg、rvCopy。實測第一關／第二關／整月各 91 秒 11 張、算 131ms
 - ds97（10/13 Ivan 看完劇本）：爆衝／谷底往上句子改用「該到 X 萬做了 Y 萬」（F 多存 got0/exp0 前三上班日）；stale 盲點不寫 ed.total；due 盲點寫成「N 位面談過還沒註冊、追蹤卡到期沒人寫下一步」、動作帶 {due}；Ivan 判廢話永久拿掉：談完收一樣東西／當天排好試聽日／再做 X 萬到 300 萬 加碼；留「組長把超過 15 天沒動的名單分給人每人 10 筆打完回報」
 - ds98（10/13 Ivan）：回顧句子不說「配速車」（業務看不懂）→ 最近三個上班日跟七家平均比＋排第幾（R.avgGot3、R.got3Rank）；不說「卡」→ due 盲點改寫成面談過還沒註冊的學生、過了約好再聯絡的日子沒人寫原因和下一步
+- ds99（10/13 Ivan「開工」播放畫面）：rvPlay(SC) → #rvPlay 全螢幕（requestFullscreen，人力發展.html perfFrame 加 allow=fullscreen）；_rvChart(R,{focus,grow}) SVG 線圖（y＝做到目標的 %、第一家 E.cum 虛線、grow 用 getTotalLength+dashoffset 動畫）；_rvSlideHtml 依 kind：open／lines（線長出來）／seven（一行一行 1.3s）／big（圖只亮那幾家＋右側字）／blind（盲點 → 可以學 → 👉 動作）／blindRest／end（圖淡掉模糊、字置中一行一行＝急停）；rvGo／rvStep／rvPause／rvJump／rvStop、鍵盤 Esc 空白 ←→、時間軸每張一格；day-mode 會蓋 -webkit-text-fill-color → #rvPlay 內全部 currentColor !important
+- ds100（10/13 Ivan 指令「績效盤點」）：#tab-5 .rc-controls 最右加 📋 績效盤點 → invRender()：rcMonth 用 _invYmOf 對 _fnYmList、rcAcademy 空＝七家（台中一部→台中學院 INV_ORG_MAP），#inventoryPanel 插在 #reportCardContainer 前。_invPool 合併本月＋前兩個月 _fnRawFor 的 pay／itv（去重）；_invCls 通路對應（net／fairCur＝YYYY_MM 等於盤點月／fairOld／buy／intro／other 歸其它並列註解）；_invCalc 追回以學生為單位：viaSd（itv 最早 sd < 月初）或 viaFair（本月有舊展場筆）→ 之前兩個月繳費 prev（全部學員加購且 sd 早於前兩個月範圍視為 ≥2 萬）→ ≤2000 追回全算／≥20000 不算／中間追回加 ?；按 o 分、位數算不重複學生。列印 body.printing-inv 只印盤點表、A4 橫式一家一頁。驗證：壢一 10 月 洪思婷 109,595・2、徐珮容 169,514・4、陳怡雯 127,584・3、全院 573,048・12；壢二 42,500・1（石韋頡、吳詠琪各 21,250）全部對上。指令寫 ds49→ds50，實際版號走 PC_VER（ds99→ds100）
+- ds101（10/13 Ivan 截圖的美感）：績效盤點 .inv-grid 左欄 _invSide（_fnOrgStats＋checkin net/rs：網路報到、總報到、到月底、面談、面談→報名、面談→試聽、當下、追回、經營中／經營池、流失）＋右表，下面 _invBottom（perfp 學院合計，成功率＝面談率×註冊率）；紫色表頭、深紫總計、橘色追回格；inv-bar 自己有月份、學院下拉（改了同步寫回 rcMonth/rcAcademy 並重畫），rcMonth/rcAcademy change 時盤點表開著就重畫（addEventListener，不動 renderReportCard）\n
