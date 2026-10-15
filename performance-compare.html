@@ -2790,10 +2790,42 @@
       body.printing-inv #inventoryPanel { position:absolute; left:0; top:0; width:100%; }
       body.printing-inv .inv-bar { display:none; }
       body.printing-inv .inv-card { page-break-after:always; break-after:page; border:0; box-shadow:none; }
-      body.printing-inv .inv-grid { grid-template-columns:200px 1fr; } body.printing-inv table.inv-t, body.printing-inv table.inv-b { font-size:.8rem; }
+      body.printing-inv #inventoryPanel, body.printing-inv #inventoryPanel * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+      body.printing-inv .inv-card { padding:6mm 6mm 4mm; }
+      body.printing-inv .inv-h b { font-size:1.6rem; } body.printing-inv .inv-h small { font-size:.9rem; }
+      body.printing-inv .inv-grid { grid-template-columns:175px 1fr; gap:14px; } body.printing-inv .inv-kv b { white-space:nowrap; }
+      body.printing-inv .inv-kv { padding:4px 0; font-size:.78rem; } body.printing-inv .inv-kv b { font-size:.9rem; } body.printing-inv .inv-side h5 { font-size:.74rem; }
+      body.printing-inv .inv-main { overflow:visible; }
+      body.printing-inv table.inv-t { font-size:.74rem; width:100%; } body.printing-inv table.inv-t th, body.printing-inv table.inv-t td { padding:4px 5px; }
+      body.printing-inv table.inv-t td.inv-rc { min-width:0; } body.printing-inv table.inv-t td.inv-rc b { font-size:.82rem; } body.printing-inv table.inv-t td.inv-rc small { font-size:.62rem; white-space:normal; }
+      body.printing-inv table.inv-t tr.inv-sum td { font-size:.82rem; }
+      body.printing-inv table.inv-b { font-size:.74rem; margin-top:8px; } body.printing-inv table.inv-b th, body.printing-inv table.inv-b td { padding:4px 4px; }
+      body.printing-inv .inv-notes { font-size:.64rem; margin-top:5px; }
       body.printing-inv .inv-card:last-child { page-break-after:auto; }
-      @page { size:A4 landscape; margin:10mm; }
     }
+
+    /* 🏆 七家獎金前十名 */
+    .eb-top10 { background:linear-gradient(135deg,#FFF4E6,#FDF6EA); border:1px solid #F3D9B0; border-radius:14px; padding:12px 16px; margin:0 0 14px; }
+    .eb-top10-h { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; } .eb-top10-h b { font-size:1.05rem; color:#633806; } .eb-top10-h small { color:#854F0B; flex:1; } .eb-top10-h .evo-copy { padding:4px 10px; border-radius:8px; border:1px solid #F3D9B0; background:#fff; cursor:pointer; }
+    .eb-top10 ol { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:4px 18px; }
+    .eb-top10 li { display:grid; grid-template-columns:34px 1fr auto; gap:6px 10px; align-items:baseline; padding:6px 4px; border-bottom:1px solid #F3D9B0; }
+    .eb-top10 li .rk { font-weight:900; color:#633806; font-size:1.05rem; text-align:center; } .eb-top10 li .nm { font-weight:800; color:#2C2C2A; } .eb-top10 li .nm small { margin-left:6px; color:#854F0B; font-weight:600; }
+    .eb-top10 li .amt { font-weight:900; color:#A32D2D; font-size:1.1rem; font-variant-numeric:tabular-nums; } .eb-top10 li .gap { grid-column:2 / 4; font-size:.72rem; color:#888780; }
+    .eb-top10 li.me { background:rgba(255,255,255,.7); border-radius:8px; }
+    .eb-top10 li:nth-child(-n+3) .amt { font-size:1.25rem; }
+    body.day-mode .eb-top10 li .amt { color:#A32D2D !important; -webkit-text-fill-color:#A32D2D !important; }
+    @media (max-width:640px){ .eb-top10 ol { grid-template-columns:1fr; } }
+
+    /* 🚀 自動更新提醒 */
+    #pcUpdBar { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding:8px 18px; background:#FCEBEB; border-bottom:2px solid #E24B4A; color:#791F1F; font-size:.86rem; animation:pcUpdIn .4s ease-out; }
+    @keyframes pcUpdIn { from { transform:translateY(-100%); opacity:0; } to { transform:none; opacity:1; } }
+    #pcUpdBar > b { font-size:.95rem; } #pcUpdBar > span { flex:1; min-width:200px; }
+    #pcUpdBar button { border:1px solid #E24B4A; background:#fff; color:#791F1F; border-radius:8px; padding:4px 12px; cursor:pointer; font-weight:700; } #pcUpdBar button.go { background:#E24B4A; color:#fff; } #pcUpdBar button.x { border-color:transparent; background:transparent; font-weight:400; }
+    #pcUpdList { display:none; flex-basis:100%; background:#fff; border-radius:10px; padding:8px 12px; margin-top:4px; } #pcUpdList.on { display:block; }
+    #pcUpdList > div { padding:6px 0; border-bottom:1px solid #F1EFE8; } #pcUpdList > div:last-child { border-bottom:0; } #pcUpdList small { margin-left:8px; color:#888780; } #pcUpdList p { margin:2px 0 0; color:#444441; font-size:.8rem; }
+    body.day-mode #pcUpdBar, body.day-mode #pcUpdBar b, body.day-mode #pcUpdBar span { color:#791F1F !important; -webkit-text-fill-color:#791F1F !important; }
+    body.day-mode #pcUpdBar button { background:#fff !important; color:#791F1F !important; -webkit-text-fill-color:#791F1F !important; border:1px solid #E24B4A !important; }
+    body.day-mode #pcUpdBar button.go { background:#E24B4A !important; color:#fff !important; -webkit-text-fill-color:#fff !important; } body.day-mode #pcUpdBar button.x { background:transparent !important; border-color:transparent !important; }
     /* 🔔 更新通知 */
     .pcn-bell { position:relative; background:linear-gradient(135deg,#6a1b9a,#8e24aa) !important; color:#fff !important; border-color:transparent !important; }
     .pcn-badge { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#E24B4A; color:#fff; font-size:11px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 0 0 2px #fff; }
@@ -4722,6 +4754,14 @@
     }
     // 上面的月份／學院下拉改了，盤點表開著就跟著重畫（不動 renderReportCard）
     (function(){ try { window.addEventListener('load', function(){ ['rcMonth','rcAcademy'].forEach(function(id){ var el = document.getElementById(id); if (el) el.addEventListener('change', function(){ if (document.getElementById('inventoryPanel')) invRender(); }); }); }); } catch(e){} })();
+    // 列印：橫式 A4、保留底色；@page 要最後宣告才會贏過其他分頁的直式設定，所以印的時候才塞進去
+    function invPrint(){
+      var st = document.createElement('style'); st.id = 'invPrintStyle'; st.textContent = '@page { size:A4 landscape; margin:7mm; }'; document.head.appendChild(st);
+      document.body.classList.add('printing-inv');
+      var done = function(){ document.body.classList.remove('printing-inv'); var x = document.getElementById('invPrintStyle'); if (x) x.remove(); window.removeEventListener('afterprint', done); };
+      window.addEventListener('afterprint', done);
+      setTimeout(function(){ window.print(); setTimeout(done, 1500); }, 60);
+    }
     function invRender(){
       var m = parseInt(document.getElementById('rcMonth').value, 10) || 1, acSel = document.getElementById('rcAcademy').value;
       var cont = document.getElementById('reportCardContainer'); if (!cont) return;
@@ -4730,7 +4770,7 @@
       var orgs = acSel ? [INV_ORG_MAP[acSel] || acSel] : CK_ORG_LIST.slice();
       var mSel = '<select onchange="document.getElementById(\'rcMonth\').value=this.value;renderReportCard();invRender()">' + [1,2,3,4,5,6,7,8,9,10,11,12].map(function(x){ return '<option value="' + x + '"' + (x === m ? ' selected' : '') + '>' + x + ' 月</option>'; }).join('') + '</select>';
       var aSel = '<select onchange="document.getElementById(\'rcAcademy\').value=this.value;renderReportCard();invRender()"><option value=""' + (acSel ? '' : ' selected') + '>全部學院</option>' + Array.prototype.map.call(document.getElementById('rcAcademy').options, function(o){ return o.value ? '<option value="' + _fnEsc(o.value) + '"' + (o.value === acSel ? ' selected' : '') + '>' + _fnEsc(o.textContent) + '</option>' : ''; }).join('') + '</select>';
-      var h = '<div class="inv-bar"><b>📋 績效盤點</b>' + mSel + aSel + '<small>切月份、切學院會直接重畫</small><button class="archive-btn" onclick="document.body.classList.add(\'printing-inv\');setTimeout(function(){window.print();setTimeout(function(){document.body.classList.remove(\'printing-inv\')},500)},50)">🖨 列印 / 存 PDF</button><button class="archive-btn" onclick="document.getElementById(\'inventoryPanel\').remove()">✕ 收起</button></div>';
+      var h = '<div class="inv-bar"><b>📋 績效盤點</b>' + mSel + aSel + '<small>切月份、切學院會直接重畫</small><button class="archive-btn" onclick="invPrint()">🖨 列印 / 存 PDF</button><button class="archive-btn" onclick="document.getElementById(\'inventoryPanel\').remove()">✕ 收起</button></div>';
       if (!ym){ panel.innerHTML = h + '<div class="inv-card"><div class="inv-h"><b>' + m + ' 月績效盤點</b></div><div class="ck-empty">這個月沒有入帳明細</div></div>'; return; }
       h += orgs.map(function(org){ try { return _invTable(_invCalc(org, ym)); } catch(e){ console.error('[inv]', org, e); return '<div class="inv-card"><div class="inv-h"><b>' + _fnEsc(org) + '</b></div><div class="ck-empty">算不出來：' + _fnEsc(e.message || e) + '</div></div>'; } }).join('');
       panel.innerHTML = h;
@@ -10509,11 +10549,38 @@
         return { days: Math.round((new Date(last) - new Date(lastUp)) / 86400000) };
       } catch(e){ return null; }
     }
+    // ★ 10/14 Ivan：七家所有業務的獎金合計前十名（自己看自己學院沒感覺）→ 放獎金明細最上面，附複製 LINE
+    function _evoBonusOf(r, C){
+      var v = r.v || 0, cash = C.map[r.n] || 0;
+      return Math.round(v * 0.05) + Math.round(cash * 0.1) + _evoTierFloor(EVO_TGT, v) + _evoTierFloor(EVO.P, v);
+    }
+    function _evoTop10(M){
+      var C = _evoCashMap(M.ym || EVO.ym);
+      return M.reps.filter(function(r){ return CK_ORG_LIST.indexOf(r.org) >= 0 && (r.v || 0) > 0; }).map(function(r){ return { n:r.n, org:r.org, v:r.v || 0, tot:_evoBonusOf(r, C) }; })
+        .sort(function(a,b){ return b.tot - a.tot || b.v - a.v; }).slice(0, 10);
+    }
+    function _evoTop10Html(M){
+      var L = _evoTop10(M); if (!L.length) return '';
+      var me = _fnMe(), medal = ['🥇','🥈','🥉'];
+      return '<div class="eb-top10"><div class="eb-top10-h"><b>🏆 七家獎金合計前十名</b><small>七家所有業務一起排，只看獎金合計（5%＋現金 10%＋達標＋加碼）</small><button class="evo-copy" onclick="evoCopyTop10()">📋 複製 LINE</button></div>'
+        + '<ol>' + L.map(function(x, i){ var gap = i ? L[i-1].tot - x.tot : 0;
+            return '<li class="' + (x.n === me ? 'me' : '') + '"><span class="rk">' + (medal[i] || (i + 1)) + '</span><span class="nm">' + _fnEsc(x.n) + '<small>' + _fnEsc(_gcShort(x.org)) + '</small></span><span class="amt">$' + _evoM(x.tot) + '</span><span class="gap">' + (i ? '差上一名 $' + _evoM(gap) : '七家第一') + '</span></li>'; }).join('') + '</ol></div>';
+    }
+    function evoCopyTop10(){
+      try {
+        var M = window._EVOM; if (!M) return;
+        var L = _evoTop10(M), ym = M.ym || EVO.ym, medal = ['🥇','🥈','🥉'];
+        var t = '🏆 ' + (+ym.slice(5)) + ' 月七家獎金前十名（到今天）\n' + L.map(function(x, i){ return (medal[i] || (i + 1) + '.') + ' ' + _rvName(x.n) + '（' + _gcShort(x.org) + '）$' + _evoM(x.tot); }).join('\n') + '\n獎金＝5%＋現金 10%＋達標＋加碼，學院先假設會達 300 萬';
+        _myCopy(t);
+      } catch(e){ _syncToast('複製失敗：' + (e.message || e), '#ff6b6b'); }
+    }
     function _evoBill(M, orgs){
+      window._EVOM = M;
       var C = _evoCashMap(M.ym || EVO.ym), ym = M.ym || EVO.ym;
       var html = '<p class="evo-sub">5%＝業績 × 5%；現金 10%＝現金・匯款・刷卡的收款 × 10%（學貸、分期、融資不算）；達標＝獎金制度表一只領最高一級，<b>每個人先暫放 1,000</b>；加碼＝<b>先假設學院會達 300 萬</b>，<b>每個人先暫放 1,500</b>，真的跳級就往上加（45 萬 4,500、60 萬 9,000…）。'
         + (C.ok && !Object.keys(C.map).length ? '<b class="eb-warn">現金 10% 暫時都是 0：請確認擴充是 5.58（重新載入）後再按一次「📋 通路」</b>' + (C.items ? '<br><small>收支項目實際有：' + _fnEsc(Object.keys(C.items).slice(0, 20).map(function(k){ return k + '×' + C.items[k]; }).join('、')) + '</small>' : '') + (C.hdr ? '<br><small>收支 CSV 的欄位：' + _fnEsc(C.hdr.join('｜')) + '（目前用「' + _fnEsc(C.itemCol || '找不到') + '」判斷現金）</small>' : '') : '')
         + (C.ok && Object.keys(C.map).length ? '現金獎資料：📋 通路同步 ' + _fnEsc(C.at || '') : (C.ok ? '' : '<b class="eb-warn">還沒有十月的「現＋刷」資料，現金獎先顯示 0，' + _pcEmptyHint('按「📋 通路」') + '</b>')) + '</p>';
+      try { html += _evoTop10Html(M); } catch(e){ console.warn('[evoTop10]', e); }
       orgs.forEach(function(org){
         var ob = M.orgBiz[org] || 0, gap = Math.max(0, EVO.gate - ob);
         var rows = M.reps.filter(function(r){ return r.org === org; }).map(function(r){
@@ -18726,7 +18793,10 @@
       { ver:'ds98', icon:'🎬', title:'90 秒回顧：不說配速車、不說卡', detail:'最近三個上班日的數字改成跟七家平均比、寫排第幾；追蹤卡那一張改寫成「N 位面談過還沒註冊的學生，過了約好要再聯絡的日子，還沒有人寫原因和下一步」', go:{ fn:'dsRoad' } },
       { ver:'ds99', icon:'🎬', title:'90 秒回顧可以播了', detail:'劇本預覽右下角按「▶ 播放」：全螢幕一張一張自動播，七條線長出來、字一行一行出現、最後一張畫面停住。空白鍵暫停、左右鍵換張、Esc 離開、點下面的時間軸可以跳。要傳 LINE 先用 Cmd+Shift+5 錄螢幕', go:{ fn:'dsRoad' } },
       { ver:'ds100', icon:'📋', title:'成績單分頁多一顆「📋 績效盤點」', detail:'照上面選的月份和學院，從入帳明細算每位承辦人的通路業績：網際網路、當月展場、當月以前展場、學員加購、學員介紹、總計，最右邊一欄「報未註追回」照 Ivan 定的規則算（當月以前就報到過或舊展場名單，之前繳 2 千內才算，含記成學員加購的）。全部學院會七家各一張。右上可以列印或存 PDF，一家一頁橫式', go:{ tab:5 } },
-      { ver:'ds101', icon:'📋', title:'績效盤點換成 Ivan 的版面', detail:'紫色表頭、深紫總計、橘色追回；左邊多一欄「報到與漏斗」（網路報到、總報到、到月底報到、面談、面談→報名、面談→試聽、當下註冊、追回、經營中／經營池、流失），下面多一列學院合計（面談、報名、註冊Ⓐ、業績Ⓐ、面談率、註冊率、成功率、註冊Ⓑ、業績Ⓑ、個人目標、業績、達成率、退費）。盤點表開著時，上面或表裡切月份、切學院都直接重畫，不用再按按鈕', go:{ tab:5 } }
+      { ver:'ds101', icon:'📋', title:'績效盤點換成 Ivan 的版面', detail:'紫色表頭、深紫總計、橘色追回；左邊多一欄「報到與漏斗」（網路報到、總報到、到月底報到、面談、面談→報名、面談→試聽、當下註冊、追回、經營中／經營池、流失），下面多一列學院合計（面談、報名、註冊Ⓐ、業績Ⓐ、面談率、註冊率、成功率、註冊Ⓑ、業績Ⓑ、個人目標、業績、達成率、退費）。盤點表開著時，上面或表裡切月份、切學院都直接重畫，不用再按按鈕', go:{ tab:5 } },
+      { ver:'ds102', icon:'🖨', title:'績效盤點存 PDF 不會再被切掉', detail:'改成橫式 A4、保留紫色表頭和橘色追回底色，字縮一點讓八欄一頁放得下，一家一頁', go:{ tab:5 } },
+      { ver:'ds103', icon:'🏆', title:'獎金明細最上面多一張「七家獎金合計前十名」', detail:'七家所有業務一起排，只看獎金合計，寫離上一名差多少；旁邊一顆「📋 複製 LINE」貼群組', go:{ fn:'evoBill' } },
+      { ver:'ds104', icon:'🚀', title:'有新版本會自己跳出來，不用再按 Cmd+R', detail:'網頁每 3 分鐘看一次有沒有新版。有的話表頭下面會出現紅色一條：有新版本幾號、改了什麼、按「立刻更新」就換新的，連外面那一層一起換。按 ✕ 可以先不更新' }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
@@ -18929,6 +18999,47 @@
       return true;
     }
 
+
+    // ═══ 🚀 自動更新提醒（10/15 Ivan：同事不用再按 Cmd+R）═══
+    //   deploy.command 每次部署會寫一份 version.json（最新版號＋最近幾則改版說明）。
+    //   這裡每 3 分鐘（頁面看得到時）用不快取的方式讀一次；版號比自己新 → 表頭下出現一條：有新版本、改了什麼、按一下更新
+    var _pcUpdInfo = null, _pcUpdDismissed = '';
+    function _pcMyVer(){ try { return PCN_NOTES[PCN_NOTES.length - 1].ver; } catch(e){ return ''; } }
+    function _pcVerNum(v){ var m = /(\d+)/.exec(String(v || '')); return m ? +m[1] : 0; }
+    function _pcUpdateCheck(){
+      if (document.hidden) return;
+      try {
+        fetch('version.json?t=' + Date.now(), { cache:'no-store' }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+          if (!j || !j.ver) return;
+          if (_pcVerNum(j.ver) <= _pcVerNum(_pcMyVer())) return;
+          _pcUpdInfo = j; _pcUpdateBar();
+        }).catch(function(){});
+      } catch(e){}
+    }
+    function _pcUpdateBar(){
+      var j = _pcUpdInfo; if (!j || _pcUpdDismissed === j.ver) return;
+      var el = document.getElementById('pcUpdBar');
+      if (!el){ el = document.createElement('div'); el.id = 'pcUpdBar'; var anchor = document.getElementById('pcFresh'); (anchor && anchor.parentNode ? anchor.parentNode : document.body).insertBefore(el, anchor || null); }
+      var notes = (j.notes || []).slice().reverse(), top = notes[0];
+      el.innerHTML = '<b>🚀 有新版本 ' + _fnEsc(j.ver) + '</b><span>' + (top ? _fnEsc((top.icon || '') + ' ' + top.title) : '') + '</span>'
+        + '<button class="go keep-color" onclick="pcUpdateNow()">立刻更新</button>'
+        + (notes.length ? '<button class="keep-color" onclick="document.getElementById(\'pcUpdList\').classList.toggle(\'on\')">更新了什麼</button>' : '')
+        + '<button class="x keep-color" onclick="_pcUpdDismissed=\'' + _fnEsc(j.ver) + '\';document.getElementById(\'pcUpdBar\').remove()" title="這次先不更新">✕</button>'
+        + '<div id="pcUpdList">' + notes.map(function(n){ return '<div><b>' + _fnEsc((n.icon || '') + ' ' + n.title) + '</b><small>' + _fnEsc(n.ver) + '</small><p>' + _fnEsc(n.detail || '') + '</p></div>'; }).join('') + '</div>';
+    }
+    function pcUpdateNow(){
+      try { if (typeof triggerSave === 'function') triggerSave(); } catch(e){}
+      var ver = (_pcUpdInfo && _pcUpdInfo.ver) || 'new';
+      try {
+        if (window.parent && window.parent !== window){
+          // 在人力發展.html 裡：整頁重開（連外面那一層也拿新的），重開後會自動回到業績數據中心
+          try { window.parent.sessionStorage.setItem('perf_was_open', '1'); } catch(e){}
+          var ploc = window.parent.location; ploc.href = ploc.pathname + '?u=' + Date.now() + ploc.hash; return;
+        }
+      } catch(e){}
+      location.href = location.pathname + '?v=' + ver + '-' + Date.now();
+    }
+    (function(){ try { window.addEventListener('load', function(){ setTimeout(_pcUpdateCheck, 15000); setInterval(_pcUpdateCheck, 180000); document.addEventListener('visibilitychange', function(){ if (!document.hidden) setTimeout(_pcUpdateCheck, 1500); }); }); } catch(e){} })();
     // ── 啟動：補上沒看過的改版通知、拉取後的通知、追蹤卡輪詢 ──
     function _pcnBoot(){
       try {

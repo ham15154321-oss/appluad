@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds101'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds104'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds101（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds104（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -464,4 +464,6 @@ C 主管
 - ds98（10/13 Ivan）：回顧句子不說「配速車」（業務看不懂）→ 最近三個上班日跟七家平均比＋排第幾（R.avgGot3、R.got3Rank）；不說「卡」→ due 盲點改寫成面談過還沒註冊的學生、過了約好再聯絡的日子沒人寫原因和下一步
 - ds99（10/13 Ivan「開工」播放畫面）：rvPlay(SC) → #rvPlay 全螢幕（requestFullscreen，人力發展.html perfFrame 加 allow=fullscreen）；_rvChart(R,{focus,grow}) SVG 線圖（y＝做到目標的 %、第一家 E.cum 虛線、grow 用 getTotalLength+dashoffset 動畫）；_rvSlideHtml 依 kind：open／lines（線長出來）／seven（一行一行 1.3s）／big（圖只亮那幾家＋右側字）／blind（盲點 → 可以學 → 👉 動作）／blindRest／end（圖淡掉模糊、字置中一行一行＝急停）；rvGo／rvStep／rvPause／rvJump／rvStop、鍵盤 Esc 空白 ←→、時間軸每張一格；day-mode 會蓋 -webkit-text-fill-color → #rvPlay 內全部 currentColor !important
 - ds100（10/13 Ivan 指令「績效盤點」）：#tab-5 .rc-controls 最右加 📋 績效盤點 → invRender()：rcMonth 用 _invYmOf 對 _fnYmList、rcAcademy 空＝七家（台中一部→台中學院 INV_ORG_MAP），#inventoryPanel 插在 #reportCardContainer 前。_invPool 合併本月＋前兩個月 _fnRawFor 的 pay／itv（去重）；_invCls 通路對應（net／fairCur＝YYYY_MM 等於盤點月／fairOld／buy／intro／other 歸其它並列註解）；_invCalc 追回以學生為單位：viaSd（itv 最早 sd < 月初）或 viaFair（本月有舊展場筆）→ 之前兩個月繳費 prev（全部學員加購且 sd 早於前兩個月範圍視為 ≥2 萬）→ ≤2000 追回全算／≥20000 不算／中間追回加 ?；按 o 分、位數算不重複學生。列印 body.printing-inv 只印盤點表、A4 橫式一家一頁。驗證：壢一 10 月 洪思婷 109,595・2、徐珮容 169,514・4、陳怡雯 127,584・3、全院 573,048・12；壢二 42,500・1（石韋頡、吳詠琪各 21,250）全部對上。指令寫 ds49→ds50，實際版號走 PC_VER（ds99→ds100）
-- ds101（10/13 Ivan 截圖的美感）：績效盤點 .inv-grid 左欄 _invSide（_fnOrgStats＋checkin net/rs：網路報到、總報到、到月底、面談、面談→報名、面談→試聽、當下、追回、經營中／經營池、流失）＋右表，下面 _invBottom（perfp 學院合計，成功率＝面談率×註冊率）；紫色表頭、深紫總計、橘色追回格；inv-bar 自己有月份、學院下拉（改了同步寫回 rcMonth/rcAcademy 並重畫），rcMonth/rcAcademy change 時盤點表開著就重畫（addEventListener，不動 renderReportCard）\n
+- ds101（10/13 Ivan 截圖的美感）：績效盤點 .inv-grid 左欄 _invSide（_fnOrgStats＋checkin net/rs：網路報到、總報到、到月底、面談、面談→報名、面談→試聽、當下、追回、經營中／經營池、流失）＋右表，下面 _invBottom（perfp 學院合計，成功率＝面談率×註冊率）；紫色表頭、深紫總計、橘色追回格；inv-bar 自己有月份、學院下拉（改了同步寫回 rcMonth/rcAcademy 並重畫），rcMonth/rcAcademy change 時盤點表開著就重畫（addEventListener，不動 renderReportCard）\n- ds102（Ivan 存 PDF 被切、沒顏色）：invPrint() 印的時候才塞 <style>@page landscape（檔案後面另有 @page portrait 會蓋掉 @media print 裡的）；printing-inv 加 print-color-adjust:exact、字縮小、rc 格取消 min-width、grid 150px；afterprint 清掉
+- ds103（10/14 Ivan）：獎金明細最上面 _evoTop10Html（_evoTop10 用 M.reps 七家＋_evoCashMap，獎金合計算法跟明細表同一條 _evoBonusOf），兩欄前十、差上一名；evoCopyTop10 複製 LINE（名字去姓、學院短名）；window._EVOM 存目前 M
+- ds104（10/15 Ivan：同事要按 Cmd+R）自動更新提醒：deploy.command Step 0 用 python 從 PCN_NOTES 抓最新版號＋最近 5 則寫 version.json（跟著 rsync 上 GitHub）；頁面 load 後 15 秒、之後每 3 分鐘、切回分頁時 fetch('version.json?t=', no-store)，版號比自己（PCN_NOTES 最後一則）新 → #pcUpdBar 紅條（立刻更新／更新了什麼／✕ 這次先不）；pcUpdateNow 在 iframe 裡會先 triggerSave，再把 parent 整頁用 ?u=時間 重開（perf_was_open 讓它自動回到業績中心）；按鈕加 keep-color 躲 day-mode。實測假版號 ds105 會跳條、按更新後回到 ds104 新頁面
