@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds104'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds106'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds104（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds106（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -467,3 +467,17 @@ C 主管
 - ds101（10/13 Ivan 截圖的美感）：績效盤點 .inv-grid 左欄 _invSide（_fnOrgStats＋checkin net/rs：網路報到、總報到、到月底、面談、面談→報名、面談→試聽、當下、追回、經營中／經營池、流失）＋右表，下面 _invBottom（perfp 學院合計，成功率＝面談率×註冊率）；紫色表頭、深紫總計、橘色追回格；inv-bar 自己有月份、學院下拉（改了同步寫回 rcMonth/rcAcademy 並重畫），rcMonth/rcAcademy change 時盤點表開著就重畫（addEventListener，不動 renderReportCard）\n- ds102（Ivan 存 PDF 被切、沒顏色）：invPrint() 印的時候才塞 <style>@page landscape（檔案後面另有 @page portrait 會蓋掉 @media print 裡的）；printing-inv 加 print-color-adjust:exact、字縮小、rc 格取消 min-width、grid 150px；afterprint 清掉
 - ds103（10/14 Ivan）：獎金明細最上面 _evoTop10Html（_evoTop10 用 M.reps 七家＋_evoCashMap，獎金合計算法跟明細表同一條 _evoBonusOf），兩欄前十、差上一名；evoCopyTop10 複製 LINE（名字去姓、學院短名）；window._EVOM 存目前 M
 - ds104（10/15 Ivan：同事要按 Cmd+R）自動更新提醒：deploy.command Step 0 用 python 從 PCN_NOTES 抓最新版號＋最近 5 則寫 version.json（跟著 rsync 上 GitHub）；頁面 load 後 15 秒、之後每 3 分鐘、切回分頁時 fetch('version.json?t=', no-store)，版號比自己（PCN_NOTES 最後一則）新 → #pcUpdBar 紅條（立刻更新／更新了什麼／✕ 這次先不）；pcUpdateNow 在 iframe 裡會先 triggerSave，再把 parent 整頁用 ?u=時間 重開（perf_was_open 讓它自動回到業績中心）；按鈕加 keep-color 躲 day-mode。實測假版號 ds105 會跳條、按更新後回到 ds104 新頁面
+- 10/17 EIP 擴充從 iCloud 讀不到被 Chrome 拿掉：Ivan 對「遊戲化實踐版」按了「保留已下載項目」；deploy.command 加 Step 0.5 每次部署 rsync appedu-eip-sync → ~/EIP擴充（本機），Chrome 改從 ~/EIP擴充 載入；另做 安裝EIP擴充到本機.command（只複製擴充＋打開資料夾），.command 不會被部署上 GitHub
+
+## ⏳ 待辦（10/17 Ivan：「上班的時候再弄，現在先不要弄」）👥 代理同步名單
+目的：Ivan 休假時，讓他信任的人可以自己按同步（不管用哪種帳號）
+- Ivan 端（只有管理者看得到）：右上「⚡ 全部」旁加「👥 代理同步」→ 小名單：下拉選人（七家業務、主管）＋「到哪一天為止」；到期自動失效、可手動移除；名單存雲端共享 key（例 perf_compare_v1_syncers = { list:[{ name, until }], by, at }），對方開頁幾分鐘內生效
+- 判斷：新增 _pcCanSync() ＝ _pcIsAdmin() 或 名單內且今天 ≤ until；同步鈕（激勵／報到／通路／漏斗／編輯／⚡ 全部）的顯示改看 _pcCanSync()；「☁️↑ 推送」「💾 鎖定」維持只有 _pcIsAdmin()
+- 規則照舊：30 分鐘內抓過跳過、一次只跑一段、今天跑過先問；代理人同步完全公司看到他的那份（誰最新顯示誰），Ivan 回來一同步就換回
+- 對方電腦要先準備：①裝 EIP 擴充（做安裝包＋三步驟說明，跟 安裝EIP擴充到本機.command 同做法）②他的 EIP 帳號要看得到七家，不然抓回來只有自己學院、其他家變空，要先用他的帳號在 EIP 確認
+- 先講清楚：這是網頁層開關，不是雲端硬性鎖（只開給信任的人夠用；硬性鎖要做帳號登入＋Firebase 規則，會動同步規則，另外議）
+- 測試只用假名單（stub），不動真的名單
+- 補（10/17 Ivan 問「帳號看不到七家是不是就只能我按」）：三條路待選 ①找看得到七家的帳號當代理（副理、區主管，先用他帳號在 EIP 確認）②改成「按學院合併」：代理人只蓋他抓得到的學院，其他家保留 Ivan 那份 → 中區主管同步中區、桃區主管同步桃區（要改同步收尾的存法，中等工程）③不論哪條都加保險：這次抓回來的學院比平常少就不蓋、跳提醒（建議一定要做）。各角色在 EIP 看得到哪些頁面還不知道，要實際用對方帳號測
+- 補（10/17 Ivan）：代理人帳號只看得到兩家學院，但「某些資料」看得到七家 → 第 1 條不可行，走「按資料種類分」：看得到七家的那幾種照整份覆蓋；只看得到兩家的那幾種改「按學院合併」（只蓋他那兩家，其他五家保留 Ivan 最後一次、畫面標「M/D Ivan 同步」）；再加保險（抓到的學院比平常少又不是合併類 → 不蓋、跳提醒）。上班時先請代理人用自己帳號逐一點：激勵學院排名、激勵業務榜、小組績效、今日業績、報到 CSV、各通路收支 CSV、漏斗面談／收支、編輯追蹤，記下哪幾種看得到七家，再決定每一種的存法
+- ds105（10/17 Ivan）💵 人均收入（獎金明細，前十名下面）：_evoIncomeRows 收入＝_evoBonusOf＋EVO_BASE_PAY 35000；上月業績用 _evoPrevBizMap（_ppPPFor 上月，沒有就 mp sheet3），≥ EVO_INC_MIN 15 萬才 inAvg；區域 evo_inc_region（全省／桃／中／南，平均跟區域重算＋全省虛線）；名字 evo_inc_names 每人自己切（管理者永遠看得到），關＝『業務 N』＋自己標你；CSS 橫條 .ei-r（紅＝平均以上、綠＝以下、灰＝未滿）
+- ds106（10/17 Ivan）人均收入加「照目前速度推到月底」：_evoPace(ym) f＝月天數÷最新快照日（日曆天）；每人 vp＝v×f、現金×f 再照 EVO_TGT／EVO.P 算 incP；_evoAvg 多 avgP；KPI 橘格＋你的收入加一行；註解寫算法與加碼假設
