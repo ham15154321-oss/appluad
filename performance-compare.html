@@ -2831,6 +2831,7 @@
     .ei-box { background:#FFFFFF; border:1px solid #E8E6DF; border-radius:14px; padding:12px 16px; margin:0 0 14px; }
     .ei-h { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; } .ei-h b { font-size:1.05rem; color:#26215C; } .ei-h small { color:#5F5E5A; font-size:.78rem; }
     .ei-bar { display:flex; gap:6px; align-items:center; margin:8px 0; flex-wrap:wrap; } .ei-bar button { padding:4px 12px; border-radius:999px; border:1px solid #CECBF6; background:#fff; color:#26215C; cursor:pointer; } .ei-bar button.on { background:#26215C; color:#fff; }
+    .ei-mode { margin-left:12px; display:inline-flex; border:1px solid #F3D9B0; border-radius:999px; overflow:hidden; } .ei-mode button { border:0 !important; border-radius:0 !important; background:#fff; color:#854F0B; padding:4px 12px; cursor:pointer; } .ei-mode button.on { background:#BA7517 !important; color:#fff !important; -webkit-text-fill-color:#fff !important; }
     .ei-sw { margin-left:auto; font-size:.84rem; color:#444441; display:flex; gap:4px; align-items:center; cursor:pointer; }
     .ei-kpi { display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 10px; } .ei-kpi > div { flex:1 1 180px; border-radius:12px; padding:8px 12px; background:#F6F5FF; }
     .ei-kpi small { display:block; color:#5F5E5A; font-size:.76rem; } .ei-kpi b { font-size:1.5rem; color:#26215C; font-variant-numeric:tabular-nums; } .ei-kpi span { display:block; font-size:.76rem; color:#5F5E5A; }
@@ -10606,6 +10607,7 @@
     //   名字：每個人自己切「顯示名字／只看自己」（記在自己電腦）
     var EVO_BASE_PAY = 35000, EVO_INC_MIN = 150000;
     function _evoIncReg(){ try { return localStorage.getItem('evo_inc_region') || 'all'; } catch(e){ return 'all'; } }
+    function _evoIncMode(){ try { return localStorage.getItem('evo_inc_mode') === 'proj' ? 'proj' : 'now'; } catch(e){ return 'now'; } }
     function _evoIncNames(){ try { var v = localStorage.getItem('evo_inc_names'); return v == null ? _pcIsAdmin() : v === '1'; } catch(e){ return false; } }
     function evoIncSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} try { ppEventOpen(ppEvId); } catch(e2){} }
     function _evoPrevYm(ym){ var y = +ym.slice(0,4), m = +ym.slice(5) - 1; if (m < 1){ m = 12; y--; } return y + '-' + _ckPad2(m); }
@@ -10638,15 +10640,18 @@
     function _evoIncomeHtml(M){
       var X = _evoIncomeRows(M); if (!X.rows.length) return '';
       var reg = _evoIncReg(), regOrgs = reg === 'all' ? CK_ORG_LIST : ((CK_REGIONS[reg] || {}).orgs || CK_ORG_LIST);
-      var list = X.rows.filter(function(x){ return regOrgs.indexOf(x.org) >= 0; }).sort(function(a,b){ return b.inc - a.inc; });
+      var mode = (_evoIncMode() === 'proj' && X.PC.f > 1.01) ? 'proj' : 'now', val = function(x){ return mode === 'proj' ? x.incP : x.inc; };
+      var list = X.rows.filter(function(x){ return regOrgs.indexOf(x.org) >= 0; }).sort(function(a,b){ return val(b) - val(a); });
       var A = _evoAvg(list), ALL = _evoAvg(X.rows), me = _fnMe(), showNames = _evoIncNames();
-      var mx = Math.max.apply(null, list.map(function(x){ return x.inc; }).concat([A.avg, ALL.avg, 1])) * 1.05;
+      var avR = mode === 'proj' ? A.avgP : A.avg, avG = mode === 'proj' ? ALL.avgP : ALL.avg;
+      var mx = Math.max.apply(null, list.map(val).concat([avR, avG, 1])) * 1.05;
       var pm = (+_evoPrevYm(M.ym || EVO.ym).slice(5)), cnt = {};
       var label = function(x){ if (x.n === me) return '<b>' + _fnEsc(x.n) + '</b><span class="pp-metag">你</span>'; if (showNames) return _fnEsc(x.n); cnt[x.org] = (cnt[x.org] || 0) + 1; return '業務 ' + cnt[x.org]; };
       var mine = list.filter(function(x){ return x.n === me; })[0];
       var regName = reg === 'all' ? '全省七家' : (CK_REGIONS[reg] || {}).label;
       var h = '<div class="ei-box"><div class="ei-h"><b>💵 人均收入</b><small>收入＝十月獎金合計（到今天）＋底薪 35,000（不含加班費）；只有 ' + pm + ' 月業績 15 萬以上的人算進人均</small></div>'
         + '<div class="ei-bar">' + [['all','全省七家'],['taoyuan','桃區'],['central','中區'],['south','南區']].map(function(t){ return '<button class="keep-color' + (reg === t[0] ? ' on' : '') + '" onclick="evoIncSet(\'evo_inc_region\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('')
+        + (X.PC.f > 1.01 ? '<span class="ei-mode"><button class="keep-color' + (mode === 'now' ? ' on' : '') + '" onclick="evoIncSet(\'evo_inc_mode\',\'now\')">到今天</button><button class="keep-color' + (mode === 'proj' ? ' on' : '') + '" onclick="evoIncSet(\'evo_inc_mode\',\'proj\')">📈 月底推估</button></span>' : '')
         + '<label class="ei-sw"><input type="checkbox"' + (showNames ? ' checked' : '') + ' onchange="evoIncSet(\'evo_inc_names\', this.checked ? \'1\' : \'0\')">顯示名字</label></div>'
         + '<div class="ei-kpi"><div class="r"><small>' + _fnEsc(regName) + ' 人均</small><b>$' + _evoM(A.avg) + '</b><span>' + A.n + ' 人算進平均</span></div>'
         + (X.PC.f > 1.01 ? '<div class="p"><small>照目前速度推到月底</small><b>$' + _evoM(A.avgP) + '</b><span>' + _fnEsc(regName) + ' 人均，比現在多 $' + _evoM(A.avgP - A.avg) + '</span></div>' : '')
@@ -10655,12 +10660,13 @@
         + (X.PC.f > 1.01 ? '<p class="ei-note">月底推估怎麼算：資料到 ' + (+((M.ym || EVO.ym).slice(5))) + '/' + X.PC.day + '，每個人的業績、現金收款照每天平均的速度推到 ' + X.PC.dim + ' 號（×' + (Math.round(X.PC.f * 100) / 100) + '），再照獎金表算一次；加碼一樣先假設學院會達 300 萬，學院沒到就領不到加碼</p>' : '')
         + (X.P.ok ? '' : '<p class="eb-warn">找不到 ' + pm + ' 月的業績資料，所有人都先當成未滿 15 萬（灰色）</p>')
         + '<div class="ei-rows">' + list.map(function(x){
-            var w = x.inc / mx * 100, la = A.avg / mx * 100, lg = ALL.avg / mx * 100, cls = !x.inAvg ? 'g' : (x.inc >= A.avg ? 'up' : 'dn');
+            var w = val(x) / mx * 100, la = avR / mx * 100, lg = avG / mx * 100, cls = !x.inAvg ? 'g' : (val(x) >= avR ? 'up' : 'dn');
             return '<div class="ei-r ' + cls + (x.n === me ? ' me' : '') + '"><span class="nm">' + label(x) + '<small>' + _fnEsc(_gcShort(x.org)) + '</small></span>'
               + '<span class="tr"><i style="width:' + w + '%"></i>' + (A.n ? '<u class="la" style="left:' + la + '%"></u>' : '') + (reg !== 'all' && ALL.n ? '<u class="lg" style="left:' + lg + '%"></u>' : '') + '</span>'
-              + '<span class="amt">$' + _evoM(x.inc) + (x.inAvg ? '' : '<small>' + pm + ' 月未滿 15 萬，不列入平均</small>') + '</span></div>';
+              + '<span class="amt">$' + _evoM(val(x)) + (mode === 'proj' ? '<small>現在 $' + _evoM(x.inc) + '・業績推到 ' + _invW(x.vp) + ' 萬</small>' : '') + (x.inAvg ? '' : '<small>' + pm + ' 月未滿 15 萬，不列入平均</small>') + '</span></div>';
           }).join('') + '</div>'
-        + '<div class="ei-leg"><span><u class="la"></u>' + _fnEsc(regName) + ' 人均</span>' + (reg !== 'all' ? '<span><u class="lg"></u>全省七家人均</span>' : '') + '<span><i class="up"></i>平均以上</span><span><i class="dn"></i>平均以下</span><span><i class="g"></i>' + pm + ' 月未滿 15 萬</span></div></div>';
+        + (mode === 'proj' ? '<p class="ei-note" style="margin:6px 0 0">📈 月底推估：每一條都是照這個人到今天的速度推到月底，再照獎金表算的收入；平均線也是推估的人均</p>' : '')
+        + '<div class="ei-leg"><span><u class="la"></u>' + _fnEsc(regName) + (mode === 'proj' ? ' 月底推估人均' : ' 人均') + '</span>' + (reg !== 'all' ? '<span><u class="lg"></u>全省七家人均</span>' : '') + '<span><i class="up"></i>平均以上</span><span><i class="dn"></i>平均以下</span><span><i class="g"></i>' + pm + ' 月未滿 15 萬</span></div></div>';
       return h;
     }
     function _evoBill(M, orgs){
@@ -18888,7 +18894,8 @@
       { ver:'ds103', icon:'🏆', title:'獎金明細最上面多一張「七家獎金合計前十名」', detail:'七家所有業務一起排，只看獎金合計，寫離上一名差多少；旁邊一顆「📋 複製 LINE」貼群組', go:{ fn:'evoBill' } },
       { ver:'ds104', icon:'🚀', title:'有新版本會自己跳出來，不用再按 Cmd+R', detail:'網頁每 3 分鐘看一次有沒有新版。有的話表頭下面會出現紅色一條：有新版本幾號、改了什麼、按「立刻更新」就換新的，連外面那一層一起換。按 ✕ 可以先不更新' },
       { ver:'ds105', icon:'💵', title:'獎金明細多一張「人均收入」', detail:'收入＝十月獎金合計＋底薪 35,000（不含加班費），只有上個月業績 15 萬以上的人算進人均。可以切全省、桃區、中區、南區，平均跟著重算，另外畫全省平均線。橫條圖從最高排到最低，平均以上紅色、以下綠色、上月未滿 15 萬灰色。右上可以切顯示名字', go:{ fn:'evoBill' } },
-      { ver:'ds106', icon:'💵', title:'人均收入多一格「照目前速度推到月底」', detail:'每個人的業績、現金收款照到今天每天平均的速度推到月底，再照獎金表算一次，看月底人均大約多少；你的收入那一格也多一行「照目前速度，月底約多少」。加碼一樣先假設學院會達 300 萬', go:{ fn:'evoBill' } }
+      { ver:'ds106', icon:'💵', title:'人均收入多一格「照目前速度推到月底」', detail:'每個人的業績、現金收款照到今天每天平均的速度推到月底，再照獎金表算一次，看月底人均大約多少；你的收入那一格也多一行「照目前速度，月底約多少」。加碼一樣先假設學院會達 300 萬', go:{ fn:'evoBill' } },
+      { ver:'ds107', icon:'📈', title:'人均收入可以切「月底推估」', detail:'區域按鈕旁邊多一組「到今天／📈 月底推估」：切到月底推估，每個人的長條變成照目前速度推到月底可以領多少，旁邊小字寫現在多少、業績推到幾萬；平均線也換成推估的人均', go:{ fn:'evoBill' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };

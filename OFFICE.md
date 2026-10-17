@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds106'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds107'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds106（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds107（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -481,3 +481,4 @@ C 主管
 - 補（10/17 Ivan）：代理人帳號只看得到兩家學院，但「某些資料」看得到七家 → 第 1 條不可行，走「按資料種類分」：看得到七家的那幾種照整份覆蓋；只看得到兩家的那幾種改「按學院合併」（只蓋他那兩家，其他五家保留 Ivan 最後一次、畫面標「M/D Ivan 同步」）；再加保險（抓到的學院比平常少又不是合併類 → 不蓋、跳提醒）。上班時先請代理人用自己帳號逐一點：激勵學院排名、激勵業務榜、小組績效、今日業績、報到 CSV、各通路收支 CSV、漏斗面談／收支、編輯追蹤，記下哪幾種看得到七家，再決定每一種的存法
 - ds105（10/17 Ivan）💵 人均收入（獎金明細，前十名下面）：_evoIncomeRows 收入＝_evoBonusOf＋EVO_BASE_PAY 35000；上月業績用 _evoPrevBizMap（_ppPPFor 上月，沒有就 mp sheet3），≥ EVO_INC_MIN 15 萬才 inAvg；區域 evo_inc_region（全省／桃／中／南，平均跟區域重算＋全省虛線）；名字 evo_inc_names 每人自己切（管理者永遠看得到），關＝『業務 N』＋自己標你；CSS 橫條 .ei-r（紅＝平均以上、綠＝以下、灰＝未滿）
 - ds106（10/17 Ivan）人均收入加「照目前速度推到月底」：_evoPace(ym) f＝月天數÷最新快照日（日曆天）；每人 vp＝v×f、現金×f 再照 EVO_TGT／EVO.P 算 incP；_evoAvg 多 avgP；KPI 橘格＋你的收入加一行；註解寫算法與加碼假設
+- ds107（10/17 Ivan）人均收入加「到今天／📈 月底推估」切換（evo_inc_mode，每人自己記）：proj 時長條、排序、顏色、平均線都改用 incP／avgP，金額下小字現在多少＋業績推到幾萬
