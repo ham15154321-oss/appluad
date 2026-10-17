@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds107'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds111'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds107（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds111（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -482,3 +482,7 @@ C 主管
 - ds105（10/17 Ivan）💵 人均收入（獎金明細，前十名下面）：_evoIncomeRows 收入＝_evoBonusOf＋EVO_BASE_PAY 35000；上月業績用 _evoPrevBizMap（_ppPPFor 上月，沒有就 mp sheet3），≥ EVO_INC_MIN 15 萬才 inAvg；區域 evo_inc_region（全省／桃／中／南，平均跟區域重算＋全省虛線）；名字 evo_inc_names 每人自己切（管理者永遠看得到），關＝『業務 N』＋自己標你；CSS 橫條 .ei-r（紅＝平均以上、綠＝以下、灰＝未滿）
 - ds106（10/17 Ivan）人均收入加「照目前速度推到月底」：_evoPace(ym) f＝月天數÷最新快照日（日曆天）；每人 vp＝v×f、現金×f 再照 EVO_TGT／EVO.P 算 incP；_evoAvg 多 avgP；KPI 橘格＋你的收入加一行；註解寫算法與加碼假設
 - ds107（10/17 Ivan）人均收入加「到今天／📈 月底推估」切換（evo_inc_mode，每人自己記）：proj 時長條、排序、顏色、平均線都改用 incP／avgP，金額下小字現在多少＋業績推到幾萬
+- ds108（10/17 Ivan）人均收入 🖼 高清 PNG：evoIncPng 複製 .ei-box 到畫面外 1100 寬，ei-bar 換成「區域・模式」標題、拿掉按鈕，html2canvas scale 3，檔名 人均收入_區域_模式_M-D.png
+- ds109（10/17 Ivan：兩個按鈕按了看起來一樣）：KPI 三格改成跟 mode 走（now 只顯示到今天、proj 大字＝推估、小字到今天）；evoIncSet 重畫後用 .ei-box 原本的位置回捲（之前 ppEventOpen 重畫會跳回彈窗最上面，看起來像沒反應）
+- ds110（10/17 Ivan：金額放名字旁、前五名放大、PNG 改用 apple-design）：.ei-r 改 名字｜金額｜長條｜小字，前五 .top 放大＋名次圓圈；evoIncPng 改用 _evoIncPngHtml 另外畫一張 760 寬直式卡（系統字、大數字負字距、白色圓角面板、前五 21px、只列算進平均的人，未滿 15 萬收成一行），html2canvas scale 3
+- ds111（10/17 Ivan）人均收入 PNG：頂部色帶＋標題分模式（此刻＝紅 #D93A3A／月底推估＝琥珀 #B86E00），大數字與面板上框同色；字體整體放大（前五 25px、其他 19px、標題 46、數字 76）；檔名改 此刻／月底推估

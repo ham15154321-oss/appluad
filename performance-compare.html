@@ -2832,25 +2832,30 @@
     .ei-h { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; } .ei-h b { font-size:1.05rem; color:#26215C; } .ei-h small { color:#5F5E5A; font-size:.78rem; }
     .ei-bar { display:flex; gap:6px; align-items:center; margin:8px 0; flex-wrap:wrap; } .ei-bar button { padding:4px 12px; border-radius:999px; border:1px solid #CECBF6; background:#fff; color:#26215C; cursor:pointer; } .ei-bar button.on { background:#26215C; color:#fff; }
     .ei-mode { margin-left:12px; display:inline-flex; border:1px solid #F3D9B0; border-radius:999px; overflow:hidden; } .ei-mode button { border:0 !important; border-radius:0 !important; background:#fff; color:#854F0B; padding:4px 12px; cursor:pointer; } .ei-mode button.on { background:#BA7517 !important; color:#fff !important; -webkit-text-fill-color:#fff !important; }
+    .ei-png { padding:4px 12px; border-radius:999px; border:1px solid #CECBF6; background:#fff; color:#26215C; cursor:pointer; }
     .ei-sw { margin-left:auto; font-size:.84rem; color:#444441; display:flex; gap:4px; align-items:center; cursor:pointer; }
     .ei-kpi { display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 10px; } .ei-kpi > div { flex:1 1 180px; border-radius:12px; padding:8px 12px; background:#F6F5FF; }
     .ei-kpi small { display:block; color:#5F5E5A; font-size:.76rem; } .ei-kpi b { font-size:1.5rem; color:#26215C; font-variant-numeric:tabular-nums; } .ei-kpi span { display:block; font-size:.76rem; color:#5F5E5A; }
     .ei-kpi .r { background:#FCEBEB; } .ei-kpi .r b { color:#A32D2D; } .ei-kpi .p { background:#FFF4E6; } .ei-kpi .p b { color:#BA7517; }
     .ei-note { margin:-4px 0 10px; font-size:.74rem; color:#888780; } .ei-kpi .m.up b { color:#A32D2D; } .ei-kpi .m.dn b { color:#3B6D11; }
     .ei-rows { display:flex; flex-direction:column; gap:3px; }
-    .ei-r { display:grid; grid-template-columns:150px 1fr 190px; gap:10px; align-items:center; font-size:.84rem; }
+    .ei-r { display:grid; grid-template-columns:150px 92px 1fr 210px; gap:10px; align-items:center; font-size:.84rem; padding:1px 4px; }
+    .ei-r .sub { font-size:.68rem; color:#888780; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ei-r.top { padding:4px; } .ei-r.top .nm { font-size:1.05rem; font-weight:800; } .ei-r.top .amt { font-size:1.05rem; } .ei-r.top .tr { height:20px; }
+    .ei-r .nm em { display:inline-block; width:20px; height:20px; line-height:20px; margin-right:6px; border-radius:50%; background:#26215C; color:#fff; font-style:normal; font-size:.72rem; text-align:center; font-weight:800; vertical-align:1px; }
+    .ei-r.top:nth-child(1) .nm em { background:#E24B4A; }
     .ei-r .nm { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#2C2C2A; } .ei-r .nm small { margin-left:6px; color:#888780; font-size:.72rem; }
     .ei-r .tr { position:relative; height:16px; background:#F1EFE8; border-radius:4px; }
     .ei-r .tr i { position:absolute; left:0; top:0; bottom:0; border-radius:4px; background:#E24B4A; }
     .ei-r.dn .tr i { background:#97C459; } .ei-r.g .tr i { background:#D3D1C7; }
     .ei-r .tr u, .ei-leg u { position:absolute; top:-3px; bottom:-3px; width:0; border-left:2px solid #791F1F; }
     .ei-r .tr u.lg, .ei-leg u.lg { border-left:2px dashed #888780; }
-    .ei-r .amt { font-weight:800; font-variant-numeric:tabular-nums; color:#2C2C2A; } .ei-r .amt small { display:block; font-weight:400; font-size:.68rem; color:#888780; }
+    .ei-r .amt { font-weight:800; font-variant-numeric:tabular-nums; color:#2C2C2A; text-align:right; }
     .ei-r.g .nm, .ei-r.g .amt { color:#888780; } .ei-r.me { background:#FFF4E6; border-radius:6px; }
     .ei-leg { display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; font-size:.74rem; color:#5F5E5A; } .ei-leg span { display:flex; align-items:center; gap:5px; position:relative; }
     .ei-leg u { position:relative; display:inline-block; height:12px; top:0; } .ei-leg i { display:inline-block; width:14px; height:10px; border-radius:2px; background:#E24B4A; } .ei-leg i.dn { background:#97C459; } .ei-leg i.g { background:#D3D1C7; }
     body.day-mode .ei-bar button.on { background:#26215C !important; color:#fff !important; -webkit-text-fill-color:#fff !important; }
-    @media (max-width:640px){ .ei-r { grid-template-columns:95px 1fr 105px; } .ei-r .amt small { display:none; } }
+    @media (max-width:640px){ .ei-r { grid-template-columns:96px 78px 1fr; } .ei-r .sub { display:none; } }
     /* 🔔 更新通知 */
     .pcn-bell { position:relative; background:linear-gradient(135deg,#6a1b9a,#8e24aa) !important; color:#fff !important; border-color:transparent !important; }
     .pcn-badge { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#E24B4A; color:#fff; font-size:11px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 0 0 2px #fff; }
@@ -10609,7 +10614,12 @@
     function _evoIncReg(){ try { return localStorage.getItem('evo_inc_region') || 'all'; } catch(e){ return 'all'; } }
     function _evoIncMode(){ try { return localStorage.getItem('evo_inc_mode') === 'proj' ? 'proj' : 'now'; } catch(e){ return 'now'; } }
     function _evoIncNames(){ try { var v = localStorage.getItem('evo_inc_names'); return v == null ? _pcIsAdmin() : v === '1'; } catch(e){ return false; } }
-    function evoIncSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} try { ppEventOpen(ppEvId); } catch(e2){} }
+    function evoIncSet(k, v){
+      try { localStorage.setItem(k, v); } catch(e){}
+      var box = document.querySelector('.ei-box'), sc = box ? box.closest('.pp-ev-box') : null, top0 = box ? box.getBoundingClientRect().top : 0;
+      try { ppEventOpen(ppEvId); } catch(e2){}
+      try { var nb = document.querySelector('.ei-box'), ns = nb ? nb.closest('.pp-ev-box') : null; if (nb && ns) ns.scrollTop += nb.getBoundingClientRect().top - top0; else if (nb) nb.scrollIntoView(); } catch(e3){}
+    }
     function _evoPrevYm(ym){ var y = +ym.slice(0,4), m = +ym.slice(5) - 1; if (m < 1){ m = 12; y--; } return y + '-' + _ckPad2(m); }
     function _evoPrevBizMap(ym){
       var pym = _evoPrevYm(ym), map = {}, pp = null;
@@ -10637,6 +10647,67 @@
       return { rows:rows, P:P, PC:PC };
     }
     function _evoAvg(list){ var a = list.filter(function(x){ return x.inAvg; }); return { n:a.length, avg:a.length ? a.reduce(function(t, x){ return t + x.inc; }, 0) / a.length : 0, avgP:a.length ? a.reduce(function(t, x){ return t + x.incP; }, 0) / a.length : 0 }; }
+    // 🖼 高清 PNG：複製人均收入這張卡到畫面外（寬 1100），拿掉按鈕、標題寫區域＋模式，3 倍解析度
+    // 🖼 高清 PNG（10/17 Ivan：照 apple-design 重做）
+    //   直式 760 寬、系統字、大字收緊字距；名字旁邊就是金額；前五名放大；上月未滿 15 萬的收成最後一行文字，圖不會拉太長
+    function _evoIncPngHtml(M){
+      var X = _evoIncomeRows(M), reg = _evoIncReg(), regOrgs = reg === 'all' ? CK_ORG_LIST : ((CK_REGIONS[reg] || {}).orgs || CK_ORG_LIST);
+      var mode = (_evoIncMode() === 'proj' && X.PC.f > 1.01) ? 'proj' : 'now', val = function(x){ return mode === 'proj' ? x.incP : x.inc; };
+      var all = X.rows.filter(function(x){ return regOrgs.indexOf(x.org) >= 0; }).sort(function(a,b){ return val(b) - val(a); });
+      var list = all.filter(function(x){ return x.inAvg; }), rest = all.filter(function(x){ return !x.inAvg; });
+      var A = _evoAvg(all), ALL = _evoAvg(X.rows), avR = mode === 'proj' ? A.avgP : A.avg, avG = mode === 'proj' ? ALL.avgP : ALL.avg;
+      var me = _fnMe(), showNames = _evoIncNames(), cnt = {}, ym = M.ym || EVO.ym, pm = +_evoPrevYm(ym).slice(5), M0 = +ym.slice(5);
+      var regName = reg === 'all' ? '全省七家' : (CK_REGIONS[reg] || {}).label;
+      var mx = Math.max.apply(null, list.map(val).concat([avR, 1])) * 1.04;
+      var nm = function(x){ if (x.n === me) return _fnEsc(x.n) + '（你）'; if (showNames) return _fnEsc(x.n); cnt[x.org] = (cnt[x.org] || 0) + 1; return '業務 ' + cnt[x.org]; };
+      var F = "font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang TC','Noto Sans TC',system-ui,sans-serif;";
+      var RED = '#D93A3A', GRN = '#7DB24A', INK = '#1D1D1F', SUB = '#6E6E73', LINE = 'rgba(0,0,0,.06)';
+      // 此刻＝紅、月底推估＝琥珀：頂部色帶、標題、大數字、面板外框都換色，一眼分得出來
+      var MC = mode === 'proj' ? { c:'#B86E00', bg:'#FFF3E0', band:'linear-gradient(135deg,#C77700,#E8A33D)', tag:'📈 月底推估', title:'月底推估人均收入', when:'照目前速度推到 ' + M0 + '/' + X.PC.dim } : { c:RED, bg:'#FDECEC', band:'linear-gradient(135deg,#C62F2F,#E5534B)', tag:'📍 此刻', title:'此刻人均收入', when:'到 ' + M0 + '/' + X.PC.day + ' 為止' };
+      var h = '<div style="' + F + 'width:760px;padding:0 0 30px;background:linear-gradient(180deg,#FBFBFD 0%,#F5F5F7 100%);color:' + INK + ';box-sizing:border-box;">';
+      h += '<div style="background:' + MC.band + ';color:#fff;padding:18px 40px;display:flex;align-items:center;gap:14px"><span style="font-size:22px;font-weight:800;letter-spacing:.01em">' + MC.tag + '</span><span style="font-size:18px;font-weight:600;opacity:.95">' + M0 + ' 月・' + _fnEsc(regName) + '・' + MC.when + '</span></div>';
+      h += '<div style="padding:28px 40px 0">';
+      h += '<div style="font-size:46px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:' + MC.c + '">' + MC.title + '</div>';
+      h += '<div style="display:flex;align-items:baseline;gap:16px;margin:14px 0 4px"><div style="font-size:76px;font-weight:800;letter-spacing:-.03em;line-height:1;color:' + MC.c + ';font-variant-numeric:tabular-nums">$' + _evoM(avR) + '</div>'
+        + '<div style="font-size:18px;color:' + SUB + ';line-height:1.45">' + (mode === 'proj' ? '此刻是 $' + _evoM(A.avg) + '<br>照目前速度會多 $' + _evoM(A.avgP - A.avg) : A.n + ' 人算進平均') + (reg !== 'all' ? '<br>全省七家 $' + _evoM(avG) : '') + '</div></div>';
+      h += '<div style="font-size:16px;color:' + SUB + ';margin:8px 0 22px;line-height:1.5">收入＝獎金合計＋底薪 35,000（不含加班費）・只算 ' + pm + ' 月業績 15 萬以上的 ' + A.n + ' 人' + (mode === 'proj' ? '・加碼先假設學院會達 300 萬' : '') + '</div>';
+      h += '<div style="background:rgba(255,255,255,.9);border-radius:22px;padding:14px 18px;border-top:5px solid ' + MC.c + ';box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 30px rgba(0,0,0,.06)">';
+      list.forEach(function(x, i){
+        var top = i < 5, w = val(x) / mx * 100, la = avR / mx * 100, up = val(x) >= avR, mine = x.n === me;
+        var fs = top ? 25 : 19, as = top ? 25 : 19, bh = top ? 13 : 9, pad = top ? 12 : 6;
+        h += '<div style="display:flex;align-items:center;gap:12px;padding:' + pad + 'px 6px;border-bottom:1px solid ' + LINE + ';' + (mine ? 'background:#FFF4E6;border-radius:10px;' : '') + '">'
+          + '<div style="width:28px;text-align:right;font-size:' + (top ? 19 : 14) + 'px;font-weight:800;color:' + (top ? (i === 0 ? RED : INK) : '#AEAEB2') + ';font-variant-numeric:tabular-nums">' + (i + 1) + '</div>'
+          + '<div style="width:' + (top ? 176 : 156) + 'px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="font-size:' + fs + 'px;font-weight:' + (top ? 800 : 600) + ';letter-spacing:' + (top ? '-.01em' : '0') + '">' + nm(x) + '</span><span style="font-size:' + (top ? 15 : 13) + 'px;color:' + SUB + ';margin-left:6px">' + _fnEsc(_gcShort(x.org)) + '</span></div>'
+          + '<div style="width:' + (top ? 136 : 116) + 'px;text-align:right;font-size:' + as + 'px;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:' + (up ? RED : INK) + '">$' + _evoM(val(x)) + '</div>'
+          + '<div style="flex:1;position:relative;height:' + bh + 'px;background:#EDEDF0;border-radius:99px"><div style="position:absolute;left:0;top:0;bottom:0;width:' + w + '%;border-radius:99px;background:' + (up ? RED : GRN) + '"></div>'
+          + '<div style="position:absolute;top:-4px;bottom:-4px;left:' + la + '%;width:2px;background:' + INK + ';opacity:.55;border-radius:1px"></div></div></div>';
+      });
+      h += '</div>';
+      h += '<div style="display:flex;gap:18px;flex-wrap:wrap;margin:14px 4px 0;font-size:15px;color:' + SUB + '"><span><b style="display:inline-block;width:10px;height:10px;border-radius:3px;background:' + RED + ';vertical-align:-1px"></b> 平均以上</span><span><b style="display:inline-block;width:10px;height:10px;border-radius:3px;background:' + GRN + ';vertical-align:-1px"></b> 平均以下</span><span><b style="display:inline-block;width:2px;height:12px;background:' + INK + ';opacity:.55;vertical-align:-2px"></b> ' + _fnEsc(regName) + (mode === 'proj' ? '推估' : '') + '人均</span></div>';
+      if (rest.length) h += '<div style="margin:10px 4px 0;font-size:14px;color:#8E8E93;line-height:1.5">' + pm + ' 月業績未滿 15 萬、不列入平均：' + rest.length + ' 位</div>';
+      h += '<div style="margin-top:18px;text-align:right;font-size:13px;color:#AEAEB2">業績數據中心・' + new Date().toLocaleString('zh-TW', { hour12:false }) + '</div></div></div>';
+      return { html:h, regName:regName, mode:mode === 'proj' ? '月底推估' : '此刻' };
+    }
+    function evoIncPng(){
+      var M = window._EVOM; if (!M) return;
+      var go = function(){
+        var P = _evoIncPngHtml(M);
+        var wrap = document.createElement('div'); wrap.style.cssText = 'position:fixed;left:-12000px;top:0;width:760px;'; wrap.innerHTML = P.html; document.body.appendChild(wrap);
+        var box = wrap.firstChild;
+        _syncToast('⏳ 產生高清 PNG 中…', '#e6a817');
+        setTimeout(function(){
+          window.html2canvas(box, { scale:3, backgroundColor:'#F5F5F7', useCORS:true, logging:false, windowWidth:760 }).then(function(cv){
+            wrap.remove();
+            var d = new Date(), name = '人均收入_' + P.regName + '_' + P.mode + '_' + (d.getMonth() + 1) + '-' + d.getDate() + '.png';
+            var a = document.createElement('a'); a.download = name; a.href = cv.toDataURL('image/png'); document.body.appendChild(a); a.click(); a.remove();
+            _syncToast('🖼 已下載 ' + name, '#4ade80');
+          }).catch(function(e){ wrap.remove(); _syncToast('產生圖片失敗：' + (e && e.message || e), '#ff6b6b'); });
+        }, 60);
+      };
+      if (window.html2canvas) return go();
+      var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      sc.onload = go; sc.onerror = function(){ _syncToast('載入截圖工具失敗，請確認有連網路', '#ff6b6b'); }; document.head.appendChild(sc);
+    }
     function _evoIncomeHtml(M){
       var X = _evoIncomeRows(M); if (!X.rows.length) return '';
       var reg = _evoIncReg(), regOrgs = reg === 'all' ? CK_ORG_LIST : ((CK_REGIONS[reg] || {}).orgs || CK_ORG_LIST);
@@ -10652,18 +10723,23 @@
       var h = '<div class="ei-box"><div class="ei-h"><b>💵 人均收入</b><small>收入＝十月獎金合計（到今天）＋底薪 35,000（不含加班費）；只有 ' + pm + ' 月業績 15 萬以上的人算進人均</small></div>'
         + '<div class="ei-bar">' + [['all','全省七家'],['taoyuan','桃區'],['central','中區'],['south','南區']].map(function(t){ return '<button class="keep-color' + (reg === t[0] ? ' on' : '') + '" onclick="evoIncSet(\'evo_inc_region\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('')
         + (X.PC.f > 1.01 ? '<span class="ei-mode"><button class="keep-color' + (mode === 'now' ? ' on' : '') + '" onclick="evoIncSet(\'evo_inc_mode\',\'now\')">到今天</button><button class="keep-color' + (mode === 'proj' ? ' on' : '') + '" onclick="evoIncSet(\'evo_inc_mode\',\'proj\')">📈 月底推估</button></span>' : '')
-        + '<label class="ei-sw"><input type="checkbox"' + (showNames ? ' checked' : '') + ' onchange="evoIncSet(\'evo_inc_names\', this.checked ? \'1\' : \'0\')">顯示名字</label></div>'
-        + '<div class="ei-kpi"><div class="r"><small>' + _fnEsc(regName) + ' 人均</small><b>$' + _evoM(A.avg) + '</b><span>' + A.n + ' 人算進平均</span></div>'
-        + (X.PC.f > 1.01 ? '<div class="p"><small>照目前速度推到月底</small><b>$' + _evoM(A.avgP) + '</b><span>' + _fnEsc(regName) + ' 人均，比現在多 $' + _evoM(A.avgP - A.avg) + '</span></div>' : '')
-        + (reg !== 'all' ? '<div class="a"><small>全省七家人均</small><b>$' + _evoM(ALL.avg) + '</b><span>' + ALL.n + ' 人' + (X.PC.f > 1.01 ? '・月底推估 $' + _evoM(ALL.avgP) : '') + '</span></div>' : '')
-        + (mine ? '<div class="m ' + (mine.inc >= A.avg ? 'up' : 'dn') + '"><small>你的收入</small><b>$' + _evoM(mine.inc) + '</b><span>' + (mine.inc >= A.avg ? '比平均多 $' + _evoM(mine.inc - A.avg) : '離平均還差 $' + _evoM(A.avg - mine.inc)) + (mine.inAvg ? '' : '（' + pm + ' 月未滿 15 萬，不列入平均）') + (X.PC.f > 1.01 ? '<br>照目前速度，月底約 $' + _evoM(mine.incP) : '') + '</span></div>' : '') + '</div>'
-        + (X.PC.f > 1.01 ? '<p class="ei-note">月底推估怎麼算：資料到 ' + (+((M.ym || EVO.ym).slice(5))) + '/' + X.PC.day + '，每個人的業績、現金收款照每天平均的速度推到 ' + X.PC.dim + ' 號（×' + (Math.round(X.PC.f * 100) / 100) + '），再照獎金表算一次；加碼一樣先假設學院會達 300 萬，學院沒到就領不到加碼</p>' : '')
+        + '<label class="ei-sw"><input type="checkbox"' + (showNames ? ' checked' : '') + ' onchange="evoIncSet(\'evo_inc_names\', this.checked ? \'1\' : \'0\')">顯示名字</label><button class="keep-color ei-png" onclick="evoIncPng()" title="3 倍解析度，照現在選的區域、模式、名字顯示">🖼 高清 PNG</button></div>'
+        + (mode === 'proj'
+          ? '<div class="ei-kpi"><div class="p"><small>' + _fnEsc(regName) + ' 月底推估人均</small><b>$' + _evoM(A.avgP) + '</b><span>到今天 $' + _evoM(A.avg) + '，照目前速度會多 $' + _evoM(A.avgP - A.avg) + '・' + A.n + ' 人算進平均</span></div>'
+            + (reg !== 'all' ? '<div class="a"><small>全省七家月底推估人均</small><b>$' + _evoM(ALL.avgP) + '</b><span>到今天 $' + _evoM(ALL.avg) + '・' + ALL.n + ' 人</span></div>' : '')
+            + (mine ? '<div class="m ' + (mine.incP >= A.avgP ? 'up' : 'dn') + '"><small>你月底大約可以領</small><b>$' + _evoM(mine.incP) + '</b><span>' + (mine.incP >= A.avgP ? '比推估人均多 $' + _evoM(mine.incP - A.avgP) : '離推估人均還差 $' + _evoM(A.avgP - mine.incP)) + '<br>到今天 $' + _evoM(mine.inc) + (mine.inAvg ? '' : '（' + pm + ' 月未滿 15 萬，不列入平均）') + '</span></div>' : '') + '</div>'
+          : '<div class="ei-kpi"><div class="r"><small>' + _fnEsc(regName) + ' 人均（到今天）</small><b>$' + _evoM(A.avg) + '</b><span>' + A.n + ' 人算進平均</span></div>'
+            + (reg !== 'all' ? '<div class="a"><small>全省七家人均（到今天）</small><b>$' + _evoM(ALL.avg) + '</b><span>' + ALL.n + ' 人</span></div>' : '')
+            + (mine ? '<div class="m ' + (mine.inc >= A.avg ? 'up' : 'dn') + '"><small>你的收入（到今天）</small><b>$' + _evoM(mine.inc) + '</b><span>' + (mine.inc >= A.avg ? '比平均多 $' + _evoM(mine.inc - A.avg) : '離平均還差 $' + _evoM(A.avg - mine.inc)) + (mine.inAvg ? '' : '（' + pm + ' 月未滿 15 萬，不列入平均）') + '</span></div>' : '') + '</div>')
+        + (mode === 'proj' ? '<p class="ei-note">月底推估怎麼算：資料到 ' + (+((M.ym || EVO.ym).slice(5))) + '/' + X.PC.day + '，每個人的業績、現金收款照每天平均的速度推到 ' + X.PC.dim + ' 號（×' + (Math.round(X.PC.f * 100) / 100) + '），再照獎金表算一次；加碼一樣先假設學院會達 300 萬，學院沒到就領不到加碼</p>' : '')
         + (X.P.ok ? '' : '<p class="eb-warn">找不到 ' + pm + ' 月的業績資料，所有人都先當成未滿 15 萬（灰色）</p>')
-        + '<div class="ei-rows">' + list.map(function(x){
+        + '<div class="ei-rows">' + list.map(function(x, i){
             var w = val(x) / mx * 100, la = avR / mx * 100, lg = avG / mx * 100, cls = !x.inAvg ? 'g' : (val(x) >= avR ? 'up' : 'dn');
-            return '<div class="ei-r ' + cls + (x.n === me ? ' me' : '') + '"><span class="nm">' + label(x) + '<small>' + _fnEsc(_gcShort(x.org)) + '</small></span>'
+            var sub = (mode === 'proj' ? '現在 $' + _evoM(x.inc) + '・業績推到 ' + _invW(x.vp) + ' 萬' : '') + (x.inAvg ? '' : (mode === 'proj' ? '・' : '') + pm + ' 月未滿 15 萬，不列入平均');
+            return '<div class="ei-r ' + cls + (x.n === me ? ' me' : '') + (i < 5 ? ' top' : '') + '"><span class="nm">' + (i < 5 ? '<em>' + (i + 1) + '</em>' : '') + label(x) + '<small>' + _fnEsc(_gcShort(x.org)) + '</small></span>'
+              + '<span class="amt">$' + _evoM(val(x)) + '</span>'
               + '<span class="tr"><i style="width:' + w + '%"></i>' + (A.n ? '<u class="la" style="left:' + la + '%"></u>' : '') + (reg !== 'all' && ALL.n ? '<u class="lg" style="left:' + lg + '%"></u>' : '') + '</span>'
-              + '<span class="amt">$' + _evoM(val(x)) + (mode === 'proj' ? '<small>現在 $' + _evoM(x.inc) + '・業績推到 ' + _invW(x.vp) + ' 萬</small>' : '') + (x.inAvg ? '' : '<small>' + pm + ' 月未滿 15 萬，不列入平均</small>') + '</span></div>';
+              + '<span class="sub">' + sub + '</span></div>';
           }).join('') + '</div>'
         + (mode === 'proj' ? '<p class="ei-note" style="margin:6px 0 0">📈 月底推估：每一條都是照這個人到今天的速度推到月底，再照獎金表算的收入；平均線也是推估的人均</p>' : '')
         + '<div class="ei-leg"><span><u class="la"></u>' + _fnEsc(regName) + (mode === 'proj' ? ' 月底推估人均' : ' 人均') + '</span>' + (reg !== 'all' ? '<span><u class="lg"></u>全省七家人均</span>' : '') + '<span><i class="up"></i>平均以上</span><span><i class="dn"></i>平均以下</span><span><i class="g"></i>' + pm + ' 月未滿 15 萬</span></div></div>';
@@ -18895,7 +18971,11 @@
       { ver:'ds104', icon:'🚀', title:'有新版本會自己跳出來，不用再按 Cmd+R', detail:'網頁每 3 分鐘看一次有沒有新版。有的話表頭下面會出現紅色一條：有新版本幾號、改了什麼、按「立刻更新」就換新的，連外面那一層一起換。按 ✕ 可以先不更新' },
       { ver:'ds105', icon:'💵', title:'獎金明細多一張「人均收入」', detail:'收入＝十月獎金合計＋底薪 35,000（不含加班費），只有上個月業績 15 萬以上的人算進人均。可以切全省、桃區、中區、南區，平均跟著重算，另外畫全省平均線。橫條圖從最高排到最低，平均以上紅色、以下綠色、上月未滿 15 萬灰色。右上可以切顯示名字', go:{ fn:'evoBill' } },
       { ver:'ds106', icon:'💵', title:'人均收入多一格「照目前速度推到月底」', detail:'每個人的業績、現金收款照到今天每天平均的速度推到月底，再照獎金表算一次，看月底人均大約多少；你的收入那一格也多一行「照目前速度，月底約多少」。加碼一樣先假設學院會達 300 萬', go:{ fn:'evoBill' } },
-      { ver:'ds107', icon:'📈', title:'人均收入可以切「月底推估」', detail:'區域按鈕旁邊多一組「到今天／📈 月底推估」：切到月底推估，每個人的長條變成照目前速度推到月底可以領多少，旁邊小字寫現在多少、業績推到幾萬；平均線也換成推估的人均', go:{ fn:'evoBill' } }
+      { ver:'ds107', icon:'📈', title:'人均收入可以切「月底推估」', detail:'區域按鈕旁邊多一組「到今天／📈 月底推估」：切到月底推估，每個人的長條變成照目前速度推到月底可以領多少，旁邊小字寫現在多少、業績推到幾萬；平均線也換成推估的人均', go:{ fn:'evoBill' } },
+      { ver:'ds108', icon:'🖼', title:'人均收入可以下載高清 PNG', detail:'右上「顯示名字」旁邊多一顆「🖼 高清 PNG」，照你現在選的區域、到今天或月底推估、名字顯示，輸出 3 倍解析度的圖', go:{ fn:'evoBill' } },
+      { ver:'ds109', icon:'💵', title:'人均收入「到今天／月底推估」上面的數字也跟著換', detail:'切到「到今天」只看到今天的人均和你的收入；切到「📈 月底推估」大字換成月底推估人均、你月底大約可以領多少，小字寫到今天多少。切換、換區域後畫面停在原位，不會跳回最上面', go:{ fn:'evoBill' } },
+      { ver:'ds110', icon:'🖼', title:'人均收入：金額移到名字旁邊、前五名放大、PNG 重新設計', detail:'每一列改成「名字・金額・長條」，截圖金額不會跑到最右邊看不清楚；前五名名字和金額放大、前面標名次。下載的 PNG 改成直式乾淨版：大字人均在最上面，名字旁邊就是金額，前五名放大，上月未滿 15 萬的人收成最後一行，圖比較短，手機好讀', go:{ fn:'evoBill' } },
+      { ver:'ds111', icon:'🖼', title:'人均收入 PNG：分得出「此刻」和「月底推估」', detail:'圖最上面多一條色帶：此刻是紅色「📍 此刻・到 M/D 為止」，月底推估是琥珀色「📈 月底推估・照目前速度推到月底」；標題寫「此刻人均收入」或「月底推估人均收入」，大數字和面板邊框跟著換色；全部字體放大', go:{ fn:'evoBill' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
