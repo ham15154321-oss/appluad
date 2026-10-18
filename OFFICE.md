@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds111'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds115'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds111（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds115（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -486,3 +486,14 @@ C 主管
 - ds109（10/17 Ivan：兩個按鈕按了看起來一樣）：KPI 三格改成跟 mode 走（now 只顯示到今天、proj 大字＝推估、小字到今天）；evoIncSet 重畫後用 .ei-box 原本的位置回捲（之前 ppEventOpen 重畫會跳回彈窗最上面，看起來像沒反應）
 - ds110（10/17 Ivan：金額放名字旁、前五名放大、PNG 改用 apple-design）：.ei-r 改 名字｜金額｜長條｜小字，前五 .top 放大＋名次圓圈；evoIncPng 改用 _evoIncPngHtml 另外畫一張 760 寬直式卡（系統字、大數字負字距、白色圓角面板、前五 21px、只列算進平均的人，未滿 15 萬收成一行），html2canvas scale 3
 - ds111（10/17 Ivan）人均收入 PNG：頂部色帶＋標題分模式（此刻＝紅 #D93A3A／月底推估＝琥珀 #B86E00），大數字與面板上框同色；字體整體放大（前五 25px、其他 19px、標題 46、數字 76）；檔名改 此刻／月底推估
+
+## 第六夜（10/17 Ivan 授權）Apple Design 五輪美化
+- 第 1 輪走查（只看不改）：測速基準 tab11 145ms、tab9 49、其他 <10、每日總結 11、獎金明細 9（ms）。全站 :active 規則 0 條（按下沒有任何回饋）、prefers-reduced-motion 只有 2 處、focus-visible 只有編輯追蹤一處；彈窗（ppEventOpen）每次重畫跳回最上面；表頭同步鈕 5 種漸層色＋紅框，視覺很吵；彈窗沒有開關動態、直接出現；tab 按鈕 transition 0.2s 全屬性；內容最大寬 1200
+  每頁前三：我的一頁＝表格密、主管兩張表字小、區塊間距不一；當月績效＝表頭與合計列對比弱、數字非等寬；漏斗＝上方工具列擠、說明小字太多同一層級；激勵＝排行數字大但名次欄太窄；編輯追蹤＝說明卡片疊太多層、色塊多；每日總結／獎金明細彈窗＝開關沒動態、切換跳回頂端、標題列不固定
+- 第六夜 第 2 輪 ds112：全站按鈕 :active 用 CSS `scale:.97`＋brightness（獨立 scale 屬性，不蓋原本 transform 置中）、transition 只列需要的屬性；:focus-visible 焦點框；同步中 .hdr-mode-btn:disabled 底部跑光；表格／名單 hover 淡紫；ppEventOpen 同一彈窗＋同 scope＋同 evoTab 重畫時保留 #ppEvBg.scrollTop（data-k）；reduced-motion 全部關掉
+- 第六夜 第 3 輪 ds113：表格／大數字 tabular-nums；h1-h4 負字距、th 700＋.02em；header 毛玻璃；done-today 紅框改細；卡片陰影兩層淡、彈窗重；#ppEvBg/#rvBg 加 blur(6px) 霧；.pp-ev-top sticky 毛玻璃（彈窗往下捲標題與關閉一直在）；說明小字行距 1.6；prefers-reduced-transparency／prefers-contrast 替代樣式
+- 第六夜 第 4 輪 ds114：_n6Open/_n6Close（pointerdown 記位置當 transform-origin；只在第一次打開播 n6BoxIn 320ms，重畫不播；關閉 n6-out 170ms 後 display:none，開新彈窗會清掉關閉計時）接在 ppEventOpen、_dsumOpenInner、ppEventClose；.tab-content.active 淡入 200ms；≤640px 表格 block＋overflow-x、tabs 橫滑、彈窗內距縮；reduced-motion 只留淡入
+- 第六夜 第 4 輪補：≤640px 表頭標題不換行、同步鈕縮小（手機表頭從三排變兩排）
+- 第六夜 第 5 輪回歸（ds114）：12 分頁、每日總結 10 張、激勵 7 張、績效盤點七家、90 秒回顧預覽＋播放、我的一頁三身份、人均收入 PNG、每日總結手機版 PNG 全部無錯誤；420px 12 分頁 scrollWidth 都 420；速度 tab11 145→74、tab9 49→49、每日總結 sum 11→28（彈窗動畫本身不算在內，數字是重算時間的浮動）、獎金明細 9→20；perf_compare_v1_* 只有 dsum_s_2026-10-17（18:17 開頁自動快照，平常就會寫），沒有其他寫入
+- 第六夜提案（等 Ivan）：①表頭五顆同步鈕各一種漸層色太吵，改成同一個深色系、只用小色點區分 ②每日總結的工具列（截圖模式、PNG、JPG、自訂）收進一顆「⋯ 更多」 ③我的一頁主管兩張表改成卡片式（手機好讀） ④編輯追蹤說明卡片收合成「ⓘ 怎麼看」 ⑤分頁列在電腦上也固定在頂端（捲下去還看得到）
+- ds115（10/18 Ivan 同意第六夜五個提案）：①五顆同步鈕統一深色漸層＋hmb-line1::before 小色點（stale 白底虛線、done-today 紅框照舊）②_dsViewBar 包進 details.ds-more（截圖模式中退出鈕留外面；DS.custom 時預設展開）③_myWatchHtml／_myPrvSummaryHtml 外包 .mw-grid（table/tbody display:contents、tr 變卡片、td data-l 小標）④編輯追蹤兩個 .ed-legend 包進 details.ed-how「ⓘ 怎麼看」⑤.tabs-container ≥641px sticky top:var(--n6HdrH)（load/resize 量 header 高度）毛玻璃

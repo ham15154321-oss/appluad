@@ -3480,6 +3480,135 @@
     ::-webkit-scrollbar-thumb:hover {
       background: var(--accent);
     }
+
+    /* ═══ 第六夜 第 2 輪：回應與回饋（apple-design §1、§10）═══
+       按下立刻回饋（用 scale 屬性，不會蓋掉原本的 transform）、鍵盤焦點看得到、停用狀態一致 */
+    button, .tab-btn, .ck-region-btn, .archive-btn, .hdr-mode-btn, .hdr-save-btn, summary, [onclick]:is(a, span.my-trkln, label) {
+      -webkit-tap-highlight-color: transparent;
+    }
+    button, .tab-btn, .ck-region-btn, .archive-btn, .hdr-mode-btn, .hdr-save-btn {
+      transition-property: background-color, color, border-color, box-shadow, opacity, filter, scale;
+      transition-duration: 160ms, 160ms, 160ms, 160ms, 160ms, 120ms, 100ms;
+      transition-timing-function: ease-out;
+    }
+    button:not(:disabled):active, .tab-btn:active, .ck-region-btn:active, .archive-btn:active, .hdr-mode-btn:not(:disabled):active, .hdr-save-btn:active {
+      scale: .97; filter: brightness(.94); transition-duration: 160ms, 160ms, 160ms, 160ms, 160ms, 60ms, 60ms;
+    }
+    summary { cursor: pointer; }
+    summary:active { opacity: .7; }
+    a.my-trkln:active, .my-trkln:active { opacity: .6; }
+    button:disabled { cursor: not-allowed; }
+    .hdr-mode-btn:disabled { cursor: progress; }
+    /* 鍵盤操作才出現的焦點框（滑鼠點不會出現） */
+    :is(button, a, select, input, summary, [tabindex]):focus-visible { outline: 2px solid #534AB7; outline-offset: 2px; border-radius: 8px; }
+    body:not(.day-mode) :is(button, a, select, input, summary, [tabindex]):focus-visible { outline-color: #AFA9EC; }
+    /* 同步中的按鈕：底部一條細細的進度光在跑，看得出「正在忙」 */
+    .hdr-mode-btn:disabled { position: relative; overflow: hidden; }
+    .hdr-mode-btn:disabled::after { content: ''; position: absolute; left: -40%; bottom: 0; width: 40%; height: 3px; border-radius: 3px; background: rgba(255,255,255,.85); animation: n6Busy 1.1s ease-in-out infinite; }
+    @keyframes n6Busy { from { left: -40%; } to { left: 100%; } }
+    /* 列表、表格滑過的那一列淡淡亮起，看得出游標在哪一列 */
+    .ei-r:hover, .inv-t tbody tr:hover td, .eb-t tr:not(.eb-g):not(.eb-sum):hover td { background-color: rgba(83,74,183,.05); }
+    @media (prefers-reduced-motion: reduce) {
+      button, .tab-btn, .ck-region-btn, .archive-btn, .hdr-mode-btn, .hdr-save-btn { transition-duration: 0s !important; }
+      button:active, .tab-btn:active, .ck-region-btn:active, .archive-btn:active, .hdr-mode-btn:active { scale: 1 !important; }
+      .hdr-mode-btn:disabled::after { animation: none; left: 0; width: 100%; opacity: .5; }
+    }
+
+    /* ═══ 第六夜 第 3 輪：字體排印與材質層次（apple-design §12、§15）═══ */
+    /* 數字一律等寬，上下對得齊，跳數字時不會左右晃 */
+    table td, table th, .amt, .my-big em, .my-kpi b, .ei-kpi b, .eb-top10 .amt, .inv-kv b, .dsb-today, .pp-rate-hi { font-variant-numeric: tabular-nums; }
+    /* 標題字距：字越大收越緊；內文維持 0 */
+    h1, h2 { letter-spacing: -.02em; } h3, h4 { letter-spacing: -.01em; }
+    .inv-h b, .ei-kpi b, .my-big em { letter-spacing: -.02em; }
+    /* 表頭：字重一致、稍微加字距，跟內容拉開層次 */
+    table th { font-weight: 700; letter-spacing: .02em; }
+    /* 表頭列（同步鈕那一列）：半透明毛玻璃，內容捲到底下還看得到一點 */
+    header { background: rgba(251,251,253,.78); -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px); }
+    body:not(.day-mode) header { background: rgba(18,18,22,.72); }
+    /* 今天已同步的按鈕：紅框改細、改柔，打勾和實心保留 */
+    .hdr-mode-btn.done-today { box-shadow: 0 0 0 1.5px rgba(255,255,255,.9), 0 0 0 3px rgba(226,75,74,.55), 0 2px 8px rgba(0,0,0,.12) !important; }
+    /* 卡片陰影分輕重：一般卡片只有很淡的一層，彈窗最重 */
+    .my-sec, .ei-box, .inv-card, .eb-top10, .eb-card, .chh { box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.04); }
+    .pp-ev-box, .rv-box { box-shadow: 0 2px 6px rgba(0,0,0,.08), 0 24px 70px rgba(0,0,0,.28); }
+    /* 彈窗：後面加一層淡淡的霧，前面的彈窗更聚焦；標題列捲動時固定在上面、一樣是毛玻璃 */
+    #ppEvBg, #rvBg { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); background: rgba(20,18,40,.45) !important; }
+    .pp-ev-top { position: sticky; top: -30px; z-index: 6; margin: -20px -24px 12px; padding: 16px 24px 12px; border-radius: 18px 18px 0 0; background: rgba(255,255,255,.86); -webkit-backdrop-filter: saturate(180%) blur(16px); backdrop-filter: saturate(180%) blur(16px); border-bottom: 1px solid rgba(0,0,0,.06); }
+    body:not(.day-mode) .pp-ev-top { background: rgba(28,28,30,.86); border-bottom-color: rgba(255,255,255,.08); }
+    .pp-ev-top b { letter-spacing: -.01em; }
+    /* 說明小字的行距放鬆一點，比較好讀 */
+    .my-note, .ei-note, .inv-notes, .evo-sub, .evo-foot, .ds-sub { line-height: 1.6; }
+    @media (prefers-reduced-transparency: reduce) {
+      header, .pp-ev-top { background: #fff !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+      body:not(.day-mode) header, body:not(.day-mode) .pp-ev-top { background: #1c1c1e !important; }
+      #ppEvBg, #rvBg { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(0,0,0,.6) !important; }
+    }
+    @media (prefers-contrast: more) {
+      .my-sec, .ei-box, .inv-card, .eb-card { border: 1.5px solid #444 !important; box-shadow: none; }
+      table th { color: #000 !important; }
+    }
+
+    /* ═══ 第六夜 第 4 輪：動態與手機（apple-design §3、§4、§7、§14）═══ */
+    /* 彈窗：從剛剛按的位置長出來（像彈簧、不衝過頭），關閉時縮回去 */
+    .pp-ev-box.n6-in { animation: n6BoxIn 320ms cubic-bezier(.2,.9,.25,1) both; }
+    @keyframes n6BoxIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+    #ppEvBg.n6-bgin { animation: n6BgIn 220ms ease-out both; }
+    @keyframes n6BgIn { from { opacity: 0; } to { opacity: 1; } }
+    #ppEvBg.n6-out { animation: n6BgOut 170ms ease-in both; } #ppEvBg.n6-out .pp-ev-box { animation: n6BoxOut 170ms ease-in both; }
+    @keyframes n6BgOut { to { opacity: 0; } } @keyframes n6BoxOut { to { opacity: 0; transform: scale(.96); } }
+    /* 切分頁：內容淡入、往上浮 4px，不會整片閃一下 */
+    .tab-content.active { animation: n6TabIn 200ms ease-out both; }
+    @keyframes n6TabIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    /* 劇本預覽、績效盤點、人均收入：出現時也淡入 */
+    #rvBg .rv-box, #inventoryPanel { animation: n6BoxIn 280ms cubic-bezier(.2,.9,.25,1) both; }
+    /* 手機 420px：寬表格自己左右滑，不會把整頁撐開 */
+    @media (max-width: 640px) {
+      .tab-content { overflow-x: hidden; }
+      .tab-content table:not(.inv-t):not(.inv-b) { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .pp-ev-box { padding: 14px 12px 18px; border-radius: 14px; }
+      .pp-ev-top { margin: -14px -12px 10px; padding: 12px 12px 10px; font-size: 1rem; }
+      #ppEvBg { padding: 10px 6px; }
+      .tabs-container { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; } .tabs-container::-webkit-scrollbar { display: none; }
+      .tabs-container .tab-btn { flex: 0 0 auto; }
+      header .header-title { font-size: 1.05rem; white-space: nowrap; }
+      header .hdr-sync-group { gap: 4px; }
+      header .hdr-mode-btn, header .hdr-save-btn { padding: 4px 8px; }
+      header .hdr-mode-btn .hmb-line1 { font-size: .78rem; letter-spacing: 0; } header .hdr-mode-btn .hmb-line2 { font-size: .56rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pp-ev-box.n6-in, #ppEvBg.n6-bgin, #ppEvBg.n6-out, #ppEvBg.n6-out .pp-ev-box, .tab-content.active, #rvBg .rv-box, #inventoryPanel { animation: none !important; }
+      .tab-content.active { animation: n6Fade 120ms linear both !important; }
+      @keyframes n6Fade { from { opacity: 0; } to { opacity: 1; } }
+    }
+
+    /* ═══ 第六夜提案（10/18 Ivan 同意）═══ */
+    /* ① 五顆同步鈕：同一個深色系，只用小色點分 */
+    body .hdr-sync-group .hdr-mode-btn:is(.motiv,.checkin,.channel,.funnel,.edits), body.day-mode .hdr-sync-group .hdr-mode-btn:is(.motiv,.checkin,.channel,.funnel,.edits) { background: linear-gradient(180deg,#3A3A44,#24242B) !important; color: #fff !important; border-color: rgba(255,255,255,.08) !important; }
+    .hdr-sync-group .hdr-mode-btn:is(.motiv,.checkin,.channel,.funnel,.edits) .hmb-line1::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: #3b82f6; box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
+    .hdr-sync-group .hdr-mode-btn.checkin .hmb-line1::before { background: #f59e0b; } .hdr-sync-group .hdr-mode-btn.channel .hmb-line1::before { background: #a855f7; }
+    .hdr-sync-group .hdr-mode-btn.funnel .hmb-line1::before { background: #14b8a6; } .hdr-sync-group .hdr-mode-btn.edits .hmb-line1::before { background: #8b7cf6; }
+    /* ② 每日總結「⋯ 更多」 */
+    .ds-more { display: inline-block; position: relative; } .ds-more > summary { list-style: none; display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(0,0,0,.12); background: #fff; font-weight: 700; color: #26215C; user-select: none; }
+    .ds-more > summary::-webkit-details-marker { display: none; } .ds-more[open] > summary { background: #26215C; color: #fff; }
+    .ds-more-p { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; padding: 10px; border-radius: 14px; background: rgba(245,245,247,.9); border: 1px solid rgba(0,0,0,.06); }
+    body.day-mode .ds-more[open] > summary { color: #fff !important; -webkit-text-fill-color: #fff !important; background: #26215C !important; }
+    /* ③ 我的一頁主管兩張表 → 卡片 */
+    .mw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+    .mw-grid table, .mw-grid tbody { display: contents; }
+    .mw-grid tr { display: block; background: #fff; border: 1px solid rgba(0,0,0,.07); border-radius: 14px; padding: 10px 12px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .mw-grid tr:first-child { display: none; }
+    .mw-grid td { display: block; border: 0 !important; padding: 3px 0 !important; background: transparent !important; }
+    .mw-grid td:first-child { font-size: 1.05rem; padding-bottom: 6px !important; border-bottom: 1px solid rgba(0,0,0,.06) !important; margin-bottom: 4px; }
+    .mw-grid td[data-l]:before { content: attr(data-l); display: block; font-size: .72rem; color: #888780; font-weight: 700; margin-bottom: 1px; }
+    .mw-grid.ps td[data-l] { display: inline-block; margin-right: 14px; font-weight: 800; font-size: 1.05rem; } .mw-grid.ps td[data-l]:before { font-weight: 600; }
+    .mw-grid.ps td.nm { margin-top: 6px; }
+    /* ④ 編輯追蹤「ⓘ 怎麼看」 */
+    .ed-how { margin: 8px 0 12px; } .ed-how > summary { display: inline-block; padding: 5px 14px; border-radius: 999px; border: 1px solid rgba(0,0,0,.12); background: #fff; font-weight: 700; color: #26215C; font-size: .86rem; }
+    .ed-how[open] > summary { margin-bottom: 8px; background: #F1EFE8; }
+    /* ⑤ 分頁列固定在表頭下面（電腦版），半透明 */
+    @media (min-width: 641px) {
+      .tabs-container { position: sticky; top: var(--n6HdrH, 64px); z-index: 999; -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px); background: rgba(245,245,247,.82) !important; }
+      body:not(.day-mode) .tabs-container { background: rgba(18,18,22,.78) !important; }
+    }
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
@@ -5252,7 +5381,7 @@
         if (on('tab-9') && typeof fnRenderAll === 'function' && !document.getElementById('tvBg')) fnRenderAll();
         if (on('tab-10') && typeof edRenderAll === 'function' && !document.getElementById('edDashBg')) edRenderAll();
         if (on('tab-2') && typeof chRenderAll === 'function') chRenderAll();
-        if (document.getElementById('ppEvBg') && document.getElementById('ppEvBg').style.display !== 'none'){ if (ppEvId) ppEventOpen(ppEvId); else dsumOpen(); }
+        if (document.getElementById('ppEvBg') && document.getElementById('ppEvBg').style.display !== 'none' && !document.getElementById('ppEvBg').classList.contains('n6-out')){ if (ppEvId) ppEventOpen(ppEvId); else dsumOpen(); }
       } catch(e){ console.warn('[pull] 原地重畫出錯', e); }
     }
     // ★ 2026/09：任何一種同步跑完就自動推上雲端，不用再記得按「☁️↑ 推送」。
@@ -5431,7 +5560,7 @@
       });
       if (!rows.length) return '';
       return '<details class="my-sec my-watch" open><summary>🎯 今天該盯誰（10:30 晨會用）</summary>'
-        + '<table><tr><th>學院</th><th>連 2 天以上沒入帳</th><th>追蹤卡最多該回覆</th><th>註冊了、21 項還沒勾完</th></tr>' + rows.join('') + '</table>'
+        + '<div class="mw-grid"><table><tr><th>學院</th><th>連 2 天以上沒入帳</th><th>追蹤卡最多該回覆</th><th>註冊了、21 項還沒勾完</th></tr>' + rows.join('') + '</table></div>'
         + '<p class="my-note">點業務名字直接看他的「我的一頁」。沒入帳天數＝這個月最後一次有業績進來，到最新一次同步隔了幾天</p></details>';
     }
     function _myTeamHtml(ym, who){
@@ -5516,13 +5645,13 @@
         var st = list.map(function(x){ var k = _myPrvKey(org, x.n, x.d), v = _myPrvGet(k); return { x:x, k:k, done:_myPrvCount(v) }; });
         var f = st.filter(function(y){ return y.done >= 21; }).length, half = st.filter(function(y){ return y.done > 0 && y.done < 21; }).length, none = st.filter(function(y){ return !y.done; }).length;
         tot += st.length; full += f;
-        rows.push('<tr><td><b>' + _fnEsc(org) + '</b></td><td>' + st.length + '</td><td class="ok">' + f + '</td><td>' + half + '</td><td class="' + (none ? 'bad' : '') + '">' + none + '</td>'
+        rows.push('<tr><td><b>' + _fnEsc(org) + '</b></td><td data-l="註冊">' + st.length + '</td><td class="ok" data-l="勾完">' + f + '</td><td data-l="勾一部分">' + half + '</td><td class="' + (none ? 'bad' : '') + '" data-l="還沒開始">' + none + '</td>'
           + '<td class="nm">' + st.filter(function(y){ return y.done < 21; }).map(function(y){ var nmJs = String(y.x.n || '').replace(/'/g, '');
               return '<span onclick="myOpenPrv(\'' + y.k + '\',\'' + nmJs + '\')" title="點開看勾了哪些">' + _fnEsc(y.x.n) + '<small>' + _fnEsc(String(y.x.o || '').split(/[,，]/)[0]) + '・' + y.done + '/21</small></span>'; }).join('') + '</td></tr>');
       });
       if (!tot) return '';
       return '<details class="my-sec my-prvsum" open><summary>🛡️ 預防退費 21 項總表（主管看）：本月面談後註冊 <b>' + tot + '</b> 位，<b class="ok">' + full + '</b> 位 21 項勾完</summary>'
-        + '<table><tr><th>學院</th><th>註冊</th><th>勾完</th><th>勾一部分</th><th>還沒開始</th><th>還沒勾完的學生（點名字看細項）</th></tr>' + rows.join('') + '</table>'
+        + '<div class="mw-grid ps"><table><tr><th>學院</th><th>註冊</th><th>勾完</th><th>勾一部分</th><th>還沒開始</th><th>還沒勾完的學生（點名字看細項）</th></tr>' + rows.join('') + '</table></div>'
         + '<p class="my-note">只算這個月面談、而且已經註冊的學生；21 項是業務在「我的一頁 → 我的學生」裡勾的。註冊後 7 天內勾完，退費機率下降八成</p></details>';
     }
 
@@ -10478,7 +10607,7 @@
             return '<button class="evo-tab' + (evoTab === t[0] ? ' on' : '') + '" onclick="evoTab=\'' + t[0] + '\';ppEventOpen(ppEvId)">' + t[1] + '</button>';
           }).join('') + '</div></div>';
       if (!usePP || !usePP.orgs) return head + '<div class="ck-empty">還沒有十月的當月績效。' + _pcEmptyHint() + '；或先按上面的「用九月資料預覽」。</div>';
-      if (!_evoHist){ _evoLoadHist(function(){ var bg = document.getElementById('ppEvBg'); if (bg && bg.style.display !== 'none' && ppEvId === '2026-10-push') ppEventOpen(ppEvId); }); }
+      if (!_evoHist){ _evoLoadHist(function(){ var bg = document.getElementById('ppEvBg'); if (bg && bg.style.display !== 'none' && !bg.classList.contains('n6-out') && ppEvId === '2026-10-push') ppEventOpen(ppEvId); }); }
       var M = _evoModel(useYm, usePP);
       _evoAutoSnap(M);
       var D = _evoDayInfo(useYm);
@@ -11229,9 +11358,11 @@
       var body = '';
       try { body = _dsBody(ym, keys); } catch(e){ body = '<div class="ck-empty">計算失敗：' + _fnEsc(String(e && e.message || e)) + '</div>'; console.error(e); }
       var _sh = _dsV().shot && ['race','cal','arena','lead','tt','sum'].indexOf(DS.tab) >= 0;
+      var _n6was = bg.style.display === 'flex' && !bg.classList.contains('n6-out');
       bg.innerHTML = '<div class="pp-ev-box ds-box' + (_sh ? ' ds-shot-on' : '') + '"><div class="pp-ev-top"><b>📋 每日總結　' + (ym ? ym.slice(0,4) + ' 年 ' + (+ym.slice(5)) + ' 月' : '') + '</b>'
         + '<button class="pp-ev-x" onclick="ppEventClose()">✕ 關閉</button></div>' + body + '</div>';
       bg.style.display = 'flex';
+      try { _n6Open(bg, _n6was); } catch(e){}
       if (_sh){
         // ★ 截圖模式：整張看板縮到一個螢幕放得下（Ivan：組長 14 組截不完）
         setTimeout(function(){
@@ -12399,11 +12530,13 @@
       var v = _dsV(), nx = Object.keys(v.x).length;
       var lab = function(k){ if (k.indexOf('org:') === 0) return k.slice(4); if (k.indexOf('col:') === 0) return (+k.slice(9, 11)) + '/' + (+k.slice(12)); var f = DS_ITEMS.filter(function(x){ return x[0] === k; })[0]; return f ? f[1] : k; };
       var h = '<div class="ds-vbar">'
-        + '<button class="ds-shot' + (v.shot ? ' on' : '') + '" onclick="dsShot()">' + (v.shot ? '📸 截圖模式中・點我退出' : '📸 截圖模式') + '</button>'
+        + (v.shot ? '<button class="ds-shot on" onclick="dsShot()">📸 截圖模式中・點我退出</button>' : '')
+        + '<details class="ds-more"' + (DS.custom ? ' open' : '') + '><summary>⋯ 更多</summary><div class="ds-more-p">'
+        + (v.shot ? '' : '<button class="ds-shot" onclick="dsShot()">📸 截圖模式</button>')
         + '<span class="ds-dl"><button onclick="dsDownloadMobile()" title="手機直式長圖：字大、往下滑著看，適合貼 LINE">📱 手機版 PNG</button><button onclick="dsDownload(\'png\')" title="下載高清 PNG（3 倍解析度）">⬇️ 高清 PNG</button><button onclick="dsDownload(\'jpg\')" title="下載高清 JPG（3 倍解析度，檔案較小）">⬇️ JPG</button></span>'
         + '<button class="ck-region-btn' + (DS.custom ? ' active' : '') + '" onclick="DS.custom=!DS.custom;dsumOpen()">⚙️ 自訂截圖模式要藏什麼</button>'
         + (nx ? '<button class="ck-region-btn" onclick="dsUnhideAll()" title="' + _fnEsc(Object.keys(v.x).map(lab).join('、')) + '">↩︎ 還原 ' + nx + ' 個用 ✕ 藏起來的</button>' : '<span class="ds-vtip">滑到任何一欄、一家學院、一個區塊，右上角會出現 ✕，點了就藏</span>')
-        + '</div>';
+        + '</div></details></div>';
       if (DS.custom) h += '<div class="ds-cust"><b>截圖模式要藏：</b>' + DS_ITEMS.map(function(it){
           return '<button class="ds-chip' + (v.shotHide[it[0]] ? ' on' : '') + '" onclick="dsShotItem(\'' + it[0] + '\')">' + (v.shotHide[it[0]] ? '🙈 ' : '👁 ') + it[1] + '</button>';
         }).join('') + '<small>按鈕列、分頁一律在截圖模式藏起來</small></div>';
@@ -13406,12 +13539,38 @@
       else if (!pp || !pp.orgs) body = '<div class="ck-empty">找不到 ' + y + ' 年 ' + mo + ' 月的當月績效封存資料</div>';
       else if (!_fnRawFor(ev.ym)) body = '<div class="ck-empty">找不到 ' + y + ' 年 ' + mo + ' 月的收支逐人資料（漏斗封存），算不出明細</div>';
       else { try { body = ev.render(ev.ym, pp, ppEvScope); } catch(e){ body = '<div class="ck-empty">計算失敗：' + _fnEsc(String(e && e.message || e)) + '</div>'; } }
+      var _n6was = bg.style.display === 'flex' && !bg.classList.contains('n6-out');
+      var _keep = (bg.style.display === 'flex' && bg.getAttribute('data-k') === id + '|' + ppEvScope + '|' + (typeof evoTab !== 'undefined' ? evoTab : '')) ? bg.scrollTop : 0;
+      bg.setAttribute('data-k', id + '|' + ppEvScope + '|' + (typeof evoTab !== 'undefined' ? evoTab : ''));
       bg.innerHTML = '<div class="pp-ev-box"><div class="pp-ev-top"><b>' + ev.btn + '　' + y + ' 年 ' + mo + ' 月 ' + _fnEsc(ev.title) + '</b>'
         + '<button class="pp-ev-x" onclick="ppEventClose()">✕ 關閉</button></div>'
         + '<div class="pp-ev-chips">' + chips + '</div>' + body + '</div>';
       bg.style.display = 'flex';
+      if (_keep) bg.scrollTop = _keep;
+      try { _n6Open(bg, _n6was); } catch(e){}
     }
-    function ppEventClose(){ var bg = document.getElementById('ppEvBg'); if (bg) bg.style.display = 'none'; }
+
+    // ═══ 第六夜 第 4 輪：彈窗動態 ═══
+    //   記住最後一次按下的位置 → 彈窗第一次打開時從那裡長出來（重畫不再播動畫）；關閉時縮回去再藏起來
+    var _n6Pt = null, _n6CloseT = null;
+    document.addEventListener('pointerdown', function(e){ _n6Pt = { x:e.clientX, y:e.clientY }; }, true);
+    function _n6Open(bg, was){
+      if (_n6CloseT){ clearTimeout(_n6CloseT); _n6CloseT = null; }
+      bg.classList.remove('n6-out');
+      if (was) return;
+      var box = bg.querySelector('.pp-ev-box'); if (!box) return;
+      try { var r = box.getBoundingClientRect(); if (_n6Pt) box.style.transformOrigin = Math.round(_n6Pt.x - r.left) + 'px ' + Math.round(Math.min(_n6Pt.y - r.top, 400)) + 'px'; } catch(e){}
+      box.classList.remove('n6-in'); void box.offsetWidth; box.classList.add('n6-in');
+      bg.classList.remove('n6-bgin'); void bg.offsetWidth; bg.classList.add('n6-bgin');
+    }
+    function _n6Close(bg){
+      if (!bg || bg.style.display === 'none') return;
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){ bg.style.display = 'none'; return; }
+      bg.classList.add('n6-out');
+      if (_n6CloseT) clearTimeout(_n6CloseT);
+      _n6CloseT = setTimeout(function(){ bg.style.display = 'none'; bg.classList.remove('n6-out'); _n6CloseT = null; }, 170);
+    }
+    function ppEventClose(){ var bg = document.getElementById('ppEvBg'); if (bg) _n6Close(bg); }
 
     // ═══════════ 🎁 業務加碼獎勵（2026/09 辦法）═══════════
     //   放在當月績效表下面：組長對獎金就在他每天看的那張表上。
@@ -14530,7 +14689,8 @@
               + '　·　再按 <b>' + Math.ceil(miss.length / ED_SEG) + '</b> 次就補齊</p>' + staleTxt;
           })() + '</div>';
 
-      // 燈號說明
+      // 燈號說明（第六夜：收進「ⓘ 怎麼看」）
+      html += '<details class="ed-how"><summary>ⓘ 怎麼看：燈號、空編輯是什麼</summary>';
       html += '<div class="ed-legend"><b>燈號＝這位學生多久沒被編輯</b>'
         + ED_LAMPS.map(function(L){ return '<span class="ed-lg" data-pchelp="' + _fnEsc(L.label + '沒被編輯') + '\n'
             + _fnEsc(L.desc + '。\n\n每位業務那一列的五個數字，就是他手上各燈號各有幾個學生。') + '">'
@@ -14549,6 +14709,7 @@
         + '每天早上按一次那顆紫色按鈕往前累積，兩三週後這一欄才會有真正的判定。<br>'
         + '人次高但人數少＝一直戳同幾個人；兩個都高＝面開得夠廣。<b>量一定要配空編輯率一起看</b> —— '
         + '量大但空 ＝ 交差；量大又幾乎沒空編輯 ＝ 真的在跑。</span></div>';
+      html += '</details>';
 
       (data ? data.orgs : []).forEach(function(o){
         var tot = o.list.reduce(function(a,w){ return { today:a.today + w.today, empty:a.empty + w.todayEmpty }; }, { today:0, empty:0 });
@@ -18975,7 +19136,11 @@
       { ver:'ds108', icon:'🖼', title:'人均收入可以下載高清 PNG', detail:'右上「顯示名字」旁邊多一顆「🖼 高清 PNG」，照你現在選的區域、到今天或月底推估、名字顯示，輸出 3 倍解析度的圖', go:{ fn:'evoBill' } },
       { ver:'ds109', icon:'💵', title:'人均收入「到今天／月底推估」上面的數字也跟著換', detail:'切到「到今天」只看到今天的人均和你的收入；切到「📈 月底推估」大字換成月底推估人均、你月底大約可以領多少，小字寫到今天多少。切換、換區域後畫面停在原位，不會跳回最上面', go:{ fn:'evoBill' } },
       { ver:'ds110', icon:'🖼', title:'人均收入：金額移到名字旁邊、前五名放大、PNG 重新設計', detail:'每一列改成「名字・金額・長條」，截圖金額不會跑到最右邊看不清楚；前五名名字和金額放大、前面標名次。下載的 PNG 改成直式乾淨版：大字人均在最上面，名字旁邊就是金額，前五名放大，上月未滿 15 萬的人收成最後一行，圖比較短，手機好讀', go:{ fn:'evoBill' } },
-      { ver:'ds111', icon:'🖼', title:'人均收入 PNG：分得出「此刻」和「月底推估」', detail:'圖最上面多一條色帶：此刻是紅色「📍 此刻・到 M/D 為止」，月底推估是琥珀色「📈 月底推估・照目前速度推到月底」；標題寫「此刻人均收入」或「月底推估人均收入」，大數字和面板邊框跟著換色；全部字體放大', go:{ fn:'evoBill' } }
+      { ver:'ds111', icon:'🖼', title:'人均收入 PNG：分得出「此刻」和「月底推估」', detail:'圖最上面多一條色帶：此刻是紅色「📍 此刻・到 M/D 為止」，月底推估是琥珀色「📈 月底推估・照目前速度推到月底」；標題寫「此刻人均收入」或「月底推估人均收入」，大數字和面板邊框跟著換色；全部字體放大', go:{ fn:'evoBill' } },
+      { ver:'ds112', icon:'👆', title:'按下去會有感覺了', detail:'所有按鈕按下的那一刻會輕輕縮一下、暗一點，知道有按到；同步中的按鈕底下有一條光在跑；表格和名單滑過的那一列會淡淡亮起；彈窗裡切換、重算時停在原本的位置，不會跳回最上面；用鍵盤 Tab 操作時看得到現在選到哪顆' },
+      { ver:'ds113', icon:'🔤', title:'字和層次更清楚', detail:'表格數字改成等寬，上下對得齊；表頭和標題字距調整；最上面同步鈕那一列和彈窗標題改成半透明毛玻璃，彈窗往下捲時標題和「關閉」一直在上面；彈窗後面多一層淡霧，前面更聚焦；今天已同步的紅框改細一點' },
+      { ver:'ds114', icon:'✨', title:'打開、關閉、切換變順了', detail:'彈窗會從你剛剛按的位置長出來，關掉時縮回去；切分頁時內容淡入，不會整片閃一下；手機上分頁列可以左右滑、寬表格自己左右滑，不會把整頁撐開；系統設定「減少動態」的人只會看到簡單淡入' },
+      { ver:'ds115', icon:'🧹', title:'畫面更清爽：同步鈕同一色、工具收進「更多」、分頁列固定', detail:'右上五顆同步鈕改成同一個深色，只用小色點分（藍＝激勵、橘＝報到、紫＝通路、綠＝漏斗、淡紫＝編輯）；每日總結的截圖模式、PNG、JPG、自訂收進「⋯ 更多」；我的一頁主管那兩張表改成一家一張卡片；編輯追蹤最上面的說明收進「ⓘ 怎麼看」；電腦上往下捲時分頁列會固定在最上面' }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
@@ -19219,6 +19384,12 @@
       location.href = location.pathname + '?v=' + ver + '-' + Date.now();
     }
     (function(){ try { window.addEventListener('load', function(){ setTimeout(_pcUpdateCheck, 15000); setInterval(_pcUpdateCheck, 180000); document.addEventListener('visibilitychange', function(){ if (!document.hidden) setTimeout(_pcUpdateCheck, 1500); }); }); } catch(e){} })();
+
+    // ═══ 第六夜提案⑤：分頁列固定在表頭下面（電腦版）═══
+    (function(){
+      function setH(){ try { var hd = document.querySelector('header'); if (hd) document.documentElement.style.setProperty('--n6HdrH', hd.offsetHeight + 'px'); } catch(e){} }
+      window.addEventListener('load', setH); window.addEventListener('resize', setH); setTimeout(setH, 1500);
+    })();
     // ── 啟動：補上沒看過的改版通知、拉取後的通知、追蹤卡輪詢 ──
     function _pcnBoot(){
       try {
