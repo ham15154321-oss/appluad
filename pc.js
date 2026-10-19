@@ -6309,7 +6309,7 @@
         if (base > 0) M.keys.forEach(function(k){ if (k >= fk) return; var v = _gcSevenSum(M, k); if (v > 0) est.push({ k:k, d:+k.slice(8), cum:Math.round(pts[0].cum * Math.min(1, v / base)), est:1 }); });
       }
       var last = pts[pts.length - 1];
-      return { org:r.org, T:r.T || 1, pts:pts, est:est, cum:last ? last.cum : 0, pct:last ? last.cum / (r.T || 1) : 0,
+      return { org:r.org, T:r.T || 1, _goalT:r._goalT, pts:pts, est:est, cum:last ? last.cum : 0, pct:last ? last.cum / (r.T || 1) : 0,
         mom: exp3 ? got3 / exp3 : null, got3:got3, exp3:exp3, flat: flat >= 2 ? flat : 0, flatFrom: flat >= 2 ? flatFrom : null };
     }
     function _gcSevenSum(M, k){ var S = M.S[k], t = 0; if (!S || !S.o) return 0; CK_ORG_LIST.forEach(function(o){ if (S.o[o]) t += S.o[o].biz || 0; }); return t; }
@@ -6473,6 +6473,11 @@
         if (v.unit === 'lead' || v.unit === 'rep') M = _gcUnitModel(M, v.unit, v.reg);
         else { var _ro = CK_REGIONS[v.reg] ? CK_REGIONS[v.reg].orgs : CK_ORG_LIST; M = Object.assign({}, M, { rows:M.rows.filter(function(r){ return _ro.indexOf(r.org) >= 0; }) }); }
       }
+      // ★ 10/19 Ivan：學院版預設「比金額」（高度＝累計業績），按「🎯 比達成率」才回到「做到自己目標的幾 %」
+      if (!M._amt && v.meas !== 'pct'){
+        var _mx = 1; M.keys.forEach(function(k){ var o = (M.S[k] && M.S[k].o) || {}; M.rows.forEach(function(r){ var b = o[r.org] && +o[r.org].biz || 0; if (b > _mx) _mx = b; }); });
+        M = Object.assign({}, M, { rows:M.rows.map(function(r){ return Object.assign({}, r, { T:_mx, _goalT:r.T }); }), _amt:true, _T:_mx, _acadAmt:true });
+      }
       window._GCMV = M;
       var _selArr = v.unit === 'lead' ? (v.selL || []) : (v.unit === 'rep' ? (v.selP || []) : v.sel);
       var  n = _dsDays(M.ym), W = 960, H = 440, L = 52, R = (M._amt ? 220 : 160), TP = 30, B = 26;
@@ -6508,7 +6513,7 @@
         grid.forEach(function(q){ svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(q) + '" y2="' + Y(q) + '" stroke="#3C3489"/><text x="' + (L - 6) + '" y="' + (Y(q) + 4) + '" fill="#AFA9EC" font-size="12" text-anchor="end">' + (M._amt ? _dsW1(q * T0) + '萬' : Math.round(q * 100) + '%') + '</text>'; });
         gates.forEach(function(g){ svg += '<line x1="' + g.x + '" x2="' + g.x + '" y1="' + TP + '" y2="' + (H - B) + '" stroke="#7F77DD" stroke-dasharray="6 5"/><text x="' + g.x + '" y="' + (TP - 10) + '" fill="#CECBF6" font-size="13" text-anchor="middle">🏁 ' + g.lab + '</text>'; });
         svg += '<line x1="' + X(M.day) + '" x2="' + X(M.day) + '" y1="' + TP + '" y2="' + (H - B) + '" stroke="#FAC775" opacity=".45"/>';
-        if (pace.length) svg += '<polyline points="' + pace.join(' ') + '" fill="none" stroke="#D3D1C7" stroke-width="2" stroke-dasharray="7 5"/><text x="' + (X(M.day) + 6) + '" y="' + (Y((E0.cum[M.day] || 0) / T0) - 8) + '" fill="#D3D1C7" font-size="12">配速車（今天該到）</text>';
+        if (pace.length) svg += '<polyline points="' + pace.join(' ') + '" fill="none" stroke="#D3D1C7" stroke-width="2" stroke-dasharray="7 5"/><text x="' + (X(M.day) + 6) + '" y="' + (Y((E0.cum[M.day] || 0) / T0) - 8) + '" fill="#D3D1C7" font-size="12">今天該到線</text>';
         all.filter(function(s){ return !on(s); }).forEach(function(s){ svg += estSvg(s, '#534AB7', 2, 1) + '<polyline points="' + line(s) + '" fill="none" stroke="#534AB7" stroke-width="2"/>'; });
         var labs = [];
         all.filter(on).forEach(function(s){
@@ -6581,19 +6586,20 @@
       var cards = cmp.map(function(s){
         var isBest = best && best.org === s.org;
         return '<div class="gc-card' + (isBest ? ' best' : '') + (s.flat ? ' flat' : '') + '"><b style="border-color:' + col[s.org] + '">' + _fnEsc(s.org) + (isBest ? '　🏆 勢頭最強' : '') + '</b>'
-          + _gcMomTag(s) + '<small>最近 3 個上班日入帳 ' + _dsW(s.got3) + '／該到 ' + _dsW(s.exp3) + '</small><small>累計 ' + _dsW(s.cum) + (M._amt ? '' : '（目標的 ' + Math.round(s.pct * 100) + '%）') + '</small></div>';
+          + _gcMomTag(s) + '<small>最近 3 個上班日入帳 ' + _dsW(s.got3) + '／該到 ' + _dsW(s.exp3) + '</small><small>累計 ' + _dsW(s.cum) + (M._amt ? (M._acadAmt && s._goalT ? '（目標的 ' + Math.round(s.cum / s._goalT * 100) + '%）' : '') : '（目標的 ' + Math.round(s.pct * 100) + '%）') + '</small></div>';
       }).join('');
       var tabs = [['race','🏎 賽道競速'],['ecg','💓 動能心電圖'],['climb','🧗 登山關卡']].map(function(t){ return '<button class="' + (v.theme === t[0] ? 'on' : '') + '" onclick="gcSet(\'theme\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('');
       return '<div id="gcBox" class="gc-box gc-' + v.theme + (full ? ' full' : '') + '">'
         + '<div class="gc-bar"><span class="gc-tabs">' + tabs + '</span><span><button class="gc-fullbtn rv-btn" onclick="rvOpen()" title="網頁照規則從現在的數字寫出 90 秒的回顧劇本">🎬 90 秒回顧</button><button class="gc-fullbtn" onclick="gcSet(\'span\',\'' + (focus ? 'month' : 'gate') + '\')">' + (focus ? '🔭 看整月' : '🔍 只看這一關') + '</button><button id="gcFullBtn" class="gc-fullbtn" onclick="gcFull()">' + (full ? '✕ 離開全螢幕' : '⛶ 全螢幕') + '</button></span></div>'
         + '<div class="gc-chips gc-unit">' + [['org','🏫 學院'],['lead','👥 組長'],['rep','🙋 個人']].map(function(t){ return '<button class="gc-chip' + ((v.unit || 'org') === t[0] ? ' on' : '') + '" onclick="gcSet(\'unit\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('')
         + '<span class="gc-sep"></span>' + [['all','全部'],['taoyuan','桃區'],['central','中區'],['south','南區']].map(function(t){ return '<button class="gc-chip' + ((v.reg || 'all') === t[0] ? ' on' : '') + '" onclick="gcSet(\'reg\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('')
-        + (M._amt ? '<small>高度＝累計業績金額</small>' : '') + '</div>'
+        + ((v.unit || 'org') === 'org' ? '<span class="gc-sep"></span>' + [['amt','💰 比金額'],['pct','🎯 比達成率']].map(function(t){ return '<button class="gc-chip' + ((v.meas === 'pct' ? 'pct' : 'amt') === t[0] ? ' on' : '') + '" onclick="gcSet(\'meas\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') : '')
+        + (M._amt ? '<small>高度＝累計業績金額</small>' : '<small>高度＝做到自己目標的幾 %</small>') + '</div>'
         + '<div class="gc-chips"><span>比較：</span>' + chips + (sel.length ? '<button class="gc-chip clr" onclick="gcSet(\'clear\')">看全部</button>' : '<small>' + (v.unit === 'lead' ? '點組名只看那幾組（可多選）' : (v.unit === 'rep' ? '先顯示業績前 10 位，點名字只看那幾位（可多選）' : '點學院只看那幾家（可多選）')) + '</small>') + '</div>'
         + '<svg class="gc-svg" viewBox="0 0 ' + W + ' ' + H + '" width="100%">' + svg + '</svg>'
         + '<div id="gcInfo" class="gc-info">點線上任何一點，看那天入帳、承諾、輸贏</div>'
         + '<div class="gc-cards">' + cards + '</div>'
-        + '<div class="gc-legend">高度＝做到自己目標的幾 %（目標不同也能公平比）　🔥＝勢頭 ≥100%（最近 3 個上班日入帳 ÷ 這 3 天該到）　💤／⏸＝連續 2 個上班日以上沒入帳（假日不算）　虛線＋空心點＝預估（北區 10/10 前沒有逐日資料，照七家那幾天的節奏攤，不算勢頭、不算輸贏）</div>'
+        + '<div class="gc-legend">' + (M._amt ? '高度＝累計業績金額（越高做越多）' : '高度＝做到自己目標的幾 %（目標不同也能公平比）') + '　🔥＝勢頭 ≥100%（最近 3 個上班日入帳 ÷ 這 3 天該到）　💤／⏸＝連續 2 個上班日以上沒入帳（假日不算）　虛線＋空心點＝預估（北區 10/10 前沒有逐日資料，照七家那幾天的節奏攤，不算勢頭、不算輸贏）</div>'
         + '</div>';
     }
 
@@ -12584,7 +12590,8 @@
       { ver:'ds117', icon:'👥', title:'賽道圖可以看組長、看個人', detail:'三關路線的賽道圖多一排：🏫 學院／👥 組長／🙋 個人，旁邊全部／桃區／中區／南區。組長版每一組一條線（正式組＋儲備組），個人版每個業務一條線（沒選人時先顯示業績前 10 位），點名字只看那幾條、可以多選；組長和個人的線高度是累計業績金額', go:{ fn:'dsRoad' } },
       { ver:'ds118', icon:'🔤', title:'字變大了、開頁更快出現', detail:'整站沒有再比 13px 小的字：表格內文 15、表頭 13 加粗、說明文字 13、標題分四級；按鈕至少 36px 高好按。打開業績數據中心時分頁先出現、角落「載入分頁…」，不會白一下才跳出來；從首頁關掉業績中心後，它在背景不再每分鐘重畫、不再每 10 分鐘拉雲端，電腦比較不會卡' },
       { ver:'ds119', icon:'🏔️', title:'瀑布更順、子頁不用再手動換版號', detail:'瀑布：五步驟會打勾、標「← 下一步」；錄音列看得到誰傳的、哪天、逐字稿多長；AI 分析有四段進度、秒數、可取消，結果淡入；彈窗從你按的地方長出來、收合區塊用滑的。首頁開任何子頁都自動拿最新版（檔案沒改就用快取，不用重新下載）；背景音樂改成按了鈴鐺才讀，開首頁少載 1.8MB' },
-      { ver:'ds120', icon:'⚡', title:'業績數據中心開得更快', detail:'檔案拆成「開頁要用的」和「按到才載的」：90 秒回顧、績效盤點、榮譽卡、Excel 匯入、教學視窗、下載複製等改成第一次按才載（開頁 6 秒後也會先偷偷載好）；Excel 函式庫（860KB）改成匯入時才下載；同步雲端只抓有變的人、同事照片壓小。開頁到可以按從約 0.5 秒變 0.1 秒左右' }
+      { ver:'ds120', icon:'⚡', title:'業績數據中心開得更快', detail:'檔案拆成「開頁要用的」和「按到才載的」：90 秒回顧、績效盤點、榮譽卡、Excel 匯入、教學視窗、下載複製等改成第一次按才載（開頁 6 秒後也會先偷偷載好）；Excel 函式庫（860KB）改成匯入時才下載；同步雲端只抓有變的人、同事照片壓小。開頁到可以按從約 0.5 秒變 0.1 秒左右' },
+      { ver:'ds121', icon:'💰', title:'賽道圖預設改比金額', detail:'每日總結的賽道圖（學院版）現在高度＝累計業績金額，誰做得多線就比較高，一眼看得出誰超車；想看「做到自己目標的幾 %」按旁邊的「🎯 比達成率」。下面卡片照樣寫目標的幾 %。虛線改叫「今天該到線」' }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };
