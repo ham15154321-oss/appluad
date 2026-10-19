@@ -3609,6 +3609,10 @@
       .tabs-container { position: sticky; top: var(--n6HdrH, 64px); z-index: 999; -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px); background: rgba(245,245,247,.82) !important; }
       body:not(.day-mode) .tabs-container { background: rgba(18,18,22,.78) !important; }
     }
+
+    /* 賽道圖：學院／組長／個人＋分區 */
+    .gc-chips.gc-unit { margin-bottom: 4px; } .gc-sep { display: inline-block; width: 1px; height: 18px; background: rgba(255,255,255,.25); margin: 0 6px; vertical-align: middle; }
+    .gc-climb .gc-sep { background: rgba(0,0,0,.2); }
   </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="./auth-check.js"></script>
@@ -11598,7 +11602,7 @@
     }
     function _gcSevenSum(M, k){ var S = M.S[k], t = 0; if (!S || !S.o) return 0; CK_ORG_LIST.forEach(function(o){ if (S.o[o]) t += S.o[o].biz || 0; }); return t; }
     function gcPickEst(org, k){
-      var M = window._GCM, el = document.getElementById('gcInfo'); if (!M || !el) return;
+      var M = window._GCMV || window._GCM, el = document.getElementById('gcInfo'); if (!M || !el) return;
       var r = M.rows.filter(function(x){ return x.org === org; })[0]; if (!r) return;
       var s = _gcStats(M, r), p = s.est.filter(function(x){ return x.k === k; })[0]; if (!p) return;
       el.innerHTML = '<b>' + _fnEsc(org) + '　' + (+k.slice(5,7)) + '/' + p.d + '</b><span>預估累計 ' + _dsW(p.cum) + '（' + Math.round(p.cum / s.T * 100) + '%）</span>'
@@ -11607,8 +11611,9 @@
     }
     function gcSet(k, val){
       var v = _gcV();
-      if (k === 'sel'){ var i = v.sel.indexOf(val); if (i >= 0) v.sel.splice(i, 1); else v.sel.push(val); }
-      else if (k === 'clear') v.sel = [];
+      var sk = v.unit === 'lead' ? 'selL' : (v.unit === 'rep' ? 'selP' : 'sel'); v[sk] = v[sk] || [];
+      if (k === 'sel'){ var i = v[sk].indexOf(val); if (i >= 0) v[sk].splice(i, 1); else v[sk].push(val); }
+      else if (k === 'clear') v[sk] = [];
       else v[k] = val;
       _gcSave(v); _gcRedraw();
     }
@@ -11621,7 +11626,7 @@
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape'){ var b = document.getElementById('gcBox'); if (b && b.classList.contains('full')) gcFull(); } });
     function _gcRedraw(){ var b = document.getElementById('gcBox'); if (!b || !window._GCM) return; var full = b.classList.contains('full'); b.outerHTML = _gcHtml(window._GCM, full); }
     function gcPick(org, k){
-      var M = window._GCM, el = document.getElementById('gcInfo'); if (!M || !el) return;
+      var M = window._GCMV || window._GCM, el = document.getElementById('gcInfo'); if (!M || !el) return;
       var r = M.rows.filter(function(x){ return x.org === org; })[0]; if (!r) return;
       var s = _gcStats(M, r), p = s.pts.filter(function(x){ return x.k === k; })[0]; if (!p) return;
       var mr = null; try { mr = _dsModel(M.ym, k).rows.filter(function(x){ return x.org === org; })[0]; } catch(e){}
@@ -12049,14 +12054,70 @@
       else if (e.key === 'ArrowLeft'){ rvStep(-1); e.preventDefault(); }
     });
     function _gcShort(o){ return (typeof CK_SHORT !== 'undefined' && CK_SHORT[o]) || o; }
+
+    // ═══ 賽道圖：組長版／個人版（10/19 Ivan）═══
+    //   學院｜組長｜個人 三顆切換＋全部／桃區／中區／南區；組長、個人的線高度＝累計業績金額（不換成 %）
+    //   每天的數字＝每天快照裡那幾個人的業績加總；勢頭照他們自己的個人目標（加總）和學院的上班日算
+    function _gcUnitModel(M0, unit, reg){
+      var regOrgs = reg && reg !== 'all' && CK_REGIONS[reg] ? CK_REGIONS[reg].orgs : CK_ORG_LIST;
+      var reps = {}; try { _myAllReps().forEach(function(x){ reps[x.org + '|' + x.n] = x; }); } catch(e){}
+      var units = [];
+      if (unit === 'lead'){
+        var ym = M0.ym, y = +ym.slice(0,4), m = +ym.slice(5), seen = {};
+        var ok = function(meta){ return meta && +meta.month === m && +meta.year === y; };
+        [[_motivGroupPerfMeta, _motivGroupPerf, ''], [_motivReservePerfMeta, _motivReservePerf, '儲備']].forEach(function(pr){
+          if (!ok(pr[0])) return;
+          (pr[1] || []).forEach(function(g){
+            if (!g || !g.leader || !g.leader.name || regOrgs.indexOf(g.academy) < 0) return;
+            if (/^[A-Za-z]組$/.test(String(g.groupName || '').trim())) return;
+            var names = [g.leader.name].concat((g.members || []).map(function(x){ return x && x.name; }).filter(Boolean));
+            var lab = _trkAlias(g.groupName || (g.leader.name + '組')) + (pr[2] ? '（儲備）' : '') + '・' + _gcShort(g.academy);
+            if (seen[lab]) return; seen[lab] = 1;
+            units.push({ key:lab.replace(/['"\\]/g, ''), org:g.academy, names:names });
+          });
+        });
+      } else {
+        var last = M0.keys[M0.keys.length - 1], P = (M0.S[last] && M0.S[last].p) || {}, cnt = {};
+        Object.keys(P).forEach(function(k){ var n = k.slice(k.indexOf('|') + 1); cnt[n] = (cnt[n] || 0) + 1; });
+        Object.keys(P).forEach(function(k){
+          var org = k.slice(0, k.indexOf('|')), n = k.slice(k.indexOf('|') + 1);
+          if (regOrgs.indexOf(org) < 0 || (typeof EVO !== 'undefined' && EVO.notRep[n])) return;
+          units.push({ key:(cnt[n] > 1 ? n + '・' + _gcShort(org) : n).replace(/['"\\]/g, ''), org:org, names:[n] });
+        });
+      }
+      var S2 = {}, maxCum = 1;
+      M0.keys.forEach(function(k){
+        var src = M0.S[k] || {}, o = {};
+        units.forEach(function(u){ var t = 0, any = false; u.names.forEach(function(n){ var pv = src.p && src.p[u.org + '|' + n]; if (pv){ t += +pv[0] || 0; any = true; } }); if (any || (src.o && src.o[u.org])) o[u.key] = { biz:t }; if (t > maxCum) maxCum = t; });
+        S2[k] = Object.assign({}, src, { o:o });
+      });
+      var rows = units.map(function(u){
+        var ar = M0.rows.filter(function(r){ return r.org === u.org; })[0], goal = 0;
+        u.names.forEach(function(n){ var rp = reps[u.org + '|' + n]; goal += rp && rp.goal ? rp.goal : 0; });
+        var sc = ar && ar.T && goal ? goal / ar.T : 0;
+        var E = ar ? { cum:ar.E.cum.map(function(x){ return x * sc; }), inc:ar.E.inc.map(function(x){ return x * sc; }) } : { cum:[], inc:[] };
+        return { org:u.key, T:maxCum, E:E, _acad:u.org, _goal:goal };
+      });
+      return Object.assign({}, M0, { rows:rows, S:S2, _amt:true, _unit:unit, _T:maxCum });
+    }
     function _gcHtml(M, full){
       window._GCM = M;
-      var v = _gcV(), n = _dsDays(M.ym), W = 960, H = 440, L = 44, R = 160, TP = 30, B = 26;
+      var v = _gcV();
+      if (v.unit === 'lead' || v.unit === 'rep' || (v.reg && v.reg !== 'all')){
+        if (v.unit === 'lead' || v.unit === 'rep') M = _gcUnitModel(M, v.unit, v.reg);
+        else { var _ro = CK_REGIONS[v.reg] ? CK_REGIONS[v.reg].orgs : CK_ORG_LIST; M = Object.assign({}, M, { rows:M.rows.filter(function(r){ return _ro.indexOf(r.org) >= 0; }) }); }
+      }
+      window._GCMV = M;
+      var _selArr = v.unit === 'lead' ? (v.selL || []) : (v.unit === 'rep' ? (v.selP || []) : v.sel);
+      var  n = _dsDays(M.ym), W = 960, H = 440, L = 52, R = (M._amt ? 220 : 160), TP = 30, B = 26;
       var all = M.rows.map(function(r){ return _gcStats(M, r); });
-      var sel = v.sel.filter(function(o){ return all.some(function(s){ return s.org === o; }); });
-      var on = function(s){ return !sel.length || sel.indexOf(s.org) >= 0; };
+      var sel = _selArr.filter(function(o){ return all.some(function(s){ return s.org === o; }); });
+      // 個人版沒選人時先看業績前 10 位，線才不會糊成一片
+      var _top10 = (v.unit === 'rep' && !sel.length) ? all.slice().sort(function(a,b){ return b.cum - a.cum; }).slice(0, 10).map(function(s){ return s.org; }) : null;
+      var on = function(s){ return _top10 ? _top10.indexOf(s.org) >= 0 : (!sel.length || sel.indexOf(s.org) >= 0); };
+      var fmtP = function(s){ return M._amt ? _dsW(s.cum) : Math.round(s.pct * 100) + '%'; };
       var col = {}; all.forEach(function(s, i){ col[s.org] = GC_COL[i % GC_COL.length]; });
-      var r0 = M.rows[0], E0 = r0 ? r0.E : null, T0 = (r0 && r0.T) || 1;
+      var r0 = M.rows[0], E0 = (r0 && !M._amt) ? r0.E : null, T0 = (r0 && r0.T) || 1;
       if (v.theme === 'ecg'){ var nOn = all.filter(on).length; H = Math.max(H, 40 + 96 * nOn); }
       // 本關視角（預設）：鏡頭拉到「這一關結算日」，Y 軸拉到這關目標 ×1.25 → 月初線不會擠在底部
       var focus = v.span !== 'month', nx = focus ? M.G[M.gi][1] : n;
@@ -12078,7 +12139,7 @@
 
       if (v.theme === 'race'){
         svg += '<rect width="' + W + '" height="' + H + '" fill="#1B1747"/>';
-        grid.forEach(function(q){ svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(q) + '" y2="' + Y(q) + '" stroke="#3C3489"/><text x="' + (L - 6) + '" y="' + (Y(q) + 4) + '" fill="#AFA9EC" font-size="12" text-anchor="end">' + Math.round(q * 100) + '%</text>'; });
+        grid.forEach(function(q){ svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(q) + '" y2="' + Y(q) + '" stroke="#3C3489"/><text x="' + (L - 6) + '" y="' + (Y(q) + 4) + '" fill="#AFA9EC" font-size="12" text-anchor="end">' + (M._amt ? _dsW1(q * T0) + '萬' : Math.round(q * 100) + '%') + '</text>'; });
         gates.forEach(function(g){ svg += '<line x1="' + g.x + '" x2="' + g.x + '" y1="' + TP + '" y2="' + (H - B) + '" stroke="#7F77DD" stroke-dasharray="6 5"/><text x="' + g.x + '" y="' + (TP - 10) + '" fill="#CECBF6" font-size="13" text-anchor="middle">🏁 ' + g.lab + '</text>'; });
         svg += '<line x1="' + X(M.day) + '" x2="' + X(M.day) + '" y1="' + TP + '" y2="' + (H - B) + '" stroke="#FAC775" opacity=".45"/>';
         if (pace.length) svg += '<polyline points="' + pace.join(' ') + '" fill="none" stroke="#D3D1C7" stroke-width="2" stroke-dasharray="7 5"/><text x="' + (X(M.day) + 6) + '" y="' + (Y((E0.cum[M.day] || 0) / T0) - 8) + '" fill="#D3D1C7" font-size="12">配速車（今天該到）</text>';
@@ -12094,7 +12155,7 @@
           if (s.mom != null && s.mom >= 1 && !s.flat) svg += '<text x="' + (X(lp.d) - 30) + '" y="' + (ly2 + 7) + '" font-size="20">🔥</text>';
           labs.push({ y:ly2, s:s, c:c });
         });
-        stack(labs).forEach(function(l){ svg += '<text x="' + (W - R + 12) + '" y="' + (l.ty + 5) + '" fill="' + (l.s.flat ? '#B4B2A9' : l.c) + '" font-size="15" font-weight="700">' + _fnEsc(_gcShort(l.s.org)) + ' ' + Math.round(l.s.pct * 100) + '%' + (l.s.flat ? ' 熄火' : '') + '</text>'; });
+        stack(labs).forEach(function(l){ svg += '<text x="' + (W - R + 12) + '" y="' + (l.ty + 5) + '" fill="' + (l.s.flat ? '#B4B2A9' : l.c) + '" font-size="15" font-weight="700">' + _fnEsc(_gcShort(l.s.org)) + ' ' + fmtP(l.s) + (l.s.flat ? ' 熄火' : '') + '</text>'; });
 
       } else if (v.theme === 'ecg'){
         var list = all.filter(on), rh = (H - 40) / Math.max(1, list.length);
@@ -12142,7 +12203,7 @@
         cl.forEach(function(o){ svg += '<circle cx="' + o.x + '" cy="' + o.y + '" r="14" fill="' + o.c + '" stroke="#fff" stroke-width="3"/><text x="' + o.x + '" y="' + (o.y + 5) + '" font-size="14" text-anchor="middle">' + (o.s.flat ? '⏸' : '🧗') + '</text>'; });
         stack(cl).forEach(function(o){
           var gain = o.s.got3 / o.s.T;
-          svg += '<text x="' + (W - R + 12) + '" y="' + (o.ty + 3) + '" fill="#412402" font-size="15" font-weight="700">' + _fnEsc(_gcShort(o.s.org)) + ' ' + Math.round(o.s.pct * 100) + '%</text>'
+          svg += '<text x="' + (W - R + 12) + '" y="' + (o.ty + 3) + '" fill="#412402" font-size="15" font-weight="700">' + _fnEsc(_gcShort(o.s.org)) + ' ' + fmtP(o.s) + '</text>'
             + '<text x="' + (W - R + 12) + '" y="' + (o.ty + 19) + '" fill="' + (o.s.flat ? '#3B6D11' : '#A32D2D') + '" font-size="12">' + (o.s.flat ? '⏸ 坐了 ' + o.s.flat + ' 天' : (o.s.mom == null ? '前段是預估' : '3 天爬 +' + (Math.round(gain * 1000) / 10) + '%')) + '</text>';
         });
       }
@@ -12154,12 +12215,15 @@
       var cards = cmp.map(function(s){
         var isBest = best && best.org === s.org;
         return '<div class="gc-card' + (isBest ? ' best' : '') + (s.flat ? ' flat' : '') + '"><b style="border-color:' + col[s.org] + '">' + _fnEsc(s.org) + (isBest ? '　🏆 勢頭最強' : '') + '</b>'
-          + _gcMomTag(s) + '<small>最近 3 個上班日入帳 ' + _dsW(s.got3) + '／該到 ' + _dsW(s.exp3) + '</small><small>累計 ' + _dsW(s.cum) + '（目標的 ' + Math.round(s.pct * 100) + '%）</small></div>';
+          + _gcMomTag(s) + '<small>最近 3 個上班日入帳 ' + _dsW(s.got3) + '／該到 ' + _dsW(s.exp3) + '</small><small>累計 ' + _dsW(s.cum) + (M._amt ? '' : '（目標的 ' + Math.round(s.pct * 100) + '%）') + '</small></div>';
       }).join('');
       var tabs = [['race','🏎 賽道競速'],['ecg','💓 動能心電圖'],['climb','🧗 登山關卡']].map(function(t){ return '<button class="' + (v.theme === t[0] ? 'on' : '') + '" onclick="gcSet(\'theme\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('');
       return '<div id="gcBox" class="gc-box gc-' + v.theme + (full ? ' full' : '') + '">'
         + '<div class="gc-bar"><span class="gc-tabs">' + tabs + '</span><span><button class="gc-fullbtn rv-btn" onclick="rvOpen()" title="網頁照規則從現在的數字寫出 90 秒的回顧劇本">🎬 90 秒回顧</button><button class="gc-fullbtn" onclick="gcSet(\'span\',\'' + (focus ? 'month' : 'gate') + '\')">' + (focus ? '🔭 看整月' : '🔍 只看這一關') + '</button><button id="gcFullBtn" class="gc-fullbtn" onclick="gcFull()">' + (full ? '✕ 離開全螢幕' : '⛶ 全螢幕') + '</button></span></div>'
-        + '<div class="gc-chips"><span>比較：</span>' + chips + (sel.length ? '<button class="gc-chip clr" onclick="gcSet(\'clear\')">看全部</button>' : '<small>點學院只看那幾家（可多選）</small>') + '</div>'
+        + '<div class="gc-chips gc-unit">' + [['org','🏫 學院'],['lead','👥 組長'],['rep','🙋 個人']].map(function(t){ return '<button class="gc-chip' + ((v.unit || 'org') === t[0] ? ' on' : '') + '" onclick="gcSet(\'unit\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('')
+        + '<span class="gc-sep"></span>' + [['all','全部'],['taoyuan','桃區'],['central','中區'],['south','南區']].map(function(t){ return '<button class="gc-chip' + ((v.reg || 'all') === t[0] ? ' on' : '') + '" onclick="gcSet(\'reg\',\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('')
+        + (M._amt ? '<small>高度＝累計業績金額</small>' : '') + '</div>'
+        + '<div class="gc-chips"><span>比較：</span>' + chips + (sel.length ? '<button class="gc-chip clr" onclick="gcSet(\'clear\')">看全部</button>' : '<small>' + (v.unit === 'lead' ? '點組名只看那幾組（可多選）' : (v.unit === 'rep' ? '先顯示業績前 10 位，點名字只看那幾位（可多選）' : '點學院只看那幾家（可多選）')) + '</small>') + '</div>'
         + '<svg class="gc-svg" viewBox="0 0 ' + W + ' ' + H + '" width="100%">' + svg + '</svg>'
         + '<div id="gcInfo" class="gc-info">點線上任何一點，看那天入帳、承諾、輸贏</div>'
         + '<div class="gc-cards">' + cards + '</div>'
@@ -19158,7 +19222,8 @@
       { ver:'ds113', icon:'🔤', title:'字和層次更清楚', detail:'表格數字改成等寬，上下對得齊；表頭和標題字距調整；最上面同步鈕那一列和彈窗標題改成半透明毛玻璃，彈窗往下捲時標題和「關閉」一直在上面；彈窗後面多一層淡霧，前面更聚焦；今天已同步的紅框改細一點' },
       { ver:'ds114', icon:'✨', title:'打開、關閉、切換變順了', detail:'彈窗會從你剛剛按的位置長出來，關掉時縮回去；切分頁時內容淡入，不會整片閃一下；手機上分頁列可以左右滑、寬表格自己左右滑，不會把整頁撐開；系統設定「減少動態」的人只會看到簡單淡入' },
       { ver:'ds115', icon:'🧹', title:'畫面更清爽：同步鈕同一色、工具收進「更多」、分頁列固定', detail:'右上五顆同步鈕改成同一個深色，只用小色點分（藍＝激勵、橘＝報到、紫＝通路、綠＝漏斗、淡紫＝編輯）；每日總結的截圖模式、PNG、JPG、自訂收進「⋯ 更多」；我的一頁主管那兩張表改成一家一張卡片；編輯追蹤最上面的說明收進「ⓘ 怎麼看」；電腦上往下捲時分頁列會固定在最上面' },
-      { ver:'ds116', icon:'🔔', title:'同步跑完按鈕會停下來，全部同步完成會叮咚', detail:'修好：同步跑完後按鈕底下那條光一直跑、看起來還在忙，現在跑完就停、按鈕恢復。⚡ 全部跑完會「叮—咚」兩聲，Mac 右上角跳一則通知（第一次按 ⚡ 會問要不要允許通知，按允許）；中途停下來是兩聲低音' }
+      { ver:'ds116', icon:'🔔', title:'同步跑完按鈕會停下來，全部同步完成會叮咚', detail:'修好：同步跑完後按鈕底下那條光一直跑、看起來還在忙，現在跑完就停、按鈕恢復。⚡ 全部跑完會「叮—咚」兩聲，Mac 右上角跳一則通知（第一次按 ⚡ 會問要不要允許通知，按允許）；中途停下來是兩聲低音' },
+      { ver:'ds117', icon:'👥', title:'賽道圖可以看組長、看個人', detail:'三關路線的賽道圖多一排：🏫 學院／👥 組長／🙋 個人，旁邊全部／桃區／中區／南區。組長版每一組一條線（正式組＋儲備組），個人版每個業務一條線（沒選人時先顯示業績前 10 位），點名字只看那幾條、可以多選；組長和個人的線高度是累計業績金額', go:{ fn:'dsRoad' } }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };

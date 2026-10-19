@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds116'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds117'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds116（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds117（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -498,3 +498,4 @@ C 主管
 - 第六夜提案（等 Ivan）：①表頭五顆同步鈕各一種漸層色太吵，改成同一個深色系、只用小色點區分 ②每日總結的工具列（截圖模式、PNG、JPG、自訂）收進一顆「⋯ 更多」 ③我的一頁主管兩張表改成卡片式（手機好讀） ④編輯追蹤說明卡片收合成「ⓘ 怎麼看」 ⑤分頁列在電腦上也固定在頂端（捲下去還看得到）
 - ds115（10/18 Ivan 同意第六夜五個提案）：①五顆同步鈕統一深色漸層＋hmb-line1::before 小色點（stale 白底虛線、done-today 紅框照舊）②_dsViewBar 包進 details.ds-more（截圖模式中退出鈕留外面；DS.custom 時預設展開）③_myWatchHtml／_myPrvSummaryHtml 外包 .mw-grid（table/tbody display:contents、tr 變卡片、td data-l 小標）④編輯追蹤兩個 .ed-legend 包進 details.ed-how「ⓘ 怎麼看」⑤.tabs-container ≥641px sticky top:var(--n6HdrH)（load/resize 量 header 高度）毛玻璃
 - ds116（10/19 Ivan）：同步成功路徑從沒把按鈕 disabled 改回 false（以前只是淡一點看不出來，ds112 加了 disabled 跑光條才露出來）→ refreshSyncBtnLabels 對不在 busy 的按鈕 b.disabled=false；⚡ 全部 _syncAllEnd 加 _pcChime（Web Audio 叮 C6→G5，失敗低音）＋_pcDesktopNote（Notification，syncAllRun 開始時 requestPermission）
+- ds117（10/19 Ivan：正式＋儲備都列、高度用金額、組長＋個人一起做）：_gcUnitModel(M0, unit, reg) 把快照 s.p 依組（_motivGroupPerf／Reserve 本月 meta、排除 A/B/C 組）或個人加總成假的 S.o，row.T＝全部的最高累計（高度＝金額），row.E＝學院 E 依個人目標加總縮放（勢頭用）；_gcHtml 開頭依 gc_v1.unit/reg 換模型、window._GCMV＝畫面用的模型（gcPick 改用它）、E0 在金額模式不畫配速；選擇各自記 sel／selL／selP；個人版沒選人先顯示前 10；學院模式也能分區
