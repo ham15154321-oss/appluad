@@ -135,7 +135,9 @@ const IDB_LIST = [
   // ★ v6：客訴/獎懲 prCases/prRps/prNextId 從 LS 搬到這裡
   //   22 主角 × ~372 KB 每個 = 8MB+ LS 直接爆
   //   entries：'prCases:<charId>'、'prRps:<charId>'、'prNextId:<charId>'
-  { dbName: 'PrCasesDB',            dbVer: 1, stores: ['data'] },
+  // ★ 2026/10/19 Ivan：客訴案例改用 Google 連結，PrCasesDB 不再同步（雲端舊資料留著沒刪，本機各自保留）。
+  //   以前每人約 2.7MB，29 人一次拉 78MB。
+  // { dbName: 'PrCasesDB',            dbVer: 1, stores: ['data'] },
   // ★ v7（2026/09）：漏斗／深挖／面談池。以前不在這裡，等於「只存在同事自己那台電腦」——
   //   LS 通道被 IDB_MIGRATED_LS_SUFFIXES 推拉雙封殺，而唯一的出口「☁️↑ 強制推送」只有管理者按得到。
   //   結果就是同事做了一整天，別人一個字都看不到。加進來之後走一般同步，每個人都推得上去。
@@ -1168,6 +1170,51 @@ function compressImage(dataUrl, maxBytes){
   });
 }
 
+// ★ 2026/10/19：聰明版壓縮 — 有透明背景的（吉祥物、六角圖）走 PNG 只縮尺寸；照片走 JPEG 降品質。
+//   目標：上雲的每張圖 ≤ IMG_CLOUD_MAX（150KB）。畫面上最大也只顯示幾百像素，看不出差別。
+const IMG_CLOUD_MAX = 150 * 1024;
+function compressImageSmart(dataUrl, maxBytes){
+  maxBytes = maxBytes || IMG_CLOUD_MAX;
+  return new Promise(function(resolve){
+    try {
+      var img = new Image();
+      img.onload = function(){
+        try {
+          var w0 = img.naturalWidth, h0 = img.naturalHeight;
+          if (!w0 || !h0){ resolve(null); return; }
+          var isPng = /^data:image\/(png|webp|gif)/i.test(dataUrl);
+          var hasAlpha = false;
+          if (isPng){
+            // 抽樣看有沒有透明像素（有就不能轉 JPEG，會變黑底）
+            var c0 = document.createElement('canvas'); var sw = Math.min(w0, 200), sh = Math.min(h0, 200);
+            c0.width = sw; c0.height = sh; var x0 = c0.getContext('2d'); x0.drawImage(img, 0, 0, sw, sh);
+            var px = x0.getImageData(0, 0, sw, sh).data;
+            for (var i = 3; i < px.length; i += 16){ if (px[i] < 250){ hasAlpha = true; break; } }
+          }
+          function draw(maxDim){
+            var w = w0, h = h0;
+            if (w > maxDim || h > maxDim){ if (w > h){ h = Math.round(h * maxDim / w); w = maxDim; } else { w = Math.round(w * maxDim / h); h = maxDim; } }
+            var c = document.createElement('canvas'); c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            return c;
+          }
+          var out = null;
+          if (hasAlpha){
+            var dims = [800, 600, 480, 360];
+            for (var d = 0; d < dims.length; d++){ out = draw(dims[d]).toDataURL('image/png'); if (out.length <= maxBytes * 2) break; }
+          } else {
+            var tries = [[800,.75],[800,.6],[640,.6],[480,.55],[360,.5]];
+            for (var t = 0; t < tries.length; t++){ out = draw(tries[t][0]).toDataURL('image/jpeg', tries[t][1]); if (out.length <= maxBytes) break; }
+          }
+          resolve(out && out.length < dataUrl.length ? out : null);
+        } catch(e){ resolve(null); }
+      };
+      img.onerror = function(){ resolve(null); };
+      img.src = dataUrl;
+    } catch(e){ resolve(null); }
+  });
+}
+
 // === 分批寫入 Firestore 的工具 =======================================
 // ★ 用 WriteBatch 把多個 doc.set 合併成單一原子操作
 //   → 在 Firestore write stream 裡只算「一次」寫入
@@ -1186,6 +1233,11 @@ async function writeDataToFirestore(collRef, dataMap, opts){
   var bigEntries = {};
   for (const [k, v] of Object.entries(dataMap)){
     const entrySize = _utf8Bytes(k) + _utf8Bytes(v);
+    // ★ 2026/10/19：圖片超過 150KB 就壓過再上雲（透明圖走 PNG），壓不了才照舊
+    if (isBase64Image(v) && v.length > IMG_CLOUD_MAX){
+      var _sm = await compressImageSmart(v, IMG_CLOUD_MAX);
+      if (_sm){ processedMap[k] = _sm; continue; }
+    }
     if (entrySize > MAX_SINGLE_ENTRY){
       if (isBase64Image(v)){
         var compressed = await compressImage(v, BATCH_LIMIT);
@@ -2699,9 +2751,65 @@ async function logAiChat(data){
   }
 }
 
+// ★ 2026/10/19 一次性工具（Ivan 同意動同事資料）：把雲端每個人 idb_SpaceBaseDB_images 裡超過 150KB 的圖壓一遍。
+//   用法（管理者在 console）：await firebaseSync.compressCloudImages({dryRun:true}) 先看會改多少；
+//   再 await firebaseSync.compressCloudImages() 真的寫。每個人寫完會更新 updatedAt，別台下次拉取就拿到小圖。
+//   不動：bgm_audio、mp_data_v1 這種不是圖的；壓完沒變小的也不動。本機原圖不會被動到（受保護的 key 本機永遠優先）。
+async function compressCloudImages(opts){
+  opts = opts || {};
+  if (!fsDb || !currentUserUid) throw new Error('Firestore 還沒好');
+  var baseRef = fsDb.collection('users').doc(currentUserUid).collection('characters');
+  var allSnap = await baseRef.get();
+  var report = { chars: 0, images: 0, before: 0, after: 0, changed: 0, skipped: 0, errors: [] , detail: [] };
+  var _onlyChars = opts.only || null;
+  for (const charDoc of allSnap.docs){
+    var charId = charDoc.id;
+    if (_onlyChars && _onlyChars.indexOf(charId) < 0) continue;
+    report.chars++;
+    var coll = baseRef.doc(charId).collection('idb_SpaceBaseDB_images');
+    try {
+      var snap = await coll.get();
+      var map = {};
+      var bigParts = {};
+      snap.forEach(function(ds){ var d = ds.data(); if (!d) return; var id = ds.id;
+        if (id === 'main' || id.indexOf('chunk_') === 0){ if (d.data) Object.assign(map, d.data); }
+        else if (id.indexOf('big_') === 0){ if (d.totalParts && d.totalParts > 1){ if (!bigParts[d.key]) bigParts[d.key] = { total: d.totalParts, pieces: {} }; bigParts[d.key].pieces[d.part] = d.value || ''; } else if (d.key){ map[d.key] = d.value || ''; } } });
+      for (var bk in bigParts){ var full = ''; for (var pp = 0; pp < bigParts[bk].total; pp++) full += (bigParts[bk].pieces[pp] || ''); if (full) map[bk] = full; }
+      var changedKeys = {}, charBefore = 0, charAfter = 0, nImg = 0;
+      for (var k in map){
+        var v = map[k];
+        if (!isBase64Image(v)) continue;
+        nImg++; report.images++;
+        if (v.length <= IMG_CLOUD_MAX){ report.skipped++; continue; }
+        var sm = await compressImageSmart(v, IMG_CLOUD_MAX);
+        if (!sm || sm.length >= v.length * 0.9){ report.skipped++; continue; }
+        charBefore += v.length; charAfter += sm.length;
+        report.before += v.length; report.after += sm.length; report.changed++;
+        if (!opts.dryRun) map[k] = sm;
+        changedKeys[k] = 1;
+      }
+      report.detail.push(charId + ': 圖 ' + nImg + ' 張，改 ' + Object.keys(changedKeys).length + ' 張，' + Math.round(charBefore/1024) + 'KB → ' + Math.round(charAfter/1024) + 'KB');
+      if (opts.dryRun || !Object.keys(changedKeys).length) continue;
+      // 先把舊的分段 doc 與所有 chunk_ 清掉（不然舊的大圖分段會被讀回來蓋掉新圖），再整份重寫
+      var victims = [];
+      snap.forEach(function(ds){ var id = ds.id; var d = ds.data() || {};
+        if (id.indexOf('chunk_') === 0) victims.push(ds.ref);
+        else if (id.indexOf('big_') === 0 && d.key && changedKeys[d.key]) victims.push(ds.ref); });
+      for (var vs = 0; vs < victims.length; vs += 20){ var wb = fsDb.batch(); victims.slice(vs, vs + 20).forEach(function(r){ wb.delete(r); }); await wb.commit(); }
+      await writeDataToFirestore(coll, map, {});
+      await baseRef.doc(charId).set({ updatedAt: Date.now() }, { merge: true });
+      console.log('[FirebaseSync] 🖼 ' + charId + ' 圖片壓完：' + Math.round(charBefore/1024) + 'KB → ' + Math.round(charAfter/1024) + 'KB');
+      await delay(500);
+    } catch(e){ report.errors.push(charId + ': ' + (e && e.message || e)); console.warn('[FirebaseSync] 壓圖失敗', charId, e); }
+  }
+  report.beforeMB = Math.round(report.before / 1048576); report.afterMB = Math.round(report.after / 1048576);
+  console.log('[FirebaseSync] 🖼 雲端圖片壓縮' + (opts.dryRun ? '（試算）' : '') + '：' + report.changed + ' 張，' + report.beforeMB + 'MB → ' + report.afterMB + 'MB');
+  return report;
+}
 window.firebaseSync = {
   push: pushToCloud,
   pull: pullFromCloud,
+  compressCloudImages: compressCloudImages,
   changeSyncCode: changeSyncCode,
   logAiChat: logAiChat,
   // ★ iframe 用：直接讀寫 training_sales_direct 路徑（避免 iframe 跨 realm 物件問題）
