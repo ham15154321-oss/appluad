@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds119'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds120'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds119（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds120（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -505,3 +505,4 @@ C 主管
 - 瀑布流三輪報告：瀑布流三輪報告_20261019.md（GitHub「改後」欄等 Ivan 部署後補）
 - 提案 1（10/19 Ivan 同意）firebase-sync.js「拉取：沒變的人不重抓＋先畫再背景拉」：實測一次完整拉取＝29 人 × 11 個 collection＝305 次讀取、783MB（SpaceBaseDB images 295MB、FunnelDB 159MB、localStorage 166MB、PrCases 78MB、Achievement 56MB）、142 秒、主執行緒擋 64 秒、heap 尖峰 3.2GB，而且每開一頁就來一次。改法：①_fs_pulledAt（本機專屬 key）記每個主角上次拉到的 characters/<id>.updatedAt，pullFromCloud 逐人比對一樣就整個人跳過（每 24 小時 __lastFull 保險全抓一次；某人 IDB 寫入出錯就不記、下次重抓）②推送成功後把自己的 updatedAt 記進 _fs_pulledAt（剛推的就是本機這份，不用再抓回來）③每個 collection 之間 await _yield()（setTimeout 0）④_doInit 改成 pullFromCloud({light:true}) → ready → 4 秒後背景 pullFromCloud()（badge 顯示「背景更新中…」，完成發 firebase-sync-updated）。沒動：3 分鐘輕量／12 分鐘完整的頻率、onSnapshot、LWW 規則、推送。實測第二次開頁：瀑布流 ready 0.65 秒、首頁 0.95 秒，背景完整拉 9 秒（跳過 26～27 人）；第一次開（沒有 _fs_pulledAt）：ready 5 秒、背景約 2 分鐘但主執行緒只擋 8 秒。剩下的記憶體尖峰（1.2～2.6GB）來自「推送」端每次把自己的 65 張圖從 IDB 讀出來算簽名，以及別的裝置推了自己就要重抓自己 45MB——列為提案 1b。本機測試先把三個 html 的 firebase-sync.js?v 改成 p1，部署時 deploy.command 會統一改成指紋。備份 outputs/firebase-sync.bak.safe9.js。
 - 10/19 18:00 Ivan 同意「照片縮圖＋PrCasesDB 停同步」：firebase-sync.js ①compressImageSmart（有透明像素走 PNG 只縮尺寸 800→360、照片走 JPEG 800px q.75 往下試，目標 IMG_CLOUD_MAX=150KB）②推送端 writeDataToFirestore：圖片 >150KB 先壓再上雲（以前只有 >500KB 才壓到 700KB）③一次性工具 firebaseSync.compressCloudImages({dryRun}) 逐人讀 idb_SpaceBaseDB_images → 壓 >150KB 的圖 → 先刪舊 big_ 分段與所有 chunk_ → writeDataToFirestore 整份重寫 → updatedAt 蓋新（別台下次拉就拿小圖）。已跑完：27 人、1314 張、改 142 張、130MB → 6MB、0 錯誤；本機原圖不動（hex_/plaza_/mascot/profile 受保護，本機永遠優先；簽名沒變也不會推回去）。④IDB_LIST 把 PrCasesDB 註解掉（雲端舊資料留著、本機各自保留，Ivan 要改 Google 連結）。發現：big_mp_data_v1 單檔與 _p0/_p1 分段並存是舊孤兒（readDataFromFirestore 會偏好分段＝舊的；pull 端有「本地較新」保護所以沒出事），之後要清。
+- ds120 提案 2（10/19 Ivan 同意）業績中心拆檔：performance-compare.html 只剩 38KB 殼（HTML＋小 style）；★ 大 CSS → pc.css（255KB）、大 JS → pc.js（1.0MB）、按到才載 → pc-lazy.js（230KB，102 個函式／變數：90 秒回顧 rv*（_rvName/_rvW/_rvTop/_rvBigIsThree/RV_NICK/_RVP 留 pc.js）、績效盤點 _inv*/inv*、榮譽卡 honor/ha*、通路 Excel 匯入 downloadChTemplate…doChExcelImport、教學 fnTeach*、dsDownloadMobile/dsDownload/dsCopy、evoIncPng/_evoIncPngHtml、motivImportFile/motivParseWorkbook/motivParseCSV、fnKb*、編輯追蹤儀表板 edDash*/_edd*、fnOpenReports）。pc.js 留同名 stub：function X(){ return _pcLazy('X', this, arguments); }，第一次按載 pc-lazy.js（window.PC_LAZY_SRC）後換成真的；load 後 6 秒 requestIdleCallback 預載。xlsx.full.min.js 開頁不載，靠 motivLoadSheetJS（pc-lazy 裡把 downloadChTemplate/chExcelSelected 包一層先載 SheetJS）。deploy.command：改版通知改從 performance-compare.html＋pc.js 讀；SHARED 加 pc.css/pc.js/pc-lazy.js 指紋。★ 以後改業績中心：JS 改 pc.js（PCN_NOTES 也在這）、CSS 改 pc.css、lazy 功能改 pc-lazy.js；我的 python 改檔腳本要把 performance-compare.html 換成 pc.js／pc.css。拆法是 acorn 分析過「這些函式只被點擊呼叫、回傳值沒人用、moved 變數沒被 pc.js 引用」才搬（build 腳本 outputs/build_p2.js、groups 在 /tmp）。實測本機：開業績中心到分頁可按 123ms（原 480～614）、內容 248ms（原 444～659）；11 個分頁都畫得出、冷點 🎬 90 秒回顧 0.5 秒（含載 pc-lazy）、績效盤點／編輯儀表板／教學視窗／通路匯入視窗都正常、console 0 錯誤。備份 outputs/pc.bak.p2base.html。
