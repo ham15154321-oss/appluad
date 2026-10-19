@@ -341,9 +341,211 @@ body.night .case-chip .cc-tag.sop{background:rgba(255,207,74,0.16);color:#ffe6a3
 @media(max-width:620px){ .flow-strip{flex-wrap:wrap;} .flow-arrow{display:none;} .tab .t-scope{display:none;} }
 /* ★ 效能：停用毛玻璃模糊（低階機器卡頓源） */
 *{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+
+/* ═══════════ 瀑布流 第 2 輪（10/19）：字體主從・四級階梯 ═══════════
+   大標 26 / 區塊標題 18 / 內文 16 / 說明 13。整頁不再有 9～12px 正文。
+   主角（數字、名字、標題）比配角大一級粗一級；數字用等寬＋負字距。
+   互動元件 ≥36px，手機 ≥44px。間距用 8 的倍數。舊的尺寸宣告留在上面不刪（第 3 輪 ⑧ 會列清單）。 */
+html{font-size:16px;}
+body{font-size:16px;line-height:1.55;}
+.header{padding:24px 24px 16px;}
+.header h1{font-size:26px;line-height:1.15;letter-spacing:-.02em;}
+.header p,.header .who{font-size:13px;line-height:1.5;margin-top:8px;}
+.month-bar{gap:16px;padding:16px;}
+.month-bar button{width:40px;height:40px;font-size:18px;}
+.month-label{font-size:20px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums;min-width:160px;}
+.container{padding:24px 16px 104px;}
+.section{padding:24px;margin-bottom:24px;}
+.section-title{font-size:18px;line-height:1.3;margin-bottom:16px;gap:12px;}
+.section-title .icon{width:32px;height:32px;font-size:17px;}
+.subhead{font-size:16px;margin:16px 0 8px;gap:8px;}
+.edit-row label{font-size:13px;width:72px;line-height:1.5;}
+.tin{font-size:16px;line-height:1.5;padding:8px 12px;min-height:40px;}
+textarea.tin{min-height:112px;line-height:1.6;}
+.btn{font-size:15px;line-height:1.3;padding:8px 14px;min-height:36px;border-radius:10px;}
+.btn.sm{font-size:14px;padding:6px 12px;min-height:36px;}
+.link-open{font-size:15px;padding:8px 12px;min-height:36px;border-radius:10px;}
+.lrow{padding:12px;margin-bottom:8px;gap:8px;}
+.lrow .tin{font-size:16px;padding:8px 12px;}
+.award-star-name{font-size:24px;line-height:1.15;letter-spacing:-.02em;}
+.award-star-sub{font-size:13px;margin-top:4px;}
+.award-trophy{font-size:40px;}
+.case-chip{padding:8px 12px;gap:8px;margin-bottom:8px;min-height:44px;}
+.case-chip .cc-tag{font-size:13px;padding:2px 8px;}
+.case-chip .cc-title{font-size:16px;}
+.case-chip .cc-link{font-size:13px;padding:2px 8px;}
+.placeholder{font-size:16px;padding:32px;}
+.modal{padding:24px;}
+.modal h3{font-size:20px;line-height:1.2;letter-spacing:-.01em;margin-bottom:16px;}
+.modal-xrow{margin:-24px -24px 16px;padding:16px 24px;}
+.modal-x{font-size:15px;padding:8px 16px;min-height:36px;}
+.modal-body{font-size:16px;line-height:1.7;}
+.pick-item{padding:12px;}
+.pick-item .pi-title{font-size:16px;}
+.pick-item .pi-preview{font-size:13px;max-height:40px;line-height:1.5;}
+.save-bar{padding:16px 24px 24px;}
+.save-btn{font-size:16px;padding:12px 32px;min-height:44px;}
+.toast{font-size:15px;padding:10px 24px;}
+.voice-sub{font-size:13px;line-height:1.55;}
+.need-card{padding:16px;margin-bottom:12px;}
+.need-card .nc-no{font-size:13px;letter-spacing:.04em;margin-bottom:8px;}
+.vbox{font-size:15px;line-height:1.65;padding:12px;}
+.abar-row{margin-bottom:16px;}
+.abar-name{font-size:16px;margin-bottom:4px;}
+.abar-name .chg{font-size:13px;font-variant-numeric:tabular-nums;}
+.abar-tag{font-size:13px;width:40px;}
+.abar-track{height:16px;border-radius:8px;}
+.abar-val{font-size:15px;width:88px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.abar-total{font-size:16px;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums;padding:2px 12px;}
+.voice-hero{padding:24px;}
+.vh-title{font-size:20px;line-height:1.2;letter-spacing:-.01em;}
+.vh-btn{font-size:16px;padding:10px 20px;min-height:40px;}
+.vh-sub{font-size:13px;line-height:1.6;margin-top:12px;}
+.vh-btn2{font-size:15px;padding:8px 16px;min-height:36px;}
+.sec-chev{font-size:13px;}
+.sec-sum{font-size:13px;}
+.ai-chip{font-size:13px;padding:2px 8px;}
+.bp-steps{gap:8px;margin-bottom:16px;}
+.bp-step{padding:8px 12px;}
+.bp-step .n{font-size:13px;}
+.bp-step .t{font-size:16px;}
+.battle-ai-btn{font-size:16px;padding:12px 24px;min-height:44px;}
+.gc-item{padding:16px;margin-bottom:12px;}
+.gc-pick{font-size:16px;padding:10px 12px;min-height:40px;}
+.flow-strip{margin:16px auto 0;padding:0 16px;gap:8px;}
+.flow-step{padding:12px 16px;gap:12px;min-height:56px;}
+.flow-num{width:28px;height:28px;font-size:15px;}
+.flow-txt{font-size:16px;line-height:1.35;}
+.flow-txt span{font-size:13px;}
+.flow-arrow{font-size:18px;}
+.tabs{margin:16px auto 0;padding:8px 16px;gap:8px;}
+.tab{padding:8px;min-height:56px;gap:4px;}
+.tab .t-main{font-size:16px;}
+.tab .t-scope{font-size:13px;padding:2px 10px;}
+.scope-badge{font-size:13px;padding:2px 10px;}
+.sub-note{font-size:13px;line-height:1.55;margin:-4px 0 16px;}
+.hero-tag{font-size:13px;padding:2px 10px;}
+.ai-box{padding:16px;margin-top:8px;}
+.ai-feeds{gap:8px;margin:12px 0;}
+.feed{font-size:13px;padding:6px 12px;line-height:1.4;min-height:32px;display:inline-flex;align-items:center;}
+.feed[onclick]{min-height:36px;}
+.ai-arrow{font-size:15px;margin:8px 0;}
+.empty{padding:24px;}
+.empty .e-icon{font-size:32px;}
+.empty .e-title{font-size:16px;}
+.empty .e-hint{font-size:13px;line-height:1.6;margin-bottom:12px;}
+label.lrow{min-height:44px;}
+label.lrow input[type=checkbox]{width:20px;height:20px;flex-shrink:0;}
+input[type=checkbox],input[type=radio]{width:18px;height:18px;vertical-align:-3px;margin-right:6px;}
+/* 區塊標題裡的按鈕是配角：小一級 */
+.section-title .btn{font-size:14px;}
+/* modal 裡的小說明統一 13 */
+.modal div[style*="font-size:12px"],.modal div[style*="font-size:11px"]{font-size:13px !important;line-height:1.55 !important;}
+/* 手機 420：互動元件 44 */
+@media(max-width:620px){
+  .btn,.link-open,.modal-x,.vh-btn2,.gc-pick,.tab,.flow-step,.month-bar button,.tin:not(textarea),.tz-btn,.tz-handle,.nav-btn{min-height:44px;}
+  .month-bar button{width:44px;height:44px;}
+  .section{padding:16px;border-radius:14px;}
+  .container{padding:16px 12px 112px;}
+  .edit-row label{width:100%;}
+  .section-title{font-size:18px;}
+  .header h1{font-size:24px;}
+  .tabs{padding:8px;}
+  .tab{min-height:48px;padding:6px 4px;}
+  .tab .t-main{font-size:15px;}
+  /* 儲存鈕和右下角文字縮放列不要疊在一起 */
+  .save-bar{justify-content:flex-start;padding-left:16px;}
+}
+/* ═══════════ 五步驟進度條：做到哪一步看得出來 ═══════════ */
+.flow-step{position:relative;}
+.flow-step.done{border-color:rgba(26,122,50,.45);}
+.flow-step.done .flow-num{background:#1a7a32;color:#fff;}
+body.night .flow-step.done .flow-num{background:#3ee0a0;color:#03060f;}
+.flow-step.cur{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,113,227,.15);}
+body.night .flow-step.cur{box-shadow:0 0 0 3px rgba(74,234,255,.18);}
+.flow-step.cur .flow-txt b::after{content:'　← 下一步';font-size:13px;font-weight:700;color:var(--accent);}
+.flow-step.todo{opacity:.62;}
+/* ═══════════ 錄音列：誰／哪天／多長／看逐字稿 ═══════════ */
+.rec-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:#fff;cursor:pointer;min-height:56px;}
+body.night .rec-row{background:rgba(14,26,58,0.72);border-color:rgba(100,170,255,0.18);}
+.rec-row.on{border-color:var(--accent);background:rgba(0,113,227,.05);}
+body.night .rec-row.on{background:rgba(43,143,255,.14);border-color:rgba(74,234,255,.5);}
+.rec-row input[type=checkbox]{width:22px;height:22px;margin:0;flex-shrink:0;}
+.rec-main{flex:1;min-width:0;}
+.rec-title{font-size:16px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;}
+.rec-meta{font-size:13px;color:var(--dim);margin-top:2px;line-height:1.4;display:flex;flex-wrap:wrap;gap:4px 12px;font-variant-numeric:tabular-nums;}
+.rec-meta b{font-weight:600;color:var(--text);}
+.rec-row .btn{flex-shrink:0;}
+.rec-count{font-size:13px;font-weight:700;color:var(--accent);background:rgba(0,113,227,.1);border-radius:999px;padding:2px 10px;margin-left:8px;}
+body.night .rec-count{color:#bfe9ff;background:rgba(74,234,255,.18);}
+/* ═══════════ AI 分析：狀態／進度／取消／結果淡入 ═══════════ */
+.ai-run{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;}
+.ai-run .battle-ai-btn{flex:1;min-width:240px;}
+.ai-cancel{display:none;}
+.ai-run.busy .ai-cancel{display:inline-flex;align-items:center;}
+.ai-prog{margin-top:12px;padding:12px 16px;border-radius:12px;background:rgba(0,113,227,.06);border:1px solid rgba(0,113,227,.2);display:none;}
+body.night .ai-prog{background:rgba(43,143,255,.12);border-color:rgba(74,234,255,.3);}
+.ai-prog.show{display:block;}
+.ai-prog-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:16px;font-weight:700;color:var(--text);}
+.ai-prog-row em{font-style:normal;font-size:13px;font-weight:600;color:var(--dim);font-variant-numeric:tabular-nums;}
+.ai-prog-bar{height:8px;border-radius:4px;background:rgba(0,0,0,.08);overflow:hidden;margin-top:8px;}
+body.night .ai-prog-bar{background:rgba(100,170,255,.16);}
+.ai-prog-bar>div{height:100%;width:0;background:var(--accent);border-radius:4px;transition:width .6s ease;}
+.ai-prog-steps{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.ai-prog-steps span{font-size:13px;color:var(--dim);padding:2px 10px;border-radius:999px;background:rgba(0,0,0,.05);}
+.ai-prog-steps span.on{color:var(--accent);background:rgba(0,113,227,.12);font-weight:700;}
+.ai-prog-steps span.ok{color:#1a7a32;background:rgba(26,122,50,.1);}
+body.night .ai-prog-steps span{background:rgba(100,170,255,.1);}
+body.night .ai-prog-steps span.ok{color:#a8f0d0;background:rgba(62,224,160,.14);}
+#battleAiResult.fade-in{animation:wfFadeIn .35s ease both;}
+@keyframes wfFadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.battle-ai-btn.busy{opacity:.75;cursor:progress;}
+.ai-err{font-size:16px;color:#b02a37;padding:12px 16px;border:1px solid rgba(220,53,69,.35);border-radius:12px;background:rgba(220,53,69,.06);margin-top:12px;line-height:1.5;}
+@media (prefers-reduced-motion: reduce){ #battleAiResult.fade-in,.tabpane.active{animation:none !important;} }
+/* ═══════════ 瀑布流 第 3 輪（10/19）：絲滑（apple-design：按下即回饋、彈窗從按的地方長出、收合不突然跳、可中途再按） ═══════════ */
+button,.btn,.tab,.flow-step,.link-open,.modal-x,.vh-btn,.vh-btn2,.save-btn,.battle-ai-btn,.gc-pick,.rec-row,.feed[onclick],.month-bar button,.section.collapsible>.section-title{
+  -webkit-tap-highlight-color:transparent;
+  transition-property:background-color,color,border-color,box-shadow,opacity,filter,scale,transform;
+  transition-duration:160ms,160ms,160ms,160ms,120ms,120ms,100ms,180ms;transition-timing-function:ease-out;
+}
+button:not(:disabled):active,.btn:not(:disabled):active,.tab:active,.flow-step:active,.link-open:active,.modal-x:active,.vh-btn:active,.save-btn:active,.battle-ai-btn:not(:disabled):active,.gc-pick:active,.rec-row:active,.feed[onclick]:active,.month-bar button:active{
+  scale:.97;filter:brightness(.94);transition-duration:60ms;
+}
+.section:hover{transform:none;box-shadow:0 6px 20px rgba(0,0,0,0.06);}   /* 卡片滑過不再放大跳動（會掉格） */
+.voice-hero:hover{transform:none;}
+:is(button,a,select,input,textarea,[tabindex],.tab,.flow-step,.rec-row):focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px;}
+/* 彈窗：從剛剛按的位置長出來、關閉時縮回去（transform-origin 由 JS 設） */
+.modal-bg.open{animation:wfBgIn 200ms ease-out both;}
+.modal-bg.open .modal{animation:wfBoxIn 300ms cubic-bezier(.2,.9,.25,1) both;}
+.modal-bg.closing{display:flex;animation:wfBgOut 160ms ease-in both;pointer-events:none;}
+.modal-bg.closing .modal{animation:wfBoxOut 160ms ease-in both;}
+@keyframes wfBgIn{from{opacity:0;}to{opacity:1;}} @keyframes wfBgOut{to{opacity:0;}}
+@keyframes wfBoxIn{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:none;}} @keyframes wfBoxOut{to{opacity:0;transform:scale(.96);}}
+/* 收合區塊：高度用動畫收展（JS setSec 用 Web Animations），不會整塊突然冒出來 */
+.sec-body{overflow:visible;}
+.sec-body.animating{overflow:hidden;}
+/* 切月份：內容淡一下再出現，不會閃白 */
+.container.month-swap{animation:wfFadeIn .22s ease both;}
+/* 旋轉箭頭順一點 */
+.sec-chev{transition:transform .22s cubic-bezier(.2,.9,.25,1);}
+@media (prefers-reduced-motion: reduce){
+  button,.btn,.tab,.flow-step{transition-duration:0s !important;}
+  button:active,.btn:active,.tab:active{scale:1 !important;}
+  .modal-bg.open,.modal-bg.open .modal,.modal-bg.closing,.modal-bg.closing .modal,.container.month-swap{animation:none !important;}
+}
+/* ⑧ 舊樣式（第 3 輪盤點，只標不刪）：.placeholder／.pl-icon／.vbox／.vh-btn2 目前沒有任何地方用到；
+   上面第 1～343 行裡被第 2 輪覆蓋掉的字級宣告（.header p 12px、.btn 12px、.tin 13px…共 70 多條）也還留著。清單見 OFFICE.md。 */
+
+/* 共用元件（首頁導覽列、文字縮放列）在這頁也照四級：說明 13、可點 ≥36 */
+.nav-btn{font-size:13px !important;min-height:36px;}
+.tz-btn,.tz-cap,.tz-handle{font-size:13px !important;}
+.tz-btn{min-height:36px;}
+.tz-handle{min-height:36px;min-width:36px;}
+/* 區塊標題裡的小字說明（之星、待檢討等「尚未連結」）統一 13 */
+.section .card>div[style*="font-size:12px"]{font-size:13px !important;}
 </style>
-<script src="./auth-check.js"></script>
-<script defer src="./firebase-sync.js?v=safe9"></script>
+<script src="./auth-check.js?v=5a09f9ce"></script>
+<script defer src="./firebase-sync.js?v=ea0a44a3"></script>
 </head>
 <body>
 <script>
@@ -375,22 +577,22 @@ body.night .case-chip .cc-tag.sop{background:rgba(255,207,74,0.16);color:#ffe6a3
 
 <!-- ══ 流程引導條 ══ -->
 <div class="flow-strip">
-  <div class="flow-step" onclick="goTab('rec','#wfUploadHero')"><div class="flow-num">1</div><div class="flow-txt"><b>上傳錄音</b><span>轉逐字稿＋摘要</span></div></div>
+  <div class="flow-step" id="flow1" onclick="goTab('rec','#wfUploadHero')"><div class="flow-num">1</div><div class="flow-txt"><b>上傳錄音</b><span>轉逐字稿＋摘要</span></div></div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step" onclick="goTab('battle','#block1')"><div class="flow-num">2</div><div class="flow-txt"><b>連結到名單</b><span>之星 / 待檢討</span></div></div>
+  <div class="flow-step" id="flow2" onclick="goTab('battle','#block1')"><div class="flow-num">2</div><div class="flow-txt"><b>連結到名單</b><span>之星 / 待檢討</span></div></div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step" onclick="goTab('battle','#block3')"><div class="flow-num">3</div><div class="flow-txt"><b>跑 AI 分析</b><span>到作戰計劃按鈕</span></div></div>
+  <div class="flow-step" id="flow3" onclick="goTab('battle','#battleAiSection')"><div class="flow-num">3</div><div class="flow-txt"><b>跑 AI 分析</b><span>到作戰計劃按鈕</span></div></div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step" onclick="goTab('battle','#block3')"><div class="flow-num">4</div><div class="flow-txt"><b>採納打包</b><span>送進時間軸</span></div></div>
+  <div class="flow-step" id="flow4" onclick="goTab('battle','#battleAdopted')"><div class="flow-num">4</div><div class="flow-txt"><b>採納打包</b><span>送進時間軸</span></div></div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step" onclick="goToTimelineFromWf()"><div class="flow-num">5</div><div class="flow-txt"><b>進到時間軸</b><span>查看已打包任務</span></div></div>
+  <div class="flow-step" id="flow5" onclick="goToTimelineFromWf()"><div class="flow-num">5</div><div class="flow-txt"><b>進到時間軸</b><span>查看已打包任務</span></div></div>
 </div>
 
 <!-- ══ 分頁導覽 ══ -->
 <div class="tabs">
-  <div class="tab active" data-tab="battle" onclick="goTab('battle')"><span class="t-main">🎯 本月作戰</span><span class="t-scope">當月</span></div>
-  <div class="tab" data-tab="rec" onclick="goTab('rec')"><span class="t-main">🎙️ 錄音與案例</span><span class="t-scope">素材</span></div>
-  <div class="tab" data-tab="kb" onclick="goTab('kb')"><span class="t-main">📚 知識庫</span><span class="t-scope">長期共用</span></div>
+  <div class="tab active" data-tab="battle" onclick="goTab('battle')"><span class="t-main">🎯 本月作戰</span><span class="t-scope">分析・採納・打包（當月）</span></div>
+  <div class="tab" data-tab="rec" onclick="goTab('rec')"><span class="t-main">🎙️ 錄音與案例</span><span class="t-scope">上傳錄音・連到名單</span></div>
+  <div class="tab" data-tab="kb" onclick="goTab('kb')"><span class="t-main">📚 知識庫</span><span class="t-scope">SOP・話術檔（長期共用）</span></div>
 </div>
 
 <div class="container">
@@ -673,7 +875,26 @@ function toast(msg,isErr){
   t.classList.add('show');
   setTimeout(function(){ t.classList.remove('show'); },2200);
 }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+var _wfPt=null, _wfCloseT={};
+document.addEventListener('pointerdown',function(e){ _wfPt={x:e.clientX,y:e.clientY}; },true);
+function _wfReduced(){ try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } }
+function openModalById(id){
+  var bg=document.getElementById(id); if(!bg) return;
+  if(_wfCloseT[id]){ clearTimeout(_wfCloseT[id]); _wfCloseT[id]=null; }
+  bg.classList.remove('closing');
+  bg.classList.add('open');
+  try{
+    var box=bg.querySelector('.modal'); var r=box.getBoundingClientRect();
+    if(_wfPt && box) box.style.transformOrigin=Math.round(Math.min(Math.max(_wfPt.x-r.left,0),r.width))+'px '+Math.round(Math.min(Math.max(_wfPt.y-r.top,0),Math.min(r.height,400)))+'px';
+  }catch(e){}
+}
+function closeModal(id){
+  var bg=document.getElementById(id); if(!bg||!bg.classList.contains('open')) return;
+  if(_wfReduced()){ bg.classList.remove('open'); return; }
+  bg.classList.remove('open'); bg.classList.add('closing');
+  if(_wfCloseT[id]) clearTimeout(_wfCloseT[id]);
+  _wfCloseT[id]=setTimeout(function(){ bg.classList.remove('closing'); _wfCloseT[id]=null; },170);
+}
 function safeUrl(u){ u=String(u||'').trim(); return /^https?:\/\//i.test(u) ? u : ''; }
 
 // ════════ 月份 ════════
@@ -684,6 +905,7 @@ function changeMonth(d){
   if(currentMonth<1){ currentMonth=12; currentYear--; }
   updateMonthLabel();
   renderAll();
+  try{ var c=document.querySelector('.container'); c.classList.remove('month-swap'); void c.offsetWidth; c.classList.add('month-swap'); }catch(e){}
 }
 
 // ════════ 業績數據（mp_data_v1，全主角共享，IndexedDB SpaceBaseDB.images）════════
@@ -880,7 +1102,7 @@ function renderBlock1(){
     +'<a class="link-open'+(safeUrl(d.photoUrl)?'':' off')+'" href="'+escAttr(safeUrl(d.photoUrl)||'#')+'" target="_blank">🔗 開啟</a></div>'
     +'<div style="margin-top:10px;"><div class="subhead" style="margin:6px 0;">🎙️ 連結錄音案例 '
     +'<button class="btn cyan" onclick="openCasePicker(\'star\',0)">＋ 連結案例</button></div>'
-    +(caseHtml||'<div style="font-size:12px;color:var(--dim);">尚未連結（可連多則）</div>')+'</div>';
+    +(caseHtml||'<div class="voice-sub">尚未連結（可連多則）</div>')+'</div>';
 }
 function setStarName(v){
   if(v==='__manual__'){
@@ -952,7 +1174,7 @@ function openCasePicker(kind,idx){
         +'</div>';
     }).join('');
   }
-  document.getElementById('casePickerModal').classList.add('open');
+  openModalById('casePickerModal');
 }
 function pickCase(cid){
   if(!_pickTarget) return;
@@ -980,7 +1202,7 @@ function viewCase(cid){
   var c=caseById(cid);
   document.getElementById('caseViewTitle').textContent=c?('🎙️ '+caseTitle(c)):'案例';
   document.getElementById('caseViewBody').textContent=c?(c.text||''):'(案例已刪除)';
-  document.getElementById('caseViewModal').classList.add('open');
+  openModalById('caseViewModal');
 }
 
 // ════════ Block 2 — 需優化錄音 ════════
@@ -1019,9 +1241,9 @@ function renderCaseLib(){
   if(!cases.length){ el.innerHTML='<div class="voice-sub" style="padding:6px 0;">尚無錄音案例,用上方「錄音轉摘要」上傳。</div>'; return; }
   el.innerHTML=cases.slice().reverse().slice(0,30).map(function(c){
     var tg=c.type==='acceptance'?'acceptance':'voice'; var lbl=tg==='acceptance'?'📞 驗收電話':'🎙️ 錄音學習';
-    return '<div class="case-chip"><span class="cc-tag '+tg+'">'+lbl+'</span>'
-      +'<span class="cc-title">'+esc(caseTitle(c))+'</span>'
-      +'<span class="cc-link">AI 顧問連動</span><button class="btn" onclick="viewCase(\''+c.id+'\')">看</button>'
+    return '<div class="rec-row" style="cursor:default;"><span class="cc-tag '+tg+'">'+lbl+'</span>'
+      +'<span class="rec-main"><span class="rec-title">'+esc(caseTitle(c))+'</span><span class="rec-meta">'+_wfCaseMeta(c)+'</span></span>'
+      +'<button class="btn" onclick="viewCase(\''+c.id+'\')">看逐字稿</button>'
       +'<button class="btn danger" onclick="deleteCase(\''+escAttr(c.id)+'\')">🗑</button></div>';
   }).join('')+(cases.length>30?'<div class="voice-sub">…共 '+cases.length+' 則,只顯示最近 30</div>':'');
 }
@@ -1149,18 +1371,18 @@ function _ensureLame(){
   });
   return _lamePromise;
 }
-function _voiceFetch(url,opts,ms){
-  var ctrl=new AbortController();
+function _voiceFetch(url,opts,ms,extCtrl){
+  var ctrl=extCtrl||new AbortController();
   var to=setTimeout(function(){ try{ctrl.abort();}catch(_){} },ms||240000);
   opts=opts||{}; opts.signal=ctrl.signal;
   return fetch(url,opts).then(function(r){ clearTimeout(to); return r; },function(e){
     clearTimeout(to);
-    if(e&&e.name==='AbortError') throw new Error('連線逾時,請再試一次');
+    if(e&&e.name==='AbortError') throw new Error(extCtrl&&extCtrl._byUser?'已取消':'連線逾時,請再試一次');
     throw e;
   });
 }
 function openVoiceModal(){
-  document.getElementById('voiceModal').classList.add('open');
+  openModalById('voiceModal');
   if(_voicePending&&_voicePending.units&&_voicePending.units.length){ document.getElementById('voiceStatus').style.display='none'; _voiceRenderEditPanel(); return; }
   _voiceFiles=[]; _voiceBusy=false;
   document.getElementById('voiceTitle').value='';
@@ -1348,7 +1570,7 @@ function _voiceCommitUnit(dest,title,body){
   var now=Date.now()+Math.floor(Math.random()*100000);
   var newId='c_'+now;
   var arr=loadCases();
-  arr.push({ id:newId, type:(dest==='voice'?'voice':'acceptance'), text:title+'\n'+(body||''), marquee:false, isVoice:true, createdAt:now });
+  arr.push({ id:newId, type:(dest==='voice'?'voice':'acceptance'), text:title+'\n'+(body||''), marquee:false, isVoice:true, createdAt:now, by:charName()||'' });
   // 寫到 IndexedDB(不再用 LS,避免被 quota 清理清掉)
   window._caseCache = arr;
   window._caseCacheReady = true;
@@ -1412,7 +1634,7 @@ function loadSop(){
   return arr.map(function(s){ return '## '+(s.title||'未命名 SOP')+'\n\n'+(s.content||''); }).join('\n\n---\n\n');
 }
 
-function openGoodCases(){ renderGoodCases(); document.getElementById('goodCasesModal').classList.add('open'); }
+function openGoodCases(){ renderGoodCases(); openModalById('goodCasesModal'); }
 function renderGoodCases(){
   var arr=loadGoodCases(), el=document.getElementById('goodCasesList');
   if(!el) return;
@@ -1457,7 +1679,7 @@ function openGoodPicker(){
       return '<div class="gc-pick" onclick="pickGoodCase(\''+c.id+'\')">🎙️ '+esc(caseTitle(c))+'</div>';
     }).join('');
   }
-  document.getElementById('goodPickerModal').classList.add('open');
+  openModalById('goodPickerModal');
 }
 function pickGoodCase(cid){
   var c=caseById(cid); if(!c) return;
@@ -1469,7 +1691,7 @@ function pickGoodCase(cid){
 }
 function openSopModal(){
   renderSopList();
-  document.getElementById('sopModal').classList.add('open');
+  openModalById('sopModal');
 }
 function renderSopList(){
   var arr=loadSopFiles(), el=document.getElementById('sopList');
@@ -1608,7 +1830,7 @@ function renderBlock3(){
   html+='<div class="subhead">🗂️ 會議記錄<span class="ai-chip">🤖 會帶入 AI 分析</span></div>';
   html+='<div class="edit-row"><label>雲端連結</label><input class="tin" value="'+escAttr(d.meetingUrl)+'" placeholder="會議記錄 Google 雲端硬碟連結" oninput="md().battlePlan.meetingUrl=this.value;scheduleSave();_syncOpen(this);">'
     +'<a class="link-open'+(safeUrl(d.meetingUrl)?'':' off')+'" href="'+escAttr(safeUrl(d.meetingUrl)||'#')+'" target="_blank">🔗 開啟</a></div>';
-  html+='<div style="font-size:12px;color:var(--dim);margin:6px 0 3px;">會議記錄文字（給 AI 分析用）<button class="btn" style="margin-left:6px;" onclick="openCasePicker(\'meetingText\',0)">📋 從錄音案例帶入</button></div>';
+  html+='<div class="voice-sub" style="margin:8px 0 4px;">會議記錄文字（給 AI 分析用）<button class="btn" style="margin-left:6px;" onclick="openCasePicker(\'meetingText\',0)">📋 從錄音案例帶入</button></div>';
   html+='<textarea class="tin" placeholder="貼上會議記錄文字，或從錄音案例帶入（填了會自動餵給上方 AI 作戰分析）" oninput="md().battlePlan.meetingText=this.value;scheduleSave();">'+esc(d.meetingText)+'</textarea>';
   document.getElementById('block3').innerHTML=html;
   renderBattleBox();
@@ -1663,13 +1885,17 @@ function renderBattleBox(){
   }
   // 2) 勾選最近錄音
   var cases=loadCases().slice(-10).reverse();
-  html+='<div class="subhead">🎙️ 這次要分析的錄音 <span style="font-weight:400;font-size:11px;color:var(--dim);">（最近 10 筆，打勾納入；連到之星／待檢討的也會自動納入）</span></div>';
+  var nSel=_wfSelectedCount();
+  html+='<div class="subhead">🎙️ 這次要分析的錄音<span class="rec-count" id="recCount">已選 '+nSel+' 筆</span></div>';
+  html+='<div class="voice-sub" style="margin:-4px 0 8px;">最近 10 筆。打勾納入；連到「約訪之星／待檢討」的錄音也會自動納入。</div>';
   if(!cases.length){
     html+='<div class="voice-sub">案例庫還沒有錄音。到「🎙️ 錄音與案例」分頁上傳，轉完字回來馬上分析。</div>';
   } else {
     html+=cases.map(function(c){
       var on=d.extraCaseIds.indexOf(c.id)>=0;
-      return '<label class="lrow" style="cursor:pointer;align-items:center;gap:8px;"><input type="checkbox"'+(on?' checked':'')+' onchange="bpToggleExtra(\''+escAttr(c.id)+'\',this.checked)"><span style="flex:1;font-size:12px;line-height:1.4;">'+esc(caseTitle(c))+'</span></label>';
+      return '<label class="rec-row'+(on?' on':'')+'"><input type="checkbox"'+(on?' checked':'')+' onchange="bpToggleExtra(\''+escAttr(c.id)+'\',this.checked);this.closest(\'.rec-row\').classList.toggle(\'on\',this.checked);_wfRefreshCount();">'
+        +'<span class="rec-main"><span class="rec-title">'+esc(caseTitle(c))+'</span><span class="rec-meta">'+_wfCaseMeta(c)+'</span></span>'
+        +'<button type="button" class="btn" onclick="event.preventDefault();viewCase(\''+escAttr(c.id)+'\')">看逐字稿</button></label>';
     }).join('');
   }
   // 3) 素材狀態 + 分析按鈕
@@ -1678,7 +1904,8 @@ function renderBattleBox(){
   html+='<div class="ai-feeds">'+aiFeedStatus().map(function(f){ return '<span class="feed '+(f.on?'on':'off')+'"'+(f.go?' style="cursor:pointer;" title="點我跳到填寫處" onclick="'+f.go+'"':'')+'>'+(f.on?'✓ ':'✕ ')+esc(f.label)+'</span>'; }).join('')+'</div>';
   html+='<div class="voice-sub" style="margin-top:2px;">紅色標籤可以直接點 → 跳到該素材的填寫處。</div>';
   html+='<div class="ai-arrow">▼ 綜合判斷 ▼</div>';
-  html+='<button class="battle-ai-btn" id="battleAiBtn" style="width:100%;" onclick="runBattleAnalysis()">🤖 分析「'+esc(bpTargetName())+'」並給建議</button>';
+  html+='<div class="ai-run" id="aiRun"><button class="battle-ai-btn" id="battleAiBtn" onclick="runBattleAnalysis()">'+_wfAiBtnLabel()+'</button><button type="button" class="btn danger ai-cancel" id="aiCancelBtn" onclick="cancelBattleAnalysis()">✕ 取消</button></div>';
+  html+='<div class="ai-prog" id="aiProg"><div class="ai-prog-row"><span id="aiProgText">準備中…</span><em id="aiProgTime">0 秒</em></div><div class="ai-prog-bar"><div id="aiProgBar"></div></div><div class="ai-prog-steps" id="aiProgSteps"></div></div>';
   html+='<div class="voice-sub" style="margin-top:8px;">缺「會議記錄」到下方「本月目標作戰計劃」補；缺「SOP／典範案例／知識庫」到 📚 知識庫 與 🎙️ 錄音與案例 分頁補。</div>';
   html+='</div>';
   html+='<div id="battleAiResult"></div>';
@@ -1756,17 +1983,65 @@ function packageBattleAsTask(){
   try{ localStorage.setItem(key,JSON.stringify(arr)); }catch(e){ toast('儲存失敗：'+(e.message||e),true); return; }
   // 清空本次分析,讓使用者可以跑下一輪話術
   md().battlePlan.suggestions=[];
+  md().battlePlan.packagedAt=Date.now();
   _battleAi=[];
   var bai=document.getElementById('battleAiResult'); if(bai) bai.innerHTML='';
   _justPackaged=true;
   scheduleSave();
   renderAdopted();
 }
+// ── 第 2 輪：分析進度（組素材 → 送出 → 等 AI → 整理）＋秒數＋可取消 ──
+var _aiCtrl=null, _aiTimer=null, _aiT0=0;
+var _AI_STEPS=['整理素材','送出','AI 思考中','整理建議'];
+function _wfSelectedCount(){
+  var d=_bpEnsure(), seen={};
+  (md().star.caseIds||[]).forEach(function(x){ seen[x]=1; });
+  md().needImprove.forEach(function(it){ (it.caseIds||[]).forEach(function(x){ seen[x]=1; }); });
+  (d.extraCaseIds||[]).forEach(function(x){ seen[x]=1; });
+  return Object.keys(seen).length;
+}
+function _wfAiBtnLabel(){ var n=_wfSelectedCount(); return '🤖 分析「'+esc(bpTargetName())+'」'+(n?'（'+n+' 筆錄音）':'（還沒勾錄音）'); }
+function _wfRefreshCount(){
+  var n=_wfSelectedCount();
+  var c=document.getElementById('recCount'); if(c) c.textContent='已選 '+n+' 筆';
+  var b=document.getElementById('battleAiBtn'); if(b&&!_aiCtrl) b.innerHTML=_wfAiBtnLabel();
+  try{ updateFlow(); }catch(e){}
+}
+function _wfCaseMeta(c){
+  var parts=[];
+  if(c.by) parts.push('<b>'+esc(c.by)+'</b>');
+  var ts=c.createdAt||(/^c_(\d+)/.test(c.id||'')?+RegExp.$1:0);
+  if(ts){ var dt=new Date(ts); parts.push((dt.getMonth()+1)+'/'+dt.getDate()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)); }
+  var txt=String(c.text||''); var body=txt.split('\n').slice(1).join('\n');
+  var tr=body.indexOf('【逐字稿】')>=0?body.slice(body.indexOf('【逐字稿】')+5):body;
+  var n=tr.replace(/\s+/g,'').length;
+  if(n) parts.push('逐字稿 '+_fmt(n)+' 字'+(n>=200?'・約 '+Math.max(1,Math.round(n/220))+' 分鐘':''));
+  parts.push(c.type==='acceptance'?'📞 驗收電話':'🎙️ 錄音學習');
+  return parts.join('<span style="opacity:.5">・</span>');
+}
+function _aiStep(i,msg){
+  var st=document.getElementById('aiProgSteps'); if(st) st.innerHTML=_AI_STEPS.map(function(t,k){ return '<span class="'+(k<i?'ok':(k===i?'on':''))+'">'+(k<i?'✓ ':'')+t+'</span>'; }).join('');
+  var tx=document.getElementById('aiProgText'); if(tx) tx.textContent=msg||_AI_STEPS[i]||'';
+  var bar=document.getElementById('aiProgBar'); if(bar) bar.style.width=[8,25,55,90,100][i]+'%';
+}
+function _aiBusy(on){
+  var run=document.getElementById('aiRun'), pg=document.getElementById('aiProg'), btn=document.getElementById('battleAiBtn');
+  if(run) run.classList.toggle('busy',!!on);
+  if(pg) pg.classList.toggle('show',!!on);
+  if(btn){ btn.disabled=!!on; btn.classList.toggle('busy',!!on); btn.innerHTML=on?'分析中…':_wfAiBtnLabel(); }
+  if(_aiTimer){ clearInterval(_aiTimer); _aiTimer=null; }
+  if(on){ _aiT0=Date.now(); _aiTimer=setInterval(function(){ var e=document.getElementById('aiProgTime'); if(e) e.textContent=Math.round((Date.now()-_aiT0)/1000)+' 秒'; },500); }
+}
+function cancelBattleAnalysis(){
+  if(_aiCtrl){ _aiCtrl._byUser=true; try{ _aiCtrl.abort(); }catch(e){} }
+}
 async function runBattleAnalysis(){
+  if(_aiCtrl) return;
   var btn=document.getElementById('battleAiBtn');
-  if(btn){ btn.disabled=true; btn.textContent='分析中…'; }
   var res=document.getElementById('battleAiResult');
-  if(res) res.innerHTML='<div class="voice-sub">🤖 AI 分析中…（約 20~40 秒）</div>';
+  if(res){ res.classList.remove('fade-in'); res.innerHTML=''; }
+  _aiCtrl=new AbortController();
+  _aiBusy(true); _aiStep(0,'整理素材（錄音、SOP、業績）…');
   try{
     var d=_bpEnsure(), members=getGroupMembers(), t=d.target, targetName=bpTargetName();
     var mo=[_wrapMonth(currentMonth-1),_wrapMonth(currentMonth-2),_wrapMonth(currentMonth-3)];
@@ -1803,6 +2078,8 @@ async function runBattleAnalysis(){
     var sopTxt=loadSop();
     var goodTxt=buildGoodCasesContext();
     var kbTxt=await buildKbContext();
+    if(_aiCtrl.signal.aborted) throw new Error('已取消');
+    _aiStep(1,'送出給 AI…');
     var sys='你是赫綵的「A通路作戰顧問」。根據組長提供的資料,給出本月 A通路作戰計劃的具體建議。\n'
       +'★ 對象鎖定：所有建議都必須針對【分析對象】指明的人或小組；若材料註明無業績資料,嚴禁評論業績趨勢或引用他人業績。\n'
       +'★ 主要判準：以下《約訪流程 SOP》是你抓問題、給建議的最高依據,務必逐項對照分析對象的執行落差,並盡量指出違反 SOP 的哪一條。\n'
@@ -1816,18 +2093,33 @@ async function runBattleAnalysis(){
       +'=== 約訪流程 SOP（主要判準）===\n'+(sopTxt||'（尚未設定約訪流程 SOP）')+'\n\n'
       +'=== 優秀錄音案例（典範對照）===\n'+(goodTxt||'（尚無優秀案例）')+'\n\n'
       +'=== 補充知識（AI 顧問知識庫）===\n'+(kbTxt||'（無）');
-    var resp=await _voiceFetch(PROXY_BASE+'/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-opus-4-7',max_tokens:1200,system:sys,messages:[{role:'user',content:material}]})},180000);
-    if(!resp.ok){ var t=''; try{t=await resp.text();}catch(_){} throw new Error('分析失敗('+resp.status+') '+t.substring(0,140)); }
-    var data=await resp.json();
-    var txt=(data&&data.content&&data.content[0]&&data.content[0].text)||'';
+    var txt='';
+    if(window.__WF_MOCK_AI){
+      // 測試用：不打 proxy，模擬回傳（Ivan 規則：要測就用模擬）。平常這個變數不存在，不會走到這裡。
+      await new Promise(function(r,j){ var t=setTimeout(r,1800); _aiCtrl.signal.addEventListener('abort',function(){ clearTimeout(t); j(new Error('已取消')); }); });
+      txt=String(window.__WF_MOCK_AI);
+    } else {
+      setTimeout(function(){ if(_aiCtrl) _aiStep(2,'AI 思考中…（約 20～40 秒）'); }, 900);
+      var resp=await _voiceFetch(PROXY_BASE+'/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:'claude-opus-4-7',max_tokens:1200,system:sys,messages:[{role:'user',content:material}]})},180000,_aiCtrl);
+      if(!resp.ok){ var t=''; try{t=await resp.text();}catch(_){} throw new Error('分析失敗('+resp.status+') '+t.substring(0,140)); }
+      var data=await resp.json();
+      txt=(data&&data.content&&data.content[0]&&data.content[0].text)||'';
+    }
+    _aiStep(3,'整理建議…');
     _battleAi=txt.split('\n').map(function(l){ return l.replace(/^[-•*\d.、\s]+/,'').trim(); }).filter(function(l){ return l.length>3; });
+    _aiStep(4,'完成');
     renderBattleAi();
+    if(res){ void res.offsetWidth; res.classList.add('fade-in'); }
+    try{ updateFlow(); }catch(e){}
   }catch(e){
     console.error('[battle]',e);
-    if(res) res.innerHTML='<div class="voice-sub" style="color:#1d1d1f;">❌ '+esc(e&&e.message||e)+'</div>';
+    var cancelled=(e&&e.message==='已取消');
+    if(res) res.innerHTML='<div class="'+(cancelled?'voice-sub':'ai-err')+'">'+(cancelled?'已取消，素材都還在，可以再按一次。':'❌ '+esc(e&&e.message||e)+'　可以再試一次。')+'</div>';
   }
-  if(btn){ btn.disabled=false; btn.textContent='🤖 分析「'+bpTargetName()+'」並給建議'; }
+  _aiCtrl=null;
+  _aiBusy(false);
+  var pg=document.getElementById('aiProg'); if(pg) setTimeout(function(){ if(!_aiCtrl) pg.classList.remove('show'); }, 1200);
 }
 function renderBattleAi(){
   var el=document.getElementById('battleAiResult');
@@ -1882,9 +2174,25 @@ var SEC_LS='wf_sec_collapse_v1';
 function _secState(){ try{ return JSON.parse(localStorage.getItem(SEC_LS))||{}; }catch(e){ return {}; } }
 function setSec(id,open){
   var el=document.getElementById(id); if(!el) return;
-  el.classList.toggle('collapsed',!open);
+  var body=el.querySelector(':scope>.sec-body');
+  var was=!el.classList.contains('collapsed');
   var st=_secState(); st[id]=open?1:0;
   try{ localStorage.setItem(SEC_LS,JSON.stringify(st)); }catch(e){}
+  if(!body||was===!!open||_wfReduced()||!body.animate){ el.classList.toggle('collapsed',!open); return; }
+  // 第 3 輪：高度動畫（可中途再按：先取消上一段動畫）
+  try{ (body.getAnimations&&body.getAnimations()||[]).forEach(function(a){ a.cancel(); }); }catch(e){}
+  body.classList.add('animating');
+  if(open){
+    el.classList.remove('collapsed');
+    var h=body.scrollHeight;
+    var a=body.animate([{height:'0px',opacity:0},{height:h+'px',opacity:1}],{duration:260,easing:'cubic-bezier(.2,.9,.25,1)'});
+    a.onfinish=a.oncancel=function(){ body.classList.remove('animating'); };
+  } else {
+    var h0=body.scrollHeight;
+    var a2=body.animate([{height:h0+'px',opacity:1},{height:'0px',opacity:0}],{duration:220,easing:'ease-in'});
+    a2.onfinish=function(){ el.classList.add('collapsed'); body.classList.remove('animating'); };
+    a2.oncancel=function(){ body.classList.remove('animating'); };
+  }
 }
 function toggleSec(id){
   var el=document.getElementById(id); if(!el) return;
@@ -1911,12 +2219,30 @@ function updateSecSums(){
   set('planSum','文字記錄 '+((d.notes&&d.notes.trim())?'✓':'✕')+'・會議記錄 '+(((d.meetingText&&d.meetingText.trim())||(d.meetingUrl&&d.meetingUrl.trim()))?'✓':'✕'));
   set('scriptsSum','話術 '+((m.scripts||[]).length)+'・名單 '+((m.hunts||[]).length));
   set('caseLibSum',loadCases().length+' 筆');
+  try{ updateFlow(); }catch(e){}
   var members=getGroupMembers();
   if(_mpData&&members.length){
     var lm=_wrapMonth(currentMonth-1), tot=0;
     members.forEach(function(n){ tot+=getAPerf(lm,n); });
     set('aChartSum',lm+'月小組 '+_fmt(tot));
   } else set('aChartSum','');
+}
+// ── 第 2 輪：五步驟做到哪一步（✓ 做過、← 下一步、其餘淡）──
+function updateFlow(){
+  var m=md(), d=m.battlePlan||{};
+  var hasCases=loadCases().length>0;
+  var linked=_wfSelectedCount()>0;
+  var analysed=(_battleAi&&_battleAi.length>0)||((d.suggestions||[]).length>0)||!!d.packagedAt;
+  var packaged=!!d.packagedAt;
+  var done=[hasCases,linked,analysed,packaged,packaged];
+  var cur=done.indexOf(false);
+  for(var i=0;i<5;i++){
+    var el=document.getElementById('flow'+(i+1)); if(!el) continue;
+    el.classList.toggle('done',!!done[i]);
+    el.classList.toggle('cur',i===cur);
+    el.classList.toggle('todo',cur>=0&&i>cur);
+    var num=el.querySelector('.flow-num'); if(num) num.textContent=done[i]?'✓':String(i+1);
+  }
 }
 var _kbHasData=false;  // 由 init 非同步載入 AI 顧問知識庫後設定
 function aiFeedStatus(){
@@ -1974,7 +2300,8 @@ function _applyWhoLabel(){
   _applyWhoLabel();
   loadAll();
   updateMonthLabel();
-  // 等案例庫從 IDB boot 完成,再畫第一次(避免 LS 還沒搬完時 loadCases 拿到空陣列)
+  // ★ 第 3 輪 ⑤：先用手邊資料畫一次（作戰計劃、之星、話術、SOP 都不用等 IDB），錄音列等案例庫讀完再補畫
+  try{ renderAll(); }catch(_){}
   try{ await _caseBootInit(); }catch(_){}
   renderAll();
   await loadMpData();
@@ -2008,7 +2335,7 @@ document.addEventListener('visibilitychange',function(){
 });
 window.addEventListener('pagehide',saveAll);
 </script>
-<script src="./nav-home.js"></script>
-<script src="./text-zoom.js?v=5"></script>
+<script src="./nav-home.js?v=00964085"></script>
+<script src="./text-zoom.js?v=ef4629c9"></script>
 </body>
 </html>

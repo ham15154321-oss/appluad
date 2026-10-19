@@ -308,6 +308,7 @@ const LOCAL_ONLY_KEYS = [
   'castle_flip_mode',
   '_fs_lastModified',  // ★ LWW: 本地時間戳 shadow map，純本地不同步
   '_fs_pushedSig',     // ★ dirty-tracking 簽名表，純本地不同步
+  '_fs_pulledAt',      // ★ 2026/10/19：每個主角「上次拉到的雲端 updatedAt」，純本地不同步
   '_fn_lastgood_v1',   // ★ 漏斗逐人資料自我檢查的「上次正常值」，純本地
   // ★ 純 UI 狀態 keys — 不該同步雲端（避免每次切 tab/重整都觸發備份 banner）
   'perf_last_tab',     // 業績數據中心最後使用的 tab
@@ -509,6 +510,16 @@ function isLocalOnlyKey(k){
 // 關鍵：firebase-sync 還沒 ready（page init 階段）的寫入一律記 ts=0。
 //   代表「不是真的編輯，只是頁面預設值」。新裝置 init 預設不會擋掉雲端真實資料。
 //   ready=true 之後（pull 完成）的寫入才記 Date.now()，視為真的編輯。
+// ★ 2026/10/19 提案 1（Ivan 同意）：拉取改「沒變的人不重抓」。
+//   以前每次完整拉取都把 29 個人的 localStorage ＋ 8 個 IndexedDB 全部重新下載（實測一次 783MB、142 秒、
+//   主執行緒被擋 64 秒、記憶體尖峰 3.2GB），而且每開一頁就來一次。
+//   每個人推送時都會把 characters/<id>.updatedAt 蓋成當下時間 → 這裡記下「上次拉到的 updatedAt」，
+//   下次看到一樣就整個人跳過（雲端沒動、本機已經是那一份）。每 24 小時還是會完整重抓一次當保險。
+const _PULLED_KEY = '_fs_pulledAt';
+var _pulledAt = {};
+try { _pulledAt = JSON.parse(localStorage.getItem(_PULLED_KEY) || '{}') || {}; } catch(e) { _pulledAt = {}; }
+function _savePulledAt(){ try { _origSet(_PULLED_KEY, JSON.stringify(_pulledAt)); } catch(e){} }
+function _yield(){ return new Promise(function(r){ setTimeout(r, 0); }); }   // 讓瀏覽器先畫一格再繼續
 const _LS_TS_KEY = '_fs_lastModified';
 var _localTsMap = {};
 try { _localTsMap = JSON.parse(localStorage.getItem(_LS_TS_KEY) || '{}') || {}; } catch(e) { _localTsMap = {}; }
@@ -1626,7 +1637,10 @@ async function pushToCloud(opts){
     try { await fsDb.waitForPendingWrites(); } catch(e){}
 
     // 更新 metadata
-    await charRef.set({ updatedAt: Date.now(), charId: charId, email: currentUserEmail || '' }, { merge: true });
+    var _pushTs = Date.now();
+    await charRef.set({ updatedAt: _pushTs, charId: charId, email: currentUserEmail || '' }, { merge: true });
+    // ★ 2026/10/19：剛推上去的就是本機這一份，下一輪拉取不用再把自己整個抓回來（自己的圖片動輒 40MB）
+    try { _pulledAt[charId] = { u: _pushTs, t: Date.now() }; _savePulledAt(); } catch(_ePa){}
 
     // ★ 寫 audit log（只在有實際變更時）
     if (lsCount > 0 || idbCount > 0) {
@@ -1881,9 +1895,17 @@ async function pullFromCloud(opts){
     }
   }
 
+  // ★ 24 小時沒完整重抓過 → 這一輪不准跳過任何人（保險）
+  var _forceAll = !!(opts && opts.force) || !_pulledAt.__lastFull || (Date.now() - _pulledAt.__lastFull > 24 * 3600 * 1000);
+  var _skippedChars = 0, _pulledChars = 0;
   for (const charDoc of _charDocs){
     const charId = charDoc.id;
     const charRef = baseRef.doc(charId);
+    var _cloudUpd = 0; try { _cloudUpd = (charDoc.data() || {}).updatedAt || 0; } catch(_eu){}
+    var _prevPulled = _pulledAt[charId];
+    if (!_forceAll && _cloudUpd && _prevPulled && _prevPulled.u === _cloudUpd){ _skippedChars++; continue; }
+    var _charOk = true;
+    await _yield();
 
     // 1. localStorage（LWW：cloudTs > localTs 才覆蓋；C 段空樣板救援保留作為 fallback）
     try {
@@ -2202,6 +2224,7 @@ async function pullFromCloud(opts){
       if (_quotaSkipCount > 0) console.log('[FirebaseSync] [' + charId + '] LS 空間不足，跳過', _quotaSkipCount, '筆');
       if (_cardsRescueCount > 0) console.log('[FirebaseSync] [' + charId + '] castle_cards_v1 從雲端覆蓋本地空樣板');
       if (totalLS > 0) console.log('[FirebaseSync] [' + charId + '] 從雲端補入', totalLS, '筆');
+      await _yield();
     } catch(e){
       // 可能舊格式（v3），嘗試讀取舊結構
       const d = charDoc.data();
@@ -2232,13 +2255,21 @@ async function pullFromCloud(opts){
           totalIDB += Object.keys(entries).length;
           // ★ 不在這 close — 連線是本輪共用，pull 結束後統一關閉
         } catch(e){
+          _charOk = false;
           console.log('[FirebaseSync] IDB 拉取跳過', idbInfo.dbName, storeName, e.message || e);
         }
+        await _yield();   // ★ 每個資料庫之間讓畫面先動一下
       }
     }
+    // ★ 這個人全部拉完而且沒出錯 → 記下雲端 updatedAt，下次沒變就不重抓
+    if (_charOk && _cloudUpd){ _pulledAt[charId] = { u: _cloudUpd, t: Date.now() }; }
+    _pulledChars++;
     // ★ 記憶體保護：完整拉取時每處理一個人就讓出主執行緒一小段，給 GC 時間回收，壓低記憶體尖峰（避免錯誤碼 5）
     if (!_light){ try { await delay(60); } catch(_e){} }
   }
+  if (!_light && _forceAll) _pulledAt.__lastFull = Date.now();
+  _savePulledAt();
+  if (_skippedChars || _pulledChars) console.log('[FirebaseSync] 拉取：重抓 ' + _pulledChars + ' 人，沒變跳過 ' + _skippedChars + ' 人' + (_forceAll ? '（24 小時保險：全部重抓）' : ''));
 
   // ★ 關閉本輪 cache 起來的所有 IDB 連線
   for (const _db of _idbCache.values()) {
@@ -2499,7 +2530,10 @@ async function _doInit(){
         // ★ 嘗試從舊路徑遷移
         try { await migrateFromAnonymous(); } catch(e){ console.warn('[FirebaseSync] 遷移跳過', e); }
 
-        await pullFromCloud();
+        // ★ 2026/10/19 提案 1：開頁先「輕量拉」（自己＋全公司共享，幾秒）→ 畫面就能用；
+        //   其他 28 個人的資料 4 秒後在背景補，沒變的人直接跳過，每段之間讓畫面先動。
+        //   以前是開頁就完整拉完才算 ready，同事每開一頁都要等 27 秒以上、電腦跟著卡。
+        await pullFromCloud({ light: true });
         ready = true;
         setupRealtime();
         _startPeriodicPull();   // ★ 每 90s 額外 pull 一次（onSnapshot 沒抓到也能補救）
@@ -2507,6 +2541,15 @@ async function _doInit(){
         setBadge(IS_ADMIN ? '☁ 管理者' : badgeLabel, '#00ff88');
         setTimeout(() => { if (badgeEl) badgeEl.style.opacity = '0.3'; }, 2000);
         if (!IS_ADMIN) setTimeout(pushToCloud, 15000);
+        setTimeout(async function _bgFull(){
+          if (_pushing || _pullingFromCloud){ setTimeout(_bgFull, 3000); return; }
+          try {
+            setBadge((IS_ADMIN ? '☁ 管理者' : badgeLabel) + '\n背景更新中…', '#00ff88');
+            await pullFromCloud();
+            window.dispatchEvent(new Event('firebase-sync-updated'));
+          } catch(e){ console.warn('[FirebaseSync] 背景完整拉取失敗', e); }
+          setBadge(IS_ADMIN ? '☁ 管理者' : badgeLabel, '#00ff88');
+        }, 4000);
       } catch(e){
         console.error('[FirebaseSync] 初始化失敗', e);
         var errMsg = e.code || '';
