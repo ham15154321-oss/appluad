@@ -311,6 +311,7 @@ const LOCAL_ONLY_KEYS = [
   '_fs_lastModified',  // ★ LWW: 本地時間戳 shadow map，純本地不同步
   '_fs_pushedSig',     // ★ dirty-tracking 簽名表，純本地不同步
   '_fs_pulledAt',      // ★ 2026/10/19：每個主角「上次拉到的雲端 updatedAt」，純本地不同步
+  '_fs_pulledTs',      // ★ 2026/10/20 提案 3B：每個主角「上次拉到的 lsRev／idbRev」，純本地不同步
   '_fn_lastgood_v1',   // ★ 漏斗逐人資料自我檢查的「上次正常值」，純本地
   // ★ 純 UI 狀態 keys — 不該同步雲端（避免每次切 tab/重整都觸發備份 banner）
   'perf_last_tab',     // 業績數據中心最後使用的 tab
@@ -519,6 +520,13 @@ function isLocalOnlyKey(k){
 //   下次看到一樣就整個人跳過（雲端沒動、本機已經是那一份）。每 24 小時還是會完整重抓一次當保險。
 const _PULLED_KEY = '_fs_pulledAt';
 var _pulledAt = {};
+// ★ 2026/10/20 提案 3B（Ivan 同意）：雲端 _meta/lsTs 多兩個欄位 lsRev（localStorage 最近一次真的寫入的時間）、
+//   idbRev.<集合名>（各 IndexedDB 集合最近一次真的寫入的時間）。拉取時先讀這張小表，跟本機記的比：
+//   沒變的段（LS 或某個 IDB 集合）整段不下載。沒有這兩個欄位（同事還在跑舊版）就照舊整包下載。
+const _PULLED_REV_KEY = '_fs_pulledTs';
+var _pulledRev = {};
+try { _pulledRev = JSON.parse(localStorage.getItem(_PULLED_REV_KEY) || '{}') || {}; } catch(e) { _pulledRev = {}; }
+function _savePulledRev(){ try { _origSet(_PULLED_REV_KEY, JSON.stringify(_pulledRev)); } catch(e){} }
 try { _pulledAt = JSON.parse(localStorage.getItem(_PULLED_KEY) || '{}') || {}; } catch(e) { _pulledAt = {}; }
 function _savePulledAt(){ try { _origSet(_PULLED_KEY, JSON.stringify(_pulledAt)); } catch(e){} }
 function _yield(){ return new Promise(function(r){ setTimeout(r, 0); }); }   // 讓瀏覽器先畫一格再繼續
@@ -1536,12 +1544,13 @@ async function pushToCloud(opts){
           _tsUpdates['ts.' + _delKeys[_dk]] = firebase.firestore.FieldValue.delete();
         }
         var _tsDocRef = charRef.collection('_meta').doc('lsTs');
+        _tsUpdates['lsRev'] = Date.now();   // ★ 3B：這次真的有寫 localStorage
         try {
           await _tsDocRef.update(_tsUpdates);
         } catch(_updErr) {
           // 文件不存在 → 用整個 _localTsMap seed（含本機所有已知 ts，避免後續 update 又找不到 field）
           // 注意：set merge 對 nested map 不會 deep-merge，會整個 replace ts；所以一定要 seed 完整。
-          await _tsDocRef.set({ ts: Object.assign({}, _localTsMap) }, { merge: true });
+          await _tsDocRef.set({ ts: Object.assign({}, _localTsMap), lsRev: _tsUpdates['lsRev'] }, { merge: true });
         }
       } catch(_tsErr) {
         console.warn('[FirebaseSync] LWW ts 寫入失敗', _tsErr.message || _tsErr);
@@ -1617,6 +1626,7 @@ async function pushToCloud(opts){
 
     // 2. IndexedDB（只推送 IDB_LIST，不推送音效 DB）
     let idbCount = 0;
+    var _idbRevUpdates = {};   // ★ 3B：這輪真的寫過的 IDB 集合 → 記到 _meta/lsTs.idbRev
     for (const idbInfo of IDB_LIST){
       var idb = null;
       try {
@@ -1675,6 +1685,7 @@ async function pushToCloud(opts){
           const n = await writeDataToFirestore(storeRef, entries, { prune:true });
           _recordSigs(idbPath, entries);
           idbCount += n;
+          _idbRevUpdates['idbRev.' + _idbColl(idbInfo, storeName)] = Date.now();
         }
       } catch(e){
         console.log('[FirebaseSync] IDB 推送跳過', idbInfo.dbName, e.message || e);
@@ -1685,14 +1696,37 @@ async function pushToCloud(opts){
       }
     }
 
+    // ★ 3B：有寫過的 IDB 集合，把時間記到 _meta/lsTs.idbRev（拉取端用來判斷這個集合要不要重抓）
+    if (Object.keys(_idbRevUpdates).length){
+      try {
+        var _revRef = charRef.collection('_meta').doc('lsTs');
+        try { await _revRef.update(_idbRevUpdates); }
+        catch(_ru){ var _revObj = {}; for (var _rk in _idbRevUpdates) _revObj[_rk.replace('idbRev.', '')] = _idbRevUpdates[_rk]; await _revRef.set({ idbRev: _revObj }, { merge: true }); }
+      } catch(_re){ console.warn('[FirebaseSync] idbRev 寫入失敗', _re && _re.message); }
+    }
     // ★ IDB 寫入後再等一次伺服器消化
     try { await fsDb.waitForPendingWrites(); } catch(e){}
 
     // 更新 metadata
     var _pushTs = Date.now();
-    await charRef.set({ updatedAt: _pushTs, charId: charId, email: currentUserEmail || '' }, { merge: true });
-    // ★ 2026/10/19：剛推上去的就是本機這一份，下一輪拉取不用再把自己整個抓回來（自己的圖片動輒 40MB）
-    try { _pulledAt[charId] = { u: _pushTs, t: Date.now() }; _savePulledAt(); } catch(_ePa){}
+    // ★ 2026/10/20 提案 3A（Ivan 同意）：這輪什麼都沒寫就不蓋 updatedAt。
+    //   以前每 5 分鐘推送不管有沒有變動都蓋，全公司每個人的 onSnapshot 都會被叫醒去拉這個人整包資料，
+    //   拉回來逐 key 比對結果多半是「本機較新，跳過」—— 白下載、白解碼，首頁閒著也會凍 0.1～1.5 秒。
+    //   updatedAt 全站只有 firebase-sync 自己在看。
+    if (lsCount > 0 || idbCount > 0 || _delKeys.length > 0){
+      await charRef.set({ updatedAt: _pushTs, charId: charId, email: currentUserEmail || '' }, { merge: true });
+      // ★ 2026/10/19：剛推上去的就是本機這一份，下一輪拉取不用再把自己整個抓回來（自己的圖片動輒 40MB）
+      try { _pulledAt[charId] = { u: _pushTs, t: Date.now() }; _savePulledAt(); } catch(_ePa){}
+      // ★ 3B：自己剛寫的 rev 也記成已拉過（本機就是最新那一份）
+      try {
+        var _myRev = _pulledRev[charId] || (_pulledRev[charId] = { ls: 0, idb: {} });
+        if (lsCount > 0 || _delKeys.length > 0) _myRev.ls = (typeof _tsUpdates !== 'undefined' && _tsUpdates && _tsUpdates['lsRev']) || _pushTs;
+        for (var _ik in _idbRevUpdates) _myRev.idb[_ik.replace('idbRev.', '')] = _idbRevUpdates[_ik];
+        _savePulledRev();
+      } catch(_ePr){}
+    } else {
+      console.log('[FirebaseSync] 這輪沒有變動，不更新 updatedAt（別台不會被叫醒）');
+    }
 
     // ★ 寫 audit log（只在有實際變更時）
     if (lsCount > 0 || idbCount > 0) {
@@ -1959,18 +1993,26 @@ async function pullFromCloud(opts){
     var _charOk = true;
     await _yield();
 
-    // 1. localStorage（LWW：cloudTs > localTs 才覆蓋；C 段空樣板救援保留作為 fallback）
+    // ★ 3B：先讀這個人的 _meta/lsTs（小表）：ts（每個 key 的時間戳）、lsRev、idbRev.<集合>
+    //   ★★ 必須 source:'server'：Firestore SDK 預設會吃 cache，會讓 pull 讀到舊版的
+    //       _meta/lsTs（缺最近 push 進去的 keys），導致 LWW 比較時以為「雲端沒 ts =
+    //       cTs=0」→ 全部走「本地較新」跳過。強制走 server 才能拿到真實時間戳。
+    var cloudTs = {}, _cloudLsRev = 0, _cloudIdbRev = {}, _revKnown = false;
     try {
+      var _tsSnap = await charRef.collection('_meta').doc('lsTs').get({ source: 'server' });
+      if (_tsSnap.exists){ var _tsD = _tsSnap.data() || {}; cloudTs = _tsD.ts || {}; _cloudLsRev = _tsD.lsRev || 0; _cloudIdbRev = _tsD.idbRev || {}; _revKnown = true; }
+    } catch(_tsReadErr) { /* 沒 ts doc 或網路問題就用空 map */ }
+    var _prevRev = _pulledRev[charId] || { ls: 0, idb: {} };
+    if (!_prevRev.idb) _prevRev.idb = {};
+    var _newRev = { ls: _prevRev.ls || 0, idb: Object.assign({}, _prevRev.idb) };
+    var _revSkipped = [];
+    // 24 小時保險（_forceAll）一律整包重抓；雲端沒有 lsRev（同事跑舊版）也整包抓
+    var _skipLs = !_forceAll && _revKnown && _cloudLsRev > 0 && _prevRev.ls === _cloudLsRev;
+
+    // 1. localStorage（LWW：cloudTs > localTs 才覆蓋；C 段空樣板救援保留作為 fallback）
+    if (_skipLs){ _revSkipped.push('LS'); }
+    else try {
       const lsData = await readDataFromFirestore(charRef.collection('localStorage'));
-      // ★ LWW: 抓雲端時間戳 map（沒有就視為空，每個 key 的雲端 ts=0）
-      //   ★★ 必須 source:'server'：Firestore SDK 預設會吃 cache，會讓 pull 讀到舊版的
-      //       _meta/lsTs（缺最近 push 進去的 keys），導致 LWW 比較時以為「雲端沒 ts =
-      //       cTs=0」→ 全部走「本地較新」跳過。強制走 server 才能拿到真實時間戳。
-      var cloudTs = {};
-      try {
-        var _tsSnap = await charRef.collection('_meta').doc('lsTs').get({ source: 'server' });
-        if (_tsSnap.exists) cloudTs = (_tsSnap.data() && _tsSnap.data().ts) || {};
-      } catch(_tsReadErr) { /* 沒 ts doc 或網路問題就用空 map */ }
 
       var _skipCount = 0, _quotaSkipCount = 0, _quotaSkipKeys = [];
       // ★ 本機 LS 塞不下而沒收下來的 key → 推送端要知道，才不會把雲端那份當孤兒刪掉
@@ -2276,6 +2318,7 @@ async function pullFromCloud(opts){
       if (_quotaSkipCount > 0) console.log('[FirebaseSync] [' + charId + '] LS 空間不足，跳過', _quotaSkipCount, '筆');
       if (_cardsRescueCount > 0) console.log('[FirebaseSync] [' + charId + '] castle_cards_v1 從雲端覆蓋本地空樣板');
       if (totalLS > 0) console.log('[FirebaseSync] [' + charId + '] 從雲端補入', totalLS, '筆');
+      if (_cloudLsRev > 0) _newRev.ls = _cloudLsRev;   // ★ 3B：這段收完了，記下雲端的 lsRev
       await _yield();
     } catch(e){
       // 可能舊格式（v3），嘗試讀取舊結構
@@ -2298,13 +2341,17 @@ async function pullFromCloud(opts){
     // 2. IndexedDB — 透過 _getIDB 取得（本輪 cache + fail-fast）
     for (const idbInfo of IDB_LIST){
       for (const storeName of idbInfo.stores){
+        const collName = _idbColl(idbInfo, storeName);
+        // ★ 3B：雲端這個集合的 idbRev 跟上次拉到的一樣 → 整個集合不下載（圖片集合動輒幾十 MB）
+        var _cRev = _cloudIdbRev[collName] || 0;
+        if (!_forceAll && _revKnown && _cRev > 0 && _prevRev.idb[collName] === _cRev){ _revSkipped.push(collName); continue; }
         try {
-          const collName = _idbColl(idbInfo, storeName);
           const entries = await readDataFromFirestore(charRef.collection(collName));
-          if (Object.keys(entries).length === 0) continue;
+          if (Object.keys(entries).length === 0){ if (_cRev > 0) _newRev.idb[collName] = _cRev; continue; }
           const idb = await _getIDB(idbInfo);
           await idbPutEntries(idb, storeName, entries);
           totalIDB += Object.keys(entries).length;
+          if (_cRev > 0) _newRev.idb[collName] = _cRev;   // ★ 3B：這個集合收完了
           // ★ 不在這 close — 連線是本輪共用，pull 結束後統一關閉
         } catch(e){
           _charOk = false;
@@ -2313,6 +2360,8 @@ async function pullFromCloud(opts){
         await _yield();   // ★ 每個資料庫之間讓畫面先動一下
       }
     }
+    if (_revSkipped.length) console.log('[FirebaseSync] [' + charId + '] 沒變不下載：' + _revSkipped.join('、'));
+    _pulledRev[charId] = _newRev;
     // ★ 這個人全部拉完而且沒出錯 → 記下雲端 updatedAt，下次沒變就不重抓
     if (_charOk && _cloudUpd){ _pulledAt[charId] = { u: _cloudUpd, t: Date.now() }; }
     _pulledChars++;
@@ -2321,6 +2370,7 @@ async function pullFromCloud(opts){
   }
   if (!_light && _forceAll) _pulledAt.__lastFull = Date.now();
   _savePulledAt();
+  _savePulledRev();
   if (_skippedChars || _pulledChars) console.log('[FirebaseSync] 拉取：重抓 ' + _pulledChars + ' 人，沒變跳過 ' + _skippedChars + ' 人' + (_forceAll ? '（24 小時保險：全部重抓）' : ''));
 
   // ★ 關閉本輪 cache 起來的所有 IDB 連線
@@ -2797,6 +2847,7 @@ async function compressCloudImages(opts){
         else if (id.indexOf('big_') === 0 && d.key && changedKeys[d.key]) victims.push(ds.ref); });
       for (var vs = 0; vs < victims.length; vs += 20){ var wb = fsDb.batch(); victims.slice(vs, vs + 20).forEach(function(r){ wb.delete(r); }); await wb.commit(); }
       await writeDataToFirestore(coll, map, {});
+      try { await baseRef.doc(charId).collection('_meta').doc('lsTs').set({ idbRev: { idb_SpaceBaseDB_images: Date.now() } }, { merge: true }); } catch(_e3b){}   // ★ 3B
       await baseRef.doc(charId).set({ updatedAt: Date.now() }, { merge: true });
       console.log('[FirebaseSync] 🖼 ' + charId + ' 圖片壓完：' + Math.round(charBefore/1024) + 'KB → ' + Math.round(charAfter/1024) + 'KB');
       await delay(500);
