@@ -257,7 +257,7 @@
     position:fixed; inset:0; z-index:150;
     display:flex; align-items:flex-end; justify-content:center;
     pointer-events:none; opacity:0;
-    transition:opacity 0.4s;
+    transition:opacity 0.3s;
   }
   .page-overlay.active { pointer-events:auto; opacity:1; }
   .page-overlay .page-backdrop {
@@ -271,7 +271,7 @@
     border-radius:28px 28px 0 0;
     overflow:hidden;
     transform:translateY(100%);
-    transition:transform 0.5s cubic-bezier(0.22,1,0.36,1);
+    transition:transform 0.4s cubic-bezier(0.22,1,0.36,1);   /* 10/20 首頁審查：0.5→0.4（apple-design 反應時間 0.3～0.4） */
     display:flex; flex-direction:column;
   }
   .page-overlay.active .page-panel {
@@ -639,6 +639,37 @@
     .h2-greet { flex-direction:column; align-items:flex-start; gap:4px; }
   }
   @media (prefers-reduced-motion:reduce){ .h2-mod, .h2-chip, .h2-kpi, .h2-bar i { transition:none !important; } }
+
+  /* ═══ 首頁審查 第 2 輪（10/20）：間距 8 倍數、右上角回饋、資料時間顏色語意、手機 KPI 一排 ═══ */
+  .h2-kpi { padding:24px 24px 20px; }
+  .h2-mod { padding:24px; }
+  .h2-score { padding:16px 24px; gap:16px; }
+  .h2-greet { margin-bottom:24px; }
+  .h2-hero { margin-bottom:32px; }
+  .h2-h2 { margin-bottom:16px; }
+  .h2-quick { margin-top:24px; } .h2-score { margin-top:24px; }
+  .h2-kpi.fresh b { color:#64D2FF; } body.day-mode .h2-kpi.fresh b { color:#0071E3 !important; -webkit-text-fill-color:#0071E3 !important; }
+  .h2-kpi.stale b { color:#FF9F0A; } body.day-mode .h2-kpi.stale b { color:#B35C00 !important; -webkit-text-fill-color:#B35C00 !important; }
+  .h2-kpi.none b { color:#98989D; } body.day-mode .h2-kpi.none b { color:#6E6E73 !important; -webkit-text-fill-color:#6E6E73 !important; }
+  .h2-mod .h2-pill:empty { display:none; }
+  .h2-kpi:focus-visible { outline:2px solid #fff; outline-offset:3px; } body.day-mode .h2-kpi:focus-visible { outline-color:#0071E3; }
+  .icon-btn, .font-sz-btn, #uiModeBtn { transition:transform .1s ease-out, background .15s, filter .12s !important; -webkit-tap-highlight-color:transparent; }
+  .icon-btn:active, .font-sz-btn:active { transform:scale(.94) !important; filter:brightness(.9); }
+  .font-sz-btn { width:36px !important; height:36px !important; }
+  .icon-btn:focus-visible, .font-sz-btn:focus-visible { outline:2px solid #64D2FF; outline-offset:2px; }
+  @media (max-width:900px){
+    .h2-hero { display:flex; overflow-x:auto; gap:12px; margin:0 -16px 24px; padding:0 16px 4px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+    .h2-hero::-webkit-scrollbar { display:none; }
+    .h2-kpi { flex:0 0 78%; scroll-snap-align:start; min-height:0; }
+    .h2-kpi b { font-size:30px; }
+    .font-sz-btn { width:44px !important; height:44px !important; }
+  }
+  @media (prefers-reduced-motion:reduce){ .icon-btn, .font-sz-btn { transition:none !important; } .icon-btn:active, .font-sz-btn:active { transform:none !important; } }
+  /* ★ ds128（10/20）：新首頁不顯示底部「總覽／登出」列（右上角已有登出）；「總覽」改成日期旁的小連結 */
+  body.home2 #navFloatBar { display:none !important; }
+  .h2-ovlink { margin-left:10px; font-size:13px; color:#98989D; text-decoration:none; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.14); }
+  .h2-ovlink:hover { color:#fff; border-color:rgba(255,255,255,.3); }
+  body.day-mode .h2-ovlink { color:#6E6E73 !important; border-color:rgba(0,0,0,.12) !important; } body.day-mode .h2-ovlink:hover { color:#1D1D1F !important; }
   body.day-mode {
     background:linear-gradient(180deg,#f5f5f7 0%,#ffffff 40%,#ffffff 70%,#ffffff 100%);
     color:#1d1d1f;
@@ -1720,15 +1751,15 @@ body.minimal .revenue-stats{ margin-top:0; }
 
 <!-- ===== 首頁 v2（10/20）：A 版型；夜間星空、白天白底。舊的 .center-stage 留著只隱藏 ===== -->
 <div id="home2">
-  <div class="h2-greet"><div><h1 id="h2Hello">嗨。</h1><p id="h2Line">太空基地</p></div><div class="h2-date" id="h2Date"></div></div>
+  <div class="h2-greet"><div><h1 id="h2Hello">嗨。</h1><p id="h2Line">太空基地</p></div><div class="h2-date"><span id="h2Date"></span><a class="h2-ovlink" href="index.html" title="全站總覽">📋 總覽</a></div></div>
   <div class="h2-hero">
-    <div class="h2-kpi" onclick="openPerformanceTab(7)" title="到當月績效"><small id="h2K1l">業績</small><b id="h2K1v">—</b><div class="h2-bar"><i id="h2K1bar"></i></div><div class="h2-sub"><span id="h2K1a"></span><span id="h2K1b"></span></div></div>
-    <div class="h2-kpi ok" onclick="openPerformanceTab(7)"><small>到年底每天要做</small><b id="h2K2v">—</b><div class="h2-sub"><span id="h2K2a"></span><span id="h2K2b"></span></div></div>
-    <div class="h2-kpi warn" onclick="openPerformanceTab(11)" title="到我的一頁"><small>資料時間</small><b id="h2K3v">—</b><div class="h2-sub"><span id="h2K3a"></span><span id="h2K3b"></span></div></div>
+    <div class="h2-kpi" tabindex="0" role="button" onclick="openPerformanceTab(7)" title="到當月績效"><small id="h2K1l">業績</small><b id="h2K1v">—</b><div class="h2-bar"><i id="h2K1bar"></i></div><div class="h2-sub"><span id="h2K1a"></span><span id="h2K1b"></span></div></div>
+    <div class="h2-kpi ok" tabindex="0" role="button" onclick="openPerformanceTab(7)"><small>到年底每天要做</small><b id="h2K2v">—</b><div class="h2-sub"><span id="h2K2a"></span><span id="h2K2b"></span></div></div>
+    <div class="h2-kpi none" id="h2K3" tabindex="0" role="button" onclick="openPerformanceTab(11)" title="到我的一頁"><small>資料時間</small><b id="h2K3v">—</b><div class="h2-sub"><span id="h2K3a"></span><span id="h2K3b"></span></div></div>
   </div>
   <div class="h2-h2">太空指揮部 <small>常用的放大</small></div>
   <div class="h2-grid">
-    <div class="h2-mod h2-m1" tabindex="0" role="button" onclick="openPerformance()"><span class="h2-pill" id="h2PerfPill">業績數據中心</span>
+    <div class="h2-mod h2-m1" tabindex="0" role="button" onclick="openPerformance()"><span class="h2-pill" id="h2PerfPill"></span>
       <svg viewBox="0 0 48 48"><path d="M8 36 L20 22 L28 30 L40 14"/><path d="M32 14h8v8"/></svg>
       <b>業績數據中心<span id="h2Lock" style="display:none;font-size:16px;margin-left:6px">🔒</span></b><span>七家學院・每日總結・漏斗・穿越・90 秒回顧</span></div>
     <div class="h2-mod h2-m5" tabindex="0" role="button" onclick="openAiAdvisor()">
@@ -2835,6 +2866,12 @@ window.addEventListener('motiv-archive-updated', function(e){
       var h = n.getHours(), hi = h < 11 ? '早安' : (h < 14 ? '午安' : (h < 18 ? '下午好' : '晚上好'));
       if (el('h2Hello')) el('h2Hello').textContent = (nm ? nm + '，' : '') + hi + '。';
       if (el('h2Date')) el('h2Date').textContent = n.getFullYear() + '/' + pad(n.getMonth() + 1) + '/' + pad(n.getDate()) + '（' + wk[n.getDay()] + '）';
+      // 副標：這個月第幾個上班日、到月底還幾天（星期日不算）
+      try {
+        var dimT = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate(), wdDone = 0, wdLeft = 0;
+        for (var q = 1; q <= dimT; q++){ var wq = new Date(n.getFullYear(), n.getMonth(), q).getDay(); if (wq === 0) continue; if (q <= n.getDate()) wdDone++; else wdLeft++; }
+        if (el('h2Line')) el('h2Line').textContent = (n.getMonth() + 1) + ' 月第 ' + wdDone + ' 個上班日・到月底還有 ' + wdLeft + ' 個';
+      } catch(e){}
       var rev = +d.rev || 0, goal = +d.goal || 0, pct = goal > 0 ? rev / goal * 100 : 0;
       if (el('h2K1l')) el('h2K1l').textContent = (d.isAcad ? '學院業績' : '小組業績') + '・' + n.getFullYear() + ' 年度';
       if (el('h2K1v')) el('h2K1v').innerHTML = goal || rev ? wan(rev).replace(' 萬', '<u>萬</u>').replace(' 億', '<u>億</u>') : '—';
@@ -2851,6 +2888,8 @@ window.addEventListener('motiv-archive-updated', function(e){
       if (el('h2K3v')) el('h2K3v').textContent = ns ? String(ns.s).replace(/^\d+\/(\d+)\/(\d+)\s*/, '$1/$2 ') : '還沒同步';
       if (el('h2K3a')) el('h2K3a').textContent = ns ? ({motiv:'激勵',checkin:'報到',funnel:'漏斗',edits:'編輯',channel:'通路'})[ns.k] + ' 最近一次同步' : '到業績數據中心按 ☁️↓ 拉取';
       if (el('h2K3b')) el('h2K3b').textContent = ns && (Date.now() - ns.t > 86400000) ? '超過一天，可能不是最新' : '';
+      var k3 = el('h2K3'); if (k3){ k3.classList.remove('fresh','stale','none'); k3.classList.add(!ns ? 'none' : (Date.now() - ns.t > 86400000 ? 'stale' : 'fresh')); }
+      var pill = el('h2PerfPill'); if (pill) pill.textContent = ns ? ((Date.now() - ns.t > 86400000) ? '資料超過一天' : '今天已同步') : '';
       var pw = localStorage.getItem('perf_password'); if (el('h2Lock')) el('h2Lock').style.display = pw ? '' : 'none';
       var tb = document.getElementById('trainBadge'), hb = el('h2TrainBadge'); if (tb && hb){ var tv = parseInt(tb.textContent, 10) || 0; hb.textContent = tv; hb.style.display = (tv > 0 && !tb.classList.contains('hidden')) ? 'flex' : 'none'; }
       var sv = document.getElementById('totalScoreDisplay'), sl = document.getElementById('scoreCountLabel');
@@ -2859,6 +2898,14 @@ window.addEventListener('motiv-archive-updated', function(e){
       var bars = el('h2ScoreBars'); if (bars){ var hb2 = ''; for (var i = 1; i <= 6; i++){ var f = document.getElementById('dimFill' + i); hb2 += '<i><b style="width:' + (f ? f.style.width : '0') + ';background:' + (f ? f.style.background : '#888') + '"></b></i>'; } bars.innerHTML = hb2; }
     } catch(e){ console.warn('[home2]', e); }
   };
+  function earlyData(){
+    try {
+      var cid = localStorage.getItem('activeCharacterId'), raw = localStorage.getItem('castle_cards_v1'); if (cid == null || !raw) return null;
+      var all = JSON.parse(raw), card = all.find(function(c){ return c.name === cid; }) || all[parseInt(cid)]; if (!card) return null;
+      return { rev:+card.groupRevenue || 0, goal:+card.groupTarget || 0, personal:+card.personalRevenue || 0, isAcad:['yellow','purple','black','blue'].indexOf(card.color) >= 0 };
+    } catch(e){ return null; }
+  }
+  (function(){ var go = function(){ var d = earlyData(); if (d) window._home2Data = d; home2Fill(window._home2Data || {}); }; if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go(); })();
   window.addEventListener('load', function(){ setTimeout(function(){ home2Fill(window._home2Data || {}); }, 300); setInterval(function(){ home2Fill(window._home2Data || {}); }, 60000); });
   window.addEventListener('firebase-sync-updated', function(){ setTimeout(function(){ home2Fill(window._home2Data || {}); }, 800); });
 })();
@@ -3554,7 +3601,7 @@ document.getElementById('mergeRestoreInput').addEventListener('change',async fun
 });
 
 // ========== 廣場頁面 ==========
-function openPlaza(){stopBgm();document.getElementById('plazaOverlay').classList.add('active');initPlazaParticles()}
+function openPlaza(){stopBgm();document.getElementById('plazaOverlay').classList.add('active');requestAnimationFrame(function(){ setTimeout(initPlazaParticles, 480); });}   // ★ 10/20：粒子等轉場跑完再畫，開場不掉格
 // 🔒 業績中心密碼標示 + 子頁「← 返回基地」postMessage 監聽
 (function(){
   try{ if(localStorage.getItem('perf_password')){ var b=document.getElementById('perfLockBadge'); if(b) b.style.display='inline'; } }catch(e){}
@@ -3683,8 +3730,8 @@ function close360Assessment(){
 // ========== 練功坊 ==========
 function openTrainingRoom(){
   stopBgm();
-  document.getElementById('trainingFrame').src=_subSrc('training-room.html');
   document.getElementById('trainingOverlay').classList.add('active');
+  _afterSlide('trainingOverlay', function(){ document.getElementById('trainingFrame').src=_subSrc('training-room.html'); });
 }
 function closeTrainingRoom(){
   try{const f=document.getElementById('trainingFrame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}
@@ -3839,8 +3886,8 @@ async function syncFromCastleCards(){
 // ========== 指揮城堡 ==========
 function openCastle(){
   stopBgm();
-  document.getElementById('castleFrame').src=_subSrc('castle-cards.html');
   document.getElementById('castleOverlay').classList.add('active');
+  _afterSlide('castleOverlay', function(){ document.getElementById('castleFrame').src=_subSrc('castle-cards.html'); });
 }
 async function closeCastle(){
   // 若城堡內有翻牌動畫正在播放，先關閉翻牌而不是關閉城堡
@@ -3871,8 +3918,15 @@ async function closeCastle(){
 
 // ★ 瀑布流三輪 ①（10/19）：子頁版號不再手寫。SUB_VER 是每個子頁「檔案內容的指紋」，deploy.command 部署時自動算：
 //   檔案改了 → 指紋變 → 同事開子頁就拿到新版；檔案沒改 → 指紋不變 → 瀏覽器快取照用（不用重新下載）。
-const SUB_VER={'waterfall-channel.html':'4eb33685','ai-advisor.html':'9f253538','castle-cards.html':'f0e46452','training-room.html':'1f466145','achievement-unlock.html':'69d2904e','fire-mandala.html':'9a667a56','team-leader-map-assessment.html':'e5b1e65c','admin-ai-chats.html':'1e864a6f','central-command.html':'4639b936','admin-accounts.html':'1de072a4'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
+const SUB_VER={'waterfall-channel.html':'4eb33685','ai-advisor.html':'eb6bc8cc','castle-cards.html':'84022ac6','training-room.html':'1f466145','achievement-unlock.html':'69d2904e','fire-mandala.html':'9a667a56','team-leader-map-assessment.html':'e5b1e65c','admin-ai-chats.html':'1e864a6f','central-command.html':'4639b936','admin-accounts.html':'1de072a4'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
 function _subSrc(f, extra){ var v='0'; try{ v=(typeof SUB_VER!=='undefined' && SUB_VER[f]) || '0'; }catch(e){} return f + '?v=' + v + (extra || ''); }
+// ★ 10/20 首頁審查：子頁等面板滑完（0.4s）再載，滑動不會被子頁的 1MB 程式卡住；已經載好的（業績中心）不用等
+function _afterSlide(overlayId, fn){
+  var ov = document.getElementById(overlayId), panel = ov && ov.querySelector('.page-panel'), done = false;
+  var go = function(){ if (done) return; done = true; try { fn(); } catch(e){} };
+  if (panel){ panel.addEventListener('transitionend', function h(e){ if (e.propertyName === 'transform'){ panel.removeEventListener('transitionend', h); go(); } }); }
+  setTimeout(go, 460);
+}
 // ========== 瀑布 ==========
 function openWaterfall(){
   stopBgm();
@@ -4373,10 +4427,10 @@ function perfOpen(){
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
   // ★ 2026/10/10：這個檔自己也會被瀏覽器快取，固定寫死版號永遠慢一步 →
   //   版號改成「ds54＋每 10 分鐘變一次的時間戳」：同事正常重新整理就拿到最新的 performance-compare.html（伺服器只回 304 很便宜），不用 Cmd+Shift+R
-  const PC_VER='ds126';
+  const PC_VER='ds128';
   const TARGET_SRC='performance-compare.html?v='+PC_VER+'-'+Math.floor(Date.now()/600000);
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes('v='+PC_VER+'-'))
-    frame.src=TARGET_SRC;
+    _afterSlide('perfOverlay', function(){ frame.src=TARGET_SRC; });   // ★ 10/20：先滑完再載
   else { try{ frame.contentWindow.postMessage({action:'pcResume'},'*'); }catch(e){} }   // ★ 三輪 ③：恢復背景計時器
   // ★ 用 sessionStorage 記住「業績數據中心曾開啟過」（重整後自動還原）
   try{ sessionStorage.setItem('perf_was_open','1'); }catch(e){}
@@ -4417,9 +4471,9 @@ function showFloatingUI(){
 // ========== AI 顧問 ==========
 function openAiAdvisor(){
   stopBgm();
-  document.getElementById('aiFrame').src=_subSrc('ai-advisor.html');
   document.getElementById('aiOverlay').classList.add('active');
   hideFloatingUI();
+  _afterSlide('aiOverlay', function(){ document.getElementById('aiFrame').src=_subSrc('ai-advisor.html'); });
 }
 function closeAiAdvisor(){
   document.getElementById('aiOverlay').classList.remove('active');
@@ -5844,12 +5898,17 @@ window.addEventListener('load',function(){
     });
     return o;
   }
+  var _rawC = null, _rawP = null, _readCache = null, _tickSeen = null;   // ★ ds128：字串沒變就沿用上次解析結果，不每 15 秒重解析兩包大 JSON
   function read() {
     var ck = findKey('checkin_v1'), pk = findKey('perfp_v1');
     if (!ck || !pk) return null;
     try {
-      return { c: JSON.parse(localStorage.getItem(ck) || '{}'), p: JSON.parse(localStorage.getItem(pk) || '{}') };
-    } catch (err) { return null; }
+      var rc = localStorage.getItem(ck) || '{}', rp = localStorage.getItem(pk) || '{}';
+      if (_readCache && rc === _rawC && rp === _rawP) return _readCache;
+      _rawC = rc; _rawP = rp;
+      _readCache = { c: JSON.parse(rc), p: JSON.parse(rp) };
+      return _readCache;
+    } catch (err) { _readCache = null; return null; }
   }
   function build(d) {
     var c = d.c, p = d.p;
@@ -5901,12 +5960,14 @@ window.addEventListener('load',function(){
   function tick() {
     if (busy) return;
     var d = read(); if (!d) return;
+    if (d === _tickSeen) return;                          // ★ ds128：這包資料上一輪已經比對過（沒變）→ 不再重算
     var rows = build(d);
     var total = rows.reduce(function (s, r) { return s + r.formal + r.c1; }, 0);
     if (!total) return;                                   // 七家全 0（頁面剛載入還沒讀進來）不送
     var byPerson = buildPerson(d);
     var sig = JSON.stringify({ rows: rows, byPerson: byPerson });
     var last = ''; try { last = localStorage.getItem(SIG_KEY) || ''; } catch (e) {}
+    _tickSeen = d;
     if (sig === last) return;                             // 數字沒變不送
     busy = true;
     fetch(ENDPOINT, { method: 'POST', body: JSON.stringify({ rows: rows, byPerson: byPerson }) })
@@ -5915,7 +5976,7 @@ window.addEventListener('load',function(){
         try { localStorage.setItem(SIG_KEY, sig); } catch (e) {}
         console.log('[快照] 已上傳七家＋' + byPerson.length + ' 位業務', j);
       })
-      .catch(function (e) { console.log('[快照] 上傳失敗（下一輪再試）', e); })
+      .catch(function (e) { _tickSeen = null; console.log('[快照] 上傳失敗（下一輪再試）', e); })
       .then(function () { busy = false; });
   }
   setTimeout(tick, 5000);

@@ -70,16 +70,38 @@
     let saveTimeout = null;
 
     // Initialize
+    // ★ ds128（10/20）先畫殼再算：開頁 load 時只讀資料，重的渲染一步一步排在後面的格子跑（每步之間讓瀏覽器先畫一格），
+    //   最後一步才切到上次的分頁（同事→我的一頁）。之前這些全擠在 load 那一格，表頭都出不來。
+    function _pcSlices(fns){
+      var i = 0;
+      (function next(){
+        if (i >= fns.length) return;
+        requestAnimationFrame(function(){ setTimeout(function(){
+          var f = fns[i++];
+          try { f(); } catch(e){ console.warn('[pc init]', e); }
+          next();
+        }, 0); });
+      })();
+    }
+    function _pcInitTab(){
+      try {
+        if (typeof _pcIsAdmin === 'function' && !_pcIsAdmin()) return 11;   // ★ 10/11 Ivan：同事一打開就是「🙋 我的一頁」
+        var lastTab = parseInt(localStorage.getItem('perf_last_tab'));
+        if (!isNaN(lastTab) && lastTab >= 0 && lastTab <= 11 && lastTab !== 0) return lastTab;   // 管理者回到上次看的分頁
+      } catch(e){}
+      return null;   // 留在 Tab 0
+    }
     function init() {
       loadData();
       _renderCmpToolbar();
-      renderComparison();
       loadLecData();
-      renderLecMonths();
       loadChData();
-      renderChMonths();
-      initReportCard();
-      try { refreshSyncBtnLabels(); } catch(e){}
+      var target = _pcInitTab();
+      _pcSlices([
+        function(){ renderLecMonths(); renderChMonths(); },
+        function(){ initReportCard(); try { refreshSyncBtnLabels(); } catch(e){} },
+        function(){ if (target === null) renderComparison(); else _pcFirstPaint(target); }
+      ]);
       // 每分鐘更新一次「幾天前 / 該同步」提示
       try { setInterval(function(){ if (window._pcPaused) return; try { refreshSyncBtnLabels(); } catch(e){} }, 60000); } catch(e){}
     }
@@ -1800,19 +1822,8 @@
       requestAnimationFrame(function(){ setTimeout(function(){ try { switchTab(n); } finally { try { _pcBusy(false); } catch(e){} } }, 0); });
     }
     // ★ 頁面載入後自動還原上次的 tab（取代預設 Tab 0）
-    window.addEventListener('load', function(){
-      setTimeout(function(){
-        try{
-          // ★ 10/11 Ivan：同事一打開就是「🙋 我的一頁」；管理者照舊回到上次看的分頁
-          if (typeof _pcIsAdmin === 'function' && !_pcIsAdmin()){ _pcFirstPaint(11); return; }
-          var lastTab = parseInt(localStorage.getItem('perf_last_tab'));
-          if (!isNaN(lastTab) && lastTab >= 0 && lastTab <= 11 && lastTab !== 0){
-            // Tab 0 是預設值，不用切；其他 tab 才需要切
-            _pcFirstPaint(lastTab);
-          }
-        }catch(e){}
-      }, 50);
-    });
+    //   ds128：改由 init() 的 _pcSlices 最後一步呼叫 _pcFirstPaint(_pcInitTab())，這裡不再另外掛 load（舊寫法只標不刪）
+    // window.addEventListener('load', function(){ setTimeout(function(){ try{ if (typeof _pcIsAdmin === 'function' && !_pcIsAdmin()){ _pcFirstPaint(11); return; } var lastTab = parseInt(localStorage.getItem('perf_last_tab')); if (!isNaN(lastTab) && lastTab >= 0 && lastTab <= 11 && lastTab !== 0){ _pcFirstPaint(lastTab); } }catch(e){} }, 50); });
 
     // Go back function
     function goBack() {
@@ -12628,7 +12639,9 @@
       { ver:'ds123', icon:'✅', title:'穿越圖直接寫「過關」', detail:'每日總結的穿越圖：到關線的組（學院、業務）左邊標籤改成「✅ 過關・10/12 穿越」，右邊寫「✅ 第二關過關・提前幾天」，不用再猜「穿越」是不是過關。業績如果還停在昨天（今天還沒按 🏆 激勵 同步），圖上會跳黃條提醒，避免有人已經過關卻沒顯示' },
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
-      { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' }
+      { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
+      { ver:'ds128', icon:'⚡', title:'開頁不卡了', detail:'城堡、業績中心、AI 顧問三個頁面改成「先把畫面畫出來，再慢慢算」：城堡先出文字版金字塔，照片一張一張補上；業績中心表頭先出現，分頁內容下一格再畫；AI 顧問的三個外掛改成背景載入。首頁底部的「總覽／登出」列拿掉（右上角已有登出），「總覽」移到日期旁' },
+      { ver:'ds127', icon:'✨', title:'首頁更順手', detail:'開頁數字直接出現、不再先空白；問候下面改寫「10 月第幾個上班日、到月底還幾個」；資料時間那張卡：今天同步過是藍色、超過一天橘色；業績中心卡右上角寫「今天已同步」；右上角按鈕按下會縮一下；開任何入口先把面板滑上來再載內容，不會卡一下；手機版三張卡改成左右滑一排，入口不用往下捲就看得到' }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };

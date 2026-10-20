@@ -2318,6 +2318,23 @@ async function playThunder(){ await playThunderGroup(1); }
 // - 只在 card.photo / card.mascot 為空時補入
 // - 補入只更新記憶體 cards 變數，不寫回 localStorage（避免再次踩到 5MB quota）
 // - 完成後重新渲染金字塔；後台面板若已開啟也重繪
+// ★ ds128（10/20）：照片從 SpaceBaseDB 補進來時，只把那一張卡的照片換上去（不整座金字塔重畫）
+function _castlePatchCard(idx){
+  try{
+    var card = cards[idx]; if(!card || !card.photo) return;
+    var div = document.querySelector('#pyramid .card[data-idx="' + idx + '"]'); if(!div) return;
+    var old = div.querySelector('.cf-photo'); if(!old) return;
+    if(old.tagName === 'IMG'){ if(old.getAttribute('src') !== card.photo) old.src = card.photo; }
+    else {
+      var img = document.createElement('img');
+      img.className = 'cf-photo'; img.decoding = 'async'; img.alt = '';   // 不用 lazy：一張一張貼本來就分散了，lazy 反而會等到最後一起解碼
+      img.style.cssText = 'object-position:' + (card.cropX||50) + '% ' + (card.cropY||20) + '%;transform:scale(' + ((card.cropZoom||100)/100) + ')';
+      img.src = card.photo;
+      old.replaceWith(img);
+    }
+    if(!card.hidden) div.classList.add('flipped');
+  }catch(e){}
+}
 async function loadPhotosFromSpaceBase(){
   try{
     if(!Array.isArray(cards) || cards.length===0) return;
@@ -2352,6 +2369,8 @@ async function loadPhotosFromSpaceBase(){
       });
     };
     var photoLoaded = 0, mascotLoaded = 0;
+    var _frame = function(){ return new Promise(function(r){ requestAnimationFrame(function(){ setTimeout(r, 0); }); }); };   // ★ ds128：讓畫面先畫一格
+    var _patchList = [];   // ★ ds128：IDB 交易中途不能等畫面（交易會自動結束），先把讀到的卡記下來，讀完再貼
     for(var i=0;i<cards.length;i++){
       var card = cards[i];
       if(!card) continue;
@@ -2359,7 +2378,7 @@ async function loadPhotosFromSpaceBase(){
         var p = await get('castle_card_photo_'+card.id);
         if(p){
           var url = await toDataUrl(p);
-          if(url){ card.photo = url; photoLoaded++; }
+          if(url){ card.photo = url; photoLoaded++; _patchList.push(i); }   // ★ ds128：先記下來，等 IDB 讀完再一張一張貼
         }
       }
       if(!card.mascot || card.mascot.length<200){
@@ -2371,10 +2390,12 @@ async function loadPhotosFromSpaceBase(){
       }
     }
     try{ db.close(); }catch(e){}
+    // ★ ds128：一張一張貼回畫面，每張之間讓瀏覽器先畫一格（不整座金字塔重畫）
+    for(var k=0;k<_patchList.length;k++){ _castlePatchCard(_patchList[k]); await _frame(); }
     if(photoLoaded>0 || mascotLoaded>0){
       console.log('[castle] 從 SpaceBaseDB 補入：照片', photoLoaded, '筆、吉祥物', mascotLoaded, '筆（僅記憶體）');
-      try{ renderPyramid(); }catch(e){ console.warn('[castle] renderPyramid 失敗', e); }
-      try{ if(typeof renderAdminGrid==='function') renderAdminGrid(); }catch(e){}
+      // ★ ds128：照片已經一張一張貼回去了（_castlePatchCard），這裡不再整座重畫；管理面板有打開才重畫它
+      try{ var _ag = document.getElementById('adminGrid'); if(_ag && _ag.offsetParent !== null && typeof renderAdminGrid==='function') renderAdminGrid(); }catch(e){}
     } else {
       console.log('[castle] SpaceBaseDB 中沒有可補入的照片');
     }
@@ -2469,13 +2490,18 @@ async function _autoSyncAcademyHeadcount(){
 
 // INIT
 migrateSfxToIDB().catch(()=>{});
-renderPyramid();
 updateLoginStatus();
 updateFlipBanner(localStorage.getItem('castle_flip_mode')==='on');
-// ★ NEW: 補讀 SpaceBaseDB 裡的照片（不會 await，背景跑、完成後自動重繪）
-loadPhotosFromSpaceBase();
-// ★ 自動算 7 主管的學院人頭並寫進 teamSize（背景跑,完成後重繪）
-_autoSyncAcademyHeadcount();
+// ★ ds128（10/20）先畫殼再算：頁面先畫出來（標題列、空的金字塔區）→ 下一格畫金字塔文字版 → 再下一格開始補照片（一張一張貼）→ 照片補完再算人頭（讀 mp_data_v1 那包大 JSON）
+//   舊寫法是 renderPyramid() 直接在這裡同步跑，跟 HTML 解析擠在同一格。
+requestAnimationFrame(function(){ setTimeout(function(){
+  try{ renderPyramid(); }catch(e){ console.warn('[castle] renderPyramid', e); }
+  requestAnimationFrame(function(){ setTimeout(function(){
+    Promise.resolve().then(loadPhotosFromSpaceBase).catch(function(){}).then(function(){
+      requestAnimationFrame(function(){ setTimeout(function(){ try{ _autoSyncAcademyHeadcount(); }catch(e){} }, 0); });
+    });
+  }, 0); });
+}, 0); });
 </script>
 <script src="./nav-home.js?v=00964085"></script>
 <script src="day-mode-init.js"></script>
