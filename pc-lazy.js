@@ -92,13 +92,48 @@ function _invTable(C){
         + (C.q.length ? '<div>「?」＝之前繳 2,000～20,000 之間，先算追回，要再看：' + _fnEsc(C.q.join('、')) + '</div>' : '') + '</div>';
       return head + '<div class="inv-grid">' + sideH + '<div class="inv-main"><table class="inv-t"><thead><tr><th>業績承辦人</th><th>網際網路</th><th>當月展場</th><th>當月以前展場</th><th>基本通路<small>學員加購</small></th><th>其它通路<small>學員介紹</small></th><th>總計</th><th>報未註追回<small>已含在左邊各欄・之前繳 2 千內才算</small></th></tr></thead><tbody>' + body + tot + '</tbody></table></div></div>' + _invBottom(C.org, ym) + notes + '</div>';
     }
-function invPrint(){
-      var st = document.createElement('style'); st.id = 'invPrintStyle'; st.textContent = '@page { size:A4 landscape; margin:7mm; }'; document.head.appendChild(st);
-      document.body.classList.add('printing-inv');
-      var done = function(){ document.body.classList.remove('printing-inv'); var x = document.getElementById('invPrintStyle'); if (x) x.remove(); window.removeEventListener('afterprint', done); };
-      window.addEventListener('afterprint', done);
-      setTimeout(function(){ window.print(); setTimeout(done, 1500); }, 60);
+function invPrint(){ _invPrintPrep(); setTimeout(function(){ window.print(); }, 80); }
+// ★ 10/20 楚門回報：存 PDF 會切成兩頁、還印出 11 頁空白
+//   改法：把盤點卡片複製到一個獨立的列印框（其他畫面一律不印＝不會有空白頁），
+//   版面固定成 A4 橫式可印寬度，量每張卡片的高度，太高就整張等比例縮小 → 一個學院一定只佔一頁。
+//   按「🖨 列印 / 存 PDF」或直接 ⌘P 都會走這套。
+function _invPrintPrep(){
+  var panel = document.getElementById('inventoryPanel'); if (!panel || !panel.offsetParent) return false;
+  _invPrintDone();
+  var st = document.createElement('style'); st.id = 'invPrintStyle';
+  st.textContent = '@page { size:A4 landscape; margin:7mm; }'
+    + '@media print { body.printing-inv > *:not(#invPrintBox){ display:none !important; } body.printing-inv { background:#fff !important; } }'
+    + '#invPrintBox { position:absolute; left:-99999px; top:0; width:1069px; background:#fff; }'
+    + '@media print { #invPrintBox { position:static; left:auto; } }'
+    + '#invPrintBox .inv-bar { display:none !important; }'
+    + '#invPrintBox .inv-card { box-sizing:border-box; width:1069px; margin:0; border:0; box-shadow:none; break-after:page; page-break-after:always; break-inside:avoid; }'
+    + '#invPrintBox .inv-card:last-child { break-after:auto; page-break-after:auto; }'
+    + '#invPrintBox .inv-main { overflow:visible !important; }'
+    + '#invPrintBox, #invPrintBox * { visibility:visible !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }';
+  document.head.appendChild(st);
+  var box = document.createElement('div'); box.id = 'invPrintBox'; box.innerHTML = panel.innerHTML;
+  document.body.appendChild(box);
+  document.body.classList.add('printing-inv');
+  var PAGE_H = 735;   // A4 橫式扣掉 7mm 邊界 ≈ 196mm ≈ 740px，留一點餘裕
+  [].forEach.call(box.querySelectorAll('.inv-card'), function(c){
+    // 第一輪：寬或高超出就算縮放比；把卡片版面寬度放大成 1069÷縮放比，縮完剛好填滿頁寬、表格不會被擠出右邊
+    var z = Math.min(1, PAGE_H / c.scrollHeight, 1069 / c.scrollWidth);
+    for (var pass = 0; pass < 3 && z < 1; pass++){
+      c.style.width = Math.ceil(1069 / z) + 'px';
+      var z2 = Math.min(1, PAGE_H / c.scrollHeight, (1069 / z) / c.scrollWidth * z);
+      if (Math.abs(z2 - z) < 0.005){ z = z2; break; } z = z2;
     }
+    if (z < 1){ z = Math.floor(z * 1000) / 1000; c.style.width = Math.ceil(1069 / z) + 'px'; c.style.zoom = String(z); }
+  });
+  return true;
+}
+function _invPrintDone(){
+  document.body.classList.remove('printing-inv');
+  var a = document.getElementById('invPrintStyle'); if (a) a.remove();
+  var b = document.getElementById('invPrintBox'); if (b) b.remove();
+}
+window.addEventListener('beforeprint', function(){ if (!document.getElementById('invPrintBox')) _invPrintPrep(); });
+window.addEventListener('afterprint', function(){ _invPrintDone(); });
 function invRender(){
       var m = parseInt(document.getElementById('rcMonth').value, 10) || 1, acSel = document.getElementById('rcAcademy').value;
       var cont = document.getElementById('reportCardContainer'); if (!cont) return;
