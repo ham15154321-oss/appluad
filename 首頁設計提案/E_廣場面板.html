@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>提案 B・星際廣場改成首頁延續的面板</title>
+<style>
+:root{--bg:#F5F5F7;--card:#FFFFFF;--ink:#1D1D1F;--dim:#6E6E73;--line:rgba(0,0,0,.08);--acc:#0071E3;--ok:#34C759;--warn:#FF9F0A;}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font:16px/1.55 -apple-system,system-ui,'PingFang TC','Noto Sans TC',sans-serif;color:var(--ink);background:var(--bg)}
+body{min-height:100vh;background:
+ radial-gradient(900px 500px at 20% -10%, rgba(0,113,227,.10), transparent 60%),
+ radial-gradient(700px 500px at 100% 10%, rgba(255,159,10,.10), transparent 60%), var(--bg);}
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:16px;padding:12px 24px;background:rgba(245,245,247,.72);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--line)}
+.who{display:flex;align-items:center;gap:12px}
+.ava{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FFB86C,#FF7A59);display:grid;place-items:center;color:#fff;font-weight:800}
+.who b{display:block;font-size:16px;line-height:1.2}.who small{font-size:13px;color:var(--dim)}
+.date{margin-left:auto;font-variant-numeric:tabular-nums;font-size:13px;color:var(--dim)}
+.acts{display:flex;gap:8px}.acts button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:16px;cursor:pointer;transition:transform .1s,background .15s}.acts button:active{transform:scale(.94)}
+.wrap{max-width:1120px;margin:0 auto;padding:32px 24px 120px}
+/* KPI 英雄區 */
+.hero{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px;margin-bottom:32px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px 24px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04)}
+.kpi small{display:block;font-size:13px;color:var(--dim);font-weight:600;letter-spacing:.02em}
+.kpi b{display:block;font-size:34px;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:6px}
+.kpi b u{text-decoration:none;font-size:16px;color:var(--dim);font-weight:600;margin-left:4px}
+.bar{height:8px;border-radius:4px;background:rgba(0,0,0,.06);margin-top:14px;overflow:hidden}.bar i{display:block;height:100%;width:19.8%;border-radius:4px;background:linear-gradient(90deg,#0071E3,#5AC8FA)}
+.kpi .sub{display:flex;justify-content:space-between;font-size:13px;color:var(--dim);margin-top:8px;font-variant-numeric:tabular-nums}
+.kpi.ok b{color:#1F7A3A}.kpi.warn b{color:#B35C00}
+/* 模組卡 */
+h2{font-size:20px;letter-spacing:-.01em;margin:0 0 12px;display:flex;align-items:baseline;gap:10px}h2 small{font-size:13px;color:var(--dim);font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.mod{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:188px;padding:20px;border-radius:22px;color:#fff;cursor:pointer;overflow:hidden;border:1px solid rgba(255,255,255,.35);box-shadow:0 1px 2px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.08);transition:transform .18s cubic-bezier(.2,.9,.25,1),box-shadow .18s}
+.mod:hover{transform:translateY(-3px);box-shadow:0 2px 4px rgba(0,0,0,.06),0 20px 44px rgba(0,0,0,.14)}.mod:active{transform:scale(.98)}
+.mod svg{position:absolute;right:18px;top:18px;width:56px;height:56px;opacity:.95}
+.mod b{font-size:22px;letter-spacing:-.01em;line-height:1.15}.mod span{font-size:13px;opacity:.85;margin-top:4px}
+.mod .pill{position:absolute;left:20px;top:18px;font-size:13px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.22);backdrop-filter:blur(8px)}
+.m1{background:linear-gradient(135deg,#0A84FF,#5E5CE6)}.m2{background:linear-gradient(135deg,#5E5CE6,#BF5AF2)}.m3{background:linear-gradient(135deg,#30D158,#0A84FF)}.m4{background:linear-gradient(135deg,#FF9F0A,#FF375F)}.m5{background:linear-gradient(135deg,#1C1C1E,#3A3A3C)}
+.mod.wide{grid-column:span 2;min-height:188px}
+/* 快速啟動 */
+.quick{margin-top:28px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.quick small{font-size:13px;color:var(--dim);margin-right:4px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:15px;font-weight:600;cursor:pointer;transition:transform .1s,background .15s}.chip:hover{background:#F0F0F5}.chip:active{transform:scale(.96)}
+/* 底部 dock */
+.dock{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(255,255,255,.6);box-shadow:0 8px 30px rgba(0,0,0,.12)}
+.dock button{min-height:40px;padding:0 16px;border-radius:999px;border:0;background:transparent;font-size:15px;font-weight:600;cursor:pointer}.dock button.on{background:#1D1D1F;color:#fff}
+.note{position:fixed;left:24px;bottom:24px;max-width:260px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.8);backdrop-filter:blur(16px);border:1px solid var(--line);font-size:13px;color:var(--dim);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.note b{display:block;color:var(--ink);font-size:15px;margin-bottom:2px}
+@media(max-width:900px){.hero,.grid{grid-template-columns:1fr}.mod.wide{grid-column:span 1}.wrap{padding:20px 16px 120px}.kpi b{font-size:28px}}
+@media(prefers-reduced-motion:reduce){.mod,.chip,.acts button{transition:none}}
+
+/* ===== 提案 B：廣場面板（從「星際廣場」那張卡長出來） ===== */
+.dim{position:fixed;inset:0;background:rgba(0,0,0,.28);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:20}
+.sheet{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(1040px,calc(100vw - 48px));max-height:calc(100vh - 64px);overflow:auto;z-index:21;border-radius:28px;background:rgba(255,255,255,.86);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:1px solid rgba(255,255,255,.7);box-shadow:0 30px 90px rgba(0,0,0,.28);padding:12px 28px 28px;transform-origin:78% 62%}
+.grab{width:40px;height:5px;border-radius:3px;background:rgba(0,0,0,.18);margin:0 auto 14px}
+.shead{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.shead .back{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:15px;font-weight:600;cursor:pointer}
+.shead h1{font-size:28px;letter-spacing:-.02em;line-height:1.1}.shead p{color:var(--dim);font-size:15px;margin-top:2px}
+.shead .x{margin-left:auto;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:18px;cursor:pointer}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
+.scard{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:168px;padding:18px;border-radius:22px;color:#fff;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.35);box-shadow:0 1px 2px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.1);transition:transform .18s cubic-bezier(.2,.9,.25,1)}
+.scard:hover{transform:translateY(-3px)}.scard:active{transform:scale(.98)}
+.scard svg{position:absolute;right:16px;top:16px;width:48px;height:48px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.95}
+.scard b{font-size:21px;letter-spacing:-.01em}.scard span{font-size:13px;opacity:.88;margin-top:3px}
+.scard .st{position:absolute;left:18px;top:16px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.22);backdrop-filter:blur(8px)}
+.s1{background:linear-gradient(135deg,#0A84FF,#64D2FF)}.s2{background:linear-gradient(135deg,#FF375F,#FF9F0A)}.s3{background:linear-gradient(135deg,#30D158,#0A84FF)}.s4{background:linear-gradient(135deg,#FFD60A,#FF9F0A)}.s5{background:linear-gradient(135deg,#FF6B2C,#FF375F)}
+.scard.wide{grid-column:span 2;min-height:168px}
+.scard .pic{position:absolute;right:0;bottom:0;width:46%;height:100%;object-fit:cover;opacity:.0}
+.sfoot{display:flex;gap:8px;align-items:center;margin-top:18px;font-size:13px;color:var(--dim)}
+.sfoot .chip{min-height:32px;font-size:13px}
+@media(max-width:900px){.sheet{top:auto;bottom:0;left:0;transform:none;width:100%;max-height:88vh;border-radius:24px 24px 0 0;padding:10px 16px 28px}.sgrid{grid-template-columns:1fr 1fr}.scard.wide{grid-column:span 2}.shead h1{font-size:22px}}
+</style></head><body>
+<div class="top">
+  <div class="who"><div class="ava">翰</div><div><b>黃柏翰</b><small>台中學院・主管</small></div></div>
+  <div class="date">2026 年 10 月 20 日（二）</div>
+  <div class="acts"><button title="白天／夜間">☀︎</button><button title="通知">🔔</button><button title="設定">⚙︎</button></div>
+</div>
+<div class="wrap">
+  <div class="hero">
+    <div class="kpi"><small>學院業績・10 月</small><b>7,927<u>萬</u></b><div class="bar"><i></i></div><div class="sub"><span>目標 40,000 萬</span><span>達成 19.8%</span></div></div>
+    <div class="kpi ok"><small>今天該到</small><b>+126<u>萬</u></b><div class="sub"><span>第二關 10/20 結算</span><span>超前 1.2 天</span></div></div>
+    <div class="kpi warn"><small>今天該盯</small><b>3<u>人</u></b><div class="sub"><span>連 2 天沒入帳</span><span>追蹤卡 5 張到期</span></div></div>
+  </div>
+
+  <h2>太空指揮部 <small>五個入口，常用的放大</small></h2>
+  <div class="grid">
+    <div class="mod m1 wide"><span class="pill">今天已同步 12:00</span>
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M8 36 L20 22 L28 30 L40 14"/><path d="M32 14h8v8"/></svg>
+      <b>業績數據中心</b><span>七家學院・每日總結・漏斗・穿越</span></div>
+    <div class="mod m5">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><circle cx="24" cy="24" r="14"/><path d="M24 10v4M24 34v4M10 24h4M34 24h4"/><circle cx="24" cy="24" r="4"/></svg>
+      <b>AI 顧問</b><span>陪跑師・數據通・小任務</span></div>
+    <div class="mod m2">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M10 38V20l14-10 14 10v18"/><path d="M20 38V28h8v10"/></svg>
+      <b>指揮城堡</b><span>人物卡・成就・360 分數</span></div>
+    <div class="mod m3">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M12 36l8-16 6 10 4-6 6 12"/><circle cx="34" cy="14" r="4"/></svg>
+      <b>練功坊</b><span>三寶・話術・訓練檢核</span></div>
+    <div class="mod m4">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><circle cx="24" cy="24" r="16"/><path d="M8 24h32M24 8c6 6 6 26 0 32M24 8c-6 6-6 26 0 32"/></svg>
+      <b>星際廣場</b><span>360 檢核・法院・瀑布・火種</span></div>
+  </div>
+
+  <div class="quick"><small>快速啟動</small>
+    <button class="chip">🏔 瀑布通路</button><button class="chip">🎯 360 檢核</button><button class="chip">📅 每月績效</button><button class="chip">🏆 激勵</button><button class="chip">🏅 成就解鎖</button>
+  </div>
+</div>
+
+<div class="dim"></div>
+<div class="sheet">
+  <div class="grab"></div>
+  <div class="shead">
+    <button class="back">‹ 回首頁</button>
+    <div><h1>星際廣場</h1><p>五個基地，跟首頁同一套卡片。往下拖可以關，放開時看你拖的速度決定關或彈回。</p></div>
+    <button class="x">✕</button>
+  </div>
+  <div class="sgrid">
+    <div class="scard wide s3"><span class="st">今天已同步</span><svg viewBox="0 0 24 24"><path d="M4 4v6c0 4 3 7 8 7s8-3 8-7V4"/><path d="M8 17c0 2 2 4 4 4s4-2 4-4"/><path d="M12 4v13"/></svg><b>瀑布</b><span>各通路研究・A 通路研究院・打包成任務</span></div>
+    <div class="scard s1"><span class="st">本月 12 人已填</span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg><b>360 度能力檢核</b><span>自評、主管、同儕、部屬</span></div>
+    <div class="scard s2"><span class="st">2 件待裁示</span><svg viewBox="0 0 24 24"><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0L7 7M17 7l-3 7a3 3 0 0 0 6 0l-3-7M8 21h8"/></svg><b>法院</b><span>懲罰紀錄・改善追蹤</span></div>
+    <div class="scard s4"><span class="st">3 枚快達成</span><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a2 2 0 0 0 0 4h3M17 6h3a2 2 0 0 1 0 4h-3"/></svg><b>成就解鎖</b><span>獎勵成就・勳章牆</span></div>
+    <div class="scard s5"><span class="st">本週 4 格點亮</span><svg viewBox="0 0 24 24"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3 0-6 1-9z"/></svg><b>火種</b><span>影響力九宮格</span></div>
+  </div>
+  <div class="sfoot">想要太空場景？<button class="chip">🌌 展示模式（星空、粒子、自訂建築照片）</button><span>只在簡報用，平常不載入。</span></div>
+</div>
+
+<div class="dock"><button class="on">總覽</button><button>登出</button></div>
+</body></html>

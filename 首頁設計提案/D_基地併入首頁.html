@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>提案 A・基地併入首頁（廣場退役）</title>
+<style>
+:root{--bg:#F5F5F7;--card:#FFFFFF;--ink:#1D1D1F;--dim:#6E6E73;--line:rgba(0,0,0,.08);--acc:#0071E3;--ok:#34C759;--warn:#FF9F0A;}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font:16px/1.55 -apple-system,system-ui,'PingFang TC','Noto Sans TC',sans-serif;color:var(--ink);background:var(--bg)}
+body{min-height:100vh;background:
+ radial-gradient(900px 500px at 20% -10%, rgba(0,113,227,.10), transparent 60%),
+ radial-gradient(700px 500px at 100% 10%, rgba(255,159,10,.10), transparent 60%), var(--bg);}
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:16px;padding:12px 24px;background:rgba(245,245,247,.72);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--line)}
+.who{display:flex;align-items:center;gap:12px}
+.ava{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FFB86C,#FF7A59);display:grid;place-items:center;color:#fff;font-weight:800}
+.who b{display:block;font-size:16px;line-height:1.2}.who small{font-size:13px;color:var(--dim)}
+.date{margin-left:auto;font-variant-numeric:tabular-nums;font-size:13px;color:var(--dim)}
+.acts{display:flex;gap:8px}.acts button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:16px;cursor:pointer;transition:transform .1s,background .15s}.acts button:active{transform:scale(.94)}
+.wrap{max-width:1120px;margin:0 auto;padding:32px 24px 120px}
+/* KPI 英雄區 */
+.hero{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px;margin-bottom:32px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px 24px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04)}
+.kpi small{display:block;font-size:13px;color:var(--dim);font-weight:600;letter-spacing:.02em}
+.kpi b{display:block;font-size:34px;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:6px}
+.kpi b u{text-decoration:none;font-size:16px;color:var(--dim);font-weight:600;margin-left:4px}
+.bar{height:8px;border-radius:4px;background:rgba(0,0,0,.06);margin-top:14px;overflow:hidden}.bar i{display:block;height:100%;width:19.8%;border-radius:4px;background:linear-gradient(90deg,#0071E3,#5AC8FA)}
+.kpi .sub{display:flex;justify-content:space-between;font-size:13px;color:var(--dim);margin-top:8px;font-variant-numeric:tabular-nums}
+.kpi.ok b{color:#1F7A3A}.kpi.warn b{color:#B35C00}
+/* 模組卡 */
+h2{font-size:20px;letter-spacing:-.01em;margin:0 0 12px;display:flex;align-items:baseline;gap:10px}h2 small{font-size:13px;color:var(--dim);font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.mod{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:188px;padding:20px;border-radius:22px;color:#fff;cursor:pointer;overflow:hidden;border:1px solid rgba(255,255,255,.35);box-shadow:0 1px 2px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.08);transition:transform .18s cubic-bezier(.2,.9,.25,1),box-shadow .18s}
+.mod:hover{transform:translateY(-3px);box-shadow:0 2px 4px rgba(0,0,0,.06),0 20px 44px rgba(0,0,0,.14)}.mod:active{transform:scale(.98)}
+.mod svg{position:absolute;right:18px;top:18px;width:56px;height:56px;opacity:.95}
+.mod b{font-size:22px;letter-spacing:-.01em;line-height:1.15}.mod span{font-size:13px;opacity:.85;margin-top:4px}
+.mod .pill{position:absolute;left:20px;top:18px;font-size:13px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.22);backdrop-filter:blur(8px)}
+.m1{background:linear-gradient(135deg,#0A84FF,#5E5CE6)}.m2{background:linear-gradient(135deg,#5E5CE6,#BF5AF2)}.m3{background:linear-gradient(135deg,#30D158,#0A84FF)}.m4{background:linear-gradient(135deg,#FF9F0A,#FF375F)}.m5{background:linear-gradient(135deg,#1C1C1E,#3A3A3C)}
+.mod.wide{grid-column:span 2;min-height:188px}
+/* 基地：五張小卡（原星際廣場的五個入口） */
+.base{margin-top:32px}
+.base h2 small{margin-left:auto;font-weight:600;color:var(--acc);cursor:pointer}
+.bgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.bcard{display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:18px;background:#fff;border:1px solid var(--line);box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04);cursor:pointer;transition:transform .15s cubic-bezier(.2,.9,.25,1),box-shadow .15s}
+.bcard:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(0,0,0,.05),0 16px 36px rgba(0,0,0,.1)}.bcard:active{transform:scale(.97)}
+.bic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff}
+.bic svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.b1{background:linear-gradient(135deg,#FF375F,#FF9F0A)}.b2{background:linear-gradient(135deg,#0A84FF,#64D2FF)}.b3{background:linear-gradient(135deg,#30D158,#0A84FF)}.b4{background:linear-gradient(135deg,#FFD60A,#FF9F0A)}.b5{background:linear-gradient(135deg,#FF6B2C,#FF375F)}
+.bcard b{font-size:16px;letter-spacing:-.01em}.bcard span{font-size:13px;color:var(--dim);line-height:1.4}
+.bcard .bt{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-top:auto}.bcard .bt i{width:7px;height:7px;border-radius:50%;background:#34C759;display:inline-block}
+.bcard .bt i.r{background:#E24B4A}.bcard .bt i.y{background:#FF9F0A}
+@media(max-width:900px){.bgrid{grid-template-columns:repeat(2,1fr)}.bcard:last-child{grid-column:span 2}}
+/* 快速啟動 */
+.quick{margin-top:28px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.quick small{font-size:13px;color:var(--dim);margin-right:4px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:15px;font-weight:600;cursor:pointer;transition:transform .1s,background .15s}.chip:hover{background:#F0F0F5}.chip:active{transform:scale(.96)}
+/* 底部 dock */
+.dock{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(255,255,255,.6);box-shadow:0 8px 30px rgba(0,0,0,.12)}
+.dock button{min-height:40px;padding:0 16px;border-radius:999px;border:0;background:transparent;font-size:15px;font-weight:600;cursor:pointer}.dock button.on{background:#1D1D1F;color:#fff}
+.note{position:fixed;left:24px;bottom:24px;max-width:260px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.8);backdrop-filter:blur(16px);border:1px solid var(--line);font-size:13px;color:var(--dim);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.note b{display:block;color:var(--ink);font-size:15px;margin-bottom:2px}
+@media(max-width:900px){.hero,.grid{grid-template-columns:1fr}.mod.wide{grid-column:span 1}.wrap{padding:20px 16px 120px}.kpi b{font-size:28px}}
+@media(prefers-reduced-motion:reduce){.mod,.chip,.acts button{transition:none}}
+</style></head><body>
+<div class="top">
+  <div class="who"><div class="ava">翰</div><div><b>黃柏翰</b><small>台中學院・主管</small></div></div>
+  <div class="date">2026 年 10 月 20 日（二）</div>
+  <div class="acts"><button title="白天／夜間">☀︎</button><button title="通知">🔔</button><button title="設定">⚙︎</button></div>
+</div>
+<div class="wrap">
+  <div class="hero">
+    <div class="kpi"><small>學院業績・10 月</small><b>7,927<u>萬</u></b><div class="bar"><i></i></div><div class="sub"><span>目標 40,000 萬</span><span>達成 19.8%</span></div></div>
+    <div class="kpi ok"><small>今天該到</small><b>+126<u>萬</u></b><div class="sub"><span>第二關 10/20 結算</span><span>超前 1.2 天</span></div></div>
+    <div class="kpi warn"><small>今天該盯</small><b>3<u>人</u></b><div class="sub"><span>連 2 天沒入帳</span><span>追蹤卡 5 張到期</span></div></div>
+  </div>
+
+  <h2>太空指揮部 <small>五個入口，常用的放大（星際廣場那張換成「我的一頁」）</small></h2>
+  <div class="grid">
+    <div class="mod m1 wide"><span class="pill">今天已同步 12:00</span>
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M8 36 L20 22 L28 30 L40 14"/><path d="M32 14h8v8"/></svg>
+      <b>業績數據中心</b><span>七家學院・每日總結・漏斗・穿越</span></div>
+    <div class="mod m5">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><circle cx="24" cy="24" r="14"/><path d="M24 10v4M24 34v4M10 24h4M34 24h4"/><circle cx="24" cy="24" r="4"/></svg>
+      <b>AI 顧問</b><span>陪跑師・數據通・小任務</span></div>
+    <div class="mod m2">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M10 38V20l14-10 14 10v18"/><path d="M20 38V28h8v10"/></svg>
+      <b>指揮城堡</b><span>人物卡・成就・360 分數</span></div>
+    <div class="mod m3">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M12 36l8-16 6 10 4-6 6 12"/><circle cx="34" cy="14" r="4"/></svg>
+      <b>練功坊</b><span>三寶・話術・訓練檢核</span></div>
+    <div class="mod m4">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M10 14h28v22H10z"/><path d="M10 22h28M18 14v22"/></svg>
+      <b>我的一頁</b><span>業績・獎金・學生清單・每天入帳</span></div>
+  </div>
+
+  <div class="base">
+    <h2>基地 <small>原星際廣場的五個入口，不用再多開一層</small></h2>
+    <div class="bgrid">
+      <div class="bcard"><div class="bic b2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg></div><b>360 度能力檢核</b><span>自評、主管、同儕、部屬四面向</span><div class="bt"><i></i>本月 12 人已填</div></div>
+      <div class="bcard"><div class="bic b1"><svg viewBox="0 0 24 24"><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0L7 7M17 7l-3 7a3 3 0 0 0 6 0l-3-7M8 21h8"/></svg></div><b>法院</b><span>懲罰紀錄、改善追蹤</span><div class="bt"><i class="r"></i>2 件待裁示</div></div>
+      <div class="bcard"><div class="bic b3"><svg viewBox="0 0 24 24"><path d="M4 4v6c0 4 3 7 8 7s8-3 8-7V4"/><path d="M8 17c0 2 2 4 4 4s4-2 4-4"/><path d="M12 4v13"/></svg></div><b>瀑布</b><span>各通路研究、A 通路研究院</span><div class="bt"><i></i>今天已同步</div></div>
+      <div class="bcard"><div class="bic b4"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a2 2 0 0 0 0 4h3M17 6h3a2 2 0 0 1 0 4h-3"/></svg></div><b>成就解鎖</b><span>獎勵成就、勳章牆</span><div class="bt"><i class="y"></i>3 枚快達成</div></div>
+      <div class="bcard"><div class="bic b5"><svg viewBox="0 0 24 24"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3 0-6 1-9z"/></svg></div><b>火種</b><span>影響力九宮格</span><div class="bt"><i></i>本週 4 格點亮</div></div>
+    </div>
+  </div>
+
+  <div class="quick"><small>快速啟動</small>
+    <button class="chip">📅 每月績效</button><button class="chip">🏆 激勵</button><button class="chip">📝 編輯追蹤</button><button class="chip">⏱ 穿越時間</button><button class="chip">🎬 90 秒回顧</button>
+  </div>
+</div>
+<div class="note"><b>星際廣場去哪了</b>五個入口搬到上面「基地」一列；簡報要用太空版，右上角 ⚙︎ 裡有「展示模式：星際廣場」可以叫回來。</div>
+<div class="dock"><button class="on">總覽</button><button>登出</button></div>
+</body></html>

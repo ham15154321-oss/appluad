@@ -277,7 +277,79 @@
   .page-overlay.active .page-panel {
     transform:translateY(0);
   }
-  /* 廣場特有背景 */
+
+  /* ═══ ds130 星際廣場 改玻璃面板（提案 B，10/20 Ivan 同意）：從「星際廣場」那張卡成形、首頁推後、五張卡、手機拖關 ═══ */
+  .plz-dim { position:fixed; inset:0; z-index:140; background:rgba(0,0,0,.42); opacity:0; pointer-events:none; }
+  .plz-dim.on { pointer-events:auto; }
+  .plz-sheet { position:fixed; left:50%; top:50%; width:min(1040px, calc(100vw - 48px)); max-height:calc(100vh - 64px); z-index:141;
+    border-radius:28px; background:rgba(28,28,30,.72); -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%);
+    border:1px solid rgba(255,255,255,.14); box-shadow:0 30px 90px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.12);
+    color:#F5F5F7; display:flex; flex-direction:column; overflow:hidden; opacity:0; pointer-events:none; visibility:hidden;
+    transform:translate(-50%,-50%) scale(.3); will-change:transform,opacity;
+    font-family:-apple-system,system-ui,'PingFang TC','Noto Sans TC',sans-serif; }
+  .plz-sheet.on { pointer-events:auto; visibility:visible; }
+  .plz-grab { width:40px; height:5px; border-radius:3px; background:rgba(255,255,255,.28); margin:10px auto 6px; flex-shrink:0; display:none; }
+  .plz-head { position:relative; display:flex; align-items:center; gap:12px; padding:18px 24px 10px; flex-shrink:0; touch-action:none; }
+  .plz-head::after { content:''; position:absolute; left:0; right:0; bottom:-18px; height:18px; pointer-events:none; opacity:0; transition:opacity .2s;
+    background:linear-gradient(180deg, rgba(28,28,30,.55), rgba(28,28,30,0)); }
+  .plz-head.scrolled::after { opacity:1; }
+  .plz-back, .plz-x { min-height:36px; border-radius:999px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.08); color:#F5F5F7; font-size:15px; font-weight:600; cursor:pointer; font-family:inherit; transition:transform .1s ease-out, background .15s; -webkit-tap-highlight-color:transparent; }
+  .plz-back { padding:0 14px; }
+  .plz-x { margin-left:auto; width:36px; height:36px; padding:0; font-size:17px; display:grid; place-items:center; }
+  .plz-back:active, .plz-x:active { transform:scale(.94); background:rgba(255,255,255,.16); }
+  .plz-title h1 { font-size:26px; letter-spacing:-.02em; line-height:1.1; margin:0; font-weight:700; }
+  .plz-title p { margin:2px 0 0; font-size:14px; color:#AEAEB2; font-weight:600; letter-spacing:.01em; }   /* vibrancy：玻璃面上的次要字加一級字重、字距微開 */
+  .plz-body { overflow:auto; padding:8px 24px 24px; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+  .plz-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:12px; }
+  .plz-card { position:relative; display:flex; flex-direction:column; justify-content:flex-end; min-height:160px; padding:18px; border-radius:22px; color:#fff; overflow:hidden; cursor:pointer; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent;
+    border:1px solid rgba(255,255,255,.3); box-shadow:0 1px 2px rgba(0,0,0,.2), 0 12px 32px rgba(0,0,0,.3);
+    transition:transform .32s cubic-bezier(.2,.9,.25,1), opacity .32s cubic-bezier(.2,.9,.25,1), filter .12s; opacity:0; transform:translate(var(--dx,0), var(--dy,0)) scale(.92); }
+  .plz-sheet.in .plz-card { opacity:1; transform:none; }
+  .plz-card.pressed { transform:scale(.97) !important; filter:brightness(.88); transition-duration:.1s; }
+  .plz-card:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+  .plz-card svg { position:absolute; right:16px; top:16px; width:46px; height:46px; fill:none; stroke:#fff; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; opacity:.95; }
+  .plz-card b { font-size:21px; letter-spacing:-.01em; line-height:1.15; }
+  .plz-card > span { font-size:13px; opacity:.9; margin-top:3px; font-weight:600; letter-spacing:.01em; }
+  .plz-card .plz-st { position:absolute; left:18px; top:16px; font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px; background:rgba(255,255,255,.22); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+  .plz-card .plz-st:empty { display:none; }
+  .plz-c1 { background:linear-gradient(135deg,#0A84FF,#64D2FF); } .plz-c2 { background:linear-gradient(135deg,#FF375F,#FF9F0A); }
+  .plz-c3 { background:linear-gradient(135deg,#30D158,#0A84FF); grid-column:span 2; } .plz-c4 { background:linear-gradient(135deg,#FFD60A,#FF9F0A); } .plz-c5 { background:linear-gradient(135deg,#FF6B2C,#FF375F); }
+  .plz-foot { display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; margin-top:18px; font-size:13px; color:#AEAEB2; font-weight:600; letter-spacing:.01em; }
+  .plz-chip { min-height:34px; padding:0 14px; border-radius:999px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.08); color:#F5F5F7; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; transition:transform .1s ease-out; }
+  .plz-chip:active { transform:scale(.96); }
+  /* 白天：淺色玻璃 */
+  body.day-mode .plz-dim { background:rgba(0,0,0,.32); }
+  body.day-mode .plz-sheet { background:rgba(255,255,255,.84); color:#1D1D1F; border-color:rgba(255,255,255,.75); box-shadow:0 30px 90px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.9); }
+  body.day-mode .plz-grab { background:rgba(0,0,0,.18); }
+  body.day-mode .plz-head::after { background:linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,0)); }
+  body.day-mode .plz-back, body.day-mode .plz-x, body.day-mode .plz-chip { background:#fff !important; color:#1D1D1F !important; border-color:rgba(0,0,0,.1) !important; }
+  body.day-mode .plz-title p, body.day-mode .plz-foot { color:#6E6E73 !important; }
+  body.day-mode .plz-card { box-shadow:0 1px 2px rgba(0,0,0,.06), 0 12px 32px rgba(0,0,0,.12); color:#fff !important; }
+  /* 手機：從底部上來 */
+  @media (max-width:900px){
+    .plz-sheet { left:0; top:auto; bottom:0; width:100%; max-height:88vh; border-radius:24px 24px 0 0; transform:translateY(100%); }
+    .plz-grab { display:block; }
+    .plz-head { padding:6px 16px 8px; }
+    .plz-title h1 { font-size:22px; } .plz-title p { display:none; }
+    .plz-body { padding:4px 16px 28px; }
+    .plz-grid { grid-template-columns:1fr 1fr; gap:12px; } .plz-c3 { grid-column:span 2; } .plz-card { min-height:132px; }
+  }
+  /* 三個減少動態訊號 */
+  @media (prefers-reduced-motion:reduce){
+    .plz-card { transition:opacity .2s ease !important; transform:none !important; }
+    .plz-card.pressed { transform:none !important; }
+  }
+  @media (prefers-reduced-transparency:reduce){
+    .plz-sheet { background:#1c1c1e !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+    body.day-mode .plz-sheet { background:#fff !important; }
+    .plz-dim { -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+  }
+  @media (prefers-contrast:more){
+    .plz-sheet { border:2px solid currentColor !important; }
+    .plz-card { border:2px solid rgba(255,255,255,.9) !important; }
+    .plz-back, .plz-x, .plz-chip { border-width:2px !important; }
+  }
+  /* 廣場特有背景（舊版廣場地圖，ds130 起只在「展示模式」出現） */
   .plaza-bg {
     background:linear-gradient(180deg,#060d2a 0%,#0a1545 30%,#0c1a55 100%);
     border:1px solid rgba(100,180,255,0.2);
@@ -1839,6 +1911,26 @@ body.minimal .revenue-stats{ margin-top:0; }
 </div>
 
 <!-- ========== 廣場頁面 ========== -->
+<!-- ═══ ds130 星際廣場 玻璃面板（提案 B）═══ -->
+<div id="plazaDim" class="plz-dim" onclick="closePlaza()"></div>
+<div id="plazaSheet" class="plz-sheet" role="dialog" aria-label="星際廣場" aria-hidden="true">
+  <div class="plz-grab" id="plzGrab"></div>
+  <div class="plz-head" id="plzHead">
+    <button class="plz-back" onclick="closePlaza()">‹ 回首頁</button>
+    <div class="plz-title"><h1>星際廣場</h1><p>五個基地，直接點進去</p></div>
+    <button class="plz-x" onclick="closePlaza()" aria-label="關閉">✕</button>
+  </div>
+  <div class="plz-body" id="plzBody">
+    <div class="plz-grid" id="plzGrid">
+      <div class="plz-card plz-c3" tabindex="0" role="button" data-open="openWaterfall"><span class="plz-st" id="plzStWf"></span><svg viewBox="0 0 24 24"><path d="M4 4v6c0 4 3 7 8 7s8-3 8-7V4"/><path d="M8 17c0 2 2 4 4 4s4-2 4-4"/><path d="M12 4v13"/></svg><b>瀑布</b><span>各通路研究・A 通路研究院</span></div>
+      <div class="plz-card plz-c1" tabindex="0" role="button" data-open="open360Assessment"><span class="plz-st" id="plzSt360"></span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg><b>360 度能力檢核</b><span>自評、主管、同儕、部屬</span></div>
+      <div class="plz-card plz-c2" tabindex="0" role="button" data-open="prOpenSystem"><span class="plz-st" id="plzStCourt"></span><svg viewBox="0 0 24 24"><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0L7 7M17 7l-3 7a3 3 0 0 0 6 0l-3-7M8 21h8"/></svg><b>法院</b><span>懲罰紀錄・改善追蹤</span></div>
+      <div class="plz-card plz-c4" tabindex="0" role="button" data-open="openAchievement"><span class="plz-st" id="plzStAch"></span><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a2 2 0 0 0 0 4h3M17 6h3a2 2 0 0 1 0 4h-3"/></svg><b>成就解鎖</b><span>獎勵成就・勳章牆</span></div>
+      <div class="plz-card plz-c5" tabindex="0" role="button" data-open="openFireMandala"><span class="plz-st" id="plzStFire"></span><svg viewBox="0 0 24 24"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3 0-6 1-9z"/></svg><b>火種</b><span>影響力九宮格</span></div>
+    </div>
+    <div class="plz-foot">想要太空場景？<button class="plz-chip" onclick="openPlazaShow()">🌌 展示模式</button><span>星空、粒子、建築照片只在這裡才載入</span></div>
+  </div>
+</div>
 <div class="page-overlay" id="plazaOverlay">
   <div class="page-backdrop" onclick="closePlaza()"></div>
   <div class="page-panel plaza-bg">
@@ -3601,7 +3693,207 @@ document.getElementById('mergeRestoreInput').addEventListener('change',async fun
 });
 
 // ========== 廣場頁面 ==========
-function openPlaza(){stopBgm();document.getElementById('plazaOverlay').classList.add('active');requestAnimationFrame(function(){ setTimeout(initPlazaParticles, 480); });}   // ★ 10/20：粒子等轉場跑完再畫，開場不掉格
+// ★ ds130：舊的星際廣場地圖改成「展示模式」（簡報用），星空、粒子、建築照片都在這裡才載入
+function openPlazaShow(){
+  stopBgm();
+  _plzLoadShowImages();
+  document.getElementById('plazaOverlay').classList.add('active');
+  requestAnimationFrame(function(){ setTimeout(initPlazaParticles, 480); });   // ★ 10/20：粒子等轉場跑完再畫，開場不掉格
+}
+var _plzShowImgsLoaded = false;
+async function _plzLoadShowImages(){
+  if (_plzShowImgsLoaded) return; _plzShowImgsLoaded = true;
+  for (const k of ['ocean','court','waterfall','vault','fire']){
+    try { const d = await dbGet('images', 'plaza_' + k); if (d) applyPlazaImg(k, d); } catch(e){}
+  }
+}
+
+// ═══ ds130 星際廣場 玻璃面板（提案 B）═══
+// 一個進度值 p（0 關、1 開）用彈簧驅動，隨時可以被打斷：再按一次就從「現在畫面上的 p 跟速度」往反方向走。
+// 桌機：從「星際廣場」那張卡的位置縮放成形；手機（≤900px）：從底部上來，可以往下拖關。
+var _plz = { p:0, v:0, anim:null, open:false, mobile:false, reduced:false, origin:null, drag:null };
+function _plzSpring(from, to, velocity, response, damping, onUpdate, onDone){
+  var w = 2 * Math.PI / response, k = w * w, c = 2 * damping * w, x = from, v = velocity || 0, last = performance.now(), id = 0, alive = true;
+  function step(now){
+    if (!alive) return;
+    var dt = Math.min(0.064, (now - last) / 1000); last = now;
+    var n = Math.max(1, Math.ceil(dt / 0.004)), h = dt / n;
+    for (var i = 0; i < n; i++){ var a = -k * (x - to) - c * v; v += a * h; x += v * h; }
+    if (Math.abs(x - to) < 0.004 && Math.abs(v) < 0.05){ x = to; v = 0; onUpdate(x, v); alive = false; if (onDone) onDone(); return; }   // 差不到 0.4% 就算停好（肉眼看不出來）
+    if (to === 0 && x <= 0){ x = 0; v = 0; onUpdate(0, 0); alive = false; if (onDone) onDone(); return; }   // 關到底就結束，不要衝過頭再慢慢爬回來
+    onUpdate(x, v); id = requestAnimationFrame(step);
+  }
+  id = requestAnimationFrame(step);
+  return { stop:function(){ alive = false; cancelAnimationFrame(id); }, get:function(){ return { x:x, v:v }; } };
+}
+function _plzHomeEl(){ return document.body.classList.contains('home2') ? document.getElementById('home2') : document.querySelector('.center-stage'); }
+function _plzSourceEl(){ return document.body.classList.contains('home2') ? document.querySelector('.h2-mod.h2-m4') : document.querySelector('.hex-building.plaza'); }
+function _plzApply(p){
+  var sh = document.getElementById('plazaSheet'), dim = document.getElementById('plazaDim'), home = _plzHomeEl();
+  _plz.p = p;
+  if (_plz.reduced){
+    sh.style.transform = _plz.mobile ? 'translateY(0)' : 'translate(-50%,-50%)';
+    sh.style.opacity = p; sh.style.filter = '';
+    dim.style.opacity = p; if (home) home.style.transform = '';
+    return;
+  }
+  if (_plz.mobile){
+    if (p > 1) p = 1;   // 底部面板不能高過它的定位（會露一條縫）
+    sh.style.transform = 'translateY(' + ((1 - p) * 100) + '%)';
+    sh.style.opacity = 1; sh.style.filter = '';
+  } else {
+    var s0 = _plz.origin ? _plz.origin.s0 : 0.3, sc = s0 + (1 - s0) * p;
+    sh.style.transform = 'translate(-50%,-50%) scale(' + sc.toFixed(4) + ')';
+    sh.style.opacity = Math.min(1, p * 1.6);
+    sh.style.filter = p >= 0.999 ? '' : 'blur(' + ((1 - p) * 10).toFixed(1) + 'px)';   // 成形：模糊跟縮放、透明度一起動
+  }
+  dim.style.opacity = p;
+  if (home) home.style.transform = p <= 0.001 ? '' : 'scale(' + (1 - 0.03 * p).toFixed(4) + ')';
+}
+function _plzMeasureOrigin(){
+  var sh = document.getElementById('plazaSheet'), src = _plzSourceEl();
+  var W = sh.offsetWidth, H = sh.offsetHeight;   // offsetWidth 不受 transform 影響（面板此時還縮著）
+  var left = (window.innerWidth - W) / 2, top = (window.innerHeight - H) / 2;
+  var cx = window.innerWidth / 2, cy = window.innerHeight / 2, s0 = 0.3;
+  if (src){ var sr = src.getBoundingClientRect(); cx = sr.left + sr.width / 2; cy = sr.top + sr.height / 2; s0 = Math.max(0.15, Math.min(0.6, sr.width / W)); }
+  sh.style.transformOrigin = (cx - left) + 'px ' + (cy - top) + 'px';
+  _plz.origin = { cx:cx, cy:cy, s0:s0, W:W, H:H };
+  // 五張卡：成形時從來源的方向長出來（每張錯開 30ms）
+  var cards = document.querySelectorAll('#plzGrid .plz-card');
+  cards.forEach(function(c, i){
+    var ccx = left + c.offsetLeft + c.offsetWidth / 2, ccy = top + c.offsetTop + c.offsetHeight / 2;   // 用 offset 算，不吃縮放
+    c.style.setProperty('--dx', ((cx - ccx) * 0.12).toFixed(0) + 'px');
+    c.style.setProperty('--dy', ((cy - ccy) * 0.12).toFixed(0) + 'px');
+    c.style.transitionDelay = _plz.reduced ? '0ms' : (i * 30) + 'ms';
+  });
+}
+function openPlaza(){
+  stopBgm();
+  var sh = document.getElementById('plazaSheet'), dim = document.getElementById('plazaDim'), home = _plzHomeEl();
+  _plz.mobile = window.matchMedia('(max-width:900px)').matches;
+  _plz.reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var cur = _plz.anim ? _plz.anim.get() : { x:_plz.p, v:0 };
+  if (_plz.anim){ _plz.anim.stop(); _plz.anim = null; }
+  if (!_plz.open){
+    sh.classList.add('on'); dim.classList.add('on'); sh.setAttribute('aria-hidden', 'false');
+    if (home){ home.style.transformOrigin = '50% 40%'; home.style.willChange = 'transform'; }
+    if (cur.x <= 0.001) _plzMeasureOrigin();
+    _plzStatuses();
+  }
+  _plz.open = true;
+  requestAnimationFrame(function(){ sh.classList.add('in'); });   // 卡片依序長出（CSS transition）
+  if (_plz.reduced){ _plzApply(1); return; }
+  _plz.anim = _plzSpring(cur.x, 1, cur.v, 0.3, 1.0, _plzApply, function(){ _plz.anim = null; if (home) home.style.willChange = ''; });
+}
+function closePlaza(){
+  // 舊的展示模式開著 → 先關它（原本的 closePlaza 行為，保留）
+  var old = document.getElementById('plazaOverlay');
+  if (old && old.classList.contains('active')){
+    old.classList.remove('active');
+    if (plazaAnimId){ cancelAnimationFrame(plazaAnimId); plazaAnimId = null; }
+    return;
+  }
+  var sh = document.getElementById('plazaSheet'), dim = document.getElementById('plazaDim');
+  if (!_plz.open) return;
+  var cur = _plz.anim ? _plz.anim.get() : { x:_plz.p, v:0 };
+  if (_plz.anim){ _plz.anim.stop(); _plz.anim = null; }
+  _plz.open = false; dim.classList.remove('on'); sh.classList.remove('in'); sh.setAttribute('aria-hidden', 'true');
+  document.querySelectorAll('#plzGrid .plz-card').forEach(function(c){ c.style.transitionDelay = '0ms'; });
+  var done = function(){ _plz.anim = null; sh.classList.remove('on'); var home = _plzHomeEl(); if (home){ home.style.transform = ''; home.style.willChange = ''; } };
+  if (_plz.reduced){ _plzApply(0); done(); return; }
+  _plz.anim = _plzSpring(cur.x, 0, cur.v, 0.3, 1.0, _plzApply, done);
+}
+// 手機：從把手／標題列往下拖，1:1 跟手；拖過頭有橡皮筋；放開看速度決定關或彈回，速度交接給彈簧
+(function(){
+  var head = null;
+  function rubber(over, dim){ var c = 0.55; return (over * dim * c) / (dim + c * over); }
+  function project(v, d){ d = d || 0.998; return (v / 1000) * d / (1 - d); }
+  function onDown(e){
+    if (!_plz.mobile || !_plz.open) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    var sh = document.getElementById('plazaSheet');
+    var cur = _plz.anim ? _plz.anim.get() : { x:_plz.p, v:0 };
+    if (_plz.anim){ _plz.anim.stop(); _plz.anim = null; }
+    var H = sh.getBoundingClientRect().height;
+    _plz.drag = { id:e.pointerId, y0:e.clientY, p0:cur.x, H:H, hist:[[performance.now(), e.clientY]] };
+    try { head.setPointerCapture(e.pointerId); } catch(_){}
+    e.preventDefault();
+  }
+  function onMove(e){
+    var d = _plz.drag; if (!d || e.pointerId !== d.id) return;
+    var dy = e.clientY - d.y0 + (1 - d.p0) * d.H;   // 保留抓住時的位移
+    var p;
+    if (dy < 0){ p = 1 + rubber(-dy, d.H) / d.H; } else { p = 1 - dy / d.H; }
+    d.hist.push([performance.now(), e.clientY]); if (d.hist.length > 6) d.hist.shift();
+    _plzApply(Math.max(-0.2, p));
+  }
+  function onUp(e){
+    var d = _plz.drag; if (!d || e.pointerId !== d.id) return;
+    _plz.drag = null;
+    var h = d.hist, vy = 0;
+    if (h.length >= 2){ var a = h[0], b = h[h.length - 1]; var dt = (b[0] - a[0]) / 1000; if (dt > 0) vy = (b[1] - a[1]) / dt; }   // px/s，往下為正
+    var pNow = _plz.p, vp = -vy / d.H;   // 進度的速度（往下拖 → p 變小）
+    var projected = pNow + project(-vy) / d.H;   // 推算最後會停在哪
+    var shouldClose = (vy > 300) || (vy >= -50 && projected < 0.5);
+    if (shouldClose){
+      _plz.open = false; document.getElementById('plazaDim').classList.remove('on'); document.getElementById('plazaSheet').classList.remove('in'); document.getElementById('plazaSheet').setAttribute('aria-hidden', 'true');
+      _plz.anim = _plzSpring(pNow, 0, vp, 0.3, 1.0, _plzApply, function(){ _plz.anim = null; document.getElementById('plazaSheet').classList.remove('on'); var home = _plzHomeEl(); if (home){ home.style.transform = ''; home.style.willChange = ''; } });
+    } else {
+      _plz.anim = _plzSpring(pNow, 1, vp, 0.3, 0.8, _plzApply, function(){ _plz.anim = null; });   // 甩回去才帶一點彈性
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    head = document.getElementById('plzHead'); var grab = document.getElementById('plzGrab');
+    [head, grab].forEach(function(el){ if (!el) return; el.addEventListener('pointerdown', onDown); });
+    head.addEventListener('pointermove', onMove); head.addEventListener('pointerup', onUp); head.addEventListener('pointercancel', onUp);
+    // 卡片：按下就回饋、放開才開；拖離可以取消
+    var body = document.getElementById('plzBody');
+    var pressed = null;
+    body.addEventListener('pointerdown', function(e){
+      var c = e.target.closest && e.target.closest('.plz-card'); if (!c) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      pressed = { el:c, id:e.pointerId, x:e.clientX, y:e.clientY }; c.classList.add('pressed');
+    });
+    body.addEventListener('pointermove', function(e){
+      if (!pressed || e.pointerId !== pressed.id) return;
+      var over = document.elementFromPoint(e.clientX, e.clientY), inside = over && pressed.el.contains(over);
+      pressed.el.classList.toggle('pressed', !!inside);
+    });
+    function endPress(e, fire){
+      if (!pressed || e.pointerId !== pressed.id) return;
+      var el = pressed.el; pressed = null;
+      var over = document.elementFromPoint(e.clientX, e.clientY), inside = over && el.contains(over);
+      el.classList.remove('pressed');
+      if (fire && inside){ var fn = el.getAttribute('data-open'); try { if (typeof window[fn] === 'function') window[fn](); } catch(err){ console.warn('[plaza]', err); } }
+    }
+    body.addEventListener('pointerup', function(e){ endPress(e, true); });
+    body.addEventListener('pointercancel', function(e){ endPress(e, false); });
+    body.addEventListener('keydown', function(e){ var c = e.target.closest && e.target.closest('.plz-card'); if (c && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); var fn = c.getAttribute('data-open'); if (typeof window[fn] === 'function') window[fn](); } });
+    // 捲動邊緣遮罩：內容真的捲到標題列底下才出現
+    body.addEventListener('scroll', function(){ head.classList.toggle('scrolled', body.scrollTop > 2); }, { passive:true });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && _plz.open) closePlaza(); });
+  });
+})();
+// 五張卡左上角的小狀態：接真資料，沒資料就不顯示
+function _plzStatuses(){
+  var set = function(id, t){ var el = document.getElementById(id); if (el) el.textContent = t || ''; };
+  // 法院：待裁示（status open）件數
+  try {
+    var cid = localStorage.getItem('activeCharacterId') || '';
+    var fill = function(all){ try { var arr = all && all['cases:' + cid]; if (typeof arr === 'string') arr = JSON.parse(arr); var n = Array.isArray(arr) ? arr.filter(function(c){ return c && c.status === 'open'; }).length : 0; set('plzStCourt', n ? n + ' 件待裁示' : ''); } catch(e){ set('plzStCourt', ''); } };
+    if (window._prCacheReady && window._prCache) fill(window._prCache);
+    else if (typeof _prOpenDB === 'function'){   // 只讀自己那一筆，不把整個 PrCasesDB（幾十 MB）讀進來
+      _prOpenDB().then(function(db){ try { var g = db.transaction(PR_STORE, 'readonly').objectStore(PR_STORE).get('cases:' + cid); g.onsuccess = function(){ try{ db.close(); }catch(_){} var o = {}; o['cases:' + cid] = g.result; fill(o); }; g.onerror = function(){ try{ db.close(); }catch(_){} set('plzStCourt', ''); }; } catch(e){ try{ db.close(); }catch(_){} } }).catch(function(){ set('plzStCourt', ''); });
+    }
+  } catch(e){}
+  // 瀑布：今天有沒有同步過（通路資料時間）
+  try {
+    var ts = localStorage.getItem('char_' + (localStorage.getItem('activeCharacterId') || '') + '_motiv_synced_channel') || localStorage.getItem('motiv_synced_channel') || '';
+    var today = new Date(), pad = function(n){ return (n < 10 ? '0' : '') + n; };
+    var key1 = today.getFullYear() + '/' + pad(today.getMonth() + 1) + '/' + pad(today.getDate()), key2 = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+    set('plzStWf', (ts && (ts.indexOf(key1) === 0 || ts.indexOf(key2) === 0)) ? '今天已同步' : '');
+  } catch(e){}
+}
 // 🔒 業績中心密碼標示 + 子頁「← 返回基地」postMessage 監聽
 (function(){
   try{ if(localStorage.getItem('perf_password')){ var b=document.getElementById('perfLockBadge'); if(b) b.style.display='inline'; } }catch(e){}
@@ -3613,11 +3905,11 @@ function openPlaza(){stopBgm();document.getElementById('plazaOverlay').classList
     }
   });
 })();
-function closePlaza(){
-  document.getElementById('plazaOverlay').classList.remove('active');
-  // ★ 停掉粒子動畫迴圈 —— 否則關掉後它會在隱形畫面上永遠 60fps 空轉,拖慢整頁
-  if(plazaAnimId){ cancelAnimationFrame(plazaAnimId); plazaAnimId=null; }
-}
+// ★ ds130：舊 closePlaza 已併進上面新的 closePlaza（先關展示模式、再關面板），這裡只標不刪
+// function closePlaza(){
+//   document.getElementById('plazaOverlay').classList.remove('active');
+//   if(plazaAnimId){ cancelAnimationFrame(plazaAnimId); plazaAnimId=null; }
+// }
 
 // 廣場粒子效果
 // ★ 雙模式（2026/06）：簡約=靜態畫一次;展示模式=60fps 粒子動畫（限定簡報,關廣場即停）
@@ -4232,10 +4524,10 @@ async function init(){
       loadDefaultHexImg(k);
     }
   }
-  // ★ 廣場建築圖片：同上
-  for(const k of['ocean','court','waterfall','vault','fire']){
-    try{const d=await dbGet('images','plaza_'+k);if(d)applyPlazaImg(k,d);}catch(e){}
-  }
+  // ★ 廣場建築圖片：ds130 起開頁不載（五張合計 4.3MB），按「展示模式」才載（_plzLoadShowImages）
+  // for(const k of['ocean','court','waterfall','vault','fire']){
+  //   try{const d=await dbGet('images','plaza_'+k);if(d)applyPlazaImg(k,d);}catch(e){}
+  // }
   // 載入設定
   const sn=localStorage.getItem('profileName');if(sn)document.getElementById('profileLabel').textContent=sn;
   const sb=localStorage.getItem('speechBubble');if(sb)document.getElementById('speechBubble').innerHTML=sb;
@@ -4328,7 +4620,7 @@ window.addEventListener('firebase-sync-ready', async function(){
       try{
         const d=await dbGet('images','plaza_'+k);
         if(d){
-          if(isValidImageData(d)){applyPlazaImg(k,d);}
+          if(isValidImageData(d)){ if(_plzShowImgsLoaded) applyPlazaImg(k,d); }   // ★ ds130：展示模式沒開過就不塞進 DOM
           else{console.warn('[sync] 雲端plaza_'+k+'資料損壞，刪除');await dbDelete('images','plaza_'+k);_needCleanPush=true;}
         }
       }catch(e){}
@@ -4427,7 +4719,7 @@ function perfOpen(){
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
   // ★ 2026/10/10：這個檔自己也會被瀏覽器快取，固定寫死版號永遠慢一步 →
   //   版號改成「ds54＋每 10 分鐘變一次的時間戳」：同事正常重新整理就拿到最新的 performance-compare.html（伺服器只回 304 很便宜），不用 Cmd+Shift+R
-  const PC_VER='ds129';
+  const PC_VER='ds130';
   const TARGET_SRC='performance-compare.html?v='+PC_VER+'-'+Math.floor(Date.now()/600000);
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes('v='+PC_VER+'-'))
     _afterSlide('perfOverlay', function(){ frame.src=TARGET_SRC; });   // ★ 10/20：先滑完再載
