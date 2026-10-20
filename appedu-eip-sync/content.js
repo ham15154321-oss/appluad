@@ -1063,6 +1063,37 @@
           await sleep(EIP_THROTTLE_MS);
         }
         if (missing.length) _ckSegSave(box);
+        // ★ v5.59（10/20 Ivan：同一天重跑要快）：最近這段再切成「前天以前」＋「昨天起」。
+        //   「前天以前」那段 8 小時內只抓一次、存起來；之後重跑只抓「昨天起」（昨天也重抓＝補登昨天的不會漏）。
+        //   第一次跑請求數跟原本一樣（同一段拆兩次查），之後重跑少翻好幾頁 → EIP 負擔只會變少，間隔照舊。
+        var QUICK_MS = 8 * 3600 * 1000;
+        var oldEndDay = todayDay - 2, recentFrom = _ckDay(year, month, Math.max(1, todayDay - 1));
+        var quickNote = '';
+        if (oldEndDay >= plan.settledEnd + 1){
+          var qk = label + '|' + ym + '|Q|' + _ckDay(year, month, todayDay);
+          var qc = box.seg[qk];
+          if (!(qc && Date.now() - qc.at < QUICK_MS)){
+            var iO = { wantRows: !!opt.wantRows };
+            var cO = await fetchListCounts(_ckWith(params, { q7: plan.freshFrom, q8: _ckDay(year, month, oldEndDay) }), label + '（' + plan.freshFrom.slice(5) + '~' + _ckDay(year, month, oldEndDay).slice(5) + '）', iO);
+            pages += iO.pages || 1; info.capped = info.capped || iO.capped;
+            qc = { counts: _ckCloneCounts(cO), at: Date.now(), net: null };
+            if (opt.wantRows && iO.rows){ var dvQ = _ckNetDerive(nSt, iO.rows); if (dvQ && dvQ.counts) qc.net = _ckCloneCounts(dvQ.counts); }
+            Object.keys(box.seg).forEach(function(k2){ if (k2.indexOf(label + '|' + ym + '|Q|') === 0 && k2 !== qk) delete box.seg[k2]; });
+            box.seg[qk] = qc; _ckSegSave(box);
+            await sleep(EIP_THROTTLE_MS);
+            quickNote = '，' + plan.freshFrom.slice(5) + '~' + _ckDay(year, month, oldEndDay).slice(5) + ' 已存起來（8 小時內重跑不用再抓）';
+          } else {
+            quickNote = '，' + plan.freshFrom.slice(5) + '~' + _ckDay(year, month, oldEndDay).slice(5) + ' 用 ' + Math.round((Date.now() - qc.at) / 60000) + ' 分鐘前抓的';
+          }
+          _ckAddCounts(acc, qc.counts);
+          if (qc.net) _ckAddCounts(netAcc, qc.net); else netOk = false;
+          var iR = { wantRows: !!opt.wantRows };
+          var freshR = await fetchListCounts(_ckWith(params, { q7: recentFrom }), label + '（' + recentFrom.slice(5) + ' 起）', iR);
+          pages += iR.pages || 1; info.capped = info.capped || iR.capped; info.rows = iR.rows || null;
+          if (opt.wantRows && netOk && info.rows) opt.out.netChunks = netAcc;
+          note = '切段：1~' + plan.settledEnd + ' 號用快取' + (missing.length ? '（本次補 ' + missing.length + ' 塊）' : '') + quickNote + '，只重抓 ' + recentFrom.slice(5) + ' 起';
+          return rec(_ckAddCounts(acc, freshR), '切段＋快速');
+        }
         var iF = { wantRows: !!opt.wantRows };
         var fresh = await fetchListCounts(_ckWith(params, { q7: plan.freshFrom }), label + '（' + plan.freshFrom + ' 起）', iF);
         pages += iF.pages || 1; info.capped = info.capped || iF.capped; info.rows = iF.rows || null;
@@ -1764,7 +1795,10 @@
           try { var probe = await fetchViaBackground(itvUrlBase + '&q5=' + encodeURIComponent(mStart) + '&q6=' + encodeURIComponent(mEnd) + '&pg=1'); _fnFindEditParams(probe); } catch(eP){}
           if (_fnEditParams) console.log('[EIP Content] 編輯日期欄位：', _fnEditParams);
         }
-        if (cov && _fnEditParams && oc.payAt){
+        // ★ v5.59：8 小時內剛抓過這家 → 舊月份（上個月以前）的編輯不用每次重問，留給當天下一次完整跑
+        var _editAt = (oc && oc.editAt) || 0;
+        if (cov && _fnEditParams && oc.payAt && (Date.now() - _editAt) > 8 * 3600 * 1000){
+          _editAt = Date.now();
           await sleep(FUNNEL_PAGE_THROTTLE_MS);
           var editFrom = _fnDStr(new Date(oc.payAt - 86400000));
           var itvUrlE = itvUrlBase + '&q5=' + encodeURIComponent(from) + '&q6=' + encodeURIComponent(prevEndStr)
@@ -1791,7 +1825,7 @@
           }
         }
         if (pay){
-          data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs };
+          data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs, editAt: _editAt };
           await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, k < PERF_ORGS.length - 1);
           if (k < PERF_ORGS.length - 1){ notify('status', { msg: lab + ' 完成，停 4 秒讓 EIP 喘口氣…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } }); await sleep(FUNNEL_ORG_GAP_MS); }
           continue;
@@ -1810,7 +1844,7 @@
           var keepPay = (oc.pay || []).filter(function(r){ return String(r.d || '') < payFrom; });
           pay = _fnDedupe(keepPay.concat(payNew));
         } else pay = payNew;
-        data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs };
+        data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs, editAt: _editAt };
         // ★ 每家抓完就存一次：中途關掉頁面也不會整批白跑，下次接著跑
         await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, k < PERF_ORGS.length - 1);
         if (k < PERF_ORGS.length - 1){ notify('status', { msg: lab + ' 完成，停 4 秒讓 EIP 喘口氣…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } }); await sleep(FUNNEL_ORG_GAP_MS); }

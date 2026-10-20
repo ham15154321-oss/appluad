@@ -1143,6 +1143,26 @@
     }
     // ★ 2026/10/10 Ivan：☁️↓ 拉取改成「快拉」—— 不問、不整頁重整，只下載雲端跟本機不同的項目，拉完原地重畫。
     //   按住 Shift 再按＝整包（照舊會問、mp 月份有變才重整）。管理者的整包也走 Shift。
+    // ★ 10/19 Ivan：同步／鎖定／推送／返回 預設收起來（一般同仁用不到），按「🔧 同步工具」才展開；每台電腦記住自己的選擇
+    function pcToolsToggle(){
+      var h = document.querySelector('header'); if (!h) return;
+      var off = !h.classList.contains('pc-tools-off');
+      h.classList.toggle('pc-tools-off', off);
+      try { localStorage.setItem('pc_tools_open', off ? '0' : '1'); } catch(e){}
+      var b = document.getElementById('pcToolsBtn'); if (b) b.innerHTML = off ? '🔧 同步工具 ▾' : '🔧 收起 ▴';
+    }
+    (function(){
+      function setup(){
+        var h = document.querySelector('header'), g = document.getElementById('hdrSyncGroup'); if (!h || !g || document.getElementById('pcToolsBtn')) return;
+        var open = false; try { open = localStorage.getItem('pc_tools_open') === '1'; } catch(e){}
+        h.classList.toggle('pc-tools-off', !open);
+        var b = document.createElement('button'); b.id = 'pcToolsBtn'; b.type = 'button'; b.className = 'hdr-mode-btn pc-tools-btn';
+        b.title = '同步、鎖定、推送給負責同步的人用；一般看數字不用打開';
+        b.innerHTML = open ? '🔧 收起 ▴' : '🔧 同步工具 ▾'; b.onclick = pcToolsToggle;
+        g.appendChild(b);
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup); else setup();
+    })();
     var _pcPulling = false;
     function pcForcePullCompany(ev){
       if (ev && ev.shiftKey){ _pcCallMp('forcePullMpDataFromCloud', 'pcPullBtn', '☁️↓ 拉取'); return; }
@@ -4003,6 +4023,8 @@
       return SYNC_ALL_ORDER.map(function(md){
         var age = _syncAgeMin(md), why = '';
         if (age <= SYNC_FRESH_MIN) why = Math.round(age) + ' 分鐘前抓過';
+        // ★ 10/20 Ivan：同一天重跑要快 → 通路 8 小時內抓過就跳過（要立刻更新就單獨按「📋 通路」）
+        else if (md === 'channel' && age <= 480) why = (age < 60 ? Math.round(age) + ' 分鐘' : Math.floor(age / 60) + ' 小時') + '前抓過（8 小時內跳過，要更新就單獨按 📋 通路）';
         if (!why && md === 'edits'){ try { var J = _edNextJob(); if (J.job === 'ok') why = '編輯追蹤已經是最新'; } catch(e){} }
         return { md:md, skip:!!why, why:why, st:why ? 'skip' : 'wait', sec:0 };
       });
@@ -7423,7 +7445,7 @@
       var col = I.st === 'ahead' ? '#A32D2D' : (I.st === 'behind' ? '#3B6D11' : '#5F5E5A');
       return '<div class="tt-cl" style="color:' + col + '" title="' + _fnEsc(_ttHow(I)) + '"><b>活在 ' + _fnEsc(I.live.txt) + '</b>・' + (I.st === 'ahead' ? '超前 ' + _ttN(I.ahead) + ' 天' : (I.st === 'behind' ? '落後 ' + _ttN(I.ahead) + ' 天' : '剛好在今天')) + '</div>';
     }
-    function _ttBadge(I){ return (I && I.crossCur) ? '<span class="tt-badge">⏱ ' + _fnEsc(_ttMD(I.L.ym, +I.crossCur.date.slice(8))) + ' 穿越</span>' : ''; }
+    function _ttBadge(I){ return (I && I.crossCur) ? '<span class="tt-badge">✅ 過關・' + _fnEsc(_ttMD(I.L.ym, +I.crossCur.date.slice(8))) + ' 穿越</span>' : ''; }
     function _ttHow(I){
       return '累計 ' + _dsW1(I.cum) + ' 萬（這關 ' + _dsW1(I.gateCum) + ' 萬）\n基準速度 ' + _dsW1(I.gate.line - I.gate.base) + ' 萬 ÷ ' + I.gate.work.length + ' 個上班日 ＝ 每天 ' + _dsW1(I.speed) + ' 萬\n'
         + '座標 ' + (I.gate.s ? I.gate.s + ' ＋ ' : '') + _dsW1(I.gateCum) + ' ÷ ' + _dsW1(I.speed) + ' ＝ 第 ' + _ttR1(I.x) + ' 個上班日 → 活在 ' + I.live.txt
@@ -7518,7 +7540,7 @@
         var right, low = false;
         if (I.st === 'behind' && !cross){ right = P.p < 2.6; low = right; }
         else right = P.p < C * 0.72;
-        var lab = cross ? ('⏱ ' + _ttMD(M.ym, +I.crossCur.date.slice(8)) + ' 穿越・提前 ' + I.crossCur.adv + ' 天' + (I.nextRun ? '・第' + '一二三'[gi + 1] + '關已開跑' : ''))
+        var lab = cross ? ('✅ 第' + '一二三'[gi] + '關過關・' + _ttMD(M.ym, +I.crossCur.date.slice(8)) + ' 穿越・提前 ' + I.crossCur.adv + ' 天')
           : (I.st === 'ahead' ? '超前 ' + _ttN(I.ahead) + ' 天' : (I.st === 'behind' ? '落後 ' + _ttN(I.ahead) + ' 天，還差這一段' : '剛好在今天'));
         var cells = '';
         for (var d = g[0]; d <= g[1]; d++){
@@ -7570,6 +7592,16 @@
       return bar + '<div class="dsb tt-wrap tt-' + th + '" data-bg="' + P0.bg + '" style="background:' + P0.bg + '">'
         + '<div class="tt-hd"><div><b>⏱ ' + who + '・穿越　第' + '一二三'[gi] + '關 ' + mo + '/' + g[0] + '–' + mo + '/' + g[1] + '</b><span>今天 ' + mo + '/' + M.day + '・站在深色區＝活在未來</span></div>'
         + '<div class="tt-cd' + (left <= 3 ? ' hot' : '') + '">' + (left > 0 ? '距關線 <b>' + left + '</b> 天' : '今天結算') + '</div></div>'
+        + (function(){
+            // ★ 10/20 Ivan：業績是「🏆 激勵」同步時抓的，沒同步就停在上一次 → 有人其實過關了圖上還沒顯示。過期就講清楚
+            try {
+              var nw = _syncNewestTs(SYNC_MODES.motiv.tsKey); if (!nw.t) return '';
+              var d = new Date(nw.t), ds = d.getFullYear() + '-' + _ckPad2(d.getMonth() + 1) + '-' + _ckPad2(d.getDate());
+              if (ds >= M.date) return '';
+              var fr = _fnRawFor(M.ym), fa = fr && fr.meta && fr.meta.syncedAt ? '（入帳明細已經到 ' + String(fr.meta.syncedAt).slice(5) + '）' : '';
+              return '<div class="tt-stale">⚠️ 業績只更新到 ' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + _ckPad2(d.getHours()) + ':' + _ckPad2(d.getMinutes()) + fa + '，之後進的錢還沒算進來，有人可能已經過關還沒顯示 → 按一次「🏆 激勵」同步</div>';
+            } catch(e){ return ''; }
+          })()
         + (_dsHid('note') ? '' : '<div class="tt-note ds-hx">' + _dsX('note', '說明文字') + '圓點＝累計換算成「做到第幾個上班日的份量」。' + (th === 'night' ? '白線' : '黑線') + '＝今天，金線＝關線。紅色尾巴＝超前、綠色虛線＝還差的距離。點圓點看算式</div>')
         + '<div class="tt-board" style="border-color:' + P0.line + ';background:' + P0.bg + '">' + head + body + '</div><div class="tt-howbox" style="display:none"></div>'
         + '<div class="tt-bt">⏱ 本關穿越榜</div>' + board + '</div>';
@@ -12591,7 +12623,10 @@
       { ver:'ds118', icon:'🔤', title:'字變大了、開頁更快出現', detail:'整站沒有再比 13px 小的字：表格內文 15、表頭 13 加粗、說明文字 13、標題分四級；按鈕至少 36px 高好按。打開業績數據中心時分頁先出現、角落「載入分頁…」，不會白一下才跳出來；從首頁關掉業績中心後，它在背景不再每分鐘重畫、不再每 10 分鐘拉雲端，電腦比較不會卡' },
       { ver:'ds119', icon:'🏔️', title:'瀑布更順、子頁不用再手動換版號', detail:'瀑布：五步驟會打勾、標「← 下一步」；錄音列看得到誰傳的、哪天、逐字稿多長；AI 分析有四段進度、秒數、可取消，結果淡入；彈窗從你按的地方長出來、收合區塊用滑的。首頁開任何子頁都自動拿最新版（檔案沒改就用快取，不用重新下載）；背景音樂改成按了鈴鐺才讀，開首頁少載 1.8MB' },
       { ver:'ds120', icon:'⚡', title:'業績數據中心開得更快', detail:'檔案拆成「開頁要用的」和「按到才載的」：90 秒回顧、績效盤點、榮譽卡、Excel 匯入、教學視窗、下載複製等改成第一次按才載（開頁 6 秒後也會先偷偷載好）；Excel 函式庫（860KB）改成匯入時才下載；同步雲端只抓有變的人、同事照片壓小。開頁到可以按從約 0.5 秒變 0.1 秒左右' },
-      { ver:'ds121', icon:'💰', title:'賽道圖預設改比金額', detail:'每日總結的賽道圖（學院版）現在高度＝累計業績金額，誰做得多線就比較高，一眼看得出誰超車；想看「做到自己目標的幾 %」按旁邊的「🎯 比達成率」。下面卡片照樣寫目標的幾 %。虛線改叫「今天該到線」' }
+      { ver:'ds121', icon:'💰', title:'賽道圖預設改比金額', detail:'每日總結的賽道圖（學院版）現在高度＝累計業績金額，誰做得多線就比較高，一眼看得出誰超車；想看「做到自己目標的幾 %」按旁邊的「🎯 比達成率」。下面卡片照樣寫目標的幾 %。虛線改叫「今天該到線」' },
+      { ver:'ds122', icon:'🔧', title:'同步按鈕預設收起來', detail:'業績數據中心最上面的同步鈕（⚡ 全部、激勵、報到、通路、漏斗、編輯）、鎖定、推送、返回，平常收起來，畫面清爽；要用時按「🔧 同步工具」展開，每台電腦會記住你的選擇。拉取和通知照樣在外面' },
+      { ver:'ds123', icon:'✅', title:'穿越圖直接寫「過關」', detail:'每日總結的穿越圖：到關線的組（學院、業務）左邊標籤改成「✅ 過關・10/12 穿越」，右邊寫「✅ 第二關過關・提前幾天」，不用再猜「穿越」是不是過關。業績如果還停在昨天（今天還沒按 🏆 激勵 同步），圖上會跳黃條提醒，避免有人已經過關卻沒顯示' },
+      { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' }
     ];
     var PCN_SYNC_GO = { motiv:{ tab:4 }, checkin:{ tab:6 }, channel:{ tab:2 }, funnel:{ tab:9, fn:'fnTop' }, edits:{ tab:10 }, trial:{ tab:9, fn:'fnTop' } };
     var PCN_TAB_NAME = { 2:'📋 各通路績效', 3:'📅 每月績效', 4:'🏆 激勵', 6:'🚪 報到排名', 7:'📆 當月績效', 9:'📌 月度漏斗總結', 10:'📝 編輯追蹤' };

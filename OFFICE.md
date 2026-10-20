@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds121'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds124'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds121（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds124（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -507,3 +507,7 @@ C 主管
 - 10/19 18:00 Ivan 同意「照片縮圖＋PrCasesDB 停同步」：firebase-sync.js ①compressImageSmart（有透明像素走 PNG 只縮尺寸 800→360、照片走 JPEG 800px q.75 往下試，目標 IMG_CLOUD_MAX=150KB）②推送端 writeDataToFirestore：圖片 >150KB 先壓再上雲（以前只有 >500KB 才壓到 700KB）③一次性工具 firebaseSync.compressCloudImages({dryRun}) 逐人讀 idb_SpaceBaseDB_images → 壓 >150KB 的圖 → 先刪舊 big_ 分段與所有 chunk_ → writeDataToFirestore 整份重寫 → updatedAt 蓋新（別台下次拉就拿小圖）。已跑完：27 人、1314 張、改 142 張、130MB → 6MB、0 錯誤；本機原圖不動（hex_/plaza_/mascot/profile 受保護，本機永遠優先；簽名沒變也不會推回去）。④IDB_LIST 把 PrCasesDB 註解掉（雲端舊資料留著、本機各自保留，Ivan 要改 Google 連結）。發現：big_mp_data_v1 單檔與 _p0/_p1 分段並存是舊孤兒（readDataFromFirestore 會偏好分段＝舊的；pull 端有「本地較新」保護所以沒出事），之後要清。
 - ds120 提案 2（10/19 Ivan 同意）業績中心拆檔：performance-compare.html 只剩 38KB 殼（HTML＋小 style）；★ 大 CSS → pc.css（255KB）、大 JS → pc.js（1.0MB）、按到才載 → pc-lazy.js（230KB，102 個函式／變數：90 秒回顧 rv*（_rvName/_rvW/_rvTop/_rvBigIsThree/RV_NICK/_RVP 留 pc.js）、績效盤點 _inv*/inv*、榮譽卡 honor/ha*、通路 Excel 匯入 downloadChTemplate…doChExcelImport、教學 fnTeach*、dsDownloadMobile/dsDownload/dsCopy、evoIncPng/_evoIncPngHtml、motivImportFile/motivParseWorkbook/motivParseCSV、fnKb*、編輯追蹤儀表板 edDash*/_edd*、fnOpenReports）。pc.js 留同名 stub：function X(){ return _pcLazy('X', this, arguments); }，第一次按載 pc-lazy.js（window.PC_LAZY_SRC）後換成真的；load 後 6 秒 requestIdleCallback 預載。xlsx.full.min.js 開頁不載，靠 motivLoadSheetJS（pc-lazy 裡把 downloadChTemplate/chExcelSelected 包一層先載 SheetJS）。deploy.command：改版通知改從 performance-compare.html＋pc.js 讀；SHARED 加 pc.css/pc.js/pc-lazy.js 指紋。★ 以後改業績中心：JS 改 pc.js（PCN_NOTES 也在這）、CSS 改 pc.css、lazy 功能改 pc-lazy.js；我的 python 改檔腳本要把 performance-compare.html 換成 pc.js／pc.css。拆法是 acorn 分析過「這些函式只被點擊呼叫、回傳值沒人用、moved 變數沒被 pc.js 引用」才搬（build 腳本 outputs/build_p2.js、groups 在 /tmp）。實測本機：開業績中心到分頁可按 123ms（原 480～614）、內容 248ms（原 444～659）；11 個分頁都畫得出、冷點 🎬 90 秒回顧 0.5 秒（含載 pc-lazy）、績效盤點／編輯儀表板／教學視窗／通路匯入視窗都正常、console 0 錯誤。備份 outputs/pc.bak.p2base.html。
 - ds121（10/19 Ivan：學院版預設看金額）：pc.js _gcHtml 學院模式 gc_v1.meas 預設 'amt' → rows 的 T 換成全部學院歷日最高累計（_goalT 留原目標給卡片寫「目標的 %」），_amt/_acadAmt＝true（不畫今天該到線、Y 軸金額、右側標金額）；gc-unit 列加「💰 比金額／🎯 比達成率」（meas='pct' 回原本）；圖例跟模式走；「配速車（今天該到）」改「今天該到線」（Ivan 禁用「配速車」）。
+- 10/19 18:30 GitHub 補量（ds120）：業績中心 iframe DCL 97ms（原 614）、當月績效畫完 250ms（原 591）、漏斗 345ms、我的一頁 422ms、瀑布流錄音列 42ms；每 10 分鐘網址換時只重抓 9KB 殼（pc.js gz301KB/pc.css gz50KB 指紋快取）；首頁 70 秒內 longtask 23 個共 2.0 秒（原 27 秒內 123 個 14.2 秒）；背景完整拉取 27 人全跳過。★ performance.memory 是整個程序的數字（空白 version.json 也 752MB），之前「1.3～2.5GB」不能當單頁記憶體 → 提案 1b 先不做。ds121（賽道圖比金額）尚未部署。
+- ds122（10/19 Ivan：同步鈕預設收起）：pc.js pcToolsToggle＋DOMContentLoaded 時在 #hdrSyncGroup 尾端加 #pcToolsBtn；header.pc-tools-off 時 CSS 藏掉群組裡除了 #pcPullBtn/#pcBellBtn/#pcToolsBtn 以外的按鈕（⚡、五顆同步、鎖定、推送）＋.back-btn；localStorage pc_tools_open='1' 才展開（每台記自己的，預設收）。
+- ds123（10/20 Ivan：穿越圖為什麼沒顯示過關）：查證＝圖沒算錯，業績（_motivGroupPerf／快照 p／當月績效）都停在 10/19 19:51 激勵同步；盈緯組 EIP 業績 68.6 萬，入帳明細（10/20 10:56 漏斗同步）加總 80.2 萬（何泳禛 27.9、范允寶 21.2、余思品 3.9、吳盈緯 27.3）。改：_ttBadge 寫「✅ 過關・M/D 穿越」、右側標籤「✅ 第N關過關・M/D 穿越・提前 N 天」（拿掉「第N關已開跑」）；tt-hd 下加 .tt-stale：激勵最新同步日 < 選的收工日時提醒「業績只更新到…（入帳明細已經到…）→ 按一次 🏆 激勵 同步」。
+- ds124＋擴充 v5.59（10/20 Ivan：同一天重跑 ⚡ 要快、8 小時窗、不能影響 EIP）：所有停頓（EIP_THROTTLE 1s、HTML 分頁 1.2s、漏斗頁 2s、學院間 4s）都沒動，只減少請求。①報到 fetchCheckin 切段路徑：最近段拆成「freshFrom～前天」＋「昨天起」，前天以前存 box.seg[label|ym|Q|今天]（at，8 小時有效、含 net 推算），重跑只抓昨天起；第一次跑請求數不變（同段拆兩查）。②漏斗：org 快取多 editAt，「舊月份有變動的列」查詢 8 小時內不重問。③pc.js _syncAllPlan：通路 8 小時內跳過（單按 📋 通路照常）。可能漏：前天以前的報到列、上個月以前的面談，在 8 小時內被改 → 下一次超過 8 小時那輪才更新；今天新增、昨天補登的不會漏。
