@@ -1123,7 +1123,7 @@
 
     // Switch tabs
     // ★ 載入「每月績效」iframe（懶載入；表頭 ☁️↑ 推送鈕也會用到）
-    var MP_TARGET_SRC = 'monthly-performance.html?v=mpbundle21';
+    var MP_TARGET_SRC = 'monthly-performance.html?v=mp131b';   // ★ 改 monthly-performance.html 一定要跟著改這個號碼（deploy 不會自動幫它換指紋，不改手機會一直吃舊的）
     function _pcEnsureMpLoaded(){
       var f = document.getElementById('mp-iframe');
       if (f && (!f.src || f.src.indexOf(MP_TARGET_SRC) < 0)) f.src = MP_TARGET_SRC;
@@ -1190,9 +1190,23 @@
       if (ev && ev.shiftKey){ _pcCallMp('forcePullMpDataFromCloud', 'pcPullBtn', '☁️↓ 拉取'); return; }
       if (_pcPulling){ _syncToast('⏳ 正在拉，等一下', '#e6a817'); return; }
       var f = _pcEnsureMpLoaded(), btn = document.getElementById('pcPullBtn');
-      var t0 = Date.now(), tk = setInterval(function(){ if (btn) btn.textContent = '☁️↓ 拉取中 ' + Math.round((Date.now() - t0) / 1000) + ' 秒'; }, 1000);
+      // ★ ds131（10/21）手機 Safari 拉取轉二十分鐘不停：加看門狗 —— 同一步超過 60 秒沒進度、或總共超過 4 分鐘就停下，
+      //   跟裡面喊停（_mpPullAbort），已經拿到的照樣寫進來；按鈕顯示現在在第幾步。
+      var t0 = Date.now(), step = '準備中', stepAt = Date.now(), ended = false;
+      var tk = setInterval(function(){
+        if (ended) return;
+        var sec = Math.round((Date.now() - t0) / 1000);
+        if (btn) btn.textContent = '☁️↓ ' + step + '・' + sec + ' 秒';
+        if (Date.now() - stepAt > 60000){   // 只看「有沒有進度」，不設總時間上限（第一次拉幾百項本來就要一點時間，有在動就讓它跑完）
+          try { if (f && f.contentWindow) f.contentWindow._mpPullAbort = true; } catch(e){}
+          finish({ ok:false, err:'卡在「' + step + '」超過 60 秒沒進度，已停下（網路不穩時常見，換 Wi-Fi 或稍後再按一次，已經拉到的不會白費）' });
+        }
+      }, 1000);
+      var onProgress = function(s){ if (s && s !== step){ step = s; stepAt = Date.now(); } };
       var finish = function(r){
+        if (ended) return; ended = true;
         clearInterval(tk); _pcPulling = false; if (btn) btn.textContent = '☁️↓ 拉取';
+        if (r && r.ok !== false && r.missing){ _syncToast('⚠️ 拉到 ' + (r.got || 0) + ' 項，' + r.missing + ' 項這次沒拉到（網路不穩），再按一次會接著拉剩下的', '#e6a817'); try { _pcAfterPull(r); } catch(e){} return; }
         if (!r || r.ok === false){ _syncToast('⚠️ 拉取失敗：' + ((r && r.err) || '不明') + '（按住 Shift 再按一次＝整包拉取）', '#ff6b6b'); return; }
         try { localStorage.setItem('pc_bundle_seen_at', String(Date.now())); } catch(e){}
         if (!r.got){ _syncToast('✅ 本機已經是最新（雲端 ' + (r.skip || 0) + ' 項都一樣）', '#4ade80'); _pcFreshRender('已跟雲端對過，沒有新東西'); return; }
@@ -1202,7 +1216,7 @@
       var go = function(){
         _pcPulling = true;
         try {
-          var pr = f.contentWindow.forcePullMpDataFromCloud({ quick:true });
+          var pr = f.contentWindow.forcePullMpDataFromCloud({ quick:true, onProgress:onProgress });
           if (pr && pr.then) pr.then(finish, function(e){ finish({ ok:false, err:(e && e.message) || e }); }); else finish(pr);
         } catch(e){ finish({ ok:false, err:e.message || e }); }
       };
@@ -3871,9 +3885,11 @@
         var list = Object.keys(who).filter(function(n){ return n !== _fnMe(); });
         if (!list.length) return;
         _pcAutoPulling = true; _pcFreshRender('正在跟雲端對一次…');
-        var r = fs.pull({ light:true, only:list });
-        var done = function(){ _pcAutoPulling = false; try { refreshSyncBtnLabels(); } catch(e){} _pcFreshRender('已跟雲端對過'); _pcAutoBundle(); };
-        if (r && r.then) r.then(done, function(){ _pcAutoPulling = false; _pcFreshRender(''); _pcAutoBundle(); }); else done();
+        var r = fs.pull({ light:true, only:list }), _fin = false;
+        // ★ ds131：手機 Safari 有時候雲端不回應 → 以前「正在跟雲端對一次…」會掛一整天。90 秒沒回來就收掉字、放開旗標，下一輪（10 分鐘後）再試
+        var _wd = setTimeout(function(){ if (_fin) return; _fin = true; _pcAutoPulling = false; _pcFreshRender('雲端這次沒回應，稍後會自動再試'); }, 90000);
+        var done = function(){ if (_fin) return; _fin = true; clearTimeout(_wd); _pcAutoPulling = false; try { refreshSyncBtnLabels(); } catch(e){} _pcFreshRender('已跟雲端對過'); _pcAutoBundle(); };
+        if (r && r.then) r.then(done, function(){ if (_fin) return; _fin = true; clearTimeout(_wd); _pcAutoPulling = false; _pcFreshRender(''); _pcAutoBundle(); }); else done();
       } catch(e){ _pcAutoPulling = false; }
     }
     // ★ 10/10 Ivan：每月績效 Excel（mp_data）一個月改一次，以前只走手動拉取 → 現在公司整包也自動：
@@ -3887,7 +3903,8 @@
         localStorage.setItem('pc_bundle_chk_at', String(Date.now()));
         var p = window.parent, fs = p && p.firebaseSync; if (!fs || typeof fs.readGlobalDoc !== 'function') return;
         _pcBundleBusy = true;
-        fs.readGlobalDoc('_global_perf_data', 'bundle').then(function(doc){
+        var _bwd = setTimeout(function(){ _pcBundleBusy = false; }, 240000);   // ★ ds131：最多 4 分鐘，卡住就放開
+        Promise.race([fs.readGlobalDoc('_global_perf_data', 'bundle'), new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('逾時')); }, 20000); })]).then(function(doc){
           var at = (doc && doc.updatedAt) || 0;
           if (!at || at <= last){ _pcBundleBusy = false; return; }
           var f = _pcEnsureMpLoaded();
@@ -3900,7 +3917,7 @@
           };
           if (f && f.contentWindow && typeof f.contentWindow.forcePullMpDataFromCloud === 'function'){ go(); return; }
           var tries = 25; (function poll(){ try { if (f && f.contentWindow && typeof f.contentWindow.forcePullMpDataFromCloud === 'function'){ go(); return; } } catch(e){} if (--tries > 0) setTimeout(poll, 400); else _pcBundleBusy = false; })();
-        }, function(){ _pcBundleBusy = false; });
+        }, function(){ _pcBundleBusy = false; clearTimeout(_bwd); });
       } catch(e){ _pcBundleBusy = false; }
     }
     // ★ 2026/10/06 Ivan：「通路常常跑完沒顯示跑完、卡在那邊」→ 按鈕直接寫現在在幹嘛＋秒數，每秒更新
@@ -12640,6 +12657,7 @@
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
       { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
+      { ver:'ds131', icon:'📱', title:'手機拉取不會再卡住、城堡翻牌更順', detail:'手機 Safari 按「☁️↓ 拉取」以前可能轉二十分鐘不停：現在每一步都有時限，某一項拉不到就先跳過、其他照樣寫進來，按鈕會顯示拉到第幾項；60 秒沒進度會自己停下並告訴你卡在哪，再按一次會接著拉剩下的。也改成同時拉 4 項，快很多。指揮城堡：隱藏的卡不再畫在最底下；開頁先出卡背，照片準備好一張一張翻過來；按卡片會先縮一下才開；個人後台從那張卡長出來、關掉縮回去；翻牌儀式節奏加快' },
       { ver:'ds130', icon:'🌌', title:'星際廣場換成玻璃面板', detail:'按首頁的「星際廣場」，不再開一整張太空地圖，而是從那張卡長出一片玻璃面板，五個基地（瀑布、360 檢核、法院、成就解鎖、火種）用跟首頁一樣的卡片直接點。手機版從底下滑上來，往下拖就能關。想看太空場景按面板裡的「展示模式」，星空、粒子、建築照片只在那時候才載入，平常開頁少載 4.3MB' },
       { ver:'ds129', icon:'☁️', title:'雲端同步不再白做工', detail:'以前同事每 5 分鐘推送一次，就算什麼都沒改也會通知全公司「我變了」，大家的電腦就把他整包資料重新下載一遍、比對完發現沒變。現在：沒改東西不通知；真的有改也只下載有變的那一段（文字資料、照片、漏斗分開記）。實測單人重抓：6.9 秒、凍 4.3 秒 → 1.8 秒、凍 0.2 秒。同事要重新整理頁面後才生效' },
       { ver:'ds128', icon:'⚡', title:'開頁不卡了', detail:'城堡、業績中心、AI 顧問三個頁面改成「先把畫面畫出來，再慢慢算」：城堡先出文字版金字塔，照片一張一張補上；業績中心表頭先出現，分頁內容下一格再畫；AI 顧問的三個外掛改成背景載入。首頁底部的「總覽／登出」列拿掉（右上角已有登出），「總覽」移到日期旁' },

@@ -25,7 +25,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
 
 /* CARD */
 .card{width:140px;height:195px;perspective:800px;cursor:pointer;position:relative;}
-.card-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .6s;}
+.card-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.9,.25,1);}   /* ds131：臨界阻尼曲線、不衝過頭；翻到一半改方向會從當下角度反轉（CSS transition 天生可打斷） */
 .card.flipped .card-inner,.reveal-card.flipped .card-inner{transform:rotateY(180deg);}
 /* ★ 權限：自己的卡片發光、別人的鎖定 */
 .card.is-mine{filter:drop-shadow(0 0 14px rgba(74,234,255,.6));}
@@ -101,8 +101,32 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
 .card-back .cb-text{font-size:10px;color:rgba(255,255,255,.3);letter-spacing:3px;}
 .card-back::before{content:'';position:absolute;inset:6px;border:1px solid rgba(100,180,255,.1);border-radius:8px;}
 
+/* ds131：舊的 hover 逐格動 box-shadow（每格重繪）→ 改成一層 ::before 光暈用 opacity 淡入，只走合成器（舊規則只標不刪）
 .card:hover{transform:translateY(-6px);z-index:5;}
 .card:hover .card-front{box-shadow:0 8px 30px rgba(255,215,0,.2),0 0 20px var(--card-glow);}
+*/
+.card{transition:transform .18s cubic-bezier(.2,.9,.25,1), opacity .18s, filter .12s;-webkit-tap-highlight-color:transparent;}
+.card::before{content:'';position:absolute;inset:0;border-radius:10px;pointer-events:none;opacity:0;transition:opacity .2s;box-shadow:0 8px 30px rgba(255,215,0,.22),0 0 20px var(--card-glow);}
+@media (hover:hover){ .card:hover{transform:translateY(-6px);z-index:5;} .card:hover::before{opacity:1;} }
+.card.pressed{transform:scale(.97) !important;filter:brightness(.9);transition-duration:.1s;}
+.card.flipping .card-inner{will-change:transform;}
+.card-front .cf-name{letter-spacing:-.01em;}
+.cf-stat-row .val{font-variant-numeric:tabular-nums;}
+.card-front .cf-title{font-weight:700;letter-spacing:.02em;}
+@media (prefers-reduced-motion:reduce){
+  .card-inner,.reveal-card .card-inner{transition:none !important;}
+  .card-front,.card-back{transition:opacity .25s ease;}
+  .card.flipped .card-inner,.reveal-card.flipped .card-inner{transform:none !important;}
+  .card.flipped .card-back,.reveal-card.flipped .card-back{opacity:0;}
+  .card.flipped .card-front,.reveal-card.flipped .card-front{transform:none !important;}
+  .card:not(.flipped) .card-front,.reveal-card:not(.flipped) .card-front{opacity:0;}
+  .card:hover,.card.pressed{transform:none !important;}
+  .shaking{animation:none !important;}
+  .rain-overlay{display:none !important;}
+  .dashboard-panel{transition:opacity .2s ease !important;transform:none !important;}
+}
+@media (prefers-reduced-transparency:reduce){ .dashboard-overlay{background:#03060f !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;} .cf-medal{box-shadow:none !important;} }
+@media (prefers-contrast:more){ .card-front,.card-back{border:2px solid rgba(255,255,255,.9) !important;} }
 
 /* 前台金色光環標記已選卡 */
 .card.selected-card-1{outline:3px solid #fbbf24;outline-offset:2px;border-radius:12px;}
@@ -156,6 +180,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
 .reveal-overlay.active{display:flex;}
 .reveal-stage{display:flex;gap:24px;align-items:center;justify-content:center;flex-wrap:wrap;z-index:5;padding:20px;}
 .reveal-card{width:280px;height:390px;perspective:1000px;position:relative;z-index:5;flex-shrink:0;}
+.reveal-card .card-inner{transition:transform .6s cubic-bezier(.2,.9,.25,1) !important;}   /* ds131：翻牌儀式也用同一條曲線 */
 .reveal-card .card-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .8s;}
 .reveal-card .card-front,.reveal-card .card-back{border-radius:16px;border-width:3px;}
 .reveal-card .card-front .cf-photo{height:46%;}
@@ -202,6 +227,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
 /* PERSONAL DASHBOARD OVERLAY */
 .dashboard-overlay{position:fixed;inset:0;background:rgba(3,6,15,.92);backdrop-filter:blur(8px);z-index:9999;display:none;overflow-y:auto;}
 .dashboard-overlay.active{display:block;}
+.dashboard-panel{transition:transform .32s cubic-bezier(.2,.9,.25,1), opacity .24s ease;}
+.dashboard-overlay.db-from .dashboard-panel{transform:scale(.4);opacity:0;}   /* ds131：從被點的那張卡的位置長出來（transform-origin 由程式設在那張卡） */
 .dashboard-panel{max-width:700px;margin:0 auto;padding:40px 16px;background:linear-gradient(180deg,rgba(10,18,40,.9),rgba(7,13,31,.85));border:1px solid var(--border);border-radius:16px;margin-top:20px;margin-bottom:20px;}
 .dashboard-header{display:flex;gap:16px;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border);}
 .dashboard-content{display:flex;flex-direction:column;gap:12px;margin-bottom:20px;}
@@ -754,14 +781,17 @@ function renderPyramid(){
       div.dataset.idx=idx;
       div.style.setProperty('--card-glow',getGlow(card.color));
       div.innerHTML=buildCardHTML(card,idx);
-      div.addEventListener('click',()=>onCardClick(parseInt(div.dataset.idx)));
+      // ★ ds131：按下那一格就縮 0.97（回饋），放開才開；拖離再放開不觸發（舊的 click 只標不刪）
+      // div.addEventListener('click',()=>onCardClick(parseInt(div.dataset.idx)));
+      _castleBindPress(div);
       tier.appendChild(div);
     }
     el.appendChild(tier);
   });
 
+  // ★ ds131：隱藏卡不再畫在金字塔底下（以前是灰掉＋濾鏡，照片也照樣解碼）；後台管理清單照舊看得到、可以取消隱藏
   // Render hidden cards at bottom — show card back only
-  if(hiddenIdxs.length>0){
+  if(false && hiddenIdxs.length>0){
     const hiddenSection=document.createElement('div');
     hiddenSection.className='tier hidden-tier';
     hiddenSection.style.cssText='margin-top:20px;padding-top:16px;border-top:1px dashed rgba(255,255,255,.08);opacity:.45;';
@@ -779,6 +809,30 @@ function renderPyramid(){
   }
 }
 
+function _castleBindPress(div){
+  var st = null;
+  div.addEventListener('pointerdown', function(e){
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    st = { id:e.pointerId, x:e.clientX, y:e.clientY, moved:false }; div.classList.add('pressed');
+  });
+  div.addEventListener('pointermove', function(e){
+    if (!st || e.pointerId !== st.id) return;
+    if (Math.abs(e.clientX - st.x) > 10 || Math.abs(e.clientY - st.y) > 10) st.moved = true;   // 超過 10px 視為在捲動／拖走
+    var r = div.getBoundingClientRect(), inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    div.classList.toggle('pressed', inside && !st.moved);
+  });
+  var end = function(e, fire){
+    if (!st || e.pointerId !== st.id) return;
+    var r = div.getBoundingClientRect(), inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom, ok = fire && inside && !st.moved;
+    st = null; div.classList.remove('pressed');
+    if (ok){ window._castleLastCard = div; onCardClick(parseInt(div.dataset.idx)); }
+  };
+  div.addEventListener('pointerup', function(e){ end(e, true); });
+  div.addEventListener('pointercancel', function(e){ end(e, false); });
+  div.addEventListener('pointerleave', function(e){ if (st && e.pointerType === 'mouse'){ div.classList.remove('pressed'); } });
+  div.tabIndex = 0; div.setAttribute('role', 'button');
+  div.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); window._castleLastCard = div; onCardClick(parseInt(div.dataset.idx)); } });
+}
 function getGlow(color){
   const map={gray:'rgba(150,150,150,.3)',red:'rgba(255,50,50,.3)',yellow:'rgba(255,200,0,.3)',purple:'rgba(160,50,255,.3)',black:'rgba(80,80,120,.3)',blue:'rgba(50,150,255,.3)'};
   return map[color]||map.gray;
@@ -881,7 +935,7 @@ function updateRevealLoginBtn(indices, instant){
     // 首次開啟：重置並延遲顯示（等翻牌動畫結束）
     actions.classList.remove('visible');
     if(_revealActionsTimer) clearTimeout(_revealActionsTimer);
-    const delay = indices.length === 1 ? 1200 : 1800;
+    const delay = indices.length === 1 ? 900 : 1200;   // ★ ds131：跟著翻牌節奏縮短
     _revealActionsTimer = setTimeout(function(){ actions.classList.add('visible'); }, delay);
   }
 }
@@ -908,7 +962,7 @@ function showSimpleReveal(indices){
       });
     }
     stage.appendChild(el);
-    setTimeout(()=>{ el.classList.add('flipped'); }, 600 + order*400);
+    setTimeout(()=>{ el.classList.add('flipped'); }, 300 + order*120);   // ★ ds131：600+400n → 300+120n，多張時不用等太久
   });
 
   updateRevealLoginBtn(indices);
@@ -940,20 +994,22 @@ function showEpicReveal(indices, group){
     setTimeout(()=>{
       el.classList.add('flipped');
       doLightningFlash();
-    }, 1200 + order*600);
+    }, 900 + order*200);   // ★ ds131：1200+600n → 900+200n（閃電節奏保留，多張時快一點）
   });
 
   updateRevealLoginBtn(indices);
-  startRain();
-  launchPlanets();
+  var _rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;   // ★ ds131：減少動態的人不下雨、不飛星球、不閃、不震
+  if (!_rm){ startRain(); launchPlanets(); }
   overlay.classList.add('active');
 
-  setTimeout(()=>doLightningFlash(),200);
-  setTimeout(()=>doLightningFlash(),600);
-  setTimeout(()=>doLightningFlash(),900);
+  if (!_rm){
+    setTimeout(()=>doLightningFlash(),200);
+    setTimeout(()=>doLightningFlash(),600);
+    setTimeout(()=>doLightningFlash(),900);
+  }
   playThunderGroup(group);
 
-  setTimeout(()=>{
+  if (!_rm) setTimeout(()=>{
     document.body.classList.add('shaking');
     setTimeout(()=>document.body.classList.remove('shaking'),1500);
   },300);
@@ -1915,11 +1971,20 @@ function updateLoginStatus(){
 // ═══════ PERSONAL DASHBOARD ═══════
 let currentDashboardIdx=-1;
 
+function _castleDbOrigin(){
+  try {
+    var src = window._castleLastCard, panel = document.querySelector('#dashboardOverlay .dashboard-panel'); if (!src || !panel) return;
+    var sr = src.getBoundingClientRect(), pr = panel.getBoundingClientRect();
+    panel.style.transformOrigin = (sr.left + sr.width/2 - pr.left) + 'px ' + (sr.top + sr.height/2 - pr.top) + 'px';
+  } catch(e){}
+}
 function openPersonalDashboard(idx){
   currentDashboardIdx=idx;
   const card=cards[idx];
   const overlay=document.getElementById('dashboardOverlay');
-  overlay.classList.add('active');
+  overlay.classList.add('db-from'); overlay.classList.add('active');   // ★ ds131：先以縮小狀態出現在卡的位置，下一格長開
+  overlay.scrollTop = 0; _castleDbOrigin();
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ overlay.classList.remove('db-from'); }); });
 
   // Update header
   document.getElementById('dashboardCardName').textContent=card.name;
@@ -2039,8 +2104,14 @@ function openPersonalDashboard(idx){
 }
 
 function closePersonalDashboard(){
-  document.getElementById('dashboardOverlay').classList.remove('active');
+  // ★ ds131：原路縮回那張卡，縮完才真的關（減少動態：直接淡出）
+  var ov = document.getElementById('dashboardOverlay');
   currentDashboardIdx=-1;
+  if (!ov.classList.contains('active')) return;
+  _castleDbOrigin(); ov.classList.add('db-from');
+  var done = false, fin = function(){ if (done) return; done = true; ov.classList.remove('active'); ov.classList.remove('db-from'); };
+  var panel = ov.querySelector('.dashboard-panel'); if (panel) panel.addEventListener('transitionend', fin, { once:true });
+  setTimeout(fin, 360);
 }
 
 function saveDashboardAndClose(){
@@ -2318,21 +2389,35 @@ async function playThunder(){ await playThunderGroup(1); }
 // - 只在 card.photo / card.mascot 為空時補入
 // - 補入只更新記憶體 cards 變數，不寫回 localStorage（避免再次踩到 5MB quota）
 // - 完成後重新渲染金字塔；後台面板若已開啟也重繪
+// ★ ds131：照片先在背景解碼（img.decode），解完才放進卡片、再翻過來 → 翻牌那一瞬間不會撞到解碼；
+//   每張之間錯開 40ms，整座依序翻開。減少動態的人：不旋轉，直接交叉淡入（CSS 處理）。
+var _castleFlipQ = [], _castleFlipBusy = false;
+function _castleFlipNext(){
+  if (_castleFlipBusy) return;
+  var it = _castleFlipQ.shift(); if (!it){ return; }
+  _castleFlipBusy = true;
+  var div = it.div;
+  div.classList.add('flipping');
+  requestAnimationFrame(function(){
+    div.classList.add('flipped');
+    var off = function(){ div.classList.remove('flipping'); div.removeEventListener('transitionend', off); };
+    div.addEventListener('transitionend', off); setTimeout(off, 700);
+    setTimeout(function(){ _castleFlipBusy = false; _castleFlipNext(); }, window._castleStagger || 40);
+  });
+}
 // ★ ds128（10/20）：照片從 SpaceBaseDB 補進來時，只把那一張卡的照片換上去（不整座金字塔重畫）
 function _castlePatchCard(idx){
   try{
     var card = cards[idx]; if(!card || !card.photo) return;
     var div = document.querySelector('#pyramid .card[data-idx="' + idx + '"]'); if(!div) return;
     var old = div.querySelector('.cf-photo'); if(!old) return;
-    if(old.tagName === 'IMG'){ if(old.getAttribute('src') !== card.photo) old.src = card.photo; }
-    else {
-      var img = document.createElement('img');
-      img.className = 'cf-photo'; img.decoding = 'async'; img.alt = '';   // 不用 lazy：一張一張貼本來就分散了，lazy 反而會等到最後一起解碼
-      img.style.cssText = 'object-position:' + (card.cropX||50) + '% ' + (card.cropY||20) + '%;transform:scale(' + ((card.cropZoom||100)/100) + ')';
-      img.src = card.photo;
-      old.replaceWith(img);
-    }
-    if(!card.hidden) div.classList.add('flipped');
+    if(old.tagName === 'IMG'){ if(old.getAttribute('src') !== card.photo) old.src = card.photo; if(!card.hidden && !div.classList.contains('flipped')){ _castleFlipQ.push({ div:div }); _castleFlipNext(); } return; }
+    var img = document.createElement('img');
+    img.className = 'cf-photo'; img.decoding = 'async'; img.alt = '';   // 不用 lazy：一張一張貼本來就分散了，lazy 反而會等到最後一起解碼
+    img.style.cssText = 'object-position:' + (card.cropX||50) + '% ' + (card.cropY||20) + '%;transform:scale(' + ((card.cropZoom||100)/100) + ')';
+    img.src = card.photo;
+    var put = function(){ try { old.replaceWith(img); } catch(e){} if(!card.hidden){ if (window._castleWarm){ _castleWarm(img, function(){ _castleFlipQ.push({ div:div }); _castleFlipNext(); }); } else { _castleFlipQ.push({ div:div }); _castleFlipNext(); } } };
+    if (img.decode) img.decode().then(put, put); else put();   // 解碼不在主執行緒上；解完才放進來、才翻
   }catch(e){}
 }
 async function loadPhotosFromSpaceBase(){

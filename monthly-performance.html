@@ -2914,31 +2914,62 @@
         // ★ 2026/10/10 Ivan：拉取不要整頁重整、範圍改小
         //   opts.quick＝表頭「☁️↓ 拉取」預設：不問、不重整，只下載雲端簽章跟本機不同的項目（本來就是增量），拉完請外層原地重畫
         //   opts.full＝進階：照舊問一次、mp 月份有變才重整
+        // ★ ds131（10/21）手機 Safari 拉取卡住二十分鐘不會停：以前每一步都是沒有時限的 await，任何一步不回應就永遠等，
+        //   已經下載的也不會寫進來（寫入在最後）。改成：每一步都有時限，雲端分片沒回應就重試一次，還是不行就跳過那一項，
+        //   已經拿到的照樣寫進來；外層可以喊停（window._mpPullAbort）。
+        function _mpWithTimeout(pr, ms, label){
+            return new Promise(function(res, rej){
+                var done = false, t = setTimeout(function(){ if (done) return; done = true; rej(new Error((label || '這一步') + ' 超過 ' + Math.round(ms/1000) + ' 秒沒回應')); }, ms);
+                Promise.resolve(pr).then(function(v){ if (done) return; done = true; clearTimeout(t); res(v); }, function(e){ if (done) return; done = true; clearTimeout(t); rej(e); });
+            });
+        }
+        async function _mpReadDoc(fsync, id, label){
+            try { return await _mpWithTimeout(fsync.readGlobalDoc('_global_perf_data', id), 20000, label); }
+            catch(e1){
+                console.warn('[cloud-sync] 讀取逾時，重試一次', id, e1 && e1.message);
+                await new Promise(function(r){ setTimeout(r, 1500); });
+                return await _mpWithTimeout(fsync.readGlobalDoc('_global_perf_data', id), 20000, label);
+            }
+        }
+        function _mpIdbOpen(name){
+            return _mpWithTimeout(new Promise(function(res, rej){
+                var q = indexedDB.open(name);
+                q.onsuccess = function(){ res(q.result); };
+                q.onerror = function(){ rej(q.error); };
+                q.onblocked = function(){ rej(new Error(name + ' 被其他分頁佔住（請關掉其他開著太空基地的分頁）')); };
+            }), 8000, '開啟本機資料庫 ' + name);
+        }
+        function _mpStep(s, opts){ window._mpPullStep = s; try { if (opts && typeof opts.onProgress === 'function') opts.onProgress(s); } catch(e){} }
         async function forcePullMpDataFromCloud(opts){
             opts = opts || {}; var quick = !!opts.quick;
             var btn = document.getElementById('cloudPullBtn') || { style:{} };
-            var _res = { ok:false };
+            var _res = { ok:false }, _missing = [];
+            window._mpPullAbort = false;
+            var _aborted = function(){ return window._mpPullAbort === true; };
             try{
                 btn.disabled = true; btn.textContent = '☁️↓ 拉取中...';
                 var fsync = _getParentFirebaseSync();
                 if(!fsync){ if (!quick) alert('❌ 找不到 firebaseSync.readGlobalDoc(需在 parent)'); return { ok:false, err:'找不到雲端模組' }; }
                 console.log('[cloud-sync] 從 Firestore 讀 bundle...');
-                var doc = await fsync.readGlobalDoc('_global_perf_data', 'bundle');
+                _mpStep('讀雲端目錄', opts);
+                var doc = await _mpReadDoc(fsync, 'bundle', '讀雲端目錄');
+                if (_aborted()) return { ok:false, err:'已停止' };
                 if(!doc || !doc.data){
                     if (!quick) alert('❌ 雲端沒有公司資料 bundle,請先在主機按「強制推送公司資料」');
                     return { ok:false, err:'雲端沒有公司資料' };
                 }
                 var bundle = JSON.parse(doc.data), got = {}, _mpLocalSigCache = null, _mpMonthsBefore = [];
                 // ★ 10/10：先讀本機 mp_data 一次，拿來比簽章（跟雲端一樣就不下載）＋ 記月份（拉完比對月份有沒有變）
+                _mpStep('比對本機資料', opts);
                 try {
-                    var _db0 = await new Promise(function(res,rej){ var q = indexedDB.open('SpaceBaseDB'); q.onsuccess = function(){ res(q.result); }; q.onerror = function(){ rej(q.error); }; });
+                    var _db0 = await _mpIdbOpen('SpaceBaseDB');
                     var _v0 = await new Promise(function(res){ try { var g = _db0.transaction('images','readonly').objectStore('images').get('mp_data_v1'); g.onsuccess = function(){ res(g.result); }; g.onerror = function(){ res(null); }; } catch(e){ res(null); } });
                     _db0.close();
                     var _mp0 = (typeof _v0 === 'string') ? JSON.parse(_v0) : _v0;
                     if (_mp0 && typeof _mp0 === 'object'){ _mpLocalSigCache = JSON.stringify(_mp0); _mpMonthsBefore = Object.keys(_mp0).sort(); }
                 } catch(e0){}
                 var _kbLocalSigCache = null;
-                try { var _kb0 = await _readKnowledgeBase(); if (_kb0) _kbLocalSigCache = JSON.stringify(_kb0); } catch(e1){}
+                try { var _kb0 = await _mpWithTimeout(_readKnowledgeBase(), 8000, '讀本機知識庫'); if (_kb0) _kbLocalSigCache = JSON.stringify(_kb0); } catch(e1){ console.warn('[cloud-sync]', e1 && e1.message); }
                 // ★ 2026/09 增量格式 v3：逐項讀，本機已經一樣的項目直接跳過不下載
                 if (bundle && bundle.schema === 'company-bundle-v3'){
                     var pLS3 = _getParentLS(), host3 = _getFnHost();
@@ -2955,25 +2986,42 @@
                         } catch(e){ return null; }
                     };
                     var nm3 = Object.keys(bundle.items || {}), nSkip3 = 0, nGet3 = 0;
+                    // ★ ds131：先挑出要下載的（本機已一樣的跳過），再「同時 4 項」下載（以前一次一項，345 項在手機上要好幾分鐘，一項卡住全部停）
+                    //   這是讀 Firestore，不是 EIP；EIP 一個請求都沒有多。
+                    var need3 = [];
                     for (var i3 = 0; i3 < nm3.length; i3++){
-                        var name3 = nm3[i3], it3 = bundle.items[name3];
-                        var loc3 = localOf(name3);
-                        if (loc3 !== null && _sigOf(loc3) === it3.sig){ nSkip3++; continue; }   // 本機已經一樣 → 不下載
-                        btn.textContent = '☁️↓ 拉取中... (' + (i3 + 1) + '/' + nm3.length + ')';
-                        var buf3 = [];
-                        for (var q3 = 0; q3 < it3.parts; q3++){
-                            var pd3 = await fsync.readGlobalDoc('_global_perf_data', it3.doc + '_' + q3);
-                            if (!pd3 || typeof pd3.data !== 'string'){ buf3 = null; break; }
-                            buf3.push(pd3.data);
+                        var loc3 = localOf(nm3[i3]);
+                        if (loc3 !== null && _sigOf(loc3) === bundle.items[nm3[i3]].sig){ nSkip3++; continue; }   // 本機已經一樣 → 不下載
+                        need3.push(nm3[i3]);
+                    }
+                    var done3 = 0, next3 = 0;
+                    var worker3 = async function(){
+                        while (next3 < need3.length && !_aborted()){
+                            var name3 = need3[next3++], it3 = bundle.items[name3], buf3 = [];
+                            for (var q3 = 0; q3 < it3.parts; q3++){
+                                var pd3 = null;
+                                try { pd3 = await _mpReadDoc(fsync, it3.doc + '_' + q3, '下載 ' + name3); } catch(eRd){ console.warn('[cloud-sync] 這一項下載不到，先跳過', name3, eRd && eRd.message); }
+                                if (!pd3 || typeof pd3.data !== 'string'){ buf3 = null; break; }
+                                buf3.push(pd3.data);
+                            }
+                            done3++;
+                            btn.textContent = '☁️↓ 拉取中... (' + done3 + '/' + need3.length + ')';
+                            _mpStep('下載 ' + done3 + '/' + need3.length, opts);
+                            if (!buf3){ console.warn('[cloud-sync] 分片缺失，跳過', name3); _missing.push(name3); continue; }
+                            got[name3] = buf3.join(''); nGet3++;
                         }
-                        if (!buf3){ console.warn('[cloud-sync] 分片缺失，跳過', name3); continue; }
-                        got[name3] = buf3.join(''); nGet3++;
+                    };
+                    if (need3.length){
+                        _mpStep('下載 0/' + need3.length, opts);
+                        var pool3 = []; for (var w3 = 0; w3 < Math.min(4, need3.length); w3++) pool3.push(worker3());
+                        await Promise.all(pool3);
                     }
                     var mp3 = got['mpData'] ? JSON.parse(got['mpData']) : null;
                     var ls3 = {}; Object.keys(got).forEach(function(n){ if (n.indexOf('ls:') === 0) ls3[n.slice(3)] = got[n]; });
                     var kb3 = got['kb'] ? JSON.parse(got['kb']) : null;
                     console.log('[cloud-sync] 增量拉取：下載 ' + nGet3 + ' 項、跳過 ' + nSkip3 + ' 項（本機已相同）');
                     bundle = { mpData: mp3 ? JSON.stringify(mp3) : '', lsKeys: ls3, kb: kb3, _inc: { got: nGet3, skip: nSkip3, total: nm3.length } };
+                    if (_aborted() && !nGet3) return { ok:false, err:'已停止' };   // 喊停而且什麼都還沒拿到 → 直接結束；有拿到的照樣寫進來
                 }
                 // ★ 2026/07 分片格式：bundle 是 manifest → 把 bundle_part_0..N 讀回來拼成完整資料
                 else if (bundle && bundle.schema === 'company-bundle-v2-manifest'){
@@ -3036,17 +3084,14 @@
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
                 var _nothingNew = bundle._inc && bundle._inc.got === 0;
-                if (quick && _nothingNew){ return { ok:true, got:0, skip:bundle._inc.skip, msg:'本機已經是最新', pushedBy:pushedBy, pushedAt:pushedAt }; }
+                if (quick && _nothingNew){ return { ok:!_missing.length, got:0, skip:bundle._inc.skip, missing:_missing.length, err:(_missing.length ? _missing.length + ' 項下載不到' : ''), msg:'本機已經是最新', pushedBy:pushedBy, pushedAt:pushedAt }; }
+                _mpStep('寫進這台', opts);
                 if(!quick && !confirm('☁️ 把雲端公司資料合併到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n說明:依月份合併 — 雲端會更新/補上月份,但不會刪掉本機已有的月份。')){
                     return { ok:false, err:'取消' };
                 }
                 // 1) 寫 IDB mp_data_v1（★依月份合併,不整包覆蓋 → 拉到舊 bundle 也不會把本機較新月份洗掉）
                 if(mp){
-                    var db = await new Promise(function(res,rej){
-                        var q = indexedDB.open('SpaceBaseDB');
-                        q.onsuccess = function(){ res(q.result); };
-                        q.onerror = function(){ rej(q.error); };
-                    });
+                    var db = await _mpIdbOpen('SpaceBaseDB');
                     // 先讀本機現有 mp_data
                     var localMp = await new Promise(function(res){
                         try{ var g = db.transaction('images','readonly').objectStore('images').get('mp_data_v1');
@@ -3061,11 +3106,12 @@
                     Object.keys(mp).forEach(function(m){ mergedMp[m]=mp[m]; });
                     var mergedMonths = Object.keys(mergedMp).sort(function(a,b){return Number(a)-Number(b);});
                     console.log('[cloud-sync] mp_data 合併：本機 '+Object.keys(localMp).length+' 月 + 雲端 '+mpMonths.length+' 月 = '+mergedMonths.length+' 月 ('+mergedMonths.join(',')+')');
-                    await new Promise(function(res){
+                    await _mpWithTimeout(new Promise(function(res, rej){
                         var tx = db.transaction('images','readwrite');
                         tx.objectStore('images').put(mergedMp, 'mp_data_v1');
                         tx.oncomplete = function(){ res(); };
-                    });
+                        tx.onerror = function(){ rej(tx.error); }; tx.onabort = function(){ rej(tx.error || new Error('寫入被中止')); };
+                    }), 15000, '寫入每月績效');
                     db.close();
                 }
                 // 2) 寫 parent LS 所有 perf_compare_v1* keys
@@ -3165,9 +3211,9 @@
                         failed.push(k + '（' + Math.round(String(v||'').length/1024) + 'K）');
                     }
                 });
-                try{ await Promise.all(idbWrites); }catch(eIdb){ console.warn('[cloud-sync] FunnelDB 寫入失敗', eIdb); }
+                try{ await _mpWithTimeout(Promise.all(idbWrites), 15000, '寫入漏斗資料'); }catch(eIdb){ console.warn('[cloud-sync] FunnelDB 寫入失敗', eIdb); }
                 // 3) 寫 KnowledgeBaseDB.kb
-                if(kb){ await _writeKnowledgeBase(kb); }
+                if(kb){ try { await _mpWithTimeout(_writeKnowledgeBase(kb), 10000, '寫入知識庫'); } catch(eKb){ console.warn('[cloud-sync]', eKb && eKb.message); } }
 
                 if (failed.length && !quick){
                     alert('⚠️ 拉取完成，但有 ' + failed.length + ' 筆資料寫不進這台瀏覽器（通常是 localStorage 5MB 額度滿了）：\n\n' + failed.join('\n')
@@ -3176,7 +3222,7 @@
                 // ★ quick：不重整，交給外層原地重畫（mp 月份有變才需要重整）
                 var _mpChanged = false;
                 try { if (mp){ var _after = {}; _mpMonthsBefore.forEach(function(m){ _after[m] = 1; }); Object.keys(mp).forEach(function(m){ if (!_after[m]) _mpChanged = true; }); } } catch(eM){}
-                _res = { ok:true, got:(bundle._inc ? bundle._inc.got : lsKeyNames.length), skip:(bundle._inc ? bundle._inc.skip : 0), total:(bundle._inc ? bundle._inc.total : 0), failed:failed.length, mpChanged:_mpChanged, pushedBy:pushedBy, pushedAt:pushedAt, keys:lsKeyNames };
+                _res = { ok:true, missing:_missing.length, got:(bundle._inc ? bundle._inc.got : lsKeyNames.length), skip:(bundle._inc ? bundle._inc.skip : 0), total:(bundle._inc ? bundle._inc.total : 0), failed:failed.length, mpChanged:_mpChanged, pushedBy:pushedBy, pushedAt:pushedAt, keys:lsKeyNames };
                 if (quick){
                     try { var _h = _getFnHost() || window.parent; if (_h && typeof _h._pcAfterPull === 'function') _h._pcAfterPull(_res); } catch(eA){}
                     return _res;
@@ -3196,6 +3242,7 @@
             }finally{
                 btn.disabled = false;
                 btn.textContent = '☁️↓ 強制拉取公司資料';
+                window._mpPullStep = '';
             }
             return _res;
         }
