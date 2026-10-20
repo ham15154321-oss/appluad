@@ -16,7 +16,7 @@
 - 本機預覽：`localhost:8000/人力發展.html`（iframe 內嵌 `performance-compare.html?v=<版本>`）
 - 上線：跑 `deploy.command` → GitHub Pages
 - Chrome 擴充：`appedu-eip-sync/`（MV3，manifest 目前 **5.56**），改了 manifest 要到 chrome://extensions 重新載入
-- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds125'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
+- 目前版本號：`人力發展.html` 裡 `TARGET_SRC = 'performance-compare.html?v=ds126'（monthly-performance：mpbundle21）；★ 10/10 起版號寫在 人力發展.html 的 PC_VER，後面自動接時間戳`
   - 每次改 `performance-compare.html` 都要把這個版本號往上加，不然瀏覽器吃快取
 - `day-mode.css?v=apple7`
 
@@ -154,7 +154,7 @@
 
 ## 3. 下一步
 
-1. 跑 `deploy.command` 上線 PC_VER ds125（如果還沒跑）
+1. 跑 `deploy.command` 上線 PC_VER ds126（如果還沒跑）
 2. 查「漏斗資料退回舊版」的原因，加保護：新資料的 `meta.syncedAt` / `cov.to` 比較新就不准被舊的蓋
 3. 問 Ivan：月中試聽註冊率要不要改成「進行中」顯示
 4. 追「當下＋試聽後 vs EIP 註冊Ⓐ」差 1～2 位的名單
@@ -512,3 +512,4 @@ C 主管
 - ds123（10/20 Ivan：穿越圖為什麼沒顯示過關）：查證＝圖沒算錯，業績（_motivGroupPerf／快照 p／當月績效）都停在 10/19 19:51 激勵同步；盈緯組 EIP 業績 68.6 萬，入帳明細（10/20 10:56 漏斗同步）加總 80.2 萬（何泳禛 27.9、范允寶 21.2、余思品 3.9、吳盈緯 27.3）。改：_ttBadge 寫「✅ 過關・M/D 穿越」、右側標籤「✅ 第N關過關・M/D 穿越・提前 N 天」（拿掉「第N關已開跑」）；tt-hd 下加 .tt-stale：激勵最新同步日 < 選的收工日時提醒「業績只更新到…（入帳明細已經到…）→ 按一次 🏆 激勵 同步」。
 - ds124＋擴充 v5.59（10/20 Ivan：同一天重跑 ⚡ 要快、8 小時窗、不能影響 EIP）：所有停頓（EIP_THROTTLE 1s、HTML 分頁 1.2s、漏斗頁 2s、學院間 4s）都沒動，只減少請求。①報到 fetchCheckin 切段路徑：最近段拆成「freshFrom～前天」＋「昨天起」，前天以前存 box.seg[label|ym|Q|今天]（at，8 小時有效、含 net 推算），重跑只抓昨天起；第一次跑請求數不變（同段拆兩查）。②漏斗：org 快取多 editAt，「舊月份有變動的列」查詢 8 小時內不重問。③pc.js _syncAllPlan：通路 8 小時內跳過（單按 📋 通路照常）。可能漏：前天以前的報到列、上個月以前的面談，在 8 小時內被改 → 下一次超過 8 小時那輪才更新；今天新增、昨天補登的不會漏。
 - ds125（10/20 楚門：盤點存 PDF 切兩頁＋11 頁空白）：pc-lazy.js invPrint → _invPrintPrep：把 #inventoryPanel 內容複製到 body 直下的 #invPrintBox（寬 1069px＝A4 橫式扣 7mm），列印時 body 其他子元素 display:none（舊版用 visibility:hidden 會佔位→空白頁）；每張 .inv-card 量 scrollHeight，超過 735px 就 zoom 等比例縮；卡片間 break-after:page；beforeprint/afterprint 也接（⌘P 一樣）。
+- ds126 首頁 v2（10/20 Ivan 看完 A/B/C 三提案說都可以 → 選 A 版型、夜間用 B 星空）：人力發展.html 加 #home2（在 .center-stage 之後）：h2-greet（名字＋早安／午安）、三張 .h2-kpi（年度業績＋達成率 bar／到年底每天要做＝(目標−業績)÷年底前非週日天數／資料時間＝char_<me>_motiv_synced_* 最新一筆）、五張 .h2-mod（SVG 線條圖示＋漸層，業績中心 span 2，onclick 接原本的 openPerformance/openAiAdvisor/openCastle/openTrainingRoom/openPlaza；練功坊紅點鏡射 #trainBadge）、快速啟動 chips、.h2-score 鏡射左下組長評核六條 bar。body.home2 時隱藏 .center-stage/.top-left/.bottom-left（只隱藏不刪），body overflow 改 auto；白天用 body.day-mode 覆蓋成 A 白底、夜間 B 玻璃卡＋原本星空 canvas；≤900px 一欄、隱藏右下頭像。home2Fill(data) 由 updateScoreDisplay 結尾丟 _home2Data 觸發，load 後 300ms／每分鐘／firebase-sync-updated 也重填。localStorage home_classic='1' 回舊版。三個提案檔在 首頁設計提案/。六角圖還在 IDB 沒刪（之後要清可以再說）。

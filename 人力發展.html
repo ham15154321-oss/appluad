@@ -570,6 +570,75 @@
   .modal-close:hover { box-shadow:0 0 20px rgba(80,140,255,0.4); }
 
   /* ===== ☀️ 白天模式 ===== */
+
+  /* ═══════════ 首頁 v2（10/20 Ivan 選 A 版型＋夜間 B 星空；舊六角區只隱藏不刪，localStorage home_classic='1' 可切回） ═══════════ */
+  body.home2 .center-stage, body.home2 .top-left { display:none !important; }
+  body.home2 { overflow-y:auto !important; overflow-x:hidden; }
+  body.home2 .bottom-right { position:fixed; }
+  @media (max-width:900px){ body.home2 .bottom-right { display:none !important; } }
+  body.home2 .bottom-left { display:none !important; }
+  body.home2 .bottom-right { bottom:20px; right:20px; }
+  body.home2 .bottom-right .speech-bubble { font-size:14px; }
+  #home2 { position:relative; z-index:5; max-width:1120px; margin:0 auto; padding:88px 24px 140px; font-family:-apple-system,system-ui,'PingFang TC','Noto Sans TC',sans-serif; }
+  #home2 *{ box-sizing:border-box; }
+  .h2-greet { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:20px; }
+  .h2-greet h1 { font-size:30px; line-height:1.15; letter-spacing:-.02em; margin:0; color:#F5F5F7; }
+  .h2-greet p { margin:4px 0 0; font-size:15px; color:#98989D; }
+  .h2-date { font-size:13px; color:#98989D; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .h2-hero { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:16px; margin-bottom:32px; }
+  .h2-kpi { background:rgba(28,28,30,.72); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:20px 24px; color:#F5F5F7; cursor:pointer; transition:transform .15s cubic-bezier(.2,.9,.25,1); }
+  .h2-kpi:active { transform:scale(.985); }
+  .h2-kpi small { display:block; font-size:13px; color:#98989D; font-weight:600; letter-spacing:.02em; }
+  .h2-kpi b { display:block; font-size:34px; line-height:1.1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; margin-top:6px; }
+  .h2-kpi b u { text-decoration:none; font-size:16px; color:#98989D; font-weight:600; margin-left:4px; }
+  .h2-bar { height:8px; border-radius:4px; background:rgba(255,255,255,.1); margin-top:14px; overflow:hidden; }
+  .h2-bar i { display:block; height:100%; width:0; border-radius:4px; background:linear-gradient(90deg,#0A84FF,#64D2FF); transition:width .6s cubic-bezier(.2,.9,.25,1); }
+  .h2-sub { display:flex; justify-content:space-between; gap:8px; font-size:13px; color:#98989D; margin-top:8px; font-variant-numeric:tabular-nums; }
+  .h2-kpi.ok b { color:#30D158; } .h2-kpi.warn b { color:#FF9F0A; }
+  .h2-h2 { font-size:20px; letter-spacing:-.01em; margin:0 0 12px; color:#F5F5F7; display:flex; align-items:baseline; gap:10px; }
+  .h2-h2 small { font-size:13px; color:#98989D; font-weight:500; }
+  .h2-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .h2-mod { position:relative; display:flex; flex-direction:column; justify-content:flex-end; min-height:188px; padding:20px; border-radius:22px; color:#fff; cursor:pointer; overflow:hidden; border:1px solid rgba(255,255,255,.22); box-shadow:0 1px 2px rgba(0,0,0,.2),0 12px 32px rgba(0,0,0,.35); transition:transform .18s cubic-bezier(.2,.9,.25,1),box-shadow .18s; -webkit-tap-highlight-color:transparent; }
+  .h2-mod:hover { transform:translateY(-3px); box-shadow:0 2px 4px rgba(0,0,0,.2),0 20px 44px rgba(0,0,0,.45); }
+  .h2-mod:active { transform:scale(.98); }
+  .h2-mod:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+  .h2-mod svg { position:absolute; right:18px; top:18px; width:56px; height:56px; fill:none; stroke:#fff; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; opacity:.95; }
+  .h2-mod b { font-size:22px; letter-spacing:-.01em; line-height:1.15; }
+  .h2-mod span { font-size:13px; opacity:.85; margin-top:4px; }
+  .h2-mod .h2-pill { position:absolute; left:20px; top:18px; font-size:13px; font-weight:700; padding:3px 10px; border-radius:999px; background:rgba(255,255,255,.22); backdrop-filter:blur(8px); }
+  .h2-mod .h2-badge { position:absolute; right:18px; top:82px; min-width:26px; height:26px; padding:0 8px; border-radius:13px; background:#FF375F; color:#fff; font-size:13px; font-weight:800; display:none; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+  .h2-m1 { background:linear-gradient(135deg,#0A84FF,#5E5CE6); grid-column:span 2; }
+  .h2-m2 { background:linear-gradient(135deg,#5E5CE6,#BF5AF2); }
+  .h2-m3 { background:linear-gradient(135deg,#30D158,#0A84FF); }
+  .h2-m4 { background:linear-gradient(135deg,#FF9F0A,#FF375F); }
+  .h2-m5 { background:linear-gradient(135deg,#2C2C2E,#48484A); }
+  .h2-quick { margin-top:28px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .h2-quick small { font-size:13px; color:#98989D; margin-right:4px; }
+  .h2-chip { display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 14px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); color:#F5F5F7; font-size:15px; font-weight:600; cursor:pointer; transition:transform .1s,background .15s; -webkit-tap-highlight-color:transparent; }
+  .h2-chip:hover { background:rgba(255,255,255,.14); } .h2-chip:active { transform:scale(.96); }
+  .h2-score { margin-top:28px; display:flex; align-items:center; gap:16px; padding:14px 18px; border-radius:18px; background:rgba(28,28,30,.6); border:1px solid rgba(255,255,255,.1); color:#F5F5F7; cursor:pointer; }
+  .h2-score b { font-size:26px; letter-spacing:-.02em; font-variant-numeric:tabular-nums; } .h2-score b u { text-decoration:none; font-size:13px; color:#98989D; margin-left:2px; }
+  .h2-score small { font-size:13px; color:#98989D; } .h2-score .h2-sbar { flex:1; display:flex; gap:4px; }
+  .h2-score .h2-sbar i { flex:1; height:6px; border-radius:3px; background:rgba(255,255,255,.12); overflow:hidden; display:block; } .h2-score .h2-sbar i b { display:block; height:100%; width:0; }
+  /* 白天：A 版白底 */
+  body.day-mode .h2-greet h1, body.day-mode .h2-h2 { color:#1D1D1F !important; -webkit-text-fill-color:#1D1D1F !important; }
+  body.day-mode .h2-greet p, body.day-mode .h2-date, body.day-mode .h2-h2 small, body.day-mode .h2-quick small { color:#6E6E73 !important; -webkit-text-fill-color:#6E6E73 !important; }
+  body.day-mode .h2-kpi { background:#fff !important; border-color:rgba(0,0,0,.08) !important; color:#1D1D1F !important; -webkit-text-fill-color:#1D1D1F !important; box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04); }
+  body.day-mode .h2-kpi small, body.day-mode .h2-sub, body.day-mode .h2-kpi b u { color:#6E6E73 !important; -webkit-text-fill-color:#6E6E73 !important; }
+  body.day-mode .h2-kpi.ok b { color:#1F7A3A !important; -webkit-text-fill-color:#1F7A3A !important; } body.day-mode .h2-kpi.warn b { color:#B35C00 !important; -webkit-text-fill-color:#B35C00 !important; }
+  body.day-mode .h2-bar { background:rgba(0,0,0,.06); }
+  body.day-mode .h2-mod { box-shadow:0 1px 2px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.08); border-color:rgba(255,255,255,.35); }
+  body.day-mode .h2-mod, body.day-mode .h2-mod b, body.day-mode .h2-mod span { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+  body.day-mode .h2-m5 { background:linear-gradient(135deg,#1C1C1E,#3A3A3C); }
+  body.day-mode .h2-chip { background:#fff !important; border-color:rgba(0,0,0,.08) !important; color:#1D1D1F !important; -webkit-text-fill-color:#1D1D1F !important; } body.day-mode .h2-chip:hover { background:#F0F0F5 !important; }
+  body.day-mode .h2-score { background:#fff; border-color:rgba(0,0,0,.08); color:#1D1D1F; } body.day-mode .h2-score small, body.day-mode .h2-score b u { color:#6E6E73; } body.day-mode .h2-score .h2-sbar i { background:rgba(0,0,0,.08); }
+  @media (max-width:900px){
+    #home2 { padding:84px 16px 150px; }
+    .h2-hero, .h2-grid { grid-template-columns:1fr; } .h2-m1 { grid-column:span 1; }
+    .h2-kpi b { font-size:28px; } .h2-mod { min-height:150px; } .h2-chip { min-height:44px; }
+    .h2-greet { flex-direction:column; align-items:flex-start; gap:4px; }
+  }
+  @media (prefers-reduced-motion:reduce){ .h2-mod, .h2-chip, .h2-kpi, .h2-bar i { transition:none !important; } }
   body.day-mode {
     background:linear-gradient(180deg,#f5f5f7 0%,#ffffff 40%,#ffffff 70%,#ffffff 100%);
     color:#1d1d1f;
@@ -1648,6 +1717,46 @@ body.minimal .revenue-stats{ margin-top:0; }
   </div>
   <div class="add-zone" title="新增區域">＋</div>
 </div>
+
+<!-- ===== 首頁 v2（10/20）：A 版型；夜間星空、白天白底。舊的 .center-stage 留著只隱藏 ===== -->
+<div id="home2">
+  <div class="h2-greet"><div><h1 id="h2Hello">嗨。</h1><p id="h2Line">太空基地</p></div><div class="h2-date" id="h2Date"></div></div>
+  <div class="h2-hero">
+    <div class="h2-kpi" onclick="openPerformanceTab(7)" title="到當月績效"><small id="h2K1l">業績</small><b id="h2K1v">—</b><div class="h2-bar"><i id="h2K1bar"></i></div><div class="h2-sub"><span id="h2K1a"></span><span id="h2K1b"></span></div></div>
+    <div class="h2-kpi ok" onclick="openPerformanceTab(7)"><small>到年底每天要做</small><b id="h2K2v">—</b><div class="h2-sub"><span id="h2K2a"></span><span id="h2K2b"></span></div></div>
+    <div class="h2-kpi warn" onclick="openPerformanceTab(11)" title="到我的一頁"><small>資料時間</small><b id="h2K3v">—</b><div class="h2-sub"><span id="h2K3a"></span><span id="h2K3b"></span></div></div>
+  </div>
+  <div class="h2-h2">太空指揮部 <small>常用的放大</small></div>
+  <div class="h2-grid">
+    <div class="h2-mod h2-m1" tabindex="0" role="button" onclick="openPerformance()"><span class="h2-pill" id="h2PerfPill">業績數據中心</span>
+      <svg viewBox="0 0 48 48"><path d="M8 36 L20 22 L28 30 L40 14"/><path d="M32 14h8v8"/></svg>
+      <b>業績數據中心<span id="h2Lock" style="display:none;font-size:16px;margin-left:6px">🔒</span></b><span>七家學院・每日總結・漏斗・穿越・90 秒回顧</span></div>
+    <div class="h2-mod h2-m5" tabindex="0" role="button" onclick="openAiAdvisor()">
+      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="14"/><path d="M24 10v4M24 34v4M10 24h4M34 24h4"/><circle cx="24" cy="24" r="4"/></svg>
+      <b>AI 顧問</b><span>陪跑師・數據通・小任務・A 通路研究院</span></div>
+    <div class="h2-mod h2-m2" tabindex="0" role="button" onclick="openCastle()">
+      <svg viewBox="0 0 48 48"><path d="M10 38V20l14-10 14 10v18"/><path d="M20 38V28h8v10"/></svg>
+      <b>指揮城堡</b><span>人物卡・成就・360 分數</span></div>
+    <div class="h2-mod h2-m3" tabindex="0" role="button" onclick="openTrainingRoom()"><div class="h2-badge" id="h2TrainBadge">0</div>
+      <svg viewBox="0 0 48 48"><path d="M12 36l8-16 6 10 4-6 6 12"/><circle cx="34" cy="14" r="4"/></svg>
+      <b>練功坊</b><span>三寶・話術・訓練檢核</span></div>
+    <div class="h2-mod h2-m4" tabindex="0" role="button" onclick="openPlaza()">
+      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="16"/><path d="M8 24h32M24 8c6 6 6 26 0 32M24 8c-6 6-6 26 0 32"/></svg>
+      <b>星際廣場</b><span>360 檢核・法院・瀑布・成就・火種</span></div>
+  </div>
+  <div class="h2-quick"><small>快速啟動</small>
+    <button class="h2-chip" onclick="openWaterfall()">🏔️ 瀑布通路</button>
+    <button class="h2-chip" onclick="open360Assessment()">🎯 360 檢核</button>
+    <button class="h2-chip" onclick="openPerformanceTab(3)">📅 每月績效</button>
+    <button class="h2-chip" onclick="openPerformanceTab(4)">🏆 激勵</button>
+    <button class="h2-chip" onclick="openAchievement()">🎖️ 成就解鎖</button>
+  </div>
+  <div class="h2-score" id="h2Score" onclick="document.getElementById('scorePanelBtn').click()" title="組長評核：點看成績單">
+    <div><small>組長評核</small><br><b id="h2ScoreV">0<u>/100</u></b></div>
+    <div class="h2-sbar" id="h2ScoreBars"></div>
+    <small id="h2ScoreL">尚未評估</small>
+  </div>
+</div>
 <!-- ========== AI 顧問 ========== -->
 <div class="page-overlay" id="aiOverlay" style="z-index:999999;">
   <div class="page-backdrop" onclick="closeAiAdvisor()"></div>
@@ -2703,6 +2812,56 @@ window.addEventListener('motiv-archive-updated', function(e){
   console.log('[card-sync] 收到 motiv-archive-updated 事件，立刻同步學院業績');
   setTimeout(syncAcademyRevenueFromMotivArchive, 200);
 });
+
+// ═══ 首頁 v2（10/20）：資料填入。預設開；localStorage home_classic='1' 回舊版六角 ═══
+(function(){
+  try { if (localStorage.getItem('home_classic') !== '1') document.body.classList.add('home2'); } catch(e){ document.body.classList.add('home2'); }
+  function wan(v){ v = +v || 0; return (v >= 100000000 ? (v / 100000000).toFixed(2) + ' 億' : Math.round(v / 10000).toLocaleString() + ' 萬'); }
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function newestSync(){
+    var me = localStorage.getItem('activeCharacterId') || '', best = null;
+    ['motiv','checkin','funnel','edits','channel'].forEach(function(k){
+      var v = localStorage.getItem('char_' + me + '_motiv_synced_' + k) || localStorage.getItem('motiv_synced_' + k);
+      if (!v) return; var t = Date.parse(String(v).replace(/\//g, '-').replace(' ', 'T')); if (!isNaN(t) && (!best || t > best.t)) best = { t:t, s:v, k:k };
+    });
+    return best;
+  }
+  window.home2Fill = function(d){
+    d = d || {};
+    try {
+      var n = new Date(), wk = ['日','一','二','三','四','五','六'];
+      var el = function(id){ return document.getElementById(id); };
+      var nm = localStorage.getItem('activeCharacterName') || localStorage.getItem('activeCharacterId') || '';
+      var h = n.getHours(), hi = h < 11 ? '早安' : (h < 14 ? '午安' : (h < 18 ? '下午好' : '晚上好'));
+      if (el('h2Hello')) el('h2Hello').textContent = (nm ? nm + '，' : '') + hi + '。';
+      if (el('h2Date')) el('h2Date').textContent = n.getFullYear() + '/' + pad(n.getMonth() + 1) + '/' + pad(n.getDate()) + '（' + wk[n.getDay()] + '）';
+      var rev = +d.rev || 0, goal = +d.goal || 0, pct = goal > 0 ? rev / goal * 100 : 0;
+      if (el('h2K1l')) el('h2K1l').textContent = (d.isAcad ? '學院業績' : '小組業績') + '・' + n.getFullYear() + ' 年度';
+      if (el('h2K1v')) el('h2K1v').innerHTML = goal || rev ? wan(rev).replace(' 萬', '<u>萬</u>').replace(' 億', '<u>億</u>') : '—';
+      if (el('h2K1bar')) el('h2K1bar').style.width = Math.min(100, pct) + '%';
+      if (el('h2K1a')) el('h2K1a').textContent = goal ? '目標 ' + wan(goal) : (d.isAcad ? '' : '個人 ' + wan(d.personal || 0));
+      if (el('h2K1b')) el('h2K1b').textContent = goal ? '達成 ' + pct.toFixed(1) + '%' : '';
+      // 年度目標 → 算到年底還有幾個上班日（星期日不算）
+      var need = goal > rev ? goal - rev : 0, work = 0;
+      for (var dt = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1); dt.getFullYear() === n.getFullYear(); dt.setDate(dt.getDate() + 1)){ if (dt.getDay() !== 0) work++; }
+      if (el('h2K2v')) el('h2K2v').innerHTML = goal ? (need > 0 && work > 0 ? wan(Math.ceil(need / work)).replace(' 萬', '<u>萬</u>') : '已達標') : '—';
+      if (el('h2K2a')) el('h2K2a').textContent = goal ? '還差 ' + wan(need) : '還沒設目標';
+      if (el('h2K2b')) el('h2K2b').textContent = goal ? '剩 ' + work + ' 個上班日' : '';
+      var ns = newestSync();
+      if (el('h2K3v')) el('h2K3v').textContent = ns ? String(ns.s).replace(/^\d+\/(\d+)\/(\d+)\s*/, '$1/$2 ') : '還沒同步';
+      if (el('h2K3a')) el('h2K3a').textContent = ns ? ({motiv:'激勵',checkin:'報到',funnel:'漏斗',edits:'編輯',channel:'通路'})[ns.k] + ' 最近一次同步' : '到業績數據中心按 ☁️↓ 拉取';
+      if (el('h2K3b')) el('h2K3b').textContent = ns && (Date.now() - ns.t > 86400000) ? '超過一天，可能不是最新' : '';
+      var pw = localStorage.getItem('perf_password'); if (el('h2Lock')) el('h2Lock').style.display = pw ? '' : 'none';
+      var tb = document.getElementById('trainBadge'), hb = el('h2TrainBadge'); if (tb && hb){ var tv = parseInt(tb.textContent, 10) || 0; hb.textContent = tv; hb.style.display = (tv > 0 && !tb.classList.contains('hidden')) ? 'flex' : 'none'; }
+      var sv = document.getElementById('totalScoreDisplay'), sl = document.getElementById('scoreCountLabel');
+      if (sv && el('h2ScoreV')) el('h2ScoreV').innerHTML = (sv.textContent || '0') + '<u>/100</u>';
+      if (sl && el('h2ScoreL')) el('h2ScoreL').textContent = sl.textContent || '';
+      var bars = el('h2ScoreBars'); if (bars){ var hb2 = ''; for (var i = 1; i <= 6; i++){ var f = document.getElementById('dimFill' + i); hb2 += '<i><b style="width:' + (f ? f.style.width : '0') + ';background:' + (f ? f.style.background : '#888') + '"></b></i>'; } bars.innerHTML = hb2; }
+    } catch(e){ console.warn('[home2]', e); }
+  };
+  window.addEventListener('load', function(){ setTimeout(function(){ home2Fill(window._home2Data || {}); }, 300); setInterval(function(){ home2Fill(window._home2Data || {}); }, 60000); });
+  window.addEventListener('firebase-sync-updated', function(){ setTimeout(function(){ home2Fill(window._home2Data || {}); }, 800); });
+})();
 function updateScoreDisplay(){
   // 年度業績達成率（從 castle_cards_v1 讀取當前角色資料）
   var pct=0, personal=0, groupRev=0, groupTarget=0, groupRatio=0;
@@ -2745,6 +2904,7 @@ function updateScoreDisplay(){
   }
   // 讀取 360 度能力檢核六大維度分數
   update360DimScores();
+  try { window._home2Data = { rev:groupRev, goal:groupTarget, personal:personal, isAcad:isAcad }; if (window.home2Fill) setTimeout(function(){ home2Fill(window._home2Data); }, 50); } catch(e){}
 }
 
 function update360DimScores(){
@@ -4213,7 +4373,7 @@ function perfOpen(){
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
   // ★ 2026/10/10：這個檔自己也會被瀏覽器快取，固定寫死版號永遠慢一步 →
   //   版號改成「ds54＋每 10 分鐘變一次的時間戳」：同事正常重新整理就拿到最新的 performance-compare.html（伺服器只回 304 很便宜），不用 Cmd+Shift+R
-  const PC_VER='ds125';
+  const PC_VER='ds126';
   const TARGET_SRC='performance-compare.html?v='+PC_VER+'-'+Math.floor(Date.now()/600000);
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes('v='+PC_VER+'-'))
     frame.src=TARGET_SRC;

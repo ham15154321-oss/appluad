@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>首頁提案 C・今日工作台</title>
+<style>
+:root{--bg:#FBFBFD;--ink:#1D1D1F;--dim:#6E6E73;--line:rgba(0,0,0,.08);--acc:#0071E3}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font:16px/1.55 -apple-system,system-ui,'PingFang TC','Noto Sans TC',sans-serif;color:var(--ink);background:var(--bg)}
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:16px;padding:12px 24px;background:rgba(251,251,253,.75);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--line)}
+.ava{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FFB86C,#FF7A59);display:grid;place-items:center;color:#fff;font-weight:800}
+.who{display:flex;align-items:center;gap:12px}.who b{display:block;line-height:1.2}.who small{font-size:13px;color:var(--dim)}
+.date{margin-left:auto;font-size:13px;color:var(--dim)}
+.acts{display:flex;gap:8px}.acts button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#fff;cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 24px 120px}
+.greet{margin-bottom:24px}.greet h1{font-size:30px;letter-spacing:-.02em;line-height:1.15}.greet p{color:var(--dim);margin-top:4px}
+.cols{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
+/* 左：入口方塊 */
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.tile{display:flex;gap:16px;align-items:center;padding:18px;border-radius:20px;background:#fff;border:1px solid var(--line);box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04);cursor:pointer;transition:transform .15s cubic-bezier(.2,.9,.25,1),box-shadow .15s}
+.tile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(0,0,0,.05),0 16px 36px rgba(0,0,0,.1)}.tile:active{transform:scale(.98)}
+.ic{width:60px;height:60px;border-radius:16px;display:grid;place-items:center;flex-shrink:0;color:#fff}
+.ic svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round}
+.i1{background:linear-gradient(135deg,#0A84FF,#5E5CE6)}.i2{background:linear-gradient(135deg,#1C1C1E,#48484A)}.i3{background:linear-gradient(135deg,#5E5CE6,#BF5AF2)}.i4{background:linear-gradient(135deg,#30D158,#0A84FF)}.i5{background:linear-gradient(135deg,#FF9F0A,#FF375F)}
+.tile b{display:block;font-size:19px;letter-spacing:-.01em}.tile span{font-size:13px;color:var(--dim)}
+.tile.hero{grid-column:span 2;padding:24px;background:linear-gradient(135deg,#0A84FF,#5E5CE6);color:#fff;border:0}
+.tile.hero .ic{background:rgba(255,255,255,.2)}.tile.hero span{color:rgba(255,255,255,.85)}.tile.hero b{font-size:24px}
+.tile.hero .kp{margin-left:auto;text-align:right}.tile.hero .kp b{font-size:34px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}.tile.hero .kp span{display:block}
+.quick{margin-top:20px;display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:36px;padding:0 14px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:15px;font-weight:600;cursor:pointer}.chip:active{transform:scale(.96)}
+/* 右：今天 */
+.side{display:flex;flex-direction:column;gap:16px;position:sticky;top:76px}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:18px 20px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04)}
+.card h3{font-size:13px;color:var(--dim);font-weight:700;letter-spacing:.04em;margin-bottom:10px;display:flex;justify-content:space-between}
+.card h3 a{color:var(--acc);text-decoration:none;font-weight:600;letter-spacing:0}
+.big{font-size:34px;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}.big u{text-decoration:none;font-size:15px;color:var(--dim);font-weight:600;margin-left:3px}
+.bar{height:8px;border-radius:4px;background:rgba(0,0,0,.06);margin:12px 0 8px;overflow:hidden}.bar i{display:block;height:100%;width:19.8%;background:linear-gradient(90deg,#0071E3,#5AC8FA)}
+.kv{display:flex;justify-content:space-between;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+.li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:15px}
+.li:first-of-type{border-top:0}.li i{width:8px;height:8px;border-radius:50%;flex-shrink:0}.li .r{color:#E24B4A}.li .y{color:#B35C00}
+.li b{font-weight:700}.li small{margin-left:auto;color:var(--dim);font-size:13px;white-space:nowrap}
+.r{background:#E24B4A}.y{background:#FF9F0A}.g{background:#34C759}
+.dock{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(255,255,255,.6);box-shadow:0 8px 30px rgba(0,0,0,.12)}
+.dock button{min-height:40px;padding:0 16px;border-radius:999px;border:0;background:transparent;font-size:15px;font-weight:600;cursor:pointer}.dock button.on{background:#1D1D1F;color:#fff}
+@media(max-width:960px){.cols{grid-template-columns:1fr}.side{position:static}.tiles{grid-template-columns:1fr}.tile.hero{grid-column:span 1;flex-wrap:wrap}}
+</style></head><body>
+<div class="top">
+  <div class="who"><div class="ava">翰</div><div><b>黃柏翰</b><small>台中學院・主管</small></div></div>
+  <div class="date">2026/10/20（二）</div>
+  <div class="acts"><button>☀︎</button><button>🔔</button><button>⚙︎</button></div>
+</div>
+<div class="wrap">
+  <div class="greet"><h1>柏翰，早安。</h1><p>第二關今天結算，4 組已過關。今天先盯台一、建國。</p></div>
+  <div class="cols">
+    <div>
+      <div class="tiles">
+        <div class="tile hero"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 18l6-7 4 4 6-9"/></svg></div><div><b>業績數據中心</b><span>七家學院・每日總結・漏斗・穿越</span></div><div class="kp"><b>19.8%</b><span>7,927 萬 ／ 40,000 萬</span></div></div>
+        <div class="tile"><div class="ic i2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 5V3M12 21v-2M5 12H3M21 12h-2"/></svg></div><div><b>AI 顧問</b><span>陪跑師・數據通・小任務</span></div></div>
+        <div class="tile"><div class="ic i3"><svg viewBox="0 0 24 24"><path d="M5 19V10l7-5 7 5v9"/><path d="M10 19v-5h4v5"/></svg></div><div><b>指揮城堡</b><span>人物卡・成就・360 分數</span></div></div>
+        <div class="tile"><div class="ic i4"><svg viewBox="0 0 24 24"><path d="M6 18l4-8 3 5 2-3 3 6"/><circle cx="17" cy="7" r="2"/></svg></div><div><b>練功坊</b><span>三寶・話術・訓練檢核</span></div></div>
+        <div class="tile"><div class="ic i5"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16"/></svg></div><div><b>星際廣場</b><span>360 檢核・法院・瀑布・火種</span></div></div>
+      </div>
+      <div class="quick"><button class="chip">🏔 瀑布通路</button><button class="chip">🎯 360 檢核</button><button class="chip">📅 每月績效</button><button class="chip">🏆 激勵</button><button class="chip">🏅 成就解鎖</button></div>
+    </div>
+    <div class="side">
+      <div class="card"><h3>10 月業績 <a href="#">每日總結 ›</a></h3><div class="big">7,927<u>萬</u></div><div class="bar"><i></i></div><div class="kv"><span>目標 40,000 萬</span><span>19.8%</span></div></div>
+      <div class="card"><h3>今天該盯 <a href="#">我的一頁 ›</a></h3>
+        <div class="li"><i class="r"></i><b>台一・張承鈞組</b><small>第二關 96%，差 4 萬</small></div>
+        <div class="li"><i class="r"></i><b>建國・鄭蕎萱組</b><small>第二關 94%，差 6 萬</small></div>
+        <div class="li"><i class="y"></i><b>台二・范允寶</b><small>連 2 天沒入帳</small></div>
+        <div class="li"><i class="g"></i><b>追蹤卡</b><small>5 張今天到期</small></div>
+      </div>
+      <div class="card"><h3>最近一次同步</h3><div class="li"><i class="g"></i>激勵<small>12:00</small></div><div class="li"><i class="g"></i>報到・漏斗<small>10:56</small></div><div class="li"><i class="g"></i>編輯追蹤<small>11:03</small></div></div>
+    </div>
+  </div>
+</div>
+<div class="dock"><button class="on">總覽</button><button>登出</button></div>
+</body></html>

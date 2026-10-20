@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>首頁提案 B・指揮艙</title>
+<style>
+:root{--bg:#000;--ink:#F5F5F7;--dim:#98989D;--line:rgba(255,255,255,.1);--glass:rgba(28,28,30,.72);--acc:#0A84FF}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font:16px/1.55 -apple-system,system-ui,'PingFang TC','Noto Sans TC',sans-serif;color:var(--ink);background:var(--bg)}
+body{min-height:100vh;background:
+ radial-gradient(1200px 700px at 50% -20%, #1b2a55 0%, #0b1025 45%, #000 80%);}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:
+ radial-gradient(1.5px 1.5px at 12% 18%,rgba(255,255,255,.7),transparent),radial-gradient(1px 1px at 28% 62%,rgba(180,210,255,.6),transparent),radial-gradient(1.5px 1.5px at 45% 30%,rgba(255,255,255,.5),transparent),radial-gradient(1px 1px at 62% 78%,rgba(160,200,255,.6),transparent),radial-gradient(1.5px 1.5px at 78% 22%,rgba(255,255,255,.7),transparent),radial-gradient(1px 1px at 88% 55%,rgba(180,210,255,.5),transparent)}
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:16px;padding:12px 24px;background:rgba(0,0,0,.4);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--line)}
+.ava{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FFB86C,#FF7A59);display:grid;place-items:center;color:#fff;font-weight:800}
+.who{display:flex;align-items:center;gap:12px}.who b{display:block;line-height:1.2}.who small{font-size:13px;color:var(--dim)}
+.date{margin-left:auto;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+.acts{display:flex;gap:8px}.acts button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.06);color:#fff;font-size:16px;cursor:pointer}.acts button:active{transform:scale(.94)}
+.wrap{max-width:1120px;margin:0 auto;padding:40px 24px 120px;position:relative}
+/* 英雄：一個大圓環 */
+.hero{display:grid;grid-template-columns:260px 1fr;gap:32px;align-items:center;margin-bottom:40px}
+.ring{position:relative;width:240px;height:240px;margin:0 auto}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .c{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ring .c b{font-size:44px;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}.ring .c small{font-size:13px;color:var(--dim);margin-top:6px;display:block}
+.hero h1{font-size:34px;letter-spacing:-.02em;line-height:1.15;margin-bottom:8px}
+.hero p{color:var(--dim);font-size:16px;max-width:520px}
+.stats{display:flex;gap:28px;margin-top:20px}.stats div b{display:block;font-size:24px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}.stats div small{font-size:13px;color:var(--dim)}
+.stats .g b{color:#30D158}.stats .o b{color:#FF9F0A}
+/* 模組列（像 iOS 設定的群組） */
+h2{font-size:13px;color:var(--dim);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:0 0 8px 16px}
+.list{background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--line);border-radius:22px;overflow:hidden;margin-bottom:28px}
+.row{display:flex;align-items:center;gap:16px;padding:16px 18px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s}
+.row:last-child{border-bottom:0}.row:hover{background:rgba(255,255,255,.05)}.row:active{background:rgba(255,255,255,.09)}
+.tile{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.tile svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round}
+.t1{background:linear-gradient(135deg,#0A84FF,#5E5CE6)}.t2{background:linear-gradient(135deg,#1C1C1E,#48484A)}.t3{background:linear-gradient(135deg,#5E5CE6,#BF5AF2)}.t4{background:linear-gradient(135deg,#30D158,#0A84FF)}.t5{background:linear-gradient(135deg,#FF9F0A,#FF375F)}
+.row .tx{flex:1;min-width:0}.row .tx b{display:block;font-size:18px;letter-spacing:-.01em}.row .tx span{font-size:13px;color:var(--dim)}
+.row .meta{font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums;text-align:right}
+.row .meta i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#30D158;margin-right:6px}
+.row .chev{color:var(--dim);font-size:20px}
+.row.big{padding:22px 18px}.row.big .tile{width:64px;height:64px;border-radius:18px}.row.big .tile svg{width:34px;height:34px}.row.big .tx b{font-size:22px}
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin-left:16px}
+.chip{min-height:36px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid var(--line);color:#fff;font-size:15px;font-weight:600;cursor:pointer}.chip:hover{background:rgba(255,255,255,.14)}.chip:active{transform:scale(.96)}
+.dock{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(28,28,30,.7);backdrop-filter:blur(20px);border:1px solid var(--line);box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.dock button{min-height:40px;padding:0 16px;border-radius:999px;border:0;background:transparent;color:#fff;font-size:15px;font-weight:600;cursor:pointer}.dock button.on{background:#fff;color:#000}
+@media(max-width:800px){.hero{grid-template-columns:1fr;text-align:center}.stats{justify-content:center}.hero p{margin:0 auto}}
+</style></head><body>
+<div class="top">
+  <div class="who"><div class="ava">翰</div><div><b>黃柏翰</b><small>台中學院・主管</small></div></div>
+  <div class="date">2026/10/20（二）</div>
+  <div class="acts"><button>☾</button><button>🔔</button><button>⚙︎</button></div>
+</div>
+<div class="wrap">
+  <div class="hero">
+    <div class="ring">
+      <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" stroke="rgba(255,255,255,.1)" stroke-width="9" fill="none"/><circle cx="50" cy="50" r="44" stroke="url(#g)" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="221.7"/><defs><linearGradient id="g"><stop offset="0" stop-color="#0A84FF"/><stop offset="1" stop-color="#64D2FF"/></linearGradient></defs></svg>
+      <div class="c"><div><b>19.8%</b><small>10 月達成率</small></div></div>
+    </div>
+    <div>
+      <h1>7,927 萬 <span style="font-size:18px;color:var(--dim);font-weight:500">／ 40,000 萬</span></h1>
+      <p>第二關今天結算，4 組已過關。今天還差 126 萬到線，優先盯台一、建國這兩家。</p>
+      <div class="stats"><div class="g"><b>+126 萬</b><small>今天該到</small></div><div class="o"><b>3 人</b><small>連 2 天沒入帳</small></div><div><b>5 張</b><small>追蹤卡今天到期</small></div></div>
+    </div>
+  </div>
+
+  <h2>主要</h2>
+  <div class="list">
+    <div class="row big"><div class="tile t1"><svg viewBox="0 0 24 24"><path d="M4 18l6-7 4 4 6-9"/></svg></div><div class="tx"><b>業績數據中心</b><span>七家學院・每日總結・漏斗・穿越・90 秒回顧</span></div><div class="meta"><i></i>12:00 已同步</div><div class="chev">›</div></div>
+    <div class="row big"><div class="tile t2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 5V3M12 21v-2M5 12H3M21 12h-2"/></svg></div><div class="tx"><b>AI 顧問</b><span>陪跑師・數據通・小任務・A 通路研究院</span></div><div class="meta">3 個新任務</div><div class="chev">›</div></div>
+  </div>
+
+  <h2>基地</h2>
+  <div class="list">
+    <div class="row"><div class="tile t3"><svg viewBox="0 0 24 24"><path d="M5 19V10l7-5 7 5v9"/><path d="M10 19v-5h4v5"/></svg></div><div class="tx"><b>指揮城堡</b><span>人物卡・成就・360 分數</span></div><div class="chev">›</div></div>
+    <div class="row"><div class="tile t4"><svg viewBox="0 0 24 24"><path d="M6 18l4-8 3 5 2-3 3 6"/><circle cx="17" cy="7" r="2"/></svg></div><div class="tx"><b>練功坊</b><span>三寶・話術・訓練檢核</span></div><div class="chev">›</div></div>
+    <div class="row"><div class="tile t5"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16"/></svg></div><div class="tx"><b>星際廣場</b><span>360 檢核・法院・瀑布・成就・火種</span></div><div class="chev">›</div></div>
+  </div>
+
+  <h2>快速啟動</h2>
+  <div class="quick"><button class="chip">🏔 瀑布通路</button><button class="chip">🎯 360 檢核</button><button class="chip">📅 每月績效</button><button class="chip">🏆 激勵</button><button class="chip">🏅 成就解鎖</button></div>
+</div>
+<div class="dock"><button class="on">總覽</button><button>登出</button></div>
+</body></html>
