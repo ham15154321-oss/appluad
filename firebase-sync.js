@@ -351,6 +351,7 @@ const GLOBAL_LS_KEY_PATTERNS = [
   /^char_.*_appedu_leader_map_v1_/, // ★ 360 度職能評核（全公司共享：登入該主角即可看到自己被評的分數/評語，不再因「誰登入時推送」而被鎖在別人的格子裡）
   /^ai_notify_cfg_v1$/,    // ★ 📣 AI 顧問提問通知設定（EmailJS 收件人/金鑰）— 管理員填一次，全公司裝置共用
   /^armory_v1$/,           // ★ ⚔️ 管理道場・武器庫（練功坊右門）— 全公司共享同一份武器清單
+  /^img_purged_v1$/,       // ★ ds132（10/21 Ivan 同意）：管理者清掉的照片清單（隱藏卡＝離職／不用的人），全公司每台推送前跳過、拉取後刪本機那份
 ];
 function isGlobalLsKey(k){
   if (!k) return false;
@@ -1644,6 +1645,12 @@ async function pushToCloud(opts){
             entries[ek] = rawEntries[ek];
           }
           if (_audioSkipCount > 0) console.log('[FirebaseSync] 跳過音效資料:', _audioSkipCount, '筆');
+          // ★ ds132：管理者清掉的照片（img_purged_v1）不推回雲端；本機那份也順手刪掉
+          if (idbInfo.dbName === 'SpaceBaseDB' && storeName === 'images'){
+            var _pg = _imgPurgedSet(), _pgHit = [];
+            for (var _pk in entries){ if (_pg[_pk]){ delete entries[_pk]; _pgHit.push(_pk); } }
+            if (_pgHit.length){ console.log('[FirebaseSync] 已清掉的照片不推：' + _pgHit.length + ' 張'); _imgPurgeLocal(_pgHit).catch(function(){}); }
+          }
           var entryCount = Object.keys(entries).length;
           // ★ 2026/09：原本這裡直接 continue，所以「本機把這個 store 清空」永遠傳不到雲端，
           //   下次 pull 整批長回來。改成：清空也要走一次推送（會寫出空的 main 並清掉孤兒分段）。
@@ -2371,6 +2378,7 @@ async function pullFromCloud(opts){
   if (!_light && _forceAll) _pulledAt.__lastFull = Date.now();
   _savePulledAt();
   _savePulledRev();
+  try { var _pgAll = Object.keys(_imgPurgedSet()); if (_pgAll.length) await _imgPurgeLocal(_pgAll); } catch(_ePg){}   // ★ ds132
   if (_skippedChars || _pulledChars) console.log('[FirebaseSync] 拉取：重抓 ' + _pulledChars + ' 人，沒變跳過 ' + _skippedChars + ' 人' + (_forceAll ? '（24 小時保險：全部重抓）' : ''));
 
   // ★ 關閉本輪 cache 起來的所有 IDB 連線
@@ -2801,6 +2809,76 @@ async function logAiChat(data){
   }
 }
 
+// ═══ ds132（10/21 Ivan 同意）清掉隱藏卡的照片 ═══
+// img_purged_v1（全公司共享 LS key）＝已清掉的照片 key 清單（castle_card_photo_<id>、castle_card_mascot_<id>）
+//   ① 每台推送前跳過清單上的 key（不會被誰的舊電腦推回雲端）② 每台拉取後把本機那份刪掉
+//   ③ purgeCloudImages(keys)：管理者按鈕呼叫，把每個人雲端 idb_SpaceBaseDB_images 裡這些 key 拿掉（同壓圖工具的寫法）
+function _imgPurgedSet(){
+  var o = {};
+  try { var a = JSON.parse(localStorage.getItem('img_purged_v1') || '[]'); if (Array.isArray(a)) a.forEach(function(k){ if (k) o[k] = 1; }); } catch(e){}
+  return o;
+}
+function _imgPurgeLocal(keys){
+  return new Promise(function(res){
+    try {
+      var q = indexedDB.open('SpaceBaseDB');
+      q.onsuccess = function(){
+        var db = q.result;
+        if (!db.objectStoreNames.contains('images')){ db.close(); res(0); return; }
+        var tx = db.transaction('images', 'readwrite'), st = tx.objectStore('images'), n = 0;
+        keys.forEach(function(k){ try { st.delete(k); n++; } catch(e){} });
+        tx.oncomplete = function(){ db.close(); res(n); }; tx.onerror = tx.onabort = function(){ try{ db.close(); }catch(e){} res(0); };
+      };
+      q.onerror = function(){ res(0); }; q.onblocked = function(){ res(0); };
+    } catch(e){ res(0); }
+  });
+}
+async function purgeCloudImages(keys, opts){
+  opts = opts || {};
+  if (!fsDb || !currentUserUid) throw new Error('雲端還沒連上，等幾秒再試');
+  keys = (keys || []).filter(function(k){ return /^castle_card_(photo|mascot)_/.test(k); });   // 只准清城堡卡照片，別的 key 一律不碰
+  if (!keys.length) return { chars:0, removed:0, detail:[] };
+  var want = {}; keys.forEach(function(k){ want[k] = 1; });
+  // 1) 先寫清單（全公司共享）：本機＋雲端 _global
+  var cur = Object.keys(_imgPurgedSet()); keys.forEach(function(k){ if (cur.indexOf(k) < 0) cur.push(k); });
+  var listVal = JSON.stringify(cur), ts = Date.now();
+  if (!opts.dryRun){
+    try { _origSet('img_purged_v1', listVal); _localTsMap['img_purged_v1'] = ts; _saveLocalTsMap(); } catch(e){}
+    await fsDb.collection('users').doc(currentUserUid).collection('_global').doc('shared').collection('localStorage').doc('img_purged_v1').set({ key:'img_purged_v1', value:listVal, ts:ts });
+    await _imgPurgeLocal(keys);
+  }
+  // 2) 每個人雲端那份拿掉
+  var baseRef = fsDb.collection('users').doc(currentUserUid).collection('characters');
+  var allSnap = await baseRef.get();
+  var report = { chars:0, removed:0, detail:[], errors:[] };
+  for (const charDoc of allSnap.docs){
+    var charId = charDoc.id, coll = baseRef.doc(charId).collection('idb_SpaceBaseDB_images');
+    try {
+      var snap = await coll.get(), map = {}, bigParts = {};
+      snap.forEach(function(ds){ var d = ds.data(); if (!d) return; var id = ds.id;
+        if (id === 'main' || id.indexOf('chunk_') === 0){ if (d.data) Object.assign(map, d.data); }
+        else if (id.indexOf('big_') === 0){ if (d.totalParts && d.totalParts > 1){ if (!bigParts[d.key]) bigParts[d.key] = { total:d.totalParts, pieces:{} }; bigParts[d.key].pieces[d.part] = d.value || ''; } else if (d.key) map[d.key] = d.value || ''; } });
+      for (var bk in bigParts){ var full = ''; for (var pp = 0; pp < bigParts[bk].total; pp++) full += (bigParts[bk].pieces[pp] || ''); if (full) map[bk] = full; }
+      var hit = Object.keys(map).filter(function(k){ return want[k]; });
+      if (!hit.length) continue;
+      report.chars++; report.removed += hit.length; report.detail.push(charId + '：' + hit.length + ' 張');
+      if (opts.dryRun) continue;
+      hit.forEach(function(k){ delete map[k]; });
+      var victims = [];
+      snap.forEach(function(ds){ var id = ds.id, d = ds.data() || {};
+        if (id.indexOf('chunk_') === 0) victims.push(ds.ref);
+        else if (id.indexOf('big_') === 0 && d.key && want[d.key]) victims.push(ds.ref); });
+      for (var vs = 0; vs < victims.length; vs += 20){ var wb = fsDb.batch(); victims.slice(vs, vs + 20).forEach(function(r){ wb.delete(r); }); await wb.commit(); }
+      await writeDataToFirestore(coll, map, {});
+      try { await baseRef.doc(charId).collection('_meta').doc('lsTs').set({ idbRev:{ idb_SpaceBaseDB_images: Date.now() } }, { merge:true }); } catch(e3){}
+      await baseRef.doc(charId).set({ updatedAt: Date.now() }, { merge:true });
+      await delay(300);
+    } catch(e){ report.errors.push(charId + '：' + (e && e.message || e)); }
+  }
+  console.log('[FirebaseSync] 🧹 清掉隱藏卡照片', report);
+  return report;
+}
+
 // ★ 2026/10/19 一次性工具（Ivan 同意動同事資料）：把雲端每個人 idb_SpaceBaseDB_images 裡超過 150KB 的圖壓一遍。
 //   用法（管理者在 console）：await firebaseSync.compressCloudImages({dryRun:true}) 先看會改多少；
 //   再 await firebaseSync.compressCloudImages() 真的寫。每個人寫完會更新 updatedAt，別台下次拉取就拿到小圖。
@@ -2861,6 +2939,7 @@ window.firebaseSync = {
   push: pushToCloud,
   pull: pullFromCloud,
   compressCloudImages: compressCloudImages,
+  purgeCloudImages: purgeCloudImages,   // ★ ds132
   changeSyncCode: changeSyncCode,
   logAiChat: logAiChat,
   // ★ iframe 用：直接讀寫 training_sales_direct 路徑（避免 iframe 跨 realm 物件問題）

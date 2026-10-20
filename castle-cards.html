@@ -372,7 +372,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
 *{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
 </style>
 <script src="./auth-check.js?v=5a09f9ce"></script>
-<script defer src="./firebase-sync.js?v=a6c1ea38"></script>
+<script defer src="./firebase-sync.js?v=24794ab3"></script>
 <link rel="stylesheet" href="day-mode.css?v=813e1a84">
 </head>
 <body>
@@ -508,6 +508,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(1px 1p
       </div>
     </div>
 
+    <!-- ★ ds132：清掉隱藏卡的照片（先下載備份、再全公司清掉） -->
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 12px;padding:10px 12px;border:1px dashed rgba(255,120,120,.35);border-radius:10px;">
+      <button class="ac-action-btn ac-del-btn" style="font-size:12px;padding:6px 12px;" onclick="castlePurgeHiddenPhotos()">🧹 清掉隱藏卡的照片</button>
+      <span style="font-size:11px;color:var(--dim);">只清「隱藏中」的卡的照片與吉祥物，會先下載一份備份到你的電腦；卡片、名字、業績都不動，之後要用再重新上傳照片</span>
+    </div>
     <!-- 卡牌列表 -->
     <div class="admin-grid" id="adminGrid"></div>
   </div>
@@ -832,6 +837,38 @@ function _castleBindPress(div){
   div.addEventListener('pointerleave', function(e){ if (st && e.pointerType === 'mouse'){ div.classList.remove('pressed'); } });
   div.tabIndex = 0; div.setAttribute('role', 'button');
   div.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); window._castleLastCard = div; onCardClick(parseInt(div.dataset.idx)); } });
+}
+// ★ ds132（10/21 Ivan 同意）：清掉隱藏卡的照片。流程：列出名單 → 確認 → 先下載備份 JSON → 呼叫首頁的 firebaseSync.purgeCloudImages（全公司清）
+async function castlePurgeHiddenPhotos(){
+  try {
+    var hid = cards.map(function(c, i){ return { c:c, i:i }; }).filter(function(x){ return x.c && x.c.hidden; });
+    if (!hid.length){ showToast('沒有隱藏中的卡'); return; }
+    var top = null; try { top = window.parent && window.parent.firebaseSync; } catch(e){}
+    if (!top || typeof top.purgeCloudImages !== 'function'){ alert('要從太空基地首頁打開城堡才能用（雲端模組在首頁）'); return; }
+    // 讀出要清的照片（記憶體沒有就從本機資料庫拿），做成備份
+    var keys = [], backup = { exportedAt: new Date().toISOString(), note: '隱藏卡照片備份（清除前）', cards: [] };
+    var db = await new Promise(function(res){ var q = indexedDB.open('SpaceBaseDB'); q.onsuccess = function(){ res(q.result); }; q.onerror = function(){ res(null); }; });
+    var get = function(k){ return new Promise(function(res){ if (!db || !db.objectStoreNames.contains('images')){ res(null); return; } try { var g = db.transaction('images','readonly').objectStore('images').get(k); g.onsuccess = function(){ res(g.result || null); }; g.onerror = function(){ res(null); }; } catch(e){ res(null); } }); };
+    for (var j = 0; j < hid.length; j++){
+      var c = hid[j].c, pk = 'castle_card_photo_' + c.id, mk = 'castle_card_mascot_' + c.id;
+      var ph = (c.photo && c.photo.length > 200) ? c.photo : await get(pk), ma = (c.mascot && c.mascot.length > 200) ? c.mascot : await get(mk);
+      keys.push(pk, mk);
+      backup.cards.push({ id:c.id, name:c.name || '', photo: (typeof ph === 'string') ? ph : null, mascot: (typeof ma === 'string') ? ma : null });
+    }
+    try { if (db) db.close(); } catch(e){}
+    var names = hid.map(function(x){ return x.c.name || ('#' + (x.i + 1)); }).join('、');
+    var dry = null; try { dry = await top.purgeCloudImages(keys, { dryRun:true }); } catch(e){}
+    if (!confirm('🧹 要清掉這 ' + hid.length + ' 張隱藏卡的照片與吉祥物嗎？\n\n' + names + '\n\n雲端會從 ' + (dry ? dry.chars : '?') + ' 個人的資料裡拿掉 ' + (dry ? dry.removed : '?') + ' 張。\n按「確定」會先下載一份備份到你的電腦，再全公司清掉。\n卡片、名字、業績都不動。')) return;
+    // 先下載備份
+    var blob = new Blob([JSON.stringify(backup)], { type:'application/json' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = '隱藏卡照片備份_' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    showToast('⏳ 清除中…（會跑一兩分鐘，別關頁）');
+    var r = await top.purgeCloudImages(keys);
+    hid.forEach(function(x){ x.c.photo = ''; x.c.mascot = ''; });
+    try { renderAdminGrid(); } catch(e){}
+    alert('✅ 清完了：雲端 ' + r.chars + ' 個人的資料裡共拿掉 ' + r.removed + ' 張' + (r.errors && r.errors.length ? '\n\n⚠ 有 ' + r.errors.length + ' 人沒清成功：\n' + r.errors.join('\n') + '\n（再按一次會補清）' : '') + '\n\n備份檔已下載到你電腦的「下載」資料夾。');
+  } catch(e){ alert('清除失敗：' + (e && e.message || e)); }
 }
 function getGlow(color){
   const map={gray:'rgba(150,150,150,.3)',red:'rgba(255,50,50,.3)',yellow:'rgba(255,200,0,.3)',purple:'rgba(160,50,255,.3)',black:'rgba(80,80,120,.3)',blue:'rgba(50,150,255,.3)'};
