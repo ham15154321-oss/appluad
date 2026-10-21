@@ -3640,3 +3640,36 @@ body.day-mode .pc-tools-btn{ color:#26215C !important; -webkit-text-fill-color:#
 /* ds123 穿越圖：業績過期提醒 */
 .tt-stale{ margin:8px 0 4px; padding:8px 12px; border-radius:10px; background:#FFF4D6; color:#7A4B00; border:1px solid #F2C46D; font-size:13px; font-weight:700; line-height:1.5; }
 body:not(.day-mode) .tt-stale{ background:rgba(250,199,117,.16); color:#FAC775; border-color:rgba(250,199,117,.45); }
+
+    /* ★ ds133（10/21 Ivan：績效盤點右邊「報未註追回」被切到）：那一欄標題跟橘色小字原本不准換行＋最少 215px，
+       表格比卡片寬 60～80px，多出來的藏在卡片裡橫向捲動（Mac 不顯示捲軸）→ 看起來像被切掉。
+       改成：右欄可以換行、最小 150px；格子左右內距 10→8；左右兩欄的主欄用 minmax(0,1fr) 才不會被內容撐開 */
+    .inv-grid { grid-template-columns:230px minmax(0,1fr); }
+    table.inv-t th:last-child { white-space:normal; min-width:150px; }
+    table.inv-t th:last-child small { white-space:normal; }
+    table.inv-t td.inv-rc { min-width:150px; max-width:190px; }
+    table.inv-t td.inv-rc small { white-space:normal; display:block; line-height:1.35; }
+    table.inv-t th, table.inv-t td { padding-left:8px; padding-right:8px; }
+    @media (max-width:900px){ .inv-grid { grid-template-columns:1fr; } }
+
+    /* ★ 10/21 Ivan：🏫 班況鈕（第 6 顆同步鈕）跟其他五顆同一個深色系，小色點用粉紅 */
+    body .hdr-sync-group .hdr-mode-btn.classes, body.day-mode .hdr-sync-group .hdr-mode-btn.classes { background: linear-gradient(180deg,#3A3A44,#24242B) !important; color: #fff !important; border-color: rgba(255,255,255,.08) !important; }
+    .hdr-sync-group .hdr-mode-btn.classes .hmb-line1::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: #ec4899; box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
+
+    /* ★ ds134（10/21 Ivan：同事用 GitHub 右邊的分頁看不到，要縮小視窗才看得到「成績單」）
+       原因：分頁列放不下時是藏在裡面橫著捲，Mac 不顯示捲軸，看不出右邊還有。
+       電腦：放不下就自動排成第二行，全部分頁一眼看得到。
+       手機（≤640px）：維持左右滑（兩行太佔空間），右邊加淡出提示「還有」，切分頁時自動把目前的分頁捲進畫面。 */
+    @media (min-width: 641px){
+      .tabs-container { flex-wrap: wrap; overflow-x: visible; row-gap: 8px; }
+    }
+    @media (max-width: 640px){
+      .tabs-container.pc-tabs-more { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+    }
+    /* ★ ds134：表頭在窄視窗時，標題被擠成一字一行、右邊的同步／鎖定／推送／拉取／通知被擠出畫面 → 標題不換行、按鈕放不下就換到下一行 */
+    @media (min-width: 641px){
+      header { flex-wrap: wrap; row-gap: 8px; }
+      .header-left { flex-shrink: 0; }
+      .header-title { white-space: nowrap; }
+      .hdr-sync-group { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
+    }

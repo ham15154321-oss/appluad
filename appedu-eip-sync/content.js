@@ -1157,7 +1157,8 @@
     // 每 7 天要跟實查對帳一次 → 那天連已報到也整段抓，才有完整名單可以比
     var dueRecheck = !nst0.checkedAt || (Date.now() - nst0.checkedAt > CK_NET_RECHECK_MS);
     var fOut = {};
-    var formal = await step(1, '已報到', { q7: monthStart, q16: 'formal' }, !(nst0.ok === 1 && dueRecheck), { wantRows: true, out: fOut });
+    // ★ v5.60：重驗日兩邊都整段抓（不管上次對帳結果），對完 checkedAt 一定會更新 → 之後 7 天都走快速，不會卡在「天天重驗」
+    var formal = await step(1, '已報到', { q7: monthStart, q16: 'formal' }, !dueRecheck, { wantRows: true, out: fOut });
     await sleep(EIP_THROTTLE_MS);
 
     // ── 網路已報到：能推算就不要再查一次 ──
@@ -1180,7 +1181,10 @@
     }
     if (!net){
       var nOut = {};
-      net = await step(2, '網路已報到', { q7: monthStart, q16: 'formal', q13: '3' }, true, { wantRows: true, out: nOut });
+      // ★ v5.60（10/21）修：定期重驗日「網路已報到」也要整段抓，兩邊都有完整名單才能對帳。
+      //   以前這裡固定可切段 → 重驗日永遠對不了帳、checkedAt 不更新 → 之後每一次同步都以為「今天是重驗日」，
+      //   已報到每次都整段抓（29 頁、50～78 秒）。改完：重驗日多抓一次網路（約 25 頁），之後 7 天都走快速，EIP 總請求變少。
+      net = await step(2, '網路已報到', { q7: monthStart, q16: 'formal', q13: '3' }, !dueRecheck, { wantRows: true, out: nOut });
       // 兩邊都是整段、都有列 → 學對照表並對帳
       var fullNetRows = (nOut.rows && nOut.rows.length && net.total === nOut.rows.length) ? nOut.rows : null;
       if (fullFormalRows && fullNetRows){
@@ -1452,14 +1456,16 @@
       var tds = getDirectCells(trs[i]);
       if (tds.length <= ix.date) continue;
       var name = _fnTxt(tds[ix.name]); if (!name) continue;
-      var bought = tds[ix.bought], app = 0, reg = 0, courses = [];
+      var bought = tds[ix.bought], app = 0, reg = 0, courses = [], cst = [];
       if (bought){
         var divs = bought.querySelectorAll('div');
         for (var d = 0; d < divs.length; d++){
-          var cls = divs[d].className || '';
-          var cn = _fnTxt(divs[d]).replace(/\s*(未登記|登記上課|登記未出席|使用未過 1\/3|出席.*)$/, '');
-          if (/pay_status1/.test(cls)){ app++; courses.push(cn + '(報名)'); }
-          else if (/pay_status2/.test(cls)){ reg++; courses.push(cn + '(註冊)'); }
+          var cls = divs[d].className || '', raw = _fnTxt(divs[d]);
+          var cn = raw.replace(/\s*(未登記|登記上課|登記未出席|使用未過 1\/3|出席.*)$/, '');
+          // ★ v5.63（10/21 Ivan 註冊未消耗）：把每門課的登記狀態留下來（未登記／登記上課／登記未出席／使用中…）
+          var stm = raw.match(/(未登記|登記上課|登記未出席|使用未過 1\/3|使用已過 1\/[23]|使用已過 1\/2|出席[^\s]*)\s*$/), st = stm ? stm[1] : '';
+          if (/pay_status1/.test(cls)){ app++; courses.push(cn + '(報名)'); cst.push({ n: cn, k: '報名', st: st }); }
+          else if (/pay_status2/.test(cls)){ reg++; courses.push(cn + '(註冊)'); cst.push({ n: cn, k: '註冊', st: st }); }
         }
       }
       out.push({
@@ -1473,6 +1479,7 @@
         a: app,                                         // 報名中的課程數（報未註）
         r: reg,                                         // 已註冊課程數
         c: courses.slice(0, 4).join('、'),
+        cs: cst,                                        // ★ v5.63：每門課 {n:課名, k:報名/註冊, st:登記狀態}
         m: ix.note != null ? _fnTxt(tds[ix.note]).slice(0, 200) : '',
         id: _trialRowId(trs[i]),                        // 學員 id（深挖狀態歷史記錄用）
         ids: _trialRowIds(trs[i]),                      // 同一列的所有候選編號（挑錯就換下一個）
@@ -1754,12 +1761,15 @@
     }, 12000);
     var payCsv = null;
     try {
+      var _csvT0 = Date.now();
       payCsv = await _fnPayCsvAll(y, m, mStart, mEnd);
+      data.meta.csvSec = Math.round((Date.now() - _csvT0) / 1000);
       if (payCsv) data.meta.paySrc = 'csv';
       await sleep(FUNNEL_PAGE_THROTTLE_MS);
       for (var k = 0; k < PERF_ORGS.length; k++){
         var org = PERF_ORGS[k];
         var lab = '🔀 ' + org.name + '（' + (k+1) + '/' + PERF_ORGS.length + '）';
+        var _orgT0 = Date.now();   // ★ v5.60：記每家花幾秒（不含家與家之間的 4 秒停頓），寫進完成訊息，之後才知道慢在哪
        // ★ v5.55（2026/10/04）：一家出錯不再整批停掉 —— 原本台三一失敗，後面壢一～建國全部沒抓，10 月面談一直是 0
        try {
         data.nIncOrg = nIncOrg; data.nFullOrg = nFullOrg; data.nSeg = nSeg;
@@ -1825,6 +1835,7 @@
           }
         }
         if (pay){
+          (data.meta.orgSec || (data.meta.orgSec = {}))[org.name] = Math.round((Date.now() - _orgT0) / 1000);
           data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs, editAt: _editAt };
           await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, k < PERF_ORGS.length - 1);
           if (k < PERF_ORGS.length - 1){ notify('status', { msg: lab + ' 完成，停 4 秒讓 EIP 喘口氣…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } }); await sleep(FUNNEL_ORG_GAP_MS); }
@@ -1844,6 +1855,7 @@
           var keepPay = (oc.pay || []).filter(function(r){ return String(r.d || '') < payFrom; });
           pay = _fnDedupe(keepPay.concat(payNew));
         } else pay = payNew;
+        (data.meta.orgSec || (data.meta.orgSec = {}))[org.name] = Math.round((Date.now() - _orgT0) / 1000);
         data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs, editAt: _editAt };
         // ★ 每家抓完就存一次：中途關掉頁面也不會整批白跑，下次接著跑
         await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, k < PERF_ORGS.length - 1);
@@ -1853,6 +1865,7 @@
         var em = String((orgErr && orgErr.message) || orgErr || '未知錯誤').slice(0, 160);
         console.error('[EIP Content] 漏斗 ' + org.name + ' 抓取失敗，沿用上次資料：', orgErr);
         data.meta.orgErr = data.meta.orgErr || {}; data.meta.orgErr[org.name] = em;
+        (data.meta.orgSec || (data.meta.orgSec = {}))[org.name] = Math.round((Date.now() - _orgT0) / 1000);
         if (prev && prev.orgs && prev.orgs[org.name]) data.orgs[org.name] = prev.orgs[org.name];
         notify('status', { msg: '⚠️ ' + org.name + ' 抓取失敗（' + em + '），先沿用上次資料，繼續下一家…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } });
         try { await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, true); } catch(e2){}
@@ -1880,6 +1893,7 @@
       msg: (data.meta.orgErr ? '⚠️ 漏斗同步完成，但 ' + Object.keys(data.meta.orgErr).join('、') + ' 抓取失敗（沿用上次資料）：' + Object.keys(data.meta.orgErr).map(function(o){ return o + '＝' + data.meta.orgErr[o]; }).join('；') + '　' : '🔀 漏斗同步完成！') + '面談紀錄 ' + nI + ' 人（含往回 3 個月）／ 報名・註冊明細 ' + nP + ' 筆'
         + (data.meta.paySrc === 'csv' ? '　💵 收支走 CSV（1 個請求，省下逐頁）' : '')
         + (data.meta.incremental ? '　⚡ 增量：' + data.nIncOrg + ' 家沿用快取、只補沒涵蓋的日期' + (data.nChanged ? '（另更新 ' + data.nChanged + ' 列有變動的舊紀錄）' : '') + (data.nFullOrg ? '、' + data.nFullOrg + ' 家第一次完整抓' : '') : '　（完整重抓）')
+        + (data.meta.orgSec ? '\n　⏱ 每家秒數：' + (data.meta.csvSec != null ? '收支 CSV ' + data.meta.csvSec + '、' : '') + Object.keys(data.meta.orgSec).map(function(o){ return o + ' ' + data.meta.orgSec[o]; }).join('、') + '（家與家之間另停 4 秒保護 EIP）' : '')
     });
   }
 
@@ -2484,6 +2498,328 @@
     try { var cur = _lockRead(); if (cur && cur.id === _lockId) localStorage.removeItem(EIP_LOCK_KEY); } catch(e){}
   }
   var _syncBusy = false; // ★ v5.5：全域單一同步鎖 — 同時間只允許一個模式抓 EIP
+  // ══════════════════════════════════════
+  //  ★ v5.61（10/21 Ivan）模式：🏫 班況（v5.64 加出席細查） —— 給 13:40 日會議程用
+  //    開班人數、即將結業、單元／正式、開課近幾天出缺勤；三區（桃竹、中、南）一起抓
+  //    只用 GET 讀三種頁面：開班查詢 register_class.php、出勤登錄 list_attendance.php、出席狀況 list_attendance_attendance.php
+  //    寧願慢也不要影響 EIP：一次只讀一頁；每頁讀完至少停 3 秒（或這頁花的時間 ×5，取大的）；一頁超過 3 秒就停 30 秒
+  //    不帶電話、不帶繳費金額；v5.64 起中區＋建國多帶「出席細查」：學生姓名、承辦人、每堂出席／請假／曠課（給 13:40 網頁版細查用）
+  //    快取：過去月份的班級清單、每一班的結業日（同一班只讀一次）、已經過去的堂次出缺勤
+  // ══════════════════════════════════════
+  var CLS_REGIONS = { '桃竹區': 17, '中區': 22, '南區': 26 };
+  var CLS_SHORT = { '台中學院':'台一', '台中二部':'台二', '台中三部':'台三', '中壢學院':'壢一', '中壢二部':'壢二', '中壢三部':'壢三', '高雄建國':'建國' };
+  var CLS_BACK = 5, CLS_GAP_MS = 3000, CLS_SLOW_MS = 3000, CLS_SLOW_WAIT = 30000, CLS_RECENT_DAYS = 14, CLS_DETAIL_DAYS = 7;
+  var CLS_HOST = 'http://eip.appedu.com.tw';
+  // ★ v5.64（10/21 Ivan）出席細查：每位學生的承辦、累計出席、最近一堂狀態 —— 先做中區＋建國（南區），桃竹區之後再開
+  var CLS_ROSTER_REGIONS = { '中區': 1, '南區': 1 };
+  var CLS_DETAIL_CAP = 40;        // 每次同步「名單＋出席狀況」最多讀 40 頁，讀不完下次接著讀（第一次補讀分次跑）
+  var CLS_SLOW_STOP = 3;          // 這一次同步 EIP 慢了 3 頁 → 細查直接收工，剩下的下次再讀
+  var CLS_ROSTER_DAYS = 7;        // 名單：人數沒變、離開班超過 3 天的班，7 天重讀一次
+  var _clsSlowN = 0;
+  function _clsTxt(el){ return (el && (el.innerText || el.textContent) || '').replace(/\s+/g, ' ').trim(); }
+  function _clsDoc(html){ return new DOMParser().parseFromString(html || '', 'text/html'); }
+  // 找「第一列裡有這幾個欄名（整格完全相符）」的表格；版面外框表格不會誤中
+  function _clsTable(doc, names){ return Array.prototype.find.call(doc.querySelectorAll('table'), function(x){ if (x.rows.length < 2) return false; var hs = Array.prototype.map.call(x.rows[0].cells, function(c){ return _clsTxt(c).replace(/[?？❓\s]+$/, ''); }); return names.every(function(n){ return hs.some(function(h){ return h === n || (h.indexOf(n) === 0 && h.length <= n.length + 3); }); }); }); }
+  function _clsD(s){ var m = String(s || '').match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
+  function _clsYmd(d){ return d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0'); }
+  function _clsDays(a, b){ return Math.round((b.getTime() - a.getTime()) / 86400000); }
+  async function _clsGet(url, label){
+    notify('status', { msg: '🏫 班況：' + label });
+    var t0 = Date.now();
+    var html = await fetchViaBackground(url);
+    var ms = Date.now() - t0;
+    if (ms > CLS_SLOW_MS){
+      _clsSlowN++;
+      notify('status', { msg: '🏫 班況：EIP 有點慢（這頁 ' + Math.round(ms / 1000) + ' 秒），停 30 秒讓它喘口氣…' });
+      await sleep(CLS_SLOW_WAIT);
+    } else await sleep(Math.max(CLS_GAP_MS, ms * 5));
+    return html;
+  }
+  function _clsKind(t){ return t === '課程講座' ? '講座' : (t === '設計單科系列課程' ? '單元' : '正式'); }
+  async function _clsList(region, q1, y, m){
+    var html = await _clsGet(CLS_HOST + '/class/class/register_class.php?q1=' + q1 + '&q7=&q8=&q2=&q3=&q4=&q5=' + y + '&q6=' + m + '&q14=&q15=', region + ' ' + y + '/' + m + ' 班級清單');
+    var doc = _clsDoc(html);
+    var t = _clsTable(doc, ['班級名稱', '開班日期']);
+    if (!t) return /班級名稱|開班查詢/.test(html) ? [] : null;   // null＝頁面不對（多半是 EIP 登出）
+    var head = Array.prototype.map.call(t.rows[0].cells, _clsTxt);
+    var col = function(n){ return head.indexOf(n); };
+    var out = [];
+    for (var i = 1; i < t.rows.length; i++){
+      var c = t.rows[i].cells; if (c.length < 8) continue;
+      var h = t.rows[i].innerHTML, mm = h.match(/clickDetail\((\d+)\)/) || h.match(/classDetail\((\d+)\)/); if (!mm) continue;
+      var org = _clsTxt(c[col('組織')]), typ = _clsTxt(c[col('課程類型')]);
+      out.push({ cid: mm[1], 區: region, 學院: org, 院: CLS_SHORT[org] || org, 類型: _clsKind(typ), 課程類型: typ,
+        單科課程: _clsTxt(c[col('單科課程')]), 班名: _clsTxt(c[col('班級名稱')]), 開班日: _clsTxt(c[col('開班日期')]), 時段: _clsTxt(c[col('上課時段')]),
+        座位: +_clsTxt(c[col('座位數')]) || 0, 正取: +_clsTxt(c[col('已登記正取')]) || 0, 試聽: +_clsTxt(c[col('已登記試聽')]) || 0, 備取: +_clsTxt(c[col('已登記備取')]) || 0 });
+    }
+    return out;
+  }
+  // 出勤登錄頁：麵包屑有「開班日 ~ 結業日」，表格每一堂有上課日期、應到、實到、出席狀況按鈕
+  function _clsParseAtt(html){
+    var doc = _clsDoc(html), body = _clsTxt(doc.body);
+    var rg = body.match(/(\d{4}\/\d{2}\/\d{2})\s*[~～]\s*(\d{4}\/\d{2}\/\d{2})/);
+    var t = _clsTable(doc, ['上課日期', '應到', '實到']);
+    var ses = [];
+    if (t){
+      var head = Array.prototype.map.call(t.rows[0].cells, _clsTxt);
+      var ix = function(re){ for (var k = 0; k < head.length; k++) if (re.test(head[k])) return k; return -1; };
+      var iD = ix(/上課日期/), iY = ix(/^應到/), iS = ix(/^實到/);
+      for (var i = 1; i < t.rows.length; i++){
+        var c = t.rows[i].cells; if (c.length <= Math.max(iD, iY, iS)) continue;
+        var dt = _clsTxt(c[iD]), dm = dt.match(/(\d{4}\/\d{2}\/\d{2})/); if (!dm) continue;
+        var rh = t.rows[i].innerHTML.replace(/&amp;/g, '&');
+        var link = (rh.match(/list_attendance_attendance\.php\?[^"'\s<>]+/) || [])[0] || '';
+        // ★ v5.62：EIP 的「出席狀況」鈕是 onclick="clickAttendance(227732)"，括號裡的數字就是那一堂的 id
+        var sid = (rh.match(/clickAttendance\((\d+)\)/) || [])[1] || (link ? ((link.match(/[?&]id=(\d+)/) || [])[1] || '') : ((rh.match(/[?&]id=(\d+)/) || [])[1] || ''));
+        ses.push({ 日期: dm[1], 時段: (dt.match(/\(([^)]+)\)/) || [])[1] || '', 應到: +_clsTxt(c[iY]) || 0, 實到: +_clsTxt(c[iS]) || 0, link: link, id: sid });
+      }
+    }
+    var pg = body.match(/共\s*(\d+)\s*頁/);
+    return { 開班: rg ? rg[1] : '', 結業: rg ? rg[2] : '', ses: ses, pages: pg ? +pg[1] : 1, ok: !!t };
+  }
+  // 出席狀況頁：逐位學生「出席／掃碼出席／請假／曠課」→ 只數人數
+  function _clsParseDetail(html){
+    var doc = _clsDoc(html);
+    var t = _clsTable(doc, ['姓名', '出席狀況']);
+    if (!t) return null;
+    var head = Array.prototype.map.call(t.rows[0].cells, _clsTxt), iA = -1, iN = -1;
+    for (var k = 0; k < head.length; k++){ if (iA < 0 && /^出席狀況/.test(head[k])) iA = k; if (iN < 0 && /^姓名/.test(head[k])) iN = k; }
+    if (iA < 0) return null;
+    // ★ v5.64：名單＝{ 姓名: 出／假／曠／未 }（掃碼出席也算出）
+    var r = { 人數: 0, 出席: 0, 請假: 0, 曠課: 0, 未點名: 0, 名單: {} };
+    for (var i = 1; i < t.rows.length; i++){
+      var c = t.rows[i].cells; if (c.length <= iA) continue;
+      var v = _clsTxt(c[iA]), code; r.人數++;
+      if (/請假/.test(v)){ r.請假++; code = '假'; } else if (/曠課/.test(v)){ r.曠課++; code = '曠'; } else if (/出席/.test(v)){ r.出席++; code = '出'; } else { r.未點名++; code = '未'; }
+      var nm = iN >= 0 && c[iN] ? _clsTxt(c[iN]) : ''; if (nm) r.名單[nm] = code;
+    }
+    return r;
+  }
+  // ★ v5.64 登記狀況頁：一班的名單（只留姓名、承辦人、正取／試聽、客服前七天／前三天／當天、登記狀態；不帶電話、不帶繳費）
+  function _clsParseRoster(html){
+    var doc = _clsDoc(html);
+    var t = Array.prototype.find.call(doc.querySelectorAll('table'), function(x){ return x.rows.length > 0 && /登記人員/.test(_clsTxt(x.rows[0])) && /承辦人/.test(_clsTxt(x.rows[0])); });
+    if (!t) return /登記狀況|班級名稱/.test(html) ? [] : null;
+    var head = Array.prototype.map.call(t.rows[0].cells, _clsTxt);
+    var at = function(cells, n){ var i = head.indexOf(n); return i >= 0 && cells[i] ? _clsTxt(cells[i]) : ''; };
+    var out = [];
+    for (var i = 1; i < t.rows.length; i++){
+      var c = t.rows[i].cells; if (c.length < 10) continue;
+      var nm = at(c, '姓名'); if (!nm) continue;
+      out.push({ 名: nm, 承辦: at(c, '承辦人'), 別: _clsTxt(c[1]), 七: at(c, '前七天'), 三: at(c, '前三天'), 當: at(c, '當天'), 登: at(c, '登記狀態') });
+    }
+    return out;
+  }
+  // ★ v5.65（10/21 Ivan，13:40 網頁版 4-1）助理段兩張卡：用 ⚡ 漏斗已經存好的「面談紀錄＋收支明細」算，不多讀 EIP
+  //   ① 註冊未消耗：這個月收支「註冊」（含學員加購）的學生，那門課在面談紀錄上還是「未登記」→ 一門課一筆
+  //   ② 走到哪一關：這個月面談的人，依承辦人數 談過／報名／註冊／進班上課（進班上課＝有註冊、而且註冊的課已經登記）
+  var CLS_ASST_ORGS = { '台中學院': '台一', '台中二部': '台二', '台中三部': '台三', '高雄建國': '建國' };
+  var CLS_ASST_BOSS = { '凃敏薰': 1, '黎禹歆': 1 };   // 主管：合計照算，業務明細標出來讓網頁決定要不要列
+  function _clsNorm(t){ return String(t || '').replace(/[\s（）()【】\[\]－\-—_｜|・.,，、♣︎]/g, '').replace(/班$/, ''); }
+  function _clsSameCourse(a, b){ a = _clsNorm(a); b = _clsNorm(b); if (!a || !b) return false; var k = Math.min(4, a.length, b.length); return a.slice(0, k) === b.slice(0, k); }
+  async function _clsAsst(today){
+    var fd = await _fnDbGet(_cid() + 'motiv_funnel_v1');
+    if (!fd){ try { fd = JSON.parse(localStorage.getItem(_cid() + 'motiv_funnel_v1') || 'null'); } catch(e){} }
+    if (!fd || !fd.orgs || !fd.meta) return null;
+    var y = +fd.meta.year, m = +fd.meta.month, ym = y + '/' + String(m).padStart(2, '0') + '/';
+    var unc = [], fun = [], miss = [];
+    Object.keys(CLS_ASST_ORGS).forEach(function(org){
+      var o = fd.orgs[org], sh = CLS_ASST_ORGS[org]; if (!o) return;
+      var itv = o.itv || [], pay = o.pay || [], last = {};
+      itv.forEach(function(r){ if (!last[r.n] || String(r.d) > String(last[r.n].d)) last[r.n] = r; });
+      // ① 註冊未消耗
+      var reg = {};
+      pay.forEach(function(p){
+        if (p.st !== '註冊' || String(p.d).indexOf(ym) !== 0) return;
+        var x = reg[p.n] || (reg[p.n] = { d: p.d, o: p.o, ks: [], add: false });
+        if (String(p.d) < String(x.d)) x.d = p.d;
+        if (p.k) x.ks.push(p.k); if (!x.o && p.o) x.o = p.o; if (/學員加購/.test(p.sub || '')) x.add = true;
+      });
+      Object.keys(reg).forEach(function(nm){
+        var r = last[nm], x = reg[nm];
+        if (!r || !r.cs){ miss.push(sh + ' ' + nm); return; }   // 面談紀錄往回 3 個月內查不到這個人（多半是很久以前的舊生加購）
+        var regC = r.cs.filter(function(c){ return c.k === '註冊'; });
+        var hit = regC.filter(function(c){ return x.ks.some(function(k){ return _clsSameCourse(c.n, k); }); });
+        var use = hit.length ? hit : regC;   // 課名對不上 → 退回看他所有註冊的課
+        use.filter(function(c){ return c.st === '未登記'; }).forEach(function(c){
+          var dd = _clsD(x.d);
+          unc.push({ 院: sh, 承辦: x.o || r.o || '', 學生: nm, 課程: c.n, 註冊日: x.d, 天: dd ? _clsDays(dd, today) : '', 加購: x.add, 對到課名: !!hit.length });
+        });
+      });
+      // ② 走到哪一關（這個月面談的人；同一人多筆取最新）
+      var seen = {}, by = {};
+      itv.filter(function(r){ return String(r.d).indexOf(ym) === 0; }).sort(function(a, b){ return String(b.d).localeCompare(String(a.d)); }).forEach(function(r){
+        if (seen[r.n]) return; seen[r.n] = 1;
+        var k = r.o || '（沒有承辦）', b = by[k] || (by[k] = { 院: sh, 業務: k, 主管: !!CLS_ASST_BOSS[k], 談過: 0, 報名: 0, 註冊: 0, 進班上課: 0 });
+        b.談過++;
+        if ((+r.a || 0) > 0 || (+r.r || 0) > 0) b.報名++;
+        if ((+r.r || 0) > 0){ b.註冊++; if ((r.cs || []).some(function(c){ return c.k === '註冊' && c.st && c.st !== '未登記'; })) b.進班上課++; }
+      });
+      Object.keys(by).forEach(function(k){ fun.push(by[k]); });
+    });
+    unc.sort(function(a, b){ return (+b.天 || 0) - (+a.天 || 0); });
+    fun.sort(function(a, b){ return a.院.localeCompare(b.院) || b.談過 - a.談過; });
+    return { 月: y + '/' + m, 漏斗同步: fd.meta.syncedAt || '', 註冊未消耗: unc, 走到哪一關: fun, 查不到: miss };
+  }
+  async function syncClasses(){
+    var cid = _cid(), CK = cid + 'classes_cache_v1';
+    // ★ v5.62：快取改存 FunnelDB（IndexedDB）—— localStorage 已經滿了（約 10MB），存不進去，每次都要重讀結業日
+    var cache = (await _fnDbGet(CK)) || null;
+    if (!cache){ try { cache = JSON.parse(localStorage.getItem(CK) || '{}') || {}; } catch(e){ cache = {}; } }
+    cache.lists = cache.lists || {}; cache.att = cache.att || {}; cache.det = cache.det || {};
+    cache.ros = cache.ros || {}; cache.ss = cache.ss || {};   // ★ v5.64 名單、每一堂出席（上過的堂讀一次就存，不再讀）
+    _clsSlowN = 0;
+    var now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate()), todayS = _clsYmd(today);
+    var months = []; for (var i = CLS_BACK; i >= -1; i--){ var x = new Date(today.getFullYear(), today.getMonth() - i, 1); months.push({ y: x.getFullYear(), m: x.getMonth() + 1, past: i > 0 }); }
+    var all = [], nPage = 0, nList = 0;
+    // ① 班級清單：這個月＋下個月每次都讀；過去月份讀過一次就用存的
+    for (var r in CLS_REGIONS){
+      for (var k = 0; k < months.length; k++){
+        var M = months[k], key = r + '|' + M.y + '-' + String(M.m).padStart(2, '0');
+        var list = (M.past && cache.lists[key]) ? cache.lists[key] : null;
+        if (!list){
+          list = await _clsList(r, CLS_REGIONS[r], M.y, M.m); nPage++; nList++;
+          if (list === null) throw new Error('EIP「開班查詢」讀不到（' + r + ' ' + M.y + '/' + M.m + '），多半是 EIP 登出了：請先登入 EIP 再按一次');
+          if (M.past) cache.lists[key] = list;
+        }
+        list.forEach(function(c){ all.push(Object.assign({}, c)); });
+      }
+    }
+    // 同一班出現在兩個月份（不會，但保險）→ 以最新讀的為準
+    var seen = {}; all = all.filter(function(c){ if (seen[c.cid]) return false; seen[c.cid] = 1; return true; });
+    // ② 出勤登錄：沒有結業日的班讀一次；開班 14 天內的班每次重讀（拿應到／實到）
+    var need = all.filter(function(c){
+      if (c.類型 === '講座') return false;
+      var od = _clsD(c.開班日); if (!od) return false;
+      var a = cache.att[c.cid], dd = _clsDays(od, today);
+      if (!a || !a.結業) return true;
+      var ed = _clsD(a.結業); if (ed && _clsDays(ed, today) > 7) return false;   // 結業超過 7 天，不用再看
+      return dd >= 0 && dd <= CLS_RECENT_DAYS;
+    });
+    for (var j = 0; j < need.length; j++){
+      var c = need[j];
+      try {
+        var p = _clsParseAtt(await _clsGet(CLS_HOST + '/class/service/list_attendance.php?cid=' + c.cid, '出勤 ' + (j + 1) + '/' + need.length + '：' + c.院 + ' ' + c.班名)); nPage++;
+        if (!p.ok && !p.結業) continue;
+        var end = p.結業 || (p.pages <= 1 && p.ses.length ? p.ses[p.ses.length - 1].日期 : '');
+        var done = p.ses.filter(function(s){ var d = _clsD(s.日期); return d && d <= today; });
+        cache.att[c.cid] = { 結業: end, 堂數: p.ses.length, at: todayS,
+          ses: p.ses.map(function(s){ return { d: s.日期, t: s.時段, id: s.id || '', y: s.應到, s: s.實到 }; }),
+          第一堂: p.ses[0] || null, 第二堂: p.ses[1] || null, 最近一堂: done.length ? done[done.length - 1] : null, 已上: done.length };
+      } catch(e){ console.warn('[EIP Content] 班況：出勤頁讀不到', c.cid, e); }
+    }
+    // ③ 出席狀況：開班 7 天內的班，第一堂（已經上過的）拆請假／曠課；那一堂過了隔天就存起來不再讀
+    for (var q = 0; q < all.length; q++){
+      var cc = all[q], a2 = cache.att[cc.cid]; if (!a2 || !a2.第一堂 || cc.類型 === '講座') continue;
+      var od2 = _clsD(cc.開班日), s1 = a2.第一堂, d1 = _clsD(s1.日期); if (!od2 || !d1 || d1 > today) continue;
+      if (_clsDays(od2, today) > CLS_DETAIL_DAYS) continue;
+      var dk = cc.cid + '|' + s1.日期 + '|' + s1.時段;
+      if (cache.det[dk] && cache.det[dk].final) continue;
+      if (!s1.link && !s1.id) continue;
+      var url = s1.link ? (CLS_HOST + '/class/service/' + s1.link) : (CLS_HOST + '/class/service/list_attendance_attendance.php?cid=' + cc.cid + '&id=' + s1.id);
+      try {
+        var det = _clsParseDetail(await _clsGet(url, '出席狀況：' + cc.院 + ' ' + cc.班名 + ' 第一堂')); nPage++;
+        if (det){ det.final = d1 < today; cache.det[dk] = det; }
+      } catch(e){ console.warn('[EIP Content] 班況：出席狀況讀不到', cc.cid, e); }
+    }
+    // ③-2 ★ v5.64 出席細查（中區＋建國）：名單（承辦）＋每一堂每位學生的出席
+    //   寧願慢也不要影響 EIP：這一段最多讀 CLS_DETAIL_CAP 頁；EIP 慢了 3 頁就收工；上過的堂讀一次就存
+    var dRos = 0, dSes = 0, dLeft = 0, budget = CLS_DETAIL_CAP;
+    var tgt = all.filter(function(c){
+      if (!CLS_ROSTER_REGIONS[c.區] || c.類型 === '講座') return false;
+      var od = _clsD(c.開班日); if (!od) return false;
+      var a = cache.att[c.cid], ed = a && a.結業 ? _clsD(a.結業) : null;
+      return !(ed && _clsDays(ed, today) > 7);
+    });
+    var tasks = [];
+    tgt.forEach(function(c){
+      var od = _clsD(c.開班日), dl = _clsDays(today, od), sig = c.正取 + '/' + c.試聽 + '/' + c.備取, r0 = cache.ros[c.cid];
+      var stale = !r0 || r0.sig !== sig || (dl <= 3 && dl >= -1 && r0.at !== todayS) || _clsDays(_clsD(r0.at) || today, today) >= CLS_ROSTER_DAYS;
+      if (stale) tasks.push({ p: dl <= 7 ? 1 : 3, k: 'ros', c: c });
+      if (dl > 0) return;
+      var a = cache.att[c.cid];
+      if (!a || !a.ses){ tasks.push({ p: 2, k: 'att', c: c }); return; }   // 舊快取沒有每一堂的 id → 先讀一次出勤頁
+      var past = a.ses.filter(function(s){ var d = _clsD(s.d); return d && d < today; });
+      for (var i = past.length - 1; i >= 0; i--){
+        var s = past[i]; if (!s.id || cache.ss[c.cid + '|' + s.id]) continue;
+        var dk = c.cid + '|' + s.d + '|' + s.t, o = cache.det[dk];
+        if (o && o.final && o.名單){ cache.ss[c.cid + '|' + s.id] = { d: s.d, t: s.t, m: o.名單 }; continue; }   // 第一堂已經讀過就借用
+        tasks.push({ p: i === past.length - 1 ? 2 : 4, k: 'ses', c: c, s: s });   // 最近一堂先讀，再往前補
+      }
+    });
+    tasks.sort(function(x, y){ return x.p - y.p; });
+    for (var ti = 0; ti < tasks.length; ti++){
+      var tk = tasks[ti];
+      if (budget <= 0 || _clsSlowN >= CLS_SLOW_STOP){ dLeft = tasks.length - ti; break; }
+      var c3 = tk.c, od3 = _clsD(c3.開班日);
+      try {
+        if (tk.k === 'ros'){
+          var ro = _clsParseRoster(await _clsGet(CLS_HOST + '/class/class/register_class_detail.php?q1=' + CLS_REGIONS[c3.區] + '&q7=&q8=&q2=&q3=&q4=&q5=' + od3.getFullYear() + '&q6=' + (od3.getMonth() + 1) + '&q14=&q15=&cid=' + c3.cid, '名單：' + c3.院 + ' ' + c3.班名));
+          budget--; nPage++;
+          if (ro) { cache.ros[c3.cid] = { sig: c3.正取 + '/' + c3.試聽 + '/' + c3.備取, at: todayS, l: ro }; dRos++; }
+        } else if (tk.k === 'att'){
+          var p3 = _clsParseAtt(await _clsGet(CLS_HOST + '/class/service/list_attendance.php?cid=' + c3.cid, '出勤：' + c3.院 + ' ' + c3.班名));
+          budget--; nPage++;
+          if (p3.ok){ var a3 = cache.att[c3.cid] || {}; a3.ses = p3.ses.map(function(s){ return { d: s.日期, t: s.時段, id: s.id || '', y: s.應到, s: s.實到 }; }); a3.堂數 = p3.ses.length; if (p3.結業) a3.結業 = p3.結業; a3.at = todayS; cache.att[c3.cid] = a3; dLeft++; }   // 這班的每一堂下次再讀
+        } else {
+          var u3 = CLS_HOST + '/class/service/list_attendance_attendance.php?cid=' + c3.cid + '&id=' + tk.s.id;
+          var dt3 = _clsParseDetail(await _clsGet(u3, '出席：' + c3.院 + ' ' + c3.班名 + ' ' + tk.s.d));
+          budget--; nPage++;
+          if (dt3) { cache.ss[c3.cid + '|' + tk.s.id] = { d: tk.s.d, t: tk.s.t, m: dt3.名單 }; dSes++; }
+        }
+      } catch(e){ console.warn('[EIP Content] 班況細查讀不到', tk.k, c3.cid, e); }
+    }
+    // 每一班算出每位學生：承辦、累計出席、請假、曠課、最近一堂狀態、達標（累計出席 ≥ 全期堂數 1/3）
+    var stuOf = {};
+    tgt.forEach(function(c){
+      var a = cache.att[c.cid] || {}, ses = a.ses || [], r = cache.ros[c.cid];
+      var past = ses.filter(function(s){ var d = _clsD(s.d); return d && d < today; });
+      var read = past.filter(function(s){ return s.id && cache.ss[c.cid + '|' + s.id]; });
+      if (!r && !read.length) return;
+      var need = Math.ceil((a.堂數 || ses.length || 0) / 3), map = {}, order = [];
+      var get = function(nm){ if (!map[nm]){ map[nm] = { 姓名: nm, 承辦: '', 別: '', 前七天: '', 前三天: '', 當天: '', 出: 0, 假: 0, 曠: 0, 近: '', 近日: '' }; order.push(nm); } return map[nm]; };
+      (r ? r.l : []).forEach(function(x){ var o = get(x.名); o.承辦 = x.承辦; o.別 = x.別; o.前七天 = x.七; o.前三天 = x.三; o.當天 = x.當; });
+      read.forEach(function(s){ var m = cache.ss[c.cid + '|' + s.id].m || {}; for (var nm in m){ var o = get(nm), v = m[nm]; if (v === '出') o.出++; else if (v === '假') o.假++; else if (v === '曠') o.曠++; } });
+      var last = read.length ? read[read.length - 1] : null;
+      if (last){ var lm = cache.ss[c.cid + '|' + last.id].m || {}; order.forEach(function(nm){ map[nm].近 = lm[nm] || ''; map[nm].近日 = last.d + (last.t ? '(' + last.t + ')' : ''); }); }
+      stuOf[c.cid] = { 已上: past.length, 已讀: read.length, 門檻: need, 名單讀: r ? r.at : '',
+        學生: order.map(function(nm){ var o = map[nm]; return { 姓名: o.姓名, 承辦: o.承辦, 別: o.別, 前七天: o.前七天, 前三天: o.前三天, 當天確認: o.當天, 累計出席: o.出, 請假: o.假, 曠課: o.曠, 最近一堂: o.近, 最近一堂日期: o.近日, 達標: need > 0 && o.出 >= need }; }) };
+    });
+    // ④ 整理輸出：還沒結業（或結業 7 天內）的班＋14 天內的講座；不帶學生姓名電話
+    var rows = [];
+    all.forEach(function(c){
+      var od = _clsD(c.開班日); if (!od) return;
+      var a = cache.att[c.cid] || {}, ed = _clsD(a.結業 || (c.類型 === '講座' ? c.開班日 : ''));
+      if (c.類型 === '講座'){ var dl = _clsDays(today, od); if (dl < -1 || dl > 30) return; }
+      else if (ed && _clsDays(ed, today) > 7) return;
+      else if (!ed && _clsDays(od, today) > 150) return;
+      var s1 = a.第一堂, dk = s1 ? c.cid + '|' + s1.日期 + '|' + s1.時段 : '', det = dk ? cache.det[dk] : null;
+      rows.push({ 區: c.區, 院: c.院, 學院: c.學院, cid: c.cid, 類型: c.類型, 課程類型: c.課程類型, 單科課程: c.單科課程, 班名: c.班名,
+        開班日: c.開班日, 結業日: a.結業 || (c.類型 === '講座' ? c.開班日 : ''), 時段: c.時段, 座位: c.座位, 正取: c.正取, 試聽: c.試聽, 備取: c.備取,
+        堂數: a.堂數 || 0, 已上: a.已上 || 0,
+        第一堂: s1 ? { 日期: s1.日期, 時段: s1.時段, 應到: s1.應到, 實到: s1.實到, 請假: det ? det.請假 : null, 曠課: det ? det.曠課 : null, 未點名: det ? det.未點名 : null } : null,
+        最近一堂: a.最近一堂 ? { 日期: a.最近一堂.日期, 時段: a.最近一堂.時段, 應到: a.最近一堂.應到, 實到: a.最近一堂.實到 } : null,
+        細查: stuOf[c.cid] || null });
+    });
+    // 快取瘦身：只留這次清單裡還在的班
+    var keepIds = {}; all.forEach(function(c){ keepIds[c.cid] = 1; });
+    Object.keys(cache.att).forEach(function(id){ if (!keepIds[id]) delete cache.att[id]; });
+    Object.keys(cache.det).forEach(function(k2){ if (!keepIds[k2.split('|')[0]]) delete cache.det[k2]; });
+    Object.keys(cache.ros).forEach(function(id){ if (!keepIds[id]) delete cache.ros[id]; });
+    Object.keys(cache.ss).forEach(function(k2){ if (!keepIds[k2.split('|')[0]]) delete cache.ss[k2]; });
+    var keepL = {}; months.forEach(function(M){ for (var r2 in CLS_REGIONS){ var k3 = r2 + '|' + M.y + '-' + String(M.m).padStart(2, '0'); if (cache.lists[k3]) keepL[k3] = cache.lists[k3]; } }); cache.lists = keepL;
+    if (!(await _fnDbPut(CK, cache))) _safeSet(CK, JSON.stringify(cache));
+    try { localStorage.removeItem(CK); } catch(e){}
+    var asst = null; try { asst = await _clsAsst(today); } catch(e){ console.warn('[EIP Content] 助理段資料算不出來', e); }
+    var pack = { at: _nowStr(), today: todayS, rows: rows, asst: asst };
+    _safeSet(cid + 'classes_v1', JSON.stringify(pack));
+    _safeSet(cid + 'motiv_synced_classes', _nowStr());
+    var cnt = { '中區': 0, '南區': 0, '桃竹區': 0 }; rows.forEach(function(x){ cnt[x.區] = (cnt[x.區] || 0) + 1; });
+    notify('done', { mode: 'classes', classes: pack,
+      msg: '🏫 班況完成：中區 ' + cnt['中區'] + ' 班、南區 ' + cnt['南區'] + ' 班、桃竹區 ' + cnt['桃竹區'] + ' 班（這次讀了 EIP ' + nPage + ' 頁，每頁至少停 3 秒）'
+        + '｜出席細查：名單 ' + dRos + ' 班、出席 ' + dSes + ' 堂' + (dLeft ? '，還有 ' + dLeft + ' 項下次接著讀' + (_clsSlowN >= CLS_SLOW_STOP ? '（EIP 變慢，先讓開）' : '') : '，都讀完了') });
+  }
+
   async function doSync(year, month, mode){
     mode = mode || 'motiv';
     if (_syncBusy){
@@ -2506,6 +2842,7 @@
       else if (mode === 'funnel:full') await syncFunnel(year, month, { full: true });
       else if (mode === 'trial' || mode.indexOf('trial:') === 0) await syncTrial(year, month, mode.indexOf(':') > 0 ? mode.split(':')[1] : 'all');
       else if (mode === 'edits' || mode.indexOf('edits:') === 0) await syncEdits(parseInt(mode.split(':')[1], 10) || 1);
+      else if (mode === 'classes') await syncClasses();   // ★ v5.61 🏫 班況（13:40 日會議程）
       else throw new Error('未知的同步模式: ' + mode);
     } catch(err){
       console.error('[EIP Content] 同步失敗:', err);

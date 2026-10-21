@@ -1123,7 +1123,7 @@
 
     // Switch tabs
     // ★ 載入「每月績效」iframe（懶載入；表頭 ☁️↑ 推送鈕也會用到）
-    var MP_TARGET_SRC = 'monthly-performance.html?v=mp131b';   // ★ 改 monthly-performance.html 一定要跟著改這個號碼（deploy 不會自動幫它換指紋，不改手機會一直吃舊的）
+    var MP_TARGET_SRC = 'monthly-performance.html?v=mp135';   // ★ 改 monthly-performance.html 一定要跟著改這個號碼（deploy 不會自動幫它換指紋，不改手機會一直吃舊的）
     function _pcEnsureMpLoaded(){
       var f = document.getElementById('mp-iframe');
       if (f && (!f.src || f.src.indexOf(MP_TARGET_SRC) < 0)) f.src = MP_TARGET_SRC;
@@ -1754,7 +1754,16 @@
     function switchTab(tabIndex) {
       _pcBusy(true, '切換分頁…');
       try { _switchTabInner(tabIndex); } finally { _pcBusy(false); }
+      try { _pcTabsHint(true); } catch(e){}
     }
+    // ★ ds134：手機上分頁列左右滑 → 右邊還有東西時加淡出提示；切分頁後把目前那顆捲進畫面
+    function _pcTabsHint(scrollActive){
+      var bar = document.querySelector('.tabs-container'); if (!bar) return;
+      if (scrollActive){ var a = bar.querySelector('.tab-btn.active'); if (a && bar.scrollWidth > bar.clientWidth + 2){ var l = a.offsetLeft - (bar.clientWidth - a.offsetWidth) / 2; bar.scrollTo({ left: Math.max(0, l), behavior: (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'auto' : 'smooth' }); } }
+      bar.classList.toggle('pc-tabs-more', bar.scrollWidth - bar.scrollLeft - bar.clientWidth > 8);
+    }
+    (function(){ var go = function(){ var bar = document.querySelector('.tabs-container'); if (!bar) return; bar.addEventListener('scroll', function(){ _pcTabsHint(false); }, { passive:true }); window.addEventListener('resize', function(){ _pcTabsHint(false); }); _pcTabsHint(true); };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go(); })();
     function _switchTabInner(tabIndex) {
       loadData();
       renderComparison();
@@ -3740,7 +3749,9 @@
       channel: { label:'📋 通路', line1:'📋 通路', tsKey:'motiv_synced_channel', dueDays:15,  busy:false },
       funnel:  { label:'🔀 漏斗', line1:'🔀 漏斗', tsKey:'motiv_synced_funnel',  dueDays:7,   busy:false },
       trial:   { label:'🔎 試聽深挖', line1:'🔎 深挖', tsKey:'motiv_synced_trial', dueDays:2, busy:false },
-      edits:   { label:'📝 編輯追蹤', line1:'📝 編輯', tsKey:'motiv_synced_edits', dueDays:1, busy:false }
+      edits:   { label:'📝 編輯追蹤', line1:'📝 編輯', tsKey:'motiv_synced_edits', dueDays:1, busy:false },
+      // ★ 10/21 Ivan（擴充 v5.61）：🏫 班況＝三區開班人數、結業日、開課近幾天出缺勤 → 送 Google 表「EIP班況」給 13:40 日會議程用
+      classes: { label:'🏫 班況', line1:'🏫 班況', tsKey:'motiv_synced_classes', dueDays:1, busy:false }
     };
     var _fnTrialRegion = 'all';   // 這次要挖哪一區（中/桃/南/全部）
     function _syncCid(){ try{ var a=localStorage.getItem('activeCharacterId'); return a?'char_'+a+'_':''; }catch(e){ return ''; } }
@@ -3990,6 +4001,26 @@
         return (mm[1] + '/' + parseInt(mm[2],10) + '/' + parseInt(mm[3],10) === today) ? ts : '';
       } catch(e){ return ''; }
     }
+    // ★ 10/21 Ivan：🏫 班況同步完 → 送到「業績數據橋接」Apps Script，寫進快照表「EIP班況」分頁＋班況快報（一天一則推到 LINE）
+    //   先問 Apps Script 版本（doGet 的 v ≥ 3 才認得班況）；還沒更新程式就不送，免得舊程式把班況當成業績寫進「數據」
+    var CLS_PUSH_URL = 'https://script.google.com/macros/s/AKfycbxBFayHnfG5NUoj0CjIe8qwlfdFwt0FQeVD-QH6ocBu3dhHWpioOEmLk908dsTGVlznYA/exec';
+    function _clsPush(pack){
+      if (!pack || !pack.rows){ try { pack = JSON.parse(localStorage.getItem(_ckCid() + 'classes_v1') || 'null'); } catch(e){} }
+      if (!pack || !pack.rows || !pack.rows.length){ _syncToast('⚠️ 班況沒有資料可以送', '#ff6b6b'); return; }
+      fetch(CLS_PUSH_URL + '?ping=1').then(function(r){ return r.json(); }).then(function(v){
+        if (!v || !(+v.v >= 3)){ _syncToast('⚠️ 班況已存在本機，但 Apps Script「業績數據橋接」還是舊版（v' + (v && v.v) + '），還沒送 Google 表。更新程式後再按一次 🏫 班況', '#e6a817'); return; }
+        // ★ ds135（10/21 Ivan 4-1）：一起送出席細查（rows[].細查）＋助理段資料（asst）；Apps Script v4 才寫得進「EIP出席」「助理數據」
+        if (!(+v.v >= 4)) _syncToast('⚠️ Apps Script 是 v' + v.v + '，班況照送，但出席細查、助理數據要更新到 v4 才會寫進表', '#e6a817');
+        return fetch(CLS_PUSH_URL, { method: 'POST', body: JSON.stringify({ kind: '班況', at: pack.at, today: pack.today, rows: pack.rows, asst: pack.asst || null }) })
+          .then(function(r){ return r.json().catch(function(){ return {}; }); })
+          .then(function(j){
+            if (j && j.ok) _syncToast('🏫 班況已寫進 Google 表「EIP班況」（' + (j.rows || pack.rows.length) + ' 班）'
+              + (j.att != null ? '、「EIP出席」' + j.att + ' 位學生' : '') + (j.unc != null ? '、「助理數據」註冊未消耗 ' + j.unc + ' 筆' : '')
+              + (j.brief === 'new' ? '，班況快報已送出' : (j.brief === 'exists' ? '，今天的快報之前送過了' : '')), '#4ade80');
+            else _syncToast('⚠️ 班況送 Google 表沒有成功：' + ((j && j.error) || 'Apps Script 沒回 ok'), '#ff6b6b');
+          });
+      }).catch(function(e){ _syncToast('⚠️ 班況送 Google 表失敗（網路或 Apps Script）：' + (e && e.message || e), '#ff6b6b'); });
+    }
     function motivTriggerEipSync(mode, onComplete, skipDupCheck){
       mode = mode || 'motiv';
       var m = SYNC_MODES[mode];
@@ -4044,8 +4075,8 @@
     // ═══ 第五夜 ⑥：⚡ 全部同步（只有管理者）═══
     //   依序：激勵 → 報到 → 漏斗 → 通路 → 編輯；一次只跑一段（等上一段回報完成才開下一段）、每段之間停 1.5 秒
     //   30 分鐘內抓過的段跳過（全公司誰抓的都算）；編輯追蹤資料已是最新也跳過；任何一段失敗就停，不往下跑
-    var SYNC_ALL_ORDER = ['motiv', 'checkin', 'funnel', 'channel', 'edits'];
-    var SYNC_ALL_EST = { motiv:[10,40], checkin:[10,40], funnel:[60,540], channel:[20,120], edits:[120,360] };   // 秒（單段，不含重複跑的激勵）
+    var SYNC_ALL_ORDER = ['motiv', 'checkin', 'funnel', 'channel', 'edits', 'classes'];   // ★ 10/21 Ivan：第 6 段 🏫 班況（放最後）
+    var SYNC_ALL_EST = { motiv:[10,40], checkin:[10,40], funnel:[60,540], channel:[20,120], edits:[120,360], classes:[90,300] };   // 秒（單段，不含重複跑的激勵）
     var _syncAll = null;
     function _syncAllPlan(){
       return SYNC_ALL_ORDER.map(function(md){
@@ -4053,6 +4084,8 @@
         if (age <= SYNC_FRESH_MIN) why = Math.round(age) + ' 分鐘前抓過';
         // ★ 10/20 Ivan：同一天重跑要快 → 通路 8 小時內抓過就跳過（要立刻更新就單獨按「📋 通路」）
         else if (md === 'channel' && age <= 480) why = (age < 60 ? Math.round(age) + ' 分鐘' : Math.floor(age / 60) + ' 小時') + '前抓過（8 小時內跳過，要更新就單獨按 📋 通路）';
+        // ★ 10/21 Ivan：班況一天只變一次 → 8 小時內抓過就跳過（要立刻更新就單獨按「🏫 班況」）
+        else if (md === 'classes' && age <= 480) why = (age < 60 ? Math.round(age) + ' 分鐘' : Math.floor(age / 60) + ' 小時') + '前抓過（8 小時內跳過，要更新就單獨按 🏫 班況）';
         if (!why && md === 'edits'){ try { var J = _edNextJob(); if (J.job === 'ok') why = '編輯追蹤已經是最新'; } catch(e){} }
         return { md:md, skip:!!why, why:why, st:why ? 'skip' : 'wait', sec:0 };
       });
@@ -4062,7 +4095,7 @@
       if (_syncAll && _syncAll.running){ _syncAllRender(); return; }
       if (_anySyncBusy()){ _syncToast(_syncBusyMsg(), '#e6a817'); return; }
       var plan = _syncAllPlan(), go = plan.filter(function(x){ return !x.skip; });
-      if (!go.length){ _syncToast('✅ 五段都在 30 分鐘內抓過了，不用再跑', '#4ade80'); _syncAll = { plan:plan, running:false, done:true, t0:Date.now(), msg:'五段都還新，全部跳過' }; _syncAllRender(); return; }
+      if (!go.length){ _syncToast('✅ 每一段都剛抓過，不用再跑', '#4ade80'); _syncAll = { plan:plan, running:false, done:true, t0:Date.now(), msg:'每一段都還新，全部跳過' }; _syncAllRender(); return; }
       var lo = 0, hi = 0; go.forEach(function(x){ lo += SYNC_ALL_EST[x.md][0]; hi += SYNC_ALL_EST[x.md][1]; });
       var hour = new Date().getHours(), busy = (hour >= 10 && hour < 21) ? '\n⚠️ 現在是上班時間，EIP 比較忙，建議午休或下班後再按。\n' : '';
       if (!confirm('⚡ 全部同步\n\n會照順序一段一段跑（一次只跑一段，不會同時打 EIP）：\n'
@@ -4167,9 +4200,19 @@
       if (!_pcIsAdmin()) return;
       var g = document.getElementById('hdrSyncGroup'), first = document.getElementById('syncBtn_motiv'); if (!g || !first || document.getElementById('syncBtn_all')) return;
       var b = document.createElement('button'); b.id = 'syncBtn_all'; b.className = 'hdr-mode-btn all'; b.type = 'button';
-      b.title = '照順序跑：激勵 → 報到 → 漏斗 → 通路 → 編輯。一次只跑一段，30 分鐘內抓過的自動跳過，失敗就停';
+      b.title = '照順序跑：激勵 → 報到 → 漏斗 → 通路 → 編輯 → 班況。一次只跑一段，30 分鐘內抓過的自動跳過，失敗就停';
       b.innerHTML = '<span class="hmb-line1">⚡ 全部</span><span class="hmb-line2">一段一段跑</span>';
       b.onclick = syncAllRun; g.insertBefore(b, first);
+      // ★ 10/21 Ivan：🏫 班況鈕（只有管理者看得到），放在 📝 編輯 後面
+      if (!document.getElementById('syncBtn_classes')){
+        var bc = document.createElement('button'); bc.id = 'syncBtn_classes'; bc.className = 'hdr-mode-btn classes'; bc.type = 'button';
+        bc.title = '三區開班人數、結業日、開課近幾天出缺勤 → 送 Google 表「EIP班況」＋班況快報（13:40 日會議程用）。一次讀一頁、每頁至少停 3 秒';
+        bc.innerHTML = '<span class="hmb-line1">🏫 班況</span><span class="hmb-line2" id="syncTime_classes">未同步</span>';
+        bc.onclick = function(){ motivTriggerEipSync('classes'); };
+        var ed0 = document.getElementById('syncBtn_edits');
+        if (ed0 && ed0.parentNode === g) g.insertBefore(bc, ed0.nextSibling); else g.appendChild(bc);
+        try { refreshSyncBtnLabels(); } catch(e2){}
+      }
     }, 300); }); } catch(e){} })();
     // ★ 🔀 漏斗同步進度面板：七家逐一打勾、目前頁數、已跑時間、預估剩餘、提醒不要關頁
     var _fnProgT0 = 0, _fnProgTimer = null, _fnProgState = null;
@@ -4398,6 +4441,8 @@
                 setTimeout(function(){ try { edDashOpen(); } catch(e6){} }, 350);
               } catch(e6){}
             }
+          } else if (mode === 'classes'){
+            try { _clsPush(d.classes); } catch(e2){ console.warn('[班況] 送 Google 表失敗', e2); }
           } else if (mode === 'trial'){
             // 🔎 深挖結果搬進 FunnelDB（不佔 localStorage 額度），再重畫
             try {
@@ -8067,7 +8112,21 @@
       return Math.round((_edToday() - d) / 86400000);
     }
     function edGetStore(){
-      try { return _fnIdbGet(_ckCid() + 'fn_edits_v1'); } catch(e){ return null; }
+      // ★ ds135（10/21 Ivan：同事按編輯追蹤完全沒東西）：以前只讀「自己名下」那份（char_<我>_fn_edits_v1），
+      //   但編輯追蹤只有柏翰在同步 → 同事名下永遠是空的。改成跟報到一樣：所有人名下那份拿出來，用同步時間挑最新的。
+      try {
+        var pick = null, pickAt = -1;
+        var consider = function(k){
+          var d = _fnIdbGet(k); if (typeof d === 'string'){ try { d = JSON.parse(d); } catch(e){ d = null; } }
+          if (!d || !d.stats) return;
+          var s = (d.meta && d.meta.syncedAt) || '', m = String(s).match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/);
+          var at = m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : Object.keys(d.stats).length;   // 沒有同步時間就比天數
+          if (at > pickAt){ pickAt = at; pick = d; }
+        };
+        consider(_ckCid() + 'fn_edits_v1');
+        Object.keys(window._fnIdbCache || {}).forEach(function(k){ if (k.slice(-12) === '_fn_edits_v1' && k !== _ckCid() + 'fn_edits_v1') consider(k); });
+        return pick;
+      } catch(e){ return null; }
     }
     var ED_VER = 2;   // 跟擴充的 EDIT_VER 對齊
     var ED_LAG_OK = 1;   // 隔一天內抓 ＝ 完整。隔愈久，被後面日子吃掉的愈多。
@@ -12657,6 +12716,9 @@
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
       { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
+      { ver:'ds135', icon:'📝', title:'同事也看得到編輯追蹤了', detail:'以前「📝 編輯追蹤」的資料只在柏翰的電腦，公司整包推送時漏了它，同事按進去是空的。現在推送會一起帶上，同事打開編輯追蹤會看到最新那份（誰同步的最新就用誰的）' },
+      { ver:'ds134', icon:'🗂', title:'分頁全部看得到，不用再縮小視窗', detail:'業績中心上面那排分頁，視窗比較窄或字調大時，以前右邊的「成績單」「檢討會資料包」會被藏起來（要橫著捲、Mac 又不顯示捲軸）。現在放不下就自動排成兩行，全部一眼看得到；表頭的標題和按鈕也一樣，放不下就換行，不會再擠出畫面。手機上照舊左右滑，右邊會淡出提示還有' },
+      { ver:'ds133', icon:'📋', title:'績效盤點右邊不再被切到', detail:'成績單 →「📋 績效盤點」最右邊「報未註追回」那一欄以前會被卡片切掉一截（其實是藏在裡面要橫著捲），現在那一欄的字會自己換行，整張表都看得到' },
       { ver:'ds132', icon:'🧹', title:'可以清掉隱藏卡的照片', detail:'指揮城堡「⚙ 後台管理」多一顆「🧹 清掉隱藏卡的照片」（管理者用）：只清隱藏中的卡（離職、不用的人）的照片與吉祥物，按下去會先下載一份備份到電腦，再把全公司每個人雲端裡那份一起拿掉，誰的舊電腦都不會再推回去。卡片、名字、業績都不動' },
       { ver:'ds131', icon:'📱', title:'手機拉取不會再卡住、城堡翻牌更順', detail:'手機 Safari 按「☁️↓ 拉取」以前可能轉二十分鐘不停：現在每一步都有時限，某一項拉不到就先跳過、其他照樣寫進來，按鈕會顯示拉到第幾項；60 秒沒進度會自己停下並告訴你卡在哪，再按一次會接著拉剩下的。也改成同時拉 4 項，快很多。指揮城堡：隱藏的卡不再畫在最底下；開頁先出卡背，照片準備好一張一張翻過來；按卡片會先縮一下才開；個人後台從那張卡長出來、關掉縮回去；翻牌儀式節奏加快' },
       { ver:'ds130', icon:'🌌', title:'星際廣場換成玻璃面板', detail:'按首頁的「星際廣場」，不再開一整張太空地圖，而是從那張卡長出一片玻璃面板，五個基地（瀑布、360 檢核、法院、成就解鎖、火種）用跟首頁一樣的卡片直接點。手機版從底下滑上來，往下拖就能關。想看太空場景按面板裡的「展示模式」，星空、粒子、建築照片只在那時候才載入，平常開頁少載 4.3MB' },
