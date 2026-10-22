@@ -399,8 +399,8 @@
   .hero h2 .h2s{display:block;font-size:1.125rem;line-height:1.4;font-weight:600;letter-spacing:-.01em;margin-top:6px}
 
   /* ══════ v1.7 會議模式（電腦版儀表板）＋昨天冠軍 ══════ */
-  .ic.bd{display:none;width:auto;padding:0 12px;font-size:.8125rem;font-weight:700}
-  @media (min-width:1024px){ .ic.bd{display:inline-flex;align-items:center} }
+  .ic.bd{display:inline-flex;align-items:center;width:auto;padding:0 12px;font-size:.8125rem;font-weight:700;white-space:nowrap}   /* v1.9 手機也看得到 */
+  @media (max-width:599px){ .ic.bd .lg{display:none} }
   body.bmode{overflow:hidden}
   #board{position:fixed;inset:0;z-index:15;display:none;flex-direction:column;background:linear-gradient(180deg,var(--bg0),var(--bg1));
     font-size:clamp(13px,calc(.55vw + .75vh),22px);padding:0 1.4em .9em;font-variant-numeric:tabular-nums}
@@ -626,3 +626,97 @@
   #bzoom .pcal i.h{background:var(--label)} #bzoom .pcal i.h s{color:rgba(255,255,255,.7)}
   #bzoom .pcal i.o{box-shadow:inset 0 0 0 2px var(--orange)}
   @media (prefers-color-scheme:dark){ #bzoom .pcal i.h b{color:#000} #bzoom .pcal i.h s{color:rgba(0,0,0,.6)} }
+
+  /* ══════ v1.9 會議模式：手機、平板（響應式） ══════ */
+  #board .mb{display:none}
+  @media (max-width:1023px){
+    #board.on{display:block;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;font-size:15px;padding:0 0 calc(env(safe-area-inset-bottom) + 24px)}
+    #board .btop{flex-wrap:wrap;height:auto;gap:.5em .6em;padding:calc(env(safe-area-inset-top) + .7em) 16px .6em;border-bottom:0}
+    #board .btop h1{font-size:1.6em;order:1}
+    #board .btop .bpw{order:2}
+    #board .btop .bs{order:5;width:100%;font-size:.78em;white-space:normal}
+    #board .btop .bbtn,#board .btop .bchamp{order:3;min-height:44px}
+    #board .bpick{min-height:44px}
+    #board .bfull{display:none}
+    #board .dk{display:none} #board .mb{display:inline}
+    #board .bflow{position:sticky;top:0;z-index:4;height:auto;padding:.5em 16px;overflow-x:auto;scrollbar-width:none;background:var(--glass);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border-bottom:.5px solid var(--sep)}
+    #board .bflow::-webkit-scrollbar{display:none}
+    #board .bflow button{min-height:40px;white-space:nowrap;flex:none}
+    #board .bflow .k{display:none}
+    #board .bgrid{display:grid;padding:.8em 16px 0;gap:.8em;grid-template-columns:1fr 1fr;grid-template-rows:none;grid-auto-rows:auto;
+      grid-template-areas:"open open" "rank lead" "fun unc" "att focus" "inc inc"}
+    #board .bc{height:21em;cursor:pointer}
+    #board .bc[data-card="open"]{height:24em}
+    #board .bc[data-card="lead"]{height:24em}
+    #board .bc[data-card="rank"]{height:24em}
+    #board .bgrid.all{grid-template-columns:1fr 1fr;grid-template-areas:"rk inc" "r0 r1" "r2 r2"}
+    #board .bgrid.all .bc{height:24em}
+    #board .bpop{position:fixed;left:16px;right:16px;top:calc(env(safe-area-inset-top) + 4.2em);min-width:0}
+    #board .bpop button{min-height:40px}
+    #board .lrow{min-height:2.6em;max-height:3em}
+    #board .mseg button{padding:.45em .7em;font-size:.82em}
+    #board .bask .bq{margin:0 16px}
+    #bzoom.sheet .zp,#bzoom.side.sheet .zp{left:0;right:0;width:auto;top:calc(env(safe-area-inset-top) + 2.5vh);bottom:0;border-radius:22px 22px 0 0;font-size:15px;transform-origin:50% 100%}
+    #bzoom.sheet .zh{position:relative;padding-top:1.4em;touch-action:none;cursor:grab}
+    #bzoom.sheet .zh::before{content:'';position:absolute;left:50%;top:.5em;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:var(--label3);opacity:.5}
+    #bzoom.sheet .zh button{width:44px;height:44px}
+    #bzoom .zb{padding-bottom:calc(env(safe-area-inset-bottom) + 1.4em)}
+    #bzoom .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -.2em}
+    #bzoom .tw table{min-width:30em}
+    #bzoom .zg{grid-template-columns:1fr}
+    #bzoom svg.ch{height:13em}
+    #bzoom .pk{grid-template-columns:1fr 1fr}
+    #champ{overflow-y:auto;-webkit-overflow-scrolling:touch}
+  }
+  @media (max-width:599px){
+    #board .btop h1{flex:1 1 calc(100% - 6em)}
+    #board .btop .bpw{order:3;margin-left:0}
+    #board .btop .bchamp{order:4;margin-left:auto}
+    #board .btop #bExit{order:2}
+    #board .bc[data-card="rank"],#board .bc[data-card="fun"],#board .bc[data-card="unc"]{height:auto}
+    #board .bc[data-card="rank"] svg.ch,#board .bc[data-card="unc"] svg.ch{flex:none;height:calc(var(--n,4) * 2.6em + .6em)}
+    #board .bc[data-card="fun"] svg.ch{flex:none;height:calc(var(--n,4) * 3.4em + .6em)}
+    #board .bc[data-card="lead"]{height:auto}
+    #board .bc[data-card="lead"] .lrk{flex:none;overflow:visible}
+    #champ .dk{display:none}
+    #board .bgrid{grid-template-columns:1fr;grid-template-areas:"rank" "fun" "unc" "open" "att" "lead" "focus" "inc"}
+    #board .bc{height:19em}
+    #board .bc[data-card="open"]{height:auto;min-height:20em}
+    #board .bc[data-card="open"] svg.ch{height:18em;flex:none}
+    #board .bc[data-card="inc"]{height:22em}
+    #board .bc[data-card="focus"]{height:auto;min-height:12em}
+    #board .bgrid.all{grid-template-columns:1fr;grid-template-areas:"rk" "inc" "r0" "r1" "r2"}
+    #board .bh span:not(.x):not(.mseg){display:none}
+    #board .bh{flex-wrap:wrap}
+    #bzoom .tw table.stab{min-width:0}
+    #bzoom table.stab,#bzoom table.stab tbody{display:block}
+    #bzoom table.stab tr:first-child{display:none}
+    #bzoom table.stab tr{display:grid;grid-template-columns:1fr auto;gap:.15em .8em;padding:.7em .2em;border-top:.5px solid var(--sep)}
+    #bzoom table.stab td{border:0;padding:0;white-space:normal}
+    #bzoom table.stab td:nth-child(1){grid-column:1/-1;font-size:.82em;color:var(--label2)}
+    #bzoom table.stab td:nth-child(2){font-weight:700}
+    #bzoom table.stab td:nth-child(3){grid-column:1/-1;font-size:.85em;color:var(--label2);order:4}
+    #bzoom table.stab td:nth-child(4){text-align:right}
+    #champ{font-size:clamp(12px,3.4vw,18px)}
+    #champ .stg{position:relative;inset:auto;min-height:100%;grid-template-columns:1fr;grid-template-rows:auto auto auto;padding:calc(env(safe-area-inset-top) + 1em) 16px calc(env(safe-area-inset-bottom) + 1.2em)}
+    #champ .hd{flex-wrap:wrap}
+    #champ .hd .x{margin-left:0;width:100%}
+    #champ .hd button{min-height:40px}
+    #champ .one{padding:1.3em 1.2em}
+    #champ .nm1{font-size:4.6em}
+    #champ .amt{font-size:2.5em}
+    #champ .stats{grid-template-columns:1fr 1fr}
+    #champ .right{grid-template-rows:none;grid-template-columns:1fr 1fr;gap:.8em}
+    #champ .two{grid-template-columns:1fr;padding:1em;gap:.2em}
+    #champ .two .rk{grid-row:auto;font-size:2.6em}
+    #champ .two .nm{font-size:2em}
+    #champ .two .a{font-size:1.35em}
+    #champ .stg.tri{grid-template-columns:1fr}
+    #champ canvas{position:fixed}
+  }
+  @media (max-width:1023px) and (orientation:landscape) and (max-height:500px){
+    #board .btop{padding-top:calc(env(safe-area-inset-top) + .4em);padding-bottom:.3em} #board .btop .bs{display:none} #board .btop h1{font-size:1.3em}
+    #board .bflow{padding-top:.25em;padding-bottom:.25em} #board .bflow button{min-height:36px}
+    #board .bc{height:17em}
+    #champ .stg{position:relative;min-height:100%}
+  }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
-<meta name="pg1340-version" content="p2.1">
+<meta name="pg1340-version" content="p2.2">
 <title>13:40</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -410,8 +410,8 @@
   .hero h2 .h2s{display:block;font-size:1.125rem;line-height:1.4;font-weight:600;letter-spacing:-.01em;margin-top:6px}
 
   /* ══════ v1.7 會議模式（電腦版儀表板）＋昨天冠軍 ══════ */
-  .ic.bd{display:none;width:auto;padding:0 12px;font-size:.8125rem;font-weight:700}
-  @media (min-width:1024px){ .ic.bd{display:inline-flex;align-items:center} }
+  .ic.bd{display:inline-flex;align-items:center;width:auto;padding:0 12px;font-size:.8125rem;font-weight:700;white-space:nowrap}   /* v1.9 手機也看得到 */
+  @media (max-width:599px){ .ic.bd .lg{display:none} }
   body.bmode{overflow:hidden}
   #board{position:fixed;inset:0;z-index:15;display:none;flex-direction:column;background:linear-gradient(180deg,var(--bg0),var(--bg1));
     font-size:clamp(13px,calc(.55vw + .75vh),22px);padding:0 1.4em .9em;font-variant-numeric:tabular-nums}
@@ -638,6 +638,100 @@
   #bzoom .pcal i.o{box-shadow:inset 0 0 0 2px var(--orange)}
   @media (prefers-color-scheme:dark){ #bzoom .pcal i.h b{color:#000} #bzoom .pcal i.h s{color:rgba(0,0,0,.6)} }
 
+  /* ══════ v1.9 會議模式：手機、平板（響應式） ══════ */
+  #board .mb{display:none}
+  @media (max-width:1023px){
+    #board.on{display:block;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;font-size:15px;padding:0 0 calc(env(safe-area-inset-bottom) + 24px)}
+    #board .btop{flex-wrap:wrap;height:auto;gap:.5em .6em;padding:calc(env(safe-area-inset-top) + .7em) 16px .6em;border-bottom:0}
+    #board .btop h1{font-size:1.6em;order:1}
+    #board .btop .bpw{order:2}
+    #board .btop .bs{order:5;width:100%;font-size:.78em;white-space:normal}
+    #board .btop .bbtn,#board .btop .bchamp{order:3;min-height:44px}
+    #board .bpick{min-height:44px}
+    #board .bfull{display:none}
+    #board .dk{display:none} #board .mb{display:inline}
+    #board .bflow{position:sticky;top:0;z-index:4;height:auto;padding:.5em 16px;overflow-x:auto;scrollbar-width:none;background:var(--glass);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border-bottom:.5px solid var(--sep)}
+    #board .bflow::-webkit-scrollbar{display:none}
+    #board .bflow button{min-height:40px;white-space:nowrap;flex:none}
+    #board .bflow .k{display:none}
+    #board .bgrid{display:grid;padding:.8em 16px 0;gap:.8em;grid-template-columns:1fr 1fr;grid-template-rows:none;grid-auto-rows:auto;
+      grid-template-areas:"open open" "rank lead" "fun unc" "att focus" "inc inc"}
+    #board .bc{height:21em;cursor:pointer}
+    #board .bc[data-card="open"]{height:24em}
+    #board .bc[data-card="lead"]{height:24em}
+    #board .bc[data-card="rank"]{height:24em}
+    #board .bgrid.all{grid-template-columns:1fr 1fr;grid-template-areas:"rk inc" "r0 r1" "r2 r2"}
+    #board .bgrid.all .bc{height:24em}
+    #board .bpop{position:fixed;left:16px;right:16px;top:calc(env(safe-area-inset-top) + 4.2em);min-width:0}
+    #board .bpop button{min-height:40px}
+    #board .lrow{min-height:2.6em;max-height:3em}
+    #board .mseg button{padding:.45em .7em;font-size:.82em}
+    #board .bask .bq{margin:0 16px}
+    #bzoom.sheet .zp,#bzoom.side.sheet .zp{left:0;right:0;width:auto;top:calc(env(safe-area-inset-top) + 2.5vh);bottom:0;border-radius:22px 22px 0 0;font-size:15px;transform-origin:50% 100%}
+    #bzoom.sheet .zh{position:relative;padding-top:1.4em;touch-action:none;cursor:grab}
+    #bzoom.sheet .zh::before{content:'';position:absolute;left:50%;top:.5em;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:var(--label3);opacity:.5}
+    #bzoom.sheet .zh button{width:44px;height:44px}
+    #bzoom .zb{padding-bottom:calc(env(safe-area-inset-bottom) + 1.4em)}
+    #bzoom .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -.2em}
+    #bzoom .tw table{min-width:30em}
+    #bzoom .zg{grid-template-columns:1fr}
+    #bzoom svg.ch{height:13em}
+    #bzoom .pk{grid-template-columns:1fr 1fr}
+    #champ{overflow-y:auto;-webkit-overflow-scrolling:touch}
+  }
+  @media (max-width:599px){
+    #board .btop h1{flex:1 1 calc(100% - 6em)}
+    #board .btop .bpw{order:3;margin-left:0}
+    #board .btop .bchamp{order:4;margin-left:auto}
+    #board .btop #bExit{order:2}
+    #board .bc[data-card="rank"],#board .bc[data-card="fun"],#board .bc[data-card="unc"]{height:auto}
+    #board .bc[data-card="rank"] svg.ch,#board .bc[data-card="unc"] svg.ch{flex:none;height:calc(var(--n,4) * 2.6em + .6em)}
+    #board .bc[data-card="fun"] svg.ch{flex:none;height:calc(var(--n,4) * 3.4em + .6em)}
+    #board .bc[data-card="lead"]{height:auto}
+    #board .bc[data-card="lead"] .lrk{flex:none;overflow:visible}
+    #champ .dk{display:none}
+    #board .bgrid{grid-template-columns:1fr;grid-template-areas:"rank" "fun" "unc" "open" "att" "lead" "focus" "inc"}
+    #board .bc{height:19em}
+    #board .bc[data-card="open"]{height:auto;min-height:20em}
+    #board .bc[data-card="open"] svg.ch{height:18em;flex:none}
+    #board .bc[data-card="inc"]{height:22em}
+    #board .bc[data-card="focus"]{height:auto;min-height:12em}
+    #board .bgrid.all{grid-template-columns:1fr;grid-template-areas:"rk" "inc" "r0" "r1" "r2"}
+    #board .bh span:not(.x):not(.mseg){display:none}
+    #board .bh{flex-wrap:wrap}
+    #bzoom .tw table.stab{min-width:0}
+    #bzoom table.stab,#bzoom table.stab tbody{display:block}
+    #bzoom table.stab tr:first-child{display:none}
+    #bzoom table.stab tr{display:grid;grid-template-columns:1fr auto;gap:.15em .8em;padding:.7em .2em;border-top:.5px solid var(--sep)}
+    #bzoom table.stab td{border:0;padding:0;white-space:normal}
+    #bzoom table.stab td:nth-child(1){grid-column:1/-1;font-size:.82em;color:var(--label2)}
+    #bzoom table.stab td:nth-child(2){font-weight:700}
+    #bzoom table.stab td:nth-child(3){grid-column:1/-1;font-size:.85em;color:var(--label2);order:4}
+    #bzoom table.stab td:nth-child(4){text-align:right}
+    #champ{font-size:clamp(12px,3.4vw,18px)}
+    #champ .stg{position:relative;inset:auto;min-height:100%;grid-template-columns:1fr;grid-template-rows:auto auto auto;padding:calc(env(safe-area-inset-top) + 1em) 16px calc(env(safe-area-inset-bottom) + 1.2em)}
+    #champ .hd{flex-wrap:wrap}
+    #champ .hd .x{margin-left:0;width:100%}
+    #champ .hd button{min-height:40px}
+    #champ .one{padding:1.3em 1.2em}
+    #champ .nm1{font-size:4.6em}
+    #champ .amt{font-size:2.5em}
+    #champ .stats{grid-template-columns:1fr 1fr}
+    #champ .right{grid-template-rows:none;grid-template-columns:1fr 1fr;gap:.8em}
+    #champ .two{grid-template-columns:1fr;padding:1em;gap:.2em}
+    #champ .two .rk{grid-row:auto;font-size:2.6em}
+    #champ .two .nm{font-size:2em}
+    #champ .two .a{font-size:1.35em}
+    #champ .stg.tri{grid-template-columns:1fr}
+    #champ canvas{position:fixed}
+  }
+  @media (max-width:1023px) and (orientation:landscape) and (max-height:500px){
+    #board .btop{padding-top:calc(env(safe-area-inset-top) + .4em);padding-bottom:.3em} #board .btop .bs{display:none} #board .btop h1{font-size:1.3em}
+    #board .bflow{padding-top:.25em;padding-bottom:.25em} #board .bflow button{min-height:36px}
+    #board .bc{height:17em}
+    #champ .stg{position:relative;min-height:100%}
+  }
+
   /* ── 1340.html 外殼：載入中、更新提示、選區 ── */
   #pgWait{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--label2);font-size:.9375rem}
   #pgWait i{width:26px;height:26px;border-radius:50%;border:2.5px solid var(--fill);border-top-color:var(--label2);animation:pgSpin .8s linear infinite}
@@ -658,12 +752,12 @@
 </style>
 </head>
 <body>
-<!-- 13:40 日會網頁｜p2.1｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
+<!-- 13:40 日會網頁｜p2.2｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
 <div id="pgWait"><i></i><span id="pgWaitT">載入中…</span></div>
 <div id="pgPick" hidden><h1>日會</h1><a data-r="中區">中區<small>台一・台二・台三｜13:40</small></a><a data-r="桃區">桃區<small>壢一・壢二・壢三｜13:30</small></a><a data-r="建國">高雄建國<small>建國｜13:40</small></a></div>
 <div id="appRoot" hidden>
 <header class="top">
-  <div class="t"><div><h1 id="hTitle">13:40</h1><div class="sub" id="hSub"></div></div><div class="tb"><button class="ic bd" type="button" id="boardBtn" title="電腦版儀表板，開會用">會議模式</button><button class="ic" type="button" id="copyAll" title="複製整份 LINE 文字">⧉</button><select class="day" id="daySel" aria-label="選日期"></select></div></div>
+  <div class="t"><div><h1 id="hTitle">13:40</h1><div class="sub" id="hSub"></div></div><div class="tb"><button class="ic bd" type="button" id="boardBtn" title="會議模式：一眼看完的儀表板，開會用">會議<span class="lg">模式</span></button><button class="ic" type="button" id="copyAll" title="複製整份 LINE 文字">⧉</button><select class="day" id="daySel" aria-label="選日期"></select></div></div>
   <nav class="idx" id="idx"><a href="#s-today" class="on">今天</a><a href="#s-asst" style="--pc:var(--c-asst)">助理</a><a href="#s-cs" style="--pc:var(--c-cs)">客服</a><a href="#s-lead" style="--pc:var(--c-lead)">主管</a><a href="#s-focus" style="--pc:var(--c-focus)">本日重點</a><a href="#s-biz" style="--pc:var(--c-biz)">業務</a></nav>
 </header>
 
@@ -1019,6 +1113,9 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     ST.org = (v && ORGS.indexOf(v) >= 0) ? v : ''; ST.asked = v != null || ORGS.length < 2;
     var c = {}; try { c = JSON.parse(lsGet(CMP_KEY) || '{}') || {}; } catch(e){} ST.cmp = { rank: c.rank || '', inc: c.inc || '' }; })();
   function FOCUS(){ return ST.org ? [ST.org] : ORGS; }
+  function NARROW(){ return !!(window.matchMedia && matchMedia('(max-width: 1023px)').matches); }   // v1.9 手機、平板：往下滑的版面，面板從底部上來
+  function wrapTables(){ Z.querySelectorAll('.zb table').forEach(function(t){ if (t.parentNode.classList.contains('tw')) return; var w = document.createElement('div'); w.className = 'tw'; t.parentNode.insertBefore(w, t); w.appendChild(t); }); }
+  function sheetIn(p){ if (REDUCE) return; p.style.transform = 'translateY(100%)'; p.getBoundingClientRect(); p.style.transition = 'transform 420ms cubic-bezier(.2,.9,.25,1)'; p.style.transform = 'none'; }
   function cmpOf(id){ if (ORGS.length < 2) return '七家'; var v = ST.cmp[id]; if (v) return v; return id === 'rank' && ST.org ? '本區' : '七家'; }
   function scopeOf(id){ return cmpOf(id) === '本區' ? ORGS : ALL7; }
   function setOrg(o){ ST.org = o; ST.asked = true; lsSet(ORG_KEY, o || 'all'); try { var u = new URL(location.href); if (o) u.searchParams.set('o', o); else u.searchParams.delete('o'); history.replaceState(null, '', u.toString()); } catch(e){} }
@@ -1274,7 +1371,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
       + '<div class="pk"><div><b>' + x.v + '</b><span>' + (+mon.slice(5, 7)) + ' 月報到</span></div><div><b>' + x.面談 + '</b><span>面談</span></div><div><b>' + x.註冊 + '</b><span>註冊</span></div><div><b class="' + ((x.none || x.d >= 3) ? 'og' : '') + '">' + esc(dayTxt(x)) + '</b><span>沒有新增報到</span></div></div>';
     if (!D.ck){ return h + '<p class="z">報到明細（誰、哪天、哪個通路）要等擴充 5.73 同步一次報到、再按 🏫 班況之後才會出現。</p>'; }
     h += '<h5>' + (+mon.slice(5, 7)) + ' 月每天的報到<small>深色＝有人報到・橘框＝還沒有新增的日子</small></h5><div class="pcal">' + cal + '</div>'
-      + '<h5>已報到的學生<small>' + rows.length + ' 位</small></h5>' + (rows.length ? '<table><tr><th class="l">報到日</th><th class="l">學生</th><th class="l">通路</th><th class="l">後來</th></tr>' + rows.map(function(r){ var dd = dOf(r[3]);
+      + '<h5>已報到的學生<small>' + rows.length + ' 位</small></h5>' + (rows.length ? '<table class="stab"><tr><th class="l">報到日</th><th class="l">學生</th><th class="l">通路</th><th class="l">後來</th></tr>' + rows.map(function(r){ var dd = dOf(r[3]);
         return '<tr><td class="l">' + md(r[3]) + (dd ? '（' + WK[dd.getDay()] + '）' : '') + (r[4] ? ' ' + esc(r[4]) : '') + '</td><td class="l">' + esc(r[2]) + '</td><td class="l">' + esc(r[5] || '—') + '</td><td class="l' + (/註冊/.test(r[6]) ? ' rd' : '') + '">' + esc(r[6] || '') + '</td></tr>'; }).join('') + '</table>' : '<p class="z">這個月還沒有報到。</p>')
       + '<h5>同院比較</h5><table><tr><th class="l">業務</th><th>報到</th><th>最後一次報到</th><th>幾天沒有新增</th></tr>' + same.map(function(p){ return '<tr class="' + (p.k === k ? 'me' : '') + ' clk" data-p="' + esc(p.k) + '"><td class="l nm">' + esc(p.名) + '</td><td>' + p.v + '</td><td>' + (p.last ? md(p.last) : '—') + '</td><td class="' + ((p.none || p.d >= 3) ? 'og' : '') + '">' + esc(dayTxt(p)) + '</td></tr>'; }).join('') + '</table>'
       + (D.ck.完整 ? '' : '<p class="z" style="margin-top:1em">這個月的報到明細還沒抓完整（第一次補抓會在下一次同步報到時完成）。</p>');
@@ -1282,11 +1379,12 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   }
   function openPerson(k){
     var html = personHtml(k); if (!html) return;
-    if (ST.zoom && Z.classList.contains('side')){ Z.querySelector('.zb').innerHTML = html; Z.querySelector('.zb').scrollTop = 0; return; }
+    if (ST.zoom && Z.classList.contains('side')){ Z.querySelector('.zb').innerHTML = html; Z.querySelector('.zb').scrollTop = 0; wrapTables(); return; }
     if (ST.zoom) { Z.classList.remove('on'); Z.innerHTML = ''; }
     Z.className = 'side'; Z.innerHTML = '<div class="zbg"></div><div class="zp" role="dialog" aria-modal="true"><div class="zh"><b>報到明細</b><span>' + esc(ST.org || REGION) + '</span><button type="button" aria-label="關閉">✕</button></div><div class="zb">' + html + '</div></div>';
     ST.zoom = 'person'; Z.__from = null; var p = Z.querySelector('.zp');
-    requestAnimationFrame(function(){ Z.classList.add('on'); if (!REDUCE){ p.style.transform = 'translateX(105%)'; p.getBoundingClientRect(); p.style.transition = 'transform 420ms cubic-bezier(.2,.9,.25,1)'; p.style.transform = 'none'; } });
+    wrapTables(); if (NARROW()) Z.classList.add('sheet');
+    requestAnimationFrame(function(){ Z.classList.add('on'); if (NARROW()) return sheetIn(p); if (!REDUCE){ p.style.transform = 'translateX(105%)'; p.getBoundingClientRect(); p.style.transition = 'transform 420ms cubic-bezier(.2,.9,.25,1)'; p.style.transform = 'none'; } });
   }
   function pickerHtml(){
     var lab = ST.view === 'all' ? '三區總覽' : esc(REGION) + (ORGS.length > 1 ? ' <i>›</i> ' + esc(ST.org || '全區') : '');
@@ -1302,10 +1400,11 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   function render(){
     if (ST.view === 'all') return renderAll();
     var h = '<div class="btop"><h1>' + esc((ST.org || REGION) + ' ' + MTIME) + '</h1><div class="bs">' + esc(subLine()) + '</div>' + pickerHtml()
-      + '<button class="bbtn" type="button" id="bFull">全螢幕</button><button class="bbtn" type="button" id="bExit">手機版</button><button class="bchamp" type="button" id="bChamp">🏆 ' + champWin().short + '冠軍</button></div>'
+      + '<button class="bbtn bfull" type="button" id="bFull">全螢幕</button><button class="bbtn" type="button" id="bExit"><span class="dk">手機版</span><span class="mb">離開</span></button><button class="bchamp" type="button" id="bChamp">🏆 ' + champWin().short + '冠軍</button></div>'
       + '<nav class="bflow">' + SEGS.map(function(s, i){ return '<button type="button" data-seg="' + (i + 1) + '" class="' + (ST.spot === i + 1 ? 'on' : '') + '"><i style="background:' + s[1] + '"></i>' + s[0] + '</button>'; }).join('')
       + '<span class="k">← → 換段落・點任何一格放大・Esc 回總覽</span></nav><div class="bgrid">';
-    CARDS.forEach(function(c){ h += '<section class="bc' + (c.hot ? ' hot' : '') + '" data-card="' + c.id + '" data-seg="' + c.seg + '" style="grid-area:' + c.id + '">' + head(c) + (typeof c.body === 'function' ? c.body() : c.body) + '</section>'; });
+    var NR = { rank: function(){ return rankRows().length; }, fun: function(){ return funRows().length; }, unc: function(){ return uncRows().length; } };   // v1.9 手機：圖的高度跟著列數
+    CARDS.forEach(function(c){ h += '<section class="bc' + (c.hot ? ' hot' : '') + '" data-card="' + c.id + '" data-seg="' + c.seg + '" style="grid-area:' + c.id + (NR[c.id] ? ';--n:' + Math.max(1, NR[c.id]()) : '') + '">' + head(c) + (typeof c.body === 'function' ? c.body() : c.body) + '</section>'; });
     B.innerHTML = h + '</div>' + askHtml();
     applySpot(); requestAnimationFrame(drawAll);
   }
@@ -1324,7 +1423,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   function openOf(d){ return (d.classes || []).filter(function(c){ return c.type !== '講座' && c.toOpen !== '' && c.toOpen >= 0 && c.toOpen <= 14; }).sort(function(a, b){ return (a.ok - b.ok) || (a.toOpen - b.toOpen); }); }
   function renderAll(){
     var h = '<div class="btop"><h1>三區總覽</h1><div class="bs">' + esc(subLine()) + '</div>' + pickerHtml()
-      + '<button class="bbtn" type="button" id="bFull">全螢幕</button><button class="bbtn" type="button" id="bExit">手機版</button><button class="bchamp" type="button" id="bChamp">🏆 三區' + champWin().short + '冠軍</button></div>'
+      + '<button class="bbtn bfull" type="button" id="bFull">全螢幕</button><button class="bbtn" type="button" id="bExit"><span class="dk">手機版</span><span class="mb">離開</span></button><button class="bchamp" type="button" id="bChamp">🏆 三區' + champWin().short + '冠軍</button></div>'
       + '<nav class="bflow"><span class="k" style="margin-left:0">點一區進去看那一區的會議模式・點任何一格放大</span></nav><div class="bgrid all">'
       + '<section class="bc" data-card="rank" style="grid-area:rk">' + head(CARDS[0]) + '<svg class="ch"></svg></section>'
       + '<section class="bc" data-card="inc" style="grid-area:inc">' + head(CARDS[7]) + '<svg class="ch"></svg></section>';
@@ -1407,7 +1506,8 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     Z.classList.add('on'); ST.zoom = id; Z.__from = card;
     var zr = Z.querySelector('[data-z="rank"]'); if (zr) hbars(zr.parentNode, ST.view === 'all' ? ((RANK && RANK.all) || []).map(function(x){ return { l: x.院, v: x.n, me: true }; }) : rankRows(), { tail: 1 });
     var zi = Z.querySelector('[data-z="inc"]'); if (zi) incCols(zi.parentNode, ST.view === 'all' ? { mine: [], ink: 1 } : {});
-    if (REDUCE){ Z.querySelector('.zb').classList.remove('pre'); return; }
+    wrapTables();
+    if (REDUCE || NARROW()){ Z.querySelector('.zb').classList.remove('pre'); if (NARROW()) { Z.classList.add('sheet'); sheetIn(p); } return; }
     p.style.transform = 'translate(' + (r0.left - r1.left) + 'px,' + (r0.top - r1.top) + 'px) scale(' + (r0.width / r1.width) + ',' + (r0.height / r1.height) + ')';
     p.getBoundingClientRect();
     p.style.transition = 'transform 420ms cubic-bezier(.2,.9,.25,1)'; p.style.transform = 'none';
@@ -1415,7 +1515,8 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   }
   function closeZoom(){
     if (!ST.zoom) return; ST.zoom = ''; var p = Z.querySelector('.zp'), card = Z.__from;
-    var done = function(){ Z.classList.remove('on'); Z.classList.remove('side'); Z.innerHTML = ''; };
+    var done = function(){ Z.classList.remove('on'); Z.classList.remove('side'); Z.classList.remove('sheet'); Z.innerHTML = ''; };
+    if (Z.classList.contains('sheet') && p && !REDUCE){ Z.classList.remove('on'); p.style.transition = 'transform 300ms cubic-bezier(.2,.9,.25,1)'; p.style.transform = 'translateY(105%)'; setTimeout(done, 280); return; }
     if (Z.classList.contains('side') && p && !REDUCE){ Z.classList.remove('on'); p.style.transition = 'transform 320ms cubic-bezier(.2,.9,.25,1)'; p.style.transform = 'translateX(105%)'; setTimeout(done, 300); return; }
     if (REDUCE || !p || !card || !document.body.contains(card)){ done(); return; }
     var r0 = card.getBoundingClientRect(), r1 = p.getBoundingClientRect(); Z.querySelector('.zb').classList.add('pre'); Z.classList.remove('on');
@@ -1450,14 +1551,14 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   }
   function openChamp(force){
     var fx = REDUCE ? 'fade' : (force || pickFx()), w = champWin(), h;
-    if (!I){ h = '<div class="stg"><div class="hd"><h1>' + esc(w.short) + '入帳冠軍</h1><span class="x"><button type="button" data-a="close">關閉 Esc</button></span></div><div class="empty">入帳資料要等下一次「🏫 班況」同步後才會出現。</div></div>'; fx = 'fade'; }
+    if (!I){ h = '<div class="stg"><div class="hd"><h1>' + esc(w.short) + '入帳冠軍</h1><span class="x"><button type="button" data-a="close">關閉<span class="dk"> Esc</span></button></span></div><div class="empty">入帳資料要等下一次「🏫 班況」同步後才會出現。</div></div>'; fx = 'fade'; }
     else if (ST.view === 'all'){
       var cols = REG.map(function(r){ var d = regionOf(r[0]); var c = champs(d ? d.orgs : (r[0] === '建國' ? ['建國'] : r[0] === '桃區' ? ['壢一', '壢二', '壢三'] : ['台一', '台二', '台三'])); return { lab: r[1], p: c && c.list[0] }; });
-      h = '<div class="stg tri"><div class="hd"><h1>三區・' + esc(w.short) + '入帳冠軍</h1><span>' + esc(w.label) + '</span><span class="x"><button type="button" data-a="again">再播一次</button><button type="button" data-a="close">關閉 Esc</button></span></div>'
+      h = '<div class="stg tri"><div class="hd"><h1>三區・' + esc(w.short) + '入帳冠軍</h1><span>' + esc(w.label) + '</span><span class="x"><button type="button" data-a="again">再播一次</button><button type="button" data-a="close">關閉<span class="dk"> Esc</span></button></span></div>'
         + cols.map(function(c){ return c.p ? oneCard(c.p, c.lab) : '<div class="one rv"><span class="rk1">' + esc(c.lab) + '</span><div class="empty" style="font-size:1.2em;margin:auto">' + esc(w.short) + '沒有入帳</div></div>'; }).join('') + '</div>';
     } else {
       var ch = champs(ORGS);
-      h = '<div class="stg"><div class="hd"><h1>' + esc(REGION) + '・' + esc(w.short) + '入帳冠軍</h1><span>' + esc(w.label) + '・' + esc(ORGS.join(' ')) + ' 業務</span><span class="x"><button type="button" data-a="again">再播一次</button><button type="button" data-a="close">關閉 Esc</button></span></div>'
+      h = '<div class="stg"><div class="hd"><h1>' + esc(REGION) + '・' + esc(w.short) + '入帳冠軍</h1><span>' + esc(w.label) + '・' + esc(ORGS.join(' ')) + ' 業務</span><span class="x"><button type="button" data-a="again">再播一次</button><button type="button" data-a="close">關閉<span class="dk"> Esc</span></button></span></div>'
         + (ch && ch.list.length ? oneCard(ch.list[0]) + '<div class="right">' + (ch.list[1] ? twoCard(ch.list[1], 1) : '<div></div>') + (ch.list[2] ? twoCard(ch.list[2], 2) : '<div></div>') + '</div>'
           : '<div class="empty">' + esc(w.label) + ' 沒有入帳。</div>') + '</div>';
     }
@@ -1522,12 +1623,22 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     var pp = t.closest('[data-p]'); if (pp){ openPerson(pp.dataset.p); return; }
     var cls = t.closest('[data-id]'); if (cls && typeof byId !== 'undefined' && byId[cls.getAttribute('data-id')] && typeof openSheet === 'function'){ e.stopPropagation(); openSheet(byId[cls.getAttribute('data-id')]); return; }
     var rg = t.closest('[data-reg]'); if (rg){ var r = rg.dataset.reg; if (r === 'all'){ ST.view = 'all'; setUrl('all'); render(); } else if (r === D.r){ ST.view = 'one'; setUrl('board'); render(); } else go(baseUrl() + '?r=' + encodeURIComponent(r) + '&v=board'); return; }
-    var sg = t.closest('[data-seg]'); if (sg && sg.tagName === 'BUTTON'){ var n = +sg.dataset.seg; ST.spot = ST.spot === n ? 0 : n; applySpot(); return; }
+    var sg = t.closest('[data-seg]'); if (sg && sg.tagName === 'BUTTON'){ var n = +sg.dataset.seg; ST.spot = ST.spot === n ? 0 : n; applySpot();
+      if (NARROW() && ST.spot){ var tg = B.querySelector('.bc[data-seg="' + n + '"]'), fl = B.querySelector('.bflow'); if (tg) B.scrollTo({ top: Math.max(0, tg.offsetTop - (fl ? fl.offsetHeight : 0) - 10), behavior: REDUCE ? 'auto' : 'smooth' }); }
+      return; }
     if (t.closest('#bExit')) return leave();
     if (t.closest('#bChamp')) return openChamp();
     if (t.closest('#bFull')){ try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch(err){} return; }
     var gg = t.closest('[data-go]'); if (gg){ var r2 = gg.dataset.go; if (r2 === D.r){ ST.view = 'one'; setUrl('board'); render(); } else go(baseUrl() + '?r=' + encodeURIComponent(r2) + '&v=board'); return; }
     var card = t.closest('.bc[data-card]'); if (card) openZoom(card);
+  };
+  if (Z) Z.onpointerdown = function(e){   // v1.9 手機：從面板頂端往下拉就關
+    if (!Z.classList.contains('sheet') || !e.target.closest('.zh') || e.target.closest('button')) return;
+    var p = Z.querySelector('.zp'), y0 = e.clientY, t0 = performance.now(), dy = 0; p.style.transition = 'none';
+    var mv = function(ev){ dy = Math.max(0, ev.clientY - y0); p.style.transform = 'translateY(' + dy + 'px)'; };
+    var up = function(ev){ document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); var v = dy / Math.max(1, performance.now() - t0);
+      if (dy > 120 || v > .6) closeZoom(); else { p.style.transition = 'transform 320ms cubic-bezier(.2,.9,.25,1)'; p.style.transform = 'none'; } };
+    document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
   };
   if (Z) Z.onclick = function(e){ var pr = e.target.closest('[data-p]'); if (pr){ openPerson(pr.dataset.p); return; } var row = e.target.closest('[data-id]'); if (row && typeof byId !== 'undefined' && byId[row.dataset.id]){ openSheet(byId[row.dataset.id]); return; } if (e.target.closest('.zh button') || e.target.classList.contains('zbg')) closeZoom(); };
   if (CH) CH.onclick = function(e){ var a = e.target.closest('[data-a]'); if (a){ if (a.dataset.a === 'close') closeChamp(); else { closeChamp(); openChamp(); } return; } skip(); };
