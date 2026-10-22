@@ -2612,7 +2612,7 @@
   }
   // ★ v5.65（10/21 Ivan，13:40 網頁版 4-1）助理段兩張卡：用 ⚡ 漏斗已經存好的「面談紀錄＋收支明細」算，不多讀 EIP
   //   ① 註冊未消耗：這個月收支「註冊」（含學員加購）的學生，那門課在面談紀錄上還是「未登記」→ 一門課一筆
-  //   ② 走到哪一關：這個月面談的人，依承辦人數 談過／報名／註冊／進班上課（進班上課＝有註冊、而且註冊的課已經登記）
+  //   ② 走到哪一關：這個月面談的人，依承辦人數 談過／報名／註冊／排進班／上過課（v5.71：排進班＝註冊的課已登記到某一班，不管幾月開；上過課＝EIP 寫使用中或出席）
   var CLS_ASST_ORGS = { '台中學院': '台一', '台中二部': '台二', '台中三部': '台三', '高雄建國': '建國', '中壢學院': '壢一', '中壢二部': '壢二', '中壢三部': '壢三' };   // v5.70 加桃區
   var CLS_ASST_BOSS = { '凃敏薰': 1, '黎禹歆': 1, '蔡青倚': 1, '李婉琳': 1, '王志軒': 1, '洪士德': 1 };   // v5.70 加桃區主管（傑森、艾莉另由 Apps Script「主管名單」分頁補）   // 主管：合計照算，業務明細標出來讓網頁決定要不要列
   function _clsNorm(t){ return String(t || '').replace(/[\s（）()【】\[\]－\-—_｜|・.,，、♣︎]/g, '').replace(/班$/, ''); }
@@ -2661,16 +2661,43 @@
       var seen = {}, by = {};
       itv.filter(function(r){ return String(r.d).indexOf(ym) === 0; }).sort(function(a, b){ return String(b.d).localeCompare(String(a.d)); }).forEach(function(r){
         if (seen[r.n]) return; seen[r.n] = 1;
-        var k = r.o || '（沒有承辦）', b = by[k] || (by[k] = { 院: sh, 業務: k, 主管: !!CLS_ASST_BOSS[k], 談過: 0, 報名: 0, 註冊: 0, 進班上課: 0 });
+        var k = r.o || '（沒有承辦）', b = by[k] || (by[k] = { 院: sh, 業務: k, 主管: !!CLS_ASST_BOSS[k], 談過: 0, 報名: 0, 註冊: 0, 進班上課: 0, 排進班: 0, 上過課: 0 });
         b.談過++;
         if ((+r.a || 0) > 0 || (+r.r || 0) > 0) b.報名++;
-        if ((+r.r || 0) > 0){ b.註冊++; if ((r.cs || []).some(function(c){ return c.k === '註冊' && c.st && c.st !== '未登記'; })) b.進班上課++; }
+        if ((+r.r || 0) > 0){ b.註冊++;
+          // ★ v5.71（10/22 Ivan：登記上課可能是 11 月、12 月、明年的班）拆兩個：排進班＝註冊的課有一門已登記到某一班；上過課＝EIP 寫使用中／出席
+          var rc = (r.cs || []).filter(function(c){ return c.k === '註冊' && c.st; });
+          if (rc.some(function(c){ return c.st !== '未登記'; })){ b.排進班++; b.進班上課++; }   // 進班上課＝排進班（舊欄名，給還沒更新的 Apps Script）
+          if (rc.some(function(c){ return /^(使用|出席)/.test(c.st); })) b.上過課++;
+        }
       });
       Object.keys(by).forEach(function(k){ fun.push(by[k]); });
     });
     unc.sort(function(a, b){ return (+b.天 || 0) - (+a.天 || 0); });
     fun.sort(function(a, b){ return a.院.localeCompare(b.院) || b.談過 - a.談過; });
-    return { 月: y + '/' + m, 漏斗同步: fd.meta.syncedAt || '', 註冊未消耗: unc, 走到哪一關: fun, 查不到: miss };
+    // ★ v5.72（10/22 Ivan 會議模式）入帳：用 ⚡ 已存的收支明細（報名＋註冊的「業績合計」），不多讀 EIP
+    //   合談：EIP 本來就拆成兩列、各記一半，照列加就是各認一半
+    //   不送學生名：同一位學生給一個代號（只拿來數「一位學生報了幾科」）
+    var inc = null;
+    try {
+      var cutD = new Date(today.getTime() - 14 * 86400000), cut = _clsYmd(cutD), cut10 = _clsYmd(new Date(today.getTime() - 10 * 86400000));
+      var dayT = {}, perT = {}, items = [], sid = {}, sidN = 0;
+      Object.keys(CLS_ASST_ORGS).forEach(function(org){
+        var sh = CLS_ASST_ORGS[org], pay = (fd.orgs[org] && fd.orgs[org].pay) || [];
+        pay.forEach(function(p){
+          var d = String(p.d || ''), v = +p.v || 0; if (!d || !v) return;
+          if (d >= cut){ var dk = sh + '|' + d; dayT[dk] = (dayT[dk] || 0) + v; }
+          if (d.indexOf(ym) === 0 || d >= cut){ var pk = sh + '|' + (p.o || '') + '|' + d; var t = perT[pk] || (perT[pk] = [0, 0]); t[0] += v; t[1]++; }
+          if (d >= cut10){ var sk = sh + '|' + p.n; if (!sid[sk]) sid[sk] = ++sidN;
+            items.push([sh, p.o || '', d, Math.round(v), String(p.k || '').slice(0, 24), String(p.sub || '').slice(0, 24), p.st || '', sid[sk]]); }
+        });
+      });
+      inc = { 同步: fd.meta.syncedAt || '', 月: y + '/' + String(m).padStart(2, '0'),
+        日: Object.keys(dayT).map(function(k){ var q = k.split('|'); return [q[0], q[1], Math.round(dayT[k])]; }),
+        人: Object.keys(perT).map(function(k){ var q = k.split('|'); return [q[0], q[1], q[2], Math.round(perT[k][0]), perT[k][1]]; }),
+        明細: items };
+    } catch(e){ console.warn('[EIP Content] 入帳資料算不出來', e); }
+    return { 月: y + '/' + m, 漏斗同步: fd.meta.syncedAt || '', 註冊未消耗: unc, 走到哪一關: fun, 查不到: miss, 入帳: inc };
   }
   async function syncClasses(){
     var cid = _cid(), CK = cid + 'classes_cache_v1';

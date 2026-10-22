@@ -10,7 +10,7 @@ markup, app = body[:i], body[i + len('<script>'):j]
 assert '</script' not in app.lower()
 
 API = 'https://script.google.com/macros/s/AKfycbxBFayHnfG5NUoj0CjIe8qwlfdFwt0FQeVD-QH6ocBu3dhHWpioOEmLk908dsTGVlznYA/exec'
-VER = 'p1.3'
+VER = 'p2.0'
 
 extra_css = r"""
   /* ── 1340.html 外殼：載入中、更新提示、選區 ── */
@@ -35,6 +35,7 @@ extra_css = r"""
 loader = r"""
 (function(){
   var API = '__API__';
+  window.PG_API = API;   // p2.0：會議模式三區總覽要拿另外兩區
   var q = new URLSearchParams(location.search), r = q.get('r') || '', d = q.get('d') || '';
   var root = document.getElementById('appRoot'), wait = document.getElementById('pgWait'), pill = document.getElementById('pgPill');
   var RG = { '中區': ['中區', '13:40'], '建國': ['高雄建國', '13:40'], '桃區': ['桃區', '13:30'] };   // p1.2 加桃區
