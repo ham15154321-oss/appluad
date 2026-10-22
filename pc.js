@@ -1123,7 +1123,7 @@
 
     // Switch tabs
     // ★ 載入「每月績效」iframe（懶載入；表頭 ☁️↑ 推送鈕也會用到）
-    var MP_TARGET_SRC = 'monthly-performance.html?v=mp137';   // ★ 改 monthly-performance.html 一定要跟著改這個號碼（deploy 不會自動幫它換指紋，不改手機會一直吃舊的）
+    var MP_TARGET_SRC = 'monthly-performance.html?v=mp138';   // ★ 改 monthly-performance.html 一定要跟著改這個號碼（deploy 不會自動幫它換指紋，不改手機會一直吃舊的）
     function _pcEnsureMpLoaded(){
       var f = document.getElementById('mp-iframe');
       if (f && (!f.src || f.src.indexOf(MP_TARGET_SRC) < 0)) f.src = MP_TARGET_SRC;
@@ -1253,27 +1253,34 @@
       if (!_pcIsAdmin()) return;
       // ★ ds137（10/22 Ivan 定案）：只有發布主機（localhost）同步完才自動推；GitHub 上同步不推，講清楚
       if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)){ try { _syncToast('ℹ️ 這裡是 GitHub，不是發布主機：同步結果只存在這台，沒有推上雲端。\n要發給全公司，請在柏翰電腦的 localhost 同步', '#0e7490'); } catch(e){} return; }
+      // ★ ds138（10/22 Ivan：跑完全部流程要自動推，不想再按鈕）：⚡ 全部同步跑的時候，每一段跑完先不推，
+      //   等全部跑完由 _syncAllEnd 只推一次（opts.now），結果寫在 ⚡ 進度框最後一行。單獨按某一顆同步照舊 8 秒後自動推。
+      var opts = arguments[1] || {};
+      if (!opts.now && typeof _syncAll !== 'undefined' && _syncAll && _syncAll.running){ console.log('[自動推送] ⚡ 全部同步進行中，等全部跑完再推一次（' + why + '）'); return; }
       if (_pcAutoPushT) clearTimeout(_pcAutoPushT);
       _pcAutoPushT = setTimeout(function(){
         _pcAutoPushT = null;
         var f = _pcEnsureMpLoaded();
+        var fin = function(ok, txt){ try { if (typeof opts.onDone === 'function') opts.onDone(ok, txt); } catch(e){} };
         var go = function(){
           try {
             _syncToast('☁️↑ 自動推送中…（' + why + '）', '#0e7490');
             var r = f.contentWindow.forcePushMpDataToCloud(true);
-            if (r && r.then) r.then(function(res){ _syncToast('☁️↑ 已自動推上雲端', '#4ade80');
+            if (r && r.then) r.then(function(res){
+                                      if (res && res.ok === false){ _syncToast('⚠️ 沒有推上雲端：' + (res.err || '不明原因'), '#e6a817'); fin(false, res.err || '沒有推'); return; }   // ★ ds138：以前被擋下也顯示「已推上」
+                                      _syncToast('☁️↑ 已自動推上雲端' + (res && res.nUp != null ? '（' + res.nUp + ' 項有更新）' : ''), '#4ade80'); fin(true, (res && res.nUp != null ? res.nUp + ' 項有更新' : '完成'));
                                       try { if (res && res.ok !== false && _pcnLastSyncId) _pcnAppend(_pcnLastSyncId, '☁️ ' + new Date().toTimeString().slice(0, 5) + ' 已自動推上雲端（' + (res.nUp || 0) + ' 項有更新）'); } catch(e3){} },
-                                    function(e){ _syncToast('⚠️ 自動推送失敗：' + (e && e.message || e) + '（可手動按 ☁️↑ 推送）', '#ff6b6b'); });
-            else _syncToast('☁️↑ 已自動推上雲端', '#4ade80');
-          } catch(e){ _syncToast('⚠️ 自動推送失敗：' + (e.message || e), '#ff6b6b'); }
+                                    function(e){ _syncToast('⚠️ 自動推送失敗：' + (e && e.message || e), '#ff6b6b'); fin(false, (e && e.message) || String(e)); });
+            else { _syncToast('☁️↑ 已自動推上雲端', '#4ade80'); fin(true, '完成'); }
+          } catch(e){ _syncToast('⚠️ 自動推送失敗：' + (e.message || e), '#ff6b6b'); fin(false, e.message || String(e)); }
         };
         if (f && f.contentWindow && typeof f.contentWindow.forcePushMpDataToCloud === 'function'){ go(); return; }
         var tries = 25;
         (function poll(){
           try { if (f && f.contentWindow && typeof f.contentWindow.forcePushMpDataToCloud === 'function'){ go(); return; } } catch(e){}
-          if (--tries > 0) setTimeout(poll, 400);
+          if (--tries > 0) setTimeout(poll, 400); else fin(false, '每月績效模組載入逾時');
         })();
-      }, 8000);
+      }, opts.now ? 0 : 8000);
     }
     // 非管理者 → 隱藏推送鈕；★ 10/10 Ivan：六顆同步鈕也藏（全公司只有管理者在同步，同事按了只會各存一份），只留 💾 鎖定、☁️↓ 拉取、🔔
     (function(){ try { if (!_pcIsAdmin()){
@@ -4143,7 +4150,7 @@
       var hour = new Date().getHours(), busy = (hour >= 10 && hour < 21) ? '\n⚠️ 現在是上班時間，EIP 比較忙，建議午休或下班後再按。\n' : '';
       if (!confirm('⚡ 全部同步\n\n會照順序一段一段跑（一次只跑一段，不會同時打 EIP）：\n'
         + plan.map(function(x, i){ return '　' + (i + 1) + '. ' + SYNC_MODES[x.md].label + (x.skip ? '　⏭ 跳過（' + x.why + '）' : ''); }).join('\n')
-        + '\n\n預估 ' + Math.max(1, Math.round(lo / 60)) + '～' + Math.round(hi / 60) + ' 分鐘。任何一段失敗就停下來，不會往下跑。' + busy + '\n中途不要關頁面。要開始嗎？')) return;
+        + '\n\n預估 ' + Math.max(1, Math.round(lo / 60)) + '～' + Math.round(hi / 60) + ' 分鐘。任何一段失敗就停下來，不會往下跑。\n全部跑完會自動推上雲端一次，同事拉取就是最新，不用再按推送。' + busy + '\n中途不要關頁面。要開始嗎？')) return;
       try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch(e){}
       _syncAll = { plan:plan, running:true, i:0, t0:Date.now(), msg:'' };
       _syncAllRender();
@@ -4218,6 +4225,24 @@
     function _syncAllEnd(ok, msg){
       var S = _syncAll; if (!S) return; S.running = false; S.done = true; S.ok = ok; S.msg = msg; S.t1 = Date.now();
       if (_syncAllTick){ clearInterval(_syncAllTick); _syncAllTick = null; }
+      // ★ ds138：全部跑完自動推一次（中途停下來也推：已經跑完的那幾段要讓同事拿到）；失敗 30 秒後自動再試一次
+      var anyOk = S.plan.some(function(x){ return x.st === 'ok'; });
+      if (anyOk && _pcIsAdmin()){
+        var isHost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+        if (!isHost){ S.push = { st:'skip', txt:'這裡是 GitHub，不是發布主機，沒有推' }; }
+        else {
+          S.push = { st:'run', txt:'推上雲端中…' };
+          var tryPush = function(n){
+            _pcAutoPush('⚡ 全部同步', { now:true, onDone:function(pok, ptxt){
+              if (pok){ S.push = { st:'ok', txt:'已推上雲端（' + ptxt + '）・' + new Date().toTimeString().slice(0, 5) + '，同事拉取就是最新' }; }
+              else if (n < 2 && !/比雲端舊|不是發布主機|取消/.test(ptxt || '')){ S.push = { st:'run', txt:'推送沒成功（' + ptxt + '），30 秒後自動再試一次…' }; setTimeout(function(){ tryPush(n + 1); }, 30000); }
+              else { S.push = { st:'fail', txt:'沒有推上雲端：' + ptxt + '（打開「🔧 同步工具」按 ☁️↑ 推送可以重推）' }; }
+              _syncAllRender();
+            } });
+          };
+          tryPush(1);
+        }
+      }
       _syncAllRender(); try { refreshSyncBtnLabels(); } catch(e){}
       _syncToast(ok ? '⚡ 全部同步完成（' + Math.round((S.t1 - S.t0) / 60000 * 10) / 10 + ' 分鐘）' : '⚠️ ' + msg, ok ? '#4ade80' : '#ff6b6b');
       _pcChime(ok);
@@ -4236,7 +4261,10 @@
         + '<ol>' + S.plan.map(function(x){
             return '<li class="' + (x.st === 'wait2' ? 'run' : x.st) + '">' + ico[x.st] + ' ' + SYNC_MODES[x.md].label
               + '<small>' + (x.st === 'skip' ? '跳過：' + _fnEsc(x.why) : (x.st === 'run' ? (x.md === 'edits' && x.round ? '第 ' + x.round + ' 輪' + (x.job ? '（' + _fnEsc(x.job) + '）' : '') + '・' : '') + '跑了 ' + Math.round((Date.now() - x.t0) / 1000) + ' 秒' + (SYNC_MODES[x.md].stage ? '・' + _fnEsc(SYNC_MODES[x.md].stage) : '') : (x.st === 'ok' ? x.sec + ' 秒' + (x.md === 'edits' && x.round > 1 ? '・跑了 ' + x.round + ' 輪' : '') + (x.late ? '（資料晚到，有進來）' : '') : (x.st === 'fail' ? '沒跑完' : (x.st === 'wait2' ? 'EIP 回得慢，再等資料進來（最多 3 分鐘）' : '等著'))))) + '</small></li>';
-          }).join('') + '</ol>'
+          }).join('')
+        + (S.push ? '<li class="' + ({ run:'run', ok:'ok', fail:'fail', skip:'skip' })[S.push.st] + '">' + ({ run:'⏳', ok:'✅', fail:'❌', skip:'⏭' })[S.push.st] + ' ☁️↑ 推上雲端<small>' + _fnEsc(S.push.txt) + '</small></li>'
+                 : (S.running ? '<li class="wait">⬜ ☁️↑ 推上雲端<small>全部跑完自動推一次</small></li>' : ''))
+        + '</ol>'
         + (S.msg ? '<p>' + _fnEsc(S.msg) + '</p>' : '<p>一次只跑一段，跑完一段才開下一段；中途不要關頁面</p>');
     }
     (function(){ try { window.addEventListener('load', function(){ setTimeout(function(){
@@ -12760,6 +12788,7 @@
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
       { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
+      { ver:'ds138', icon:'☁️', title:'跑完自動推，不用再按推送', detail:'在柏翰電腦按「⚡ 全部一段一段跑」，全部跑完會自動推上雲端一次（進度框最後一行會寫推好了沒），推失敗 30 秒後自動再試；匯入每月績效 Excel 後也會自動推。推送鈕收在「🔧 同步工具」裡，只有自動推失敗時才需要' },
       { ver:'ds137', icon:'🏠', title:'公司資料只從一台發布', detail:'固定由柏翰電腦（localhost）同步並推送公司資料；在 GitHub 網址同步不會再自動推上雲端（以前兩邊都會推，互相蓋掉）。同事照舊在 GitHub 拉取。推送、拉取也都會先比新舊，舊的不准蓋新的' },
       { ver:'ds136', icon:'🛡', title:'舊資料不會再蓋掉新資料', detail:'10/22 下午有一台電腦（測試網址）的資料停在 10/20，同步班況後自動推送，把雲端 10/21 的新資料蓋回去，大家才會看到「2 天沒同步」。現在推送和拉取都會先比「各種同步的最後時間」，哪一邊比較舊，就不准蓋過去；測試網址也不再自動推送' },
       { ver:'ds135', icon:'📝', title:'同事也看得到編輯追蹤了', detail:'以前「📝 編輯追蹤」的資料只在柏翰的電腦，公司整包推送時漏了它，同事按進去是空的。現在推送會一起帶上，同事打開編輯追蹤會看到最新那份（誰同步的最新就用誰的）' },

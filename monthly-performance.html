@@ -856,6 +856,9 @@
                     w = w.parent; depth++;
                 }
             } catch(pushErr){ /* 推送失敗不影響本機存檔 */ }
+            // ★ ds138（10/22 Ivan：要自動推，不想再按按鈕）：管理者的 firebaseSync.push 本來就不推 → 匯入每月績效後要手動按 ☁️↑。
+            //   改成也走業績中心的自動推送（發布主機 localhost 才推、8 秒後推、會先比新舊）
+            try { var _pw = window.parent; if (_pw && _pw !== window && typeof _pw._pcAutoPush === 'function') _pw._pcAutoPush('每月績效匯入'); } catch(eAP){}
             return true;
         }
 
