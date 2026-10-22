@@ -2606,7 +2606,7 @@
     for (var i = 1; i < t.rows.length; i++){
       var c = t.rows[i].cells; if (c.length < 10) continue;
       var nm = at(c, '姓名'); if (!nm) continue;
-      out.push({ 名: nm, 承辦: at(c, '承辦人'), 別: _clsTxt(c[1]), 七: at(c, '前七天'), 三: at(c, '前三天'), 當: at(c, '當天'), 登: at(c, '登記狀態') });
+      out.push({ 名: nm, 承辦: at(c, '承辦人'), 登記人員: at(c, '登記人員'), 別: _clsTxt(c[1]), 七: at(c, '前七天'), 三: at(c, '前三天'), 當: at(c, '當天'), 登: at(c, '登記狀態') });   // ★ v5.69 多留登記人員（Ivan：登記人員才是現在真正在跟的業務）
     }
     return out;
   }
@@ -2623,6 +2623,14 @@
     if (!fd || !fd.orgs || !fd.meta) return null;
     var y = +fd.meta.year, m = +fd.meta.month, ym = y + '/' + String(m).padStart(2, '0') + '/';
     var unc = [], fun = [], miss = [];
+    // ★ v5.67（10/21 Ivan 選）：只算「10 月新註冊＋學員加購」——收支的「註冊」也包含舊生分期繳款，那些不算
+    //   新註冊＝面談紀錄的總實繳 − 這個月七家收支加總 < 2,000（以前只繳過報名費、訂金），跟「報未註追回」同一個標準
+    var monthPaid = {};
+    Object.keys(fd.orgs).forEach(function(org){ (fd.orgs[org].pay || []).forEach(function(p){ if (String(p.d).indexOf(ym) === 0) monthPaid[p.n] = (monthPaid[p.n] || 0) + (+p.v || 0); }); });
+    // ★ v5.68：面談紀錄跨七家找（學生在 A 院繳費、面談紀錄在 B 院，之前會被當成查不到）
+    var lastAll = {};
+    Object.keys(fd.orgs).forEach(function(org){ (fd.orgs[org].itv || []).forEach(function(r){ if (!lastAll[r.n] || String(r.d) > String(lastAll[r.n].d)) lastAll[r.n] = r; }); });
+    var seenU = {};
     Object.keys(CLS_ASST_ORGS).forEach(function(org){
       var o = fd.orgs[org], sh = CLS_ASST_ORGS[org]; if (!o) return;
       var itv = o.itv || [], pay = o.pay || [], last = {};
@@ -2636,12 +2644,15 @@
         if (p.k) x.ks.push(p.k); if (!x.o && p.o) x.o = p.o; if (/學員加購/.test(p.sub || '')) x.add = true;
       });
       Object.keys(reg).forEach(function(nm){
-        var r = last[nm], x = reg[nm];
-        if (!r || !r.cs){ miss.push(sh + ' ' + nm); return; }   // 面談紀錄往回 3 個月內查不到這個人（多半是很久以前的舊生加購）
+        var r = (last[nm] && last[nm].cs) ? last[nm] : lastAll[nm], x = reg[nm];
+        if (!r || !r.cs){ if (x.add) miss.push(sh + ' ' + nm); return; }   // 查不到：學員加購才列出來；其他多半是舊生分期繳款，不算
+        var prior = (+r.t || 0) - (monthPaid[nm] || 0);
+        if (!x.add && prior >= 2000) return;                     // 以前就繳過學費 → 這個月只是分期／補繳，不算新註冊
         var regC = r.cs.filter(function(c){ return c.k === '註冊'; });
         var hit = regC.filter(function(c){ return x.ks.some(function(k){ return _clsSameCourse(c.n, k); }); });
         var use = hit.length ? hit : regC;   // 課名對不上 → 退回看他所有註冊的課
         use.filter(function(c){ return c.st === '未登記'; }).forEach(function(c){
+          var uk = sh + '|' + nm + '|' + c.n; if (seenU[uk]) return; seenU[uk] = 1;   // 同一門課出現兩次只算一筆
           var dd = _clsD(x.d);
           unc.push({ 院: sh, 承辦: x.o || r.o || '', 學生: nm, 課程: c.n, 註冊日: x.d, 天: dd ? _clsDays(dd, today) : '', 加購: x.add, 對到課名: !!hit.length });
         });
@@ -2669,6 +2680,11 @@
     cache.lists = cache.lists || {}; cache.att = cache.att || {}; cache.det = cache.det || {};
     cache.ros = cache.ros || {}; cache.ss = cache.ss || {};   // ★ v5.64 名單、每一堂出席（上過的堂讀一次就存，不再讀）
     _clsSlowN = 0;
+    if (!cache.v569){ cache.ros = {}; cache.v569 = 1; }   // ★ v5.69 一次性：名單重讀一次，補上登記人員
+    if (!cache.v566){   // ★ v5.66 一次性：v5.64／5.65 存進去的「還沒點名」的堂清掉，下次重讀
+      Object.keys(cache.ss).forEach(function(k){ var o = cache.ss[k], m = (o && o.m) || {}, n = 0, u = 0; for (var x in m){ n++; if (m[x] === '未') u++; } if (n && u * 2 >= n) delete cache.ss[k]; });
+      cache.v566 = 1;
+    }
     var now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate()), todayS = _clsYmd(today);
     var months = []; for (var i = CLS_BACK; i >= -1; i--){ var x = new Date(today.getFullYear(), today.getMonth() - i, 1); months.push({ y: x.getFullYear(), m: x.getMonth() + 1, past: i > 0 }); }
     var all = [], nPage = 0, nList = 0;
@@ -2724,7 +2740,7 @@
     }
     // ③-2 ★ v5.64 出席細查（中區＋建國）：名單（承辦）＋每一堂每位學生的出席
     //   寧願慢也不要影響 EIP：這一段最多讀 CLS_DETAIL_CAP 頁；EIP 慢了 3 頁就收工；上過的堂讀一次就存
-    var dRos = 0, dSes = 0, dLeft = 0, budget = CLS_DETAIL_CAP;
+    var dRos = 0, dSes = 0, dLeft = 0, dWait = 0, budget = CLS_DETAIL_CAP;
     var tgt = all.filter(function(c){
       if (!CLS_ROSTER_REGIONS[c.區] || c.類型 === '講座') return false;
       var od = _clsD(c.開班日); if (!od) return false;
@@ -2765,7 +2781,10 @@
           var u3 = CLS_HOST + '/class/service/list_attendance_attendance.php?cid=' + c3.cid + '&id=' + tk.s.id;
           var dt3 = _clsParseDetail(await _clsGet(u3, '出席：' + c3.院 + ' ' + c3.班名 + ' ' + tk.s.d));
           budget--; nPage++;
-          if (dt3) { cache.ss[c3.cid + '|' + tk.s.id] = { d: tk.s.d, t: tk.s.t, m: dt3.名單 }; dSes++; }
+          // ★ v5.66：老師還沒點名（一半以上是空的）而且是 14 天內的堂 → 先不存，下次再讀；超過 14 天還沒點就照實存
+          var notYet = dt3 && dt3.人數 && dt3.未點名 * 2 >= dt3.人數 && _clsDays(_clsD(tk.s.d), today) <= 14;
+          if (dt3 && !notYet) { cache.ss[c3.cid + '|' + tk.s.id] = { d: tk.s.d, t: tk.s.t, m: dt3.名單 }; dSes++; }
+          else if (notYet) dWait++;
         }
       } catch(e){ console.warn('[EIP Content] 班況細查讀不到', tk.k, c3.cid, e); }
     }
@@ -2777,13 +2796,13 @@
       var read = past.filter(function(s){ return s.id && cache.ss[c.cid + '|' + s.id]; });
       if (!r && !read.length) return;
       var need = Math.ceil((a.堂數 || ses.length || 0) / 3), map = {}, order = [];
-      var get = function(nm){ if (!map[nm]){ map[nm] = { 姓名: nm, 承辦: '', 別: '', 前七天: '', 前三天: '', 當天: '', 出: 0, 假: 0, 曠: 0, 近: '', 近日: '' }; order.push(nm); } return map[nm]; };
-      (r ? r.l : []).forEach(function(x){ var o = get(x.名); o.承辦 = x.承辦; o.別 = x.別; o.前七天 = x.七; o.前三天 = x.三; o.當天 = x.當; });
+      var get = function(nm){ if (!map[nm]){ map[nm] = { 姓名: nm, 承辦: '', 登記人員: '', 別: '', 前七天: '', 前三天: '', 當天: '', 出: 0, 假: 0, 曠: 0, 近: '', 近日: '' }; order.push(nm); } return map[nm]; };
+      (r ? r.l : []).forEach(function(x){ var o = get(x.名); o.承辦 = x.承辦; o.登記人員 = x.登記人員 || ''; o.別 = x.別; o.前七天 = x.七; o.前三天 = x.三; o.當天 = x.當; });
       read.forEach(function(s){ var m = cache.ss[c.cid + '|' + s.id].m || {}; for (var nm in m){ var o = get(nm), v = m[nm]; if (v === '出') o.出++; else if (v === '假') o.假++; else if (v === '曠') o.曠++; } });
       var last = read.length ? read[read.length - 1] : null;
       if (last){ var lm = cache.ss[c.cid + '|' + last.id].m || {}; order.forEach(function(nm){ map[nm].近 = lm[nm] || ''; map[nm].近日 = last.d + (last.t ? '(' + last.t + ')' : ''); }); }
       stuOf[c.cid] = { 已上: past.length, 已讀: read.length, 門檻: need, 名單讀: r ? r.at : '',
-        學生: order.map(function(nm){ var o = map[nm]; return { 姓名: o.姓名, 承辦: o.承辦, 別: o.別, 前七天: o.前七天, 前三天: o.前三天, 當天確認: o.當天, 累計出席: o.出, 請假: o.假, 曠課: o.曠, 最近一堂: o.近, 最近一堂日期: o.近日, 達標: need > 0 && o.出 >= need }; }) };
+        學生: order.map(function(nm){ var o = map[nm]; return { 姓名: o.姓名, 承辦: o.承辦, 登記人員: o.登記人員, 別: o.別, 前七天: o.前七天, 前三天: o.前三天, 當天確認: o.當天, 累計出席: o.出, 請假: o.假, 曠課: o.曠, 最近一堂: o.近, 最近一堂日期: o.近日, 達標: need > 0 && o.出 >= need }; }) };
     });
     // ④ 整理輸出：還沒結業（或結業 7 天內）的班＋14 天內的講座；不帶學生姓名電話
     var rows = [];
@@ -2817,7 +2836,7 @@
     var cnt = { '中區': 0, '南區': 0, '桃竹區': 0 }; rows.forEach(function(x){ cnt[x.區] = (cnt[x.區] || 0) + 1; });
     notify('done', { mode: 'classes', classes: pack,
       msg: '🏫 班況完成：中區 ' + cnt['中區'] + ' 班、南區 ' + cnt['南區'] + ' 班、桃竹區 ' + cnt['桃竹區'] + ' 班（這次讀了 EIP ' + nPage + ' 頁，每頁至少停 3 秒）'
-        + '｜出席細查：名單 ' + dRos + ' 班、出席 ' + dSes + ' 堂' + (dLeft ? '，還有 ' + dLeft + ' 項下次接著讀' + (_clsSlowN >= CLS_SLOW_STOP ? '（EIP 變慢，先讓開）' : '') : '，都讀完了') });
+        + '｜出席細查：名單 ' + dRos + ' 班、出席 ' + dSes + ' 堂' + (dWait ? '（另 ' + dWait + ' 堂老師還沒點名，下次再讀）' : '') + (dLeft ? '，還有 ' + dLeft + ' 項下次接著讀' + (_clsSlowN >= CLS_SLOW_STOP ? '（EIP 變慢，先讓開）' : '') : '，都讀完了') });
   }
 
   async function doSync(year, month, mode){

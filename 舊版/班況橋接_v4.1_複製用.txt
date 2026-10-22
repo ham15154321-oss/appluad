@@ -1,6 +1,6 @@
 /**
- * 業績數據橋接 v4｜2026-10-21｜加「EIP出席」「助理數據」（13:40 網頁版 4-1）
- * 版本史：v3（10/21）加 🏫 班況｜v4（10/21）多寫出席細查、助理數據；班況快報拿掉「開班超過 3 天」段
+ * 業績數據橋接 v4.1｜2026-10-21｜加「EIP出席」「助理數據」（13:40 網頁版 4-1）
+ * 版本史：v3（10/21）加 🏫 班況｜v4（10/21）多寫出席細查、助理數據；班況快報拿掉「開班超過 3 天」段｜v4.1（10/21）修：註冊未消耗那幾列少一格，整張表寫到一半就停
  *
  * 做什麼：
  *   業績數據中心按「🏫 班況」（或 ⚡ 全部同步的第 6 段）之後，把三區每一班的數字送過來，這支程式：
@@ -37,7 +37,7 @@ var BK_ATT_TAB = 'EIP出席';
 var BK_ASST_TAB = '助理數據';
 var BK_WEEK_TAB = '註冊未消耗_週存檔';
 
-function doGet(e) { return bkJson_({ v: 4 }); }
+function doGet(e) { return bkJson_({ v: 4.1 }); }
 
 function doPost(e) {
   var body = null;
@@ -107,6 +107,8 @@ function bkHandle_(body) {
 }
 
 function bkWrite_(ss, name, table) {
+  var w = table[0].length;   // v4.1：每一列補齊（或切齊）到表頭的欄數，少一格不會再整張寫一半就停
+  table = table.map(function (r) { r = r.slice(0, w); while (r.length < w) r.push(''); return r; });
   var sh = ss.getSheetByName(name) || ss.insertSheet(name);
   sh.clearContents();
   sh.getRange(1, 1, table.length, table[0].length).setNumberFormat('@').setValues(table);
@@ -256,7 +258,7 @@ function bkAsst_(asst, todayS, arch, at) {
       base == null ? '（還沒有上週五存檔）' : (done[o] || 0), base == null ? '' : '跟 ' + bkMD_(baseS) + ' 存檔比', asst.漏斗同步 || '', at]);
   });
   unc.forEach(function (u) {
-    out.push(['註冊未消耗', u.院, bkShort_(u.承辦), u.學生, u.課程, u.註冊日, u.天, u.加購 ? '是' : '', u.對到課名 ? '' : '對不上，列出他所有未登記的註冊課'].concat(E(7)).concat([asst.漏斗同步 || '', at]));
+    out.push(['註冊未消耗', u.院, bkShort_(u.承辦), u.學生, u.課程, u.註冊日, u.天, u.加購 ? '是' : '', u.對到課名 ? '' : '對不上，列出他所有未登記的註冊課'].concat(E(8)).concat([asst.漏斗同步 || '', at]));
   });
   fun.forEach(function (f) {
     out.push(['走到哪一關', f.院, bkShort_(f.業務) + (f.主管 ? '（主管）' : '')].concat(E(6)).concat([f.談過, f.報名, f.註冊, f.進班上課]).concat(E(4)).concat([asst.漏斗同步 || '', at]));

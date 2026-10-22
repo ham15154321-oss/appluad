@@ -1,0 +1,301 @@
+<header class="top">
+  <div class="t"><div><h1 id="hTitle">13:40</h1><div class="sub" id="hSub"></div></div><div class="tb"><button class="ic" type="button" id="copyAll" title="複製整份 LINE 文字">⧉</button><select class="day" id="daySel" aria-label="選日期"></select></div></div>
+  <nav class="idx" id="idx"><a href="#s-today" class="on">今天</a><a href="#s-asst" style="--pc:var(--c-asst)">助理</a><a href="#s-cs" style="--pc:var(--c-cs)">客服</a><a href="#s-lead" style="--pc:var(--c-lead)">主管</a><a href="#s-focus" style="--pc:var(--c-focus)">本日重點</a><a href="#s-biz" style="--pc:var(--c-biz)">業務</a></nav>
+</header>
+
+<main>
+<section id="s-today"><div class="card hero" id="hero"></div></section>
+
+<section id="s-asst">
+  <h2 class="sec"><span class="tt">助理</span><small id="asstSub">排名・註冊未消耗・走到哪一關</small><button class="cp" type="button" data-k="📋">複製</button></h2>
+  <div class="rank" id="rank"></div>
+  <div class="ask" style="padding:8px 6px 0" id="rankNote"></div>
+  <div id="asstCards"></div>
+  <details class="raw card flat"><summary>助理報告原文（議程）</summary><div class="agt" id="ag-📋"></div></details>
+</section>
+
+<section id="s-cs">
+  <h2 class="sec"><span class="tt">客服</span><small>EIP 班況・點一班看名單</small><button class="cp" type="button" data-k="🎧">複製</button></h2>
+  <div class="drawer card flat" id="drawer">
+    <button class="dh" type="button" id="dhBtn" aria-expanded="false">
+      <span class="big" id="dhN">0 <small>班</small></span><span class="dt"><b>點一班看名單</b><span id="dhSub"></span></span><span class="dc">›</span>
+    </button>
+    <div class="peek" id="peek"></div>
+    <div class="dbody" id="dbody"><div class="dinner" id="classes"></div></div>
+  </div>
+  <details class="raw card flat"><summary>客服報告原文（議程）</summary><div class="agt" id="ag-🎧"></div></details>
+</section>
+
+<section id="s-lead">
+  <h2 class="sec"><span class="tt">主管</span><small>看完數字，當場點名</small><button class="cp" type="button" data-k="🧑">複製</button></h2>
+  <div class="card flat agt" id="ag-🧑"></div>
+</section>
+
+<section id="s-focus">
+  <h2 class="sec"><span class="tt">本日重點</span><small>衝班、宣導、佈達</small><button class="cp" type="button" data-k="🎤">複製</button></h2>
+  <div class="card flat agt" id="ag-🎤"></div>
+  <h2 class="sec" style="margin-top:22px" id="vh"><span class="tt">驗收</span><small>上一次的交辦</small><button class="cp" type="button" data-k="⚔️">複製</button></h2>
+  <div class="card flat agt" id="ag-⚔️"></div>
+</section>
+
+<section id="s-biz">
+  <h2 class="sec"><span class="tt">業務</span><small>業績節點</small><button class="cp" type="button" data-k="💼">複製</button></h2>
+  <div class="card flat agt" id="ag-💼"></div>
+  <div class="legend"><span><i style="background:var(--blue)"></i>人名、班別（可點）</span><span><i style="background:var(--orange)"></i>缺口、沒動、未到</span><span><i style="background:var(--red)"></i>達標、過門檻</span></div>
+  <p class="foot" id="foot"></p>
+</section>
+</main>
+
+<div id="dim"></div>
+<div id="sheet" aria-hidden="true"><div class="grip"><i></i></div><div class="in" id="sheetIn"></div></div>
+<textarea id="cpBuf" aria-hidden="true" style="position:fixed;left:-9999px;top:0;opacity:0"></textarea>
+
+<script>
+var D = window.DATA || {};
+function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function short(n){ n = String(n || ''); return n.length === 3 ? n.slice(1) : n; }
+var REGION = D.r === '建國' ? '高雄建國' : D.r;
+document.title = REGION + ' 13:40';
+document.getElementById('hTitle').textContent = REGION + ' 13:40';
+var _sa = String(D.syncAt || ''), _sd = _sa.slice(0, 10).replace(/-/g, '/'), _dd = String(D.date || '').replace(/-/g, '/');
+document.getElementById('hSub').textContent = (D.dateLabel || D.date || '') + (_sa ? '・班況 ' + (_sd === _dd ? _sa.slice(11, 16) : _sa.replace(/^\d{4}\//, '').slice(0, 11)) + ' 同步' : '・班況還沒同步');
+
+/* 日期選單：留 30 天 */
+var sel = document.getElementById('daySel');
+(D.dates || []).forEach(function(d, i){ var o = document.createElement('option'); o.value = d; o.textContent = i === 0 ? '最新 ' + d.slice(5) : d.slice(5); if (d === D.date) o.selected = true; sel.appendChild(o); });
+sel.addEventListener('change', function(){ var u = (D.baseUrl || '') + '?r=' + encodeURIComponent(D.r) + (sel.selectedIndex ? '&d=' + sel.value : ''); try { window.top.location.href = u; } catch(e){ location.href = u; } });
+
+/* ── 議程原文（LINE 版）切段 ── */
+var LINE_TXT = D.agenda || '';
+var SEC_KEYS = ['📋', '🎧', '🧑', '🎤', '⚔️', '💼'];
+function secText(k){
+  var lines = LINE_TXT.split('\n'), out = [], on = false;
+  for (var i = 0; i < lines.length; i++){ var l = lines[i], head = SEC_KEYS.filter(function(x){ return l.indexOf(x) === 0; })[0];
+    if (head){ if (on) break; if (head === k) on = true; }
+    if (on) out.push(l); }
+  return out.join('\n').replace(/\n+$/, '');
+}
+/* 原文排版：標題列拿掉、📌/📊 當小標、①②③ 與 1. 當條目，數字加粗 */
+/* 人名、學院藍色；「差 N 個」橘色；其他數字加粗 */
+var NAMES = (function(){ var o = {}; ((D.asst && D.asst.fun) || []).forEach(function(x){ var n = short(x.業務); if (n.length >= 2) o[n] = 1; }); ((D.asst && D.asst.unc) || []).forEach(function(x){ var n = short(x.承辦); if (n.length >= 2) o[n] = 1; });
+  (D.classes || []).forEach(function(c){ ((c.細查 && c.細查.學生) || []).forEach(function(x){ var n = short(x.承辦); if (n.length >= 2) o[n] = 1; }); });
+  ['台一','台二','台三','建國','壢一','壢二','壢三'].forEach(function(n){ o[n] = 1; }); return Object.keys(o).sort(function(a, b){ return b.length - a.length; }); })();
+var TOK_RE = new RegExp('(差\\s?\\d+(?:\\.\\d+)?\\s?(?:個|位|萬|筆|人|組)?)|(\\d+(?:\\.\\d+)?\\s?(?:%|萬|位|個|筆|班|天|堂|組|人))' + (NAMES.length ? '|(' + NAMES.join('|') + ')(?![\\d一二三四五六七八九十])' : ''), 'g');
+function fmtLine(l){
+  return esc(l).replace(TOK_RE, function(m, gap, num, nm){ return gap ? '<i class="gp">' + gap + '</i>' : (num ? '<b>' + num + '</b>' : '<i class="nm">' + nm + '</i>'); });
+}
+function renderSec(k){
+  var el = document.getElementById('ag-' + k); if (!el) return;
+  var t = secText(k);
+  if (!t){ el.innerHTML = '<p class="none">今天議程沒有這一段' + (LINE_TXT ? '' : '（今天的議程檔還沒產生）') + '。</p>'; return; }
+  var lines = t.split('\n').slice(1), h = '';
+  var isNum = function(x){ return /^\d+\.\s?/.test(x) || /^[1-9]️⃣/.test(x); };
+  lines.forEach(function(l, i){
+    var s = l.trim(); if (!s){ h += '<div class="gap"></div>'; return; }
+    var next = ''; for (var j = i + 1; j < lines.length; j++){ if (lines[j].trim()){ next = lines[j].trim(); break; } }
+    if (/^📌/.test(s)) h += '<p class="pin">' + fmtLine(s.replace(/^📌\s*/, '')) + '</p>';
+    else if (isNum(s)){ var k = (s.match(/^\d+/) || ['•'])[0], body = s.replace(/^\d+\.\s?/, '').replace(/^[1-9]️⃣\s?/, '');
+      // 底下還有子項 → 當小標；沒有 → 一般條目（數字方塊＋正常字重）
+      h += (next && !isNum(next) && !/^[🎯🔥✅🚫⏱🔁]/.test(next) ? '<p class="hd">' : '<p class="li2">') + '<span class="k">' + k + '</span><span>' + fmtLine(body) + '</span></p>'; }
+    else if (/^📊/.test(s)) h += '<p class="lab">' + fmtLine(s.replace(/^📊\s*/, '')) + '</p>';
+    else if (/^[①②③④⑤⑥⑦⑧⑨]/.test(s)) h += '<p class="itm">' + fmtLine(s) + '</p>';
+    else if (/^[🎯🔥✅🚫⏱🔁]/.test(s)) h += '<p class="tip">' + fmtLine(s) + '</p>';
+    else h += '<p>' + fmtLine(s) + '</p>';
+  });
+  el.innerHTML = h;
+}
+SEC_KEYS.forEach(renderSec);
+if (!secText('⚔️')){ document.getElementById('vh').style.display = 'none'; document.getElementById('ag-⚔️').style.display = 'none'; }
+
+/* ── 助理：排名 ── */
+(function(){
+  var R = (D.rank && D.rank.rows) || [], el = document.getElementById('rank');
+  if (!R.length){ el.style.display = 'none'; return; }
+  el.innerHTML = R.map(function(x, i){ return '<div class="card flat"><b class="' + (i === 0 && R.length > 1 ? 'top' : '') + '">' + x.n + '</b><span>' + x.院 + (x.diff != null ? '<i class="' + (x.diff > 0 ? 'up' : '') + '">' + (x.diff > 0 ? '＋' : '') + x.diff + '</i>' : '') + '</span></div>'; }).join('');
+  if (R.length === 1) el.style.gridTemplateColumns = '1fr';
+  document.getElementById('rankNote').innerHTML = (D.rank.note || '');
+})();
+
+/* ── 助理：註冊未消耗＋走到哪一關（各院一列，點開看細節） ── */
+(function(){
+  var A = D.asst; if (!A){ document.getElementById('asstCards').innerHTML = '<div class="card flat"><p class="none">還沒有助理數據（要先跑一次 🏫 班況）。</p></div>'; return; }
+  var orgs = D.r === '建國' ? ['建國'] : ['台一', '台二', '台三'], mo = A.月 ? (+String(A.月).split('/')[1]) + ' 月' : '';
+  var U = A.unc || [], F = A.fun || [];
+  var stat = orgs.map(function(o){ var u = U.filter(function(x){ return x.院 === o; }); return { o:o, u:u, n:u.length, max:u.reduce(function(a, x){ return Math.max(a, +x.天 || 0); }, 0), done:(A.done || {})[o] }; });
+  var worstU = orgs.length > 1 ? stat.slice().sort(function(a, b){ return b.n - a.n || b.max - a.max; })[0].o : '', bestU = orgs.length > 1 ? stat.slice().sort(function(a, b){ return a.n - b.n || a.max - b.max; })[0].o : '';
+  var h = '<div class="card flat acc" style="margin-top:10px"><div class="ch">' + (mo ? '<i class="mo">' + mo + '</i>' : '') + '<b><em>' + U.filter(function(x){ return orgs.indexOf(x.院) >= 0; }).length + '</em>筆 註冊未消耗</b><span>新註冊或學員加購、面談紀錄還是未登記・點一家看名單</span></div>'
+    + '<div class="fr hd u"><span style="text-align:left">學院</span><span>筆數</span><span>最久沒登記</span><span>本週處理</span><span></span></div>';
+  stat.forEach(function(s){
+    h += '<div class="ai' + (orgs.length === 1 ? ' open' : '') + '"><button class="ar u" type="button" aria-expanded="' + (orgs.length === 1) + '"><span class="nm">' + s.o + (s.o === worstU && s.n ? '<i class="tag worst">最差</i>' : (s.o === bestU && s.o !== worstU ? '<i class="tag best">最好</i>' : '')) + '</span>'
+      + '<span class="v' + (s.o === worstU && s.n ? ' gap' : (s.n ? '' : ' z')) + '">' + s.n + '</span><span class="v d' + (s.o === worstU && s.n ? ' gap' : '') + '">' + (s.n ? s.max + '<small>天</small>' : '—') + '</span><span class="v ' + (s.done ? 'ok' : 'z') + '">' + (s.done == null ? '—' : s.done) + '</span><span class="dc">›</span></button>'
+      + '<div class="ab"><div><div class="unc">' + (s.u.length ? s.u.map(function(x){ return '<div class="ur"><div class="l"><div class="st">' + esc(short(x.承辦)) + (x.離職 ? '<small class="left">已離職</small>' : '') + '<span class="sn">' + esc(x.學生) + '</span></div><div class="cr">' + esc(x.課程) + (x.加購 ? '（學員加購）' : '') + '</div></div><div class="dy"><b>' + x.天 + '<small>天</small></b>註冊後還沒登記</div></div>'; }).join('') : '<p class="none">沒有，都登記了。</p>') + '</div></div></div></div>';
+  });
+  h += '<div class="cf">' + (A.base ? '本週處理掉跟 ' + A.base + ' 存檔比' : '「本週處理」要等週五存檔後才有') + '</div></div>';
+  // 走到哪一關
+  var sumOf = function(o){ var f = F.filter(function(x){ return x.院 === o; }); var s = { 談過:0, 報名:0, 註冊:0, 進班上課:0 }; f.forEach(function(x){ for (var k in s) s[k] += +x[k] || 0; }); s.f = f; s.rate = s.註冊 ? (s.註冊 - s.進班上課) / s.註冊 : 0; return s; };
+  var fs = orgs.map(function(o){ var s = sumOf(o); s.o = o; return s; });
+  var worstF = orgs.length > 1 ? fs.slice().sort(function(a, b){ return b.rate - a.rate; })[0].o : '', bestF = orgs.length > 1 ? fs.slice().sort(function(a, b){ return a.rate - b.rate; })[0].o : '';
+  var v = function(x, cls){ return '<span class="v' + (cls || (+x ? '' : ' z')) + '">' + x + '</span>'; };
+  h += '<div class="card flat acc" id="accF" style="margin-top:8px"><div class="ch">' + (mo ? '<i class="mo">' + mo + '</i>' : '') + '<b>談過的人，走到哪一關</b><span>每一關少幾個，就是掛在那一關的人・點一家看業務</span></div>'
+    + '<div class="fr hd"><span style="text-align:left">學院</span><span>談過</span><span>報名</span><span>註冊</span><span>進班上課</span><span></span></div>';
+  fs.forEach(function(s){
+    var gapCls = s.進班上課 < s.註冊 ? (s.o === worstF ? ' gap' : '') : '';
+    h += '<div class="ai' + (orgs.length === 1 ? ' open' : '') + '"><button class="ar" type="button"><span class="nm">' + s.o + (s.o === worstF ? '<i class="tag worst">最差</i>' : (s.o === bestF ? '<i class="tag best">最好</i>' : '')) + '</span>'
+      + v(s.談過) + v(s.報名) + v(s.註冊) + '<span class="v' + (s.o === bestF ? ' ok' : gapCls) + '">' + s.進班上課 + '</span><span class="dc">›</span></button>'
+      + '<div class="ab"><div><div class="fun">' + s.f.filter(function(x){ return !x.主管; }).sort(function(a, b){ return b.談過 - a.談過; }).map(function(x){
+        return '<div class="fr"><span class="nm">' + esc(short(x.業務)) + '</span>' + v(x.談過) + v(x.報名) + v(x.註冊) + '<span class="v' + (x.進班上課 < x.註冊 ? ' gap' : (+x.進班上課 ? '' : ' z')) + '">' + x.進班上課 + '</span><span></span></div>'; }).join('') + '</div></div></div></div>';
+  });
+  if (orgs.length > 1){ var T = { 談過:0, 報名:0, 註冊:0, 進班上課:0 }; fs.forEach(function(s){ for (var k in T) T[k] += s[k]; });
+    h += '<div class="fr sum"><span class="nm">中區合計</span><span class="v">' + T.談過 + '</span><span class="v">' + T.報名 + '</span><span class="v">' + T.註冊 + '</span><span class="v">' + T.進班上課 + '</span><span></span></div>'; }
+  h += '<div class="cf" style="padding-top:8px;border-top:0">' + (orgs.length > 1 ? '最差＝註冊了還沒進班上課的比例最高。' : '') + '橘字＝有人註冊了、還沒進班上課。只算 ' + mo + '談過的人，跟上面「註冊未消耗」的數字不一樣。主管不列。漏斗資料 ' + esc(String(A.漏斗同步 || '').replace(/^\d{4}\//, '')) + '。</div></div>';
+  document.getElementById('asstCards').innerHTML = h;
+})();
+document.querySelectorAll('.ar').forEach(function(b){ b.addEventListener('click', function(){ var it = b.parentElement, on = !it.classList.contains('open'); it.classList.toggle('open', on); b.setAttribute('aria-expanded', on ? 'true' : 'false'); }); });
+
+/* ── 客服：EIP 班況抽屜 ── */
+var CLS = (D.classes || []), byId = {}; CLS.forEach(function(c){ byId[c.cid] = c; });
+function grpOf(c){
+  if (c.type === '講座') return c.toOpen >= 0 && c.toOpen <= 14 ? '講座' : '';
+  if (c.toOpen === 0) return '今天開班';
+  if (c.toOpen >= 1 && c.toOpen <= 3) return '3 天內';
+  if (c.toOpen >= 4 && c.toOpen <= 14) return '14 天內';
+  if (c.phase === '已開班' && c.toOpen <= -1 && c.toOpen >= -3) return '已開班';
+  if (c.phase === '已開班' && c.lRate !== '' && c.lRate > 30) return '未到多';
+  if (c.toEnd !== '' && c.toEnd >= -2 && c.toEnd <= 7) return '結業';
+  return '';
+}
+CLS.forEach(function(c){ c.grp = grpOf(c); });
+var SHOW = CLS.filter(function(c){ return c.grp; });
+var GROUPS = [['今天開班','今天開班'],['已開班','開班 3 天內・看第一堂出席'],['3 天內','3 天內要開'],['14 天內','14 天內要開'],['未到多','開班超過 3 天、最近一堂未到超過三成'],['結業','7 天內結業'],['講座','14 天內講座']];
+function card(c){
+  var pill, mt, bar = '', l1, need = false;
+  if (c.type === '講座'){ l1 = c.openMD + ' 講座'; pill = '<span class="pill mute">報名 ' + c.reg + '</span>'; mt = '剩 <b>' + c.toOpen + '</b> 天'; }
+  else if (c.toOpen >= 0){ var pct = Math.min(100, c.seat ? c.reg / c.seat * 100 : 0), thp = c.seat ? c.th / c.seat * 100 : 0; need = !c.ok; l1 = c.openMD + ' 開班';
+    pill = '<span class="pill ' + (c.ok ? 'ok' : 'need') + '">' + esc(c.stTxt) + '</span>';
+    mt = '登記 <b>' + c.reg + '</b>／滿班 ' + c.seat + (c.trial ? '・試聽 ' + c.trial : '') + (c.toOpen ? '・剩 <b>' + c.toOpen + '</b> 天' : '・<b>今天</b>');
+    bar = '<div class="bar"><i class="' + (c.ok ? 'ok' : '') + '" style="width:' + pct + '%"></i><u style="left:' + thp + '%"></u></div>'; }
+  else if (c.grp === '結業'){ l1 = c.endMD + ' 結業'; pill = '<span class="pill mute">' + (c.toEnd < 0 ? '已結業' : (c.toEnd === 0 ? '今天結業' : '剩 ' + c.toEnd + ' 天')) + '</span>'; mt = '共 ' + c.total + ' 堂・登記 ' + c.reg; }
+  else { var f = c.grp === '已開班' ? c.first : c.last, lab = c.grp === '已開班' ? '第一堂' : '最近一堂 ' + (c.last && c.last.md || '');
+    l1 = '第 ' + c.dayN + ' 天・' + c.endMD + ' 結業';
+    if (!f || !f.應到){ pill = '<span class="pill need">出勤沒上傳</span>'; mt = lab + '出席<i>還沒上傳</i>'; need = true; }
+    else { var r = Math.round((f.應到 - f.實到) / f.應到 * 100); need = r > 30; pill = '<span class="pill ' + (r > 30 ? 'need' : 'mute') + '">未到 ' + r + '%</span>';
+      mt = lab + '出席 <b>' + f.實到 + '</b>／應到 ' + f.應到 + (f.請假 != null && f.請假 !== '' ? '・請假 ' + f.請假 + '・曠課 ' + f.曠課 : ''); bar = '<div class="bar"><i style="width:' + (f.實到 / f.應到 * 100) + '%"></i></div>'; } }
+  return '<div class="card flat cls' + (need ? ' need' : '') + '" id="c-' + c.cid + '" data-id="' + c.cid + '"><div class="l1"><span class="code">' + c.code + '</span><span>' + c.type + '・' + l1 + '</span><span class="sp"></span>' + pill + '</div>'
+    + '<div class="nm">' + esc(c.name) + '</div><div class="mt">' + mt + '</div>' + bar + '<div class="ft"><span class="chev">›</span></div></div>';
+}
+var ch = '', moves = [];
+GROUPS.forEach(function(g){ var rows = SHOW.filter(function(c){ return c.grp === g[0]; }); if (rows.length) ch += '<div class="grp">' + g[1] + '</div>' + rows.map(card).join(''); });
+document.getElementById('classes').innerHTML = ch || '<p class="none">這幾天沒有要追的班。</p>';
+document.getElementById('dhN').innerHTML = SHOW.length + ' <small>班</small>';
+var cnt = function(gs){ return SHOW.filter(function(c){ return gs.indexOf(c.grp) >= 0; }).length; };
+document.getElementById('dhSub').textContent = '已開班 ' + cnt(['已開班','未到多']) + '・要開 ' + cnt(['今天開班','3 天內','14 天內']) + '・結業 ' + cnt(['結業']);
+
+/* 今天要動（最多三張）：今天開班 → 3 天內差人 → 第一堂未到超過三成 → 14 天內差人 */
+SHOW.filter(function(c){ return c.grp === '今天開班'; }).forEach(function(c){ moves.push({ c:c, t:'<em>今天開班</em>，登記 ' + c.reg + '／滿班 ' + c.seat, d:c.code + ' ' + c.name }); });
+SHOW.filter(function(c){ return (c.grp === '3 天內' || c.grp === '14 天內') && !c.ok; }).sort(function(a, b){ return a.toOpen - b.toOpen; }).forEach(function(c){ moves.push({ c:c, t:'<em>' + esc(c.stTxt) + '</em>，剩 ' + c.toOpen + ' 天', d:c.code + ' ' + c.name + '・登記 ' + c.reg + '／門檻 ' + c.th }); });
+SHOW.filter(function(c){ return c.grp === '已開班' && c.first && c.first.應到 && (c.first.應到 - c.first.實到) / c.first.應到 > .3; }).forEach(function(c){ var r = Math.round((c.first.應到 - c.first.實到) / c.first.應到 * 100); moves.splice(Math.min(moves.length, 2), 0, { c:c, t:'第一堂<em>未到 ' + r + '%</em>，追曠課', d:c.code + ' ' + c.name + '・出席 ' + c.first.實到 + '／應到 ' + c.first.應到 }); });
+var n3 = cnt(['3 天內']), nNeed = SHOW.filter(function(c){ return (c.grp === '3 天內' || c.grp === '14 天內') && !c.ok; }).length, nToday = cnt(['今天開班']);
+var hero = '<h2>' + (nToday ? '今天開 <b>' + nToday + '</b> 班。' : '今天沒有班要開。') + '3 天內開 <b>' + n3 + '</b> 班，<b>' + nNeed + '</b> 班還差人。</h2>';
+moves.slice(0, 3).forEach(function(m, i){ hero += '<div class="move" data-id="' + m.c.cid + '"><span class="k">' + (i + 1) + '</span><div class="mv"><div class="t">' + m.t + '</div><div class="d">' + esc(m.d) + '</div></div><span class="chev">›</span></div>'; });
+if (!CLS.length) hero = '<h2>班況還沒同步。</h2><p class="none">在業績數據中心按一次 🏫 班況（或 ⚡ 全部同步），這裡就會出現。</p>';
+document.getElementById('hero').innerHTML = hero;
+/* 抽屜：露出最急那一班 */
+var peekId = moves.length ? moves[0].c.cid : (SHOW[0] && SHOW[0].cid), peekEl = peekId && document.getElementById('c-' + peekId);
+if (peekEl){ var clone = peekEl.cloneNode(true); clone.removeAttribute('id'); document.getElementById('peek').appendChild(clone); peekEl.classList.add('top1'); }
+var drawer = document.getElementById('drawer');
+function openDrawer(){ drawer.classList.add('open'); document.getElementById('dhBtn').setAttribute('aria-expanded', 'true'); }
+document.getElementById('dhBtn').addEventListener('click', function(){ if (drawer.classList.contains('open')){ drawer.classList.remove('open'); this.setAttribute('aria-expanded', 'false'); } else openDrawer(); });
+
+/* ── 複製（iframe 裡 clipboard 可能被擋 → 退回 execCommand） ── */
+function copyText(t){
+  var ok = function(){ return true; };
+  try { if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t).then(ok, function(){ return legacy(t); }); } catch(e){}
+  return Promise.resolve(legacy(t));
+}
+function legacy(t){ var ta = document.getElementById('cpBuf'); ta.value = t; ta.focus(); ta.select(); try { return document.execCommand('copy'); } catch(e){ return false; } }
+function flash(btn, txt){ var t = btn.textContent; btn.textContent = txt || '已複製'; btn.classList.add('done'); setTimeout(function(){ btn.textContent = t; btn.classList.remove('done'); }, 1200); }
+document.querySelectorAll('h2.sec .cp').forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); var t = secText(b.dataset.k); if (!t){ flash(b, '沒有這段'); return; } copyText(t).then(function(){ flash(b); }); }); });
+document.getElementById('copyAll').addEventListener('click', function(){ var b = this; if (!LINE_TXT){ return; } copyText(LINE_TXT.trim()).then(function(){ b.textContent = '✓'; setTimeout(function(){ b.textContent = '⧉'; }, 1200); }); });
+
+/* ── 章節索引 ── */
+var links = [].slice.call(document.querySelectorAll('.idx a')), secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+links.forEach(function(a){ a.addEventListener('click', function(e){ e.preventDefault(); var t = document.querySelector(a.getAttribute('href')); if (t) window.scrollTo({ top: t.offsetTop - 118, behavior: 'smooth' }); }); });
+function syncIdx(){ var y = window.scrollY + 140, cur = 0; secs.forEach(function(s, i){ if (s && s.offsetTop <= y) cur = i; });
+  links.forEach(function(a, i){ a.classList.toggle('on', i === cur); }); }
+window.addEventListener('scroll', syncIdx, { passive:true });
+
+/* ── 細查面板（真資料：rows[].細查） ── */
+var sheet = document.getElementById('sheet'), dim = document.getElementById('dim'), sheetIn = document.getElementById('sheetIn'), SPRING = 'cubic-bezier(.2,.9,.25,1)';
+var CKC = { '出':'a', '假':'l', '曠':'x', '未':'', '確認':'y', '未接':'n' };
+function ck(v, label, tag){ return '<span class="ck ' + (CKC[v] || '') + '"' + (label ? ' title="' + label + '"' : '') + '>' + (tag ? '<s>' + tag + '</s>' : '') + (v === '確認' ? '✓' : (v || '—')) + '</span>'; }
+function stuOf(c){
+  var q = c.細查; if (!q || !q.學生) return null;
+  var done = q.已上 || 0, need = q.門檻 || 0;
+  return q.學生.map(function(s){ var at = +s.累計出席 || 0, ok = need > 0 && at >= need;
+    return { rep: s.負責 === '客服登記' ? '客服登記' : (short(s.負責 || s.登記人員 || s.承辦) || '（沒有登記人員）'), name: s.姓名, kind: s.別, c7: s.前七天, c3: s.前三天, c0: s.當天確認, at: at, lv: +s.請假 || 0, ab: +s.曠課 || 0, last: s.最近一堂 || '', lastD: s.最近一堂日期 || '', need: need, ok: ok, behind: !ok && at < Math.min(need, Math.ceil((q.已讀 || 0) / 3)) }; });
+}
+function detail(c){
+  var L = stuOf(c), up = c.toOpen > 0 || c.type === '講座', q = c.細查 || {};
+  if (!L) return '<div class="stub">這班還沒有名單。' + (c.type === '講座' ? '講座不讀名單。' : '出席細查會分好幾次讀完，下次同步就會出現。') + '</div>';
+  var by = {}, order = [];
+  L.forEach(function(x){ if (!by[x.rep]){ by[x.rep] = []; order.push(x.rep); } by[x.rep].push(x); });
+  var bad = function(x){ return up ? x.c7 !== '確認' && x.c3 !== '確認' : x.behind; };
+  order.sort(function(a, b){ return (a === '客服登記') - (b === '客服登記') || by[b].filter(bad).length - by[a].filter(bad).length || by[b].length - by[a].length; });   // 客服登記的放最後
+  var nBad = L.filter(bad).length, nMiss = up ? 0 : L.filter(function(x){ return x.last && x.last !== '出'; }).length;
+  var seg = up ? [['all', '全部', L.length], ['bad', '還沒確認', nBad]] : [['all', '全部', L.length], ['bad', '落後', nBad], ['miss', '最近一堂沒到', nMiss]];
+  var h = '<div class="seg" id="seg">' + seg.map(function(x, i){ return '<button type="button" data-f="' + x[0] + '"' + (i ? '' : ' aria-pressed="true"') + '>' + x[1] + '<b>' + x[2] + '</b></button>'; }).join('') + '<i></i></div>';
+  h += up ? '<p class="rule">還沒開班：看名單跟客服確認。<b>七／三／當</b>＝開班前七天、前三天、當天客服打的結果，<b>✓</b> 確認、<b>未接</b> 沒接到。</p>'
+          : '<p class="rule">達標＝累計出席 ≥ 全期 ' + (c.total || '?') + ' 堂的 1/3（<b>' + (q.門檻 || '?') + ' 堂</b>）。已上 ' + (q.已上 || 0) + ' 堂' + ((q.已讀 || 0) < (q.已上 || 0) ? '，目前讀到 ' + (q.已讀 || 0) + ' 堂（其餘下次同步補讀）' : '') + '，照進度該到 <b>' + Math.min(q.門檻 || 0, Math.ceil((q.已讀 || 0) / 3)) + ' 堂</b>，沒到的算<b style="color:var(--orange)">落後</b>。</p>';
+  order.forEach(function(rp){
+    var g = by[rp], gb = g.filter(bad).length;
+    h += '<div class="sg' + (rp === '客服登記' ? ' cs' : '') + '"><div class="sgh"><b>' + esc(rp) + '</b>' + (rp === '客服登記' ? '<span class="why">登記人員、承辦人都不是業務</span>' : '') + '<span>' + g.length + ' 位</span><em class="' + (gb ? '' : 'ok') + '">' + (gb ? (up ? gb + ' 位還沒確認' : gb + ' 位落後') : (up ? '都確認了' : (g.every(function(x){ return x.ok; }) ? '都達標' : '都照進度'))) + '</em></div>';
+    g.sort(function(a, b){ return bad(b) - bad(a) || (up ? 0 : a.at - b.at); }).forEach(function(x){
+      var miss = up ? false : (x.last && x.last !== '出');
+      h += '<div class="sr' + (up ? ' up' : '') + '" data-bad="' + (bad(x) ? 1 : 0) + '" data-miss="' + (miss ? 1 : 0) + '"><span class="n">' + esc(x.name) + (x.kind && x.kind !== '正取' ? '<small>' + esc(x.kind) + '</small>' : '') + '</span>';
+      if (up) h += '<span class="cks">' + ck(x.c7, '前七天', '七') + ck(x.c3, '前三天', '三') + ck(x.c0, '當天', '當') + '</span>';
+      else { var pct = Math.min(100, x.need ? x.at / x.need * 100 : 0);
+        h += ck(x.last, '最近一堂 ' + x.lastD) + '<span class="tot"><b class="' + (x.ok ? 'ok' : x.behind ? 'bh' : '') + '">' + x.at + '<small>／' + x.need + '</small></b><div class="mini"><i class="' + (x.ok ? 'ok' : x.behind ? 'bh' : '') + '" style="width:' + Math.max(pct, 4) + '%"></i></div></span>'; }
+      h += '</div>';
+    });
+    h += '</div>';
+  });
+  return h + '<p class="demo">依「登記人員」分組；登記人員不是業務才看承辦人。名單讀取日 ' + esc(q.名單讀 || '—') + '。往下拖可以關掉。</p>';
+}
+function bindSeg(){
+  var seg = document.getElementById('seg'); if (!seg) return;
+  var bs = [].slice.call(seg.querySelectorAll('button')), pill = seg.querySelector('i');
+  var place = function(b){ pill.style.width = b.offsetWidth + 'px'; pill.style.transform = 'translateX(' + (b.offsetLeft - 3) + 'px)'; };
+  requestAnimationFrame(function(){ place(bs[0]); });
+  bs.forEach(function(b){ b.addEventListener('pointerdown', function(){ place(b); });
+    b.addEventListener('click', function(){ var f = b.dataset.f;
+      bs.forEach(function(x){ x.removeAttribute('aria-pressed'); }); b.setAttribute('aria-pressed', 'true'); place(b);
+      sheetIn.querySelectorAll('.sr').forEach(function(r){ r.classList.toggle('hide', f !== 'all' && r.dataset[f] !== '1'); });
+      sheetIn.querySelectorAll('.sg').forEach(function(g){ g.classList.toggle('hide', !g.querySelector('.sr:not(.hide)')); }); }); });
+}
+function openSheet(c){
+  var L = stuOf(c) || [], up = c.toOpen > 0 || c.type === '講座';
+  var g4 = up ? [[c.reg, c.type === '講座' ? '報名' : '登記'], [c.seat, '滿班'], [c.th || '—', '門檻'], [c.trial || 0, '試聽']]
+    : [[L.length, '學生'], [L.filter(function(x){ return x.last === '出'; }).length, '最近一堂到'], [L.filter(function(x){ return x.ok; }).length, '達標'], [L.filter(function(x){ return x.behind; }).length, '落後']];
+  sheetIn.innerHTML = '<h4>' + esc(c.name) + '</h4><div class="s">' + c.code + '・' + c.type + '・' + c.openMD + ' 開班' + (c.endMD ? '・' + c.endMD + ' 結業' : '') + '</div><div class="g4">' + g4.map(function(x){ return '<div><b>' + x[0] + '</b><span>' + x[1] + '</span></div>'; }).join('') + '</div>' + detail(c);
+  bindSeg();
+  document.body.classList.add('lock'); dim.classList.add('on'); sheet.setAttribute('aria-hidden', 'false');
+  sheet.style.transition = 'none'; sheet.style.transform = 'translateY(100%)'; sheet.scrollTop = 0;
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ sheet.style.transition = 'transform 420ms ' + SPRING; sheet.style.transform = 'translateY(0)'; }); });
+}
+function closeSheet(v){ var ms = Math.max(180, Math.min(360, 360 - (v || 0) / 10)); sheet.style.transition = 'transform ' + ms + 'ms cubic-bezier(.3,.7,.4,1)'; sheet.style.transform = 'translateY(100%)'; dim.classList.remove('on'); document.body.classList.remove('lock'); sheet.setAttribute('aria-hidden', 'true'); }
+dim.addEventListener('click', function(){ closeSheet(0); });
+document.addEventListener('click', function(e){ var el = e.target.closest('[data-id]'); if (el && byId[el.dataset.id]) openSheet(byId[el.dataset.id]); });
+/* 1:1 跟手拖曳、照放開速度決定關或回彈 */
+var drag = null;
+sheet.addEventListener('pointerdown', function(e){ if (sheet.scrollTop > 0 || e.target.closest('.seg')) return; drag = { y0:e.clientY, hist:[[e.clientY, performance.now()]], on:false, id:e.pointerId }; });
+sheet.addEventListener('pointermove', function(e){ if (!drag) return; var dy = e.clientY - drag.y0;
+  if (!drag.on){ if (Math.abs(dy) < 10) return; if (dy < 0){ drag = null; return; } drag.on = true; try { sheet.setPointerCapture(drag.id); } catch(x){} sheet.style.transition = 'none'; }
+  sheet.style.transform = 'translateY(' + Math.max(0, dy) + 'px)'; drag.hist.push([e.clientY, performance.now()]); if (drag.hist.length > 6) drag.hist.shift(); });
+function endDrag(e){ if (!drag) return; var d = drag; drag = null; if (!d.on) return;
+  var a = d.hist[0], b = d.hist[d.hist.length - 1], v = (b[1] - a[1]) > 0 ? (b[0] - a[0]) / (b[1] - a[1]) * 1000 : 0, dy = e.clientY - d.y0;
+  var proj = dy + (v / 1000) * 0.998 / (1 - 0.998);
+  if (v > 500 || proj > sheet.offsetHeight * .45) closeSheet(v); else { sheet.style.transition = 'transform 380ms ' + SPRING; sheet.style.transform = 'translateY(0)'; } }
+sheet.addEventListener('pointerup', endDrag); sheet.addEventListener('pointercancel', endDrag);
+
+document.getElementById('foot').textContent = '議程由 9:30 排程產生（' + (D.agendaDate || '—') + '）；班況、出席、助理數據由業績數據中心同步 EIP（' + (D.syncAt || '—') + '）。開班門檻＝滿班 × 2/3。網頁留 30 天。';
+</script>

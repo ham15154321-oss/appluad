@@ -4004,23 +4004,63 @@
     // ★ 10/21 Ivan：🏫 班況同步完 → 送到「業績數據橋接」Apps Script，寫進快照表「EIP班況」分頁＋班況快報（一天一則推到 LINE）
     //   先問 Apps Script 版本（doGet 的 v ≥ 3 才認得班況）；還沒更新程式就不送，免得舊程式把班況當成業績寫進「數據」
     var CLS_PUSH_URL = 'https://script.google.com/macros/s/AKfycbxBFayHnfG5NUoj0CjIe8qwlfdFwt0FQeVD-QH6ocBu3dhHWpioOEmLk908dsTGVlznYA/exec';
-    function _clsPush(pack){
-      if (!pack || !pack.rows){ try { pack = JSON.parse(localStorage.getItem(_ckCid() + 'classes_v1') || 'null'); } catch(e){} }
-      if (!pack || !pack.rows || !pack.rows.length){ _syncToast('⚠️ 班況沒有資料可以送', '#ff6b6b'); return; }
-      fetch(CLS_PUSH_URL + '?ping=1').then(function(r){ return r.json(); }).then(function(v){
-        if (!v || !(+v.v >= 3)){ _syncToast('⚠️ 班況已存在本機，但 Apps Script「業績數據橋接」還是舊版（v' + (v && v.v) + '），還沒送 Google 表。更新程式後再按一次 🏫 班況', '#e6a817'); return; }
-        // ★ ds135（10/21 Ivan 4-1）：一起送出席細查（rows[].細查）＋助理段資料（asst）；Apps Script v4 才寫得進「EIP出席」「助理數據」
-        if (!(+v.v >= 4)) _syncToast('⚠️ Apps Script 是 v' + v.v + '，班況照送，但出席細查、助理數據要更新到 v4 才會寫進表', '#e6a817');
-        return fetch(CLS_PUSH_URL, { method: 'POST', body: JSON.stringify({ kind: '班況', at: pack.at, today: pack.today, rows: pack.rows, asst: pack.asst || null }) })
-          .then(function(r){ return r.json().catch(function(){ return {}; }); })
-          .then(function(j){
-            if (j && j.ok) _syncToast('🏫 班況已寫進 Google 表「EIP班況」（' + (j.rows || pack.rows.length) + ' 班）'
-              + (j.att != null ? '、「EIP出席」' + j.att + ' 位學生' : '') + (j.unc != null ? '、「助理數據」註冊未消耗 ' + j.unc + ' 筆' : '')
-              + (j.brief === 'new' ? '，班況快報已送出' : (j.brief === 'exists' ? '，今天的快報之前送過了' : '')), '#4ade80');
-            else _syncToast('⚠️ 班況送 Google 表沒有成功：' + ((j && j.error) || 'Apps Script 沒回 ok'), '#ff6b6b');
-          });
-      }).catch(function(e){ _syncToast('⚠️ 班況送 Google 表失敗（網路或 Apps Script）：' + (e && e.message || e), '#ff6b6b'); });
+    // ★ ds137（10/21 晚）：送 Google 表改成「先存、再送、失敗自動重試、下次開頁補送」
+    //   班況包存在 FunnelDB（IndexedDB，跟擴充同一個庫；localStorage 已滿），送成功才標 sentAt；
+    //   網路失敗會等 8 秒、20 秒各重試一次；還是失敗，錯誤原文存在 classes_push_err，下次打開業績中心自動補送（不會再讀 EIP）
+    function _clsIdb(fn){ return new Promise(function(res){ try { var q = indexedDB.open('FunnelDB'); q.onsuccess = function(){ var db = q.result; if (!db.objectStoreNames.contains('kv')){ db.close(); return res(null); } fn(db, function(v){ db.close(); res(v); }); }; q.onerror = function(){ res(null); }; } catch(e){ res(null); } }); }
+    function _clsKv(key, val){
+      return _clsIdb(function(db, done){
+        var st = db.transaction('kv', val === undefined ? 'readonly' : 'readwrite').objectStore('kv');
+        if (val === undefined){ var g = st.get(key); g.onsuccess = function(){ var v = g.result; try { done(typeof v === 'string' ? JSON.parse(v) : (v || null)); } catch(e){ done(null); } }; g.onerror = function(){ done(null); }; }
+        else { var p = st.put(val, key); p.onsuccess = function(){ done(true); }; p.onerror = function(){ done(false); }; }
+      });
     }
+    function _clsPushOnce(pack){
+      return fetch(CLS_PUSH_URL + '?ping=1').then(function(r){ return r.json(); }).then(function(v){
+        if (!v || !(+v.v >= 3)) throw new Error('Apps Script 還是舊版（v' + (v && v.v) + '）');
+        return fetch(CLS_PUSH_URL, { method: 'POST', body: JSON.stringify({ kind: '班況', at: pack.at, today: pack.today, rows: pack.rows, asst: pack.asst || null }) })
+          .then(function(r){ return r.json(); });
+      });
+    }
+    function _clsPush(pack, quiet){
+      var cid = _ckCid(), KP = cid + 'classes_pack_v1', KE = cid + 'classes_push_err';
+      var go = function(pk){
+        if (!pk || !pk.rows || !pk.rows.length){ if (!quiet) _syncToast('⚠️ 班況沒有資料可以送', '#ff6b6b'); return; }
+        var tries = 0, waits = [0, 8000, 20000];
+        var attempt = function(){
+          setTimeout(function(){
+            tries++;
+            _clsPushOnce(pk).then(function(j){
+              if (j && j.ok){
+                pk.sentAt = Date.now(); _clsKv(KP, pk); _clsKv(KE, null);
+                _syncToast('🏫 班況已寫進 Google 表「EIP班況」（' + (j.rows || pk.rows.length) + ' 班）'
+                  + (j.att != null ? '、「EIP出席」' + j.att + ' 位學生' : '') + (j.unc != null ? '、「助理數據」註冊未消耗 ' + j.unc + ' 筆' : '')
+                  + (j.brief === 'new' ? '，班況快報已送出' : (j.brief === 'exists' ? '，今天的快報之前送過了' : '')) + (tries > 1 ? '（第 ' + tries + ' 次才送成功）' : ''), '#4ade80');
+              } else {
+                var em = (j && j.error) || 'Apps Script 沒回 ok';
+                _clsKv(KE, { at: new Date().toLocaleString(), msg: em, tries: tries });
+                _syncToast('⚠️ 班況送 Google 表沒有成功：' + em, '#ff6b6b');
+              }
+            }).catch(function(e){
+              var em = String((e && e.message) || e);
+              if (tries < waits.length){ if (!quiet) _syncToast('⏳ 送 Google 表沒有回應（' + em + '），' + Math.round(waits[tries] / 1000) + ' 秒後再試第 ' + (tries + 1) + ' 次…', '#e6a817'); return attempt(); }
+              _clsKv(KE, { at: new Date().toLocaleString(), msg: em, tries: tries });
+              _syncToast('⚠️ 班況送 Google 表失敗（試了 ' + tries + ' 次：' + em + '）。資料已存在這台電腦，下次打開業績中心會自動補送，不用再讀 EIP', '#ff6b6b');
+            });
+          }, waits[tries] || 0);
+        };
+        attempt();
+      };
+      if (pack && pack.rows){ pack.sentAt = 0; _clsKv(KP, pack).then(function(){ go(pack); }); }
+      else _clsKv(KP).then(go);
+    }
+    // 打開業績中心時：今天的班況包還沒送成功 → 自動補送一次（不讀 EIP）
+    setTimeout(function(){ try { _clsKv(_ckCid() + 'classes_pack_v1').then(function(pk){
+      if (!pk || pk.sentAt || !pk.rows) return;
+      var t = new Date(), ts = t.getFullYear() + '/' + String(t.getMonth() + 1).padStart(2, '0') + '/' + String(t.getDate()).padStart(2, '0');
+      if (pk.today !== ts) return;
+      _syncToast('🏫 今天的班況上次沒送到 Google 表，現在自動補送…', '#e6a817'); _clsPush(pk, true);
+    }); } catch(e){} }, 8000);
     function motivTriggerEipSync(mode, onComplete, skipDupCheck){
       mode = mode || 'motiv';
       var m = SYNC_MODES[mode];
@@ -4134,7 +4174,7 @@
       };
       try {
         if (step.md === 'funnel'){
-          var full = false; try { var rw = fnGetRaw(); if (!rw || !rw.orgs || CK_ORG_LIST.some(function(o){ var x = rw.orgs[o]; return !x || !x.itv || !x.itv.length || !x.cov; })) full = true; } catch(e){}
+          var full = false; try { var rw = fnGetRaw(); if (!rw || !rw.orgs || CK_ORG_LIST.some(function(o){ var x = rw.orgs[o]; return !x || !x.itv || !x.itv.length || !x.cov || x.itv.some(function(r){ return !r.cs; }); })) full = true; } catch(e){}   // ★ ds136：舊快取沒有每門課的登記狀態（擴充 5.63 才有）→ 完整重抓一次
           _fnFunnelFull = full;
           motivTriggerEipSync('funnel', cb, true);
         } else if (step.md === 'edits'){
@@ -4229,6 +4269,7 @@
           else {
             var _miss = CK_ORG_LIST.filter(function(o){ var x = _rw.orgs[o]; return !x || !x.itv || !x.itv.length || !x.cov; });
             if (_miss.length) _need = _miss.join('、') + ' 的逐人資料不完整';
+            else if (CK_ORG_LIST.some(function(o){ return _rw.orgs[o].itv.some(function(r){ return !r.cs; }); })) _need = '面談紀錄還沒有每門課的登記狀態（13:40 助理段要用）';   // ★ ds136
           }
           if (_need){ full = true; _syncToast('🔁 ' + _need + '，這次自動改成完整重抓（約 10～12 分鐘）', '#e6a817'); }
         } catch(e){}
