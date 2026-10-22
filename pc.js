@@ -1123,7 +1123,7 @@
 
     // Switch tabs
     // ★ 載入「每月績效」iframe（懶載入；表頭 ☁️↑ 推送鈕也會用到）
-    var MP_TARGET_SRC = 'monthly-performance.html?v=mp135';   // ★ 改 monthly-performance.html 一定要跟著改這個號碼（deploy 不會自動幫它換指紋，不改手機會一直吃舊的）
+    var MP_TARGET_SRC = 'monthly-performance.html?v=mp136';   // ★ 改 monthly-performance.html 一定要跟著改這個號碼（deploy 不會自動幫它換指紋，不改手機會一直吃舊的）
     function _pcEnsureMpLoaded(){
       var f = document.getElementById('mp-iframe');
       if (f && (!f.src || f.src.indexOf(MP_TARGET_SRC) < 0)) f.src = MP_TARGET_SRC;
@@ -1206,6 +1206,7 @@
       var finish = function(r){
         if (ended) return; ended = true;
         clearInterval(tk); _pcPulling = false; if (btn) btn.textContent = '☁️↓ 拉取';
+        if (r && r.olderCloud && r.olderCloud.length){ try { _syncToast('ℹ️ 雲端的同步資料比這台舊，那部分沒有蓋過來（保留這台較新的）：\n' + r.olderCloud.join('\n'), '#0e7490'); } catch(e){} }
         if (r && r.ok !== false && r.missing){ _syncToast('⚠️ 拉到 ' + (r.got || 0) + ' 項，' + r.missing + ' 項這次沒拉到（網路不穩），再按一次會接著拉剩下的', '#e6a817'); try { _pcAfterPull(r); } catch(e){} return; }
         if (!r || r.ok === false){ _syncToast('⚠️ 拉取失敗：' + ((r && r.err) || '不明') + '（按住 Shift 再按一次＝整包拉取）', '#ff6b6b'); return; }
         try { localStorage.setItem('pc_bundle_seen_at', String(Date.now())); } catch(e){}
@@ -1250,6 +1251,7 @@
     var _pcAutoPushT = null, _pcnLastSyncId = '';
     function _pcAutoPush(why){
       if (!_pcIsAdmin()) return;
+      if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;   // ★ ds136：測試網址不自動推公司整包（10/22 就是這裡把 10/20 的舊資料推上去）
       if (_pcAutoPushT) clearTimeout(_pcAutoPushT);
       _pcAutoPushT = setTimeout(function(){
         _pcAutoPushT = null;
@@ -12757,6 +12759,7 @@
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
       { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
+      { ver:'ds136', icon:'🛡', title:'舊資料不會再蓋掉新資料', detail:'10/22 下午有一台電腦（測試網址）的資料停在 10/20，同步班況後自動推送，把雲端 10/21 的新資料蓋回去，大家才會看到「2 天沒同步」。現在推送和拉取都會先比「各種同步的最後時間」，哪一邊比較舊，就不准蓋過去；測試網址也不再自動推送' },
       { ver:'ds135', icon:'📝', title:'同事也看得到編輯追蹤了', detail:'以前「📝 編輯追蹤」的資料只在柏翰的電腦，公司整包推送時漏了它，同事按進去是空的。現在推送會一起帶上，同事打開編輯追蹤會看到最新那份（誰同步的最新就用誰的）' },
       { ver:'ds134', icon:'🗂', title:'分頁全部看得到，不用再縮小視窗', detail:'業績中心上面那排分頁，視窗比較窄或字調大時，以前右邊的「成績單」「檢討會資料包」會被藏起來（要橫著捲、Mac 又不顯示捲軸）。現在放不下就自動排成兩行，全部一眼看得到；表頭的標題和按鈕也一樣，放不下就換行，不會再擠出畫面。手機上照舊左右滑，右邊會淡出提示還有' },
       { ver:'ds133', icon:'📋', title:'績效盤點右邊不再被切到', detail:'成績單 →「📋 績效盤點」最右邊「報未註追回」那一欄以前會被卡片切掉一截（其實是藏在裡面要橫著捲），現在那一欄的字會自己換行，整張表都看得到' },

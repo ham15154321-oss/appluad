@@ -2724,7 +2724,26 @@
             try { if (!_mpIsAdmin()){ var b = document.getElementById('cloudPushBtn'); if (b) b.style.display = 'none'; } } catch(e){}
         }); } catch(e){}
         // silent = true → 同步完自動觸發，不跳確認、不跳提示，只在右下角冒一行
+        // ★ ds136（10/22 Ivan：明明有同步，突然變成「2 天沒同步」）：
+        //   localhost 那個分頁的資料停在 10/20，同步班況後「自動推送」把整包舊資料推上雲端，蓋掉 GitHub 那邊 10/21 的新資料。
+        //   公司整包以前不比新舊，誰最後推誰贏。改成：比「各種同步的最後時間」（char_*_motiv_synced_<種類>），
+        //   哪一邊比較舊，那一邊的同步資料（char_ 開頭的那些）就不准蓋過去 —— 推送、拉取都一樣。
+        function _mpSyncStamp(s){ var m = String(s || '').match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/); return m ? new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]).getTime() : 0; }
+        var _MP_SYNC_KINDS = { motiv:'激勵', checkin:'報到', channel:'通路', funnel:'漏斗', edits:'編輯', classes:'班況' };
+        // 回傳 [{kind,label,local,cloud}]：本機比雲端舊的那幾種（local / cloud 是原字串）
+        function _mpOlderKinds(localOf, cloudOf){
+            var out = [];
+            Object.keys(_MP_SYNC_KINDS).forEach(function(kd){
+                var lv = localOf(kd), cv = cloudOf(kd), lt = _mpSyncStamp(lv), ct = _mpSyncStamp(cv);
+                if (ct && lt && lt < ct) out.push({ kind:kd, label:_MP_SYNC_KINDS[kd], local:lv, cloud:cv });
+            });
+            return out;
+        }
         async function forcePushMpDataToCloud(silent){
+            // ★ ds136：測試網址（localhost）的資料不是正式那份 → 不自動推；手動推要先確認
+            var _isDev = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+            if (_isDev && silent){ console.warn('[cloud-sync] 測試網址不自動推送公司整包'); return { ok:false, err:'測試網址不自動推送' }; }
+            if (_isDev && !confirm('⚠️ 這是測試網址（localhost），這裡的資料不一定是最新的。\n平常請在 GitHub 那個網址推送。\n\n確定要從這裡推送公司整包嗎？')) return { ok:false, err:'取消' };
             if (!_mpIsAdmin()){ if (!silent) alert('☁️↑ 這顆是「把公司整包資料廣播給所有人」，只有管理者（黃柏翰）能按。\n\n你自己的資料不需要這顆 —— 2026/09 起漏斗、深挖、面談池已經納入自動同步，\n你做的每一筆都會自己上雲，別人也看得到。\n看不到新月份請按「☁️↓ 強制拉取」。'); return { ok:false, err:'只有管理者（黃柏翰）能推送' }; }
             var btn = document.getElementById('cloudPushBtn') || { style:{} };
             try{
@@ -2809,6 +2828,38 @@
                     _preUp.push(nm); _preUpChars += val.length;
                 });
 
+                // ★ ds136 推送前比新舊：本機哪種同步比雲端舊 → 所有 char_ 開頭的同步資料都不上傳（不蓋掉雲端較新的那份）
+                var _stale = [];
+                try {
+                    if (cloudMan && cloudMan.items){
+                        var _cloudSynced = {};
+                        for (var _kd in _MP_SYNC_KINDS){
+                            var _nmL = Object.keys(items).filter(function(n){ return /^ls:char_.+_motiv_synced_/.test(n) && n.slice(-('_motiv_synced_' + _kd).length) === '_motiv_synced_' + _kd; })[0];
+                            var _nmC = _nmL || Object.keys(cloudMan.items).filter(function(n){ return n.slice(-('_motiv_synced_' + _kd).length) === '_motiv_synced_' + _kd; })[0];
+                            if (!_nmC || !cloudMan.items[_nmC]) continue;
+                            if (_nmL && cloudMan.items[_nmC].sig === _preSig[_nmL]){ _cloudSynced[_kd] = items[_nmL]; continue; }   // 一樣 → 不用讀
+                            try { var _pd = await fsync.readGlobalDoc('_global_perf_data', cloudMan.items[_nmC].doc + '_0'); _cloudSynced[_kd] = _pd && _pd.data; } catch(eR){}
+                        }
+                        _stale = _mpOlderKinds(function(kd){ var n = Object.keys(items).filter(function(x){ return x.slice(-('_motiv_synced_' + kd).length) === '_motiv_synced_' + kd; })[0]; return n ? items[n] : ''; },
+                                               function(kd){ return _cloudSynced[kd] || ''; });
+                    }
+                } catch(eSt){ console.warn('[cloud-sync] 新舊比對失敗', eSt); }
+                if (_stale.length){
+                    var _dropN = 0;
+                    _preUp = _preUp.filter(function(nm){ if (/^ls:char_/.test(nm)){ _dropN++; return false; } return true; });
+                    Object.keys(items).forEach(function(nm){ if (/^ls:char_/.test(nm)){ var oldI2 = cloudMan.items[nm]; if (oldI2) _preSig[nm] = oldI2.sig; else delete items[nm]; } });
+                    // 雲端有、這台沒有的同步資料也要保留在目錄裡（不然會被當成刪掉）
+                    Object.keys(cloudMan.items).forEach(function(nm){ if (/^ls:char_/.test(nm) && !(nm in items)){ items[nm] = ''; _preSig[nm] = cloudMan.items[nm].sig; } });
+                    var _staleTxt = _stale.map(function(x){ return x.label + '：這台 ' + x.local + '，雲端 ' + x.cloud; }).join('\n');
+                    console.warn('[cloud-sync] 這台的同步資料比雲端舊，不上傳同步資料（' + _dropN + ' 項）\n' + _staleTxt);
+                    if (silent){
+                        // 自動推送：這台的同步資料比雲端舊 → 整包都不推（通路匯入、紀錄這些在這台也可能是舊的）
+                        try { var _top = window.parent; if (_top && typeof _top._syncToast === 'function') _top._syncToast('⚠️ 這台的同步資料比雲端舊，這次沒有自動推送（避免蓋掉別台的新資料）\n' + _staleTxt + '\n要用這台的資料，請先在這台重新同步', '#e6a817'); } catch(eT){}
+                        return { ok:false, err:'這台的同步資料比雲端舊，沒有推送', stale:_stale };
+                    } else {
+                        alert('⚠️ 這台電腦的同步資料比雲端舊，這次「不會」推同步資料上去：\n\n' + _staleTxt + '\n\n（其他像每月績效、知識庫、手動填的紀錄照常推送）\n要用這台的資料蓋過去，請先在這台重新同步一次。');
+                    }
+                }
                 if (!silent){
                     var _lbl = function(nm){
                         if (nm === 'mpData') return '📅 每月績效';
@@ -2943,7 +2994,7 @@
         async function forcePullMpDataFromCloud(opts){
             opts = opts || {}; var quick = !!opts.quick;
             var btn = document.getElementById('cloudPullBtn') || { style:{} };
-            var _res = { ok:false }, _missing = [];
+            var _res = { ok:false }, _missing = [], _olderCloudMsg = null;
             window._mpPullAbort = false;
             var _aborted = function(){ return window._mpPullAbort === true; };
             try{
@@ -3016,6 +3067,17 @@
                         var pool3 = []; for (var w3 = 0; w3 < Math.min(4, need3.length); w3++) pool3.push(worker3());
                         await Promise.all(pool3);
                     }
+                    // ★ ds136 拉取前比新舊：雲端哪種同步比這台舊 → 這次拉到的 char_ 同步資料一律不寫進來（不讓舊資料蓋掉這台的新資料）
+                    try {
+                        var _gotSyncedOf = function(kd){ var n = Object.keys(got).filter(function(x){ return x.slice(-('_motiv_synced_' + kd).length) === '_motiv_synced_' + kd; })[0]; return n ? got[n] : ''; };
+                        var _locSyncedOf = function(kd){ var n = Object.keys(got).concat(nm3).filter(function(x){ return x.slice(-('_motiv_synced_' + kd).length) === '_motiv_synced_' + kd; })[0]; if (!n) return ''; try { return pLS3.getItem(n.slice(3)) || ''; } catch(e){ return ''; } };
+                        var _cloudOlder = _mpOlderKinds(_gotSyncedOf, _locSyncedOf);   // 參數倒過來：雲端（got）比本機舊的那幾種
+                        if (_cloudOlder.length){
+                            var _dropP = 0; Object.keys(got).forEach(function(n){ if (/^ls:char_/.test(n)){ delete got[n]; _dropP++; nGet3--; } });
+                            console.warn('[cloud-sync] 雲端的同步資料比這台舊，不寫進來（' + _dropP + ' 項）', _cloudOlder);
+                            _olderCloudMsg = _cloudOlder.map(function(x){ return x.label + '：雲端 ' + x.local + '，這台 ' + x.cloud; });
+                        }
+                    } catch(eOld){ console.warn('[cloud-sync] 拉取新舊比對失敗', eOld); }
                     var mp3 = got['mpData'] ? JSON.parse(got['mpData']) : null;
                     var ls3 = {}; Object.keys(got).forEach(function(n){ if (n.indexOf('ls:') === 0) ls3[n.slice(3)] = got[n]; });
                     var kb3 = got['kb'] ? JSON.parse(got['kb']) : null;
@@ -3084,7 +3146,7 @@
                 if(kbItemCount) summary.push('📚 AI 顧問知識庫: '+kbItemCount+' 份文件');
 
                 var _nothingNew = bundle._inc && bundle._inc.got === 0;
-                if (quick && _nothingNew){ return { ok:!_missing.length, got:0, skip:bundle._inc.skip, missing:_missing.length, err:(_missing.length ? _missing.length + ' 項下載不到' : ''), msg:'本機已經是最新', pushedBy:pushedBy, pushedAt:pushedAt }; }
+                if (quick && _nothingNew){ return { ok:!_missing.length, olderCloud:_olderCloudMsg, got:0, skip:bundle._inc.skip, missing:_missing.length, err:(_missing.length ? _missing.length + ' 項下載不到' : ''), msg:'本機已經是最新', pushedBy:pushedBy, pushedAt:pushedAt }; }
                 _mpStep('寫進這台', opts);
                 if(!quick && !confirm('☁️ 把雲端公司資料合併到本機?\n\n'+summary.join('\n')+'\n\n上次推送者: '+pushedBy+'\n推送時間: '+pushedAt+'\n\n說明:依月份合併 — 雲端會更新/補上月份,但不會刪掉本機已有的月份。')){
                     return { ok:false, err:'取消' };
@@ -3222,7 +3284,7 @@
                 // ★ quick：不重整，交給外層原地重畫（mp 月份有變才需要重整）
                 var _mpChanged = false;
                 try { if (mp){ var _after = {}; _mpMonthsBefore.forEach(function(m){ _after[m] = 1; }); Object.keys(mp).forEach(function(m){ if (!_after[m]) _mpChanged = true; }); } } catch(eM){}
-                _res = { ok:true, missing:_missing.length, got:(bundle._inc ? bundle._inc.got : lsKeyNames.length), skip:(bundle._inc ? bundle._inc.skip : 0), total:(bundle._inc ? bundle._inc.total : 0), failed:failed.length, mpChanged:_mpChanged, pushedBy:pushedBy, pushedAt:pushedAt, keys:lsKeyNames };
+                _res = { ok:true, olderCloud:_olderCloudMsg, missing:_missing.length, got:(bundle._inc ? bundle._inc.got : lsKeyNames.length), skip:(bundle._inc ? bundle._inc.skip : 0), total:(bundle._inc ? bundle._inc.total : 0), failed:failed.length, mpChanged:_mpChanged, pushedBy:pushedBy, pushedAt:pushedAt, keys:lsKeyNames };
                 if (quick){
                     try { var _h = _getFnHost() || window.parent; if (_h && typeof _h._pcAfterPull === 'function') _h._pcAfterPull(_res); } catch(eA){}
                     return _res;

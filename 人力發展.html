@@ -4721,7 +4721,7 @@ function perfOpen(){
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
   // ★ 2026/10/10：這個檔自己也會被瀏覽器快取，固定寫死版號永遠慢一步 →
   //   版號改成「ds54＋每 10 分鐘變一次的時間戳」：同事正常重新整理就拿到最新的 performance-compare.html（伺服器只回 304 很便宜），不用 Cmd+Shift+R
-  const PC_VER='ds135';
+  const PC_VER='ds136';
   const TARGET_SRC='performance-compare.html?v='+PC_VER+'-'+Math.floor(Date.now()/600000);
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes('v='+PC_VER+'-'))
     _afterSlide('perfOverlay', function(){ frame.src=TARGET_SRC; });   // ★ 10/20：先滑完再載
@@ -6250,28 +6250,45 @@ window.addEventListener('load',function(){
       .filter(function (x) { return x.formal || x.net || x.rs || x.c1 || x.c2 || x.c3 || x.c4; })
       .sort(function (a, b) { return (order[a.org] - order[b.org]) || (b.formal - a.formal) || a.name.localeCompare(b.name, 'zh-Hant'); });
   }
-  var busy = false;
+  // ★ ds138（10/22 Ivan 同意）：同步跑到一半也會被推上去（台三同一天 77→70、還出現過 41）
+  //   ① 數字要連續兩輪（約 30 秒）都一樣才送　② 同一天比上次送的少 → 要連續 10 分鐘都一樣才送（真的被改小才放行）
+  var busy = false, _cand = null, _candN = 0, LAST_KEY = 'upload_last_rows_v1';
+  function dayStr() { var t = new Date(); return t.getFullYear() + '-' + (t.getMonth() + 1) + '-' + t.getDate(); }
+  function dropped(rows) {
+    var prev = null; try { prev = JSON.parse(localStorage.getItem(LAST_KEY) || 'null'); } catch (e) {}
+    if (!prev || prev.day !== dayStr()) return false;
+    return rows.some(function (r) { var p = (prev.rows || []).filter(function (x) { return x.org === r.org; })[0]; return p && (r.formal < p.formal || r.c1 < p.c1); });
+  }
+  function send(c) {
+    busy = true;
+    fetch(ENDPOINT, { method: 'POST', body: JSON.stringify({ rows: c.rows, byPerson: c.byPerson }) })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (j) {
+        try { localStorage.setItem(SIG_KEY, c.sig); localStorage.setItem(LAST_KEY, JSON.stringify({ day: dayStr(), rows: c.rows })); } catch (e) {}
+        _cand = null;
+        console.log('[快照] 已上傳七家＋' + c.byPerson.length + ' 位業務', j);
+      })
+      .catch(function (e) { _candN = 0; console.log('[快照] 上傳失敗（下一輪再試）', e); })
+      .then(function () { busy = false; });
+  }
   function tick() {
     if (busy) return;
     var d = read(); if (!d) return;
-    if (d === _tickSeen) return;                          // ★ ds128：這包資料上一輪已經比對過（沒變）→ 不再重算
+    if (d === _tickSeen) {                                // 這一輪跟上一輪一樣（沒在變動）
+      if (!_cand) return;
+      _candN++;
+      if (_candN >= (_cand.drop ? 40 : 1)) send(_cand);   // 沒變少：穩定 1 輪就送；變少：穩定 40 輪（10 分鐘）才送
+      return;
+    }
+    _tickSeen = d;                                        // 資料有變：重新算，先當候選、等下一輪確認
     var rows = build(d);
     var total = rows.reduce(function (s, r) { return s + r.formal + r.c1; }, 0);
-    if (!total) return;                                   // 七家全 0（頁面剛載入還沒讀進來）不送
+    if (!total) { _cand = null; return; }                 // 七家全 0（頁面剛載入還沒讀進來）不送
     var byPerson = buildPerson(d);
     var sig = JSON.stringify({ rows: rows, byPerson: byPerson });
     var last = ''; try { last = localStorage.getItem(SIG_KEY) || ''; } catch (e) {}
-    _tickSeen = d;
-    if (sig === last) return;                             // 數字沒變不送
-    busy = true;
-    fetch(ENDPOINT, { method: 'POST', body: JSON.stringify({ rows: rows, byPerson: byPerson }) })
-      .then(function (r) { return r.json().catch(function () { return {}; }); })
-      .then(function (j) {
-        try { localStorage.setItem(SIG_KEY, sig); } catch (e) {}
-        console.log('[快照] 已上傳七家＋' + byPerson.length + ' 位業務', j);
-      })
-      .catch(function (e) { _tickSeen = null; console.log('[快照] 上傳失敗（下一輪再試）', e); })
-      .then(function () { busy = false; });
+    if (sig === last) { _cand = null; return; }           // 數字沒變不送
+    _cand = { rows: rows, byPerson: byPerson, sig: sig, drop: dropped(rows) }; _candN = 0;
   }
   setTimeout(tick, 5000);
   setInterval(tick, 15000);
