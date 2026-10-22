@@ -10,7 +10,7 @@ markup, app = body[:i], body[i + len('<script>'):j]
 assert '</script' not in app.lower()
 
 API = 'https://script.google.com/macros/s/AKfycbxBFayHnfG5NUoj0CjIe8qwlfdFwt0FQeVD-QH6ocBu3dhHWpioOEmLk908dsTGVlznYA/exec'
-VER = 'p1.0'
+VER = 'p1.3'
 
 extra_css = r"""
   /* ── 1340.html 外殼：載入中、更新提示、選區 ── */
@@ -37,18 +37,19 @@ loader = r"""
   var API = '__API__';
   var q = new URLSearchParams(location.search), r = q.get('r') || '', d = q.get('d') || '';
   var root = document.getElementById('appRoot'), wait = document.getElementById('pgWait'), pill = document.getElementById('pgPill');
-  if (r !== '中區' && r !== '建國') {   // 沒帶 ?r= → 選區
+  var RG = { '中區': ['中區', '13:40'], '建國': ['高雄建國', '13:40'], '桃區': ['桃區', '13:30'] };   // p1.2 加桃區
+  if (!RG[r]) {   // 沒帶 ?r= → 選區
     wait.remove(); root.remove();
     var pk = document.getElementById('pgPick'); pk.hidden = false;
     pk.querySelectorAll('a').forEach(function(a){ a.href = location.pathname + '?r=' + encodeURIComponent(a.dataset.r); });
     return;
   }
   document.getElementById('pgPick').remove();
-  document.title = (r === '建國' ? '高雄建國' : r) + ' 13:40';
-  document.getElementById('pgWaitT').textContent = (r === '建國' ? '高雄建國' : r) + ' 13:40 載入中…';
-  var KEY = 'pg1340|' + r + '|' + (d || 'latest');
+  document.title = RG[r][0] + ' ' + RG[r][1];
+  document.getElementById('pgWaitT').textContent = RG[r][0] + ' ' + RG[r][1] + ' 載入中…';
+  var KEY = r + '|' + (d || 'latest');
   var APP = document.getElementById('appSrc').textContent, PRISTINE = root.innerHTML;
-  var shown = '', touched = false, pillT = 0;
+  var shown = '', touched = false, pillT = 0, fresh = false;
   ['touchstart', 'pointerdown', 'wheel', 'keydown'].forEach(function(ev){ window.addEventListener(ev, function(){ touched = true; }, { passive:true, once:true }); });
 
   function say(t, tap, ms){
@@ -66,21 +67,25 @@ loader = r"""
       root.innerHTML = PRISTINE;
       var wa = window.addEventListener, da = document.addEventListener;
       window.addEventListener = function(){}; document.addEventListener = function(){};
-      try { (0, eval)(APP); } finally { window.addEventListener = wa; document.addEventListener = da; }
+      try { (0, eval)(APP); } finally { delete window.addEventListener; delete document.addEventListener; if (window.addEventListener !== wa) window.addEventListener = wa; if (document.addEventListener !== da) document.addEventListener = da; }
     } else {
       wait.remove(); root.hidden = false;
       (0, eval)(APP);
     }
     shown = txt; return true;
   }
-  function save(t){
-    try { localStorage.setItem(KEY, t); } catch (e) {
-      try { Object.keys(localStorage).forEach(function(k){ if (k.indexOf('pg1340|') === 0 && k !== KEY) localStorage.removeItem(k); }); localStorage.setItem(KEY, t); } catch (e2) {}
-    }
-  }
 
-  var cached = null; try { cached = localStorage.getItem(KEY); } catch (e) {}
-  if (cached && run(cached)) say('更新中…');
+  /* 上一次的資料記在 IndexedDB（這個網站的 localStorage 已經被業績數據中心塞滿） */
+  var dbP = new Promise(function(res){
+    try { var o = indexedDB.open('pg1340', 1); o.onupgradeneeded = function(){ o.result.createObjectStore('kv'); };
+      o.onsuccess = function(){ res(o.result); }; o.onerror = function(){ res(null); }; o.onblocked = function(){ res(null); };
+    } catch (e) { res(null); }
+  });
+  function dbGet(k){ return dbP.then(function(db){ return db ? new Promise(function(res){
+    try { var g = db.transaction('kv').objectStore('kv').get(k); g.onsuccess = function(){ res(g.result || null); }; g.onerror = function(){ res(null); }; } catch (e) { res(null); } }) : null; }); }
+  function dbPut(k, v){ dbP.then(function(db){ if (db) try { db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); } catch (e) {} }); }
+
+  dbGet(KEY).then(function(c){ if (c && !shown && run(c) && !fresh) say('更新中…'); });
 
   var ctl = window.AbortController ? new AbortController() : null;
   if (ctl) setTimeout(function(){ ctl.abort(); }, 40000);
@@ -89,14 +94,18 @@ loader = r"""
     .then(function(t){
       if (t.charAt(0) !== '{') throw new Error('not json');
       var o = JSON.parse(t); if (o.ok === false || !o.r) throw new Error(o.error || 'bad');
-      save(t);
+      fresh = true; dbPut(KEY, t);
       if (t === shown) { say(''); return; }
-      if (!shown || !touched) { run(t); say(shown ? '已更新' : '', null, 1200); return; }
+      var had = !!shown;
+      if (!had || !touched) { run(t); say(had ? '已更新' : '', null, 1200); return; }
       say('有新資料・點一下更新', function(){ run(t); window.scrollTo(0, 0); say('已更新', null, 1200); });
     })
     .catch(function(){
-      if (shown) say('連不上，先顯示上次的資料', null, 4000);
-      else document.getElementById('pgWaitT').textContent = '連不上，等一下再重新整理';
+      fresh = true;
+      dbGet(KEY).then(function(){   // 等上一次的資料讀完再決定
+        if (shown) say('連不上，先顯示上次的資料', null, 4000);
+        else document.getElementById('pgWaitT').textContent = '連不上，等一下再重新整理';
+      });
     });
 })();
 """.replace('__API__', API)
@@ -117,7 +126,7 @@ html = f"""<!doctype html>
 <body>
 <!-- 13:40 日會網頁｜{VER}｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
 <div id="pgWait"><i></i><span id="pgWaitT">載入中…</span></div>
-<div id="pgPick" hidden><h1>13:40 日會</h1><a data-r="中區">中區<small>台一・台二・台三</small></a><a data-r="建國">高雄建國<small>建國</small></a></div>
+<div id="pgPick" hidden><h1>日會</h1><a data-r="中區">中區<small>台一・台二・台三｜13:40</small></a><a data-r="桃區">桃區<small>壢一・壢二・壢三｜13:30</small></a><a data-r="建國">高雄建國<small>建國｜13:40</small></a></div>
 <div id="appRoot" hidden>
 {markup}</div>
 <button id="pgPill" type="button"></button>

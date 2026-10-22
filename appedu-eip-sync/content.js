@@ -2511,7 +2511,7 @@
   var CLS_BACK = 5, CLS_GAP_MS = 3000, CLS_SLOW_MS = 3000, CLS_SLOW_WAIT = 30000, CLS_RECENT_DAYS = 14, CLS_DETAIL_DAYS = 7;
   var CLS_HOST = 'http://eip.appedu.com.tw';
   // ★ v5.64（10/21 Ivan）出席細查：每位學生的承辦、累計出席、最近一堂狀態 —— 先做中區＋建國（南區），桃竹區之後再開
-  var CLS_ROSTER_REGIONS = { '中區': 1, '南區': 1 };
+  var CLS_ROSTER_REGIONS = { '中區': 1, '南區': 1, '桃竹區': 1 };   // ★ v5.70（10/22 Ivan）桃區也開
   var CLS_DETAIL_CAP = 40;        // 每次同步「名單＋出席狀況」最多讀 40 頁，讀不完下次接著讀（第一次補讀分次跑）
   var CLS_SLOW_STOP = 3;          // 這一次同步 EIP 慢了 3 頁 → 細查直接收工，剩下的下次再讀
   var CLS_ROSTER_DAYS = 7;        // 名單：人數沒變、離開班超過 3 天的班，7 天重讀一次
@@ -2613,8 +2613,8 @@
   // ★ v5.65（10/21 Ivan，13:40 網頁版 4-1）助理段兩張卡：用 ⚡ 漏斗已經存好的「面談紀錄＋收支明細」算，不多讀 EIP
   //   ① 註冊未消耗：這個月收支「註冊」（含學員加購）的學生，那門課在面談紀錄上還是「未登記」→ 一門課一筆
   //   ② 走到哪一關：這個月面談的人，依承辦人數 談過／報名／註冊／進班上課（進班上課＝有註冊、而且註冊的課已經登記）
-  var CLS_ASST_ORGS = { '台中學院': '台一', '台中二部': '台二', '台中三部': '台三', '高雄建國': '建國' };
-  var CLS_ASST_BOSS = { '凃敏薰': 1, '黎禹歆': 1 };   // 主管：合計照算，業務明細標出來讓網頁決定要不要列
+  var CLS_ASST_ORGS = { '台中學院': '台一', '台中二部': '台二', '台中三部': '台三', '高雄建國': '建國', '中壢學院': '壢一', '中壢二部': '壢二', '中壢三部': '壢三' };   // v5.70 加桃區
+  var CLS_ASST_BOSS = { '凃敏薰': 1, '黎禹歆': 1, '蔡青倚': 1, '李婉琳': 1, '王志軒': 1, '洪士德': 1 };   // v5.70 加桃區主管（傑森、艾莉另由 Apps Script「主管名單」分頁補）   // 主管：合計照算，業務明細標出來讓網頁決定要不要列
   function _clsNorm(t){ return String(t || '').replace(/[\s（）()【】\[\]－\-—_｜|・.,，、♣︎]/g, '').replace(/班$/, ''); }
   function _clsSameCourse(a, b){ a = _clsNorm(a); b = _clsNorm(b); if (!a || !b) return false; var k = Math.min(4, a.length, b.length); return a.slice(0, k) === b.slice(0, k); }
   async function _clsAsst(today){
