@@ -2740,10 +2740,11 @@
             return out;
         }
         async function forcePushMpDataToCloud(silent){
-            // ★ ds136：測試網址（localhost）的資料不是正式那份 → 不自動推；手動推要先確認
-            var _isDev = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-            if (_isDev && silent){ console.warn('[cloud-sync] 測試網址不自動推送公司整包'); return { ok:false, err:'測試網址不自動推送' }; }
-            if (_isDev && !confirm('⚠️ 這是測試網址（localhost），這裡的資料不一定是最新的。\n平常請在 GitHub 那個網址推送。\n\n確定要從這裡推送公司整包嗎？')) return { ok:false, err:'取消' };
+            // ★ ds137（10/22 Ivan 定案）：發布主機＝柏翰電腦上的 localhost（在那裡同步、推送）；同事一律在 GitHub 拉取。
+            //   GitHub 上就算管理者同步了也不自動推（10/21 就是 GitHub 自動推＋localhost 自動推兩邊互蓋）；手動推要先確認。
+            var _isHost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+            if (!_isHost && silent){ console.warn('[cloud-sync] 這裡不是發布主機（localhost），不自動推送公司整包'); return { ok:false, err:'不是發布主機，不自動推送' }; }
+            if (!_isHost && !silent && !confirm('⚠️ 發布主機是柏翰電腦上的 localhost。\n這裡是 GitHub，平常不在這裡推送。\n\n確定要從這裡推送公司整包嗎？（資料比雲端舊的部分仍然不會推上去）')) return { ok:false, err:'取消' };
             if (!_mpIsAdmin()){ if (!silent) alert('☁️↑ 這顆是「把公司整包資料廣播給所有人」，只有管理者（黃柏翰）能按。\n\n你自己的資料不需要這顆 —— 2026/09 起漏斗、深挖、面談池已經納入自動同步，\n你做的每一筆都會自己上雲，別人也看得到。\n看不到新月份請按「☁️↓ 強制拉取」。'); return { ok:false, err:'只有管理者（黃柏翰）能推送' }; }
             var btn = document.getElementById('cloudPushBtn') || { style:{} };
             try{
