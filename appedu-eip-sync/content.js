@@ -571,19 +571,21 @@
   function _listRowsFromHtml(html){
     var doc = new DOMParser().parseFromString(html, 'text/html');
     var tables = doc.querySelectorAll('table');
-    var table = null, idxAcad = -1, idxOwner = -1, idxSrc = -1;
+    var table = null, idxAcad = -1, idxOwner = -1, idxSrc = -1, idxName = -1, idxDate = -1;
     for (var t = 0; t < tables.length; t++){
       var rows = getDirectRows(tables[t]);
       if (rows.length < 1) continue;
       var ths = getDirectCells(rows[0]);
-      var ia = -1, io = -1, isr = -1;
+      var ia = -1, io = -1, isr = -1, inm = -1, idt = -1;
       for (var c = 0; c < ths.length; c++){
         var h = ths[c].textContent.trim();
         if (ia < 0 && h === '學院') ia = c;
         if (io < 0 && h === '承辦人') io = c;
         if (isr < 0 && h.indexOf('通路來源') >= 0) isr = c;   // 「通路來源(副)」→ 推算網路已報到用
+        if (inm < 0 && h === '姓名') inm = c;                   // ★ v5.73 報到明細
+        if (idt < 0 && h === '預約日期') idt = c;
       }
-      if (ia >= 0 && io >= 0){ table = tables[t]; idxAcad = ia; idxOwner = io; idxSrc = isr; break; }
+      if (ia >= 0 && io >= 0){ table = tables[t]; idxAcad = ia; idxOwner = io; idxSrc = isr; idxName = inm; idxDate = idt; break; }
     }
     if (!table) return null; // 連名單表都沒有 → 可能無權/登入頁，交給呼叫端判斷
     var out = [];
@@ -595,7 +597,9 @@
       var owner = tds[idxOwner].textContent.trim();
       var sig = trs[i].textContent.replace(/\s+/g, '').slice(0, 60);
       out.push({ academy: acad, owner: owner, sig: sig,
-                 src: (idxSrc >= 0 && tds.length > idxSrc) ? tds[idxSrc].textContent.replace(/\s+/g, ' ').trim() : null });
+                 src: (idxSrc >= 0 && tds.length > idxSrc) ? tds[idxSrc].textContent.replace(/\s+/g, ' ').trim() : null,
+                 name: (idxName >= 0 && tds.length > idxName) ? tds[idxName].textContent.trim() : '',
+                 date: (idxDate >= 0 && tds.length > idxDate) ? tds[idxDate].textContent.replace(/\s+/g, ' ').trim() : '' });
     }
     return out;
   }
@@ -611,6 +615,7 @@
     var seen = {};
     var MAX_PAGES = 80;
     var got1stTable = false;
+    var detRows = _ckDetailWant(params) ? [] : null;   // ★ v5.73
     // ★ v5.14→v5.15：keepalive 改「content 端主動敲」。
     //   content.js 跑在頁面裡永遠不會被休眠 → 由它每 12 秒送一個輕量 ping，
     //   讓 Chrome 一直看到有訊息進來、不把背景 service worker 回收（比背景自己敲可靠）。
@@ -641,6 +646,7 @@
         seen[rows[i].sig] = 1;
         addCount(counts, rows[i].academy, rows[i].owner);
         if (info.wantRows) (info.rows || (info.rows = [])).push({ academy: rows[i].academy, owner: rows[i].owner, src: rows[i].src });
+        if (detRows) detRows.push(rows[i]);
         added++;
       }
       notify('status', { msg: label + '：網頁版分頁抓取中… 第 ' + pg + ' 頁（累計 ' + counts.total + ' 筆）' });
@@ -651,6 +657,7 @@
       try { clearInterval(kaTimer); } catch(e){}   // 抓完（或出錯）都要停掉 keepalive ping
     }
     if (!got1stTable) return emptyCounts();
+    if (detRows && !info.capped) _ckDetailBatch(params, detRows);
     console.log('[EIP Content] ' + label + ' 網頁版分頁: ' + counts.total + ' 筆');
     return counts;
   }
@@ -670,6 +677,7 @@
       if (!_looksLikeHtml(csv)){
         var counts = countsFromCSV(csv);
         if (!counts) counts = emptyCounts(); // 有 CSV 但解析不出表頭（可能該查詢本月 0 筆）→ 當成 0，不報錯
+        if (_ckDetailWant(params)){ var dr = _ckRowsFromCsv(csv); if (dr) _ckDetailBatch(params, dr); }   // ★ v5.73
         console.log('[EIP Content] ' + label + ' CSV: ' + counts.total + ' 筆' + (attempt ? '（第 ' + (attempt+1) + ' 次嘗試成功）' : ''));
         info.tries = attempt + 1;
         return counts;
@@ -1355,8 +1363,51 @@
   }
 
   // ── 模式 B：報到排名（已報到 / 網路已報到 / 到月底預約報到，全走 CSV） ──
+  // ★ v5.73（10/22 Ivan 選 B）報到明細：同步「已報到」時，同一個請求拿到的名單順手存下來（學院、承辦、姓名、預約日期、通路），不多讀 EIP
+  //   只有「這個月還沒有完整明細」的第一次，會多把整個月的已報到名單照慢速抓一次
+  var CK_DET_KEY = 'checkin_detail_v1', _ckDetBatches = null;
+  function _ckDetailWant(p){ return !!_ckDetBatches && !!p && p.q16 === 'formal' && !p.q13; }
+  function _ckDetailBatch(p, rows){ if (_ckDetBatches) _ckDetBatches.push({ from: p.q7 || '', to: p.q8 || '', rows: rows }); }
+  function _ckNormD(s){ var m = String(s || '').match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/); return m ? m[1] + '/' + pad2(m[2]) + '/' + pad2(m[3]) : ''; }
+  function _ckRowsFromCsv(text){
+    var rows = parseCSV(text); if (!rows.length) return null;
+    for (var r = 0; r < Math.min(rows.length, 5); r++){
+      var ix = {}; rows[r].forEach(function(h, c){ h = String(h).trim(); if (h.indexOf('學院') >= 0 && ix.a == null) ix.a = c; if (h.indexOf('承辦人') >= 0 && ix.o == null) ix.o = c; if (h === '姓名' && ix.n == null) ix.n = c; if (h.indexOf('預約日期') >= 0 && ix.d == null) ix.d = c; if (h.indexOf('通路來源') >= 0 && ix.s == null) ix.s = c; });
+      if (ix.a != null && ix.o != null && ix.n != null && ix.d != null){
+        return rows.slice(r + 1).filter(function(x){ return x.length > Math.max(ix.a, ix.o, ix.n, ix.d); }).map(function(x){ return { academy: String(x[ix.a]).trim(), owner: String(x[ix.o]).trim(), name: String(x[ix.n]).trim(), date: String(x[ix.d]).trim(), src: ix.s != null ? String(x[ix.s]).trim() : '' }; });
+      }
+    }
+    return null;
+  }
+  async function _ckDetailSave(year, month){
+    var b = _ckDetBatches; _ckDetBatches = null; if (!b || !b.length) return null;
+    var key = _cid() + CK_DET_KEY, ym = year + '/' + pad2(month), mStart = ym + '/01', st = await _fnDbGet(key);
+    if (!st || st.ym !== ym) st = { ym: ym, rows: [], full: false };
+    b.forEach(function(x){
+      var from = _ckNormD(x.from) || mStart, to = x.to ? _ckNormD(x.to) : '9999/99/99';
+      var got = [];
+      x.rows.forEach(function(r){ var m = String(r.date || '').match(/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}:\d{2}))?/); if (!m || !r.name) return;
+        var d = (+m[1] > +month + 6 ? year - 1 : year) + '/' + pad2(m[1]) + '/' + pad2(m[2]);
+        got.push({ a: r.academy, w: r.owner, n: r.name, d: d, t: m[3] || '', s: r.src || '' }); });
+      st.rows = st.rows.filter(function(r){ return !(r.d >= from && r.d <= to); }).concat(got.filter(function(r){ return r.d >= from && r.d <= to; }));
+      if (from <= mStart && !x.to) st.full = true;
+    });
+    st.at = _nowStr(); await _fnDbPut(key, st); return st;
+  }
   async function syncCheckin(year, month){
-    var checkinData = await fetchCheckin(year, month);
+    _ckDetBatches = [];
+    var checkinData;
+    try { checkinData = await fetchCheckin(year, month); } catch(e){ _ckDetBatches = null; throw e; }
+    try {
+      var stDet = await _ckDetailSave(year, month);
+      if (!stDet || !stDet.full){   // 第一次：把這個月整份已報到名單慢慢抓一次（之後只靠平常同步順手帶回來的那幾天）
+        notify('status', { msg: '🚪 報到明細：第一次把這個月的已報到名單完整抓一次（照慢速，一次一頁）…' });
+        await sleep(EIP_THROTTLE_MS);
+        _ckDetBatches = [];
+        await fetchListCounts({ q7: year + '/' + month + '/01', q16: 'formal' }, '已報到明細（第一次補抓整個月）', {});
+        await _ckDetailSave(year, month);
+      }
+    } catch(e){ _ckDetBatches = null; console.warn('[EIP Content] 報到明細沒存成（不影響報到排名）', e); }
     var cid = _cid(), ts = _nowStr();
     var _ckKeep = _keepIfEmpty(cid + 'motiv_checkin_v1', checkinData, year, month, _checkinRows);
     checkinData = _ckKeep.data;
@@ -2697,7 +2748,17 @@
         人: Object.keys(perT).map(function(k){ var q = k.split('|'); return [q[0], q[1], q[2], Math.round(perT[k][0]), perT[k][1]]; }),
         明細: items };
     } catch(e){ console.warn('[EIP Content] 入帳資料算不出來', e); }
-    return { 月: y + '/' + m, 漏斗同步: fd.meta.syncedAt || '', 註冊未消耗: unc, 走到哪一關: fun, 查不到: miss, 入帳: inc };
+    // ★ v5.73 報到明細（會議模式點人看）：誰、哪天報到、哪個通路，後來走到哪一關（用面談紀錄對）
+    var ckd = null;
+    try {
+      var cst = await _fnDbGet(_cid() + CK_DET_KEY);
+      if (cst && cst.ym === y + '/' + String(m).padStart(2, '0')){
+        ckd = { 同步: cst.at || '', 完整: !!cst.full, 列: cst.rows.filter(function(r){ return CLS_ASST_ORGS[r.a]; }).map(function(r){
+          var it = lastAll[r.n], nx = !it ? '還沒有面談紀錄' : ((+it.r || 0) > 0 ? '註冊了' : ((+it.a || 0) > 0 ? '報名了' : '面談了、還沒報名'));
+          return [CLS_ASST_ORGS[r.a], r.w, r.n, r.d, r.t, r.s, nx]; }) };
+      }
+    } catch(e){ console.warn('[EIP Content] 報到明細讀不到', e); }
+    return { 月: y + '/' + m, 漏斗同步: fd.meta.syncedAt || '', 註冊未消耗: unc, 走到哪一關: fun, 查不到: miss, 入帳: inc, 報到明細: ckd };
   }
   async function syncClasses(){
     var cid = _cid(), CK = cid + 'classes_cache_v1';
