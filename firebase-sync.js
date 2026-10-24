@@ -381,6 +381,8 @@ var IDB_MIGRATED_LS_SUFFIXES = [
   'fn_archive_v1',               // → FunnelDB.kv（漏斗逐人月封存；靠「☁️↑ 強制推送」分片通道分發）
   'fn_itv_v1',                   // → FunnelDB.kv（面談逐人共用池，依面談月份存一份）
   'fn_notes_v1',                 // → FunnelDB.kv（歷次同步看到的備註累積）
+  'ck_archive_v1',               // → FunnelDB.kv（★ ds139 10/24：報到排名月封存，每人 300KB × 11 人把 localStorage 塞滿）
+  'cr_archive_v2',               // → FunnelDB.kv（★ ds139：課程銷售分析月封存，每人最多 500KB × 10 人）
   'fn_cold_index_v1',            // → FunnelDB.kv（🧊 冷封存索引：哪些月份已搬到雲端）
   'motiv_trial_v1',              // → FunnelDB.kv（試聽深挖，舊版）
   'motiv_trial_v2'               // → FunnelDB.kv（試聽深挖，跨月保留版）

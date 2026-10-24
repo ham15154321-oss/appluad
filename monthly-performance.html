@@ -574,7 +574,7 @@
         }
     </style>
 <script src="./auth-check.js?v=5a09f9ce"></script>
-<script defer src="./firebase-sync.js?v=24794ab3"></script>
+<script defer src="./firebase-sync.js?v=2b77f0c5"></script>
 <link rel="stylesheet" href="day-mode.css?v=813e1a84">
 </head>
 <body>
@@ -2578,7 +2578,7 @@
             if (/^trk(f|r|cfg)?_/.test(label)) return '🗂 面談追蹤卡／回饋／檢討';
             return '';
         }
-        function _isFnIdbKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1' || k.slice(-10) === '_fn_itv_v1' || k.slice(-12) === '_fn_notes_v1' || k.slice(-12) === '_fn_edits_v1' /* ★ ds135：編輯追蹤以前漏了，同事從來拿不到 */ || k.slice(-17) === '_fn_cold_index_v1' || k.slice(-15) === '_motiv_trial_v1' || k.slice(-15) === '_motiv_trial_v2'); }
+        function _isFnIdbKey(k){ return !!k && k.indexOf('char_') === 0 && (k.slice(-16) === '_motiv_funnel_v1' || k.slice(-14) === '_fn_archive_v1' || k.slice(-10) === '_fn_itv_v1' || k.slice(-12) === '_fn_notes_v1' || k.slice(-12) === '_fn_edits_v1' /* ★ ds135：編輯追蹤以前漏了，同事從來拿不到 */ || k.slice(-14) === '_ck_archive_v1' || k.slice(-14) === '_cr_archive_v2' /* ★ ds139：月封存搬進 IDB */ || k.slice(-17) === '_fn_cold_index_v1' || k.slice(-15) === '_motiv_trial_v1' || k.slice(-15) === '_motiv_trial_v2'); }
         // ★ 2026/09 增量推送：整包上雲每次都全量（含 1MB 逐人資料）。改成逐項比簽章，只上傳有變動的。
         //   簽章 = 長度 + 32bit hash（夠分辨內容有沒有變，成本極低）
         function _sigOf(str){
@@ -2623,7 +2623,7 @@
                 var pLS = _getParentLS();
                 for(var i=0;i<pLS.length;i++){
                     var k = pLS.key(i);
-                    if(!k || k.indexOf('ck_archive_v1') < 0) continue;
+                    if(!k || k.indexOf('ck_archive_v1') < 0) continue;   /* ★ ds139：搬進 IDB 後這裡多半是空的，下面另外看 IDB */
                     var raw = getter ? getter(k) : pLS.getItem(k);
                     if(!raw) continue;
                     var o = JSON.parse(raw);
@@ -3252,6 +3252,21 @@
                                         if (incT.meta) curT.meta = Object.assign({}, incT.meta, curT.meta);
                                         idbWrites.push(host._fnIdbPut(k, curT));
                                     }
+                                } else if (k.slice(-14) === '_ck_archive_v1' || k.slice(-14) === '_cr_archive_v2'){
+                                    // ★ ds139：月封存逐月合併（同月 savedAt 新者勝；課程銷售有明細的優先），本機獨有的月份不會被雲端洗掉
+                                    var curA = {}; try{ curA = JSON.parse(host._fnIdbCache[k] || '{}') || {}; }catch(e1){}
+                                    var incA = {}; try{ incA = JSON.parse(v || '{}') || {}; }catch(e2){}
+                                    if (k.slice(-14) === '_ck_archive_v1' && typeof host._fnAbsorbCkFunnel === 'function') host._fnAbsorbCkFunnel(k.slice(0, -13), incA);
+                                    var _hasOw = function(bo){ try { return Object.keys(bo || {}).some(function(o){ var r = bo[o]; return r && r.owners && Object.keys(r.owners).length; }); } catch(e){ return false; } };
+                                    Object.keys(incA).forEach(function(ym){
+                                        var a = curA[ym], b = incA[ym]; if (!b) return;
+                                        if (!a){ curA[ym] = b; return; }
+                                        var ta = Date.parse(a.savedAt || 0) || 0, tb = Date.parse(b.savedAt || 0) || 0;
+                                        if (k.slice(-14) === '_cr_archive_v2'){ var oa = _hasOw(a.byOrg), ob = _hasOw(b.byOrg); if (ob && !oa){ curA[ym] = b; return; } if (oa && !ob) return; }
+                                        if (k.slice(-14) === '_ck_archive_v1'){ ['checkin','perfp'].forEach(function(f){ if (b[f] && (!a[f] || tb > ta)) a[f] = b[f]; }); if (tb > ta) a.savedAt = b.savedAt; return; }
+                                        if (tb > ta) curA[ym] = b;
+                                    });
+                                    idbWrites.push(host._fnIdbPut(k, curA));
                                 } else {
                                     idbWrites.push(host._fnIdbPut(k, v));
                                 }

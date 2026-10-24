@@ -1123,7 +1123,7 @@
 
     // Switch tabs
     // ★ 載入「每月績效」iframe（懶載入；表頭 ☁️↑ 推送鈕也會用到）
-    var MP_TARGET_SRC = 'monthly-performance.html?v=mp138';   // ★ 改 monthly-performance.html 一定要跟著改這個號碼（deploy 不會自動幫它換指紋，不改手機會一直吃舊的）
+    var MP_TARGET_SRC = 'monthly-performance.html?v=mp139';   // ★ 改 monthly-performance.html 一定要跟著改這個號碼（deploy 不會自動幫它換指紋，不改手機會一直吃舊的）
     function _pcEnsureMpLoaded(){
       var f = document.getElementById('mp-iframe');
       if (f && (!f.src || f.src.indexOf(MP_TARGET_SRC) < 0)) f.src = MP_TARGET_SRC;
@@ -4760,17 +4760,34 @@
 
     // ── 月/季封存（像「年度月/季比較」一樣可回看 1~12 月 + Q1~Q4） ──
     function _ckPad2(n){ return String(n).padStart(2, '0'); }
+    // ★ ds139（10/24 Ivan：localStorage 滿了）：報到／課程銷售的月封存搬進 IndexedDB（FunnelDB）。
+    //   讀：所有來源（自己＋別人，IDB＋舊 localStorage）一起合併，規則跟以前一樣；寫：只寫 IDB 自己那一份，localStorage 那份刪掉。
+    function _archSources(suffix, ownKey){
+      var out = [], seen = {};
+      try { Object.keys(window._fnIdbCache || {}).forEach(function(k){ if (k.indexOf('char_') === 0 && k.slice(-suffix.length - 1) === '_' + suffix && k !== ownKey){ try { var o = JSON.parse(window._fnIdbCache[k]); if (o) out.push(o); } catch(e3){} } }); } catch(e){}   /* 每次重新解析一份，合併時不會改到快取 */
+      try { for (var i = 0; i < localStorage.length; i++){ var k = localStorage.key(i); if (!k || k.indexOf('char_') !== 0 || k.slice(-suffix.length - 1) !== '_' + suffix) continue; try { var o = JSON.parse(localStorage.getItem(k) || '{}'); if (o) out.push(o); } catch(e2){} } } catch(e){}
+      return out;
+    }
+    function _archOwn(ownKey){
+      var o = _fnIdbGet(ownKey); if (o) return JSON.parse(JSON.stringify(o));   // 複製一份，合併時不會改到快取
+      return {};
+    }
+    // 存回自己那一份：IDB 還沒載好就先不寫（避免拿不完整的資料把 IDB 蓋掉），載好後再跑一次
+    function _archSave(ownKey, arch, retry){
+      if (!window._fnIdbReady){ if (retry) window.addEventListener('fn-idb-ready', retry, { once:true }); return false; }
+      _fnIdbPut(ownKey, arch);
+      try { localStorage.removeItem(ownKey); } catch(e){}
+      return true;
+    }
     function ckGetArchive(){
-      var own = {};
-      try { own = JSON.parse(localStorage.getItem(_ckCid() + 'ck_archive_v1') || '{}') || {}; } catch(e){ own = {}; }
+      var ownKey = _ckCid() + 'ck_archive_v1';
+      var own = _archOwn(ownKey);
       // ★ 2026/07 跨角色合併：其他角色封存過的月份也看得到（自己沒有的月份直接補；同月份比 savedAt 新者勝）
       try {
-        var ownKey = _ckCid() + 'ck_archive_v1';
-        for (var i = 0; i < localStorage.length; i++){
-          var k = localStorage.key(i);
-          if (!k || k.indexOf('char_') !== 0 || k.slice(-14) !== '_ck_archive_v1' || k === ownKey) continue;
+        var _src = _archSources('ck_archive_v1', ownKey);
+        for (var i = 0; i < _src.length; i++){
           try {
-            var a = JSON.parse(localStorage.getItem(k) || '{}') || {};
+            var a = _src[i] || {};
             for (var ym in a){
               if (!own[ym]){ own[ym] = a[ym]; continue; }
               var t1 = Date.parse((own[ym]&&own[ym].savedAt)||0) || 0;
@@ -4829,7 +4846,7 @@
         var pp = ppGetData();
         if (pp && pp.meta && pp.meta.year && pp.meta.month)
           put(pp.meta.year + '-' + _ckPad2(parseInt(pp.meta.month, 10)), 'perfp', pp);
-        if (changed) localStorage.setItem(_ckCid() + 'ck_archive_v1', JSON.stringify(arch));
+        if (changed) _archSave(_ckCid() + 'ck_archive_v1', arch, function(){ try { ckArchiveCurrent(); } catch(e){} });   // ★ ds139：寫 IDB
       } catch(e){ console.warn('[ck] 封存失敗', e); }
     }
 
@@ -5981,7 +5998,22 @@
     function _dsDate(ym, day){ return ym + '-' + _ckPad2(day); }
     function _dsW(v){ return (Math.round(v / 1000) / 10).toLocaleString() + ' 萬'; }
     function _dsGet(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){ return null; } }
-    function _dsSet(k, v){ _dsMemoClear(); try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){ alert('存檔失敗：' + e.message); } }
+    function _dsSet(k, v){
+      _dsMemoClear();
+      var s = JSON.stringify(v);
+      try { localStorage.setItem(k, s); return; } catch(e){}
+      // ★ ds139（10/24 Ivan）：以前直接 alert 擋住畫面。改成先清 60 天前的每日快照（dsum_s_）再試一次，還是放不下就提示一行
+      try {
+        var cut = new Date(); cut.setDate(cut.getDate() - 60);
+        var cutS = cut.getFullYear() + '-' + _ckPad2(cut.getMonth() + 1) + '-' + _ckPad2(cut.getDate()), n = 0, ks = [];
+        for (var i = 0; i < localStorage.length; i++){ var kk = localStorage.key(i); if (kk && kk.indexOf(DS.pfx + 's_') === 0 && kk.slice(DS.pfx.length + 2) < cutS) ks.push(kk); }
+        ks.forEach(function(kk){ try { localStorage.removeItem(kk); n++; } catch(e3){} });
+        localStorage.setItem(k, s);
+        if (n) console.log('[每日總結] 空間不夠，清掉 ' + n + ' 天 60 天前的快照後存好了');
+        return;
+      } catch(e2){}
+      try { _syncToast('⚠️ 這台瀏覽器空間滿了，' + (k.indexOf(DS.pfx + 's_') === 0 ? '今天的每日快照' : '這筆每日總結資料') + '沒存成功（同步資料不受影響）', '#e6a817'); } catch(e4){}
+    }
 
     // ── 設定：月目標（預設＝當月績效個人目標加總）、休假日 ──
     function _dsCfg(ym){
@@ -9052,16 +9084,14 @@
       } catch(e){ return null; }
     }
     function crGetArchive(){
-      var own = {};
-      try { own = JSON.parse(localStorage.getItem(_crCid()+'cr_archive_v2')||'{}') || {}; } catch(e){ own = {}; }
+      var ownKey = _crCid() + 'cr_archive_v2';
+      var own = _archOwn(ownKey);   // ★ ds139：IDB 優先
       // ★ 跨角色合併：其他角色封存的月份也看得到（自己沒有的月份補進來；同月比 savedAt，新者勝；有 owners 的優先）
       try {
-        var ownKey = _crCid() + 'cr_archive_v2';
-        for (var i = 0; i < localStorage.length; i++){
-          var k = localStorage.key(i);
-          if (!k || k.indexOf('char_') !== 0 || k.slice(-14) !== '_cr_archive_v2' || k === ownKey) continue;
+        var _src = _archSources('cr_archive_v2', ownKey);
+        for (var i = 0; i < _src.length; i++){
           try {
-            var a = JSON.parse(localStorage.getItem(k) || '{}') || {};
+            var a = _src[i] || {};
             for (var ym in a){
               if (!own[ym]){ own[ym] = a[ym]; continue; }
               var oOw = _crHasOwners((own[ym]||{}).byOrg), aOw = _crHasOwners((a[ym]||{}).byOrg);
@@ -9088,7 +9118,7 @@
         var arch = crGetArchive();
         if (arch[ym] && JSON.stringify(arch[ym].byOrg) === JSON.stringify(live.byOrg)) return;
         arch[ym] = { byOrg: live.byOrg, savedAt: new Date().toISOString() };
-        localStorage.setItem(_crCid()+'cr_archive_v2', JSON.stringify(arch));
+        _archSave(_crCid()+'cr_archive_v2', arch, function(){ try { crArchiveCurrent(); } catch(e){} });   // ★ ds139：寫 IDB
       } catch(e){ console.warn('[cr] 封存失敗', e); }
     }
     function crApplyAutoSync(){ try{ crArchiveCurrent(); }catch(e){} try{ crRenderAll(); }catch(e){} }
@@ -10134,7 +10164,7 @@
         var ts = function(x){ var m = /(\d{4})\D(\d{1,2})\D(\d{1,2})(?:\D+(\d{1,2}):(\d{1,2}))?/.exec(String(x || '')); return m ? new Date(+m[1], +m[2]-1, +m[3], +(m[4]||0), +(m[5]||0)).getTime() : 0; };
         if (/_motiv_funnel_v1$/.test(k)) return (o.meta && o.meta.syncedAt) ? ts(o.meta.syncedAt) : null;
         if (/_fn_edits_v1$/.test(k)){ var ks = Object.keys(o.stats || {}).sort(); return ks.length ? ts(ks[ks.length-1]) + ks.length : null; }
-        if (/_fn_archive_v1$/.test(k)){ var b = 0; Object.keys(o).forEach(function(y){ var t = Date.parse((o[y] && o[y].savedAt) || 0) || 0; if (t > b) b = t; }); return b || null; }
+        if (/_(fn_archive_v1|ck_archive_v1|cr_archive_v2)$/.test(k)){ var b = 0; Object.keys(o).forEach(function(y){ var t = Date.parse((o[y] && o[y].savedAt) || 0) || 0; if (t > b) b = t; }); return b || null; }
       } catch(e){}
       return null;
     }
@@ -10209,9 +10239,29 @@
         });
       } catch(e){ console.warn('[fn-idb] 搬移失敗', e); }
       if (moved) console.log('[fn-idb] 已把 ' + moved + ' 筆漏斗資料從 localStorage 搬進 IndexedDB，釋出約 ' + Math.round(freed / 1024) + 'K');
+      try { _archMigrateLs(); } catch(e){ console.warn('[arch] 搬家失敗', e); }   // ★ ds139
       return moved;
     }
     window._fnMigrateLs = _fnMigrateLs;
+    // ★ ds139：報到（ck_archive_v1）／課程銷售（cr_archive_v2）月封存搬進 IDB。
+    //   做法：先用原本的合併規則把「自己＋所有人」合成一份 → 存進 IDB 自己名下 → 讀回確認月份數沒少 → 才刪 localStorage 的全部副本。
+    function _archMigrateLs(){
+      if (!window._fnIdbReady || !_ckCid()) return;
+      [['ck_archive_v1', ckGetArchive, _ckCid], ['cr_archive_v2', crGetArchive, _crCid]].forEach(function(x){
+        var suf = x[0], lsKeys = [];
+        for (var i = 0; i < localStorage.length; i++){ var k = localStorage.key(i); if (k && k.indexOf('char_') === 0 && k.slice(-suf.length - 1) === '_' + suf) lsKeys.push(k); }
+        if (!lsKeys.length) return;
+        var before = 0; lsKeys.forEach(function(k){ before += (localStorage.getItem(k) || '').length; });
+        var merged = x[1](), ownKey = x[2]() + suf, nMonths = Object.keys(merged || {}).length;
+        if (!nMonths) return;   // 合不出東西就不動（安全第一）
+        _fnIdbPut(ownKey, merged);
+        var back = _fnIdbGet(ownKey);
+        if (!back || Object.keys(back).length < nMonths){ console.warn('[arch] ' + suf + ' 存進 IDB 後讀回月份數不對，先不刪 localStorage'); return; }
+        lsKeys.forEach(function(k){ try { localStorage.removeItem(k); } catch(e){} });
+        console.log('[arch] ' + suf + '：' + lsKeys.length + ' 份 localStorage 副本合併成 ' + nMonths + ' 個月存進 IndexedDB，釋出約 ' + Math.round(before / 512) + 'KB');
+      });
+    }
+    window._archMigrateLs = _archMigrateLs;
     function fnGetRaw(){
       try {
         var own = _ckCid() + 'motiv_funnel_v1';
@@ -12788,6 +12838,7 @@
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
       { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
+      { ver:'ds139', icon:'🗄', title:'瀏覽器空間不會再塞滿', detail:'「報到排名」和「課程銷售分析」的月份封存，以前每個人名下各存一份，把瀏覽器 5MB 的空間塞滿，才會跳「存檔失敗」。現在合併成一份搬到容量大很多的 IndexedDB，資料和算法都沒變，空出約四成空間。每日總結存檔就算空間不夠也不會再跳視窗擋住，會先清 60 天前的快照再存' },
       { ver:'ds138', icon:'☁️', title:'跑完自動推，不用再按推送', detail:'在柏翰電腦按「⚡ 全部一段一段跑」，全部跑完會自動推上雲端一次（進度框最後一行會寫推好了沒），推失敗 30 秒後自動再試；匯入每月績效 Excel 後也會自動推。推送鈕收在「🔧 同步工具」裡，只有自動推失敗時才需要' },
       { ver:'ds137', icon:'🏠', title:'公司資料只從一台發布', detail:'固定由柏翰電腦（localhost）同步並推送公司資料；在 GitHub 網址同步不會再自動推上雲端（以前兩邊都會推，互相蓋掉）。同事照舊在 GitHub 拉取。推送、拉取也都會先比新舊，舊的不准蓋新的' },
       { ver:'ds136', icon:'🛡', title:'舊資料不會再蓋掉新資料', detail:'10/22 下午有一台電腦（測試網址）的資料停在 10/20，同步班況後自動推送，把雲端 10/21 的新資料蓋回去，大家才會看到「2 天沒同步」。現在推送和拉取都會先比「各種同步的最後時間」，哪一邊比較舊，就不准蓋過去；測試網址也不再自動推送' },
