@@ -6715,17 +6715,22 @@
         if (pace.length) svg += '<polyline points="' + pace.join(' ') + '" fill="none" stroke="#D3D1C7" stroke-width="2" stroke-dasharray="7 5"/><text x="' + (X(M.day) + 6) + '" y="' + (Y((E0.cum[M.day] || 0) / T0) - 8) + '" fill="#D3D1C7" font-size="12">今天該到線</text>';
         all.filter(function(s){ return !on(s); }).forEach(function(s){ svg += estSvg(s, '#534AB7', 2, 1) + '<polyline points="' + line(s) + '" fill="none" stroke="#534AB7" stroke-width="2"/>'; });
         var labs = [];
+        // ★ ds140（10/24 Ivan：已經第一名了，不要用「熄火」）：畫面上最高的那條＝第一名 → 永遠保持學院原色、標「👑 王者領航」；
+        //   其他名次連續 2 天以上沒入帳 → 「等加速」（舊字「熄火」不再用）
+        var _lead = null, _leadV = -1;
+        all.filter(on).forEach(function(s){ var p = s.pts[s.pts.length - 1]; if (p && s.T){ var vv = p.cum / s.T; if (vv > _leadV){ _leadV = vv; _lead = s; } } });
         all.filter(on).forEach(function(s){
-          var c = s.flat ? '#888780' : col[s.org], lp = s.pts[s.pts.length - 1]; if (!lp) return;
+          var isLead = (s === _lead);
+          var c = (s.flat && !isLead) ? '#888780' : col[s.org], lp = s.pts[s.pts.length - 1]; if (!lp) return;
           var ly2 = Y(lp.cum / s.T);
           if (s.flatFrom){ var fx = X(s.flatFrom.d - s.flatFrom.wd); svg += '<rect x="' + fx + '" y="' + (ly2 - 12) + '" width="' + Math.max(8, X(lp.d) - fx) + '" height="24" fill="#97C459" opacity=".22" rx="6"/>'; }
           svg += estSvg(s, c, 3.5, 0.8) + estDots(s, c) + estTag(s, c);
           svg += '<polyline points="' + line(s) + '" fill="none" stroke="' + c + '" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>' + dots(s, c, 6);
           svg += '<circle cx="' + X(lp.d) + '" cy="' + ly2 + '" r="11" fill="' + c + '" stroke="#fff" stroke-width="2"/>';
           if (s.mom != null && s.mom >= 1 && !s.flat) svg += '<text x="' + (X(lp.d) - 30) + '" y="' + (ly2 + 7) + '" font-size="20">🔥</text>';
-          labs.push({ y:ly2, s:s, c:c });
+          labs.push({ y:ly2, s:s, c:c, lead:isLead });
         });
-        stack(labs).forEach(function(l){ svg += '<text x="' + (W - R + 12) + '" y="' + (l.ty + 5) + '" fill="' + (l.s.flat ? '#B4B2A9' : l.c) + '" font-size="15" font-weight="700">' + _fnEsc(_gcShort(l.s.org)) + ' ' + fmtP(l.s) + (l.s.flat ? ' 熄火' : '') + '</text>'; });
+        stack(labs).forEach(function(l){ svg += '<text x="' + (W - R + 12) + '" y="' + (l.ty + 5) + '" fill="' + ((l.s.flat && !l.lead) ? '#B4B2A9' : l.c) + '" font-size="15" font-weight="700">' + _fnEsc(_gcShort(l.s.org)) + ' ' + fmtP(l.s) + (l.lead ? ' 👑 王者領航' : (l.s.flat ? ' 等加速' : '')) + '</text>'; });
 
       } else if (v.theme === 'ecg'){
         var list = all.filter(on), rh = (H - 40) / Math.max(1, list.length);
@@ -12838,6 +12843,7 @@
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
       { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
+      { ver:'ds140', icon:'👑', title:'賽道圖第一名標「王者領航」', detail:'每日總結 → 賽道競速：畫面上最高的那一家永遠保持自己的顏色，後面標「👑 王者領航」；其他家連續兩天以上沒入帳，從「熄火」改成「等加速」' },
       { ver:'ds139', icon:'🗄', title:'瀏覽器空間不會再塞滿', detail:'「報到排名」和「課程銷售分析」的月份封存，以前每個人名下各存一份，把瀏覽器 5MB 的空間塞滿，才會跳「存檔失敗」。現在合併成一份搬到容量大很多的 IndexedDB，資料和算法都沒變，空出約四成空間。每日總結存檔就算空間不夠也不會再跳視窗擋住，會先清 60 天前的快照再存' },
       { ver:'ds138', icon:'☁️', title:'跑完自動推，不用再按推送', detail:'在柏翰電腦按「⚡ 全部一段一段跑」，全部跑完會自動推上雲端一次（進度框最後一行會寫推好了沒），推失敗 30 秒後自動再試；匯入每月績效 Excel 後也會自動推。推送鈕收在「🔧 同步工具」裡，只有自動推失敗時才需要' },
       { ver:'ds137', icon:'🏠', title:'公司資料只從一台發布', detail:'固定由柏翰電腦（localhost）同步並推送公司資料；在 GitHub 網址同步不會再自動推上雲端（以前兩邊都會推，互相蓋掉）。同事照舊在 GitHub 拉取。推送、拉取也都會先比新舊，舊的不准蓋新的' },
