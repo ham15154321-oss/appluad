@@ -10,7 +10,7 @@ markup, app = body[:i], body[i + len('<script>'):j]
 assert '</script' not in app.lower()
 
 API = 'https://script.google.com/macros/s/AKfycbxBFayHnfG5NUoj0CjIe8qwlfdFwt0FQeVD-QH6ocBu3dhHWpioOEmLk908dsTGVlznYA/exec'
-VER = 'p2.2'
+VER = 'p2.3'
 
 extra_css = r"""
   /* ── 1340.html 外殼：載入中、更新提示、選區 ── */
@@ -99,6 +99,11 @@ loader = r"""
       if (t === shown) { say(''); return; }
       var had = !!shown;
       if (!had || !touched) { run(t); say(had ? '已更新' : '', null, 1200); return; }
+      // p2.3：議程、日期、同步時間換了 → 不等使用者點，直接換掉（留在原本看的位置）
+      var old = {}; try { old = JSON.parse(shown); } catch (e) {}
+      if (old.agendaDate !== o.agendaDate || old.date !== o.date || old.syncAt !== o.syncAt) {
+        var y = window.scrollY; run(t); window.scrollTo(0, y); say('已換成最新資料', null, 1800); return;
+      }
       say('有新資料・點一下更新', function(){ run(t); window.scrollTo(0, 0); say('已更新', null, 1200); });
     })
     .catch(function(){

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
-<meta name="pg1340-version" content="p2.2">
+<meta name="pg1340-version" content="p2.3">
 <title>13:40</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -752,7 +752,7 @@
 </style>
 </head>
 <body>
-<!-- 13:40 日會網頁｜p2.2｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
+<!-- 13:40 日會網頁｜p2.3｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
 <div id="pgWait"><i></i><span id="pgWaitT">載入中…</span></div>
 <div id="pgPick" hidden><h1>日會</h1><a data-r="中區">中區<small>台一・台二・台三｜13:40</small></a><a data-r="桃區">桃區<small>壢一・壢二・壢三｜13:30</small></a><a data-r="建國">高雄建國<small>建國｜13:40</small></a></div>
 <div id="appRoot" hidden>
@@ -1730,6 +1730,11 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
       if (t === shown) { say(''); return; }
       var had = !!shown;
       if (!had || !touched) { run(t); say(had ? '已更新' : '', null, 1200); return; }
+      // p2.3：議程、日期、同步時間換了 → 不等使用者點，直接換掉（留在原本看的位置）
+      var old = {}; try { old = JSON.parse(shown); } catch (e) {}
+      if (old.agendaDate !== o.agendaDate || old.date !== o.date || old.syncAt !== o.syncAt) {
+        var y = window.scrollY; run(t); window.scrollTo(0, y); say('已換成最新資料', null, 1800); return;
+      }
       say('有新資料・點一下更新', function(){ run(t); window.scrollTo(0, 0); say('已更新', null, 1200); });
     })
     .catch(function(){

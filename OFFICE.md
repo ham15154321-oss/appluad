@@ -563,3 +563,9 @@ C 主管
 - 改了什麼：排程 v17 — 三區全文另存「議程全文 YYYY-MM-DD.txt」到 13:40 日會議程資料夾（n8n 不看）；LINE日會 只放三則網址。網頁 v1.10 — 議程先讀「議程全文」，沒有才讀 LINE日會（只拿有主管段的）；看最新時議程拿「今天」的。
 - 要做的事：助理貼上「網頁_v1.10_複製用.txt」→ 管理部署作業 → 鉛筆 → 建立新版本。要在 10/26（一）09:30 前完成。
 - ds139（10/24 Ivan 同意 1＋2：localStorage 滿了跳「存檔失敗 perf_compare_v1_dsum_s_2026-10-23 exceeded the quota」）localhost 原本 1045 筆 10.2MB（UTF-16），大宗是 char_*_cr_archive_v2 約 2.5MB×10 人、char_*_ck_archive_v1 約 1.8MB×11 人（全公司共用資料，每人名下各存一份，讀的時候本來就全部合併）。改：pc.js 新 _archSources/_archOwn/_archSave/_archMigrateLs；ckGetArchive/crGetArchive 改成 IDB 自己那份為底＋所有人的 IDB 與舊 LS 副本照原規則合併（_archSources 每次重新 JSON.parse，不改快取）；ckArchiveCurrent/crArchiveCurrent 改 _archSave（寫 FunnelDB 自己那份並刪 LS；IDB 還沒載好就不寫，等 fn-idb-ready 再跑一次，防止拿空資料蓋掉）；_fnMigrateLs 結尾跑 _archMigrateLs（合併→存 IDB→讀回月份數對了才刪 LS 全部副本）；_pgFresh 月封存也比最新 savedAt；_dsSet 存不下先清 60 天前 dsum_s_ 再試，還不行 toast（不 alert）。monthly-performance.html：_isFnIdbKey 加 _ck_archive_v1、_cr_archive_v2（公司整包走 IDB；cr 以前根本沒在整包裡），拉取逐月合併（ck 逐欄位新者勝並先 _fnAbsorbCkFunnel；cr 有明細者優先再比 savedAt）。firebase-sync.js IDB_MIGRATED_LS_SUFFIXES 加這兩個（各人 LS 同步不再寫回／推送保留雲端舊份）。MP_TARGET_SRC → mp139。localhost 實搬（輕量頁、只載這幾個函式）：先整包備份 21 份到 FunnelDB key bak_ds139_arch_1792819991650（非 char_ 開頭，不上雲）；報到 5 個月、課程銷售 4 個月，搬前搬後合併結果逐字相同；LS 10238KB → 5895KB。⚠ 部署前 localhost 分頁還是舊 pc.js（只讀 LS → 封存月份會看起來不見、自動推送會推一份不完整的 ck 封存），已請 Ivan 先部署再重新整理，部署前別在 localhost 同步。
+
+## 1340.html p2.3（10/24）
+- 為什麼：手機上先秀上次存的舊資料（IndexedDB），新資料到了只跳「有新資料・點一下更新」，沒點就一直看到舊議程（10/24 桃區議程其實已產生，手機仍顯示 10/22）。
+- 改了什麼：新資料的議程日期、資料日期、同步時間有變，就直接換掉、停在原本位置，跳「已換成最新資料」。舊版留在 舊版/1340_p2.2.html。
+- 要做的事：雙擊 deploy.command 推上 GitHub。
+- 網頁 v1.10 部署補記：第 17 版貼到舊稿（快取 pg5），10/24 改 pg6 再部署才換新。
