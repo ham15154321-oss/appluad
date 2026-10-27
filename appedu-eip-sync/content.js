@@ -1365,7 +1365,7 @@
   // ── 模式 B：報到排名（已報到 / 網路已報到 / 到月底預約報到，全走 CSV） ──
   // ★ v5.73（10/22 Ivan 選 B）報到明細：同步「已報到」時，同一個請求拿到的名單順手存下來（學院、承辦、姓名、預約日期、通路），不多讀 EIP
   //   只有「這個月還沒有完整明細」的第一次，會多把整個月的已報到名單照慢速抓一次
-  var CK_DET_KEY = 'checkin_detail_v1', _ckDetBatches = null;
+  var CK_DET_KEY = 'checkin_detail_v2', _ckDetBatches = null;
   function _ckDetailWant(p){ return !!_ckDetBatches && !!p && p.q16 === 'formal' && !p.q13; }
   function _ckDetailBatch(p, rows){ if (_ckDetBatches) _ckDetBatches.push({ from: p.q7 || '', to: p.q8 || '', rows: rows }); }
   function _ckNormD(s){ var m = String(s || '').match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/); return m ? m[1] + '/' + pad2(m[2]) + '/' + pad2(m[3]) : ''; }
@@ -1386,9 +1386,10 @@
     b.forEach(function(x){
       var from = _ckNormD(x.from) || mStart, to = x.to ? _ckNormD(x.to) : '9999/99/99';
       var got = [];
-      x.rows.forEach(function(r){ var m = String(r.date || '').match(/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}:\d{2}))?/); if (!m || !r.name) return;
-        var d = (+m[1] > +month + 6 ? year - 1 : year) + '/' + pad2(m[1]) + '/' + pad2(m[2]);
-        got.push({ a: r.academy, w: r.owner, n: r.name, d: d, t: m[3] || '', s: r.src || '' }); });
+      x.rows.forEach(function(r){ if (!r.name) return; var ds = String(r.date || ''), tm = (ds.match(/(\d{1,2}:\d{2})/) || [])[1] || '';
+        var d = /\d{4}\D\d{1,2}\D\d{1,2}/.test(ds) ? _ckNormD(ds) : '';   // ★ v5.74：CSV 是 2026/10/25，網頁是 10/25，兩種都認
+        if (!d){ var m = ds.match(/(\d{1,2})\/(\d{1,2})/); if (!m) return; d = (+m[1] > +month + 6 ? year - 1 : year) + '/' + pad2(m[1]) + '/' + pad2(m[2]); }
+        got.push({ a: r.academy, w: r.owner, n: r.name, d: d, t: tm, s: r.src || '' }); });
       st.rows = st.rows.filter(function(r){ return !(r.d >= from && r.d <= to); }).concat(got.filter(function(r){ return r.d >= from && r.d <= to; }));
       if (from <= mStart && !x.to) st.full = true;
     });
@@ -1839,7 +1840,9 @@
           if (cov.from > from) segs.push({ a: from, b: _dayBefore(cov.from), label: '補更早的月份 ' + from.slice(5) + '～' + _dayBefore(cov.from).slice(5) });
           if (cov.to < prevEndStr) segs.push({ a: _dayBefore(cov.to), b: prevEndStr, label: '補舊月份尾巴 ' + _dayBefore(cov.to).slice(5) + '～' + prevEndStr.slice(5) });
           var curFrom = (cov.to >= mStart) ? _dayBefore(cov.to) : mStart;   // 本月：從上次涵蓋到的那天往前一天重抓（重疊一天防漏）
-          segs.push({ a: curFrom, b: mEnd, label: '本月面談 ' + curFrom.slice(5) + ' 起' });
+          // ★ v5.74（10/27 Ivan：黃諾亞 10/18 面談、10/19 註冊，走到哪一關還停在報名）：本月面談紀錄一次性整月重抓，把舊狀態更新
+          if (!oc || oc.cmFix !== mStart) curFrom = mStart;
+          segs.push({ a: curFrom, b: mEnd, label: '本月面談 ' + curFrom.slice(5) + ' 起' + (curFrom === mStart && oc && oc.cmFix !== mStart ? '（一次性整月更新狀態）' : '') });
         }
         var fetched = [];
         for (var si = 0; si < segs.length; si++){
@@ -1855,6 +1858,15 @@
         if (!_fnEditParams){
           try { var probe = await fetchViaBackground(itvUrlBase + '&q5=' + encodeURIComponent(mStart) + '&q6=' + encodeURIComponent(mEnd) + '&pg=1'); _fnFindEditParams(probe); } catch(eP){}
           if (_fnEditParams) console.log('[EIP Content] 編輯日期欄位：', _fnEditParams);
+        }
+        // ★ v5.74：本月也重抓「上次同步後被編輯過的列」（學生面談完才註冊、排進班，面談日不變，原本不會再讀）
+        if (cov && _fnEditParams && oc && oc.payAt){
+          await sleep(FUNNEL_PAGE_THROTTLE_MS);
+          var cmEditFrom = _fnDStr(new Date(oc.payAt - 86400000));
+          var itvUrlCm = itvUrlBase + '&q5=' + encodeURIComponent(mStart) + '&q6=' + encodeURIComponent(mEnd)
+            + '&' + _fnEditParams.from + '=' + encodeURIComponent(cmEditFrom) + '&' + _fnEditParams.to + '=' + encodeURIComponent(mEnd);
+          var cmChanged = await _fnFetchPaged(itvUrlCm, lab + ' 本月有變動的列', _fnParseInterviewPage, 20, { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'itv' });
+          if (cmChanged.length){ itv = _fnMergeRows(itv, cmChanged); data.nChanged = (data.nChanged || 0) + cmChanged.length; }
         }
         // ★ v5.59：8 小時內剛抓過這家 → 舊月份（上個月以前）的編輯不用每次重問，留給當天下一次完整跑
         var _editAt = (oc && oc.editAt) || 0;
@@ -1887,7 +1899,7 @@
         }
         if (pay){
           (data.meta.orgSec || (data.meta.orgSec = {}))[org.name] = Math.round((Date.now() - _orgT0) / 1000);
-          data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs, editAt: _editAt };
+          data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs, editAt: _editAt, cmFix: mStart };
           await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, k < PERF_ORGS.length - 1);
           if (k < PERF_ORGS.length - 1){ notify('status', { msg: lab + ' 完成，停 4 秒讓 EIP 喘口氣…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } }); await sleep(FUNNEL_ORG_GAP_MS); }
           continue;
@@ -1907,7 +1919,7 @@
           pay = _fnDedupe(keepPay.concat(payNew));
         } else pay = payNew;
         (data.meta.orgSec || (data.meta.orgSec = {}))[org.name] = Math.round((Date.now() - _orgT0) / 1000);
-        data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs, editAt: _editAt };
+        data.orgs[org.name] = { itv: itv, pay: pay, cov: { from: from, to: covToNow }, oldAt: nowMs, payAt: nowMs, editAt: _editAt, cmFix: mStart };
         // ★ 每家抓完就存一次：中途關掉頁面也不會整批白跑，下次接著跑
         await _fnSavePartial(fnKey, data, (prev && prev.orgs) || {}, k < PERF_ORGS.length - 1);
         if (k < PERF_ORGS.length - 1){ notify('status', { msg: lab + ' 完成，停 4 秒讓 EIP 喘口氣…', prog: { org: k + 1, total: PERF_ORGS.length, name: org.name, phase: 'done' } }); await sleep(FUNNEL_ORG_GAP_MS); }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
-<meta name="pg1340-version" content="p2.3">
+<meta name="pg1340-version" content="p2.4">
 <title>13:40</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -731,6 +731,46 @@
     #board .bc{height:17em}
     #champ .stg{position:relative;min-height:100%}
   }
+  /* p2.4 */
+  #board .lrow .d.miss{font-size:.66em;font-weight:600;color:var(--label3)}
+  .ah{margin:1.1em 0 .5em;font-size:1.05em}
+  .ah:first-child{margin-top:0}
+  .ah small,.ad summary small{color:var(--label2);font-weight:500;margin-left:.6em;font-size:.82em}
+  .ad{margin-top:1.2em;border-top:.5px solid var(--sep);padding-top:.8em}
+  .ad summary{cursor:pointer;font-weight:700;font-size:1.05em;list-style:none;padding:.3em 0}
+  .ad summary::-webkit-details-marker{display:none}
+  .ad summary::before{content:'▸';display:inline-block;width:1.1em;color:var(--label3);transition:transform 150ms ease}
+  .ad[open] summary::before{transform:rotate(90deg)}
+  .ad table{margin-top:.5em}
+  td small.og{font-weight:700;font-size:.8em}
+  .cw{margin-top:.9em;border-top:.5px solid rgba(255,255,255,.12);padding-top:.8em}
+  #champ .right{grid-template-rows:auto auto minmax(0,1fr)}
+  #champ .right .two{min-height:9.5em}
+  #champ .wk{border-radius:1.4em;padding:1.1em 1.5em;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);min-height:0;overflow:auto;display:flex;flex-direction:column;opacity:0;animation:wkIn 600ms ease 1.6s forwards}
+  #champ.done .wk{opacity:1;animation:none}
+  @keyframes wkIn{to{opacity:1}}
+  #champ .wk h3{margin:0 0 .7em;font-size:1.25em;font-weight:800;color:#fff}
+  #champ .wk h3 small{font-size:.72em;font-weight:600;color:rgba(255,255,255,.55);margin-left:.7em}
+  #champ .wl{display:flex;flex-direction:column;gap:.45em}
+  #champ .wr{display:grid;grid-template-columns:1.4em 5.4em 1fr 6.2em 3em;align-items:center;gap:.7em;font-size:1.05em}
+  #champ .wr.more{display:none}
+  #champ .wk.all .wr.more{display:grid}
+  #champ .wr .i{color:rgba(255,255,255,.45);font-weight:700;text-align:right}
+  #champ .wr .n{font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #champ .wr .n small{font-size:.7em;color:rgba(255,255,255,.5);font-weight:600;margin-left:.4em}
+  #champ .wr .t{height:.6em;border-radius:.3em;background:rgba(255,255,255,.08);overflow:hidden}
+  #champ .wr .t i{display:block;height:100%;border-radius:.3em;background:rgba(255,255,255,.38)}
+  #champ .wr.g .t i{background:linear-gradient(90deg,#FFC23D,#FFE58A)}
+  #champ .wr.g .n,#champ .wr.g .a{color:#FFD15C}
+  #champ .wr .a{font-weight:800;text-align:right;font-variant-numeric:tabular-nums;color:#fff}
+  #champ .wr .c{font-size:.8em;color:rgba(255,255,255,.55);text-align:right}
+  #champ .wm{margin-top:.7em;align-self:flex-start;background:none;border:0;color:#64D2FF;font:inherit;font-size:.9em;font-weight:700;cursor:pointer;padding:.2em 0}
+  #champ .we{color:rgba(255,255,255,.5);font-size:1.05em;margin:auto 0}
+  @media (max-width:1023px){
+    #champ .right{grid-template-rows:none}
+    #champ .wk{grid-column:1/-1;overflow:visible}
+    #champ .wr{grid-template-columns:1.2em 4.2em 1fr 5.2em 2.6em;gap:.5em;font-size:.95em}
+  }
 
   /* ── 1340.html 外殼：載入中、更新提示、選區 ── */
   #pgWait{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--label2);font-size:.9375rem}
@@ -752,7 +792,7 @@
 </style>
 </head>
 <body>
-<!-- 13:40 日會網頁｜p2.3｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
+<!-- 13:40 日會網頁｜p2.4｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
 <div id="pgWait"><i></i><span id="pgWaitT">載入中…</span></div>
 <div id="pgPick" hidden><h1>日會</h1><a data-r="中區">中區<small>台一・台二・台三｜13:40</small></a><a data-r="桃區">桃區<small>壢一・壢二・壢三｜13:30</small></a><a data-r="建國">高雄建國<small>建國｜13:40</small></a></div>
 <div id="appRoot" hidden>
@@ -1144,6 +1184,23 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     if (dow === 1) return { from: ymd(addD(TODAY, -2)), to: ymd(addD(TODAY, -1)), label: '週末（' + md(ymd(addD(TODAY, -2))) + '–' + md(ymd(addD(TODAY, -1))) + '）', short: '週末' };
     var y = addD(TODAY, -1); return { from: ymd(y), to: ymd(y), label: md(ymd(y)) + '（' + WK[y.getDay()] + '）', short: '昨天' };
   }
+  /* p2.4 本週入帳排行（使用者 10/27）：週一到今天；週一開會看上週一到上週日；只排業務，合談 EIP 已拆兩筆各認一半 */
+  function weekWin(){ var dow = TODAY.getDay();
+    if (dow === 1) return { from: ymd(addD(TODAY, -7)), to: ymd(addD(TODAY, -1)), label: '上週' };
+    return { from: ymd(addD(TODAY, -((dow + 6) % 7))), to: ymd(TODAY), label: '本週' }; }
+  function weekRank(orgs){
+    if (!I) return null; var w = weekWin(), ppl = incPeople(orgs), amt = {}, cnt = {};
+    (I.人 || []).forEach(function(r){ var k = r[0] + '|' + r[1], p = ppl[k]; if (!p || p.nb || r[2] < w.from || r[2] > w.to) return; amt[k] = (amt[k] || 0) + r[3]; cnt[k] = (cnt[k] || 0) + (r[4] || 0); });
+    return { win: w, list: Object.keys(amt).filter(function(k){ return amt[k] > 0; }).sort(function(a, b){ return amt[b] - amt[a]; }).map(function(k){ return { 名: ppl[k].名, 院: ppl[k].院, amt: amt[k], n: cnt[k] }; }) };
+  }
+  function weekHtml(){
+    var orgs = FOCUS(), R2 = weekRank(orgs); if (!R2) return '';
+    var w = R2.win, L = R2.list, mx = L.length ? L[0].amt : 1, many = orgs.length > 1;
+    return '<div class="wk"><h3>' + esc(ST.org || REGION) + '・' + w.label + '入帳排行<small>' + md(w.from) + (w.from !== w.to ? '–' + md(w.to) : '') + '</small></h3>'
+      + (L.length ? '<div class="wl">' + L.map(function(x, i){ return '<div class="wr' + (i === 0 ? ' g' : '') + (i >= 8 ? ' more' : '') + '"><span class="i">' + (i + 1) + '</span><span class="n">' + esc(x.名) + (many ? '<small>' + esc(x.院) + '</small>' : '') + '</span><span class="t"><i style="width:' + Math.max(3, x.amt / mx * 100) + '%"></i></span><span class="a">' + Math.round(x.amt).toLocaleString() + '</span><span class="c">' + x.n + ' 筆</span></div>'; }).join('') + '</div>'
+        + (L.length > 8 ? '<button type="button" class="wm" data-w="more">還有 ' + (L.length - 8) + ' 位，點這裡看全部</button>' : '')
+        : '<div class="we">' + w.label + '還沒有入帳</div>') + '</div>';
+  }
   function lastDays(n){   // 最近 n 個「有入帳」的日子（今天以前）
     if (!I) return []; var t = ymd(TODAY), s = {}; (I.日 || []).forEach(function(r){ if (r[1] < t && r[2]) s[r[1]] = 1; });
     return Object.keys(s).sort().slice(-n);
@@ -1264,7 +1321,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
       var g2 = el(s, 'g', { 'data-id': c.cid, style: 'cursor:pointer' });
       el(g2, 'circle', { cx: cx, cy: cy, r: R, fill: 'none', stroke: C.fill, 'stroke-width': sw });
       if (p != null) el(g2, 'circle', { cx: cx, cy: cy, r: R, fill: 'none', stroke: p < .7 ? C.orange : C.cs, 'stroke-width': sw, 'stroke-linecap': 'round', 'stroke-dasharray': (a * p) + ' ' + a, transform: 'rotate(-90 ' + cx + ' ' + cy + ')' });
-      el(g2, 'text', { x: cx, y: cy + Math.min(fs * 1.6, R * .5) * .36, 'font-size': Math.min(fs * 1.6, R * .5), 'font-weight': 800, fill: C.ink, 'text-anchor': 'middle' }, p == null ? '未傳' : Math.round(p * 100) + '%');
+      el(g2, 'text', { x: cx, y: cy + Math.min(fs * 1.6, R * .5) * .36, 'font-size': Math.min(fs * 1.6, R * .5), 'font-weight': 800, fill: C.ink, 'text-anchor': 'middle' }, p == null ? (c.nr ? '未點名' : '未傳') : Math.round(p * 100) + '%');
       el(g2, 'text', { x: cx, y: cy + R + sw / 2 + fs * 1.05, 'font-size': fs * .78, 'font-weight': 700, fill: C.blue, 'text-anchor': 'middle' }, c.code);
     });
   }
@@ -1305,7 +1362,13 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     u.forEach(function(x){ var d = +x.天 || 0; mx = Math.max(mx, d); b[d <= 7 ? 0 : (d <= 14 ? 1 : 2)]++; }); return { o: o, b: b, max: mx, u: u }; });
     return ST.org ? rows.sort(function(a, b){ return b.u.length - a.u.length; }).slice(0, 8) : rows; }
   function inFocus(c){ if (!ST.org) return true; return c.院 ? c.院 === ST.org : String(c.code || '').indexOf(ST.org) === 0; }
-  function attList(){ return (typeof SHOW_D !== 'undefined' ? SHOW_D : []).filter(function(c){ return (c.grp === '已開班' || c.grp === '未到多') && inFocus(c); }).map(function(c){ var f = c.grp === '已開班' ? c.first : c.last; return { cid: c.cid, code: c.code, name: c.name, p: f && f.應到 ? f.實到 / f.應到 : null, c: c }; }).sort(function(a, b){ return (a.p == null ? -1 : a.p) - (b.p == null ? -1 : b.p); }); }
+  /* p2.4 出席分三層（使用者 10/27）：①開班 3 天內 ②快結業 ③上課中未到超過三成（預設收起來）；不分視角，全區的班都列 */
+  function attItem(c){ var f = c.grp === '已開班' ? c.first : c.last, sum = f && f.應到 ? f.實到 : null;
+    var nr = !!(f && f.應到 && (f.實到 === 0 || f.實到 <= f.應到 * .1));   // 出席 0 或不到一成：多半是還沒點名
+    return { cid: c.cid, code: c.code, name: c.name, f: f, p: f && f.應到 && !nr ? f.實到 / f.應到 : null, miss: f && f.應到 ? Math.round((1 - f.實到 / f.應到) * 100) : null, nr: nr, c: c }; }
+  function attSort(a, b){ return (a.nr - b.nr) || ((a.p == null ? 2 : a.p) - (b.p == null ? 2 : b.p)); }
+  function attLayer(g){ return (typeof SHOW_D !== 'undefined' ? SHOW_D : []).filter(function(c){ return c.type !== '講座' && c.grp === g; }).map(attItem).sort(attSort); }
+  function attList(){ return attLayer('已開班').concat(attLayer('結業')); }
   function openList(){ return (typeof OPEN !== 'undefined' ? OPEN : []).filter(function(c){ return c.type !== '講座' && inFocus(c); }).slice().sort(function(a, b){ return (a.ok - b.ok) || (a.toOpen - b.toOpen); }); }
 
   /* ── 版面 ── */
@@ -1322,13 +1385,13 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
         if (!L.length) return '<p class="none">這一院沒有業務資料</p>';
         var mx = Math.max.apply(null, L.map(function(x){ return x.v; })) || 1;
         return '<div class="lrk">' + L.map(function(x){ var hot = x.none || (x.d != null && x.d >= 3);
-          return '<button type="button" class="lrow' + (hot ? ' hot' : '') + '" data-p="' + esc(x.k) + '"><span class="n">' + esc(x.名) + (ST.org || ORGS.length < 2 ? '' : '<small>' + esc(x.院) + '</small>') + '</span><span class="t"><i style="width:' + Math.max(2, x.v / mx * 100) + '%"></i></span><span class="v">' + x.v + '</span><span class="d">' + esc(dayTxt(x)) + '</span></button>'; }).join('') + '<div class="lmore" hidden></div></div>'; },
+          return '<button type="button" class="lrow' + (hot ? ' hot' : '') + '" data-p="' + esc(x.k) + '"><span class="n">' + esc(x.名) + (ST.org || ORGS.length < 2 ? '' : '<small>' + esc(x.院) + '</small>') + '</span><span class="t"><i style="width:' + Math.max(2, x.v / mx * 100) + '%"></i></span><span class="v">' + x.v + '</span><span class="d' + (x.miss ? ' miss' : '') + '">' + esc(dayTxt(x)) + '</span></button>'; }).join('') + '<div class="lmore" hidden></div></div>'; },
       draw: function(b){ if (!leadRank()){ var P = leadPeople(); if (P.length) streaks(b, P); return; } fitRows(b); } },
     { id: 'fun', seg: 1, dot: C.asst, t: function(){ return '走到哪一關'; }, s: function(){ return (A && A.月 ? (+String(A.月).split('/')[1]) + ' 月談過的人' : ''); },
       body: '<svg class="ch"></svg><div class="leg"><span><i style="background:rgba(175,82,222,.22)"></i>談過</span><span><i style="background:rgba(175,82,222,.6)"></i>註冊</span><span><i style="background:' + C.asst + '"></i>排進班</span></div>', draw: function(b){ funnel(b, funRows()); } },
     { id: 'unc', seg: 1, dot: C.asst, t: function(){ return '註冊未消耗'; }, s: function(){ return '繳了學費、還沒登記上課'; },
       body: '<svg class="ch"></svg><div class="leg"><span><i style="background:rgba(255,141,0,.28)"></i>7 天內</span><span><i style="background:rgba(255,141,0,.6)"></i>8–14 天</span><span><i style="background:' + C.orange + '"></i>15 天以上</span></div>', draw: function(b){ uncBars(b, uncRows()); } },
-    { id: 'att', seg: 2, dot: C.cs, t: function(){ return '出席'; }, s: function(){ return '已開班・最近一堂'; }, body: '<svg class="ch"></svg>', draw: function(b){ rings(b, attList()); } },
+    { id: 'att', seg: 2, dot: C.cs, t: function(){ return '出席'; }, s: function(){ var n = attLayer('未到多').length; return '開班 3 天內・快結業' + (n ? '・上課中要追 ' + n + ' 班（點 ⤢）' : ''); }, body: '<svg class="ch"></svg>', draw: function(b){ rings(b, attList()); } },
     { id: 'focus', seg: 4, dot: C.focus, t: function(){ return '本日重點'; }, s: function(){ return ''; },
       body: function(){ var F = focusItems(); if (!F.length) return '<p class="none">' + esc((D.agNone || '今天議程沒有這一段').split('，')[0]) + '</p>';
         return '<div class="fl">' + F.map(function(f){ var t = f.t.replace(/[：:]\s*$/, ''); return '<div><b>' + esc(f.n) + '</b><span>' + esc(t) + (f.sub ? '<em class="cnt">' + f.sub + ' 項</em>' : '') + '</span></div>'; }).join('') + '</div>'; } },
@@ -1345,13 +1408,13 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     rows.forEach(function(r){ var k = r[0] + '|' + r[1]; if (r[3].slice(0, 8) === mon && (!last[k] || r[3] > last[k])) last[k] = r[3]; });
     leadPeople().forEach(function(x){ ag[x.n] = x.d; });
     return P.filter(function(p){ return !p.nb && FOCUS().indexOf(p.院) >= 0; }).map(function(p){
-      var k = p.院 + '|' + p.全名, l = last[k], d = null, none = false;
-      if (has){ if (l) d = Math.max(0, Math.round((TODAY - dOf(l)) / 864e5)); else { none = true; d = TODAY.getDate(); } }
+      var k = p.院 + '|' + p.全名, l = last[k], d = null, none = false, miss = false;
+      if (has){ if (l) d = Math.max(0, Math.round((TODAY - dOf(l)) / 864e5)); else if (+p.報到 > 0) miss = true; else { none = true; d = TODAY.getDate(); } }   // p2.4：有報到數、明細裡找不到 ≠ 本月沒有
       else if (ag[p.名] != null) d = ag[p.名];
-      return { k: k, 名: p.名, 院: p.院, 全名: p.全名, v: +p.報到 || 0, 面談: +p.面談 || 0, 註冊: +p.註冊 || 0, d: d, last: l || '', none: none };
+      return { k: k, 名: p.名, 院: p.院, 全名: p.全名, v: +p.報到 || 0, 面談: +p.面談 || 0, 註冊: +p.註冊 || 0, d: d, last: l || '', none: none, miss: miss };
     }).sort(function(a, b){ return (b.v - a.v) || ((b.d || 0) - (a.d || 0)); });
   }
-  function dayTxt(x){ if (x.none) return '本月沒有'; if (x.d == null) return '—'; return x.d === 0 ? '今天有' : x.d + ' 天'; }
+  function dayTxt(x){ if (x.miss) return '明細還沒抓到'; if (x.none) return '本月沒有'; if (x.d == null) return '—'; return x.d === 0 ? '今天有' : x.d + ' 天'; }
   function fitRows(b){ var box = b.querySelector('.lrk'); if (!box) return; var rows = [].slice.call(box.querySelectorAll('.lrow')), more = box.querySelector('.lmore');
     rows.forEach(function(r){ r.hidden = false; }); more.hidden = true;
     var H = box.clientHeight; if (box.scrollHeight <= H + 1) return;
@@ -1367,7 +1430,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     var cal = ''; for (var d = 1; d <= TODAY.getDate(); d++){ var on = cnt[d], stop = x.last && d > +x.last.slice(8) && !on; cal += '<i class="' + (on ? 'h' : '') + (stop && x.d >= 3 ? ' o' : '') + '" title="' + (+mon.slice(5, 7)) + '/' + d + (on ? '・' + on + ' 位' : '') + '">' + (on ? '<b>' + on + '</b>' : '') + '<s>' + d + '</s></i>'; }
     var same = L.filter(function(p){ return p.院 === x.院; });
     var h = '<div class="ph"><h2>' + esc(x.名) + '</h2><span>' + esc(x.院) + '・' + (+mon.slice(5, 7)) + ' 月</span></div>'
-      + '<p class="psub">' + (x.last ? '最後一次新增報到 ' + md(x.last) + '・' + (x.d ? '已經 <b class="og">' + x.d + ' 天</b>沒有新增' : '今天有新增') : (x.none ? '這個月還沒有報到' : '')) + '</p>'
+      + '<p class="psub">' + (x.last ? '最後一次新增報到 ' + md(x.last) + '・' + (x.d ? '已經 <b class="og">' + x.d + ' 天</b>沒有新增' : '今天有新增') : (x.none ? '這個月還沒有報到' : (x.miss ? '這個月報到 ' + x.v + ' 位，但報到明細還沒抓到他的紀錄（下一次同步報到會補抓整個月）' : ''))) + '</p>'
       + '<div class="pk"><div><b>' + x.v + '</b><span>' + (+mon.slice(5, 7)) + ' 月報到</span></div><div><b>' + x.面談 + '</b><span>面談</span></div><div><b>' + x.註冊 + '</b><span>註冊</span></div><div><b class="' + ((x.none || x.d >= 3) ? 'og' : '') + '">' + esc(dayTxt(x)) + '</b><span>沒有新增報到</span></div></div>';
     if (!D.ck){ return h + '<p class="z">報到明細（誰、哪天、哪個通路）要等擴充 5.73 同步一次報到、再按 🏫 班況之後才會出現。</p>'; }
     h += '<h5>' + (+mon.slice(5, 7)) + ' 月每天的報到<small>深色＝有人報到・橘框＝還沒有新增的日子</small></h5><div class="pcal">' + cal + '</div>'
@@ -1472,9 +1535,15 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
         return '<div class="zc"><h5>' + o + '</h5><table><tr><th>業務</th><th>談過</th><th>報名</th><th>註冊</th><th>排進班</th><th>上過課</th></tr>' + f.map(function(x){ return '<tr><td class="nm">' + esc(short(x.業務)) + '</td><td>' + x.談過 + '</td><td>' + x.報名 + '</td><td>' + x.註冊 + '</td><td class="' + (pjx(x) < x.註冊 ? 'og' : '') + '">' + pjx(x) + '</td><td>' + (x.上過課 == null ? '—' : x.上過課) + '</td></tr>'; }).join('') + '</table></div>'; }).join('') + '</div>'; }
     else if (id === 'unc'){ var R = uncRows();
       t = '<div class="zg">' + R.map(function(r){ return '<div class="zc"><h5>' + r.o + '・' + r.u.length + ' 筆</h5><table><tr><th>承辦</th><th class="l">學生</th><th class="l">課程</th><th>幾天</th></tr>' + r.u.slice().sort(function(a, b){ return (+b.天 || 0) - (+a.天 || 0); }).map(function(x){ return '<tr><td class="nm">' + esc(short(x.承辦)) + '</td><td class="l">' + esc(x.學生) + '</td><td class="l">' + esc(x.課程) + '</td><td class="' + ((+x.天 || 0) > 14 ? 'og' : '') + '">' + x.天 + ' 天</td></tr>'; }).join('') + '</table></div>'; }).join('') + '</div>'; }
-    else if (id === 'att'){ var S2 = (typeof SHOW_D !== 'undefined' ? SHOW_D : []);
-      t = '<table><tr><th class="l">班</th><th>狀況</th><th>堂</th><th>出席</th><th>應到</th><th>請假</th><th>曠課</th></tr>' + S2.filter(function(c){ return c.type !== '講座'; }).map(function(c){ var f = c.grp === '已開班' ? c.first : c.last;
-        return '<tr class="clk" data-id="' + c.cid + '"><td class="l"><span class="nm">' + esc(c.code) + '</span> ' + esc(shortNm(c.name)) + '</td><td>' + esc(c.grp === '結業' ? c.endMD + ' 結業' : c.grp === '已開班' ? '第一堂' : '最近一堂 ' + (c.last && c.last.md || '')) + '</td><td>' + (c.done || '—') + '/' + (c.total || '—') + '</td><td>' + (f && f.應到 ? f.實到 : '—') + '</td><td>' + (f && f.應到 || '—') + '</td><td>' + (f && f.請假 != null ? f.請假 : '—') + '</td><td>' + (f && f.曠課 != null ? f.曠課 : '—') + '</td></tr>'; }).join('') + '</table><p class="z" style="margin-top:1em">點一班看學生名單。</p>'; }
+    else if (id === 'att'){
+      var row = function(x, lab){ var f = x.f;
+        return '<tr class="clk" data-id="' + x.cid + '"><td class="l"><span class="nm">' + esc(x.code) + '</span> ' + esc(shortNm(x.name)) + (x.nr ? ' <small class="og">可能還沒點名</small>' : '') + '</td><td>' + esc(lab(x.c)) + '</td><td>' + (x.c.done || '—') + '/' + (x.c.total || '—') + '</td><td>' + (f && f.應到 ? f.實到 : '—') + '</td><td>' + (f && f.應到 || '—') + '</td><td>' + (f && f.請假 != null ? f.請假 : '—') + '</td><td>' + (f && f.曠課 != null ? f.曠課 : '—') + '</td><td class="' + (!x.nr && x.miss != null && x.miss > 30 ? 'og' : '') + '">' + (x.nr || x.miss == null ? '—' : x.miss + '%') + '</td></tr>'; };
+      var tb = function(L, lab){ return L.length ? '<table><tr><th class="l">班</th><th>狀況</th><th>堂</th><th>出席</th><th>應到</th><th>請假</th><th>曠課</th><th>未到率</th></tr>' + L.map(function(x){ return row(x, lab); }).join('') + '</table>' : '<p class="z">沒有。</p>'; };
+      var L1 = attLayer('已開班'), L2 = attLayer('結業'), L3 = attLayer('未到多');
+      t = '<h5 class="ah">① 開班 3 天內<small>看第一堂</small></h5>' + tb(L1, function(c){ return '第一堂 ' + (c.first && c.first.md || c.openMD || ''); })
+        + '<h5 class="ah">② 快結業<small>7 天內結業・看最近一堂</small></h5>' + tb(L2, function(c){ return c.endMD + ' 結業'; })
+        + '<details class="ad"><summary>③ 上課中要追的班 ' + L3.length + ' 班<small>最近一堂未到超過三成・可能還沒點名的排最後</small></summary>' + tb(L3, function(c){ return '最近一堂 ' + (c.last && c.last.md || ''); }) + '</details>'
+        + '<p class="z" style="margin-top:1em">全區的班都列（台一、台二、台三互相有關聯）。出席 0 或不到一成的，多半是老師還沒在 EIP 點名，標「可能還沒點名」。點一班看學生名單。</p>'; }
     else if (id === 'inc'){ t = incZoom(); }
     return t;
   }
@@ -1559,8 +1628,8 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     } else {
       var ch = champs(ORGS);
       h = '<div class="stg"><div class="hd"><h1>' + esc(REGION) + '・' + esc(w.short) + '入帳冠軍</h1><span>' + esc(w.label) + '・' + esc(ORGS.join(' ')) + ' 業務</span><span class="x"><button type="button" data-a="again">再播一次</button><button type="button" data-a="close">關閉<span class="dk"> Esc</span></button></span></div>'
-        + (ch && ch.list.length ? oneCard(ch.list[0]) + '<div class="right">' + (ch.list[1] ? twoCard(ch.list[1], 1) : '<div></div>') + (ch.list[2] ? twoCard(ch.list[2], 2) : '<div></div>') + '</div>'
-          : '<div class="empty">' + esc(w.label) + ' 沒有入帳。</div>') + '</div>';
+        + (ch && ch.list.length ? oneCard(ch.list[0]) + '<div class="right">' + (ch.list[1] ? twoCard(ch.list[1], 1) : '') + (ch.list[2] ? twoCard(ch.list[2], 2) : '') + weekHtml() + '</div>'
+          : '<div class="empty">' + esc(w.label) + ' 沒有入帳。</div><div class="right">' + weekHtml() + '</div>') + '</div>';
     }
     CH.className = 'on e-' + fx; CH.innerHTML = h + '<canvas></canvas><div class="fx"></div>' + (fx === 'spot' ? '<div class="spot"></div>' : '');
     document.body.classList.add('bmode');
@@ -1641,7 +1710,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
   };
   if (Z) Z.onclick = function(e){ var pr = e.target.closest('[data-p]'); if (pr){ openPerson(pr.dataset.p); return; } var row = e.target.closest('[data-id]'); if (row && typeof byId !== 'undefined' && byId[row.dataset.id]){ openSheet(byId[row.dataset.id]); return; } if (e.target.closest('.zh button') || e.target.classList.contains('zbg')) closeZoom(); };
-  if (CH) CH.onclick = function(e){ var a = e.target.closest('[data-a]'); if (a){ if (a.dataset.a === 'close') closeChamp(); else { closeChamp(); openChamp(); } return; } skip(); };
+  if (CH) CH.onclick = function(e){ var wm = e.target.closest('[data-w="more"]'); if (wm){ var wk = wm.closest('.wk'); if (wk) wk.classList.add('all'); wm.remove(); return; } var a = e.target.closest('[data-a]'); if (a){ if (a.dataset.a === 'close') closeChamp(); else { closeChamp(); openChamp(); } return; } skip(); };
   window.__pgB = {
     key: function(e){
       if (CH && CH.classList.contains('on')){ if (e.key === 'Escape') closeChamp(); else skip(); e.preventDefault(); return; }
