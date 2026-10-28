@@ -2724,15 +2724,17 @@
       var seen = {}, by = {};
       itv.filter(function(r){ return String(r.d).indexOf(ym) === 0; }).sort(function(a, b){ return String(b.d).localeCompare(String(a.d)); }).forEach(function(r){
         if (seen[r.n]) return; seen[r.n] = 1;
-        var k = r.o || '（沒有承辦）', b = by[k] || (by[k] = { 院: sh, 業務: k, 主管: !!CLS_ASST_BOSS[k], 談過: 0, 報名: 0, 註冊: 0, 進班上課: 0, 排進班: 0, 上過課: 0 });
+        var k = r.o || '（沒有承辦）', b = by[k] || (by[k] = { 院: sh, 業務: k, 主管: !!CLS_ASST_BOSS[k], 談過: 0, 報名: 0, 註冊: 0, 進班上課: 0, 排進班: 0, 上過課: 0, 名單: [] });
         b.談過++;
-        if ((+r.a || 0) > 0 || (+r.r || 0) > 0) b.報名++;
-        if ((+r.r || 0) > 0){ b.註冊++;
+        var gate = '談過沒報名';   // ★ v5.75（10/28 桃區主管）：點業務看每位學生走到哪一關＋面談紀錄的備註
+        if ((+r.a || 0) > 0 || (+r.r || 0) > 0){ b.報名++; gate = '報名沒註冊'; }
+        if ((+r.r || 0) > 0){ b.註冊++; gate = '註冊沒排班';
           // ★ v5.71（10/22 Ivan：登記上課可能是 11 月、12 月、明年的班）拆兩個：排進班＝註冊的課有一門已登記到某一班；上過課＝EIP 寫使用中／出席
           var rc = (r.cs || []).filter(function(c){ return c.k === '註冊' && c.st; });
-          if (rc.some(function(c){ return c.st !== '未登記'; })){ b.排進班++; b.進班上課++; }   // 進班上課＝排進班（舊欄名，給還沒更新的 Apps Script）
-          if (rc.some(function(c){ return /^(使用|出席)/.test(c.st); })) b.上過課++;
+          if (rc.some(function(c){ return c.st !== '未登記'; })){ b.排進班++; b.進班上課++; gate = '已排班'; }   // 進班上課＝排進班（舊欄名，給還沒更新的 Apps Script）
+          if (rc.some(function(c){ return /^(使用|出席)/.test(c.st); })){ b.上過課++; gate = '上過課'; }
         }
+        b.名單.push({ n: r.n, d: String(r.d || ''), s: String(r.s || '').slice(0, 20), 關: gate, m: String(r.m || '').replace(/\s+/g, ' ').trim().slice(0, 120) });
       });
       Object.keys(by).forEach(function(k){ fun.push(by[k]); });
     });

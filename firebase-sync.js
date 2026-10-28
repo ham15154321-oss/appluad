@@ -1470,7 +1470,10 @@ async function _writeAuditLog(charId, lsCount, idbCount, changedKeys){
 
 // === 推送 ============================================================
 async function pushToCloud(opts){
-  if (!ready || IS_ADMIN) return;
+  if (!ready) return;
+  // ★ ds142（10/28 Ivan 同意）：管理者模式以前完全不推。現在只推「錄音案例庫裡自己上傳的那幾筆文字」，
+  //   其他資料（localStorage、漏斗、照片…）一律照舊不推。
+  const casesOnly = IS_ADMIN;
   // ★ 推送鎖：如果上一次推送還在進行中，跳過這次
   if (_pushing){
     console.log('[FirebaseSync] 上次推送尚未完成，跳過');
@@ -1493,7 +1496,7 @@ async function pushToCloud(opts){
     const lsData = {};
     var _skippedKeys = {};      // ★ 這次刻意跳過的 key（超過 1MB／壓縮失敗）→ 清理雲端時不能連它們一起刪
     let skippedCount = 0;
-    for (let i = 0; i < localStorage.length; i++){
+    for (let i = 0; !casesOnly && i < localStorage.length; i++){
       const k = localStorage.key(i);
       if (!k) continue;
       if (isLocalOnlyKey(k)) continue;
@@ -1548,9 +1551,9 @@ async function pushToCloud(opts){
 
     // ★ Dirty-tracking：只推送真正有改變的資料（force=true 時繞過）
     var lsChanged = _filterChanged(lsPath, lsDataChar, force);
-    var _delKeys = Object.keys(_pendingDeletes);
+    var _delKeys = casesOnly ? [] : Object.keys(_pendingDeletes);   // ★ ds142：管理者不送刪除
     var lsCount = 0;
-    if (Object.keys(lsChanged).length > 0 || _delKeys.length > 0){
+    if (!casesOnly && (Object.keys(lsChanged).length > 0 || _delKeys.length > 0)){
       _changedKeysForLog = _changedKeysForLog.concat(Object.keys(lsChanged));  // ★ for audit
       // ★★ 2026/09 關鍵修正：這裡以前傳的是 lsChanged（只有變更的那幾個 key），
       //    而 writeDataToFirestore 用的是「無 merge 的 set」→ 雲端 main 會被換成只剩那幾個 key，
@@ -1592,7 +1595,7 @@ async function pushToCloud(opts){
       // ★ 等伺服器消化
       try { await fsDb.waitForPendingWrites(); } catch(e){}
       await delay(WRITE_LONG_PAUSE_MS);
-    } else {
+    } else if (!casesOnly) {
       // 無變更，記住簽名但不寫入
       _recordSigs(lsPath, lsDataChar);
     }
@@ -1662,6 +1665,7 @@ async function pushToCloud(opts){
     let idbCount = 0;
     var _idbRevUpdates = {};   // ★ 3B：這輪真的寫過的 IDB 集合 → 記到 _meta/lsTs.idbRev
     for (const idbInfo of IDB_LIST){
+      if (casesOnly && idbInfo.dbName !== 'AiCasedbDB') continue;   // ★ ds142：管理者只推錄音案例庫
       var idb = null;
       try {
         idb = await idbOpen(idbInfo.dbName, idbInfo.dbVer, idbInfo.stores);
@@ -1678,6 +1682,18 @@ async function pushToCloud(opts){
             entries[ek] = rawEntries[ek];
           }
           if (_audioSkipCount > 0) console.log('[FirebaseSync] 跳過音效資料:', _audioSkipCount, '筆');
+          // ★ ds142：管理者只推「自己上傳的」案例（本機案例庫是全公司拉下來合併的，不能整包掛到自己名下）
+          if (casesOnly){
+            var _own = {};
+            try {
+              var _cv = entries['ai_casedb_v1']; if (typeof _cv === 'string') _cv = JSON.parse(_cv);
+              if (Array.isArray(_cv)) _own['ai_casedb_v1'] = _cv.filter(function(x){ return x && x.by === charId; });
+              var _tv = entries['ai_casedb_deleted']; if (typeof _tv === 'string') _tv = JSON.parse(_tv);
+              if (Array.isArray(_tv)) _own['ai_casedb_deleted'] = _tv;
+            } catch(_oe){ console.warn('[FirebaseSync] 管理者案例篩選失敗，這次不推', _oe && _oe.message); continue; }
+            if (!_own['ai_casedb_v1'] || !_own['ai_casedb_v1'].length) continue;   // 自己沒上傳過 → 不推、不清雲端
+            entries = _own;
+          }
           // ★ ds132：管理者清掉的照片（img_purged_v1）不推回雲端；本機那份也順手刪掉
           if (idbInfo.dbName === 'SpaceBaseDB' && storeName === 'images'){
             var _pg = _imgPurgedSet(), _pgHit = [];
@@ -2680,10 +2696,10 @@ async function _doInit(){
         ready = true;
         setupRealtime();
         _startPeriodicPull();   // ★ 每 90s 額外 pull 一次（onSnapshot 沒抓到也能補救）
-        if (!IS_ADMIN) setInterval(function(){ if(document.hidden) return; pushToCloud(); }, SYNC_INTERVAL_MS);  // 隱藏時跳過,省記憶體
+        setInterval(function(){ if(document.hidden) return; pushToCloud(); }, SYNC_INTERVAL_MS);   // ★ ds142：管理者只推錄音案例  // 隱藏時跳過,省記憶體
         setBadge(IS_ADMIN ? '☁ 管理者' : badgeLabel, '#00ff88');
         setTimeout(() => { if (badgeEl) badgeEl.style.opacity = '0.3'; }, 2000);
-        if (!IS_ADMIN) setTimeout(pushToCloud, 15000);
+        setTimeout(pushToCloud, 15000);   // ★ ds142：管理者也跑（只推自己的錄音案例）
         setTimeout(async function _bgFull(){
           if (_pushing || _pullingFromCloud){ setTimeout(_bgFull, 3000); return; }
           try {
@@ -2768,11 +2784,11 @@ async function startSyncAfterCode(){
     ready = true;
     setupRealtime();
     _startPeriodicPull();   // ★ 每 90s 額外 pull 一次（救援同步漏掉的更新）
-    if (!IS_ADMIN) setInterval(function(){ if (typeof document!=='undefined' && document.hidden) return; pushToCloud(); }, SYNC_INTERVAL_MS);  // ★ 背景分頁跳過（原本這條沒防護）
+    setInterval(function(){ if (typeof document!=='undefined' && document.hidden) return; pushToCloud(); }, SYNC_INTERVAL_MS);   // ★ ds142  // ★ 背景分頁跳過（原本這條沒防護）
     var code = localStorage.getItem('firebase_sync_code') || '';
     setBadge(IS_ADMIN ? '☁ 管理者' : '☁ ' + code, '#00ff88');
     setTimeout(() => { if (badgeEl) badgeEl.style.opacity = '0.3'; }, 2000);
-    if (!IS_ADMIN) setTimeout(pushToCloud, 15000);
+    setTimeout(pushToCloud, 15000);   // ★ ds142：管理者也跑（只推自己的錄音案例）
   } catch(e){
     console.error('[FirebaseSync] 同步失敗', e);
     setBadge('❌ 同步失敗\n' + (e.code || e.message || e), '#ff6666');
