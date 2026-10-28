@@ -118,6 +118,12 @@ body.night .modal-xrow{background:#0c1730;border-bottom-color:rgba(100,170,255,0
 
 .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-60px);padding:9px 22px;border-radius:10px;font-size:13px;font-weight:600;z-index:10000;opacity:0;transition:all .3s;pointer-events:none;background:#1d1d1f;color:#fff;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+/* ★ ds141 存檔狀態＋錯誤提示 */
+.toast.err{background:#C0392B;}
+.wf-save-state{display:inline-block;margin-left:12px;font-size:13px;font-weight:600;color:#6E6E73;vertical-align:middle;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.wf-save-state:empty{display:none;}
+.wf-save-state.ok{color:#1F7A3A;}
+.wf-save-state.err{color:#fff;background:#C0392B;cursor:pointer;}
 
 /* 需優化錄音 / 錄音轉摘要 / A業績圖 */
 .voice-sub{font-size:12px;color:var(--dim);line-height:1.6;}
@@ -406,6 +412,15 @@ textarea.tin{min-height:112px;line-height:1.6;}
 .sec-sum{font-size:13px;}
 .ai-chip{font-size:13px;padding:2px 8px;}
 .bp-steps{gap:8px;margin-bottom:16px;}
+/* ★ ds141（10/28 Apple Design 審查）：跟最上面「五步驟」重複，組長不知道要看哪一排 → 藏起來 */
+.bp-steps{display:none !important;}
+/* ★ ds141 第一次用：三步就好 */
+.wf-quick{max-width:1180px;margin:0 auto 14px;padding:14px 18px;border-radius:16px;background:#F0F6FF;border:1px solid #CFE0FF;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:15px;color:#1d1d1f;}
+.wf-quick b{font-size:15px;margin-right:4px;}
+.wf-quick .q{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:#fff;border:1px solid #CFE0FF;cursor:pointer;font-weight:700;color:#0A58CA;transition:transform .1s ease-out;}
+.wf-quick .q:active{transform:scale(.97);}
+.wf-quick .sub{flex-basis:100%;font-size:13px;color:#6E6E73;}
+.wf-quick .x{margin-left:auto;border:0;background:transparent;color:#6E6E73;font-size:14px;cursor:pointer;padding:8px;}
 .bp-step{padding:8px 12px;}
 .bp-step .n{font-size:13px;}
 .bp-step .t{font-size:16px;}
@@ -545,7 +560,7 @@ button:not(:disabled):active,.btn:not(:disabled):active,.tab:active,.flow-step:a
 .section .card>div[style*="font-size:12px"]{font-size:13px !important;}
 </style>
 <script src="./auth-check.js?v=5a09f9ce"></script>
-<script defer src="./firebase-sync.js?v=2b77f0c5"></script>
+<script defer src="./firebase-sync.js?v=f4229017"></script>
 </head>
 <body>
 <script>
@@ -576,6 +591,14 @@ button:not(:disabled):active,.btn:not(:disabled):active,.tab:active,.flow-step:a
 </div>
 
 <!-- ══ 流程引導條 ══ -->
+<div class="wf-quick" id="wfQuick" style="display:none">
+  <b>第一次用？三步就好：</b>
+  <span class="q" onclick="goTab('rec','#wfUploadHero')">① 🎙️ 上傳錄音</span>
+  <span class="q" onclick="goTab('battle','#battleAiSection')">② 🤖 按分析</span>
+  <span class="q" onclick="goTab('battle','#battleAdopted')">③ ✅ 勾採納、按打包</span>
+  <button class="x" onclick="wfQuickHide()">知道了 ✕</button>
+  <div class="sub">之星、待檢討、話術名單有空再補；每一格打完字會自動儲存，下面「💾 儲存」旁邊會寫幾點存好的。</div>
+</div>
 <div class="flow-strip">
   <div class="flow-step" id="flow1" onclick="goTab('rec','#wfUploadHero')"><div class="flow-num">1</div><div class="flow-txt"><b>上傳錄音</b><span>轉逐字稿＋摘要</span></div></div>
   <div class="flow-arrow">→</div>
@@ -808,7 +831,7 @@ button:not(:disabled):active,.btn:not(:disabled):active,.tab:active,.flow-step:a
 </div>
 
 <div class="toast" id="toast">✓ 已儲存</div>
-<div class="save-bar"><button class="save-btn" onclick="saveAll()">💾 儲存</button></div>
+<div class="save-bar"><button class="save-btn" onclick="saveAll()">💾 儲存</button><span id="wfSaveState" class="wf-save-state" aria-live="polite"></span></div>
 
 <script>
 // ════════ 身份 / 儲存（per-主角）════════
@@ -844,36 +867,71 @@ function loadAll(){
 // ★ 寫入前必檢查：若主角已切換（allData 還是舊主角的）就絕不寫入，避免污染新主角的資料桶
 function _charMismatch(){ return _loadedChar !== null && charId() !== _loadedChar; }
 var _saveTimer=null;
+// ★ ds141：主角對不上（別的分頁換了登入的人）→ 以前默默不存，使用者以為存了。現在講出來並重新載入這位主角的資料
+function _wfMismatchStop(){
+  if(!_charMismatch()) return false;
+  toast('⚠ 登入的人換了（現在是 '+charName()+'），剛剛的修改沒有存，已重新載入這位的資料',true);
+  _wfSaveState(false,'登入的人換了');
+  try{ reloadForCharChange(); }catch(e){}
+  return true;
+}
+function _wfWriteMain(){
+  localStorage.setItem(SK(), JSON.stringify(allData));
+  // 讀回確認：真的寫進去了才算成功
+  if(localStorage.getItem(SK()) == null) throw new Error('寫入後讀不回來');
+}
 function scheduleSave(){
   clearTimeout(_saveTimer);
+  _wfSaveState(true,''); try{ var el=document.getElementById('wfSaveState'); if(el){ el.className='wf-save-state'; el.textContent='儲存中…'; } }catch(e){}
   _saveTimer=setTimeout(function(){
-    if(_charMismatch()) return;
-    try{ localStorage.setItem(SK(), JSON.stringify(allData)); }catch(e){ toast('⚠ 儲存失敗：'+e.message,true); }
+    _saveTimer=null;
+    if(_wfMismatchStop()) return;
+    try{ _wfWriteMain(); _wfSaveState(true); }catch(e){ toast('⚠ 沒存成功：'+_wfWhy(e),true); _wfSaveState(false,_wfWhy(e)); }
     try{ if(typeof updateSecSums==='function') updateSecSums(); }catch(e){}
   }, 700);
 }
 function saveAll(){
-  if(_charMismatch()) return;
+  if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }   // ★ ds141：有排隊中的自動存檔就直接一起存，不會漏
+  if(_wfMismatchStop()) return;
   try{
-    localStorage.setItem(SK(), JSON.stringify(allData));
+    _wfWriteMain();
     localStorage.setItem(FILES_SK(), JSON.stringify(files));
     toast('✅ 已儲存（'+monthKey()+'）');
-  }catch(e){ toast('⚠ 儲存失敗：'+e.message,true); }
+    _wfSaveState(true);
+  }catch(e){ toast('⚠ 沒存成功：'+_wfWhy(e),true); _wfSaveState(false,_wfWhy(e)); }
 }
 function saveFiles(){
-  if(_charMismatch()) return;
-  try{ localStorage.setItem(FILES_SK(), JSON.stringify(files)); }catch(e){ toast('⚠ 儲存失敗：'+e.message,true); }
+  if(_wfMismatchStop()) return;
+  try{ localStorage.setItem(FILES_SK(), JSON.stringify(files)); _wfSaveState(true); }catch(e){ toast('⚠ 沒存成功：'+_wfWhy(e),true); _wfSaveState(false,_wfWhy(e)); }
 }
 window.triggerSave = saveAll;
 
 // ════════ 小工具 ════════
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+var _toastT=null;
 function toast(msg,isErr){
   var t=document.getElementById('toast');
   t.textContent=msg;
+  t.classList.toggle('err', !!isErr);
   t.classList.add('show');
-  setTimeout(function(){ t.classList.remove('show'); },2200);
+  if(_toastT) clearTimeout(_toastT);
+  _toastT=setTimeout(function(){ t.classList.remove('show'); }, isErr ? 6000 : 2200);   // ★ ds141：錯誤留 6 秒、紅色，不再一閃就不見
+}
+// ★ ds141：存檔狀態（按鈕旁）
+function wfQuickHide(){ try{ localStorage.setItem('wf_quick_seen','1'); }catch(e){} var q=document.getElementById('wfQuick'); if(q) q.style.display='none'; }
+(function(){ try{ var go=function(){ var q=document.getElementById('wfQuick'); if(q && !localStorage.getItem('wf_quick_seen')) q.style.display=''; }; if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',go); else go(); }catch(e){} })();
+function _wfSaveState(ok, why){
+  var el=document.getElementById('wfSaveState'); if(!el) return;
+  var d=new Date(), hm=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+  el.className='wf-save-state '+(ok?'ok':'err');
+  el.textContent= ok ? ('✓ 已自動儲存 '+hm) : ('⚠ 沒存成功：'+why+'（點這裡再存一次）');
+  el.onclick = ok ? null : function(){ saveAll(); };
+}
+function _wfWhy(e){
+  var m=String((e&&e.message)||e||'');
+  if(/quota|exceeded/i.test(m)) return '這台瀏覽器的空間滿了，資料還在畫面上';
+  return m || '不明原因';
 }
 var _wfPt=null, _wfCloseT={};
 document.addEventListener('pointerdown',function(e){ _wfPt={x:e.clientX,y:e.clientY}; },true);
@@ -1032,29 +1090,80 @@ function _caseSaveToIDB(arr){
     });
   });
 }
+// ═══ ds141（10/28 Ivan：瀑布存不進去、錄音不見）安全的案例庫寫入 ═══
+//   以前：記憶體裡整包陣列直接蓋掉 IndexedDB → 還沒讀完就存＝「空的＋一筆」蓋掉全部；兩頁同時開、或雲端剛拉進來，後寫的把先寫的抹掉；
+//         刪掉的錄音被別人的副本救回來。
+//   現在：每次存都先重新讀 IndexedDB，跟這次要存的「逐筆合併」（同 id 用這次的）；這頁刪掉的 id 記進刪除清單 ai_casedb_deleted，
+//         合併時、雲端拉取時都會排除；案例庫還沒讀進來或讀失敗 → 不准存（不會再拿空的蓋掉）。
+var _CASE_TOMB = 'ai_casedb_deleted';
+window._caseIds = window._caseIds || null;     // 這頁上次讀到／存完時有哪些 id（用來判斷「這次刪了誰」）
+window._caseBootFailed = false;
+function _caseGet(key){
+  return _caseOpenDB().then(function(db){
+    return new Promise(function(res){
+      try{ var g=db.transaction(_CASE_STORE,'readonly').objectStore(_CASE_STORE).get(key); g.onsuccess=function(){ try{db.close();}catch(_){} res(g.result||null); }; g.onerror=function(){ try{db.close();}catch(_){} res(null); }; }
+      catch(e){ try{db.close();}catch(_){} res(null); }
+    });
+  }).catch(function(){ return null; });
+}
+function _caseSafeSave(arr){
+  if(!window._caseCacheReady || window._caseBootFailed || !Array.isArray(window._caseIds)){
+    return Promise.reject(new Error('案例庫還沒讀進來，這次先不存（避免蓋掉其他錄音），等一下再按一次'));
+  }
+  arr = Array.isArray(arr) ? arr : [];
+  var newIds = {}; arr.forEach(function(x){ if(x && x.id) newIds[x.id] = 1; });
+  var dels = window._caseIds.filter(function(id){ return !newIds[id]; });
+  return Promise.all([_caseGet(_CASE_KEY), _caseGet(_CASE_TOMB)]).then(function(r){
+    var fresh = Array.isArray(r[0]) ? r[0] : [], tomb = Array.isArray(r[1]) ? r[1].slice() : [];
+    dels.forEach(function(id){ if(tomb.indexOf(id) < 0) tomb.push(id); });
+    var T = {}; tomb.forEach(function(id){ T[id] = 1; });
+    var out = [], seen = {};
+    arr.forEach(function(x){ if(!x) return; if(x.id && T[x.id]) return; if(x.id){ if(seen[x.id]) return; seen[x.id] = 1; } out.push(x); });
+    fresh.forEach(function(x){ if(!x || !x.id || seen[x.id] || T[x.id]) return; seen[x.id] = 1; out.push(x); });   // 別頁／雲端新加的，保留
+    return _caseOpenDB().then(function(db){
+      return new Promise(function(res, rej){
+        try{
+          var tx = db.transaction(_CASE_STORE,'readwrite'), st = tx.objectStore(_CASE_STORE);
+          st.put(out, _CASE_KEY); st.put(tomb, _CASE_TOMB);
+          tx.oncomplete = function(){ try{db.close();}catch(_){} res(out); };
+          tx.onerror = function(){ try{db.close();}catch(_){} rej(tx.error || new Error('寫入失敗')); };
+          tx.onabort = function(){ try{db.close();}catch(_){} rej(tx.error || new Error('寫入被中止（空間可能不夠）')); };
+        }catch(e){ try{db.close();}catch(_){} rej(e); }
+      });
+    }).then(function(out){
+      window._caseCache = out; window._caseIds = out.map(function(x){ return x && x.id; }).filter(Boolean);
+      return out;
+    });
+  });
+}
 async function _caseBootInit(){
   try{
     var fromIdb = await _caseLoadFromIDB();
+    var tombB = await _caseGet(_CASE_TOMB); var TB = {}; (Array.isArray(tombB)?tombB:[]).forEach(function(id){ TB[id]=1; });   // ★ ds141：刪除清單
     var fromLs = null;
     try{ var r=localStorage.getItem(_CASE_KEY); if(r) fromLs=JSON.parse(r); }catch(_){}
     if(!Array.isArray(fromIdb)) fromIdb=null;
     if(!Array.isArray(fromLs)) fromLs=null;
-    // 合併 LS 跟 IDB:以 id 去重,兩邊獨有的都保留(保護資料不消失)
+    // 合併 LS 跟 IDB:以 id 去重,兩邊獨有的都保留(保護資料不消失)；刪除清單上的不收
     var merged=[], seen={};
-    function push(a){ if(!Array.isArray(a)) return; a.forEach(function(x){ if(!x) return; var id=x.id||('_'+merged.length); if(!seen[id]){ seen[id]=1; merged.push(x); } }); }
+    function push(a){ if(!Array.isArray(a)) return; a.forEach(function(x){ if(!x) return; if(x.id && TB[x.id]) return; var id=x.id||('_'+merged.length); if(!seen[id]){ seen[id]=1; merged.push(x); } }); }
     push(fromIdb); push(fromLs);
     window._caseCache = merged;
+    window._caseIds = merged.map(function(x){ return x && x.id; }).filter(Boolean);
+    window._caseBootFailed = false;
     window._caseCacheReady = true;
-    // 把合併版寫回 IDB(成為主檔)
-    try{ await _caseSaveToIDB(merged); }catch(_){}
+    // 把合併版寫回 IDB(成為主檔)——只有 LS 真的有舊資料要併進來時才寫（★ ds141：沒東西要併就不寫，少一次覆蓋機會）
+    if (fromLs && fromLs.length){ try{ await _caseSafeSave(merged); }catch(_){} }
     // 從 LS 移除(釋出空間,避免日後 quota 衝突)
     try{ localStorage.removeItem(_CASE_KEY); }catch(_){}
     try{ if(window.parent && window.parent!==window) window.parent.localStorage.removeItem(_CASE_KEY); }catch(_){}
     console.log('[casedb/wf] 已搬到 IndexedDB('+merged.length+' 筆),LS 已釋放');
   }catch(e){
     console.warn('[casedb/wf] boot init 失敗',e);
+    // ★ ds141：讀失敗不再當成「空的」（以前會讓下一次存檔把整個案例庫蓋成空的）→ 標記失敗、不准寫，3 秒後再試
+    window._caseBootFailed = true;
     window._caseCache = window._caseCache || [];
-    window._caseCacheReady = true;
+    setTimeout(function(){ try{ _caseBootInit(); }catch(_){} }, 3000);
   }
 }
 
@@ -1064,6 +1173,7 @@ function loadCases(){
   if(window._caseCacheReady && Array.isArray(window._caseCache)) return window._caseCache;
   try{ var r=localStorage.getItem('ai_casedb_v1'); var a=r?JSON.parse(r):[]; return Array.isArray(a)?a:[]; }
   catch(e){ return []; }
+  // ★ ds141：就算這裡回傳空的，_caseSafeSave 也會擋（案例庫還沒讀完不准寫），不會再拿空的蓋掉
 }
 function voiceCases(){ return loadCases().filter(function(c){ return c.type==='voice'||c.type==='acceptance'; }); }
 function caseById(id){ return loadCases().find(function(c){ return c.id===id; }) || null; }
@@ -1252,9 +1362,8 @@ function deleteCase(id){
   var c=caseById(id); if(!c) return;
   if(!confirm('刪除「'+caseTitle(c)+'」？\n此錄音與 AI 顧問共用，刪了那邊也會消失。')) return;
   var arr=loadCases().filter(function(x){ return x.id!==id; });
-  window._caseCache=arr; window._caseCacheReady=true;
-  if(typeof _caseSaveToIDB==='function'){
-    _caseSaveToIDB(arr).catch(function(e){ toast('⚠ 刪除儲存失敗：'+(e&&e.message||e),true); });
+  if(typeof _caseSafeSave==='function'){
+    _caseSafeSave(arr).then(function(){ renderBlock2(); try{ renderBlock3(); }catch(_){} }, function(e){ toast('⚠ 刪除沒有存成功：'+(e&&e.message||e),true); });   // ★ ds141
   } else {
     try{ localStorage.setItem('ai_casedb_v1',JSON.stringify(arr)); }catch(e){ toast('⚠ 刪除儲存失敗：'+e.message,true); }
   }
@@ -1571,11 +1680,10 @@ function _voiceCommitUnit(dest,title,body){
   var newId='c_'+now;
   var arr=loadCases();
   arr.push({ id:newId, type:(dest==='voice'?'voice':'acceptance'), text:title+'\n'+(body||''), marquee:false, isVoice:true, createdAt:now, by:charName()||'' });
-  // 寫到 IndexedDB(不再用 LS,避免被 quota 清理清掉)
-  window._caseCache = arr;
-  window._caseCacheReady = true;
-  if(typeof _caseSaveToIDB==='function'){
-    _caseSaveToIDB(arr).catch(function(e){ toast('⚠ 案例儲存失敗：'+(e&&e.message||e),true); });
+  // 寫到 IndexedDB(不再用 LS,避免被 quota 清理清掉)；★ ds141：先讀再合併再寫，不會蓋掉別人的錄音
+  if(typeof _caseSafeSave==='function'){
+    window._caseSavePending = (window._caseSavePending || Promise.resolve()).then(function(){ return _caseSafeSave(loadCases().concat(arr.filter(function(x){ return !caseById(x.id); }))); })
+      .catch(function(e){ toast('⚠ 錄音沒有存成功：'+(e&&e.message||e),true); });
   } else {
     try{ localStorage.setItem('ai_casedb_v1',JSON.stringify(arr)); }catch(e){ toast('⚠ 案例儲存失敗：'+e.message,true); }
   }
@@ -1886,7 +1994,7 @@ function renderBattleBox(){
   // 2) 勾選最近錄音
   var cases=loadCases().slice(-10).reverse();
   var nSel=_wfSelectedCount();
-  html+='<div class="subhead">🎙️ 這次要分析的錄音<span class="rec-count" id="recCount">已選 '+nSel+' 筆</span></div>';
+  html+='<div class="subhead">🎙️ 這次要分析的錄音<span class="rec-count" id="recCount">'+_wfSelLabel()+'</span></div>';
   html+='<div class="voice-sub" style="margin:-4px 0 8px;">最近 10 筆。打勾納入；連到「約訪之星／待檢討」的錄音也會自動納入。</div>';
   if(!cases.length){
     html+='<div class="voice-sub">案例庫還沒有錄音。到「🎙️ 錄音與案例」分頁上傳，轉完字回來馬上分析。</div>';
@@ -1993,17 +2101,36 @@ function packageBattleAsTask(){
 // ── 第 2 輪：分析進度（組素材 → 送出 → 等 AI → 整理）＋秒數＋可取消 ──
 var _aiCtrl=null, _aiTimer=null, _aiT0=0;
 var _AI_STEPS=['整理素材','送出','AI 思考中','整理建議'];
-function _wfSelectedCount(){
-  var d=_bpEnsure(), seen={};
-  (md().star.caseIds||[]).forEach(function(x){ seen[x]=1; });
-  md().needImprove.forEach(function(it){ (it.caseIds||[]).forEach(function(x){ seen[x]=1; }); });
-  (d.extraCaseIds||[]).forEach(function(x){ seen[x]=1; });
-  return Object.keys(seen).length;
+function _wfSelectedCount(){ return _wfSelInfo().n; }
+// ★ ds141（10/28）：以前把「指向已經不存在的錄音」也算進去 → 顯示「已選 1 筆」但下面一筆都沒勾。現在只算真的存在的
+function _wfSelInfo(){
+  var d=_bpEnsure(), seen={}, linked={};
+  var ok=function(x){ return !!caseById(x); };
+  (md().star.caseIds||[]).forEach(function(x){ if(ok(x)){ seen[x]=1; linked[x]=1; } });
+  md().needImprove.forEach(function(it){ (it.caseIds||[]).forEach(function(x){ if(ok(x)){ seen[x]=1; linked[x]=1; } }); });
+  (d.extraCaseIds||[]).forEach(function(x){ if(ok(x)) seen[x]=1; });
+  var nLinked=Object.keys(linked).filter(function(x){ return (d.extraCaseIds||[]).indexOf(x)<0; }).length;
+  return { n:Object.keys(seen).length, linked:nLinked };
+}
+function _wfSelLabel(){ var i=_wfSelInfo(); return '已選 '+i.n+' 筆'+(i.linked?'（其中 '+i.linked+' 筆從之星／待檢討連過來，不在下面清單）':''); }
+// ★ ds141：清掉指向「已經不存在的錄音」的連結（只在案例庫確定讀成功時做，讀失敗絕不動）
+function _wfPruneDeadLinks(){
+  if(!window._caseCacheReady || window._caseBootFailed || !Array.isArray(window._caseIds)) return 0;
+  var alive={}; loadCases().forEach(function(c){ if(c&&c.id) alive[c.id]=1; });
+  var n=0, f=function(a){ if(!Array.isArray(a)) return a; var b=a.filter(function(x){ return alive[x]; }); n+=a.length-b.length; return b; };
+  Object.keys(allData||{}).forEach(function(k){
+    var m=allData[k]; if(!m) return;
+    if(m.star) m.star.caseIds=f(m.star.caseIds);
+    (m.needImprove||[]).forEach(function(it){ it.caseIds=f(it.caseIds); });
+    if(m.battlePlan) m.battlePlan.extraCaseIds=f(m.battlePlan.extraCaseIds);
+  });
+  if(n){ console.log('[wf] 清掉 '+n+' 個指向已不存在錄音的連結'); scheduleSave(); }
+  return n;
 }
 function _wfAiBtnLabel(){ var n=_wfSelectedCount(); return '🤖 分析「'+esc(bpTargetName())+'」'+(n?'（'+n+' 筆錄音）':'（還沒勾錄音）'); }
 function _wfRefreshCount(){
   var n=_wfSelectedCount();
-  var c=document.getElementById('recCount'); if(c) c.textContent='已選 '+n+' 筆';
+  var c=document.getElementById('recCount'); if(c) c.textContent=_wfSelLabel();
   var b=document.getElementById('battleAiBtn'); if(b&&!_aiCtrl) b.innerHTML=_wfAiBtnLabel();
   try{ updateFlow(); }catch(e){}
 }
@@ -2303,6 +2430,7 @@ function _applyWhoLabel(){
   // ★ 第 3 輪 ⑤：先用手邊資料畫一次（作戰計劃、之星、話術、SOP 都不用等 IDB），錄音列等案例庫讀完再補畫
   try{ renderAll(); }catch(_){}
   try{ await _caseBootInit(); }catch(_){}
+  try{ _wfPruneDeadLinks(); }catch(_){}   // ★ ds141
   renderAll();
   await loadMpData();
   renderBlock1(); renderBlock2(); // mp_data 載入後重畫選單與長條圖

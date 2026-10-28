@@ -1001,6 +1001,37 @@ function idbPutEntries(db, storeName, entries){
           })(k, val);
           continue;
         }
+        // ★ ds141（10/28）：錄音案例庫 AiCasedbDB.cases —— 以前落到最下面直接 store.put 整包覆蓋，
+        //   每個人的雲端副本輪流寫進同一個 key，最後一個人把大家的都蓋掉。改成：
+        //   ai_casedb_deleted（刪除清單）＝聯集；ai_casedb_v1 ＝ 本機＋雲端逐筆聯集，再扣掉刪除清單（本機＋雲端兩份清單都算）
+        if (storeName === 'cases' && db.name === 'AiCasedbDB' && (k === 'ai_casedb_v1' || k === 'ai_casedb_deleted')) {
+          pendingChecks++;
+          (function(_k, _val){
+            var g1 = store.get(_k), g2 = (_k === 'ai_casedb_v1') ? store.get('ai_casedb_deleted') : null;
+            var fin = function(){
+              try {
+                var local = g1.result;
+                if (_k === 'ai_casedb_deleted'){
+                  var u = Array.isArray(local) ? local.slice() : [];
+                  (Array.isArray(_val) ? _val : []).forEach(function(id){ if (u.indexOf(id) < 0) u.push(id); });
+                  store.put(u, _k);
+                } else {
+                  var T = {}; (Array.isArray(g2 && g2.result) ? g2.result : []).forEach(function(id){ T[id] = 1; });
+                  var cloudTomb = entries['ai_casedb_deleted']; try { if (typeof cloudTomb === 'string') cloudTomb = JSON.parse(cloudTomb); } catch(e){ cloudTomb = null; }
+                  (Array.isArray(cloudTomb) ? cloudTomb : []).forEach(function(id){ T[id] = 1; });
+                  var merged = [], seen = {};
+                  var add = function(a){ if (Array.isArray(a)) a.forEach(function(x){ if (!x) return; if (x.id && T[x.id]) return; var id = x.id || ('_' + merged.length); if (!seen[id]){ seen[id] = 1; merged.push(x); } }); };
+                  add(local); add(_val);   // 本機優先，雲端補本機沒有的
+                  store.put(merged, _k);
+                }
+              } catch(e){}
+              pendingChecks--;
+            };
+            var n = g2 ? 2 : 1, done = function(){ if (--n === 0) fin(); };
+            g1.onsuccess = done; g1.onerror = done; if (g2){ g2.onsuccess = done; g2.onerror = done; }
+          })(k, val);
+          continue;
+        }
         if (hasKeyPath) {
           // 有 keyPath 的 store（如 scores），值本身包含 key
           if (typeof val === 'object' && val !== null) store.put(val);

@@ -1909,9 +1909,11 @@ function LS(k){
 function SS(k,v){
   // ★ 案例庫改寫 IndexedDB(同時更新 cache),不再寫 LS
   if(k==='ai_casedb_v1'){
-    window._caseCache = Array.isArray(v)?v:[];
-    if(typeof _caseSaveToIDB==='function'){
-      _caseSaveToIDB(window._caseCache).catch(function(e){ console.warn('[casedb] IDB 寫入失敗',e); });
+    var _v = Array.isArray(v)?v:[];
+    if(typeof _caseSafeSave==='function'){
+      // ★ ds141：先讀再合併再寫（不蓋掉瀑布那邊／雲端剛加的錄音）；失敗要讓人看到，不再只寫在主控台
+      window._caseSavePending = (window._caseSavePending || Promise.resolve()).then(function(){ return _caseSafeSave(_v); })
+        .catch(function(e){ console.warn('[casedb] 寫入失敗',e); try{ alert('⚠ 案例庫這次沒有存成功：'+(e&&e.message||e)+'\n資料還在畫面上，請稍等幾秒再操作一次。'); }catch(_){} });
     }
     return;
   }
@@ -5171,29 +5173,80 @@ function _caseSaveToIDB(arr){
     });
   });
 }
+// ═══ ds141（10/28 Ivan：瀑布存不進去、錄音不見）安全的案例庫寫入 ═══
+//   以前：記憶體裡整包陣列直接蓋掉 IndexedDB → 還沒讀完就存＝「空的＋一筆」蓋掉全部；兩頁同時開、或雲端剛拉進來，後寫的把先寫的抹掉；
+//         刪掉的錄音被別人的副本救回來。
+//   現在：每次存都先重新讀 IndexedDB，跟這次要存的「逐筆合併」（同 id 用這次的）；這頁刪掉的 id 記進刪除清單 ai_casedb_deleted，
+//         合併時、雲端拉取時都會排除；案例庫還沒讀進來或讀失敗 → 不准存（不會再拿空的蓋掉）。
+var _CASE_TOMB = 'ai_casedb_deleted';
+window._caseIds = window._caseIds || null;     // 這頁上次讀到／存完時有哪些 id（用來判斷「這次刪了誰」）
+window._caseBootFailed = false;
+function _caseGet(key){
+  return _caseOpenDB().then(function(db){
+    return new Promise(function(res){
+      try{ var g=db.transaction(_CASE_STORE,'readonly').objectStore(_CASE_STORE).get(key); g.onsuccess=function(){ try{db.close();}catch(_){} res(g.result||null); }; g.onerror=function(){ try{db.close();}catch(_){} res(null); }; }
+      catch(e){ try{db.close();}catch(_){} res(null); }
+    });
+  }).catch(function(){ return null; });
+}
+function _caseSafeSave(arr){
+  if(!window._caseCacheReady || window._caseBootFailed || !Array.isArray(window._caseIds)){
+    return Promise.reject(new Error('案例庫還沒讀進來，這次先不存（避免蓋掉其他錄音），等一下再按一次'));
+  }
+  arr = Array.isArray(arr) ? arr : [];
+  var newIds = {}; arr.forEach(function(x){ if(x && x.id) newIds[x.id] = 1; });
+  var dels = window._caseIds.filter(function(id){ return !newIds[id]; });
+  return Promise.all([_caseGet(_CASE_KEY), _caseGet(_CASE_TOMB)]).then(function(r){
+    var fresh = Array.isArray(r[0]) ? r[0] : [], tomb = Array.isArray(r[1]) ? r[1].slice() : [];
+    dels.forEach(function(id){ if(tomb.indexOf(id) < 0) tomb.push(id); });
+    var T = {}; tomb.forEach(function(id){ T[id] = 1; });
+    var out = [], seen = {};
+    arr.forEach(function(x){ if(!x) return; if(x.id && T[x.id]) return; if(x.id){ if(seen[x.id]) return; seen[x.id] = 1; } out.push(x); });
+    fresh.forEach(function(x){ if(!x || !x.id || seen[x.id] || T[x.id]) return; seen[x.id] = 1; out.push(x); });   // 別頁／雲端新加的，保留
+    return _caseOpenDB().then(function(db){
+      return new Promise(function(res, rej){
+        try{
+          var tx = db.transaction(_CASE_STORE,'readwrite'), st = tx.objectStore(_CASE_STORE);
+          st.put(out, _CASE_KEY); st.put(tomb, _CASE_TOMB);
+          tx.oncomplete = function(){ try{db.close();}catch(_){} res(out); };
+          tx.onerror = function(){ try{db.close();}catch(_){} rej(tx.error || new Error('寫入失敗')); };
+          tx.onabort = function(){ try{db.close();}catch(_){} rej(tx.error || new Error('寫入被中止（空間可能不夠）')); };
+        }catch(e){ try{db.close();}catch(_){} rej(e); }
+      });
+    }).then(function(out){
+      window._caseCache = out; window._caseIds = out.map(function(x){ return x && x.id; }).filter(Boolean);
+      return out;
+    });
+  });
+}
 async function _caseBootInit(){
   try{
     var fromIdb = await _caseLoadFromIDB();
+    var tombB = await _caseGet(_CASE_TOMB); var TB = {}; (Array.isArray(tombB)?tombB:[]).forEach(function(id){ TB[id]=1; });   // ★ ds141：刪除清單
     var fromLs = null;
     try{ var r=localStorage.getItem(_CASE_KEY); if(r) fromLs=JSON.parse(r); }catch(_){}
     if(!Array.isArray(fromIdb)) fromIdb=null;
     if(!Array.isArray(fromLs)) fromLs=null;
-    // 合併 LS 跟 IDB:以 id 去重,兩邊獨有的都保留(保護資料不消失)
+    // 合併 LS 跟 IDB:以 id 去重,兩邊獨有的都保留(保護資料不消失)；刪除清單上的不收
     var merged=[], seen={};
-    function push(a){ if(!Array.isArray(a)) return; a.forEach(function(x){ if(!x) return; var id=x.id||('_'+merged.length); if(!seen[id]){ seen[id]=1; merged.push(x); } }); }
+    function push(a){ if(!Array.isArray(a)) return; a.forEach(function(x){ if(!x) return; if(x.id && TB[x.id]) return; var id=x.id||('_'+merged.length); if(!seen[id]){ seen[id]=1; merged.push(x); } }); }
     push(fromIdb); push(fromLs);
     window._caseCache = merged;
+    window._caseIds = merged.map(function(x){ return x && x.id; }).filter(Boolean);
+    window._caseBootFailed = false;
     window._caseCacheReady = true;
-    // 把合併版寫回 IDB(成為主檔)
-    try{ await _caseSaveToIDB(merged); }catch(_){}
+    // 把合併版寫回 IDB(成為主檔)——只有 LS 真的有舊資料要併進來時才寫（★ ds141：沒東西要併就不寫，少一次覆蓋機會）
+    if (fromLs && fromLs.length){ try{ await _caseSafeSave(merged); }catch(_){} }
     // 從 LS 移除(釋出空間,避免日後 quota 衝突)
     try{ localStorage.removeItem(_CASE_KEY); }catch(_){}
     try{ window.parent.localStorage.removeItem(_CASE_KEY); }catch(_){}
     console.log('[casedb] 已搬到 IndexedDB('+merged.length+' 筆),LS 已釋放');
   }catch(e){
     console.warn('[casedb] boot init 失敗',e);
+    // ★ ds141：讀失敗不再當成「空的」（以前會讓下一次存檔把整個案例庫蓋成空的）→ 標記失敗、不准寫，3 秒後再試
+    window._caseBootFailed = true;
     window._caseCache = window._caseCache || [];
-    window._caseCacheReady = true;
+    setTimeout(function(){ try{ _caseBootInit(); }catch(_){} }, 3000);
   }
 }
 _caseBootInit();

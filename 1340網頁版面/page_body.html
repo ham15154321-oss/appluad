@@ -569,14 +569,16 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   function attSort(a, b){ return (a.nr - b.nr) || ((a.p == null ? 2 : a.p) - (b.p == null ? 2 : b.p)); }
   function attLayer(g){ return (typeof SHOW_D !== 'undefined' ? SHOW_D : []).filter(function(c){ return c.type !== '講座' && c.grp === g; }).map(attItem).sort(attSort); }
   function attList(){ return attLayer('已開班').concat(attLayer('結業')); }
-  function openList(){ return (typeof OPEN !== 'undefined' ? OPEN : []).filter(function(c){ return c.type !== '講座' && inFocus(c); }).slice().sort(function(a, b){ return (a.ok - b.ok) || (a.toOpen - b.toOpen); }); }
+  /* 10/27 Ivan：要開的班不分樓層，三個樓層都看整棟（整區）的班；照剩幾天由近到遠排，班名前保留樓層代號 */
+  function openList(){ return (typeof OPEN !== 'undefined' ? OPEN : []).filter(function(c){ return c.type !== '講座'; }).slice().sort(function(a, b){ return (a.ok - b.ok) || (a.toOpen - b.toOpen); }); }   /* 還差人的在前、過門檻的往後排（10/27） */
 
   /* ── 版面 ── */
   var CARDS = [
     { id: 'rank', seg: 1, dot: C.asst, cmp: 1, t: function(){ return (A && A.月 ? (+String(A.月).split('/')[1]) + ' 月' : '本月') + '報到・' + (ST.view !== 'all' && cmpOf('rank') === '本區' ? REGION + '比' : '七家比'); }, s: function(){ return (RANK && RANK.cur ? '到 ' + RANK.cur : '') + (ST.view === 'all' ? '・比前一天' : '・深色是' + (ST.org || '我們')); }, body: '<svg class="ch"></svg>', draw: function(b){ hbars(b, rankRows(), { tail: 1 }); } },
-    { id: 'open', seg: 2, dot: C.orange, hot: 1, t: function(){ return '14 天內要開的班'; }, s: function(){ return '直線＝開班門檻・點一班看名單'; },
+    { id: 'open', seg: 2, dot: C.orange, hot: 1, t: function(){ return '14 天內要開的班'; }, s: function(){ return (ORGS.length > 1 ? REGION + '整棟一起看・' : '') + '直線＝開班門檻・點一班看名單'; },
       body: function(){ var L = openList(), need = L.filter(function(c){ return !c.ok; }), gap = need.reduce(function(a, c){ return a + needN(c); }, 0);
-        return '<div class="kpi"><b class="' + (need.length ? 'og' : '') + '">' + L.length + '<small>班</small></b><span>' + (need.length ? need.length + ' 班還差人・共差 <em class="og" style="font-style:normal;font-weight:800">' + gap + ' 位</em>' : (L.length ? '都過門檻了' : '')) + '</span></div><svg class="ch"></svg>'; },
+        /* 10/27 Ivan：不秀「共差 N 位」，整棟加總太大會想放棄，差幾位各班自己看 */
+        return '<div class="kpi"><b class="' + (need.length ? 'og' : '') + '">' + L.length + '<small>班</small></b><span>' + (need.length ? need.length + ' 班還差人・' + (L.length - need.length) + ' 班過門檻' : (L.length ? '都過門檻了' : '')) + '</span></div><svg class="ch"></svg>'; },
       draw: function(b){ bullets(b, openList()); } },
     { id: 'lead', seg: 3, dot: '#5856D6', t: function(){ return '主管・報到排名'; }, s: function(){ return (ST.org || REGION) + '・橘色＝3 天以上沒有新增報到・點名字看明細'; },
       body: function(){ var L = leadRank();
@@ -668,7 +670,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
       + '<span class="k">← → 換段落・點任何一格放大・Esc 回總覽</span></nav><div class="bgrid">';
     var NR = { rank: function(){ return rankRows().length; }, fun: function(){ return funRows().length; }, unc: function(){ return uncRows().length; } };   // v1.9 手機：圖的高度跟著列數
     CARDS.forEach(function(c){ h += '<section class="bc' + (c.hot ? ' hot' : '') + '" data-card="' + c.id + '" data-seg="' + c.seg + '" style="grid-area:' + c.id + (NR[c.id] ? ';--n:' + Math.max(1, NR[c.id]()) : '') + '">' + head(c) + (typeof c.body === 'function' ? c.body() : c.body) + '</section>'; });
-    B.innerHTML = h + '</div>' + askHtml();
+    B.innerHTML = h + '</div>' + champTalkHtml() + askHtml();
     applySpot(); requestAnimationFrame(drawAll);
   }
   function drawAll(){ if (ST.view === 'all') return drawAllView(); CARDS.forEach(function(c){ var b = B.querySelector('[data-card="' + c.id + '"]'); if (b && c.draw) try { c.draw(b); } catch(e){ console.warn('[會議模式] ' + c.id, e); } }); }
@@ -817,6 +819,43 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     if (p.報到 != null) bits.push((+String(I.月).split('/')[1]) + ' 月報到 <b>' + p.報到 + '</b>');
     if (p.rate != null) bits.push('註冊率 <b>' + pct(p.rate) + '</b>'); else if (p.streak > 1) bits.push('連續 <b>' + p.streak + ' 天</b>有入帳');
     return '<div class="two rv ' + (i === 1 ? 's' : 'b') + '" data-rk="' + (i + 1) + '"><div class="rk">' + (i + 1) + '</div><div class="nm sw">' + esc(p.名) + '<small>' + esc(p.院) + '</small></div><div class="a">NT$ <span class="num" data-v="' + Math.round(p.amt) + '">' + Math.round(p.amt).toLocaleString() + '</span><small>' + p.n + ' 筆</small></div><div class="t">' + bits.join('・') + '</div></div>';
+  }
+  /* 10/27 Ivan：🏆 冠軍開講｜日會 2 分鐘：資料我算，冠軍只講開場、猶豫、工具；講完請他在 EIP 那位學生的追蹤情形補一行「成交筆記｜開場／猶豫／工具」 */
+  /* 週一：上週一到週日七天的第一名（跟本週入帳排行同一套算法）；其他天：昨天冠軍 */
+  function lastWeekChamp(){
+    var mon = new Date(TODAY); mon.setDate(mon.getDate() - 7); var sun = new Date(TODAY); sun.setDate(sun.getDate() - 1);
+    var from = ymd(mon), to = ymd(sun), ppl = incPeople(ORGS), amt = {}, cnt = {}, days = {};
+    (I.人 || []).forEach(function(r){ var k = r[0] + '|' + r[1]; if (!ppl[k] || ppl[k].nb || r[2] < from || r[2] > to) return; amt[k] = (amt[k] || 0) + r[3]; cnt[k] = (cnt[k] || 0) + r[4]; if (r[3] > 0) days[k] = (days[k] || 0) + 1; });
+    var top = Object.keys(amt).sort(function(a, b){ return amt[b] - amt[a]; })[0]; if (!top || !(amt[top] > 0)) return null;
+    var mtdAll = {}, dayReg = {}, dayPer = {};
+    (I.人 || []).forEach(function(r){ var k = r[0] + '|' + r[1]; if (!ppl[k] || ppl[k].nb) return; if (String(r[2]).indexOf(I.月 + '/') === 0) mtdAll[k] = (mtdAll[k] || 0) + r[3]; dayReg[r[2]] = (dayReg[r[2]] || 0) + r[3]; (dayPer[k] || (dayPer[k] = {}))[r[2]] = (dayPer[k][r[2]] || 0) + r[3]; });
+    var rank = Object.keys(ppl).filter(function(k){ return !ppl[k].nb; }).sort(function(a, b){ return (mtdAll[b] || 0) - (mtdAll[a] || 0); }).indexOf(top) + 1;
+    var regDays = Object.keys(dayReg).filter(function(d){ return dayReg[d] > 0 && d <= to; }).sort().reverse(), streak = 0;
+    for (var j = 0; j < regDays.length; j++){ if ((dayPer[top] || {})[regDays[j]] > 0) streak++; else break; }
+    var sF = 0, sT = 0; Object.keys(ppl).forEach(function(k){ var q = ppl[k].s; if (q && !ppl[k].nb){ sF += q.面談; sT += q.註冊; } });
+    return { p: { 名: ppl[top].名, 院: ppl[top].院, amt: amt[top], n: cnt[top], mtd: mtdAll[top] || 0, mtdRank: rank, streak: streak, rate: (ppl[top].s && ppl[top].s.面談 ? ppl[top].s.註冊 / ppl[top].s.面談 : null), regRate: sF ? sT / sF : 0, studs: [] }, win: { from: from, to: to, short: '上週', label: md(from) + '–' + md(to) }, days: days[top] || 0 };
+  }
+  function champTalkHtml(){
+    if (!I || ST.view === 'all') return '';
+    var weekly = (TODAY.getDay() === 1 || location.hash === "#testweek") ? lastWeekChamp() : null, ch = weekly || champs(ORGS); if (!ch || (weekly ? !ch.p : !ch.list.length)) return '';
+    var p = weekly ? ch.p : ch.list[0], w = ch.win, k = p.院 + '|' + p.名;
+    var its = (I.明細 || []).filter(function(r){ return (I.誰[r[0] + '|' + r[1]] && I.誰[r[0] + '|' + r[1]].名 === p.名 && r[0] === p.院) && r[2] >= w.from && r[2] <= w.to; }).sort(function(a, b){ return b[3] - a[3]; });
+    if (weekly) its = its.slice(0, 3);
+    var rows = its.map(function(r){ var ch2 = chName(r[5]); return '<tr><td>' + esc(ch2 === '學員加購' ? '舊生加購' : ch2) + '</td><td>' + esc(String(r[4] || '')) + '</td><td>' + esc(r[6] || '') + '</td><td class="r">' + Math.round(r[3]).toLocaleString() + '</td></tr>'; }).join('');
+    var days = 0; (I.人 || []).forEach(function(r){ if (I.誰[r[0] + '|' + r[1]] && I.誰[r[0] + '|' + r[1]].名 === p.名 && r[0] === p.院 && String(r[2]).indexOf(I.月 + '/') === 0 && r[3] > 0) days++; });
+    var big = (p.studs || []).filter(function(x){ return x.cs.length >= 2; })[0];
+    var ttl = weekly ? '上週冠軍 <em>' + esc(p.名) + '</em>，' + esc(w.label) + ' 七天 ' + Math.round(p.amt).toLocaleString() + '，最大一筆是怎麼談下來的' : '<em>' + esc(p.名) + '</em>，昨天這筆 ' + Math.round(p.amt).toLocaleString() + ' 是怎麼談下來的';
+    return '<details class="ctalk"><summary><span>🏆 本週冠軍開講｜' + ttl + '</span><span class="ar">▶</span></summary>'
+      + '<div class="ctb"><div><h5>' + (weekly ? '上週最大的 ' + its.length + ' 筆（七天共 ' + p.n + ' 筆、' + ch.days + ' 天有入帳）' : esc(w.short) + '這 ' + p.n + ' 筆') + '・' + esc(p.院) + '</h5><table>' + (rows || '<tr><td>明細還沒同步到</td></tr>') + '</table>'
+      + '<div class="st"><span><b>' + wan(p.mtd) + '</b>本月累計・區內第 ' + p.mtdRank + '</span><span><b>' + days + ' 天</b>本月有入帳</span><span><b>' + p.streak + ' 天</b>連續</span>' + (p.rate != null ? '<span><b>' + pct(p.rate) + '</b>註冊率</span>' : '') + '</div>'
+      + (big ? '<p style="margin:.6em 0 0;font-size:.9em;color:var(--l2)">' + esc(big.ch === '學員加購' ? '一位舊生一次加購 ' + big.cs.length + ' 科' : '一位' + big.ch + '來的學生，一次報 ' + big.cs.length + ' 科') + '</p>' : '') + '</div>'
+      + '<div><h5>念給 ' + esc(p.名) + ' 答，2 分鐘</h5><ol>'
+      + '<li><div>這位學生是怎麼來的？<small>誰介紹、哪個通路、第一次講話是哪天</small></div></li>'
+      + '<li><div>第一通電話你怎麼開的？<small>開場講了什麼，讓他願意來</small></div></li>'
+      + '<li><div>他猶豫的是什麼？<small>價錢、時間、家人、還是怕學不會</small></div></li>'
+      + '<li><div>你是怎麼收的？<small>先收了什麼、隔幾天回來、中間做了什麼</small></div></li>'
+      + '<li><div>用了哪個工具？<small>篩選器、試聽、單元課、學長姐、線上面談、報價試算</small></div></li></ol></div>'
+      + '<div class="tip">講完請 ' + esc(p.名) + ' 在 EIP 這位學生的「追蹤情形」補一行：<b>成交筆記｜開場：…／猶豫：…／工具：…</b>　下次同步後這張卡會把它顯示出來，一個月就是一本成交故事庫。</div></div></details>';
   }
   function openChamp(force){
     var fx = REDUCE ? 'fade' : (force || pickFx()), w = champWin(), h;
