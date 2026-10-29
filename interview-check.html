@@ -145,6 +145,13 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
 .kb-read{margin-top:8px;max-height:48vh;overflow:auto;padding:4px 14px 10px;border-radius:14px;background:#F7F7FA;}
 .kb-h{font-weight:700;font-size:.9375rem;margin:14px 0 4px;} .kb-ul{margin:0;padding-left:20px;font-size:.875rem;line-height:1.7;color:var(--ink);}
 .kb-src{margin-top:18px;border-top:1px solid var(--line);padding-top:12px;} .kb-src summary{cursor:pointer;display:flex;align-items:center;gap:8px;list-style:none;} .kb-src summary::-webkit-details-marker{display:none;}
+.coach{margin-top:16px;padding:16px;border-radius:18px;background:#F4FBF6;border:1px solid rgba(46,157,91,.18);}
+.coach-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px;} .coach-head b{font-size:1.0625rem;} .coach-head span{font-size:.875rem;color:var(--ink2);}
+.coach-head em{font-style:normal;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;} .coach-head em.up{color:var(--good);font-size:1.125rem;}
+.coach-it{background:#fff;border-radius:14px;padding:12px 14px;margin-top:8px;} .coach-it .h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.9375rem;} .coach-it .st{margin-left:auto;font-size:.75rem;color:var(--ink2);font-weight:600;}
+.coach-row{display:grid;grid-template-columns:92px 1fr;gap:8px;margin-top:6px;font-size:.875rem;line-height:1.6;} .coach-row small{color:var(--ink2);font-weight:600;font-size:.75rem;padding-top:2px;}
+.coach-row em{display:block;font-style:normal;color:var(--ink2);font-size:.8125rem;} .coach-row .q2{color:var(--ink2);} .coach-row.say span{color:#1F7A3A;font-weight:600;}
+@media (max-width:720px){ .coach-row{grid-template-columns:1fr;gap:2px;} }
 .txwrap{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
 .tx-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;} .tx-head b{font-size:1.0625rem;}
 .tx{display:flex;flex-direction:column;gap:2px;}
@@ -218,6 +225,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <div class="strip" id="strip"></div>
     <div class="legend"><span><i class="dot good"></i>講得好</span><span><i class="dot weak"></i>講了但不到位</span><span><i class="dot miss"></i>沒講到</span><span><i class="dot na"></i>未錄到／不適用（不算分）</span></div>
     <div class="sum" id="resSum"></div>
+    <div id="resCoach"></div>
     <div id="resGrp"></div>
     <div id="resPrev"></div>
     <div id="resNext"></div>
@@ -623,6 +631,7 @@ async function runInterview(){
     sys+='\n嚴格依逐字稿，不能腦補；拿不準就判 weak 並說明。q 一定要引用業務的原話（60 字內，沒有就留空），t 填最接近的時間點 mm:ss。'
       +'\nnext 是下次'+TXT.kind+'要注意的 3 件事：完整中文句子、動詞開頭、具體可檢查（例如「'+(PH?'給時間時用二選一，不問方便嗎':'報價前先講完赫綵三寶')+'」），不要寫項目 id。'
       +'\n只輸出 JSON，不要其他文字。格式：{"items":{"項目id":{"s":"good|weak|miss|na","q":"原話","t":"mm:ss","why":"一句理由 40 字內"}},"prev":[{"p":"上次要注意的事","ok":true,"note":"這次的表現 30 字內"}],'+(PH?'"outcome":"約到|改約|沒約到","when":"約到的時間",':'')+'"summary":"一句話總評 60 字內","next":["下次要注意 1","2","3"]}';
+    sys+='\n另外挑 3 個最有機會加分的項目（沒講到或不到位、對結果影響最大的），在 JSON 加 "coach":[{"id":"項目id","say":"下次可以這樣講：用業務口吻寫一句示範，貼合這通的客戶情境，50 字內","tip":"一句要點 20 字內"}]。不准捏造老師名字、作品、品牌、價格或活動，需要時用「＿＿老師」「＿＿作品」留空讓業務自己填真的。';
     var gr=gRuleText(rep);
     sys+='\n如果有「組的加強重點」，另外在 JSON 加 "group":{"規則id":{"s":"good|weak|miss|na","q":"原話","why":"理由 30 字內"}}；沒有就不用給。';
     var user='檢核項目（id｜名稱｜判定標準）：\n'+buildChecklistText(cl)+buildRefText()+buildStarsText(cl)+gr.text
@@ -639,7 +648,7 @@ async function runInterview(){
     var now=Date.now();
     var rec={ id:'iv_'+now, type:'interview', by:me, createdAt:now,
       text:TXT.icon+' '+TXT.title+'｜'+rep+(PH?'｜'+callType+'｜'+(res.outcome||''):'')+'｜'+total+' 分'+(self?'（自評）':'（主管 '+me+'）')+'\n'+title+'\n總評：'+(res.summary||'')+'\n沒講到：'+missNames(cl,items).join('、')+'\n下次要注意：'+(res.next||[]).join('；'),
-      iv:{ mode:MODE, gName:gr.group, gRules:gr.rules, group:res.group||{}, callType:callType, outcome:res.outcome||'', when:res.when||'', rep:rep, reviewer:me, self:self, region:REGION, clVer:cl.ver||1, title:title, items:items, total:total, prev:res.prev||[], next:res.next||[], summary:res.summary||'',
+      iv:{ mode:MODE, coach:res.coach||[], gName:gr.group, gRules:gr.rules, group:res.group||{}, callType:callType, outcome:res.outcome||'', when:res.when||'', rep:rep, reviewer:me, self:self, region:REGION, clVer:cl.ver||1, title:title, items:items, total:total, prev:res.prev||[], next:res.next||[], summary:res.summary||'',
            transcript:transcript, fmt:(fm&&fm.text)||'', usage:{ in:ai.usage.in, out:ai.usage.out, fin:fm?fm.usage.in:0, fout:fm?fm.usage.out:0, aModel:set.aModel, fModel:set.fModel, audioSec:Math.round(audioSec) } } };
     setProg('ivProg','存檔中…',92);
     await caseWrite([rec]);
@@ -702,6 +711,7 @@ function renderResult(rec){
   $('strip').innerHTML=(cl.stages||[]).map(function(s,i){ var st=stageStat(s,its); var r=st.app?(st.g+st.w*.5)/st.app:0; var cls=st.app?(r>=PASS_SCORE/100?'hit':'low'):'none';
     return '<button class="pill '+cls+'" data-i="'+i+'" onclick="openStage('+i+',this)"><span class="k">'+esc(s.name)+'</span><span class="v">'+(st.app?(st.g+'／'+st.app):'—')+'</span><span class="bar"><b style="width:'+Math.round(r*100)+'%"></b></span></button>'; }).join('');
   $('resSum').textContent=iv.summary||'';
+  $('resCoach').innerHTML=coachHtml(rec);
   $('resGrp').innerHTML=grpResHtml(rec);
   $('resPrev').innerHTML=(iv.prev&&iv.prev.length)?('<div class="prevck"><div style="background:none;padding:0 0 2px;font-weight:700;font-size:.875rem;color:var(--ink2)">上次要注意的事，這次做到了嗎</div>'+iv.prev.map(function(p){ return '<div>'+(p.ok?'✅ ':'⚠️ ')+esc(p.p)+(p.note?('<span style="color:var(--ink2)">　'+esc(p.note)+'</span>'):'')+'</div>'; }).join('')+'</div>'):'';
   var f=fbFor(rec.id);
@@ -947,7 +957,7 @@ function openUsage(){
   var m0=new Date(); m0.setDate(1); m0.setHours(0,0,0,0); var t0=m0.getTime(), by={}, judged=0, ovr=0;
   _cases.forEach(function(c){ if(!c||(c.createdAt||0)<t0||!hgCanSee(c)) return;
     if(c.type==='interview_ovr'){ ovr++; return; }
-    var u=(c.iv&&c.iv.usage)||(c.ivf&&c.ivf.usage)||(c.ivx&&c.ivx.usage)||(c.ivr&&c.ivr.usage); if(!u) return; var who=c.by||'?'; var b=by[who]=by[who]||{n:0,f:0,sec:0,tok:0,ntd:0};
+    var u=(c.iv&&c.iv.usage)||(c.ivf&&c.ivf.usage)||(c.ivx&&c.ivx.usage)||(c.ivr&&c.ivr.usage)||(c.ivc&&c.ivc.usage); if(!u) return; var who=c.by||'?'; var b=by[who]=by[who]||{n:0,f:0,sec:0,tok:0,ntd:0};
     if(c.type==='interview'){ b.n++; judged+=Object.keys(c.iv.items||{}).length; } else if(c.type==='interview_fb') b.f++;
     b.sec+=u.audioSec||0; b.tok+=(u.in||0)+(u.out||0)+(u.fin||0)+(u.fout||0); b.ntd+=ntd(u); });
   var rows=Object.keys(by).sort(function(a,b){ return by[b].ntd-by[a].ntd; }), tot=0; rows.forEach(function(k){ tot+=by[k].ntd; });
@@ -1352,10 +1362,10 @@ function grpResHtml(rec){ var iv=rec.iv, st=grpStat(rec); if(!st) return ''; var
   return '<div class="todo" style="background:#F2F7FF;margin-top:12px"><b>'+esc(iv.gName)+'組加強項目：做到 '+st.ok+'／'+st.n+'（另外看，不算公司分數）</b><ul style="margin:4px 0 0;padding-left:20px">'+iv.gRules.map(function(r){ var x=(iv.group||{})[r.id]||{s:'miss'}; return '<li>'+esc(r.text)+'　<b>'+(LAB[x.s]||'沒做到')+'</b>'+(x.why?'<span style="color:var(--ink2)">　'+esc(x.why)+'</span>':'')+'</li>'; }).join('')+'</ul></div>'; }
 function tipHtml(){
   var rows='<table class="use" style="margin:8px 0"><tr><th></th><th style="text-align:left">公司規則（柏翰設的）</th><th style="text-align:left">組規則（組長設的）</th></tr>'
-    +'<tr><td>是什麼</td><td style="text-align:left">'+(PH?'約訪 SOP 18 項＋判定細則':'面談流程表 5 階段＋判定細則')+'</td><td style="text-align:left">各組自己要加強的重點</td></tr>'
+    +'<tr><td>是什麼</td><td style="text-align:left">'+(PH?'約訪 SOP 18 項＋知識庫的公司標準':'面談流程表 5 階段＋知識庫的公司標準')+'</td><td style="text-align:left">各組自己要加強的重點</td></tr>'
     +'<tr><td>誰能改</td><td style="text-align:left">只有柏翰</td><td style="text-align:left">該組組長、學院主管</td></tr>'
     +'<tr><td>對誰有效</td><td style="text-align:left">全公司</td><td style="text-align:left">只有那一組</td></tr>'
-    +'<tr><td>能不能刪</td><td style="text-align:left">組長刪不掉，覺得要改就送「規則建議」</td><td style="text-align:left">組長自己可以加、改、刪</td></tr>'
+    +'<tr><td>能不能刪</td><td style="text-align:left">組長刪不掉，覺得要改就在知識庫送「給柏翰的建議」</td><td style="text-align:left">組長自己可以加、改、刪</td></tr>'
     +'<tr><td>怎麼算分</td><td style="text-align:left">每次都照它算分，全公司可以比</td><td style="text-align:left">另外顯示「組加強項目做到幾項」，不影響分數</td></tr></table>';
   var tips=PH?['上傳前選對通話類型（新名單、舊名單、放鳥重約、驗收），AI 會依類型看重點','客戶沒提出反對，「反對處理」會自動判不適用，不會扣分','AI 判錯就按「🛠 改判」寫一句理由，AI 下次就會學','好電話按「🏆 設為典範」，全公司的 AI 都會拿它當標準','只看得到同組的錄音；原始音檔不保存，只留逐字稿']
              :['錄音放桌上、離兩人都近，帶看環境走動時常錄不清楚，沒錄到的要改判成「不適用」','面談很長可以分好幾段上傳，會自動接起來','沒走到成交的面談，「成交進件」會判不適用，不會扣分','AI 判錯就按「🛠 改判」寫一句理由，AI 下次就會學','好的面談按「🏆 設為典範」；只看得到同組的錄音，原始音檔不保存'];
@@ -1365,6 +1375,50 @@ function renderTip(){ var box=$('tipCard'); if(!box) return; var seen=false; try
   box.hidden=seen; box.innerHTML=tipHtml()+'<div class="row" style="margin-top:10px"><button class="btn sm" onclick="hideTip()">知道了</button><span class="meta">之後要再看，按右上角「ℹ️ 規則說明」</span></div>'; }
 function hideTip(){ try{ localStorage.setItem('iv_tip_seen_'+MODE+'_v1','1'); }catch(e){} $('tipCard').hidden=true; }
 function openTip(){ openDlg('ℹ️ 規則說明・'+TXT.title,tipHtml(),''); }
+
+/* ═══════════════ ★ ds145 下次多拿分：挑最有機會的 3 項，給標準＋你這次怎麼講＋可以怎麼講＋主管標過的好講法 ═══════════════ */
+var _coachAll=false;
+function digestFor(itemName){ var t=String(loadRefs()[MODE].digest||''), out=[], on=false;
+  t.split('\n').forEach(function(l){ l=l.trim(); var h=l.match(/^【(.+)】$/); if(h){ on=h[1].indexOf(itemName)>=0; return; } if(on&&l) out.push(l.replace(/^[-・•]\s*/,'')); }); return out; }
+function coachOf(rec){ if(rec.iv.coach&&rec.iv.coach.length) return rec.iv.coach; var c=_cases.filter(function(x){ return x&&x.type==='interview_coach'&&x.ivc&&x.ivc.ivId===rec.id; }).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); })[0]; return c?c.ivc.coach:[]; }
+// 舊紀錄沒有示範講法 → 按一下補（只讀這通的逐字稿和沒做到的項目，約 NT$1～2）
+async function makeCoach(){
+  var rec=_curRec; if(!rec||_busy) return; if(!rec.iv.transcript){ toast('這筆沒有逐字稿',true); return; }
+  var b=$('coachBtn'); _busy=true; if(b){ b.disabled=true; b.textContent='產生中…約 20 秒'; }
+  try{
+    var L=coachPicks(rec).slice(0,5), set=getSet();
+    var sys='你是赫綵設計學院的'+TXT.kind+'教練。針對業務這通沒做到或不到位的項目，挑 3 個最有機會加分的，各寫一句「下次可以這樣講」的示範（業務口吻、貼合這通的客戶情境、50 字內）和一句要點（20 字內）。不准捏造老師名字、作品、品牌、價格或活動，需要時用「＿＿老師」「＿＿作品」留空讓業務自己填真的。只輸出 JSON：{"coach":[{"id":"項目id","say":"…","tip":"…"}]}';
+    var u='項目（id｜名稱｜標準｜這次判定｜原話）：\n'+L.map(function(p){ return p.x.item.id+'｜'+p.x.stage.name+'・'+p.x.item.name+'｜'+(digestFor(p.x.item.name).slice(0,2).join('；')||p.x.item.crit)+'｜'+(p.r.s==='miss'?'沒講到':'不到位')+'｜'+(p.r.q||''); }).join('\n')+'\n\n逐字稿：\n'+String(fmtOf(rec)||rec.iv.transcript).slice(0,40000);
+    var ai=await askAI(sys,u,1500,set.aModel), res=parseJSON(ai.text), now=Date.now();
+    await caseWrite([{ id:'ivc_'+now, type:'interview_coach', by:ME(), createdAt:now, text:'', ivc:{ ivId:rec.id, coach:res.coach||[], usage:{ in:ai.usage.in, out:ai.usage.out, aModel:set.aModel } } }]);
+    renderResult(rec); toast('示範講法好了');
+  }catch(e){ toast('沒完成：'+(e&&e.message||e),true); if(b){ b.disabled=false; b.textContent='✨ 產生示範講法'; } }
+  _busy=false;
+}
+function coachPicks(rec){
+  var cl=clFor(rec), its=itemsOf(rec), ai={}; (coachOf(rec)).forEach(function(c){ if(c&&c.id) ai[c.id]=c; });
+  var list=[]; allItems(cl).forEach(function(x){ var r=its[x.item.id]||{s:'miss'}; if(r.s!=='miss'&&r.s!=='weak') return; list.push({x:x,r:r,gain:r.s==='miss'?1:.5,ai:ai[x.item.id]||null}); });
+  list.sort(function(a,b){ return (b.ai?1:0)-(a.ai?1:0) || b.gain-a.gain; });
+  return list;
+}
+function coachHtml(rec){
+  var L=coachPicks(rec); if(!L.length) return '<div class="coach"><b>這次每一項都做到了</b><p class="meta">保持住，下一通試試看把「不適用」的項目也做到。</p></div>';
+  var top=L.slice(0,3), cl=clFor(rec), its=itemsOf(rec), sim={}; Object.keys(its).forEach(function(k){ sim[k]=its[k]; }); top.forEach(function(p){ sim[p.x.item.id]={s:'good'}; });
+  var got=0,cnt=0; allItems(cl).forEach(function(x){ var r=sim[x.item.id]||{s:'miss'}; if(r.s==='na') return; cnt++; got+=r.s==='good'?1:(r.s==='weak'?.5:0); });
+  var pot=cnt?Math.round(got/cnt*100):0, now=scoreOf(rec), good=starList(rec.iv.region,'good');
+  var card=function(p){ var std=digestFor(p.x.item.name).slice(0,2), ex=good.filter(function(s){ return s.ivs.itemId===p.x.item.id; }).slice(-1)[0];
+    return '<div class="coach-it"><div class="h"><i class="dot '+p.r.s+'"></i>'+esc(p.x.stage.name)+'・'+esc(p.x.item.name)+'<span class="st">'+(p.r.s==='miss'?'沒講到，做到 +'+Math.round(100/cnt)+' 分':'不到位，做好 +'+Math.round(50/cnt)+' 分')+'</span></div>'
+      +'<div class="coach-row"><small>標準</small><span>'+esc(std.length?std.join('；'):(p.x.item.crit||''))+'</span></div>'
+      +(p.r.q?'<div class="coach-row"><small>你這次</small><span class="q2">「'+esc(p.r.q)+'」</span></div>':'')
+      +(p.ai&&p.ai.say?'<div class="coach-row say"><small>可以這樣講</small><span>「'+esc(p.ai.say)+'」'+(p.ai.tip?'<em>'+esc(p.ai.tip)+'</em>':'')+'</span></div>':'')
+      +(ex?'<div class="coach-row"><small>主管標的好講法</small><span>「'+esc(ex.ivs.quote)+'」<em>'+esc(ex.ivs.rep)+'</em></span></div>':'')+'</div>'; };
+  var rest=L.slice(3);
+  return '<div class="coach"><div class="coach-head"><b>📈 下次多拿分</b><span>這 3 項做到，分數大約從 <em>'+now+'</em> 到 <em class="up">'+pot+'</em></span></div>'
+    +top.map(card).join('')
+    +(rest.length?('<button class="btn ghost sm" onclick="_coachAll=!_coachAll;renderResult(_curRec)">'+(_coachAll?'收起':'還有 '+rest.length+' 項可以加強')+'</button>'+(_coachAll?rest.map(card).join(''):'')):'')
+    +(!coachOf(rec).length&&rec.iv.transcript?'<div class="row" style="margin-top:10px"><button class="btn sm" id="coachBtn" onclick="makeCoach()">✨ 產生示範講法</button><span class="meta">這筆是舊紀錄，按一下補上「可以這樣講」，約 NT$1～2</span></div>':'')
+    +'<p class="meta" style="margin-top:8px">想看整通好'+TXT.kind+'怎麼講，打開「📚 AI 知識庫 → 好範例」。</p></div>';
+}
 
 /* ═══════════════ 區域、名單、啟動 ═══════════════ */
 function renderSeg(){ $('regSeg').innerHTML=REGIONS.map(function(r){ return '<button role="tab" class="'+(r===REGION?'on':'')+'" aria-selected="'+(r===REGION)+'" onclick="setRegion(\''+r+'\')">'+r+(getCL(r)||r==='桃區'?'':'＊')+'</button>'; }).join(''); }
