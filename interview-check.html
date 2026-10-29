@@ -246,6 +246,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
 /* ═══════════════ 基本 ═══════════════ */
 var PROXY_BASE='https://anthropic-proxy.ivanapplaud.workers.dev';
 var MODELS={ opus:{id:'claude-opus-4-7',name:'Opus（最準）',in:5,out:25}, sonnet:{id:'claude-sonnet-4-6',name:'Sonnet（建議）',in:3,out:15}, haiku:{id:'claude-haiku-4-5-20251001',name:'Haiku（最省）',in:1,out:5} };
+var SHEET_URL_DEFAULT='https://script.google.com/macros/s/AKfycbwoAtxJSU3V533LGSyw9qpan9Bj5TawIQkV8XwB05R6b-UQyEb3n38KOAArIJlKnCYW/exec';   // ★ 10/29 柏翰的「面談檢核資料庫」試算表（無密語）
 var USD_TWD=32, WHISPER_USD_HR=0.111, CHUNK_SEC=600;
 var DEFAULT_VOCAB='赫綵、赫綵設計學院、OKbom、Wacom、Mac、乙級、簡章、課綱、作品集、含金量、赫綵三寶、十字理財、金三角、報名費、契約書、遠東、綠界、遠信、仲信、裕富、註冊包、排課、體驗券、Photoshop、Illustrator、Procreate、平面設計、商業攝影、室內設計、動畫、漫畫';
 var ADMIN_NAME='黃柏翰';
@@ -363,7 +364,7 @@ var DEFAULT_TY={ ver:1, updatedAt:0, updatedBy:'', stages:[
     {id:'s5i6',name:'註冊包',crit:'交付並說明註冊包'}]}
 ]};
 function loadCL(){ var o=null; try{ o=JSON.parse(localStorage.getItem(CL_KEY)||'null'); }catch(e){} if(!o||typeof o!=='object') o={}; if(!o.regions) o.regions={}; if(!o.regions['桃區']) o.regions['桃區']=JSON.parse(JSON.stringify(DEFAULT_TY)); return o; }
-function getSet(){ var o=loadCL(), d={aModel:'opus',fModel:'sonnet',fmtOn:true,vocab:DEFAULT_VOCAB,sheetUrl:'',sheetKey:''}, st=o.settings||{}; Object.keys(d).forEach(function(k){ if(st[k]===undefined) st[k]=d[k]; }); return st; }
+function getSet(){ var o=loadCL(), d={aModel:'opus',fModel:'sonnet',fmtOn:true,vocab:DEFAULT_VOCAB,sheetUrl:SHEET_URL_DEFAULT,sheetKey:'Ivan'}, st=o.settings||{}; Object.keys(d).forEach(function(k){ if(st[k]===undefined) st[k]=d[k]; }); return st; }
 function ntd(u){ if(!u) return 0; var a=MODELS[u.aModel||'opus']||MODELS.opus, f=MODELS[u.fModel||'sonnet']||MODELS.sonnet;
   var usd=(u.in||0)/1e6*a.in+(u.out||0)/1e6*a.out+(u.fin||0)/1e6*f.in+(u.fout||0)/1e6*f.out+(u.audioSec||0)/3600*WHISPER_USD_HR; return usd*USD_TWD; }
 function getCL(region){ var o=loadCL(); return o.regions[region] || null; }

@@ -7,8 +7,7 @@
 1. 開一份新的 Google 試算表，取名「面談檢核資料庫」
 2. 上方選單：擴充功能 → Apps Script
 3. 把編輯器裡原本的內容全部刪掉，貼上第三段的程式碼
-4. 把程式第一行的 `改成你自己的密語` 換成一串只有你知道的字，例如 `hegrn-iv-2026`
-5. 按儲存（磁碟片圖示）
+4. 按儲存（磁碟片圖示）。不用改任何字，這版不需要密語
 
 ## 二、部署成網址
 
@@ -19,20 +18,32 @@
 5. 按「部署」，第一次會要你授權，照畫面按允許
 6. 複製出現的「網頁應用程式網址」（https://script.google.com/macros/s/……/exec）
 
-「任何人」的意思是知道網址的人可以寫入，所以才要密語，沒有密語的請求會被擋掉。網址和密語不要貼到公開的地方。
+「任何人」的意思是知道網址的人可以往裡面加列，但讀不到、也刪不掉試算表裡的資料。網址不要貼到公開的地方。
 
 ## 三、程式碼（整段貼上）
 
 ```javascript
-var SECRET = '改成你自己的密語';
+var SECRET = '';   // 不用密語就留空；想加密語就填在引號裡，網頁設定也要填一樣的
+var SHEET_ID = '';  // 試算表網址 /d/ 和 /edit 中間那一串；填了就一定寫進那份試算表
+
+function getBook() {
+  return SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
+}
+
+// 用瀏覽器打開網址就能確認：會寫進哪一份試算表
+function doGet() {
+  var ss = getBook();
+  return ContentService.createTextOutput(ss ? ('ok：會寫進「' + ss.getName() + '」') : '找不到試算表：請在 SHEET_ID 填試算表 ID');
+}
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     var data = JSON.parse(e.postData.contents || '{}');
-    if (data.key !== SECRET) return ContentService.createTextOutput('密語不對');
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (SECRET && data.key !== SECRET) return ContentService.createTextOutput('密語不對');
+    var ss = getBook();
+    if (!ss) return ContentService.createTextOutput('找不到試算表：請在 SHEET_ID 填試算表 ID');
     var sheets = data.sheets || {};
     Object.keys(sheets).forEach(function (name) {
       var rows = sheets[name] || [];
@@ -66,7 +77,7 @@ function doPost(e) {
 
 1. 開太空基地 → 星際廣場 → 面談能力檢核
 2. 右上角「⚙ 設定」（只有柏翰看得到）
-3. 「Google 試算表自動寫入網址」貼上第二段複製的網址，「密語」填第一段設的那串
+3. 「Google 試算表自動寫入網址」貼上第二段複製的網址，「密語」留空
 4. 按「測試試算表」，回到試算表看有沒有多一個「連線測試」分頁，有就成功了
 5. 按「儲存」，全公司之後每一次檢核、回饋、改判都會自動多寫一列
 
