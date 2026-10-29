@@ -300,7 +300,8 @@
   .plz-title h1 { font-size:26px; letter-spacing:-.02em; line-height:1.1; margin:0; font-weight:700; }
   .plz-title p { margin:2px 0 0; font-size:14px; color:#AEAEB2; font-weight:600; letter-spacing:.01em; }   /* vibrancy：玻璃面上的次要字加一級字重、字距微開 */
   .plz-body { overflow:auto; padding:8px 24px 24px; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
-  .plz-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:12px; }
+  .plz-grid { display:grid; grid-template-columns:repeat(12,1fr); gap:14px; margin-top:12px; }
+  .plz-grid > .plz-card { grid-column:span 3; } .plz-grid > .plz-card:nth-child(-n+3) { grid-column:span 4; }   /* ★ ds146 版面 A：第一排電話／面談／會議（三檢核），第二排四張 */
   .plz-card { position:relative; display:flex; flex-direction:column; justify-content:flex-end; min-height:160px; padding:18px; border-radius:22px; color:#fff; overflow:hidden; cursor:pointer; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent;
     border:1px solid rgba(255,255,255,.3); box-shadow:0 1px 2px rgba(0,0,0,.2), 0 12px 32px rgba(0,0,0,.3);
     transition:transform .32s cubic-bezier(.2,.9,.25,1), opacity .32s cubic-bezier(.2,.9,.25,1), filter .12s; opacity:0; transform:translate(var(--dx,0), var(--dy,0)) scale(.92); }
@@ -313,7 +314,7 @@
   .plz-card .plz-st { position:absolute; left:18px; top:16px; font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px; background:rgba(255,255,255,.22); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
   .plz-card .plz-st:empty { display:none; }
   .plz-c1 { background:linear-gradient(135deg,#0A84FF,#64D2FF); } .plz-c2 { background:linear-gradient(135deg,#FF375F,#FF9F0A); }
-  .plz-c3 { background:linear-gradient(135deg,#30D158,#0A84FF); } .plz-c6 { background:linear-gradient(135deg,#5E5CE6,#BF5AF2); }   /* ★ ds143：六卡 3×2，瀑布不再佔兩格 */ .plz-c4 { background:linear-gradient(135deg,#FFD60A,#FF9F0A); } .plz-c5 { background:linear-gradient(135deg,#FF6B2C,#FF375F); }
+  .plz-c3 { background:linear-gradient(135deg,#30D158,#0A84FF); } .plz-c7 { background:linear-gradient(135deg,#40C8E0,#5856D6); } .plz-c6 { background:linear-gradient(135deg,#5E5CE6,#BF5AF2); }   /* ★ ds143：六卡 3×2，瀑布不再佔兩格 */ .plz-c4 { background:linear-gradient(135deg,#FFD60A,#FF9F0A); } .plz-c5 { background:linear-gradient(135deg,#FF6B2C,#FF375F); }
   .plz-foot { display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; margin-top:18px; font-size:13px; color:#AEAEB2; font-weight:600; letter-spacing:.01em; }
   .plz-chip { min-height:34px; padding:0 14px; border-radius:999px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.08); color:#F5F5F7; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; transition:transform .1s ease-out; }
   .plz-chip:active { transform:scale(.96); }
@@ -332,7 +333,7 @@
     .plz-head { padding:6px 16px 8px; }
     .plz-title h1 { font-size:22px; } .plz-title p { display:none; }
     .plz-body { padding:4px 16px 28px; }
-    .plz-grid { grid-template-columns:1fr 1fr; gap:12px; } .plz-card { min-height:132px; }
+    .plz-grid { grid-template-columns:1fr 1fr; gap:12px; } .plz-grid > .plz-card, .plz-grid > .plz-card:nth-child(-n+3) { grid-column:auto; } .plz-grid > .plz-card:nth-child(3) { grid-column:1 / -1; min-height:110px; } .plz-card { min-height:132px; }
   }
   /* 三個減少動態訊號 */
   @media (prefers-reduced-motion:reduce){
@@ -1850,7 +1851,7 @@ body.minimal .revenue-stats{ margin-top:0; }
       <b>AI 顧問</b><span>陪跑師・數據通・小任務・A 通路研究院</span></div>
   </div>
   <div class="h2-quick"><small>快速啟動</small>
-    <button class="h2-chip" onclick="openPhoneCheck()">📞 電話檢核</button><button class="h2-chip" onclick="openInterview()">🎤 面談檢核</button>
+    <button class="h2-chip" onclick="openPhoneCheck()">📞 電話檢核</button><button class="h2-chip" onclick="openInterview()">🎤 面談檢核</button><button class="h2-chip" onclick="openMeeting()">📝 會議追蹤</button>
     <button class="h2-chip" onclick="open360Assessment()">🎯 360 檢核</button>
     <button class="h2-chip" onclick="openPerformanceTab(3)">📅 每月績效</button>
     <button class="h2-chip" onclick="openPerformanceTab(4)">🏆 激勵</button>
@@ -1919,13 +1920,14 @@ body.minimal .revenue-stats{ margin-top:0; }
   <div class="plz-grab" id="plzGrab"></div>
   <div class="plz-head" id="plzHead">
     <button class="plz-back" onclick="closePlaza()">‹ 回首頁</button>
-    <div class="plz-title"><h1>星際廣場</h1><p>六個基地，直接點進去</p></div>
+    <div class="plz-title"><h1>星際廣場</h1><p>七個基地，直接點進去</p></div>
     <button class="plz-x" onclick="closePlaza()" aria-label="關閉">✕</button>
   </div>
   <div class="plz-body" id="plzBody">
     <div class="plz-grid" id="plzGrid">
       <div class="plz-card plz-c3" tabindex="0" role="button" data-open="openPhoneCheck"><span class="plz-st" id="plzStWf"></span><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg><b>電話檢核</b><span>錄音比對約訪 SOP</span></div>
       <div class="plz-card plz-c6" tabindex="0" role="button" data-open="openInterview"><span class="plz-st" id="plzStIv"></span><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/><path d="M15.5 20.5l1.8 1.8 3.2-3.6"/></svg><b>面談能力檢核</b><span>錄音比對面談流程表</span></div>
+      <div class="plz-card plz-c7" tabindex="0" role="button" data-open="openMeeting"><span class="plz-st" id="plzStMt"></span><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h5"/><path d="M9.5 16.5l1.8 1.8 3.7-4"/></svg><b>會議作戰追蹤</b><span>說好的事・自動對帳</span></div>
       <div class="plz-card plz-c1" tabindex="0" role="button" data-open="open360Assessment"><span class="plz-st" id="plzSt360"></span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg><b>360 度能力檢核</b><span>自評、主管、同儕、部屬</span></div>
       <div class="plz-card plz-c2" tabindex="0" role="button" data-open="prOpenSystem"><span class="plz-st" id="plzStCourt"></span><svg viewBox="0 0 24 24"><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0L7 7M17 7l-3 7a3 3 0 0 0 6 0l-3-7M8 21h8"/></svg><b>法院</b><span>懲罰紀錄・改善追蹤</span></div>
       <div class="plz-card plz-c4" tabindex="0" role="button" data-open="openAchievement"><span class="plz-st" id="plzStAch"></span><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a2 2 0 0 0 0 4h3M17 6h3a2 2 0 0 1 0 4h-3"/></svg><b>成就解鎖</b><span>獎勵成就・勳章牆</span></div>
@@ -4226,7 +4228,7 @@ async function closeCastle(){
 
 // ★ 瀑布流三輪 ①（10/19）：子頁版號不再手寫。SUB_VER 是每個子頁「檔案內容的指紋」，deploy.command 部署時自動算：
 //   檔案改了 → 指紋變 → 同事開子頁就拿到新版；檔案沒改 → 指紋不變 → 瀏覽器快取照用（不用重新下載）。
-const SUB_VER={'waterfall-channel.html':'a50130b1','ai-advisor.html':'de99e00e','castle-cards.html':'60158ca4','training-room.html':'4293cc40','achievement-unlock.html':'894b7aeb','fire-mandala.html':'0fdd9dd1','team-leader-map-assessment.html':'0fb950a5','admin-ai-chats.html':'1e864a6f','central-command.html':'3506f668','admin-accounts.html':'1de072a4','interview-check.html':'b4741caa'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
+const SUB_VER={'waterfall-channel.html':'a50130b1','ai-advisor.html':'de99e00e','castle-cards.html':'60158ca4','training-room.html':'4293cc40','achievement-unlock.html':'894b7aeb','fire-mandala.html':'0fdd9dd1','team-leader-map-assessment.html':'0fb950a5','admin-ai-chats.html':'1e864a6f','central-command.html':'3506f668','admin-accounts.html':'1de072a4','interview-check.html':'b4741caa','meeting-track.html':'e46789ae'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
 function _subSrc(f, extra){ var v='0'; try{ v=(typeof SUB_VER!=='undefined' && SUB_VER[f]) || '0'; }catch(e){} return f + '?v=' + v + (extra || ''); }
 // ★ 10/20 首頁審查：子頁等面板滑完（0.4s）再載，滑動不會被子頁的 1MB 程式卡住；已經載好的（業績中心）不用等
 function _afterSlide(overlayId, fn){
@@ -4259,6 +4261,13 @@ function openPhoneCheck(){
   stopBgm();
   try{ document.getElementById('ivOvTitle').textContent='📞 電話檢核'; }catch(e){}
   document.getElementById('interviewFrame').src=_subSrc('interview-check.html','&mode=phone');
+  document.getElementById('interviewOverlay').classList.add('active');
+}
+// ★ ds146 會議作戰追蹤（第三種檢核：電話＝吸引人來、面談＝促成成交、會議＝追蹤）
+function openMeeting(){
+  stopBgm();
+  try{ document.getElementById('ivOvTitle').textContent='📝 會議作戰追蹤'; }catch(e){}
+  document.getElementById('interviewFrame').src=_subSrc('meeting-track.html');
   document.getElementById('interviewOverlay').classList.add('active');
 }
 function closeInterview(){
@@ -4754,7 +4763,7 @@ function perfOpen(){
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
   // ★ 2026/10/10：這個檔自己也會被瀏覽器快取，固定寫死版號永遠慢一步 →
   //   版號改成「ds54＋每 10 分鐘變一次的時間戳」：同事正常重新整理就拿到最新的 performance-compare.html（伺服器只回 304 很便宜），不用 Cmd+Shift+R
-  const PC_VER='ds145';
+  const PC_VER='ds146';
   const TARGET_SRC='performance-compare.html?v='+PC_VER+'-'+Math.floor(Date.now()/600000);
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes('v='+PC_VER+'-'))
     _afterSlide('perfOverlay', function(){ frame.src=TARGET_SRC; });   // ★ 10/20：先滑完再載
