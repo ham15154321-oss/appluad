@@ -229,10 +229,52 @@ table.mt .red{color:#C93A39;font-weight:700;} table.mt .grn{color:#1F7A3A;font-w
   .rc{grid-template-columns:1fr;}
 }
 
+/* ★ ds146 左欄使用教學：飛輪（Apple Design 審查：靛藍＝組長做的、灰＝系統做的；紅綠琥珀藍只留給狀態） */
+.wrap.has-guide{max-width:1360px;}
+.lay{display:grid;grid-template-columns:320px minmax(0,1fr);gap:24px;align-items:start;}
+.main{min-width:0;}
+.guide{position:sticky;top:20px;padding:18px 18px 16px;}
+.g-head{display:flex;align-items:center;gap:8px;width:100%;border:0;background:transparent;padding:0;text-align:left;cursor:default;}
+.g-head b{font-size:1.0625rem;letter-spacing:-.01em;} .g-head small{font-size:.8125rem;color:var(--ink2);margin-left:auto;}
+.g-head .chev{display:none;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.05);place-items:center;font-size:13px;color:var(--ink2);transition:transform .32s var(--ease);}
+.g-body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .32s var(--ease);}
+.g-in{overflow:hidden;min-height:0;}
+.g-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:.75rem;color:var(--ink2);margin:10px 0 2px;}
+.g-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
+.g-wheel{width:100%;display:block;margin:4px 0 2px;outline:none;}
+.gseg{cursor:pointer;transform-box:fill-box;transform-origin:center;transition:transform .1s ease-out,filter .15s;}
+.gseg path{transition:fill .2s var(--ease);stroke-width:.75;}
+.gseg text{transition:fill .2s var(--ease);font-family:inherit;pointer-events:none;}
+.gseg.you path{fill:#EEEEFC;stroke:#5856D6;} .gseg.you text{fill:#3634A3;}
+.gseg.sys path{fill:#F2F2F7;stroke:#C7C7CC;} .gseg.sys text{fill:#6E6E73;}
+.gseg.you.on path{fill:#5856D6;} .gseg.sys.on path{fill:#636366;} .gseg.on text{fill:#fff;}
+.gseg:hover{filter:brightness(.97);} .gseg.pressed{transform:scale(.97);}
+.g-wheel:focus-visible .gseg.on path{stroke:#1D1D1F;stroke-width:2;}
+.g-panel{min-height:236px;transition:opacity .18s var(--ease),transform .18s var(--ease);}
+.g-panel.out{opacity:0;transform:translateY(4px);}
+.g-step{font-size:.75rem;font-weight:700;letter-spacing:.02em;} .g-step.you{color:#3634A3;} .g-step.sys{color:#636366;}
+.g-title{font-size:1.125rem;font-weight:700;letter-spacing:-.01em;margin:2px 0 8px;}
+.g-row{margin-top:8px;font-size:.875rem;line-height:1.6;} .g-row small{display:block;font-size:.75rem;color:var(--ink2);font-weight:600;}
+.g-nav{display:flex;gap:8px;margin-top:12px;}
+.g-flow{display:flex;flex-wrap:wrap;gap:4px 4px;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:.75rem;}
+.g-flow span{background:#F2F2F7;border-radius:999px;padding:3px 9px;color:var(--ink);} .g-flow span.up{color:#E24B4A;font-weight:700;background:rgba(226,75,74,.08);} .g-flow em{font-style:normal;color:var(--ink3);}
+@media (max-width:1100px){
+  .lay{grid-template-columns:minmax(0,1fr);} .guide{position:static;}
+  .g-head{cursor:pointer;} .g-head .chev{display:grid;}
+  .guide:not(.open) .g-body{grid-template-rows:0fr;} .guide.open .g-head .chev{transform:rotate(180deg);}
+  .g-wheel{max-width:320px;margin:4px auto 2px;}
+}
+@media (prefers-reduced-motion:reduce){
+  .gseg,.gseg path,.gseg text,.g-panel,.g-body,.g-head .chev{transition:opacity .15s ease !important;transform:none !important;}
+  .gseg.pressed{transform:none;} .g-panel.out{transform:none;}
+}
+@media (prefers-contrast:more){ .gseg.sys path{stroke:#8E8E93;} .gseg.you path{stroke-width:1.5;} }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap has-guide"><div class="lay">
+  <aside class="card guide" id="guide" aria-label="使用教學"></aside>
+  <main class="main">
   <div class="top">
     <div><h1>會議作戰追蹤</h1><p>開完會說好的事，下次開會自動對帳；數字直接從業績數據中心帶過來</p></div>
     <div class="sp"></div>
@@ -275,7 +317,8 @@ table.mt .red{color:#C93A39;font-weight:700;} table.mt .grn{color:#1F7A3A;font-w
   <section class="card" id="cardHist"></section>
 
   <div class="foot"><button class="btn ghost" onclick="exportMtXlsx()">⬇ 匯出試算表</button></div>
-</div>
+  </main>
+</div></div>
 
 <div class="dim" id="dim" onclick="closeDlg()"></div>
 <div class="dlg" id="dlg" role="dialog" aria-modal="true">
@@ -1057,7 +1100,57 @@ window.addEventListener('message',function(e){ if(e.data&&e.data.action==='chara
 try{ (window.parent||window).addEventListener('firebase-sync-updated',function(){ if(_busy) return; bootCases().then(function(){ renderAll(); }); }); }catch(e){}
 window.triggerSave=function(){};
 window.addEventListener('beforeunload',function(e){ if(_draft&&!_draft.imported){ e.preventDefault(); e.returnValue=''; } });
-(async function(){ fillGroups(); renderAll(); await bootCases(); try{ await hgLoad(); }catch(e){} fillGroups(); renderAll(); })();
+
+/* ═══════════════ ★ ds146 左欄使用教學：說到做到的飛輪（兩層：看圖就懂，點了看細節） ═══════════════ */
+var GUIDE=[
+ {k:'sys',t:'看數字',s:'會前資料包',you:'會前按一下「產生會前資料包」',sys:'帶出上次說好的事、這組本月數字、業績六塊來源、要特別處理的人、建議議程，可下載 Word 列印',why:'開會不用再翻報表、手抄數字，準備從 10 分鐘變 1 分鐘',key:'先看數字再開會，會議才不會變成心得分享'},
+ {k:'you',t:'開會',s:'照議程開',you:'照建議議程開會，用手機錄音或 Apple 備忘錄轉錄',sys:'不打擾，你專心帶人',why:'議程照數字排，重點自然落在落後的地方',key:'最後每人說好一件事：誰、做什麼、看哪個數字、哪天前'},
+ {k:'you',t:'貼上',s:'錄音或文字',you:'會後把錄音或文字貼進來，按「整理成會議記錄」',sys:'AI 照你們的格式排好會議記錄，找出這次說好的事，外號自動換成全名',why:'不用自己打會議記錄，Word 下載就是你們平常的格式',key:'口語、錯字都沒關係，AI 會整理'},
+ {k:'you',t:'確認',s:'說好的事',you:'看過草稿，改、刪、補，按「確認存檔」',sys:'每條記下當下的數字當基準；缺期限或數量的標「說不清楚」提醒你',why:'AI 只給草稿，最後是你決定；說清楚的承諾才對得了帳',key:'5 分鐘內確認完，是這一步的目標'},
+ {k:'sys',t:'對帳',s:'做到了沒',you:'不用做，打開就看得到',sys:'比對基準到現在增加多少：達標＝做到、到期有增加＝部分、沒增加＝沒做到、沒數字＝還沒回報',why:'不用每週追著問「做了沒」，數字自己會說話；特殊情況可以改判，要寫理由、留紀錄',key:'下一場會一開始先對帳，說到做到變成習慣'},
+ {k:'sys',t:'調整',s:'下一步建議',you:'看建議，決定下週加強哪一塊',sys:'對照資料中心，指出最該處理的落後點和下一步；每場會都累積下來，可以回頭看',why:'每週比上週更準，組員知道組長在乎結果，不是在乎開會',key:'調整完回到第 1 步，飛輪越轉越快'}
+];
+var _gCur=0;
+function gPt(a,rad){ a=(a-90)*Math.PI/180; return [150+rad*Math.cos(a),150+rad*Math.sin(a)]; }
+function gWheel(){
+  var R=142,r=64,h='';
+  GUIDE.forEach(function(x,i){ var a0=i*60+1.6,a1=(i+1)*60-1.6,o0=gPt(a0,R),o1=gPt(a1,R),i1=gPt(a1,r),i0=gPt(a0,r),m=gPt(i*60+30,104),f=function(p){ return p[0].toFixed(1)+' '+p[1].toFixed(1); };
+    h+='<g class="gseg '+x.k+(i===_gCur?' on':'')+'" data-i="'+i+'"><path d="M'+f(o0)+' A'+R+' '+R+' 0 0 1 '+f(o1)+' L'+f(i1)+' A'+r+' '+r+' 0 0 0 '+f(i0)+' Z"/>'
+      +'<text x="'+m[0].toFixed(1)+'" y="'+(m[1]-17).toFixed(1)+'" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600">'+(i+1)+'</text>'
+      +'<text x="'+m[0].toFixed(1)+'" y="'+m[1].toFixed(1)+'" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700">'+x.t+'</text>'
+      +'<text x="'+m[0].toFixed(1)+'" y="'+(m[1]+17).toFixed(1)+'" text-anchor="middle" dominant-baseline="central" font-size="11">'+x.s+'</text></g>'; });
+  return '<svg class="g-wheel" id="gWheel" viewBox="0 0 300 300" role="listbox" tabindex="0" aria-label="使用步驟，左右鍵切換">'+h
+    +'<circle cx="150" cy="150" r="58" fill="#fff" stroke="rgba(0,0,0,.08)"/>'
+    +'<text x="150" y="128" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#6E6E73">飛輪的核心</text>'
+    +'<text x="150" y="148" text-anchor="middle" dominant-baseline="central" font-size="18" font-weight="700" fill="#1D1D1F" letter-spacing="-.3">說到做到</text>'
+    +'<text x="150" y="168" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#6E6E73">每句承諾有數字</text>'
+    +'<text x="150" y="182" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#6E6E73">有期限、有人對帳</text></svg>';
+}
+function gPanelHtml(){ var x=GUIDE[_gCur], you=x.k==='you';
+  return '<div class="g-step '+x.k+'">第 '+(_gCur+1)+' 步・'+(you?'組長做':'系統自動')+'</div><div class="g-title">'+x.t+'：'+x.s+'</div>'
+    +'<div class="g-row"><small>你要做的</small>'+x.you+'</div><div class="g-row"><small>系統幫你</small>'+x.sys+'</div><div class="g-row"><small>好處</small>'+x.why+'</div><div class="g-row"><small>小提醒</small>'+x.key+'</div>'
+    +'<div class="g-nav"><button class="btn sm" onclick="gGo(-1)">上一步</button><button class="btn sm" onclick="gGo(1)">'+(_gCur===5?'回到第 1 步':'下一步')+'</button></div>'; }
+function renderGuide(){
+  var box=$('guide'); if(!box) return; var seen=false; try{ seen=!!localStorage.getItem('mt_guide_seen_v1'); }catch(e){}
+  if(!seen) box.classList.add('open');
+  box.innerHTML='<button class="g-head" onclick="gToggle()" aria-expanded="'+box.classList.contains('open')+'"><b>怎麼用</b><small>組長一週大約 10 分鐘</small><span class="chev" aria-hidden="true">⌄</span></button>'
+    +'<div class="g-body"><div class="g-in"><div class="g-leg"><span><i style="background:#EEEEFC;border:1px solid #5856D6"></i>組長做的</span><span><i style="background:#F2F2F7;border:1px solid #C7C7CC"></i>系統自動做的</span></div>'
+    +gWheel()+'<div class="g-panel" id="gPanel" aria-live="polite">'+gPanelHtml()+'</div>'
+    +'<div class="g-flow"><span>看數字</span><em>›</em><span>說好一件事</span><em>›</em><span>綁一個數字</span><em>›</em><span>自動對帳</span><em>›</em><span>調整下一步</span><em>›</em><span class="up">業績往上</span></div></div></div>';
+  var w=$('gWheel');
+  w.addEventListener('pointerdown',function(e){ var g=e.target.closest('.gseg'); if(g) g.classList.add('pressed'); });
+  ['pointerup','pointerleave','pointercancel'].forEach(function(ev){ w.addEventListener(ev,function(){ [].forEach.call(w.querySelectorAll('.gseg.pressed'),function(g){ g.classList.remove('pressed'); }); }); });
+  w.addEventListener('click',function(e){ var g=e.target.closest('.gseg'); if(g) gSet(+g.getAttribute('data-i')); });
+  w.addEventListener('keydown',function(e){ if(e.key==='ArrowRight'||e.key==='ArrowDown'){ e.preventDefault(); gGo(1); } else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){ e.preventDefault(); gGo(-1); } });
+}
+function gSet(i){ if(i===_gCur) return; _gCur=i;
+  [].forEach.call(document.querySelectorAll('#gWheel .gseg'),function(g){ g.classList.toggle('on',+g.getAttribute('data-i')===i); });
+  var p=$('gPanel'); p.classList.add('out'); setTimeout(function(){ p.innerHTML=gPanelHtml(); p.classList.remove('out'); },120);
+  try{ localStorage.setItem('mt_guide_seen_v1','1'); }catch(e){} }
+function gGo(d){ gSet((_gCur+d+6)%6); }
+function gToggle(){ var b=$('guide'); if(window.matchMedia&&!matchMedia('(max-width:1100px)').matches) return; b.classList.toggle('open'); b.querySelector('.g-head').setAttribute('aria-expanded',b.classList.contains('open')); try{ localStorage.setItem('mt_guide_seen_v1','1'); }catch(e){} }
+
+(async function(){ renderGuide(); fillGroups(); renderAll(); await bootCases(); try{ await hgLoad(); }catch(e){} fillGroups(); renderAll(); })();
 
 </script>
 </body>
