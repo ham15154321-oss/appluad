@@ -138,6 +138,13 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
 .foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
 .nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:12px;} .nums:empty{display:none;}
 .nums div{background:#F5F5F7;border-radius:12px;padding:10px 12px;} .nums small{display:block;font-size:.75rem;color:var(--ink2);font-weight:600;} .nums b{font-size:1.25rem;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+.kb-seg{display:flex;width:100%;margin-bottom:14px;} .kb-seg button{flex:1;}
+.kb-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;} .kb-top b{font-size:1.0625rem;}
+.kb-badge{font-size:.6875rem;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.06);color:var(--ink2);}
+.kb-badge.ai{background:rgba(10,132,255,.12);color:#0A58CA;}
+.kb-read{margin-top:8px;max-height:48vh;overflow:auto;padding:4px 14px 10px;border-radius:14px;background:#F7F7FA;}
+.kb-h{font-weight:700;font-size:.9375rem;margin:14px 0 4px;} .kb-ul{margin:0;padding-left:20px;font-size:.875rem;line-height:1.7;color:var(--ink);}
+.kb-src{margin-top:18px;border-top:1px solid var(--line);padding-top:12px;} .kb-src summary{cursor:pointer;display:flex;align-items:center;gap:8px;list-style:none;} .kb-src summary::-webkit-details-marker{display:none;}
 .txwrap{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
 .tx-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;} .tx-head b{font-size:1.0625rem;}
 .tx{display:flex;flex-direction:column;gap:2px;}
@@ -171,7 +178,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <div><h1>面談能力檢核</h1><p>錄音上傳後，逐項比對面談流程表：有沒有講到、講得好不好</p></div>
     <div class="sp"></div>
     <div class="seg" id="regSeg" role="tablist" aria-label="區域"></div>
-    <button class="btn" onclick="openEditor()">📋 檢核表</button><button class="btn" onclick="openRefs()">📎 參考規則</button><button class="btn ghost" onclick="openTip()">ℹ️ 規則說明</button><button class="btn" id="teamBtn" hidden onclick="openTeam()">👥 團隊看板</button><button class="btn" id="learnBtn" hidden onclick="openLearn()">📚 學習報告</button><button class="btn" id="setBtn" hidden onclick="openSettings()">⚙ 設定</button>
+    <button class="btn" onclick="openEditor()">📋 檢核表</button><button class="btn" onclick="openRefs()">📚 AI 知識庫</button><button class="btn ghost" onclick="openTip()">ℹ️ 規則說明</button><button class="btn" id="teamBtn" hidden onclick="openTeam()">👥 團隊看板</button><button class="btn" id="learnBtn" hidden onclick="openLearn()">📚 學習報告</button><button class="btn" id="setBtn" hidden onclick="openSettings()">⚙ 設定</button>
   </div>
 
   <section class="card" id="tipCard" hidden style="background:#F2F7FF"></section>
@@ -232,7 +239,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <div class="fbout" id="fbOut"></div>
   </section>
 
-  <div class="foot"><button class="btn ghost" onclick="openUsage()">📊 本月用量</button><button class="btn ghost" onclick="openStars()">⭐ 好講法範例</button><button class="btn ghost" onclick="exportXlsx()">⬇ 匯出試算表</button><button class="btn ghost" id="oldWfBtn" hidden onclick="openOldWaterfall()">🗂 舊版瀑布資料</button></div>
+  <div class="foot"><button class="btn ghost" onclick="openUsage()">📊 本月用量</button><button class="btn ghost" onclick="openRefs('ex')">⭐ 好範例</button><button class="btn ghost" onclick="exportXlsx()">⬇ 匯出試算表</button><button class="btn ghost" id="oldWfBtn" hidden onclick="openOldWaterfall()">🗂 舊版瀑布資料</button></div>
 </div>
 
 <!-- 側面板：某一階段的逐項結果 -->
@@ -766,11 +773,12 @@ function renderTx(rec, all){
   var t=txRows(rec), rows=t.rows, n=rows.filter(function(r){ return !r.h; }).length, show=_txAll?rows:rows.slice(0,16);
   var h='<div class="tx-head"><b>逐字稿</b><span class="meta">'+(t.fmt?'完整版・已分說話者・':'原始版（還沒排版）・')+n+' 段</span><span style="flex:1"></span>'
     +((ME()!==rec.iv.rep||canEdit())?('<button class="btn sm" onclick="setModel()">'+(modelList().some(function(m){ return m.ivm.ivId===rec.id; })?'🏆 已是典範':'🏆 設為典範')+'</button>'):'')+'<button class="btn sm" onclick="copyTx()">📋 複製全文</button><button class="btn sm" onclick="downloadTx()">⬇ 下載 Word</button>'
-    +((!t.fmt||canEdit())&&rec.iv.transcript?('<button class="btn sm" id="refmtBtn" onclick="reformat()">'+(t.fmt?'重新排版':'✨ 排版')+'</button>'):'')+'</div><div class="tx" id="txBody">';
+    +(!t.fmt&&rec.iv.transcript?'<button class="btn sm" id="refmtBtn" onclick="reformat()">✨ 排版</button>':'')+'</div><div class="tx" id="txBody">';
   show.forEach(function(r){ if(r.h){ h+='<div class="tx-h">'+esc(r.h)+'</div>'; return; }
     var cls=/業務|主管/.test(r.who)?'a':(r.who?'b':'');
     h+='<div class="tx-r" data-t="'+esc(r.t)+'"><span class="tt">'+esc(r.t)+'</span><span class="who '+cls+'">'+esc(r.who)+'</span><span class="xx">'+esc(r.x)+'</span></div>'; });
   h+='</div>'+(rows.length>16?('<button class="btn ghost" onclick="renderTx(_curRec,'+(!_txAll)+')">'+(_txAll?'收起':'展開全部（共 '+n+' 段）')+'</button>'):'');
+  if(t.fmt&&canEdit()&&rec.iv.transcript) h+='<div class="row" style="margin-top:8px;gap:4px"><button class="btn sm" id="refmtBtn" onclick="askReformat()">重新排版</button><button class="btn ghost sm" onclick="refmtInfo()" aria-label="重新排版是什麼" title="重新排版是什麼">ⓘ</button></div>';
   box.innerHTML=h;
 }
 function txPlain(rec){ var iv=rec.iv, t=txRows(rec); var head=iv.rep+' '+TXT.doc+'｜'+fmtD(rec.createdAt)+'｜'+(iv.self?'自評':'主管 '+iv.reviewer)+'｜'+scoreOf(rec)+' 分\n\n';
@@ -793,6 +801,17 @@ function jumpTx(t,itemId){
   if(innerWidth<=720) closeSheet();
   hit.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'center'});
 }
+// ★ ds145（Ivan 選 B＋C）：ⓘ 看說明；按重新排版先確認，講清楚會做什麼、花多少
+function refmtCost(rec){ var sec=(rec&&rec.iv&&rec.iv.usage&&rec.iv.usage.audioSec)||0; var f=MODELS[getSet().fModel]||MODELS.sonnet; return Math.max(1,Math.round(sec/3600*12*(f.out/15))); }
+function refmtInfo(){ var rec=_curRec;
+  openDlg('ⓘ 重新排版是什麼','<div class="it"><div class="h">什麼時候要按</div><div class="w" style="color:var(--ink)">業務和'+TXT.labels[1]+'標反了、段落亂掉，或換了排版用的 AI 想重排。</div></div>'
+    +'<div class="it"><div class="h">什麼時候不用按</div><div class="w" style="color:var(--ink)">現在看起來順就不用。它不會讓內容變多：原始音檔沒存，字還是那些字，只是重新分說話者、標點和段落。</div></div>'
+    +'<div class="it"><div class="h">花費</div><div class="w" style="color:var(--ink)">1 小時錄音約 NT$12'+(rec?'，這份約 NT$'+refmtCost(rec):'')+'。</div></div>',''); }
+function askReformat(){ var rec=_curRec; if(!rec) return;
+  openDlg('要重新排版嗎？','<div class="it"><div class="h">✓ 會</div><div class="w" style="color:var(--ink)">重新分說話者、加標點、分段落、掛階段標題</div></div>'
+    +'<div class="it"><div class="h">✗ 不會</div><div class="w" style="color:var(--ink)">讓內容變多（原始音檔沒存，字還是那些字）</div></div>'
+    +'<p class="meta">這份約 NT$'+refmtCost(rec)+'（1 小時錄音約 NT$12）。排好會取代現在看到的版本，分數和判定不會變。</p>',
+    '<button class="btn pri" onclick="closeDlg();reformat()">確定重新排版</button><button class="btn" onclick="closeDlg()">取消</button>'); }
 async function reformat(){
   var rec=_curRec; if(!rec||_busy) return; if(!rec.iv.transcript){ toast('這筆沒有原始逐字稿',true); return; }
   var b=$('refmtBtn'); _busy=true; if(b){ b.disabled=true; b.textContent='排版中…'; }
@@ -1068,7 +1087,7 @@ function downloadLearn(id){
 }
 
 /* ═══════════════ ★ ds145 參考規則：判定細則（AI 每次都讀）＋參考資料＋典範通話＋組長規則建議 ═══════════════ */
-// ★ ds145 電話檢核預設判定細則：10/29 由舊瀑布兩份教材（約訪流程 SOP、電話實戰）濃縮；柏翰在「📎 參考規則」存過自己的版本就用他的
+// ★ ds145 電話檢核預設判定細則：10/29 由舊瀑布兩份教材（約訪流程 SOP、電話實戰）濃縮；柏翰在「📚 AI 知識庫」存過自己的版本就用他的
 var PHONE_DIGEST_DEFAULT=[
 '【開場 30 秒・確認本人】',
 '- 第一句要有「喂～hello～你好」或等同語氣詞，口氣明顯上揚、不平板，才算有打招呼的能量；一開口就平鋪直敘報事情算不到位。',
@@ -1177,24 +1196,63 @@ function buildRefText(){
   if(models.length) out+='\n\n【典範'+TXT.kind+'（好'+TXT.kind+'長這樣，拿來對照，不要照抄分數）】\n'+models.slice(0,2).map(function(t,i){ return '— 典範 '+(i+1)+' —\n'+t; }).join('\n\n');
   return out;
 }
-function openRefs(){
-  var o=loadRefs(), R=o[MODE], adm=canEdit(), mem=hgMembers();
-  var h='<div class="stg">判定細則<span class="meta" style="font-weight:500">　AI 每次檢核都會讀，'+(R.digestAt?('最後更新 '+esc(R.digestBy||'')+' '+fmtD(R.digestAt)):(R.digestBy?('目前用'+esc(R.digestBy)):'還沒建立'))+'</span></div>';
-  h+=adm?('<textarea class="in" id="refDigest" style="min-height:220px">'+esc(R.digest||'')+'</textarea><div class="row" style="margin-top:8px"><button class="btn pri sm" onclick="saveDigest()">儲存判定細則</button><button class="btn sm" id="distBtn" onclick="distillRefs()">✨ 用 AI 從參考資料濃縮</button><span class="meta">濃縮完會放進上面的框，你看過再按儲存</span></div>')
-        :('<div class="q" style="white-space:pre-wrap">'+esc(R.digest||'（柏翰還沒建立）')+'</div>');
-  h+='<div class="stg">參考資料</div>';
-  h+=R.docs.length?R.docs.map(function(d){ return '<div class="it"><div class="h">'+(d.kind==='example'?'🏆 ':'📘 ')+esc(d.title)+'<span class="st">'+(d.kind==='example'?'典範':'教材')+'・'+String(d.content||'').length+' 字</span></div><details><summary class="meta" style="cursor:pointer">看原文</summary><div class="q" style="white-space:pre-wrap;max-height:320px;overflow:auto">'+esc(d.content)+'</div></details>'+(adm?'<button class="star" onclick="delRef(\''+d.id+'\')">刪除</button>':'')+'</div>'; }).join(''):'<p class="empty">還沒有參考資料。</p>';
-  if(adm){
-    var hasOld=false; try{ hasOld=JSON.parse(localStorage.getItem('wf_appointment_sop')||'[]').length>0; }catch(e){}
-    h+='<div class="row" style="margin-top:8px">'+(PH&&hasOld?'<button class="btn sm" onclick="importOldSop()">⬇ 從舊瀑布匯入 SOP</button>':'')+'<button class="btn sm" onclick="toggleAddRef()">＋ 新增參考資料</button></div><div id="addRef" hidden style="margin-top:8px"><div class="row"><input class="in" id="refTitle" placeholder="標題" style="flex:1"><select class="in" id="refKind" style="max-width:140px"><option value="rule">教材</option><option value="example">典範'+TXT.kind+'</option></select></div><textarea class="in" id="refBody" style="margin-top:6px;min-height:140px" placeholder="貼上內容"></textarea><button class="btn pri sm" style="margin-top:6px" onclick="addRef()">加入</button></div>';
+// ★ ds145（10/29 Apple Design 審查後重做）：「📚 AI 知識庫」四個分頁，一次只看一塊；先讀後改；標清楚 AI 會不會讀、誰能改
+var _kbTab='co', _kbEdit=false;
+function kbBadge(t,ai){ return '<span class="kb-badge'+(ai?' ai':'')+'">'+t+'</span>'; }
+function digestView(t){
+  if(!String(t||'').trim()) return '<p class="empty">還沒有公司標準。</p>';
+  var out='', open=false;
+  String(t).split('\n').forEach(function(l){ l=l.trim(); if(!l) return;
+    var h=l.match(/^【(.+)】$/); if(h){ if(open) out+='</ul>'; out+='<div class="kb-h">'+esc(h[1])+'</div><ul class="kb-ul">'; open=true; return; }
+    if(!open){ out+='<ul class="kb-ul">'; open=true; } out+='<li>'+esc(l.replace(/^[-・•]\s*/,''))+'</li>'; });
+  return out+(open?'</ul>':'');
+}
+function openRefs(tab){
+  if(tab){ if(tab!==_kbTab) _kbEdit=false; _kbTab=tab; }
+  var o=loadRefs(), R=o[MODE], adm=canEdit();
+  var tabs=[['co','公司標準'],['grp','我們組的規則'],['ex','好範例'],['sug','給柏翰的建議']];
+  var h='<p class="meta" style="margin:0 0 12px">AI 每次'+TXT.kind+'檢核都會讀「公司標準」「我們組的規則」「好範例」，改了下一次就生效。</p>'
+    +'<div class="seg kb-seg" role="tablist">'+tabs.map(function(x){ return '<button role="tab" aria-selected="'+(x[0]===_kbTab)+'" class="'+(x[0]===_kbTab?'on':'')+'" onclick="openRefs(\''+x[0]+'\')">'+x[1]+'</button>'; }).join('')+'</div>';
+  if(_kbTab==='co'){
+    h+='<div class="kb-top"><b>公司標準</b>'+kbBadge('AI 每次都讀',true)+kbBadge(adm?'只有你能改':'只有柏翰能改')+'</div>';
+    h+='<p class="meta">每一項「做到什麼才算講得好、怎樣算不到位」。'+(R.digestAt?('最後更新：'+esc(R.digestBy||'')+' '+fmtD(R.digestAt)):(R.digestBy?('目前用'+esc(R.digestBy)):''))+'</p>';
+    if(adm&&_kbEdit){
+      h+='<textarea class="in" id="refDigest" style="min-height:320px">'+esc(R.digest||'')+'</textarea>'
+        +'<div class="row" style="margin-top:8px"><button class="btn pri sm" onclick="saveDigest()">儲存</button><button class="btn sm" onclick="_kbEdit=false;openRefs()">取消</button><button class="btn sm" id="distBtn" onclick="distillRefs()">✨ 從來源教材重新濃縮</button></div>'
+        +'<p class="meta">格式：一行【階段・項目】，底下每條用「-」開頭。濃縮完會放進上面的框，你看過再按儲存。</p>';
+    } else {
+      h+='<div class="kb-read">'+digestView(R.digest)+'</div>'+(adm?'<button class="btn sm" style="margin-top:10px" onclick="_kbEdit=true;openRefs()">編輯公司標準</button>':'');
+    }
+    var rules=R.docs.filter(function(d){ return d.kind!=='example'; });
+    h+='<details class="kb-src"'+(rules.length?'':' open')+'><summary><b>來源教材</b>'+kbBadge('AI 不直接讀，只是上面的來源')+'<span class="meta">　'+rules.length+' 份</span></summary>';
+    h+=rules.length?rules.map(function(d){ return '<div class="it"><div class="h">📘 '+esc(d.title)+'<span class="st">'+String(d.content||'').length+' 字</span></div><details><summary class="meta" style="cursor:pointer">看原文</summary><div class="q" style="white-space:pre-wrap;max-height:300px;overflow:auto">'+esc(d.content)+'</div></details>'+(adm?'<button class="star" onclick="delRef(\''+d.id+'\')">刪除</button>':'')+'</div>'; }).join(''):'<p class="empty">還沒有來源教材。</p>';
+    if(adm){ var hasOld=false; try{ hasOld=JSON.parse(localStorage.getItem('wf_appointment_sop')||'[]').length>0; }catch(e){}
+      h+='<div class="row" style="margin-top:8px">'+(PH&&hasOld?'<button class="btn sm" onclick="importOldSop()">⬇ 從舊瀑布匯入</button>':'')+'<button class="btn sm" onclick="toggleAddRef()">＋ 新增</button></div>'
+        +'<div id="addRef" hidden style="margin-top:8px"><div class="row"><input class="in" id="refTitle" placeholder="標題" style="flex:1"><select class="in" id="refKind" style="max-width:150px"><option value="rule">來源教材</option><option value="example">典範'+TXT.kind+'</option></select></div><textarea class="in" id="refBody" style="margin-top:6px;min-height:140px" placeholder="貼上內容"></textarea><button class="btn pri sm" style="margin-top:6px" onclick="addRef()">加入</button></div>'; }
+    h+='</details>';
   }
-  var ms=modelList().filter(hgCanSee);
-  h+='<div class="stg">組長設的典範'+TXT.kind+'（'+ms.length+'）</div>'+(ms.length?ms.slice(0,20).map(function(m){ return '<div class="hrow" onclick="closeDlg();var r=_cases.find(function(c){return c.id===\''+m.ivm.ivId+'\';});if(r){$(\'rep\').value=r.iv.rep;onRepChange();showRec(r.id);}"><span class="d">'+fmtD(m.createdAt)+'</span><span class="m">'+esc(m.ivm.rep)+'・'+esc(m.ivm.title)+'・'+esc(m.by)+' 設</span></div>'; }).join(''):'<p class="empty">在檢核結果按「🏆 設為典範」就會出現在這裡，AI 會拿最新兩通當標準。</p>');
-  var sg=sugList().filter(function(x){ return adm||hgCanSee(x.c); });
-  h+=grpHtml();
-  h+='<div class="stg">規則建議</div><p class="meta">覺得哪條規則要加或要改，寫下來送出。不會直接生效，每月學習報告會列給柏翰，他勾了才變成正式標準。</p><textarea class="in" id="sugText" style="min-height:70px" placeholder="例如：推薦老師時要講到老師跟對方背景的共同點，才算講得好"></textarea><button class="btn sm" style="margin-top:6px" onclick="addSug()">送出建議</button>';
-  h+=sg.length?sg.slice(0,30).map(function(x){ var c=x.c; return '<div class="it"><div class="h">'+esc(c.by)+'<span class="st">'+(x.done==='yes'?'已採納':x.done==='no'?'不採納':'待審')+'・'+fmtD(c.createdAt)+'</span></div><div class="q">'+esc(c.ivu.text)+'</div>'+(adm&&!x.done?'<div class="row" style="gap:6px"><button class="btn sm" onclick="decideSug(\''+c.id+'\',\'yes\')">採納（加進判定細則）</button><button class="btn sm" onclick="decideSug(\''+c.id+'\',\'no\')">不採納</button></div>':'')+'</div>'; }).join(''):'';
-  openDlg('📎 參考規則・'+TXT.title,h,'');
+  else if(_kbTab==='grp'){
+    h+='<div class="kb-top"><b>我們組的規則</b>'+kbBadge('AI 會讀，只看那一組',true)+kbBadge('組長、學院主管能改')+'</div><p class="meta">各組自己要加強的重點，另外算「做到幾項」，不影響公司分數。</p>';
+    h+=grpHtml().replace(/^<div class="stg">組規則.*?<\/div>/,'');
+  }
+  else if(_kbTab==='ex'){
+    var exDocs=R.docs.filter(function(d){ return d.kind==='example'; }), ms=modelList().filter(hgCanSee), good=starListMine(REGION,'good'), bad=starListMine(REGION,'bad');
+    h+='<div class="kb-top"><b>好範例</b>'+kbBadge('AI 會讀',true)+kbBadge('主管在檢核結果按出來的')+'</div><p class="meta">AI 拿最新兩通典範當「好'+TXT.kind+'長怎樣」的標準，好講法和反面教材拿來判講得好不好。</p>';
+    h+='<div class="stg">典範'+TXT.kind+'（'+(exDocs.length+ms.length)+'）</div>';
+    h+=exDocs.map(function(d){ return '<div class="it"><div class="h">🏆 '+esc(d.title)+'<span class="st">柏翰匯入</span></div><details><summary class="meta" style="cursor:pointer">看內容</summary><div class="q" style="white-space:pre-wrap;max-height:300px;overflow:auto">'+esc(d.content)+'</div></details>'+(adm?'<button class="star" onclick="delRef(\''+d.id+'\')">刪除</button>':'')+'</div>'; }).join('')
+      +ms.slice(0,20).map(function(m){ return '<div class="hrow" onclick="closeDlg();var r=_cases.find(function(c){return c.id===\''+m.ivm.ivId+'\';});if(r){$(\'rep\').value=r.iv.rep;onRepChange();showRec(r.id);}"><span class="d">'+fmtD(m.createdAt)+'</span><span class="m">🏆 '+esc(m.ivm.rep)+'・'+esc(m.ivm.title)+'・'+esc(m.by)+' 設</span></div>'; }).join('')
+      +((exDocs.length+ms.length)?'':'<p class="empty">在檢核結果按「🏆 設為典範」就會出現在這裡。</p>');
+    var list=function(arr,icon){ return arr.slice().reverse().slice(0,30).map(function(s){ return '<div class="it"><div class="h">'+icon+' '+esc(s.ivs.itemName)+'<span class="st">'+esc(s.ivs.rep)+'・'+esc(s.by)+'</span></div><div class="q">'+esc(s.ivs.quote)+'</div></div>'; }).join(''); };
+    h+='<div class="stg">好講法（'+good.length+'）</div>'+(good.length?list(good,'⭐'):'<p class="empty">在逐項結果按「☆ 好講法」。</p>');
+    h+='<div class="stg">反面教材（'+bad.length+'）</div>'+(bad.length?list(bad,'✗'):'<p class="empty">在逐項結果按「✗ 反面教材」。</p>');
+  }
+  else {
+    var sg=sugList().filter(function(x){ return adm||hgCanSee(x.c); });
+    h+='<div class="kb-top"><b>給柏翰的建議</b>'+kbBadge('不會直接生效')+kbBadge('誰都能寫')+'</div><p class="meta">覺得公司標準哪條要加、要改、要刪，寫下來送出。柏翰採納了才會加進公司標準，每月學習報告也會列給他。</p>';
+    h+='<textarea class="in" id="sugText" style="min-height:80px" placeholder="例如：推薦老師時要講到老師跟對方背景的共同點，才算講得好"></textarea><button class="btn pri sm" style="margin-top:6px" onclick="addSug()">送出建議</button>';
+    h+='<div class="stg">建議紀錄（'+sg.length+'）</div>'+(sg.length?sg.slice(0,30).map(function(x){ var c=x.c; return '<div class="it"><div class="h">'+esc(c.by)+'<span class="st">'+(x.done==='yes'?'已採納':x.done==='no'?'不採納':'待柏翰處理')+'・'+fmtD(c.createdAt)+'</span></div><div class="q">'+esc(c.ivu.text)+'</div>'+(adm&&!x.done?'<div class="row" style="gap:6px"><button class="btn sm" onclick="decideSug(\''+c.id+'\',\'yes\')">採納，加進公司標準</button><button class="btn sm" onclick="decideSug(\''+c.id+'\',\'no\')">不採納</button></div>':'')+'</div>'; }).join(''):'<p class="empty">還沒有建議。</p>');
+  }
+  openDlg('📚 AI 知識庫・'+TXT.title,h,'');
 }
 function toggleAddRef(){ var a=$('addRef'); if(a) a.hidden=!a.hidden; }
 function addRef(){ var t=$('refTitle').value.trim(), b=$('refBody').value.trim(); if(!t||!b){ toast('標題和內容都要填',true); return; }
@@ -1225,7 +1283,7 @@ async function distillRefs(){
   }catch(e){ toast('沒完成：'+(e&&e.message||e),true); }
   if(b){ b.disabled=false; b.textContent='✨ 用 AI 從參考資料濃縮'; }
 }
-function saveDigest(){ var o=loadRefs(); o[MODE].digest=$('refDigest').value; o[MODE].digestAt=Date.now(); o[MODE].digestBy=ME(); try{ saveRefs(o); toast('判定細則已存，下一次檢核就會用'); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
+function saveDigest(){ var o=loadRefs(); o[MODE].digest=$('refDigest').value; o[MODE].digestAt=Date.now(); o[MODE].digestBy=ME(); try{ saveRefs(o); _kbEdit=false; toast('公司標準已存，下一次檢核就會用'); openRefs(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
 async function addSug(){ var t=($('sugText').value||'').trim(); if(!t){ toast('寫一句建議',true); return; }
   var now=Date.now(); try{ await caseWrite([{ id:'ivu_'+now, type:'interview_rulesug', by:ME(), createdAt:now, text:'💡 規則建議｜'+t, ivu:{ mode:MODE, region:REGION, text:t } }]); toast('已送出，柏翰會在每月學習報告看到'); openRefs(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
 async function decideSug(id,dec){

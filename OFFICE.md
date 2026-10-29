@@ -658,3 +658,7 @@ C 主管
 - ds145 補：電話檢核內建預設判定細則 PHONE_DIGEST_DEFAULT（10/29 用 Opus 從舊瀑布「約訪流程 SOP（舊版）」「電話實戰」濃縮，約 3000 字，修掉一句「哪天方便」矛盾），柏翰沒存過自己的版本就用它。典範通話仍需柏翰在參考規則按「從舊瀑布匯入 SOP」。
 - ds145 補（10/29 Ivan：兩層規則＋提醒）：組規則 interview_grule（ivg:{mode,group=組長名,text}，只加不改，修改＝刪舊加新）；leaderOf/academyOf 讀 mp_data_v1 sheet4/sheet3；myGroups：柏翰全部、HG_ACAD 學院主管管學院內各組、組長管自己組。檢核時 gRuleText(rep) 帶進 prompt，AI 另回 group 判定存 iv.group/gRules/gName，結果卡顯示「X組加強項目做到 n/m（不算公司分數）」、Telegram 一行、學習報告帶各組規則做到率。頁首加上手提醒卡 tipCard（兩層規則表＋面談/電話各 5 條注意事項，按知道了才收，iv_tip_seen_<mode>_v1）與「ℹ️ 規則說明」。
 - ds145 修：interview-check 加 [hidden]{display:none!important}（.btn/.fld 的 display 蓋掉 hidden，造成設定、學習報告、團隊看板按鈕和面談模式的通話類型欄位大家都看得到）。
+- 1340 p2.8（10/29 Ivan 同意）：①班表卡搬到整份最下面（業務段的圖例下面、頁尾上面）②主資料沒帶班表時，網頁自己讀 ?fmt=roster（照區篩、業務名單上沒有的不列＝離職不列），繞過 Apps Script 舊快取（pgRefreshRank_ 只換排名、讓沒有班表的舊快取一直續命）③冠軍開講門檻改 2 萬（昨天不到 2 萬→本週）。舊版：舊版/1340_p2.7.html、page_body_p2.7.html。
+- ds145 修：已排版的逐字稿不再在標題列放「重新排版」，改成逐字稿最下面一行小字（只有柏翰看得到）；沒排版的才在標題列放「✨ 排版」。
+- ds145 修（Ivan 選 B＋C）：已排版逐字稿底下「重新排版」＋「ⓘ」：ⓘ 開說明（何時按／何時不用／花費），按重新排版先跳確認（會／不會＋這份約 NT$，依 audioSec 和排版型號估），確定才跑。
+- ds145 修（10/29 Apple Design 審查後重做）：「📎 參考規則」改名「📚 AI 知識庫」，openRefs(tab) 四分頁：公司標準（閱讀模式＋柏翰按編輯才出框；來源教材收在底部 details，標 AI 不直接讀）、我們組的規則、好範例（典範＋好講法＋反面教材）、給柏翰的建議；每頁標 AI 會不會讀、誰能改。頁尾「⭐ 好範例」直接開好範例分頁。

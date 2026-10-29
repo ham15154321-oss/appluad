@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
-<meta name="pg1340-version" content="p2.7">
+<meta name="pg1340-version" content="p2.8">
 <title>13:40</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -941,7 +941,7 @@
 </style>
 </head>
 <body>
-<!-- 13:40 日會網頁｜p2.7｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
+<!-- 13:40 日會網頁｜p2.8｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
 <div id="pgWait"><i></i><span id="pgWaitT">載入中…</span></div>
 <div id="pgPick" hidden><h1>日會</h1><a data-r="中區">中區<small>台一・台二・台三｜13:40</small></a><a data-r="桃區">桃區<small>壢一・壢二・壢三｜13:30</small></a><a data-r="建國">高雄建國<small>建國｜13:40</small></a></div>
 <div id="appRoot" hidden>
@@ -951,7 +951,7 @@
 </header>
 
 <main>
-<section id="s-today"><div class="card hero" id="hero"></div><div class="card flat ros" id="ros" hidden></div></section>
+<section id="s-today"><div class="card hero" id="hero"></div></section>
 
 <section id="s-asst">
   <h2 class="sec"><span class="tt">助理</span><small id="asstSub">排名・註冊未消耗・走到哪一關</small><button class="cp" type="button" data-k="📋">複製</button></h2>
@@ -991,6 +991,7 @@
   <div class="card flat agt" id="ag-💼"></div>
   <div id="ctSlot"></div>
   <div class="legend"><span><i style="background:var(--blue)"></i>人名、班別（可點）</span><span><i style="background:var(--orange)"></i>缺口、沒有新增、未到</span><span><i style="background:var(--red)"></i>達標、過門檻</span></div>
+  <div class="card flat ros" id="ros" hidden></div>
   <p class="foot" id="foot"></p>
 </section>
 </main>
@@ -1317,7 +1318,23 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   function ymdL(d){ return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function mdw(s){ var m = String(s).match(/\d{4}-(\d{2})-(\d{2})/); if (!m) return s; var d = new Date(+s.slice(0, 4), +m[1] - 1, +m[2]); return (+m[1]) + '/' + (+m[2]) + '（' + WKC[d.getDay()] + '）'; }
   function names(L){ return L.map(function(p){ return '<b class="nm">' + esc(p.名) + '</b>' + (p.t ? '<small>' + esc(p.t) + '</small>' : ''); }).join('、'); }
+  /* p2.8（10/29 Ivan）：主資料沒帶班表（Apps Script 舊快取）→ 網頁自己讀 ?fmt=roster，照區篩、離職不列 */
+  var RZ = { '中區':'中區', '建國':'南區', '桃區':'桃竹區' };
+  function own(raw){
+    var known = {}, pp = (D.ppl && D.ppl.人) || []; pp.forEach(function(p){ known[p.院 + '|' + p.全名] = p; });
+    var L = (raw.人 || []).filter(function(p){ return p.區 === RZ[D.r]; }).map(function(p){
+      var k = known[p.院 + '|' + p.名]; if (pp.length && !k) return null;   // 業務名單上沒有的（離職、非業務）不列
+      return { 院: p.院, 全名: p.名, 名: k ? k.名 : String(p.名).slice(1), nb: k ? !!k.nb : !!p.主管, 班: p.班 }; }).filter(Boolean);
+    return { at: raw.at || '', today: raw.today || '', days: raw.days || [], src: (raw.分頁 || {})[RZ[D.r]] || [], err: raw.err || '', 人: L };
+  }
+  function pull(){
+    if (window.__pgRosRaw) { D.roster = own(window.__pgRosRaw); return true; }
+    if (!window.__pgRosP && window.PG_API && window.fetch) window.__pgRosP = fetch(window.PG_API + '?r=' + encodeURIComponent(D.r) + '&fmt=roster', { cache: 'no-store' })
+      .then(function(x){ return x.json(); }).then(function(o){ if (o && o.days) { window.__pgRosRaw = o; if (window.__pgRos) window.__pgRos(); } }).catch(function(){});
+    return false;
+  }
   function render(){
+    if (!D.roster) pull();
     var R = D.roster;
     if (!R || (!R.人 && !R.err)) { box.hidden = true; return; }
     box.hidden = false;
@@ -1900,7 +1917,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   }
   /* 10/27 Ivan：🏆 冠軍開講｜日會 2 分鐘：資料我算，冠軍只講開場、猶豫、工具；講完請他在 EIP 那位學生的追蹤情形補一行「成交筆記｜開場／猶豫／工具」 */
   /* 週一：上週一到週日七天的第一名（跟本週入帳排行同一套算法）；其他天：昨天冠軍 */
-  /* p2.7（10/29 Ivan）：昨天冠軍不到 1 萬（例如只有一筆報名費）改講本週冠軍（週一到昨天）→ 同一套算法給任何日期區間 */
+  /* p2.7（10/29 Ivan）：昨天冠軍不到 1 萬（p2.8 改 2 萬）（例如只有一筆報名費）改講本週冠軍（週一到昨天）→ 同一套算法給任何日期區間 */
   function lastWeekChamp(){ return rangeChamp(ymd(addD(TODAY, -7)), ymd(addD(TODAY, -1)), '上週'); }
   function rangeChamp(from, to, short){
     var ppl = incPeople(FOCUS()), amt = {}, cnt = {}, days = {};
@@ -1917,7 +1934,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   function champTalkHtml(){
     if (!I || ST.view === 'all') return '';
     var weekly = (TODAY.getDay() === 1 || location.hash === "#testweek") ? lastWeekChamp() : null, ch = weekly || champs(FOCUS());
-    if (!weekly && (!ch || !ch.list.length || ch.list[0].amt < 10000)) {   // p2.7：昨天冠軍不到 1 萬 → 本週（週一到昨天）冠軍
+    if (!weekly && (!ch || !ch.list.length || ch.list[0].amt < 20000)) {   // p2.8（10/29 Ivan）：昨天冠軍不到 2 萬 → 本週（週一到昨天）冠軍
       var mon = addD(TODAY, -((TODAY.getDay() + 6) % 7)), yd = addD(TODAY, -1);
       if (mon <= yd) { var wk = rangeChamp(ymd(mon), ymd(yd), '本週'); if (wk && wk.p && (!ch || !ch.list.length || wk.p.amt > ch.list[0].amt)) { weekly = wk; ch = wk; } }
     }
