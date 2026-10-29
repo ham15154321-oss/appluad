@@ -135,6 +135,14 @@ table.use th,table.use td{padding:8px 6px;border-bottom:1px solid var(--line);te
 table.use th:first-child,table.use td:first-child{text-align:left;}
 table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
 .foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
+.txwrap{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
+.tx-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;} .tx-head b{font-size:1.0625rem;}
+.tx{display:flex;flex-direction:column;gap:2px;}
+.tx-h{margin:14px 0 4px;font-size:.75rem;font-weight:700;color:var(--ink2);letter-spacing:.04em;}
+.tx-r{display:grid;grid-template-columns:52px 44px 1fr;gap:8px;padding:5px 8px;border-radius:10px;font-size:.9375rem;line-height:1.65;transition:background .3s;}
+.tx-r .tt{color:var(--ink3);font-size:.75rem;font-variant-numeric:tabular-nums;padding-top:3px;}
+.tx-r .who{font-weight:700;font-size:.875rem;color:var(--ink2);} .tx-r .who.a{color:var(--accent);}
+.tx-r.hl{background:#FFF3C4;}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(16px);background:rgba(29,29,31,.92);color:#fff;padding:10px 18px;border-radius:999px;font-size:.9375rem;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s,transform .3s var(--ease);z-index:80;max-width:calc(100vw - 32px);}
 .toast.show{opacity:1;transform:translateX(-50%);}
 .toast.err{background:#C0392B;}
@@ -160,7 +168,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <div><h1>面談能力檢核</h1><p>錄音上傳後，逐項比對面談流程表：有沒有講到、講得好不好</p></div>
     <div class="sp"></div>
     <div class="seg" id="regSeg" role="tablist" aria-label="區域"></div>
-    <button class="btn" onclick="openEditor()">📋 檢核表</button>
+    <button class="btn" onclick="openEditor()">📋 檢核表</button><button class="btn" id="setBtn" hidden onclick="openSettings()">⚙ 設定</button>
   </div>
 
   <!-- ① 上傳 -->
@@ -198,6 +206,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <div class="sum" id="resSum"></div>
     <div id="resPrev"></div>
     <div id="resNext"></div>
+    <div id="resTx" class="txwrap"></div>
   </section>
 
   <!-- ③ 主管回饋 -->
@@ -215,7 +224,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <div class="fbout" id="fbOut"></div>
   </section>
 
-  <div class="foot"><button class="btn ghost" onclick="openUsage()">📊 本月用量</button><button class="btn ghost" onclick="openStars()">⭐ 好講法範例</button></div>
+  <div class="foot"><button class="btn ghost" onclick="openUsage()">📊 本月用量</button><button class="btn ghost" onclick="openStars()">⭐ 好講法範例</button><button class="btn ghost" onclick="exportXlsx()">⬇ 匯出試算表</button></div>
 </div>
 
 <!-- 側面板：某一階段的逐項結果 -->
@@ -236,7 +245,9 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
 <script>
 /* ═══════════════ 基本 ═══════════════ */
 var PROXY_BASE='https://anthropic-proxy.ivanapplaud.workers.dev';
-var AI_MODEL='claude-opus-4-7';
+var MODELS={ opus:{id:'claude-opus-4-7',name:'Opus（最準）',in:5,out:25}, sonnet:{id:'claude-sonnet-4-6',name:'Sonnet（建議）',in:3,out:15}, haiku:{id:'claude-haiku-4-5-20251001',name:'Haiku（最省）',in:1,out:5} };
+var USD_TWD=32, WHISPER_USD_HR=0.111, CHUNK_SEC=600;
+var DEFAULT_VOCAB='赫綵、赫綵設計學院、OKbom、Wacom、Mac、乙級、簡章、課綱、作品集、含金量、赫綵三寶、十字理財、金三角、報名費、契約書、遠東、綠界、遠信、仲信、裕富、註冊包、排課、體驗券、Photoshop、Illustrator、Procreate、平面設計、商業攝影、室內設計、動畫、漫畫';
 var ADMIN_NAME='黃柏翰';
 var PASS_SCORE=80, PASS_STREAK=2;
 var REGIONS=['桃區','中區','南區'];
@@ -250,6 +261,57 @@ function toast(msg,err){ var t=$('toast'); t.textContent=msg; t.classList.toggle
 // 寫 localStorage：走 parent（firebase-sync 的 setItem 在 parent，才會記時間戳＋推上雲）
 function LSW(){ try{ if(window.parent && window.parent!==window && window.parent.localStorage) return window.parent.localStorage; }catch(e){} return localStorage; }
 function pushCloudSoon(){ try{ var fs=(window.parent && window.parent.firebaseSync) || window.firebaseSync; if(fs && fs.push) setTimeout(function(){ try{ fs.push(); }catch(e){} }, 1500); }catch(e){} }
+
+// ═══ ★ ds144（10/29 Ivan：婉玲組看得到承鈞組的錄音）錄音／檢核只給同組看 ═══
+//   規則：柏翰看全部；學院主管看整個學院（業務個人績效 sheet3 的「學院」）；組長、組員看自己這一組（小組業績總表 sheet4 的組長＋組員）。
+//   錄音紀錄看「上傳的人」和「被檢核的業務」，兩個有一個在我這組就看得到；沒有記上傳者的舊錄音只有柏翰看得到。
+//   ⚠ 這是畫面上的過濾：資料一樣會同步到每台電腦，只是不顯示。
+var HG_ADMIN={'黃柏翰':1};
+var HG_ACAD={'王志軒':'中壢二部','楊雅晴':'台中三部','洪士德':'中壢學院','黎禹歆':'高雄建國','林昭宏':'台中學院','凃敏薰':'台中二部','蔡青倚':'中壢三部','李婉琳':'中壢學院'};   // ★ 10/29 婉琳升主管
+var _hgMp=null, _hgReady=null, _hgCache={};
+function hgMe(){ try{ return localStorage.getItem('activeCharacterId')||''; }catch(e){ return ''; } }
+function hgLoad(){
+  if(_hgReady) return _hgReady;
+  _hgReady=new Promise(function(res){
+    try{ var r=indexedDB.open('SpaceBaseDB');
+      r.onsuccess=function(){ var db=r.result; try{ if(!db.objectStoreNames.contains('images')){ db.close(); res(); return; }
+        var g=db.transaction('images','readonly').objectStore('images').get('mp_data_v1');
+        g.onsuccess=function(){ var v=g.result; try{ _hgMp=(typeof v==='string')?JSON.parse(v):v; }catch(e){ _hgMp=null; } _hgCache={}; try{db.close();}catch(_){} res(); };
+        g.onerror=function(){ try{db.close();}catch(_){} res(); }; }catch(e){ try{db.close();}catch(_){} res(); } };
+      r.onerror=function(){ res(); };
+    }catch(e){ res(); }
+  });
+  return _hgReady;
+}
+// 回傳 null = 看全部；否則回傳 {名字:1}
+function hgMembers(me){
+  me=me||hgMe(); if(HG_ADMIN[me]) return null;
+  if(_hgCache[me]) return _hgCache[me];
+  var out={}; if(me) out[me]=1;
+  if(!_hgMp) return out;   // 業績資料還沒讀到 → 只看自己（寧可少看，不可多看）
+  var months=Object.keys(_hgMp).sort(function(a,b){ return Number(b)-Number(a); });
+  var acad=HG_ACAD[me];
+  if(acad){
+    months.forEach(function(m){ ((_hgMp[m]||{}).sheet3||[]).forEach(function(row){ row=row||{}; if(String(row['學院']||row['區域']||'').trim()!==acad) return; var nm=String(row['姓名']||row['業務員']||row['業務']||row['人員']||'').trim(); if(nm) out[nm]=1; }); });
+  } else {
+    for(var i=0;i<months.length;i++){
+      var s4=(_hgMp[months[i]]||{}).sheet4||[], hit=null;
+      for(var j=0;j<s4.length;j++){ var row=s4[j]||{}, names=[String(row['組長']||'').trim()];
+        Object.keys(row).forEach(function(k){ if(/^組員/.test(k)) names.push(String(row[k]||'').trim()); });
+        if(names.indexOf(me)>=0){ hit=names; break; } }
+      if(hit){ hit.forEach(function(n){ if(n) out[n]=1; }); break; }
+    }
+  }
+  _hgCache[me]=out; return out;
+}
+function hgCanSee(rec){
+  var mem=hgMembers(); if(!mem) return true;
+  if(!rec) return false;
+  var who=[rec.by, rec.iv&&rec.iv.rep, rec.ivf&&rec.ivf.rep, rec.ivs&&rec.ivs.rep, rec.ivo&&rec.ivo.rep].filter(Boolean);
+  if(!who.length) return false;   // 沒記上傳者的舊錄音 → 只有柏翰看
+  return who.some(function(n){ return mem[n]; });
+}
+function hgIsRec(t){ return t==='voice'||t==='acceptance'||t==='interview'||t==='interview_fb'||t==='interview_star'||t==='interview_ovr'; }
 
 /* ═══════════════ 檢核表（桃區預設＝面談流程表 PDF） ═══════════════ */
 var DEFAULT_TY={ ver:1, updatedAt:0, updatedBy:'', stages:[
@@ -301,6 +363,9 @@ var DEFAULT_TY={ ver:1, updatedAt:0, updatedBy:'', stages:[
     {id:'s5i6',name:'註冊包',crit:'交付並說明註冊包'}]}
 ]};
 function loadCL(){ var o=null; try{ o=JSON.parse(localStorage.getItem(CL_KEY)||'null'); }catch(e){} if(!o||typeof o!=='object') o={}; if(!o.regions) o.regions={}; if(!o.regions['桃區']) o.regions['桃區']=JSON.parse(JSON.stringify(DEFAULT_TY)); return o; }
+function getSet(){ var o=loadCL(), d={aModel:'opus',fModel:'sonnet',fmtOn:true,vocab:DEFAULT_VOCAB,sheetUrl:'',sheetKey:''}, st=o.settings||{}; Object.keys(d).forEach(function(k){ if(st[k]===undefined) st[k]=d[k]; }); return st; }
+function ntd(u){ if(!u) return 0; var a=MODELS[u.aModel||'opus']||MODELS.opus, f=MODELS[u.fModel||'sonnet']||MODELS.sonnet;
+  var usd=(u.in||0)/1e6*a.in+(u.out||0)/1e6*a.out+(u.fin||0)/1e6*f.in+(u.fout||0)/1e6*f.out+(u.audioSec||0)/3600*WHISPER_USD_HR; return usd*USD_TWD; }
 function getCL(region){ var o=loadCL(); return o.regions[region] || null; }
 function curCL(){ var c=getCL(REGION); return c || getCL('桃區'); }
 function allItems(cl){ var a=[]; (cl.stages||[]).forEach(function(s){ (s.items||[]).forEach(function(it){ a.push({stage:s,item:it}); }); }); return a; }
@@ -334,11 +399,18 @@ function caseWrite(adds, delIds){
     }catch(e){ try{db.close();}catch(_){} rej(e); } }); });
   }).then(function(out){ _cases=out; pushCloudSoon(); return out; });
 }
-function ivRecords(rep){ return _cases.filter(function(c){ return c && c.type==='interview' && c.iv && (!rep || c.iv.rep===rep); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); }); }
+function ivRecords(rep){ return _cases.filter(function(c){ return c && c.type==='interview' && c.iv && (!rep || c.iv.rep===rep) && hgCanSee(c); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); }); }
 function fbFor(ivId){ var f=_cases.filter(function(c){ return c && c.type==='interview_fb' && c.ivf && c.ivf.ivId===ivId; }).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); }); return f[0]||null; }
-function starList(region){ return _cases.filter(function(c){ return c && c.type==='interview_star' && c.ivs && (!region || c.ivs.region===region); }); }
+function starList(region,kind){ return _cases.filter(function(c){ return c && c.type==='interview_star' && c.ivs && (!region || c.ivs.region===region) && (!kind || (c.ivs.kind||'good')===kind); }); }   // AI 參考用：全公司的範例都算（是教材）
+function starListMine(region,kind){ return starList(region,kind).filter(hgCanSee); }   // ★ ds144 畫面上只列同組
+function ovrList(region){ return _cases.filter(function(c){ return c && c.type==='interview_ovr' && c.ivo && (!region || c.ivo.region===region); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); }); }
+function ovrFor(ivId){ var m={}; _cases.forEach(function(c){ if(c&&c.type==='interview_ovr'&&c.ivo&&c.ivo.ivId===ivId){ var o=m[c.ivo.itemId]; if(!o||(c.createdAt||0)>(o.createdAt||0)) m[c.ivo.itemId]=c; } }); return m; }
+// ★ ds145 主管改判後的「有效判定」與分數（AI 原判保留在 iv.items）
+function itemsOf(rec){ var o=ovrFor(rec.id), out={}; Object.keys(rec.iv.items||{}).forEach(function(k){ out[k]=rec.iv.items[k]; }); Object.keys(o).forEach(function(k){ var b=out[k]||{}; out[k]={s:o[k].ivo.to,q:b.q,t:b.t,why:b.why,aiS:b.s,ovrBy:o[k].by,ovrWhy:o[k].ivo.why}; }); return out; }
+function scoreOf(rec){ var cl=clFor(rec), it=itemsOf(rec), got=0, cnt=0; allItems(cl).forEach(function(x){ var r=it[x.item.id]||{s:'miss'}; if(r.s==='na') return; cnt++; got+= r.s==='good'?1:(r.s==='weak'?.5:0); }); return cnt?Math.round(got/cnt*100):0; }
+function fmtOf(rec){ if(rec.iv.fmt) return rec.iv.fmt; var f=_cases.filter(function(c){ return c&&c.type==='interview_fmt'&&c.ivx&&c.ivx.ivId===rec.id; }).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); })[0]; return f?f.ivx.fmt:''; }
 function nextPointsOf(rec){ if(!rec) return []; var f=fbFor(rec.id); if(f && f.ivf && f.ivf.next && f.ivf.next.length) return f.ivf.next; return (rec.iv && rec.iv.next) || []; }
-function isPassed(rep){ var r=ivRecords(rep); if(r.length<PASS_STREAK) return false; return r.slice(-PASS_STREAK).every(function(x){ return (x.iv.total||0)>=PASS_SCORE; }); }
+function isPassed(rep){ var r=ivRecords(rep); if(r.length<PASS_STREAK) return false; return r.slice(-PASS_STREAK).every(function(x){ return scoreOf(x)>=PASS_SCORE; }); }
 
 /* ═══════════════ 錄音：壓縮 → 轉文字（沿用瀑布的流程） ═══════════════ */
 var _lameP=null;
@@ -348,35 +420,74 @@ function ensureLame(){ if(typeof lamejs!=='undefined') return Promise.resolve();
   return _lameP; }
 function xfetch(url,opts,ms){ var c=new AbortController(); var to=setTimeout(function(){ try{c.abort();}catch(_){} },ms||240000); opts=opts||{}; opts.signal=c.signal;
   return fetch(url,opts).then(function(r){ clearTimeout(to); return r; },function(e){ clearTimeout(to); if(e&&e.name==='AbortError') throw new Error('連線逾時，請再試一次'); throw e; }); }
-async function compress(file,onProg){
+// ★ ds145：一次解碼（用 16kHz 解，記憶體省 3 倍），每 10 分鐘切一段各自壓成 mp3 → 長錄音不會漏段，也不再有 90 分鐘上限
+async function compressChunks(file,onProg){
   var buf=await file.arrayBuffer(); var AC=window.AudioContext||window.webkitAudioContext; if(!AC) throw new Error('這個瀏覽器不支援音訊處理');
-  var ac=new AC(), dec; try{ dec=await ac.decodeAudioData(buf); }catch(e){ throw new Error('音檔無法解碼，請確認格式（m4a／mp3／wav）'); } finally{ try{ac.close();}catch(_){} }
-  var rate=16000, frames=Math.max(1,Math.ceil(dec.duration*rate)); var OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext; var off=new OAC(1,frames,rate);
-  var src=off.createBufferSource(); src.buffer=dec; src.connect(off.destination); src.start(0); var ren=await off.startRendering();
-  var ch=ren.getChannelData(0), n=ch.length, sm=new Int16Array(n); for(var i=0;i<n;i++){ var s=ch[i]; if(s>1)s=1; else if(s<-1)s=-1; sm[i]=s<0?s*0x8000:s*0x7FFF; }
-  var enc=new lamejs.Mp3Encoder(1,rate,32), blk=1152, out=[], k=0;
-  for(var j=0;j<n;j+=blk){ var b=enc.encodeBuffer(sm.subarray(j,j+blk)); if(b.length) out.push(b); if(++k%400===0){ if(onProg) onProg(j/n); await new Promise(function(r){ setTimeout(r,0); }); } }
-  var e2=enc.flush(); if(e2.length) out.push(e2);
-  return { blob:new Blob(out,{type:'audio/mpeg'}), sec:dec.duration };
+  var ac; try{ ac=new AC({sampleRate:16000}); }catch(e){ ac=new AC(); }
+  var dec; try{ dec=await ac.decodeAudioData(buf); }catch(e){ throw new Error('音檔無法解碼，請確認格式（m4a／mp3／wav）'); } finally{ try{ac.close();}catch(_){} }
+  buf=null;
+  var srcRate=dec.sampleRate, rate=16000, nch=dec.numberOfChannels, chans=[]; for(var c=0;c<nch;c++) chans.push(dec.getChannelData(c));
+  var total=dec.length, step=srcRate/rate, outLen=Math.floor(total/step), per=CHUNK_SEC*rate, out=[];
+  for(var off=0; off<outLen; off+=per){
+    var len=Math.min(per,outLen-off), sm=new Int16Array(len);
+    for(var i=0;i<len;i++){ var p=Math.floor((off+i)*step), v=0; for(var c2=0;c2<nch;c2++) v+=chans[c2][p]||0; v/=nch; if(v>1)v=1; else if(v<-1)v=-1; sm[i]=v<0?v*0x8000:v*0x7FFF; }
+    var enc=new lamejs.Mp3Encoder(1,rate,32), blk=1152, mp=[], k=0;
+    for(var j=0;j<len;j+=blk){ var b=enc.encodeBuffer(sm.subarray(j,j+blk)); if(b.length) mp.push(b); if(++k%400===0){ if(onProg) onProg((off+j)/outLen); await new Promise(function(r){ setTimeout(r,0); }); } }
+    var e2=enc.flush(); if(e2.length) mp.push(e2);
+    out.push({ blob:new Blob(mp,{type:'audio/mpeg'}), sec:len/rate, offset:off/rate });
+  }
+  return out;
 }
+async function compress(file,onProg){ var ch=await compressChunks(file,onProg); var sec=0; ch.forEach(function(x){ sec+=x.sec; }); return { chunks:ch, sec:sec }; }
 function mmss(s){ s=Math.max(0,Math.round(s)); return ('0'+Math.floor(s/60)).slice(-2)+':'+('0'+(s%60)).slice(-2); }
 // 轉文字：要時間點（verbose_json），每 30 秒插一個 [mm:ss]，AI 才能回報「大概第幾分鐘」
+// 轉文字：每一句都帶 [mm:ss]；先給專有名詞清單，錯字少很多
 async function transcribe(blob, offsetSec){
   var fd=new FormData(); fd.append('file',blob,'audio.mp3'); fd.append('model','whisper-large-v3'); fd.append('language','zh'); fd.append('response_format','verbose_json');
+  var vocab=(getSet().vocab||'').trim(); if(vocab) fd.append('prompt','以下是繁體中文的設計學院業務對話，會出現：'+vocab.slice(0,400));
   var r=await xfetch(PROXY_BASE+'/groq/audio/transcriptions',{method:'POST',body:fd},300000);
   if(!r.ok){ var t=''; try{t=await r.text();}catch(_){} throw new Error('轉文字失敗（'+r.status+'）'+t.slice(0,120)); }
   var d=await r.json(); var segs=(d&&d.segments)||null;
-  if(!segs||!segs.length) return (d&&d.text)||'';
-  var out='', last=-999;
-  segs.forEach(function(sg){ var st=(sg.start||0)+(offsetSec||0); if(st-last>=30){ out+='\n['+mmss(st)+'] '; last=st; } out+=(sg.text||'').trim(); });
-  return out.trim();
+  if(!segs||!segs.length) return (d&&d.text)?('['+mmss(offsetSec||0)+'] '+d.text):'';
+  return segs.map(function(sg){ return '['+mmss((sg.start||0)+(offsetSec||0))+'] '+String(sg.text||'').trim(); }).filter(function(l){ return l.length>8; }).join('\n');
 }
-async function askAI(system, user, maxTok){
-  var r=await xfetch(PROXY_BASE+'/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,max_tokens:maxTok||4000,system:system,messages:[{role:'user',content:user}]})},300000);
-  if(!r.ok){ var t=''; try{t=await r.text();}catch(_){} throw new Error('AI 分析失敗（'+r.status+'）'+t.slice(0,120)); }
+async function transcribeFile(file,label,progId,p0,p1){
+  setProg(progId,'壓縮音檔'+label,p0);
+  var c=await compress(file,function(p){ setProg(progId,'壓縮音檔'+label+' '+Math.round(p*100)+'%',null); });
+  var parts=[], base=_txOffset;
+  for(var i=0;i<c.chunks.length;i++){
+    setProg(progId,'轉逐字稿'+label+' 第 '+(i+1)+'/'+c.chunks.length+' 段',p0+(p1-p0)*(i+1)/c.chunks.length);
+    var t=''; try{ t=await transcribe(c.chunks[i].blob, base+c.chunks[i].offset); }catch(e){ try{ t=await transcribe(c.chunks[i].blob, base+c.chunks[i].offset); }catch(e2){ t='['+mmss(base+c.chunks[i].offset)+'] （這 10 分鐘轉文字失敗：'+(e2&&e2.message||e2)+'）'; } }
+    parts.push(t);
+  }
+  _txOffset+=c.sec; return { text:parts.join('\n'), sec:c.sec };
+}
+var _txOffset=0;
+async function askAI(system, user, maxTok, modelKey){
+  var m=MODELS[modelKey]||MODELS.opus;
+  var r=await xfetch(PROXY_BASE+'/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:m.id,max_tokens:maxTok||4000,system:system,messages:[{role:'user',content:user}]})},300000);
+  if(!r.ok){ var t=''; try{t=await r.text();}catch(_){} throw new Error('AI 失敗（'+r.status+'）'+t.slice(0,120)); }
   var d=await r.json(); var txt=(d&&d.content&&d.content[0]&&d.content[0].text)||'';
   return { text:txt, usage:{ in:(d.usage&&d.usage.input_tokens)||0, out:(d.usage&&d.usage.output_tokens)||0 } };
 }
+// ★ ds145 排版：分說話者、加標點、分段、掛階段標題。不刪字、不摘要。每 2500 字一段送，兩段並行
+async function formatTranscript(raw, labels, stageNames, onProg){
+  var set=getSet(), lines=String(raw||'').split('\n'), chunks=[], cur='';
+  lines.forEach(function(l){ if(cur.length+l.length>2500 && cur){ chunks.push(cur); cur=''; } cur+=l+'\n'; }); if(cur.trim()) chunks.push(cur);
+  var sys='你是逐字稿排版員。輸入是一段'+labels[0]+'和'+labels[1]+'對話的語音轉文字（每行 [mm:ss] 開頭，可能有同音錯字）。請排版成對話：'
+    +'\n1. 判斷每句是誰說的，只能用「'+labels.join('」「')+'」「其他」。'
+    +'\n2. 加上正確標點；同一個人連續的話合併成一段，段首保留第一句的時間。'
+    +'\n3. 一個字都不能刪、不能摘要、不能改意思；只修明顯的同音錯字（專有名詞：'+String(set.vocab||'').slice(0,300)+'）。'
+    +'\n4. 話題轉到下列階段時，先輸出一行「## 階段名」：'+stageNames.join('、')+'。'
+    +'\n只輸出排版結果，每段一行，格式：[mm:ss] 說話者｜內容';
+  var outs=new Array(chunks.length), usage={in:0,out:0}, done=0, idx=0;
+  async function worker(){ while(idx<chunks.length){ var k=idx++; var r=await askAI(sys,chunks[k],8000,set.fModel); outs[k]=r.text.trim(); usage.in+=r.usage.in; usage.out+=r.usage.out; done++; if(onProg) onProg(done,chunks.length); } }
+  await Promise.all([worker(),worker()]);
+  return { text:outs.join('\n'), usage:usage };
+}
+function parseFmt(t){ var rows=[]; String(t||'').split('\n').forEach(function(l){ l=l.trim(); if(!l) return; var h=l.match(/^#+\s*(.+)$/); if(h){ rows.push({h:h[1]}); return; }
+  var m=l.match(/^\[(\d+:\d+)\]\s*([^｜|:：]{1,6})[｜|:：]\s*(.*)$/); if(m){ rows.push({t:m[1],who:m[2].trim(),x:m[3]}); return; }
+  var m2=l.match(/^\[(\d+:\d+)\]\s*(.*)$/); if(m2){ rows.push({t:m2[1],who:'',x:m2[2]}); return; } rows.push({t:'',who:'',x:l}); }); return rows; }
 function parseJSON(t){ var a=t.indexOf('{'), b=t.lastIndexOf('}'); if(a<0||b<a) throw new Error('AI 回傳格式不對，請再按一次'); return JSON.parse(t.slice(a,b+1)); }
 async function notifyTG(text){ try{ await xfetch(PROXY_BASE+'/telegram/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:text.slice(0,3900)})},30000); }catch(e){ console.warn('[iv] Telegram 失敗',e); } }
 function setProg(id,msg,pct,err){ var p=$(id); p.style.display='block'; p.classList.toggle('err',!!err); p.querySelector('.tx').textContent=msg; if(pct!=null) p.querySelector('.bar b').style.width=pct+'%'; }
@@ -414,10 +525,14 @@ function buildChecklistText(cl){
   return (cl.stages||[]).map(function(s){ return '【'+s.name+'】\n'+(s.items||[]).map(function(it){ return '- '+it.id+'｜'+it.name+'｜判定標準：'+(it.crit||it.name); }).join('\n'); }).join('\n');
 }
 function buildStarsText(cl){
-  var st=starList(REGION); if(!st.length) return '';
-  var byItem={}; st.forEach(function(s){ (byItem[s.ivs.itemId]=byItem[s.ivs.itemId]||[]).push(s); });
-  var lines=[]; allItems(cl).forEach(function(x){ var a=byItem[x.item.id]; if(!a) return; a.slice(-2).forEach(function(s){ lines.push('- '+x.item.name+'：「'+String(s.ivs.quote||'').slice(0,120)+'」'); }); });
-  return lines.length?('\n\n主管標過的「好的講法」範例（判斷講得好不好時，拿來當標準）：\n'+lines.join('\n')):'';
+  var lab={good:'講得好',weak:'不到位',miss:'沒講到',na:'不適用'};
+  var good=starList(REGION,'good'), bad=starList(REGION,'bad'), ovr=ovrList(REGION), lines=[];
+  allItems(cl).forEach(function(x){ var id=x.item.id;
+    good.filter(function(s){ return s.ivs.itemId===id; }).slice(-2).forEach(function(s){ lines.push('- 【好】'+x.item.name+'：「'+String(s.ivs.quote||'').slice(0,120)+'」'); });
+    bad.filter(function(s){ return s.ivs.itemId===id; }).slice(-1).forEach(function(s){ lines.push('- 【壞】'+x.item.name+'：「'+String(s.ivs.quote||'').slice(0,120)+'」'); });
+    ovr.filter(function(o){ return o.ivo.itemId===id; }).slice(-2).forEach(function(o){ lines.push('- 【判例】'+x.item.name+'：AI 判「'+(lab[o.ivo.from]||o.ivo.from)+'」，主管改成「'+(lab[o.ivo.to]||o.ivo.to)+'」，理由：'+String(o.ivo.why||'').slice(0,80)+(o.ivo.q?('（原話：「'+String(o.ivo.q).slice(0,60)+'」）'):'')); });
+  });
+  return lines.length?('\n\n主管累積的標準（好講法、反面教材、改判判例），判定時以這些為準：\n'+lines.join('\n')):'';
 }
 async function runInterview(){
   var rep=$('rep').value.trim(); if(!rep||!_ivFiles.length||_busy) return;
@@ -427,19 +542,16 @@ async function runInterview(){
   var prev=ivRecords(rep).slice(-1)[0]||null, prevNext=nextPointsOf(prev);
   try{
     setProg('ivProg','準備中…',3); await ensureLame();
-    var parts=[], audioSec=0;
+    var parts=[], audioSec=0; _txOffset=0;
     for(var i=0;i<_ivFiles.length;i++){
-      var tag='（'+(i+1)+'/'+_ivFiles.length+'）';
-      setProg('ivProg','壓縮音檔'+tag,4+i/_ivFiles.length*40);
-      var c=await compress(_ivFiles[i],function(p){ setProg('ivProg','壓縮音檔'+tag+' '+Math.round(p*100)+'%',null); });
-      if(c.blob.size/1048576>24) throw new Error('第 '+(i+1)+' 段壓縮後還是太大，請切成 90 分鐘以內');
-      setProg('ivProg','轉逐字稿'+tag+'…長錄音要 1～3 分鐘',8+(i+.6)/_ivFiles.length*40);
-      var tr=await transcribe(c.blob,audioSec); audioSec+=c.sec||0;
-      parts.push(tr||'（這段轉出來是空白）');
+      var tag=_ivFiles.length>1?('（檔 '+(i+1)+'/'+_ivFiles.length+'）'):'';
+      var tf=await transcribeFile(_ivFiles[i],tag,'ivProg',4+i/_ivFiles.length*44,4+(i+1)/_ivFiles.length*44);
+      audioSec+=tf.sec; parts.push(tf.text||'（這段轉出來是空白）');
     }
-    var transcript=parts.join('\n\n');
+    var transcript=parts.join('\n');
+    var set=getSet();
     if(transcript.replace(/\s|\[\d+:\d+\]/g,'').length<50) throw new Error('逐字稿幾乎是空的，請確認錄音有聲音');
-    setProg('ivProg','AI 逐項比對面談流程表中…約 30～90 秒',55);
+    setProg('ivProg',set.fmtOn?'AI 逐項比對＋排版逐字稿中…約 1～3 分鐘':'AI 逐項比對面談流程表中…約 30～90 秒',55);
     var sys='你是赫綵設計學院的面談檢核員。你會拿到一份業務面談學生的逐字稿（[mm:ss] 是時間點，逐字稿可能有同音錯字，請依上下文判讀），以及面談流程表的檢核項目。'
       +'\n逐項判定業務有沒有講到、講得好不好，只能用四種：good＝講到而且講得好；weak＝有講到但不到位（太短、順序錯、講錯、沒讓對方有感）；miss＝完全沒講到；na＝這段沒錄到或本次不適用（例如沒有走到成交、帶看沒錄進來）。'
       +'\n嚴格依逐字稿，不能腦補；拿不準就判 weak 並說明。q 一定要引用業務的原話（60 字內，沒有就留空），t 填最接近的時間點 mm:ss。'
@@ -447,7 +559,9 @@ async function runInterview(){
     var user='檢核項目（id｜名稱｜判定標準）：\n'+buildChecklistText(cl)+buildStarsText(cl)
       +(prevNext.length?('\n\n這位業務上次被要求「下次要注意」的事（請逐條檢查這次有沒有改善，放進 prev）：\n'+prevNext.map(function(p,i){ return (i+1)+'. '+p; }).join('\n')):'\n\n（第一次檢核，prev 給空陣列）')
       +'\n\n面談逐字稿：\n'+transcript.slice(0,120000);
-    var ai=await askAI(sys,user,8000), res=parseJSON(ai.text);
+    var fmtP=set.fmtOn?formatTranscript(transcript,['業務','學生'],(cl.stages||[]).map(function(x){ return x.name; }),function(d,n){ setProg('ivProg','AI 比對中，逐字稿排版 '+d+'/'+n+' 段…',null); }).catch(function(e){ console.warn('[iv] 排版失敗',e); return null; }):Promise.resolve(null);
+    var ai=await askAI(sys,user,8000,set.aModel), res=parseJSON(ai.text);
+    var fm=await fmtP;
     // 算分：good=1、weak=0.5、miss=0、na 不算
     var items=res.items||{}, got=0, cnt=0;
     allItems(cl).forEach(function(x){ var r=items[x.item.id]||{s:'miss'}; if(!items[x.item.id]) items[x.item.id]=r; if(r.s==='na') return; cnt++; got+= r.s==='good'?1:(r.s==='weak'?.5:0); });
@@ -457,12 +571,13 @@ async function runInterview(){
     var rec={ id:'iv_'+now, type:'interview', by:me, createdAt:now,
       text:'🎤 面談檢核｜'+rep+'｜'+total+' 分'+(self?'（自評）':'（主管 '+me+'）')+'\n'+title+'\n總評：'+(res.summary||'')+'\n沒講到：'+missNames(cl,items).join('、')+'\n下次要注意：'+(res.next||[]).join('；'),
       iv:{ rep:rep, reviewer:me, self:self, region:REGION, clVer:cl.ver||1, title:title, items:items, total:total, prev:res.prev||[], next:res.next||[], summary:res.summary||'',
-           transcript:transcript, usage:{ in:ai.usage.in, out:ai.usage.out, audioSec:Math.round(audioSec) } } };
+           transcript:transcript, fmt:(fm&&fm.text)||'', usage:{ in:ai.usage.in, out:ai.usage.out, fin:fm?fm.usage.in:0, fout:fm?fm.usage.out:0, aModel:set.aModel, fModel:set.fModel, audioSec:Math.round(audioSec) } } };
     setProg('ivProg','存檔中…',92);
     await caseWrite([rec]);
+    sheetPush('iv',rec);
     setProg('ivProg','發 Telegram…',96);
     await notifyTG(tgText(rec, prev));
-    setProg('ivProg','完成，'+total+' 分',100);
+    setProg('ivProg','完成，'+total+' 分・這次約 NT$'+Math.round(ntd(rec.iv.usage)),100);
     _ivFiles=[]; $('ivFile').value=''; $('ivFiles').textContent='還沒選檔。可以一次選好幾段，會接起來一起分析'; $('ivTitle').value='';
     _curRec=rec; renderWho(); renderResult(rec); $('cardRes').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
     toast('檢核完成，已存進知識庫');
@@ -470,11 +585,11 @@ async function runInterview(){
   _busy=false; refreshGo();
 }
 function missNames(cl,items){ var a=[]; allItems(cl).forEach(function(x){ var r=items[x.item.id]; if(r&&r.s==='miss') a.push(x.item.name); }); return a; }
-function stageStat(stage,items){ var g=0,w=0,m=0,n=0; (stage.items||[]).forEach(function(it){ var r=items[it.id]||{s:'miss'}; if(r.s==='good')g++; else if(r.s==='weak')w++; else if(r.s==='na')n++; else m++; }); return {g:g,w:w,m:m,n:n,all:(stage.items||[]).length,app:(stage.items||[]).length-n}; }
+function stageStat(stage,items){ items=items||{}; var g=0,w=0,m=0,n=0; (stage.items||[]).forEach(function(it){ var r=items[it.id]||{s:'miss'}; if(r.s==='good')g++; else if(r.s==='weak')w++; else if(r.s==='na')n++; else m++; }); return {g:g,w:w,m:m,n:n,all:(stage.items||[]).length,app:(stage.items||[]).length-n}; }
 function clFor(rec){ var c=getCL(rec.iv.region)||curCL(); return c; }
 function tgText(rec, prev){
   var iv=rec.iv, cl=clFor(rec), t='🎤 面談檢核｜'+iv.rep+(iv.self?'（自評）':'（主管：'+iv.reviewer+'）')+'\n';
-  t+='總分 '+iv.total+(prev?('，上次 '+prev.iv.total+'，'+(iv.total>=prev.iv.total?'進步 ':'退步 ')+Math.abs(iv.total-prev.iv.total)+' 分'):'')+'\n';
+  var ps=prev?scoreOf(prev):0; t+='總分 '+iv.total+(prev?('，上次 '+ps+'，'+(iv.total>=ps?'進步 ':'退步 ')+Math.abs(iv.total-ps)+' 分'):'')+'\n';
   (cl.stages||[]).forEach(function(s){ var st=stageStat(s,iv.items); t+=s.name+'：講得好 '+st.g+'／'+st.app+(st.w?('，不到位 '+st.w):'')+'\n'; });
   var mn=missNames(cl,iv.items); if(mn.length) t+='沒講到：'+mn.join('、')+'\n';
   if(iv.prev&&iv.prev.length) t+='上次要注意：'+iv.prev.map(function(p){ return (p.ok?'✅ ':'⚠️ ')+p.p; }).join(' ')+'\n';
@@ -490,34 +605,36 @@ function renderWho(){
   var recs=ivRecords(rep); box.hidden=false;
   $('whoName').textContent=rep+(rep===ME()?'（我）':'');
   var pass=isPassed(rep); var b=$('whoBadge'); b.className='badge'+(pass?' pass':''); b.textContent=pass?'已達標':(recs.length?('達標線 '+PASS_SCORE+' 分連續 '+PASS_STREAK+' 次'):'還沒有紀錄');
-  $('whoMeta').textContent=recs.length?('共 '+recs.length+' 次，最近 '+recs[recs.length-1].iv.total+' 分'):'';
+  $('whoMeta').textContent=recs.length?('共 '+recs.length+' 次，最近 '+scoreOf(recs[recs.length-1])+' 分'):'';
   // 曲線
-  var sv=$('spark'); if(recs.length>=2){ var W=600,H=64,pad=6, xs=recs.map(function(_,i){ return pad+i*(W-2*pad)/(recs.length-1); }), ys=recs.map(function(r){ return H-pad-(r.iv.total/100)*(H-2*pad); });
+  var sv=$('spark'); if(recs.length>=2){ var W=600,H=64,pad=6, xs=recs.map(function(_,i){ return pad+i*(W-2*pad)/(recs.length-1); }), ys=recs.map(function(r){ return H-pad-(scoreOf(r)/100)*(H-2*pad); });
     var yP=H-pad-(PASS_SCORE/100)*(H-2*pad);
     sv.innerHTML='<line x1="0" x2="'+W+'" y1="'+yP+'" y2="'+yP+'" stroke="#E24B4A" stroke-dasharray="4 4" stroke-width="1" opacity=".5"/>'
       +'<polyline fill="none" stroke="#1D1D1F" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" points="'+xs.map(function(x,i){ return x+','+ys[i]; }).join(' ')+'"/>'
-      +xs.map(function(x,i){ return '<circle cx="'+x+'" cy="'+ys[i]+'" r="3.5" fill="'+(recs[i].iv.total>=PASS_SCORE?'#E24B4A':'#2E9D5B')+'"/>'; }).join('');
+      +xs.map(function(x,i){ return '<circle cx="'+x+'" cy="'+ys[i]+'" r="3.5" fill="'+(scoreOf(recs[i])>=PASS_SCORE?'#E24B4A':'#2E9D5B')+'"/>'; }).join('');
     sv.style.display=''; } else sv.style.display='none';
   // 下次要注意
   var last=recs[recs.length-1], np=nextPointsOf(last);
   $('whoTodo').innerHTML=np.length?('<div class="todo"><b>下次面談要注意（'+(fbFor(last.id)?'主管回饋':'AI 建議')+'）</b><ol>'+np.map(function(p){ return '<li>'+esc(p)+'</li>'; }).join('')+'</ol></div>'):'';
-  $('hist').innerHTML=recs.slice().reverse().map(function(r){ return '<div class="hrow'+(_curRec&&_curRec.id===r.id?' on':'')+'" onclick="showRec(\''+r.id+'\')"><span class="d">'+fmtD(r.createdAt)+'</span><span class="s" style="color:'+(r.iv.total>=PASS_SCORE?'var(--good)':'var(--weak)')+'">'+r.iv.total+'</span><span class="m">'+esc(r.iv.title)+'・'+(r.iv.self?'自評':'主管 '+esc(r.iv.reviewer))+(fbFor(r.id)?'・有回饋':'')+'</span></div>'; }).join('');
+  $('hist').innerHTML=recs.slice().reverse().map(function(r){ return '<div class="hrow'+(_curRec&&_curRec.id===r.id?' on':'')+'" onclick="showRec(\''+r.id+'\')"><span class="d">'+fmtD(r.createdAt)+'</span><span class="s" style="color:'+(scoreOf(r)>=PASS_SCORE?'var(--good)':'var(--weak)')+'">'+scoreOf(r)+'</span><span class="m">'+esc(r.iv.title)+'・'+(r.iv.self?'自評':'主管 '+esc(r.iv.reviewer))+(fbFor(r.id)?'・有回饋':'')+'</span></div>'; }).join('');
 }
 function showRec(id){ var r=_cases.find(function(c){ return c.id===id; }); if(!r) return; _curRec=r; renderWho(); renderResult(r); }
 
 /* ═══════════════ ② 結果 ═══════════════ */
 function renderResult(rec){
-  var iv=rec.iv, cl=clFor(rec); $('cardRes').hidden=false; $('cardFb').hidden=false;
+  var iv=rec.iv, cl=clFor(rec), its=itemsOf(rec), sc=scoreOf(rec); $('cardRes').hidden=false; $('cardFb').hidden=false;
   var recs=ivRecords(iv.rep), idx=recs.findIndex(function(x){ return x.id===rec.id; }), prev=idx>0?recs[idx-1]:null;
-  $('resN').textContent=iv.total; $('resN').style.color=iv.total>=PASS_SCORE?'var(--good)':'var(--ink)';
-  var d=$('resD'); if(prev){ var df=iv.total-prev.iv.total; d.className='dl '+(df>=0?'up':'dn'); d.textContent=(df>=0?'▲ ':'▼ ')+Math.abs(df)+'（上次 '+prev.iv.total+'）'; } else { d.className='dl'; d.textContent='第一次檢核'; }
-  $('resMeta').textContent=iv.rep+'・'+fmtD(rec.createdAt)+'・'+(iv.self?'自評':'主管 '+iv.reviewer)+'・'+iv.region+' 檢核表 v'+(iv.clVer||1)+(iv.usage&&iv.usage.audioSec?('・錄音 '+Math.round(iv.usage.audioSec/60)+' 分鐘'):'');
-  $('strip').innerHTML=(cl.stages||[]).map(function(s,i){ var st=stageStat(s,iv.items); var r=st.app?(st.g+st.w*.5)/st.app:0; var cls=st.app?(r>=PASS_SCORE/100?'hit':'low'):'none';
+  $('resN').textContent=sc; $('resN').style.color=sc>=PASS_SCORE?'var(--good)':'var(--ink)';
+  var d=$('resD'); if(prev){ var ps=scoreOf(prev), df=sc-ps; d.className='dl '+(df>=0?'up':'dn'); d.textContent=(df>=0?'▲ ':'▼ ')+Math.abs(df)+'（上次 '+ps+'）'; } else { d.className='dl'; d.textContent='第一次檢核'; }
+  var nOvr=Object.keys(ovrFor(rec.id)).length;
+  $('resMeta').textContent=iv.rep+'・'+fmtD(rec.createdAt)+'・'+(iv.self?'自評':'主管 '+iv.reviewer)+'・'+iv.region+' 檢核表 v'+(iv.clVer||1)+(iv.usage&&iv.usage.audioSec?('・錄音 '+Math.round(iv.usage.audioSec/60)+' 分鐘'):'')+(nOvr?('・AI 原判 '+iv.total+' 分，主管改判 '+nOvr+' 項'):'');
+  $('strip').innerHTML=(cl.stages||[]).map(function(s,i){ var st=stageStat(s,its); var r=st.app?(st.g+st.w*.5)/st.app:0; var cls=st.app?(r>=PASS_SCORE/100?'hit':'low'):'none';
     return '<button class="pill '+cls+'" data-i="'+i+'" onclick="openStage('+i+',this)"><span class="k">'+esc(s.name)+'</span><span class="v">'+(st.app?(st.g+'／'+st.app):'—')+'</span><span class="bar"><b style="width:'+Math.round(r*100)+'%"></b></span></button>'; }).join('');
   $('resSum').textContent=iv.summary||'';
   $('resPrev').innerHTML=(iv.prev&&iv.prev.length)?('<div class="prevck"><div style="background:none;padding:0 0 2px;font-weight:700;font-size:.875rem;color:var(--ink2)">上次要注意的事，這次做到了嗎</div>'+iv.prev.map(function(p){ return '<div>'+(p.ok?'✅ ':'⚠️ ')+esc(p.p)+(p.note?('<span style="color:var(--ink2)">　'+esc(p.note)+'</span>'):'')+'</div>'; }).join('')+'</div>'):'';
   var f=fbFor(rec.id);
   $('resNext').innerHTML=(iv.next&&iv.next.length&&!f)?('<div class="todo"><b>AI 建議下次要注意（主管給回饋後會換成主管的版本）</b><ol>'+iv.next.map(function(p){ return '<li>'+esc(p)+'</li>'; }).join('')+'</ol></div>'):'';
+  renderTx(rec, false);
   renderFbOut(rec);
   closeSheet();
 }
@@ -529,30 +646,155 @@ function openStage(i,el){
   document.querySelectorAll('.pill').forEach(function(p){ p.classList.toggle('sel', p===el); });
   var stars=starList(rec.iv.region);
   $('shTitle').textContent=s.name;
-  $('shBody').innerHTML=(s.items||[]).map(function(it){ var r=rec.iv.items[it.id]||{s:'miss'}; var lab={good:'講得好',weak:'不到位',miss:'沒講到',na:'未錄到／不適用'}[r.s]||'沒講到';
-    var starred=stars.some(function(x){ return x.ivs.ivId===rec.id && x.ivs.itemId===it.id; });
-    return '<div class="it"><div class="h"><i class="dot '+(r.s||'miss')+'"></i>'+esc(it.name)+'<span class="st">'+lab+'</span></div>'
-      +(r.q?('<div class="q">'+(r.t?('<em>'+esc(r.t)+'</em>'):'')+esc(r.q)+'</div>'):'')
+  var its=itemsOf(rec), LAB={good:'講得好',weak:'不到位',miss:'沒講到',na:'未錄到／不適用'}, canOvr=(ME()!==rec.iv.rep);
+  $('shBody').innerHTML=(s.items||[]).map(function(it){ var r=its[it.id]||{s:'miss'}; var lab=LAB[r.s]||'沒講到';
+    var mark=function(kind){ return stars.some(function(x){ return x.ivs.ivId===rec.id && x.ivs.itemId===it.id && (x.ivs.kind||'good')===kind; }); };
+    var g=mark('good'), b=mark('bad');
+    return '<div class="it" id="it_'+it.id+'"><div class="h"><i class="dot '+(r.s||'miss')+'"></i>'+esc(it.name)+'<span class="st">'+lab+'</span></div>'
+      +(r.ovrBy?('<div class="w" style="color:var(--ink)">🛠 '+esc(r.ovrBy)+' 改判（AI 原判：'+(LAB[r.aiS]||'—')+'）：'+esc(r.ovrWhy||'')+'</div>'):'')
+      +(r.q?('<div class="q" style="cursor:pointer" title="跳到逐字稿這一句" onclick="jumpTx(\''+esc(String(r.t||''))+'\',\''+it.id+'\')">'+(r.t?('<em>'+esc(r.t)+'</em>'):'')+esc(r.q)+'</div>'):'')
       +(r.why?('<div class="w">'+esc(r.why)+'</div>'):'')
       +'<div class="c">標準：'+esc(it.crit||'')+'</div>'
-      +(r.q&&r.s!=='miss'?('<button class="star'+(starred?' on':'')+'" onclick="toggleStar(\''+it.id+'\')">'+(starred?'★ 已是好講法範例':'☆ 設為好講法範例')+'</button>'):'')
-      +'</div>'; }).join('');
+      +'<div class="row" style="gap:12px">'
+      +(r.q&&r.s!=='miss'?('<button class="star'+(g?' on':'')+'" onclick="toggleStar(\''+it.id+'\',\'good\')">'+(g?'★ 好講法':'☆ 好講法')+'</button><button class="star'+(b?' on':'')+'" style="'+(b?'color:#C0392B':'')+'" onclick="toggleStar(\''+it.id+'\',\'bad\')">'+(b?'✗ 反面教材':'✗ 反面教材？')+'</button>'):'')
+      +(canOvr?('<button class="star" onclick="openOvr(\''+it.id+'\')">🛠 改判</button>'):'')
+      +'</div><div id="ovr_'+it.id+'"></div></div>'; }).join('');
   // 從被點的那顆膠囊長出來
   var sh=$('sheet'), rc=el.getBoundingClientRect(), sr=sh.getBoundingClientRect();
   sh.style.transformOrigin=Math.round(rc.left+rc.width/2-sr.left)+'px '+Math.round(rc.top+rc.height/2-sr.top)+'px';
   sh.classList.add('show'); sh.setAttribute('aria-hidden','false'); $('shBody').scrollTop=0;
 }
 function closeSheet(){ var sh=$('sheet'); sh.classList.remove('show'); sh.setAttribute('aria-hidden','true'); _sheetStage=-1; document.querySelectorAll('.pill.sel').forEach(function(p){ p.classList.remove('sel'); }); }
-async function toggleStar(itemId){
-  var rec=_curRec; if(!rec) return; var cl=clFor(rec); var it=allItems(cl).find(function(x){ return x.item.id===itemId; }); var r=rec.iv.items[itemId]; if(!it||!r) return;
-  var ex=starList(rec.iv.region).find(function(x){ return x.ivs.ivId===rec.id && x.ivs.itemId===itemId; });
+async function toggleStar(itemId,kind){
+  kind=kind||'good'; var rec=_curRec; if(!rec) return; var cl=clFor(rec); var it=allItems(cl).find(function(x){ return x.item.id===itemId; }); var r=itemsOf(rec)[itemId]; if(!it||!r) return;
+  var ex=starList(rec.iv.region,kind).find(function(x){ return x.ivs.ivId===rec.id && x.ivs.itemId===itemId; });
   try{
-    if(ex){ await caseWrite([],[ex.id]); toast('已取消範例'); }
-    else{ var now=Date.now(); await caseWrite([{ id:'ivs_'+now, type:'interview_star', by:ME(), createdAt:now, text:'⭐ 好講法｜'+it.item.name+'｜'+rec.iv.rep+'\n「'+(r.q||'')+'」', ivs:{ region:rec.iv.region, itemId:itemId, itemName:it.item.name, quote:r.q||'', rep:rec.iv.rep, ivId:rec.id } }]); toast('已設為好講法，之後 AI 會拿它當標準'); }
-    var i=_sheetStage; _sheetStage=-1; var el=document.querySelector('.pill[data-i="'+i+'"]'); if(el) openStage(i,el);
+    if(ex){ await caseWrite([],[ex.id]); toast('已取消'); }
+    else{ var now=Date.now(); await caseWrite([{ id:'ivs_'+now, type:'interview_star', by:ME(), createdAt:now, text:(kind==='bad'?'✗ 反面教材｜':'⭐ 好講法｜')+it.item.name+'｜'+rec.iv.rep+'\n「'+(r.q||'')+'」', ivs:{ kind:kind, region:rec.iv.region, itemId:itemId, itemName:it.item.name, quote:r.q||'', rep:rec.iv.rep, ivId:rec.id } }]); toast(kind==='bad'?'已設為反面教材，AI 之後會拿來對照':'已設為好講法，之後 AI 會拿它當標準'); }
+    reopenStage();
   }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); }
 }
+function reopenStage(){ var i=_sheetStage; _sheetStage=-1; var el=document.querySelector('.pill[data-i="'+i+'"]'); if(el) openStage(i,el); }
+// ★ ds145 主管改判：選對的判定＋一句理由 → 存成判例，AI 下次會讀
+function openOvr(itemId){
+  var box=$('ovr_'+itemId); if(!box) return; if(box.innerHTML){ box.innerHTML=''; return; }
+  box.innerHTML='<input class="in" id="ovrWhy_'+itemId+'" style="margin-top:8px;height:36px;width:100%" placeholder="為什麼改？一句話（AI 會學這句）"><div class="row" style="margin-top:6px;gap:6px">'
+    +[['good','改成講得好'],['weak','改成不到位'],['miss','改成沒講到'],['na','改成不適用']].map(function(o){ return '<button class="btn sm" onclick="saveOvr(\''+itemId+'\',\''+o[0]+'\')">'+o[1]+'</button>'; }).join('')+'</div>';
+  setTimeout(function(){ var i=$('ovrWhy_'+itemId); if(i) i.focus(); },50);
+}
+async function saveOvr(itemId,to){
+  var rec=_curRec; if(!rec) return; var inp=$('ovrWhy_'+itemId), why=(inp&&inp.value||'').trim();
+  if(!why){ toast('寫一句為什麼改，AI 才學得到',true); if(inp) inp.focus(); return; }
+  var cur=itemsOf(rec)[itemId]||{s:'miss'}, ai=(rec.iv.items||{})[itemId]||{s:'miss'}; if(cur.s===to){ toast('跟現在的判定一樣'); return; }
+  var it=allItems(clFor(rec)).find(function(x){ return x.item.id===itemId; }), now=Date.now();
+  var o={ id:'ivo_'+now, type:'interview_ovr', by:ME(), createdAt:now, text:'🛠 改判｜'+rec.iv.rep+'｜'+(it?it.item.name:itemId)+'：'+why, ivo:{ ivId:rec.id, rep:rec.iv.rep, region:rec.iv.region, itemId:itemId, itemName:it?it.item.name:'', from:ai.s, to:to, why:why, q:ai.q||'' } };
+  try{ await caseWrite([o]); sheetPush('ovr',o); toast('已改判，分數重算，AI 下次會參考'); var idx=stageIdxOf(rec,itemId); renderResult(rec); renderWho(); var el=document.querySelector('.pill[data-i="'+idx+'"]'); if(el) openStage(idx,el); }
+  catch(e){ toast('沒存成功：'+(e&&e.message||e),true); }
+}
+function stageIdxOf(rec,itemId){ var cl=clFor(rec); for(var i=0;i<cl.stages.length;i++){ if((cl.stages[i].items||[]).some(function(x){ return x.id===itemId; })) return i; } return 0; }
 
+/* ═══════════════ 逐字稿：排好版、可跳句、可複製、可下載 Word ═══════════════ */
+var _txAll=false;
+function txRows(rec){ var f=fmtOf(rec); if(f) return {rows:parseFmt(f),fmt:true}; return {rows:parseFmt(rec.iv.transcript||''),fmt:false}; }
+function renderTx(rec, all){
+  if(all!==undefined) _txAll=all; var box=$('resTx'); if(!box||!rec) return;
+  var t=txRows(rec), rows=t.rows, n=rows.filter(function(r){ return !r.h; }).length, show=_txAll?rows:rows.slice(0,16);
+  var h='<div class="tx-head"><b>逐字稿</b><span class="meta">'+(t.fmt?'完整版・已分說話者・':'原始版（還沒排版）・')+n+' 段</span><span style="flex:1"></span>'
+    +'<button class="btn sm" onclick="copyTx()">📋 複製全文</button><button class="btn sm" onclick="downloadTx()">⬇ 下載 Word</button>'
+    +((!t.fmt||canEdit())&&rec.iv.transcript?('<button class="btn sm" id="refmtBtn" onclick="reformat()">'+(t.fmt?'重新排版':'✨ 排版')+'</button>'):'')+'</div><div class="tx" id="txBody">';
+  show.forEach(function(r){ if(r.h){ h+='<div class="tx-h">'+esc(r.h)+'</div>'; return; }
+    var cls=/業務|主管/.test(r.who)?'a':(r.who?'b':'');
+    h+='<div class="tx-r" data-t="'+esc(r.t)+'"><span class="tt">'+esc(r.t)+'</span><span class="who '+cls+'">'+esc(r.who)+'</span><span class="xx">'+esc(r.x)+'</span></div>'; });
+  h+='</div>'+(rows.length>16?('<button class="btn ghost" onclick="renderTx(_curRec,'+(!_txAll)+')">'+(_txAll?'收起':'展開全部（共 '+n+' 段）')+'</button>'):'');
+  box.innerHTML=h;
+}
+function txPlain(rec){ var iv=rec.iv, t=txRows(rec); var head=iv.rep+' 面談逐字稿｜'+fmtD(rec.createdAt)+'｜'+(iv.self?'自評':'主管 '+iv.reviewer)+'｜'+scoreOf(rec)+' 分\n\n';
+  return head+t.rows.map(function(r){ return r.h?('\n【'+r.h+'】'):((r.t?'['+r.t+'] ':'')+(r.who?r.who+'：':'')+r.x); }).join('\n'); }
+function copyTx(){ var r=_curRec; if(!r) return; var t=txPlain(r);
+  var fb=function(){ var a=document.createElement('textarea'); a.value=t; document.body.appendChild(a); a.select(); try{ document.execCommand('copy'); toast('已複製全文（'+t.length+' 字）'); }catch(e){ toast('複製失敗，請改用下載',true); } a.remove(); };
+  if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast('已複製全文（'+t.length+' 字）'); },fb); else fb(); }
+function downloadTx(){ var rec=_curRec; if(!rec) return; var iv=rec.iv, t=txRows(rec), F='font-family:Microsoft JhengHei,PingFang TC,sans-serif;';
+  var body=t.rows.map(function(r){ return r.h?('<h3 style="'+F+'color:#444;margin:14pt 0 4pt">'+esc(r.h)+'</h3>'):('<p style="'+F+'margin:3pt 0;line-height:1.6"><span style="color:#999">'+esc(r.t)+'</span>　<b style="color:'+(/業務|主管/.test(r.who)?'#0A58CA':'#555')+'">'+esc(r.who)+'</b>　'+esc(r.x)+'</p>'); }).join('');
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>逐字稿</title></head><body><h2 style="'+F+'">'+esc(iv.rep)+' 面談逐字稿</h2><p style="'+F+'color:#666">'+fmtD(rec.createdAt)+'｜'+(iv.self?'自評':'主管 '+esc(iv.reviewer))+'｜'+scoreOf(rec)+' 分</p>'+body+'</body></html>';
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/msword'})); a.download=iv.rep+'_面談逐字稿_'+new Date(rec.createdAt).toISOString().slice(0,10)+'.doc'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000); }
+function jumpTx(t,itemId){
+  var rec=_curRec; if(!rec) return; renderTx(rec,true);
+  var strip=function(x){ return String(x||'').replace(/[\s，。、！？「」…,.!?：:；;]/g,''); };
+  var q=strip((itemsOf(rec)[itemId]||{}).q), key=q.slice(0,8), hit=null, rows=document.querySelectorAll('#txBody .tx-r');
+  if(key) rows.forEach(function(el){ if(!hit && strip(el.textContent).indexOf(key)>=0) hit=el; });
+  if(!hit && t){ var sec=function(x){ var p=String(x||'').split(':'); return (+p[0]||0)*60+(+p[1]||0); }, target=sec(t), best=1e9; rows.forEach(function(el){ var d=Math.abs(sec(el.getAttribute('data-t'))-target); if(d<best){ best=d; hit=el; } }); }
+  if(!hit){ toast('逐字稿裡找不到這句'); return; }
+  document.querySelectorAll('#txBody .tx-r.hl').forEach(function(e){ e.classList.remove('hl'); }); hit.classList.add('hl');
+  if(innerWidth<=720) closeSheet();
+  hit.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'center'});
+}
+async function reformat(){
+  var rec=_curRec; if(!rec||_busy) return; if(!rec.iv.transcript){ toast('這筆沒有原始逐字稿',true); return; }
+  var b=$('refmtBtn'); _busy=true; if(b){ b.disabled=true; b.textContent='排版中…'; }
+  try{ var cl=clFor(rec), fm=await formatTranscript(rec.iv.transcript,['業務','學生'],(cl.stages||[]).map(function(x){ return x.name; }),function(d,n){ if(b) b.textContent='排版中 '+d+'/'+n; });
+    var now=Date.now(), set=getSet(); await caseWrite([{ id:'ivx_'+now, type:'interview_fmt', by:ME(), createdAt:now, text:'', ivx:{ ivId:rec.id, rep:rec.iv.rep, fmt:fm.text, usage:{ fin:fm.usage.in, fout:fm.usage.out, fModel:set.fModel } } }]);
+    sheetPush('fmt',rec); renderTx(rec,true); toast('排版完成'); }
+  catch(e){ toast('排版沒完成：'+(e&&e.message||e),true); }
+  _busy=false; var b2=$('refmtBtn'); if(b2) b2.disabled=false;
+}
+
+/* ═══════════════ Google 試算表：自動寫入＋手動匯出 ═══════════════ */
+var SHEET_HEAD={
+  '檢核總表':['時間','業務','主管／自評','區域','分數（含改判）','AI 原判分數','破冰','講課','帶看環境','close 懶人包','成交進件／註冊服務','總評','下次要注意','分析型號','排版型號','錄音分鐘','花費 NT$','紀錄 id'],
+  '逐項明細':['時間','業務','主管／自評','階段','項目','判定（含改判）','AI 原判','原話','時間點','理由','紀錄 id'],
+  '主管改判':['時間','業務','項目','AI 原判','主管改成','理由','改判的人','原話','紀錄 id'],
+  '主管回饋':['時間','業務','主管','重點','下次要注意 1','下次要注意 2','下次要注意 3','回饋全文','紀錄 id'],
+  '逐字稿':['時間','業務','紀錄 id','逐字稿（第 1 格）','第 2 格','第 3 格','第 4 格']
+};
+var LAB2={good:'講得好',weak:'不到位',miss:'沒講到',na:'不適用'};
+function tsStr(ts){ var d=new Date(ts); return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+function rowsForIv(rec){
+  var iv=rec.iv, cl=clFor(rec), its=itemsOf(rec), who=iv.self?'自評':iv.reviewer, u=iv.usage||{};
+  var stg=(cl.stages||[]).map(function(s){ var st=stageStat(s,its); return st.app?(st.g+'/'+st.app):'—'; }); while(stg.length<5) stg.push('');
+  var sum=[tsStr(rec.createdAt),iv.rep,who,iv.region,scoreOf(rec),iv.total].concat(stg.slice(0,5)).concat([iv.summary||'',(nextPointsOf(rec)||[]).join('；'),(MODELS[u.aModel||'opus']||{}).name||'',u.fin?((MODELS[u.fModel||'sonnet']||{}).name||''):'',Math.round((u.audioSec||0)/60),Math.round(ntd(u)),rec.id]);
+  var items=[]; (cl.stages||[]).forEach(function(s){ (s.items||[]).forEach(function(it){ var r=its[it.id]||{s:'miss'}, a=(iv.items||{})[it.id]||{s:'miss'}; items.push([tsStr(rec.createdAt),iv.rep,who,s.name,it.name,LAB2[r.s]||r.s,LAB2[a.s]||a.s,r.q||'',r.t||'',r.why||'',rec.id]); }); });
+  var tx=txPlain(rec), parts=[]; for(var i=0;i<tx.length;i+=45000) parts.push(tx.slice(i,i+45000));
+  return { '檢核總表':[sum], '逐項明細':items, '逐字稿':[[tsStr(rec.createdAt),iv.rep,rec.id].concat(parts)] };
+}
+function rowsForFb(f){ var n=(f.ivf.next||[]).concat(['','','']); return { '主管回饋':[[tsStr(f.createdAt),f.ivf.rep,f.by,f.ivf.brief||'',n[0],n[1],n[2],(f.ivf.fbText||'').slice(0,45000),f.ivf.ivId]] }; }
+function rowsForOvr(o){ var v=o.ivo; return { '主管改判':[[tsStr(o.createdAt),v.rep,v.itemName||v.itemId,LAB2[v.from]||v.from,LAB2[v.to]||v.to,v.why||'',o.by,v.q||'',v.ivId]] }; }
+// 自動寫入：每次存好就寄一份到柏翰設好的 Apps Script（沒設就跳過）。不叫 AI、不花 token
+function sheetPush(kind,rec){
+  var set=getSet(); if(!set.sheetUrl) return;
+  try{ var sheets=kind==='iv'?rowsForIv(rec):(kind==='fb'?rowsForFb(rec):(kind==='ovr'?rowsForOvr(rec):(kind==='fmt'?{'逐字稿':rowsForIv(rec)['逐字稿']}:null))); if(!sheets) return;
+    fetch(set.sheetUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:set.sheetKey||'',head:SHEET_HEAD,sheets:sheets})}).catch(function(e){ console.warn('[iv] 試算表寫入失敗',e); });
+  }catch(e){ console.warn('[iv] 試算表資料整理失敗',e); }
+}
+// 手動匯出：把我看得到的全部紀錄做成 Excel（五個分頁），可直接匯入 Google 試算表
+var _xlsxP=null;
+function ensureXlsx(){ if(window.XLSX) return Promise.resolve(); if(_xlsxP) return _xlsxP; _xlsxP=new Promise(function(res,rej){ var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload=function(){ res(); }; s.onerror=function(){ _xlsxP=null; rej(new Error('Excel 元件載入失敗')); }; document.head.appendChild(s); }); return _xlsxP; }
+async function exportXlsx(){
+  try{ await ensureXlsx(); }catch(e){ toast(e.message,true); return; }
+  var data={}; Object.keys(SHEET_HEAD).forEach(function(k){ data[k]=[SHEET_HEAD[k]]; });
+  var add=function(o){ Object.keys(o).forEach(function(k){ o[k].forEach(function(r){ data[k].push(r); }); }); };
+  ivRecords().forEach(function(r){ add(rowsForIv(r)); });
+  _cases.filter(function(c){ return c&&c.type==='interview_fb'&&c.ivf&&hgCanSee(c); }).forEach(function(f){ add(rowsForFb(f)); });
+  _cases.filter(function(c){ return c&&c.type==='interview_ovr'&&c.ivo&&hgCanSee(c); }).forEach(function(o){ add(rowsForOvr(o)); });
+  var wb=XLSX.utils.book_new(); Object.keys(data).forEach(function(k){ XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data[k]), k); });
+  XLSX.writeFile(wb,'面談檢核_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('已匯出 '+(data['檢核總表'].length-1)+' 筆檢核');
+}
+// 設定（只有柏翰）：AI 型號、排版、詞庫、試算表網址
+function openSettings(){
+  if(!canEdit()){ toast('只有柏翰可以改設定'); return; }
+  var st=getSet(), opt=function(sel){ return Object.keys(MODELS).map(function(k){ return '<option value="'+k+'"'+(k===sel?' selected':'')+'>'+MODELS[k].name+'</option>'; }).join(''); };
+  var h='<div class="fld" style="margin-bottom:12px"><label>逐項分析用的 AI</label><select class="in" id="setA">'+opt(st.aModel)+'</select></div>'
+    +'<div class="fld" style="margin-bottom:12px"><label>逐字稿排版用的 AI</label><select class="in" id="setF">'+opt(st.fModel)+'</select><label style="margin-top:6px;font-weight:500"><input type="checkbox" id="setOn"'+(st.fmtOn?' checked':'')+'> 每次檢核都自動排版</label></div>'
+    +'<div class="fld" style="margin-bottom:12px"><label>專有名詞（轉文字和排版會參考，用頓號分開）</label><textarea class="in" id="setV">'+esc(st.vocab)+'</textarea></div>'
+    +'<div class="fld" style="margin-bottom:6px"><label>Google 試算表自動寫入網址（Apps Script 部署後的網址，空白＝不寫）</label><input class="in" id="setU" value="'+esc(st.sheetUrl)+'" placeholder="https://script.google.com/macros/s/…/exec"></div>'
+    +'<div class="fld"><label>密語（跟 Apps Script 裡的一樣）</label><input class="in" id="setK" value="'+esc(st.sheetKey)+'"></div>'
+    +'<p class="meta" style="margin-top:10px">估價：1 小時錄音，分析 '+'用 Opus 約 NT$6、Sonnet 約 NT$3、Haiku 約 NT$1；排版用 Sonnet 約 NT$12、Haiku 約 NT$4；轉文字約 NT$3.6。</p>';
+  openDlg('⚙ 設定',h,'<button class="btn pri" onclick="saveSettings()">儲存</button><button class="btn" onclick="testSheet()">測試試算表</button><span class="meta">存了全公司一起用</span>');
+}
+function saveSettings(){ var o=loadCL(); o.settings={ aModel:$('setA').value, fModel:$('setF').value, fmtOn:$('setOn').checked, vocab:$('setV').value.trim(), sheetUrl:$('setU').value.trim(), sheetKey:$('setK').value.trim() };
+  try{ LSW().setItem(CL_KEY,JSON.stringify(o)); pushCloudSoon(); toast('設定已存'); closeDlg(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
+function testSheet(){ var u=$('setU').value.trim(); if(!u){ toast('先貼上 Apps Script 網址',true); return; }
+  fetch(u,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:$('setK').value.trim(),head:{'連線測試':['時間','誰','訊息']},sheets:{'連線測試':[[tsStr(Date.now()),ME(),'面談檢核連線測試']]}})}).then(function(){ toast('已送出，去試算表看有沒有多一個「連線測試」分頁'); },function(e){ toast('送不出去：'+(e&&e.message||e),true); }); }
 /* ═══════════════ ③ 主管回饋 ═══════════════ */
 var _fbFile=null;
 function pickFb(files){ if(!files||!files.length) return; _fbFile=files[0]; $('fbFileName').textContent='已選：'+_fbFile.name; }
@@ -566,17 +808,17 @@ async function runFeedback(){
   if(_busy) return; _busy=true; $('fbGo').disabled=true;
   try{
     var text=$('fbText').value.trim(), audioSec=0;
-    if(_fbFile){ setProg('fbProg','壓縮回饋錄音…',10); await ensureLame(); var c=await compress(_fbFile); audioSec=c.sec||0; setProg('fbProg','回饋轉文字…',35); var tr=await transcribe(c.blob,0); text=(tr.replace(/\[\d+:\d+\]\s*/g,'')+(text?('\n'+text):'')).trim(); }
+    if(_fbFile){ await ensureLame(); _txOffset=0; var tf=await transcribeFile(_fbFile,'（回饋）','fbProg',10,50); audioSec=tf.sec||0; text=(tf.text.replace(/\[\d+:\d+\]\s*/g,'')+(text?('\n'+text):'')).trim(); }
     if(!text) throw new Error('請錄一段回饋、上傳錄音，或打幾句字');
     setProg('fbProg','整理成下次要注意的 3 件事…',60);
     var iv=rec.iv, cl=clFor(rec);
     var sys='你是赫綵設計學院的面談教練助理。根據主管對業務的口頭回饋，加上這次面談檢核結果，整理出「下次面談要注意的 3 件事」：每件一句、動詞開頭、具體到下次面談能直接照做、能被下次錄音檢查（例如「報價前先講完赫綵三寶」）。以主管的意思為主，檢核結果只當參考。只輸出 JSON：{"next":["…","…","…"],"brief":"主管回饋重點一句 50 字內"}';
-    var user='業務：'+iv.rep+'\n這次分數：'+iv.total+'\n沒講到：'+missNames(cl,iv.items).join('、')+'\nAI 總評：'+(iv.summary||'')+'\n\n主管回饋（可能有同音錯字）：\n'+text.slice(0,20000);
-    var ai=await askAI(sys,user,1200), res=parseJSON(ai.text);
+    var user='業務：'+iv.rep+'\n這次分數：'+scoreOf(rec)+'\n沒講到：'+missNames(cl,itemsOf(rec)).join('、')+'\nAI 總評：'+(iv.summary||'')+'\n\n主管回饋（可能有同音錯字）：\n'+text.slice(0,20000);
+    var set=getSet(), ai=await askAI(sys,user,1200,set.aModel), res=parseJSON(ai.text);
     var now=Date.now();
     var fb={ id:'ivf_'+now, type:'interview_fb', by:ME(), createdAt:now, text:'🗣 主管回饋｜'+iv.rep+'｜'+(res.brief||'')+'\n下次要注意：'+(res.next||[]).join('；'),
-      ivf:{ ivId:rec.id, rep:iv.rep, next:res.next||[], brief:res.brief||'', fbText:text, usage:{ in:ai.usage.in, out:ai.usage.out, audioSec:Math.round(audioSec) } } };
-    await caseWrite([fb]);
+      ivf:{ ivId:rec.id, rep:iv.rep, next:res.next||[], brief:res.brief||'', fbText:text, usage:{ in:ai.usage.in, out:ai.usage.out, aModel:set.aModel, audioSec:Math.round(audioSec) } } };
+    await caseWrite([fb]); sheetPush('fb',fb);
     setProg('fbProg','完成',100);
     await notifyTG('🗣 主管回饋｜'+iv.rep+'（'+ME()+'）\n'+(res.brief||'')+'\n下次要注意：\n'+(res.next||[]).map(function(p,i){ return (i+1)+'. '+p; }).join('\n'));
     _fbFile=null; $('fbFile').value=''; $('fbFileName').textContent=''; $('fbText').value='';
@@ -616,15 +858,19 @@ function saveEditor(){
 function copyTY(){ if(!canEdit()) return; var o=loadCL(); var c=JSON.parse(JSON.stringify(o.regions['桃區'])); c.ver=1; c.updatedAt=Date.now(); c.updatedBy=ME(); o.regions[REGION]=c;
   try{ LSW().setItem(CL_KEY,JSON.stringify(o)); closeDlg(); openEditor(); pushCloudSoon(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
 function openUsage(){
-  var m0=new Date(); m0.setDate(1); m0.setHours(0,0,0,0); var t0=m0.getTime(), by={};
-  _cases.forEach(function(c){ if(!c||(c.createdAt||0)<t0) return; var u=(c.iv&&c.iv.usage)||(c.ivf&&c.ivf.usage); if(!u) return; var who=c.by||'?'; var b=by[who]=by[who]||{n:0,f:0,sec:0,in:0,out:0};
-    if(c.type==='interview') b.n++; else b.f++; b.sec+=u.audioSec||0; b.in+=u.in||0; b.out+=u.out||0; });
-  var rows=Object.keys(by).sort(function(a,b){ return (by[b].in+by[b].out)-(by[a].in+by[a].out); });
-  var h=rows.length?('<table class="use"><tr><th>誰按的</th><th>檢核</th><th>回饋</th><th>錄音分鐘</th><th>AI 讀入</th><th>AI 寫出</th></tr>'+rows.map(function(k){ var b=by[k]; return '<tr><td>'+esc(k)+'</td><td>'+b.n+'</td><td>'+b.f+'</td><td>'+Math.round(b.sec/60)+'</td><td>'+b.in.toLocaleString()+'</td><td>'+b.out.toLocaleString()+'</td></tr>'; }).join('')+'</table><p class="meta">AI 讀入／寫出單位是 token。只算這台電腦已經同步到的紀錄。</p>'):'<p class="empty">這個月還沒有人用。</p>';
+  var m0=new Date(); m0.setDate(1); m0.setHours(0,0,0,0); var t0=m0.getTime(), by={}, judged=0, ovr=0;
+  _cases.forEach(function(c){ if(!c||(c.createdAt||0)<t0||!hgCanSee(c)) return;
+    if(c.type==='interview_ovr'){ ovr++; return; }
+    var u=(c.iv&&c.iv.usage)||(c.ivf&&c.ivf.usage)||(c.ivx&&c.ivx.usage); if(!u) return; var who=c.by||'?'; var b=by[who]=by[who]||{n:0,f:0,sec:0,tok:0,ntd:0};
+    if(c.type==='interview'){ b.n++; judged+=Object.keys(c.iv.items||{}).length; } else if(c.type==='interview_fb') b.f++;
+    b.sec+=u.audioSec||0; b.tok+=(u.in||0)+(u.out||0)+(u.fin||0)+(u.fout||0); b.ntd+=ntd(u); });
+  var rows=Object.keys(by).sort(function(a,b){ return by[b].ntd-by[a].ntd; }), tot=0; rows.forEach(function(k){ tot+=by[k].ntd; });
+  var h=rows.length?('<table class="use"><tr><th>誰按的</th><th>檢核</th><th>回饋</th><th>錄音分鐘</th><th>token</th><th>約 NT$</th></tr>'+rows.map(function(k){ var b=by[k]; return '<tr><td>'+esc(k)+'</td><td>'+b.n+'</td><td>'+b.f+'</td><td>'+Math.round(b.sec/60)+'</td><td>'+b.tok.toLocaleString()+'</td><td>'+Math.round(b.ntd)+'</td></tr>'; }).join('')+'<tr><td><b>合計</b></td><td></td><td></td><td></td><td></td><td><b>'+Math.round(tot)+'</b></td></tr></table>'
+    +'<p class="meta" style="margin-top:10px">AI 改判率（主管不同意 AI 的比例）：'+(judged?(Math.round(ovr/judged*1000)/10+'%（'+ovr+'／'+judged+' 項）'):'—')+'。越低代表 AI 越懂你們的標準。</p><p class="meta">台幣是用單價估的，以帳單為準；只算這台電腦已經同步到、我看得到的紀錄。</p>'):'<p class="empty">這個月還沒有人用。</p>';
   openDlg('📊 '+(m0.getMonth()+1)+' 月用量',h,'');
 }
 function openStars(){
-  var st=starList(REGION);
+  var st=starListMine(REGION);
   var h=st.length?st.slice().reverse().map(function(s){ return '<div class="it"><div class="h">'+esc(s.ivs.itemName)+'<span class="st">'+esc(s.ivs.rep)+'・'+esc(s.by)+' 標</span></div><div class="q">'+esc(s.ivs.quote)+'</div></div>'; }).join(''):'<p class="empty">還沒有範例。在檢核結果裡，覺得哪句講得好就按「☆ 設為好講法範例」，AI 之後會拿它當標準。</p>';
   openDlg('⭐ '+REGION+' 好講法範例（'+st.length+'）',h,'');
 }
@@ -634,15 +880,19 @@ function renderSeg(){ $('regSeg').innerHTML=REGIONS.map(function(r){ return '<bu
 function setRegion(r){ REGION=r; try{ localStorage.setItem('iv_pref_region',r); }catch(e){} renderSeg(); if(!getCL(r)) toast(r+' 還沒有自己的檢核表，先用桃區的'); }
 function fillRepList(){
   var names={}, me=ME(); if(me) names[me]=1;
-  try{ JSON.parse(localStorage.getItem('castle_cards_v1')||'[]').forEach(function(c){ if(c&&c.name&&c.active!==false) names[c.name]=1; }); }catch(e){}
+  var mem=hgMembers();   // ★ ds144 名單只列同組
+  try{ JSON.parse(localStorage.getItem('castle_cards_v1')||'[]').forEach(function(c){ if(c&&c.name&&c.active!==false&&(!mem||mem[c.name])) names[c.name]=1; }); }catch(e){}
+  if(mem) Object.keys(mem).forEach(function(n){ names[n]=1; });
   ivRecords().forEach(function(r){ names[r.iv.rep]=1; });
   $('repList').innerHTML=Object.keys(names).map(function(n){ return '<option value="'+esc(n)+'">'; }).join('');
 }
 document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ if($('dlg').classList.contains('show')) closeDlg(); else closeSheet(); } });
 window.addEventListener('message',function(e){ if(e.data&&e.data.action==='characterSwitched'){ if(!$('rep').value.trim()||$('rep').value===e.data.prev) $('rep').value=ME(); renderWho(); } });
+// 雲端拉到別人的新紀錄（父頁 firebase-sync 拉完會發事件）→ 重讀案例庫、重畫，不用重開頁
+try{ (window.parent||window).addEventListener('firebase-sync-updated',function(){ if(_busy) return; bootCases().then(function(){ fillRepList(); renderWho(); if(_curRec){ var r=_cases.find(function(c){ return c.id===_curRec.id; }); if(r){ _curRec=r; renderResult(r); } } }); }); }catch(e){}
 window.triggerSave=function(){};   // 父頁切換主角時會呼叫；這頁每一步都即時存，不用另外存
 (async function(){
-  renderSeg(); await bootCases(); fillRepList();
+  renderSeg(); if(canEdit()) $('setBtn').hidden=false; await bootCases(); try{ await hgLoad(); }catch(e){} fillRepList();
   var me=ME(); if(me) $('rep').value=me; onRepChange();
   var last=ivRecords(me).slice(-1)[0]; if(last){ _curRec=last; renderWho(); renderResult(last); }
 })();

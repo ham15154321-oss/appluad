@@ -998,7 +998,8 @@ var _WATERFALL_ACAD_MAP = {
   '黎禹歆': '高雄建國',
   '林昭宏': '台中學院',
   '凃敏薰': '台中二部',
-  '蔡青倚': '中壢三部'
+  '蔡青倚': '中壢三部',
+  '李婉琳': '中壢學院'   // ★ 10/29 婉琳升主管
 };
 // 找登入主角的小組成員
 //   學院主管 → 掃 sheet3 業務個人績效，篩「學院 = 對應學院」收集所有業務姓名
@@ -1175,7 +1176,58 @@ function loadCases(){
   catch(e){ return []; }
   // ★ ds141：就算這裡回傳空的，_caseSafeSave 也會擋（案例庫還沒讀完不准寫），不會再拿空的蓋掉
 }
-function voiceCases(){ return loadCases().filter(function(c){ return c.type==='voice'||c.type==='acceptance'; }); }
+// ═══ ★ ds144（10/29 Ivan：婉玲組看得到承鈞組的錄音）錄音／檢核只給同組看 ═══
+//   規則：柏翰看全部；學院主管看整個學院（業務個人績效 sheet3 的「學院」）；組長、組員看自己這一組（小組業績總表 sheet4 的組長＋組員）。
+//   錄音紀錄看「上傳的人」和「被檢核的業務」，兩個有一個在我這組就看得到；沒有記上傳者的舊錄音只有柏翰看得到。
+//   ⚠ 這是畫面上的過濾：資料一樣會同步到每台電腦，只是不顯示。
+var HG_ADMIN={'黃柏翰':1};
+var HG_ACAD={'王志軒':'中壢二部','楊雅晴':'台中三部','洪士德':'中壢學院','黎禹歆':'高雄建國','林昭宏':'台中學院','凃敏薰':'台中二部','蔡青倚':'中壢三部','李婉琳':'中壢學院'};   // ★ 10/29 婉琳升主管
+var _hgMp=null, _hgReady=null, _hgCache={};
+function hgMe(){ try{ return localStorage.getItem('activeCharacterId')||''; }catch(e){ return ''; } }
+function hgLoad(){
+  if(_hgReady) return _hgReady;
+  _hgReady=new Promise(function(res){
+    try{ var r=indexedDB.open('SpaceBaseDB');
+      r.onsuccess=function(){ var db=r.result; try{ if(!db.objectStoreNames.contains('images')){ db.close(); res(); return; }
+        var g=db.transaction('images','readonly').objectStore('images').get('mp_data_v1');
+        g.onsuccess=function(){ var v=g.result; try{ _hgMp=(typeof v==='string')?JSON.parse(v):v; }catch(e){ _hgMp=null; } _hgCache={}; try{db.close();}catch(_){} res(); };
+        g.onerror=function(){ try{db.close();}catch(_){} res(); }; }catch(e){ try{db.close();}catch(_){} res(); } };
+      r.onerror=function(){ res(); };
+    }catch(e){ res(); }
+  });
+  return _hgReady;
+}
+// 回傳 null = 看全部；否則回傳 {名字:1}
+function hgMembers(me){
+  me=me||hgMe(); if(HG_ADMIN[me]) return null;
+  if(_hgCache[me]) return _hgCache[me];
+  var out={}; if(me) out[me]=1;
+  if(!_hgMp) return out;   // 業績資料還沒讀到 → 只看自己（寧可少看，不可多看）
+  var months=Object.keys(_hgMp).sort(function(a,b){ return Number(b)-Number(a); });
+  var acad=HG_ACAD[me];
+  if(acad){
+    months.forEach(function(m){ ((_hgMp[m]||{}).sheet3||[]).forEach(function(row){ row=row||{}; if(String(row['學院']||row['區域']||'').trim()!==acad) return; var nm=String(row['姓名']||row['業務員']||row['業務']||row['人員']||'').trim(); if(nm) out[nm]=1; }); });
+  } else {
+    for(var i=0;i<months.length;i++){
+      var s4=(_hgMp[months[i]]||{}).sheet4||[], hit=null;
+      for(var j=0;j<s4.length;j++){ var row=s4[j]||{}, names=[String(row['組長']||'').trim()];
+        Object.keys(row).forEach(function(k){ if(/^組員/.test(k)) names.push(String(row[k]||'').trim()); });
+        if(names.indexOf(me)>=0){ hit=names; break; } }
+      if(hit){ hit.forEach(function(n){ if(n) out[n]=1; }); break; }
+    }
+  }
+  _hgCache[me]=out; return out;
+}
+function hgCanSee(rec){
+  var mem=hgMembers(); if(!mem) return true;
+  if(!rec) return false;
+  var who=[rec.by, rec.iv&&rec.iv.rep, rec.ivf&&rec.ivf.rep, rec.ivs&&rec.ivs.rep, rec.ivo&&rec.ivo.rep].filter(Boolean);
+  if(!who.length) return false;   // 沒記上傳者的舊錄音 → 只有柏翰看
+  return who.some(function(n){ return mem[n]; });
+}
+function hgIsRec(t){ return t==='voice'||t==='acceptance'||t==='interview'||t==='interview_fb'||t==='interview_star'||t==='interview_ovr'; }
+
+function voiceCases(){ return loadCases().filter(function(c){ return (c.type==='voice'||c.type==='acceptance') && hgCanSee(c); }); }   // ★ ds144 只看同組
 function caseById(id){ return loadCases().find(function(c){ return c.id===id; }) || null; }
 function caseTitle(c){ return String((c&&c.text)||'').split('\n')[0].trim() || '(未命名案例)'; }
 
@@ -2431,6 +2483,7 @@ function _applyWhoLabel(){
   try{ renderAll(); }catch(_){}
   try{ await _caseBootInit(); }catch(_){}
   try{ _wfPruneDeadLinks(); }catch(_){}   // ★ ds141
+  try{ await hgLoad(); }catch(_){}        // ★ ds144 先知道自己是哪一組
   renderAll();
   await loadMpData();
   renderBlock1(); renderBlock2(); // mp_data 載入後重畫選單與長條圖

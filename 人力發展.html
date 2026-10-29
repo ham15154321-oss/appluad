@@ -4226,7 +4226,7 @@ async function closeCastle(){
 
 // ★ 瀑布流三輪 ①（10/19）：子頁版號不再手寫。SUB_VER 是每個子頁「檔案內容的指紋」，deploy.command 部署時自動算：
 //   檔案改了 → 指紋變 → 同事開子頁就拿到新版；檔案沒改 → 指紋不變 → 瀏覽器快取照用（不用重新下載）。
-const SUB_VER={'waterfall-channel.html':'23fc6066','ai-advisor.html':'38568602','castle-cards.html':'208e02fe','training-room.html':'3f640c77','achievement-unlock.html':'d135f8ef','fire-mandala.html':'e570a386','team-leader-map-assessment.html':'07858790','admin-ai-chats.html':'1e864a6f','central-command.html':'7de1ad0b','admin-accounts.html':'1de072a4','interview-check.html':'fd97d0d4'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
+const SUB_VER={'waterfall-channel.html':'470b59b0','ai-advisor.html':'cbf45837','castle-cards.html':'208e02fe','training-room.html':'3f640c77','achievement-unlock.html':'d135f8ef','fire-mandala.html':'e570a386','team-leader-map-assessment.html':'07858790','admin-ai-chats.html':'1e864a6f','central-command.html':'7de1ad0b','admin-accounts.html':'1de072a4','interview-check.html':'ff070274'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
 function _subSrc(f, extra){ var v='0'; try{ v=(typeof SUB_VER!=='undefined' && SUB_VER[f]) || '0'; }catch(e){} return f + '?v=' + v + (extra || ''); }
 // ★ 10/20 首頁審查：子頁等面板滑完（0.4s）再載，滑動不會被子頁的 1MB 程式卡住；已經載好的（業績中心）不用等
 function _afterSlide(overlayId, fn){
@@ -4746,7 +4746,7 @@ function perfOpen(){
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
   // ★ 2026/10/10：這個檔自己也會被瀏覽器快取，固定寫死版號永遠慢一步 →
   //   版號改成「ds54＋每 10 分鐘變一次的時間戳」：同事正常重新整理就拿到最新的 performance-compare.html（伺服器只回 304 很便宜），不用 Cmd+Shift+R
-  const PC_VER='ds143';
+  const PC_VER='ds144';
   const TARGET_SRC='performance-compare.html?v='+PC_VER+'-'+Math.floor(Date.now()/600000);
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes('v='+PC_VER+'-'))
     _afterSlide('perfOverlay', function(){ frame.src=TARGET_SRC; });   // ★ 10/20：先滑完再載
