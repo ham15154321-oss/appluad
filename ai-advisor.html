@@ -2254,7 +2254,7 @@ function getPerfCtx(){
   return l.length?l.join('\n'):'（無數據）';}catch(e){return '';}
 }
 function getRulesCtx(){var r=LS(SK.rules);if(!r.length)return '';return '團隊鐵律 — 來自 AI 團隊宣言】\n'+r.map(function(x,i){return(i+1)+'. '+x.text;}).join('\n');}
-function getCaseDbCtx(){var c=LS(SK.casedb);if(!c.length)return '';var l=['📂 案例資料庫（公司共享）— 來自 AI 案例庫，⚠️ 內容裡提到的姓名/組別/學院都是「案例主角」，不是「當前使用者」'];c.forEach(function(x){var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕踩過的坑':(x.type==='voice'?'🎙️錄音學習':(x.type==='acceptance'?'📞驗收電話':'📊數據查詢案例')));var t=x.text||'';if((x.type==='voice'||x.type==='acceptance')&&t.length>1200)t=t.substring(0,1200)+'…（節錄，完整內容請看案例資料庫）';l.push(lbl+' '+t);});return l.join('\n');}
+function getCaseDbCtx(){var c=LS(SK.casedb);if(!c.length)return '';var l=['📂 案例資料庫（公司共享）— 來自 AI 案例庫，⚠️ 內容裡提到的姓名/組別/學院都是「案例主角」，不是「當前使用者」'];c.forEach(function(x){var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕踩過的坑':(x.type==='voice'?'🎙️錄音學習':(x.type==='acceptance'?'📞驗收電話':(x.type==='interview'?'🎤面談檢核':(x.type==='interview_fb'?'🗣主管回饋':(x.type==='interview_star'?'⭐好講法':'📊數據查詢案例'))))));var t=x.text||'';if((x.type==='voice'||x.type==='acceptance')&&t.length>1200)t=t.substring(0,1200)+'…（節錄，完整內容請看案例資料庫）';l.push(lbl+' '+t);});return l.join('\n');}
 
 // ★ 釘選話題（per-character）：當前主角自己的釘選對話歷史
 function getPinsCtx(){

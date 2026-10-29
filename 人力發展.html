@@ -313,7 +313,7 @@
   .plz-card .plz-st { position:absolute; left:18px; top:16px; font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px; background:rgba(255,255,255,.22); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
   .plz-card .plz-st:empty { display:none; }
   .plz-c1 { background:linear-gradient(135deg,#0A84FF,#64D2FF); } .plz-c2 { background:linear-gradient(135deg,#FF375F,#FF9F0A); }
-  .plz-c3 { background:linear-gradient(135deg,#30D158,#0A84FF); grid-column:span 2; } .plz-c4 { background:linear-gradient(135deg,#FFD60A,#FF9F0A); } .plz-c5 { background:linear-gradient(135deg,#FF6B2C,#FF375F); }
+  .plz-c3 { background:linear-gradient(135deg,#30D158,#0A84FF); } .plz-c6 { background:linear-gradient(135deg,#5E5CE6,#BF5AF2); }   /* ★ ds143：六卡 3×2，瀑布不再佔兩格 */ .plz-c4 { background:linear-gradient(135deg,#FFD60A,#FF9F0A); } .plz-c5 { background:linear-gradient(135deg,#FF6B2C,#FF375F); }
   .plz-foot { display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; margin-top:18px; font-size:13px; color:#AEAEB2; font-weight:600; letter-spacing:.01em; }
   .plz-chip { min-height:34px; padding:0 14px; border-radius:999px; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.08); color:#F5F5F7; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; transition:transform .1s ease-out; }
   .plz-chip:active { transform:scale(.96); }
@@ -332,7 +332,7 @@
     .plz-head { padding:6px 16px 8px; }
     .plz-title h1 { font-size:22px; } .plz-title p { display:none; }
     .plz-body { padding:4px 16px 28px; }
-    .plz-grid { grid-template-columns:1fr 1fr; gap:12px; } .plz-c3 { grid-column:span 2; } .plz-card { min-height:132px; }
+    .plz-grid { grid-template-columns:1fr 1fr; gap:12px; } .plz-card { min-height:132px; }
   }
   /* 三個減少動態訊號 */
   @media (prefers-reduced-motion:reduce){
@@ -1666,7 +1666,7 @@ body.minimal .progress-row{ margin-top:0; }
 body.minimal .revenue-stats{ margin-top:0; }
 </style>
 <script src="./auth-check.js?v=5a09f9ce"></script>
-<script defer src="./firebase-sync.js?v=2ca82946"></script>
+<script defer src="./firebase-sync.js?v=04597f51"></script>
 <script defer src="./auth-firebase.js?v=v2"></script>
 </head>
 <body>
@@ -1919,12 +1919,13 @@ body.minimal .revenue-stats{ margin-top:0; }
   <div class="plz-grab" id="plzGrab"></div>
   <div class="plz-head" id="plzHead">
     <button class="plz-back" onclick="closePlaza()">‹ 回首頁</button>
-    <div class="plz-title"><h1>星際廣場</h1><p>五個基地，直接點進去</p></div>
+    <div class="plz-title"><h1>星際廣場</h1><p>六個基地，直接點進去</p></div>
     <button class="plz-x" onclick="closePlaza()" aria-label="關閉">✕</button>
   </div>
   <div class="plz-body" id="plzBody">
     <div class="plz-grid" id="plzGrid">
       <div class="plz-card plz-c3" tabindex="0" role="button" data-open="openWaterfall"><span class="plz-st" id="plzStWf"></span><svg viewBox="0 0 24 24"><path d="M4 4v6c0 4 3 7 8 7s8-3 8-7V4"/><path d="M8 17c0 2 2 4 4 4s4-2 4-4"/><path d="M12 4v13"/></svg><b>瀑布</b><span>各通路研究・A 通路研究院</span></div>
+      <div class="plz-card plz-c6" tabindex="0" role="button" data-open="openInterview"><span class="plz-st" id="plzStIv"></span><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/><path d="M15.5 20.5l1.8 1.8 3.2-3.6"/></svg><b>面談能力檢核</b><span>錄音比對面談流程表</span></div>
       <div class="plz-card plz-c1" tabindex="0" role="button" data-open="open360Assessment"><span class="plz-st" id="plzSt360"></span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg><b>360 度能力檢核</b><span>自評、主管、同儕、部屬</span></div>
       <div class="plz-card plz-c2" tabindex="0" role="button" data-open="prOpenSystem"><span class="plz-st" id="plzStCourt"></span><svg viewBox="0 0 24 24"><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0L7 7M17 7l-3 7a3 3 0 0 0 6 0l-3-7M8 21h8"/></svg><b>法院</b><span>懲罰紀錄・改善追蹤</span></div>
       <div class="plz-card plz-c4" tabindex="0" role="button" data-open="openAchievement"><span class="plz-st" id="plzStAch"></span><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a2 2 0 0 0 0 4h3M17 6h3a2 2 0 0 1 0 4h-3"/></svg><b>成就解鎖</b><span>獎勵成就・勳章牆</span></div>
@@ -2131,6 +2132,19 @@ body.minimal .revenue-stats{ margin-top:0; }
       <button onclick="closeCastle()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(100,180,255,0.2);color:#6a8fcc;font-size:1.1rem;width:34px;height:34px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;" onmouseover="this.style.background='rgba(255,80,80,0.25)';this.style.color='#ff8a8a';this.style.borderColor='rgba(255,100,100,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.color='#6a8fcc';this.style.borderColor='rgba(100,180,255,0.2)'">✕</button>
     </div>
     <iframe id="castleFrame" style="flex:1;width:100%;border:none;background:transparent;" allow="autoplay"></iframe>
+  </div>
+</div>
+
+<!-- ===== ★ ds143 面談能力檢核 ===== -->
+<div class="page-overlay" id="interviewOverlay" style="z-index:9999;">
+  <div class="page-backdrop" onclick="closeInterview()"></div>
+  <div class="page-panel" style="background:#F5F5F7;width:100%;height:100%;max-width:100%;border-radius:0;padding:0;position:relative;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 8px;height:52px;min-height:52px;background:rgba(245,245,247,.82);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid rgba(0,0,0,.06);">
+      <button onclick="closeInterview()" style="min-height:36px;padding:0 14px;border-radius:999px;border:1px solid rgba(0,0,0,.1);background:#fff;color:#1D1D1F;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">‹ 返回</button>
+      <span style="font-size:15px;font-weight:700;color:#1D1D1F;">🎤 面談能力檢核</span>
+      <button onclick="closeInterview()" aria-label="關閉" style="width:36px;height:36px;border-radius:50%;border:0;background:rgba(0,0,0,.06);color:#1D1D1F;font-size:15px;cursor:pointer;">✕</button>
+    </div>
+    <iframe id="interviewFrame" style="flex:1;width:100%;border:none;background:#F5F5F7;" allow="microphone; autoplay"></iframe>
   </div>
 </div>
 
@@ -3127,7 +3141,7 @@ async function deleteScore(id){if(!confirm('確定刪除？'))return;await dbDel
 // ========== 儲存/設定/後台 ==========
 // ★ 切換主角前：城堡會呼叫此函式，先讓所有 iframe 用「舊主角」的 key 存完
 function saveAllBeforeCharSwitch(){
-  const ids=['assess360Frame','fireFrame','achieveFrame','trainingFrame','waterfallFrame','perfFrame'];
+  const ids=['assess360Frame','fireFrame','achieveFrame','trainingFrame','waterfallFrame','perfFrame','interviewFrame'];
   ids.forEach(id=>{
     try{
       const f=document.getElementById(id);
@@ -4212,7 +4226,7 @@ async function closeCastle(){
 
 // ★ 瀑布流三輪 ①（10/19）：子頁版號不再手寫。SUB_VER 是每個子頁「檔案內容的指紋」，deploy.command 部署時自動算：
 //   檔案改了 → 指紋變 → 同事開子頁就拿到新版；檔案沒改 → 指紋不變 → 瀏覽器快取照用（不用重新下載）。
-const SUB_VER={'waterfall-channel.html':'9b881b6e','ai-advisor.html':'6f794a57','castle-cards.html':'655d6ecb','training-room.html':'edef19fb','achievement-unlock.html':'827020a2','fire-mandala.html':'cb656c00','team-leader-map-assessment.html':'77f9630f','admin-ai-chats.html':'1e864a6f','central-command.html':'600c481e','admin-accounts.html':'1de072a4'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
+const SUB_VER={'waterfall-channel.html':'23fc6066','ai-advisor.html':'38568602','castle-cards.html':'208e02fe','training-room.html':'3f640c77','achievement-unlock.html':'d135f8ef','fire-mandala.html':'e570a386','team-leader-map-assessment.html':'07858790','admin-ai-chats.html':'1e864a6f','central-command.html':'7de1ad0b','admin-accounts.html':'1de072a4','interview-check.html':'fd97d0d4'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
 function _subSrc(f, extra){ var v='0'; try{ v=(typeof SUB_VER!=='undefined' && SUB_VER[f]) || '0'; }catch(e){} return f + '?v=' + v + (extra || ''); }
 // ★ 10/20 首頁審查：子頁等面板滑完（0.4s）再載，滑動不會被子頁的 1MB 程式卡住；已經載好的（業績中心）不用等
 function _afterSlide(overlayId, fn){
@@ -4231,6 +4245,17 @@ function closeWaterfall(){
   try{const f=document.getElementById('waterfallFrame');if(f&&f.contentWindow&&f.contentWindow.triggerSave)f.contentWindow.triggerSave();}catch(e){}
   document.getElementById('waterfallOverlay').classList.remove('active');
   document.getElementById('waterfallFrame').src='about:blank';
+}
+
+// ========== ★ ds143 面談能力檢核 ==========
+function openInterview(){
+  stopBgm();
+  document.getElementById('interviewFrame').src=_subSrc('interview-check.html');
+  document.getElementById('interviewOverlay').classList.add('active');
+}
+function closeInterview(){
+  document.getElementById('interviewOverlay').classList.remove('active');
+  document.getElementById('interviewFrame').src='about:blank';
 }
 
 // ========== 彈窗 ==========
@@ -4668,7 +4693,7 @@ window.addEventListener('message',async function(e){
     }
     // ★ 通知子 iframe 切換主角（file:// 模式 storage 事件不觸發 → 用 postMessage 補）
     try{
-      ['assess360Frame','waterfallFrame'].forEach(function(fid){
+      ['assess360Frame','waterfallFrame','interviewFrame'].forEach(function(fid){
         var af=document.getElementById(fid);
         if(af&&af.contentWindow){
           af.contentWindow.postMessage({action:'characterSwitched',characterId:e.data.name},'*');
@@ -4721,7 +4746,7 @@ function perfOpen(){
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
   // ★ 2026/10/10：這個檔自己也會被瀏覽器快取，固定寫死版號永遠慢一步 →
   //   版號改成「ds54＋每 10 分鐘變一次的時間戳」：同事正常重新整理就拿到最新的 performance-compare.html（伺服器只回 304 很便宜），不用 Cmd+Shift+R
-  const PC_VER='ds142';
+  const PC_VER='ds143';
   const TARGET_SRC='performance-compare.html?v='+PC_VER+'-'+Math.floor(Date.now()/600000);
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes('v='+PC_VER+'-'))
     _afterSlide('perfOverlay', function(){ frame.src=TARGET_SRC; });   // ★ 10/20：先滑完再載

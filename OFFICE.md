@@ -633,3 +633,12 @@ C 主管
   · 網頁 v1.11（apps-script-網頁-v1.11.gs）：改成每區各自一個記號、只擋 1 分鐘。要貼進「業績數據橋接 → 網頁」→ 部署 → 管理部署 → 編輯 → 新版本。
   · 議程排程 v21：LINE日會 從三則變四則，最後多一則「📌 三區總覽」連結（1340.html?r=中區&v=all），10/30 起生效。
   · 提醒：班況橋接 v5.5 還沒貼（專案最後修改 10/24）。
+
+- 2026-10-29 下午（Ivan：手機版最下面沒有冠軍開講；班表接進 13:40）
+  · 1340 p2.7：一般頁面（手機）業務段後面加「🏆 本週冠軍開講」卡（原本只在會議模式）；昨天冠軍不到 1 萬 → 改講本週（週一到昨天）冠軍；修 .ar 全域樣式把卡片標題擠成一條的問題（會議模式一起修）。
+  · 「今天」段加「👥 今天上場」卡：一院一行上場幾位／早中晚半天、休、開會不在（早休 13:30 下班、晚休 17:30 才進）、外勤；🎯 今天在場要追的人（近三天沒入帳、這個月報到 0，休假不列，超過 8 位收起來）；明天上場＋19:30 以後幾位（≤1 位或上場不到一半打 💔）＋明天開班／講座；這 7 天每天上場長條；班表上找不到的業務列在最下面。照視角。
+  · 網頁 v1.12：讀三張班表（中區 15_od…、桃區 1hB2…、高雄 1cDT…，只讀）→「13:40 日會議程」資料夾「班表_最新.json」；分頁找法＝名字有那個月＋1 號星期幾對得上；?r=中區&fmt=roster 看讀到什麼（&f=1 強制重讀）。要執行一次 setupRosterTrigger 裝每天 8 點排程。
+  · 議程排程 v22：主管段點名跳過今天休假的人（讀班表_最新.json；讀不到照舊）。
+  · 舊版：舊版/1340_p2.6.html、apps-script-網頁-v1.11.gs、網頁_v1.11_複製用.txt
+  · 中區班表分頁命名還沒親眼確認（Chrome 沒連上），裝好後讀 班表_最新.json 的「分頁」「沒對到」核對。
+- ds143（10/29 Ivan 同意方案：三級評分、主管和業務都能上傳、80 分連續 2 次達標、firebase-sync 加共享 key）：新頁 interview-check.html（面談能力檢核）。錄音/現場錄音 → Groq verbose_json 轉字（每 30 秒 [mm:ss]）→ Claude 逐項判 good/weak/miss/na（na 不算分）→ 存 AiCasedbDB type interview（逐字稿在 iv.transcript，text 只放摘要，AI 顧問不會被塞爆）→ Telegram。主管回饋另存 interview_fb、好講法 interview_star（只加不改，雲端拉取才傳得開）。檢核表 iv_checklist_v1 全公司共用（GLOBAL_LS_KEY_PATTERNS 加一條），預設桃區＝面談流程表 PDF，只有黃柏翰能改，中/南區可複製桃區。人力發展.html 廣場改 3×2、interviewOverlay/interviewFrame（allow microphone）、SUB_VER 加 interview-check.html。ai-advisor 案例標籤加三種。注意：CSS class 不能叫 .in（跟輸入框 class 撞名，害固定面板高度變 42px），狀態用 .show。備份 outputs/hd.bak.ds142.html、ai.bak.ds142.html、firebase-sync.bak.ds142.js
