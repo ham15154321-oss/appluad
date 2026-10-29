@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🤖 AI 顧問中心</title>
+<script src="./ai-ledger.js?v=14c2d9f8"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,'Microsoft JhengHei',sans-serif;background:linear-gradient(180deg,#03060f,#0a1628,#0d1b3e);color:#c0dcff;min-height:100vh;display:flex;flex-direction:column;}
@@ -2324,7 +2325,7 @@ function hgCanSee(rec){
 }
 function hgIsRec(t){ return t==='voice'||t==='acceptance'||/^interview/.test(t||''); }
 
-function getCaseDbCtx(){var c=LS(SK.casedb).filter(function(x){ return !hgIsRec(x&&x.type) || hgCanSee(x); });   /* ★ ds144 錄音類只帶同組的 */if(!c.length)return '';var l=['📂 案例資料庫（公司共享）— 來自 AI 案例庫，⚠️ 內容裡提到的姓名/組別/學院都是「案例主角」，不是「當前使用者」'];c.forEach(function(x){var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕踩過的坑':(x.type==='voice'?'🎙️錄音學習':(x.type==='acceptance'?'📞驗收電話':(x.type==='interview'?'🎤面談檢核':(x.type==='interview_fb'?'🗣主管回饋':(x.type==='interview_star'?'⭐好講法':(x.type==='interview_report'?'📚學習報告':'📊數據查詢案例')))))));var t=x.text||'';if((x.type==='voice'||x.type==='acceptance')&&t.length>1200)t=t.substring(0,1200)+'…（節錄，完整內容請看案例資料庫）';l.push(lbl+' '+t);});return l.join('\n');}
+function getCaseDbCtx(){var c=LS(SK.casedb).filter(function(x){ return !hgIsRec(x&&x.type) || hgCanSee(x); });   /* ★ ds144 錄音類只帶同組的 */if(!c.length)return '';var l=['📂 案例資料庫（公司共享）— 來自 AI 案例庫，⚠️ 內容裡提到的姓名/組別/學院都是「案例主角」，不是「當前使用者」'];c.forEach(function(x){if(!x||!x.text)return;/* ★ ds146 沒有內容的紀錄（會議、作廢標記等）不要變成空白行 */var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕踩過的坑':(x.type==='voice'?'🎙️錄音學習':(x.type==='acceptance'?'📞驗收電話':(x.type==='interview'?'🎤面談檢核':(x.type==='interview_fb'?'🗣主管回饋':(x.type==='interview_star'?'⭐好講法':(x.type==='interview_report'?'📚學習報告':'📊數據查詢案例')))))));var t=x.text||'';if((x.type==='voice'||x.type==='acceptance')&&t.length>1200)t=t.substring(0,1200)+'…（節錄，完整內容請看案例資料庫）';l.push(lbl+' '+t);});return l.join('\n');}
 
 // ★ 釘選話題（per-character）：當前主角自己的釘選對話歷史
 function getPinsCtx(){
@@ -3123,6 +3124,8 @@ function _saveChatHist(feature, history){
   var arr = history || [];
   // 過長時 trim 掉最舊的訊息
   if (arr.length > CHAT_HIST_MAX) {
+    // ★ ds146：擠掉的舊對話先存進這台電腦的長期資料庫（AiLedgerDB.chatarch），以前是直接不見
+    try{ if(window.LEDGER) LEDGER.archiveChat(_chatHistKey(feature), arr.slice(0, arr.length - CHAT_HIST_MAX)); }catch(eA){}
     arr = arr.slice(-CHAT_HIST_MAX);
     console.log('[ai-chat] 對話歷史過長，已 trim 到最近 ' + CHAT_HIST_MAX + ' 則');
   }
@@ -3133,6 +3136,7 @@ function _saveChatHist(feature, history){
     // ★ 救急：quota 滿時，繼續 trim 到一半再試
     if (e.name === 'QuotaExceededError' || /quota|exceeded/i.test(e.message)){
       try {
+        try{ if(window.LEDGER) LEDGER.archiveChat(_chatHistKey(feature), arr.slice(0, arr.length - Math.floor(CHAT_HIST_MAX/2))); }catch(eA2){}
         var half = arr.slice(-Math.floor(CHAT_HIST_MAX/2));
         localStorage.setItem(_chatHistKey(feature), JSON.stringify(half));
         console.log('[ai-chat] 救急：trim 一半後成功（保留 ' + half.length + ' 則）');
@@ -3495,11 +3499,14 @@ function addMsg(type,text,opts){
 
   // ★ 持久化到 localStorage（render 歷史時 skipSave=true）
   if (!opts.skipSave && curFeature && (type === 'user' || type === 'ai')){
+    var _mt = Date.now();
     try{
       var hist = _loadChatHist(curFeature);
-      hist.push({ type: type, text: text, time: Date.now(), topicId: curTopicId });
+      hist.push({ type: type, text: text, time: _mt, topicId: curTopicId });
       _saveChatHist(curFeature, hist);
     }catch(e){}
+    // ★ ds146 資料底座：每則全文寫進試算表「AI 顧問對話」（不截斷、電話遮後 3 碼；編號跟補寫舊對話用同一套，不會重複）
+    try{ if(window.LEDGER){ var _cid=localStorage.getItem('activeCharacterId')||''; LEDGER.chat({ who:_cid, feature:curFeature, featureTitle:(FEATURES[curFeature]||{}).title||curFeature, topic:curTopicId||'', role:type, text:text, time:_mt }); } }catch(eL){}
   }
 
   // ★ 寫 AI 對話紀錄到 Firestore（給管理員「黃柏翰」之後檢視/分類用）

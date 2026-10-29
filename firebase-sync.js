@@ -1896,10 +1896,9 @@ function _autoCleanLS(){
           try {
             var arr = JSON.parse(v);
             if (Array.isArray(arr) && arr.length > 30){
-              var trimmed = arr.slice(-30);
-              var newVal = JSON.stringify(trimmed);
-              freed += v.length - newVal.length;
-              _origSet(k, newVal);
+              // ★ ds146 資料底座：以前直接砍掉、對話就不見了。現在先存進長期資料庫（AiLedgerDB.chatarch），存好才砍；沒有總帳就不砍
+              var L = window.LEDGER || (window.parent && window.parent.LEDGER);
+              if (L && L.archiveChat) (function(k2, old, nv){ L.archiveChat(k2, old).then(function(){ _origSet(k2, nv); }).catch(function(){}); })(k, arr.slice(0, arr.length - 30), JSON.stringify(arr.slice(-30)));
             }
           } catch(e){}
         }

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>面談能力檢核</title>
+<script src="./ai-ledger.js?v=14c2d9f8"></script>
 <!-- ★ ds143（10/29 Ivan）：面談能力檢核。錄音 → 逐項比對面談流程表 → 主管錄音回饋 → 下次比對，直到達標。
      Apple Design：一頁三段、按下就回應、結果從流程帶長出來、半透明側面板不加遮罩、減少動態有替代。 -->
 <style>
@@ -185,7 +186,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <div><h1>面談能力檢核</h1><p>錄音上傳後，逐項比對面談流程表：有沒有講到、講得好不好</p></div>
     <div class="sp"></div>
     <div class="seg" id="regSeg" role="tablist" aria-label="區域"></div>
-    <button class="btn" onclick="openEditor()">📋 檢核表</button><button class="btn" onclick="openRefs()">📚 AI 知識庫</button><button class="btn ghost" onclick="openTip()">ℹ️ 規則說明</button><button class="btn" id="teamBtn" hidden onclick="openTeam()">👥 團隊看板</button><button class="btn" id="learnBtn" hidden onclick="openLearn()">📚 學習報告</button><button class="btn" id="setBtn" hidden onclick="openSettings()">⚙ 設定</button>
+    <button class="btn" onclick="openEditor()">📋 檢核表</button><button class="btn" onclick="openRefs()">📚 AI 知識庫</button><button class="btn ghost" onclick="openTip()">ℹ️ 規則說明</button><button class="btn" id="teamBtn" hidden onclick="openTeam()">👥 團隊看板</button><button class="btn" id="learnBtn" hidden onclick="openLearn()">📚 學習報告</button><button class="btn" id="setBtn" hidden onclick="openSettings()">⚙ 設定</button><button class="btn" id="hlBtn" hidden onclick="openIvHealth()">🩺 資料</button>
   </div>
 
   <section class="card" id="todoCard" hidden style="background:#FFF8E6;padding:16px 22px"></section>
@@ -488,7 +489,10 @@ function caseWrite(adds, delIds){
     }catch(e){ try{db.close();}catch(_){} rej(e); } }); });
   }).then(function(out){ _cases=out; pushCloudSoon(); return out; });
 }
-function ivRecords(rep){ return _cases.filter(function(c){ return c && c.type==='interview' && c.iv && modeOf(c)===MODE && (!rep || c.iv.rep===rep) && hgCanSee(c); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); }); }
+// ★ ds146 作廢：最新一筆 interview_void／interview_unvoid 決定（只加不刪，可以還原）
+function voidMap(){ var m={}; _cases.forEach(function(c){ if(!c||(c.type!=='interview_void'&&c.type!=='interview_unvoid')||!c.ivv) return; var o=m[c.ivv.ref]; if(!o||(c.createdAt||0)>(o.createdAt||0)) m[c.ivv.ref]=c; }); return m; }
+var _vm=null,_vmN=-1; function isVoided(id){ if(_vmN!==_cases.length){ _vm=voidMap(); _vmN=_cases.length; } var c=_vm[id]; return !!(c&&c.type==='interview_void'); }
+function ivRecords(rep){ return _cases.filter(function(c){ return c && c.type==='interview' && c.iv && modeOf(c)===MODE && (!rep || c.iv.rep===rep) && hgCanSee(c) && !isVoided(c.id); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); }); }
 function fbFor(ivId){ var f=_cases.filter(function(c){ return c && c.type==='interview_fb' && c.ivf && c.ivf.ivId===ivId; }).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); }); return f[0]||null; }
 function starList(region,kind){ return _cases.filter(function(c){ return c && c.type==='interview_star' && c.ivs && (c.ivs.mode||'interview')===MODE && (!region || c.ivs.region===region) && (!kind || (c.ivs.kind||'good')===kind); }); }   // AI 參考用：全公司的範例都算（是教材）
 function starListMine(region,kind){ return starList(region,kind).filter(hgCanSee); }   // ★ ds144 畫面上只列同組
@@ -728,6 +732,7 @@ function renderResult(rec){
   var d=$('resD'); if(prev){ var ps=scoreOf(prev), df=sc-ps; d.className='dl '+(df>=0?'up':'dn'); d.textContent=(df>=0?'▲ ':'▼ ')+Math.abs(df)+'（上次 '+ps+'）'; } else { d.className='dl'; d.textContent='第一次檢核'; }
   var nOvr=Object.keys(ovrFor(rec.id)).length;
   $('resMeta').textContent=(PH?((iv.callType||'')+'・'+(iv.outcome||'')+(iv.when?'（'+iv.when+'）':'')+'・'):'')+iv.rep+'・'+fmtD(rec.createdAt)+'・'+(iv.self?'自評':'主管 '+iv.reviewer)+'・'+iv.region+' 檢核表 v'+(iv.clVer||1)+(iv.usage&&iv.usage.audioSec?('・錄音 '+Math.round(iv.usage.audioSec/60)+' 分鐘'):'')+(nOvr?('・AI 原判 '+iv.total+' 分，主管改判 '+nOvr+' 項'):'');
+  if(canEdit()){ var vb=document.createElement('button'); vb.className='btn ghost sm'; vb.style.cssText='margin-left:6px;color:var(--ink2)'; vb.textContent='作廢這筆'; vb.onclick=function(){ voidIv(rec.id); }; $('resMeta').appendChild(vb); }
   $('strip').innerHTML=(cl.stages||[]).map(function(s,i){ var st=stageStat(s,its); var r=st.app?(st.g+st.w*.5)/st.app:0; var cls=st.app?(r>=PASS_SCORE/100?'hit':'low'):'none';
     return '<button class="pill '+cls+'" data-i="'+i+'" onclick="openStage('+i+',this)"><span class="k">'+esc(s.name)+'</span><span class="v">'+(st.app?(st.g+'／'+st.app):'—')+'</span><span class="bar"><b style="width:'+Math.round(r*100)+'%"></b></span></button>'; }).join('');
   $('resSum').textContent=iv.summary||'';
@@ -878,8 +883,33 @@ function rowsForOvr(o){ var v=o.ivo; return pfxSheets({ '主管改判':[[tsStr(o
 function sheetPush(kind,rec){
   var set=getSet(); if(!set.sheetUrl) return;
   try{ var sheets=kind==='iv'?rowsForIv(rec):(kind==='fb'?rowsForFb(rec):(kind==='ovr'?rowsForOvr(rec):(kind==='fmt'?(function(){ var r=rowsForIv(rec), k=(PH?'電話':'')+'逐字稿', o={}; o[k]=r[k]; return o; })():null))); if(!sheets) return;
+    // ★ ds146 資料底座：改走 AI 總帳的待送清單（每列有編號、試算表擋重複、失敗自動重送）
+    var rids={}, base=(kind==='iv'||kind==='fmt')?rec.id:rec.id;
+    Object.keys(sheets).forEach(function(k){ rids[k]=sheets[k].map(function(r,i){ if(/逐字稿$/.test(k)) return base+'_tx'+(kind==='fmt'?'_'+((window.LEDGER&&LEDGER.hash)?LEDGER.hash(fmtOf(rec)||''):Date.now()):''); if(/逐項明細$/.test(k)) return base+'_i'+i; return base; }); });
+    if(window.LEDGER){ LEDGER.rows(sheets,sheetHead(),rids); return; }
     fetch(set.sheetUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:set.sheetKey||'',head:sheetHead(),sheets:sheets})}).catch(function(e){ console.warn('[iv] 試算表寫入失敗',e); });
   }catch(e){ console.warn('[iv] 試算表資料整理失敗',e); }
+}
+// ★ ds146 資料底座：作廢（先進回收桶，可還原）、資料健康、每天核對試算表少了哪幾筆
+async function voidIv(id){ var r=_cases.find(function(c){ return c.id===id; }); if(!r) return;
+  var why=prompt('作廢這筆「'+r.iv.rep+' '+fmtD(r.createdAt)+'」？\n會從畫面和試算表拿掉，放進回收桶，之後可以還原。\n理由（選填）：',''); if(why===null) return;
+  try{ await caseWrite([{ id:'ivv_'+Date.now().toString(36), type:'interview_void', by:ME(), createdAt:Date.now(), ivv:{ ref:id, why:why, rep:r.iv.rep, mode:MODE, title:r.iv.title||'' } }]); }catch(e){ toast('沒作廢成功：'+e.message,true); return; }
+  if(window.LEDGER) LEDGER.voidRef(id,why); _curRec=null; $('cardRes').hidden=true; $('cardFb').hidden=true; fillRepList(); renderWho(); toast('已作廢，在「🩺 資料」裡可以還原'); }
+async function unvoidIv(id){ try{ await caseWrite([{ id:'ivu_'+Date.now().toString(36), type:'interview_unvoid', by:ME(), createdAt:Date.now(), ivv:{ ref:id } }]); }catch(e){ toast(e.message,true); return; }
+  if(window.LEDGER) LEDGER.restore(id); closeDlg(); fillRepList(); renderWho(); toast('已還原'); }
+function openIvHealth(){
+  if(!window.LEDGER){ toast('資料底座沒載入，請重新整理',true); return; }
+  LEDGER.openHealth(function(t,b,f){
+    var vm=voidMap(), vs=Object.keys(vm).filter(function(k){ return vm[k].type==='interview_void'; }).map(function(k){ return vm[k]; }).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+    b+='<div class="stg">已作廢的檢核（'+vs.length+'）</div>'+(vs.length?vs.slice(0,40).map(function(v){ return '<div class="hrow" style="cursor:default"><span class="d">'+fmtD(v.createdAt)+'</span><span class="m">'+esc((v.ivv.mode==='phone'?'電話・':'面談・')+(v.ivv.rep||'')+(v.ivv.why?'・'+v.ivv.why:''))+'</span><button class="btn sm" onclick="unvoidIv(\''+v.ivv.ref+'\')">還原</button></div>'; }).join(''):'<p class="empty">沒有。</p>');
+    openDlg(t,b,f); });
+}
+function ivReconcile(){
+  if(!window.LEDGER||!canEdit()) return; var day=new Date().toDateString(); try{ if(localStorage.getItem('ledger_rc_iv_'+MODE)===day) return; }catch(e){}
+  var t0=Date.now()-60*864e5, list=[];
+  ivRecords().filter(function(r){ return (r.createdAt||0)>=t0; }).forEach(function(r){ list.push({ rid:r.id, at:r.createdAt, build:function(){ var sh=rowsForIv(r), rids={}; Object.keys(sh).forEach(function(k){ rids[k]=sh[k].map(function(x,i){ return /逐字稿$/.test(k)?r.id+'_tx':(/逐項明細$/.test(k)?r.id+'_i'+i:r.id); }); }); return { sheets:sh, head:sheetHead(), rids:rids }; } }); });
+  _cases.filter(function(c){ return c&&c.type==='interview_fb'&&c.ivf&&(c.createdAt||0)>=t0&&ivRecords().some(function(r){ return r.id===c.ivf.ivId; }); }).forEach(function(f){ list.push({ rid:f.id, at:f.createdAt, build:function(){ var sh=rowsForFb(f), rids={}; Object.keys(sh).forEach(function(k){ rids[k]=[f.id]; }); return { sheets:sh, head:sheetHead(), rids:rids }; } }); });
+  LEDGER.reconcile(list).then(function(r){ try{ localStorage.setItem('ledger_rc_iv_'+MODE,day); }catch(e){} if(r&&r.sent) console.log('[iv] 核對：補送 '+r.sent+' 筆'); }).catch(function(e){ console.warn('[iv] 核對失敗（試算表可能還是舊版）',e); });
 }
 // 手動匯出：把我看得到的全部紀錄做成 Excel（五個分頁），可直接匯入 Google 試算表
 var _xlsxP=null;
@@ -1563,7 +1593,7 @@ window.addEventListener('message',function(e){ if(e.data&&e.data.action==='chara
 try{ (window.parent||window).addEventListener('firebase-sync-updated',function(){ if(_busy) return; bootCases().then(function(){ fillRepList(); renderWho(); if(_curRec){ var r=_cases.find(function(c){ return c.id===_curRec.id; }); if(r){ _curRec=r; renderResult(r); } } }); }); }catch(e){}
 window.triggerSave=function(){};   // 父頁切換主角時會呼叫；這頁每一步都即時存，不用另外存
 (async function(){
-  applyModeText(); renderTodo(); renderTip(); renderSeg(); if(canEdit()){ $('setBtn').hidden=false; $('learnBtn').hidden=false; } await bootCases(); try{ await hgLoad(); }catch(e){} fillRepList(); try{ var _m=hgMembers(); if(!_m||Object.keys(_m).length>1) $('teamBtn').hidden=false; }catch(e){}
+  applyModeText(); renderTodo(); renderTip(); renderSeg(); if(canEdit()){ $('setBtn').hidden=false; $('hlBtn').hidden=false; setTimeout(ivReconcile,15000); $('learnBtn').hidden=false; } await bootCases(); try{ await hgLoad(); }catch(e){} fillRepList(); try{ var _m=hgMembers(); if(!_m||Object.keys(_m).length>1) $('teamBtn').hidden=false; }catch(e){}
   var me=ME(); if(me) setRep(me); onRepChange();
   var last=ivRecords(me).slice(-1)[0]; if(last){ _curRec=last; renderWho(); renderResult(last); }
 })();

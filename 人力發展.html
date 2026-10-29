@@ -1667,7 +1667,8 @@ body.minimal .progress-row{ margin-top:0; }
 body.minimal .revenue-stats{ margin-top:0; }
 </style>
 <script src="./auth-check.js?v=5a09f9ce"></script>
-<script defer src="./firebase-sync.js?v=dd976bdf"></script>
+<script src="./ai-ledger.js?v=14c2d9f8"></script>
+<script defer src="./firebase-sync.js?v=6e0327ac"></script>
 <script defer src="./auth-firebase.js?v=v2"></script>
 </head>
 <body>
@@ -4228,7 +4229,7 @@ async function closeCastle(){
 
 // ★ 瀑布流三輪 ①（10/19）：子頁版號不再手寫。SUB_VER 是每個子頁「檔案內容的指紋」，deploy.command 部署時自動算：
 //   檔案改了 → 指紋變 → 同事開子頁就拿到新版；檔案沒改 → 指紋不變 → 瀏覽器快取照用（不用重新下載）。
-const SUB_VER={'waterfall-channel.html':'a50130b1','ai-advisor.html':'de99e00e','castle-cards.html':'60158ca4','training-room.html':'4293cc40','achievement-unlock.html':'894b7aeb','fire-mandala.html':'0fdd9dd1','team-leader-map-assessment.html':'0fb950a5','admin-ai-chats.html':'1e864a6f','central-command.html':'3506f668','admin-accounts.html':'1de072a4','interview-check.html':'e6f6fa84','meeting-track.html':'70fb382a'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
+const SUB_VER={'waterfall-channel.html':'1589290d','ai-advisor.html':'b0f06ca5','castle-cards.html':'f440d180','training-room.html':'996c8b6d','achievement-unlock.html':'b234d80a','fire-mandala.html':'ad3b9066','team-leader-map-assessment.html':'b5af5633','admin-ai-chats.html':'1e864a6f','central-command.html':'01bbc447','admin-accounts.html':'1de072a4','interview-check.html':'2bc53136','meeting-track.html':'1c7d5219'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
 function _subSrc(f, extra){ var v='0'; try{ v=(typeof SUB_VER!=='undefined' && SUB_VER[f]) || '0'; }catch(e){} return f + '?v=' + v + (extra || ''); }
 // ★ 10/20 首頁審查：子頁等面板滑完（0.4s）再載，滑動不會被子頁的 1MB 程式卡住；已經載好的（業績中心）不用等
 function _afterSlide(overlayId, fn){
@@ -4763,7 +4764,7 @@ function perfOpen(){
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
   // ★ 2026/10/10：這個檔自己也會被瀏覽器快取，固定寫死版號永遠慢一步 →
   //   版號改成「ds54＋每 10 分鐘變一次的時間戳」：同事正常重新整理就拿到最新的 performance-compare.html（伺服器只回 304 很便宜），不用 Cmd+Shift+R
-  const PC_VER='ds146';
+  const PC_VER='ds147';
   const TARGET_SRC='performance-compare.html?v='+PC_VER+'-'+Math.floor(Date.now()/600000);
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes('v='+PC_VER+'-'))
     _afterSlide('perfOverlay', function(){ frame.src=TARGET_SRC; });   // ★ 10/20：先滑完再載

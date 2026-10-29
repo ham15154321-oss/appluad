@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>會議作戰追蹤</title>
+<script src="./ai-ledger.js?v=14c2d9f8"></script>
 <!-- ★ ds146（10/29 Ivan）：會議作戰追蹤。會前資料包 → 開會 → 貼錄音或文字 → AI 排記錄＋抽說好的事 → 組長確認 → 綁數字自動對帳 → 下次會前。
      沿用面談檢核的版面與案例庫；Apple Design：一次只出現一顆主按鈕、數字放在說好的事旁邊、AI 只給草稿、改判留紀錄、減少動態有替代。 -->
 <style>
@@ -336,7 +337,7 @@ table.mt .red{color:#C93A39;font-weight:700;} table.mt .grn{color:#1F7A3A;font-w
   <!-- 最近的會議 -->
   <section class="card" id="cardHist"></section>
 
-  <div class="foot"><button class="btn ghost" onclick="openBackup()">💾 備份與還原</button><button class="btn ghost" onclick="openMtUsage()">📊 用量</button><button class="btn ghost" onclick="exportMtXlsx()">⬇ 匯出試算表</button></div>
+  <div class="foot"><button class="btn ghost" onclick="openBackup()">💾 備份與還原</button><button class="btn ghost" id="mtHlBtn" hidden onclick="openMtHealth()">🩺 資料健康</button><button class="btn ghost" onclick="openMtUsage()">📊 用量</button><button class="btn ghost" onclick="exportMtXlsx()">⬇ 匯出試算表</button></div>
   </main>
 </div></div>
 
@@ -613,10 +614,13 @@ function snapAge(){ var S=SNAP(); return S&&S.atTs?(Date.now()-S.atTs):Infinity;
 
 /* ── 紀錄 ── */
 function mtVisible(c){ if(!c) return false; var gid=(c.mt&&c.mt.group)||(c.mti&&c.mti.group)||(c.mtc&&c.mtc.group)||(c.mtn&&c.mtn.group); return myGroups().some(function(g){ return g.id===gid; }); }
-function mtList(gid){ return _cases.filter(function(c){ return c&&c.type==='interview_mt'&&c.mt&&c.mt.group===gid&&!c.mt.removed; }).sort(function(a,b){ return mtTime(b)-mtTime(a); }); }
+// ★ ds146 作廢（只加不刪，可還原）
+function mtVoidMap(){ var m={}; _cases.forEach(function(c){ if(!c||(c.type!=='interview_void'&&c.type!=='interview_unvoid')||!c.ivv) return; var o=m[c.ivv.ref]; if(!o||(c.createdAt||0)>(o.createdAt||0)) m[c.ivv.ref]=c; }); return m; }
+var _mvm=null,_mvmN=-1; function mtVoided(id){ if(_mvmN!==_cases.length){ _mvm=mtVoidMap(); _mvmN=_cases.length; } var c=_mvm[id]; return !!(c&&c.type==='interview_void'); }
+function mtList(gid){ return _cases.filter(function(c){ return c&&c.type==='interview_mt'&&c.mt&&c.mt.group===gid&&!c.mt.removed&&!mtVoided(c.id); }).sort(function(a,b){ return mtTime(b)-mtTime(a); }); }
 function mtTime(c){ var t=Date.parse(String(c.mt.when||'').replace(' ','T')); return isNaN(t)?(c.createdAt||0):t; }
 function latestBy(type,field,gid){ var m={}; _cases.forEach(function(c){ if(!c||c.type!==type||!c[field]) return; if(gid&&c[field].group!==gid) return; var k=c[field].key, o=m[k]; if(!o||(c.createdAt||0)>(o.createdAt||0)) m[k]=c; }); return m; }
-function itemsOf(gid){ var m=latestBy('interview_mtitem','mti',gid); return Object.keys(m).map(function(k){ return m[k]; }).filter(function(c){ return !c.mti.removed; }); }
+function itemsOf(gid){ var m=latestBy('interview_mtitem','mti',gid); return Object.keys(m).map(function(k){ return m[k]; }).filter(function(c){ return !c.mti.removed&&!mtVoided(c.mti.mtId); }); }
 function chkMap(gid){ return latestBy('interview_mtchk','mtc',gid); }
 var ST_LAB={done:'做到了',part:'部分做到',miss:'沒做到',none:'還沒回報',go:'進行中',keep:'繼續追',drop:'不追了'};
 var FINAL={done:1,part:1,miss:1,none:1,drop:1};
@@ -1011,7 +1015,7 @@ function showMt(id){
     +'<div class="sec-h"><b>會議內容</b></div><div class="kb-read" style="white-space:pre-wrap;font-size:.9375rem;line-height:1.7;padding:12px 14px">'+esc(x.body||'')+'</div>'
     +(x.next?'<div class="sec-h"><b>後續執行重點</b></div><div class="kb-read" style="white-space:pre-wrap;font-size:.9375rem;line-height:1.7;padding:12px 14px">'+esc(x.next)+'</div>':'')
     +((x.advice||[]).length?'<div class="adv"><b>💡 當時的下一步建議</b><ol>'+x.advice.map(function(a){ return '<li>'+esc(a)+'</li>'; }).join('')+'</ol></div>':'');
-  openDlg(x.title||'會議記錄',h,'<button class="btn pri" onclick="downloadMtWord(\''+id+'\')">⬇ 下載 Word</button><button class="btn" onclick="copyText(mtPlain(\''+id+'\'))">📋 複製文字</button>');
+  openDlg(x.title||'會議記錄',h,'<button class="btn pri" onclick="downloadMtWord(\''+id+'\')">⬇ 下載 Word</button><button class="btn" onclick="copyText(mtPlain(\''+id+'\'))">📋 複製文字</button>'+(canManage(grpOf(x.group))?'<button class="btn ghost sm" style="margin-left:auto;color:var(--ink2)" onclick="voidMt(\''+id+'\')">作廢這場會</button>':''));
 }
 function mtPlain(id){ var m=_cases.filter(function(c){ return c.id===id; })[0]; if(!m) return ''; var x=m.mt; var its=itemsOf(x.group).filter(function(c){ return c.mti.mtId===id; });
   return x.title+'\n'+(x.when||'')+'　'+(x.place||'')+'\n與會：'+(x.attendees||[]).map(nm).join('、')+'\n\n'+(x.body||'')+'\n\n後續執行重點\n'+(x.next||'')+'\n\n這次說好的事\n'+its.map(function(c){ return '・'+nm(c.mti.who)+'｜'+c.mti.what+(c.mti.due?'｜'+md(c.mti.due)+' 前':''); }).join('\n'); }
@@ -1145,6 +1149,8 @@ function rowChk(c){ var k=c.mtc, it=(itemsOf(k.group).filter(function(x){ return
 function sheetPushMt(rec,items,chks){
   var set=getSet(); if(!set.sheetUrl) return;
   try{ var sheets={}; if(rec) sheets['會議總表']=[rowsMt(rec)]; var t=(items||[]).map(rowItem).concat((chks||[]).map(rowChk)); if(t.length) sheets['會議追蹤項']=t; if(!Object.keys(sheets).length) return;
+    var rids={}; if(rec) rids['會議總表']=[rec.id]; if(sheets['會議追蹤項']) rids['會議追蹤項']=(items||[]).map(function(c){ return c.id; }).concat((chks||[]).map(function(c){ return c.id; }));
+    if(window.LEDGER){ LEDGER.rows(sheets,mtHead(),rids); return; }   // ★ ds146 走 AI 總帳（擋重複、會重送）
     fetch(set.sheetUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:set.sheetKey||'',head:mtHead(),sheets:sheets})}).catch(function(e){ console.warn('[mt] 試算表寫入失敗',e); });
   }catch(e){ console.warn('[mt] 試算表資料整理失敗',e); }
 }
@@ -1182,11 +1188,11 @@ function mtGid(c){ var f=MT_TYPES[c&&c.type]; return f&&c[f]?c[f].group:''; }
 function backupCases(){ var gs={}; myGroups().forEach(function(g){ gs[g.id]=1; }); return _cases.filter(function(c){ return c&&MT_TYPES[c.type]&&gs[mtGid(c)]; }); }
 function lastBackup(){ try{ return +localStorage.getItem('mt_backup_at_v1')||0; }catch(e){ return 0; } }
 function openBackup(){
-  var cs=backupCases(), cnt={interview_mt:0,interview_mtitem:0,interview_mtchk:0}; cs.forEach(function(c){ if(cnt[c.type]!=null) cnt[c.type]++; });
+  var cs=backupCases(), cnt={interview_mt:0,interview_mtitem:0,interview_mtchk:0,interview_mtnick:0}; cs.forEach(function(c){ if(cnt[c.type]!=null) cnt[c.type]++; });
   var lb=lastBackup(), days=lb?Math.floor((Date.now()-lb)/864e5):null;
   openDlg('💾 備份與還原',
     '<div class="sec-h" style="margin-top:0"><b>備份到你的電腦</b><span>'+(lb?'上次備份：'+fmtD(lb)+(days>=30?'（已經 '+days+' 天，建議再備份一次）':''):'這台電腦還沒備份過')+'</span></div>'
-    +'<p class="meta" style="margin-top:0">會存成一個檔案，包含你看得到的組：會議 '+cnt.interview_mt+' 場、說好的事 '+cnt.interview_mtitem+' 條、對帳與改判 '+cnt.interview_mtchk+' 筆、外號表。建議每月月底存一份，放到 iCloud 或 Google 雲端硬碟。</p>'
+    +'<p class="meta" style="margin-top:0">會存成一個檔案，包含你看得到的組：會議 '+cnt.interview_mt+' 場、說好的事 '+cnt.interview_mtitem+' 條、對帳與改判 '+cnt.interview_mtchk+' 筆'+(cnt.interview_mtnick?'、外號表':'')+'。建議每月月底存一份，放到 iCloud 或 Google 雲端硬碟。</p>'
     +'<div class="row"><button class="btn pri" onclick="doBackup()">⬇ 下載備份檔</button><button class="btn" onclick="exportMtXlsx()">⬇ 另存 Excel（給人看）</button></div>'
     +'<div class="sec-h"><b>從備份還原</b><span>只加不刪，已經有的會跳過</span></div>'
     +'<input type="file" id="bkFile" accept=".json,application/json" hidden onchange="readBackup(this.files[0])">'
@@ -1220,6 +1226,30 @@ async function readBackup(f){
 async function doRestore(){ if(!_bk||!_bk.length) return; if(!canManage()&&!HG_ADMIN[ME()]){ toast('只有組長、學院主管、柏翰可以還原',true); return; }
   try{ await caseWrite(_bk,[]); }catch(e){ toast('沒還原進去：'+(e&&e.message||e),true); return; }
   var n=_bk.length; _bk=null; closeDlg(); renderAll(); toast('已還原 '+n+' 筆，原本的資料都沒動'); }
+
+/* ── ★ ds146 資料底座：作廢、還原、資料健康、每天核對 ── */
+async function voidMt(id){ var m=_cases.find(function(c){ return c.id===id; }); if(!m) return;
+  var why=prompt('作廢「'+(m.mt.title||'這場會')+'」？\n這場會和它說好的事會從畫面、試算表拿掉，放進回收桶，之後可以還原。\n理由（選填）：',''); if(why===null) return;
+  try{ await caseWrite([{ id:uid('ivv_'), type:'interview_void', by:ME(), createdAt:Date.now(), ivv:{ ref:id, why:why, group:m.mt.group, title:m.mt.title||'' } }]); }catch(e){ toast('沒作廢成功：'+e.message,true); return; }
+  if(window.LEDGER) LEDGER.voidRef(id,why); closeDlg(); renderAll(); toast('已作廢，在「🩺 資料健康」可以還原'); }
+async function unvoidMt(id){ try{ await caseWrite([{ id:uid('ivu_'), type:'interview_unvoid', by:ME(), createdAt:Date.now(), ivv:{ ref:id } }]); }catch(e){ toast(e.message,true); return; }
+  if(window.LEDGER) LEDGER.restore(id); closeDlg(); renderAll(); toast('已還原'); }
+function openMtHealth(){
+  if(!window.LEDGER){ toast('資料底座沒載入，請重新整理',true); return; }
+  LEDGER.openHealth(function(t,b,f){
+    var vm=mtVoidMap(), vs=Object.keys(vm).filter(function(k){ return vm[k].type==='interview_void'&&vm[k].ivv.group; }).map(function(k){ return vm[k]; });
+    b+='<div class="sec-h"><b>已作廢的會議</b><span>'+vs.length+' 場</span></div>'+(vs.length?vs.map(function(v){ return '<div class="hrow" style="cursor:default"><span class="d">'+fmtD(v.createdAt)+'</span><span class="m">'+esc((v.ivv.title||'')+(v.ivv.why?'・'+v.ivv.why:''))+'</span><button class="btn sm" onclick="unvoidMt(\''+v.ivv.ref+'\')">還原</button></div>'; }).join(''):'<p class="empty">沒有。</p>');
+    openDlg(t,b,f); });
+}
+function mtReconcile(){
+  if(!window.LEDGER) return; var day=new Date().toDateString(); try{ if(localStorage.getItem('ledger_rc_mt')===day) return; }catch(e){}
+  var t0=Date.now()-60*864e5, gs={}, list=[]; myGroups().forEach(function(g){ gs[g.id]=1; });
+  _cases.forEach(function(c){ if(!c||(c.createdAt||0)<t0) return;
+    if(c.type==='interview_mt'&&c.mt&&gs[c.mt.group]&&!mtVoided(c.id)) list.push({ rid:c.id, at:c.createdAt, build:function(){ return { sheets:{'會議總表':[rowsMt(c)]}, head:mtHead(), rids:{'會議總表':[c.id]} }; } });
+    else if(c.type==='interview_mtitem'&&c.mti&&gs[c.mti.group]) list.push({ rid:c.id, at:c.createdAt, build:function(){ return { sheets:{'會議追蹤項':[rowItem(c)]}, head:mtHead(), rids:{'會議追蹤項':[c.id]} }; } });
+    else if(c.type==='interview_mtchk'&&c.mtc&&gs[c.mtc.group]) list.push({ rid:c.id, at:c.createdAt, build:function(){ return { sheets:{'會議追蹤項':[rowChk(c)]}, head:mtHead(), rids:{'會議追蹤項':[c.id]} }; } }); });
+  LEDGER.reconcile(list).then(function(r){ try{ localStorage.setItem('ledger_rc_mt',day); }catch(e){} if(r&&r.sent) console.log('[mt] 核對：補送 '+r.sent+' 筆'); }).catch(function(e){ console.warn('[mt] 核對失敗（試算表可能還是舊版）',e); });
+}
 
 /* ── 對話框、啟動 ── */
 function openDlg(title,body,foot){ $('dlgTitle').textContent=title; $('dlgBody').innerHTML=body; $('dlgFoot').innerHTML=foot||''; $('dlgFoot').hidden=!foot; $('dim').classList.add('show'); $('dlg').classList.add('show'); }
@@ -1279,7 +1309,7 @@ function gSet(i){ if(i===_gCur) return; _gCur=i;
 function gGo(d){ gSet((_gCur+d+6)%6); }
 function gToggle(){ var b=$('guide'); if(window.matchMedia&&!matchMedia('(max-width:1100px)').matches) return; b.classList.toggle('open'); b.querySelector('.g-head').setAttribute('aria-expanded',b.classList.contains('open')); try{ localStorage.setItem('mt_guide_seen_v1','1'); }catch(e){} }
 
-(async function(){ makeDrop($('cardAfter'),function(fs){ pickMtFiles(fs); }); renderGuide(); fillGroups(); renderAll(); await bootCases(); try{ await hgLoad(); }catch(e){} fillGroups(); if(GRP&&heroState()==='after') _pack={at:packAt(),group:GRP.id}; renderAll(); })();
+(async function(){ try{ if(ME()===ADMIN_NAME||HG_ADMIN[ME()]){ $('mtHlBtn').hidden=false; setTimeout(mtReconcile,15000); } }catch(e){} makeDrop($('cardAfter'),function(fs){ pickMtFiles(fs); }); renderGuide(); fillGroups(); renderAll(); await bootCases(); try{ await hgLoad(); }catch(e){} fillGroups(); if(GRP&&heroState()==='after') _pack={at:packAt(),group:GRP.id}; renderAll(); })();
 
 </script>
 </body>
