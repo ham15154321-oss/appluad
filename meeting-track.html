@@ -290,18 +290,18 @@ table.mt .red{color:#C93A39;font-weight:700;} table.mt .grn{color:#1F7A3A;font-w
 
   <!-- ② 會後：貼上錄音或文字 -->
   <section class="card" id="cardAfter" hidden>
-    <div class="step"><i>2</i><h2>貼上這場會的錄音或文字</h2><span class="hint">Apple 備忘錄的轉錄、LINE 筆記、手打重點都可以</span></div>
+    <div class="step"><i>2</i><h2>貼上這場會的錄音或文字</h2><span class="hint">貼文字，或夾帶錄音、PDF、Word 都可以</span></div>
     <div class="row">
-      <div class="fld" style="max-width:200px"><label>會議類型</label><div class="seg" id="kindSeg" role="tablist"></div></div>
+      <div class="fld" style="flex:none;min-width:0"><label>會議類型</label><div class="seg" id="kindSeg" role="tablist" style="white-space:nowrap"></div></div>
       <div class="fld" style="max-width:190px"><label for="mtDate">開會時間</label><input class="in" id="mtDate" type="datetime-local"></div>
       <div class="fld" style="max-width:160px"><label for="mtPlace">地點</label><input class="in" id="mtPlace" placeholder="例如：12 樓"></div>
     </div>
     <textarea class="in" id="mtText" style="margin-top:12px;min-height:180px" placeholder="把會議的逐字稿或重點貼在這裡。不用整理，AI 會照你們的會議記錄格式排好，並找出這次說好的事"></textarea>
     <div class="drop">
-      <input type="file" id="mtFile" accept="audio/*,.m4a,.mp3,.wav,.webm,.txt" multiple hidden onchange="pickMtFiles(this.files)">
-      <button class="btn" onclick="document.getElementById('mtFile').click()">📁 選錄音或文字檔</button>
+      <input type="file" id="mtFile" accept="audio/*,.m4a,.mp3,.wav,.webm,.txt,.pdf,.docx" multiple hidden onchange="pickMtFiles(this.files)">
+      <button class="btn" onclick="document.getElementById('mtFile').click()">📎 夾帶檔案</button>
       <button class="btn" id="mtRecBtn" onclick="toggleMtRec()">🎙 現場錄音</button>
-      <div class="files" id="mtFiles">也可以直接丟錄音檔，會先轉成文字</div>
+      <div class="files" id="mtFiles">錄音檔、PDF、Word、文字檔都可以，一次可以選好幾個</div>
       <button class="btn pri" id="mtGo" onclick="runMeeting()">整理成會議記錄</button>
     </div>
     <div class="prog" id="mtProg"><div class="bar"><b></b></div><div class="tx"></div></div>
@@ -804,7 +804,8 @@ function mtSystem(g,imported){
    +'\n5. due 照會上講的期限換成日期；講「這週」就填這週日，講「月底」就填這個月最後一天；沒講就留空。'
    +'\n6. recon：只針對下面列出的「上次說好的事」，會上有提到才放；做到 done、部分 part、沒做 miss、會上沒人講 none、還沒到期要繼續追 keep。'
    +'\n7. advice：對照下面的資料中心數字，指出最該處理的落後點和具體下一步；只能引用給你的數字，不能自己編數字、人名、老師或活動。'
-   +'\n8. 不要編造會上沒講的內容。';
+   +'\n8. 不要編造會上沒講的內容。'
+   +'\n9. 標【附件：檔名】的是夾帶的文件（例如手寫的會議記錄、作戰計畫、簡報）：如果它就是這場會的記錄，照它整理；如果是參考資料，只拿來理解背景，不要把文件裡的計畫當成會上說好的事，除非會上有講到。';
 }
 function mtUser(g,text,imported){
   var open=imported?[]:openItems(g.id), cm=chkMap(g.id);
@@ -819,6 +820,8 @@ async function runMeeting(){
     var parts=[]; _txOffset=0;
     for(var i=0;i<_mtFiles.length;i++){ var f=_mtFiles[i];
       if(/\.txt$/i.test(f.name)||/^text\//.test(f.type)){ parts.push(await f.text()); continue; }
+      if(/\.(pdf|docx)$/i.test(f.name)){ setProg('mtProg','讀取 '+f.name,5+70*i/_mtFiles.length); var ft=await fileText(f); if(!ft.trim()) throw new Error(f.name+' 讀不到文字（可能是掃描的圖片 PDF）'); parts.push('【附件：'+f.name+'】\n'+ft); continue; }
+      if(/\.doc$/i.test(f.name)){ throw new Error(f.name+' 是舊版 Word（.doc），請在 Word 另存成 .docx 再夾帶'); }
       await ensureLame(); var r=await transcribeFile(f,'（'+(i+1)+'/'+_mtFiles.length+'）','mtProg',5+70*i/_mtFiles.length,5+70*(i+1)/_mtFiles.length); parts.push(r.text); audioSec+=r.sec; }
     var all=(text?text+'\n':'')+parts.join('\n');
     setProg('mtProg','AI 排會議記錄、找說好的事…',80);
@@ -904,7 +907,7 @@ async function saveDraft(){
   try{ await caseWrite(adds,[]); }catch(e){ btn.disabled=false; btn.textContent='確認存檔'; toast('沒存進去：'+(e&&e.message||e),true); return; }
   var rec=adds[0]; sheetPushMt(rec,newItems,chks);
   if(!d.imported) notifyTG('📝 '+grpLabel(g)+' '+(KIND_LAB[d.kind]||'')+'記錄完成（'+nm(me)+'）\n說好的事 '+items.length+' 條，綁數字 '+mt.nBound+' 條'+(mt.secs?'\n從貼上到確認 '+Math.round(mt.secs/60)+' 分鐘':''));
-  _draft=null; _t0=0; _mtFiles=[]; $('mtText').value=''; $('mtFiles').textContent='也可以直接丟錄音檔，會先轉成文字'; $('mtProg').style.display='none'; $('cardAfter').hidden=true;
+  _draft=null; _t0=0; _mtFiles=[]; $('mtText').value=''; $('mtFiles').textContent='錄音檔、PDF、Word、文字檔都可以，一次可以選好幾個'; $('mtProg').style.display='none'; $('cardAfter').hidden=true;
   try{ localStorage.removeItem(packFlagKey()); }catch(e){} _pack=null;
   renderAll(); toast('已存檔：說好的事 '+items.length+' 條開始追蹤'); showMt(rec.id);
 }
