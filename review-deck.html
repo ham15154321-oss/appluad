@@ -1396,8 +1396,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     });
 
     const sum = k => +mem.reduce((a, m) => a + (m[k] || 0), 0).toFixed(1);
-    const done = sum('now'); const gap17 = Math.max(0, r5(opt.n17 - done));
+    const done = sum('now');
     const bestTot = sum('best'); const pace = v => +(v / bestDays * day).toFixed(1);
+    // 目標自動往上跳：還沒到、日期還沒過的第一關 → 第二關 → 最終關；三關都過了 → 破今年最好那個月；那個月也贏了 → 再加一成
+    const startD = Math.min(dim, Math.max(day, opt.meet));
+    const gates = [{ k: 'g1', name: '第一關', v: opt.n10, d: opt.g1 }, { k: 'g2', name: '第二關', v: opt.n17, d: opt.g2 }, { k: 'end', name: '最終關', v: opt.goal, d: dim }];
+    let tg = gates.find(t => t.v > done && t.d >= startD);
+    if (!tg) {
+      const bt = Math.round(bestTot * 10) / 10;
+      if (bm && bt > done && bt > opt.goal) tg = { k: 'rec', name: '破紀錄', v: bt, d: dim, note: `追平再超過今年最好的 ${bm} 月` };
+      else { let v = Math.ceil(Math.max(bt, opt.goal) * 1.1); if (v <= done) v = Math.ceil(done * 1.1); tg = { k: 'rec', name: '破紀錄', v, d: dim, note: bm ? `今年最好的 ${bm} 月再加一成` : '月底目標再加一成' }; }
+    }
+    gates.forEach(g => { g.st = done >= g.v ? 'done' : g.k === tg.k ? 'now' : g.d < startD ? 'miss' : 'todo'; });
+    if (tg.k === 'rec') gates.push(Object.assign({ st: 'now' }, tg));
+    tg.days = Math.max(1, tg.d - startD + 1);
+    const winTo = Math.min(tg.d, startD + 6); const win = { from: startD, to: winTo, n: winTo - startD + 1 };
+    const gap17 = Math.max(0, r5(tg.v - done));
     // 到 17 號每人追多少：照今年最好那個月的比例分（組長可以改）
     const wsum = mem.reduce((a, m) => a + (m.best || 0), 0);
     mem.forEach(m => { m.add = r5(gap17 * (wsum ? (m.best || 0) / wsum : 1 / mem.length)); });
@@ -1414,11 +1428,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       ['課程現場和活動', r3, '講座、單元課、正式課程、結業、開課、活動：學生出現的地方都是機會'],
       ['預約變面談', r4, `已經約好 ${bk} 位（到月底）`],
     ];
+    if (!gap17) roads.forEach(r => { r[1] = 0; });
 
     // 第 10 頁：這 7 天（開會那天到第二關）的講座、單元課
     const classes = [];
     if (R) { (R[ym(M)] || []).slice().sort((a, b) => a.開班日期 < b.開班日期 ? -1 : 1).forEach(c => {
-      const d = D8(c.開班日期); if (!d || d.getMonth() + 1 !== M || d.getDate() < opt.meet || d.getDate() > opt.g2) return;
+      const d = D8(c.開班日期); if (!d || d.getMonth() + 1 !== M || d.getDate() < win.from || d.getDate() > win.to) return;
       const t = classType(c); if (t === '開班') return;
       classes.push({ type: t, date: `${M}/${d.getDate()}（${WD[d.getDay()]}）`, name: String(c.班級名稱 || '').replace(/-\S+$/, '').replace(/｜.*$/, ''), org: c.學院, counts: mem.map(m => (c.名單 || []).filter(r => mine(r, m.full)).length) });
     }); }
@@ -1428,7 +1443,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     const order = grp.members; app.sort((a, b) => (order.indexOf(a.who) - order.indexOf(b.who)) || (a.sort < b.sort ? 1 : -1));
     const appendix = app.map(x => [short(x.who), x.n, `${x.d} ${x.how}`, `${x.ch}／${x.st}`, x.want]);
 
-    const dayList = []; for (let d = opt.meet; d <= opt.g2; d++) { const t = new Date(Y, M - 1, d); dayList.push([`${M}/${d}`, `（${WD[t.getDay()]}）`, d === opt.g2 ? '第二關\n結算' : '']); }
+    const dayList = []; for (let d = win.from; d <= win.to; d++) { const t = new Date(Y, M - 1, d); dayList.push([`${M}/${d}`, `（${WD[t.getDay()]}）`, d === tg.d ? `${tg.name}\n結算` : '']); }
     const wd = d => WD[new Date(Y, M - 1, d).getDay()];
     const dataAt = String(pack.meta.synced && pack.meta.synced.motiv || pack.meta.exportedAt).replace(/^\d{4}\//, '').replace(/^0/, '');
     const leaderShort = grp.leader ? short(grp.leader) : '';
@@ -1438,7 +1453,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       wdG1: wd(opt.g1), wdMeet: wd(opt.meet), wdG2: wd(opt.g2), wdEnd: wd(dim), dayList,
       members: mem, done, A: sum('A'), backV: sum('backV'), backN: sum('back'), itv: sum('itv'), ck: sum('ck'), bk,
       best: { m: bm ? `${bm} 月` : '上個月', days: bestDays, tot: +bestTot.toFixed(1), pace: +mem.reduce((a, m) => a + pace(m.best), 0).toFixed(1) }, pace,
-      gap17, perDay17: +(gap17 / Math.max(1, opt.g2 - opt.meet + 1)).toFixed(1), roads, funnel: [bk, come, talk, regN, fMoney],
+      gap17, perDay17: +(gap17 / tg.days).toFixed(1), tg, gates, win, winGoal: r5(gap17 / tg.days * win.n), roads, funnel: [bk, come, talk, regN, fMoney],
       itvNRT, regT, feeT, eip: !!R, lecture: pickC('講座'), unit: pickC('單元課'), moreClasses: Math.max(0, classes.length - 2),
       appendix, appendixMore: Math.max(0, appendix.length - 60), dataAt,
       missing: grp.members.filter(n => !find(n)),
@@ -1470,22 +1485,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     const tbl = { border: { type: 'solid', pt: 0.75, color: C.ink20 }, fontFace: FT, fill: { color: C.white } };
     const M = D.M, mem = D.members, n = mem.length;
     const md = d => `${M}/${d}`;
-    const g1Done = D.done >= D.n10, g2Done = D.done >= D.n17;
+    const g1Done = D.done >= D.n10;
+    const TG = D.tg, tgD = TG.d, tgM = md(TG.d), gap = D.gap17, perDay = D.perDay17, wn = D.win.n, wEnd = md(D.win.to);
     const mLast = ((M - 2 + 12) % 12) + 1, mReg1 = ((M - 4 + 12) % 12) + 1; // 上個月、前三個月起
-    const dd = D.g2 - D.meet + 1; // 第二關天數
-    const leftEnd = D.dim - D.g2;
+    const dd = TG.days; // 到下一關還有幾天
     const mLabel = m => m.n + (m.isLeader ? '（組長）' : '');
 
     const BADGE = {
       2: ['A'], 3: ['A'], 4: ['A'], 5: ['A'],
-      6: ['M', '最好的月份、那個月加購自動帶入；「這 7 天要的」你寫。'],
-      7: ['M', '面談沒註冊、登記沒註冊、付了報名費自動帶入；「到 17 號收回」你寫。'.replace('17', D.g2)],
+      6: ['M', `最好的月份、那個月加購自動帶入；「到 ${tgM} 要的」你寫。`],
+      7: ['M', `面談沒註冊、登記沒註冊、付了報名費自動帶入；「到 ${tgD} 號收回」你寫。`],
       8: ['M', '學生名單自動帶入；「下一步」你寫。'], 9: ['M', '學生名單自動帶入；「下一步」你寫。'],
       10: ['M', '講座、單元課自動帶入；正式課程、結業、開課、活動和你想到的，你寫。'],
       11: ['W', '資料包沒有排課登記，這頁每週你自己對、自己寫。'],
       12: ['M', '已預約人數自動帶入；「誰接、誰陪談」你寫。'],
-      13: ['W', `「到 ${D.g2} 號追多少」自動帶入（照今年最好那個月的比例分，你可以改）；其他黃底格你寫。`],
-      14: ['M', '四格數字自動帶入；週會議紀錄、每天方向你寫。'], 15: ['W', '週會議紀錄、每天方向、七天結算你寫。'],
+      13: ['W', `「到 ${tgD} 號追多少」自動帶入（照今年最好那個月的比例分，你可以改）；其他黃底格你寫。`],
+      14: ['M', '四格數字自動帶入；週會議紀錄、每天方向你寫。'], 15: ['W', `週會議紀錄、每天方向、${D.win.n} 天結算你寫。`],
       16: ['M', '每日任務的標準自動帶入；數字、宣誓、簽名你寫。'],
     };
     function badgeTag(s, pg) {
@@ -1495,14 +1510,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       if (b[1]) T(s, b[1], 1.55, 2.24, 11.2, 0.28, { fontSize: 9.5, bold: true, color: C.ink60, valign: 'middle' });
     }
     function stages(s) {
-      const st = [['第一關', md(D.g1), g1Done ? 'done' : 'miss'], ['第二關', md(D.g2), 'now'], ['最終關', md(D.dim), 'todo']];
-      const x0 = 9.75, y = 0.36, gx = 1.3;
-      s.addShape(pres.shapes.LINE, { x: x0 + 0.13, y: y + 0.13, w: gx * 2, h: 0, line: { color: C.ink20, width: 1.5 } });
+      const st = D.gates.map(g => [g.name, md(g.d), g.st]); const four = st.length > 3;
+      const x0 = four ? 9.55 : 9.75, y = 0.36, gx = four ? 1.0 : 1.3;
+      s.addShape(pres.shapes.LINE, { x: x0 + 0.13, y: y + 0.13, w: gx * (st.length - 1), h: 0, line: { color: C.ink20, width: 1.5 } });
       st.forEach((v, i) => { const x = x0 + i * gx, col = v[2] === 'done' ? C.red : v[2] === 'miss' ? C.green : v[2] === 'now' ? C.purple : C.gray;
         if (v[2] === 'now') s.addShape(pres.shapes.OVAL, { x: x - 0.07, y: y - 0.07, w: 0.4, h: 0.4, fill: { color: C.purple, transparency: 70 }, line: { color: C.purple, width: 0, transparency: 100 } });
         s.addShape(pres.shapes.OVAL, { x, y, w: 0.26, h: 0.26, fill: { color: col }, line: { color: C.white, width: 1.5 } });
         if (v[2] === 'done') T(s, '✓', x, y, 0.26, 0.26, { fontSize: 10, bold: true, color: C.white, align: 'center', valign: 'middle', fontFace: FE });
-        T(s, `${v[0]} ${v[1]}`, x - 0.5, y + 0.32, 1.26, 0.25, { fontSize: 8.5, bold: v[2] === 'now', color: v[2] === 'now' ? C.purple : C.ink60, align: 'center' }); });
+        T(s, four ? `${v[0]}\n${v[1]}` : `${v[0]} ${v[1]}`, four ? x - 0.37 : x - 0.5, y + 0.32, four ? 1.0 : 1.26, four ? 0.4 : 0.25, { fontSize: four ? 7.5 : 8.5, bold: v[2] === 'now', color: v[2] === 'now' ? C.purple : C.ink60, align: 'center' }); });
     }
     function light(title, sub, tag) {
       const s = pres.addSlide(); PG++; s.background = { color: C.paper };
@@ -1540,16 +1555,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       const s = pres.addSlide(); PG++; s.background = { color: C.purple };
       s.addImage(Object.assign(IMG('applaud-brandmark-purple.png'), { x: 8.2, y: -0.4, w: 6.2, h: 7.0, transparency: 82 }));
       s.addImage(Object.assign(IMG('applaud-group-logo-white.png'), { x: 0.5, y: 0.35, w: 2.4, h: 0.93 }));
-      T(s, `${D.label}｜${M} 月闖關地圖`, 0.5, 1.75, 9.5, 0.9, { fontSize: 34, bold: true, color: C.white });
-      T(s, `小組 ${D.goal} 萬，三關一關一關過。`, 0.5, 2.7, 9, 0.6, { fontSize: 22, bold: true, color: C.lime });
+      const ttl = `${D.label}｜${M} 月闖關地圖`;
+      T(s, ttl, 0.5, 1.75, 9.5, 0.9, { fontSize: ttl.length > 22 ? 25 : ttl.length > 17 ? 29 : 34, bold: true, color: C.white, fit: 'shrink' });
+      T(s, TG.k === 'rec' ? `三關都過了，下一關：${TG.note} ${TG.v} 萬。` : `小組 ${D.goal} 萬，三關一關一關過。`, 0.5, 2.7, 9, 0.6, { fontSize: 22, bold: true, color: C.lime });
       T(s, '組長看的是小組，不是自己。', 0.5, 3.3, 9, 0.4, { fontSize: 14, color: C.white });
-      const pts = [['第一關', md(D.g1), `${D.n10} 萬`, g1Done ? 'done' : 'miss'], ['第二關', md(D.g2), `${D.n17} 萬`, 'now'], ['最終關', md(D.dim), `${D.goal} 萬`, 'todo']];
-      const x0 = 0.8, y = 4.35, gx = 2.75;
-      s.addShape(pres.shapes.LINE, { x: x0 + 0.3, y: y + 0.3, w: gx * 2, h: 0, line: { color: C.white, width: 2, dashType: 'dash', transparency: 40 } });
+      const pts = D.gates.map(g => [g.name, md(g.d), `${g.v} 萬`, g.st]);
+      const x0 = 0.8, y = 4.35, gx = pts.length > 3 ? 2.15 : 2.75;
+      s.addShape(pres.shapes.LINE, { x: x0 + 0.3, y: y + 0.3, w: gx * (pts.length - 1), h: 0, line: { color: C.white, width: 2, dashType: 'dash', transparency: 40 } });
       pts.forEach((p, i) => { const x = x0 + i * gx;
         if (p[3] === 'now') s.addShape(pres.shapes.OVAL, { x: x - 0.15, y: y - 0.15, w: 0.9, h: 0.9, fill: { color: C.lime, transparency: 65 }, line: { color: C.lime, transparency: 100 } });
         s.addShape(pres.shapes.OVAL, { x, y, w: 0.6, h: 0.6, fill: { color: p[3] === 'done' ? C.red : p[3] === 'miss' ? C.green : p[3] === 'now' ? C.lime : '8F74FF' }, line: { color: C.white, width: 2 } });
-        T(s, p[3] === 'done' ? '✓' : String(i + 1), x, y, 0.6, 0.6, { fontSize: 18, bold: true, color: p[3] === 'now' ? C.ink : C.white, align: 'center', valign: 'middle', fontFace: FE });
+        T(s, p[3] === 'done' ? '✓' : p[0] === '破紀錄' ? '★' : String(i + 1), x, y, 0.6, 0.6, { fontSize: 18, bold: true, color: p[3] === 'now' ? C.ink : C.white, align: 'center', valign: 'middle', fontFace: FE });
         T(s, [{ text: `${p[0]}　${p[1]}\n`, options: { fontSize: 12, bold: true, color: C.white } }, { text: p[2], options: { fontSize: 20, bold: true, color: p[3] === 'now' ? C.lime : C.white } }], x - 0.4, y + 0.75, 2.3, 0.8); });
       s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.5, y: 6.0, w: 5.2, h: 0.5, fill: { color: C.lime }, line: { color: C.lime }, rectRadius: 0.25 });
       T(s, '📘 這份組長要寫的只有一頁：第 13 頁', 0.5, 6.0, 5.2, 0.5, { fontSize: 13, bold: true, color: C.ink, align: 'center', valign: 'middle' });
@@ -1561,7 +1577,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     // 2 第一關
     {
       const g1gap = +(D.n10 - D.done).toFixed(1);
-      const s = light(g1Done ? `1–${D.day} 號：第一關破關，小組已經做到 ${D.done} 萬` : `1–${D.day} 號：小組做到 ${D.done} 萬，第一關還差 ${g1gap} 萬`, g1Done ? `第一關 ${D.n10} 萬已經過了。接下來 ${dd} 天不用從零開始，是把談過、約好的人收回來。` : `第一關 ${D.n10} 萬還沒過。接下來 ${dd} 天先補第一關，再追第二關。`, '🏆 第一關結算');
+      const s = light(g1Done ? `1–${D.day} 號：第一關破關，小組已經做到 ${D.done} 萬` : `1–${D.day} 號：小組做到 ${D.done} 萬，第一關還差 ${g1gap} 萬`, g1Done ? `第一關 ${D.n10} 萬已經過了。到 ${tgM} 還有 ${dd} 天，不用從零開始，是把談過、約好的人收回來。` : `第一關 ${D.n10} 萬還沒過。到 ${tgM} 還有 ${dd} 天，追${TG.name} ${TG.v} 萬。`, '🏆 第一關結算');
       tile(s, 0.5, 2.65, 2.3, 1.75, '已入帳', D.done, '萬', `照${D.best.m}步調該有 ${D.best.pace} 萬`, true);
       tile(s, 2.95, 2.65, 2.3, 1.75, '新生 A', D.A, '萬', '通路新生註冊');
       tile(s, 5.4, 2.65, 2.3, 1.75, '已經追回', D.backV, '萬', `${D.backN} 位談過又約回來繳`);
@@ -1569,50 +1585,56 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       badge(s, 10.75, 2.75, 1.6, '第一關', g1Done ? '破關' : '還沒破', g1Done);
       T(s, '到月底已經約好要來的', 0.5, 4.75, 5, 0.35, { fontSize: 13, bold: true, color: C.ink60 });
       T(s, [{ text: String(D.bk), options: { fontSize: 44, bold: true, color: C.purple, fontFace: FE } }, { text: ` 位　每一位來了都要有人談。這 ${D.bk} 位，是最確定的機會。`, options: { fontSize: 14, color: C.ink } }], 0.5, 5.1, 12.3, 0.9, { valign: 'middle' });
-      strip(s, g2Done ? `小組已經過第二關 ${D.n17} 萬了，往最終關 ${D.goal} 萬走。` : `第二關 ${md(D.g2)} 小組 ${D.n17} 萬，還差 ${D.gap17} 萬。`);
+      const passed = D.gates.filter(g => g.st === 'done').map(g => g.name);
+      strip(s, (passed.length ? `已經過了${passed.join('、')}。` : '') + `下一關：${TG.name} ${tgM} 小組 ${TG.v} 萬，還差 ${gap} 萬。`);
     }
 
     // 3 第二關還差多少
     {
-      const s = light(g2Done ? `第二關：小組 ${D.done} 萬，已經過 ${D.n17} 萬` : `第二關：到 ${md(D.g2)} 還差 ${D.gap17} 萬，每天 ${D.perDay17} 萬 × ${dd} 天`, `月底最終關 ${D.goal} 萬。這份先只看 ${D.g2} 號。`, '⚔️ 第二關');
-      const x0 = 0.5, bw = 12.33, y = 2.85, k = bw / Math.max(D.goal, D.done);
+      const s = light(`${TG.name}：到 ${tgM} 還差 ${gap} 萬，每天 ${perDay} 萬 × ${dd} 天`, TG.k === 'rec' ? `第一關、第二關、最終關都過了。下一關：${TG.note}，小組 ${TG.v} 萬。` : TG.k === 'end' ? `月底最終關 ${D.goal} 萬，就是下一關。` : `月底最終關 ${D.goal} 萬。這份先只看 ${tgD} 號。`, '⚔️ ' + TG.name);
+      const x0 = 0.5, bw = 12.33, y = 2.85, k = bw / Math.max(D.goal, D.done, TG.v);
       s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: x0, y, w: bw, h: 0.6, fill: { color: C.paper2 }, line: { color: C.ink20 }, rectRadius: 0.1 });
       if (D.done > 0) s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: x0, y, w: Math.max(0.3, D.done * k), h: 0.6, fill: { color: C.red }, line: { color: C.red }, rectRadius: 0.1 });
       T(s, `已入帳 ${D.done} 萬`, x0 + 0.15, y, 3, 0.6, { fontSize: 14, bold: true, color: D.done * k > 2 ? C.white : C.ink, valign: 'middle' });
-      [[`第一關 ${md(D.g1)}`, D.n10], [`第二關 ${md(D.g2)}`, D.n17], [`最終關 ${md(D.dim)}`, D.goal]].forEach(([d, v], i) => { const x = x0 + v * k;
-        s.addShape(pres.shapes.LINE, { x, y: y - 0.35, w: 0, h: 1.3, line: { color: C.purple, width: 2, dashType: 'dash' } });
-        T(s, [{ text: `${v} 萬\n`, options: { fontSize: 20, bold: true, color: i === 1 ? C.purple : C.ink60 } }, { text: d, options: { fontSize: 11, color: C.ink60, bold: true } }], x - (i === 2 ? 1.6 : 0.8), y + 1.0, 1.6, 0.8, { align: i === 2 ? 'right' : 'center' }); });
+      const G = D.gates, last = G.length - 1;
+      G.forEach((g, i) => { const x = x0 + g.v * k; const on = g.k === TG.k; const near = i < last && (G[i + 1].v - g.v) * k < 1.7;
+        s.addShape(pres.shapes.LINE, { x, y: y - 0.35, w: 0, h: 1.3, line: { color: on ? C.purple : C.ink40, width: 2, dashType: 'dash' } });
+        const right = i === last || x > x0 + bw - 0.9;
+        T(s, [{ text: `${g.v} 萬\n`, options: { fontSize: on ? 20 : 16, bold: true, color: on ? C.purple : g.st === 'done' ? C.red : C.ink60 } }, { text: `${g.name} ${md(g.d)}`, options: { fontSize: 10, color: C.ink60, bold: true } }], right ? x - 1.6 : near ? x - 1.55 : x - 0.8, y + 1.0, 1.6, 0.8, { align: right || near ? 'right' : 'center' }); });
       const rows = [[hdr('關卡'), hdr('累計要到'), hdr('這一段要做'), hdr('幾天'), hdr('每天'), hdr('這一段靠什麼')]];
-      const r3 = Math.max(0, +(D.goal - Math.max(D.n17, D.done)).toFixed(1));
-      [[`第一關　1–${D.g1} 號`, `${D.n10} 萬`, `已做 ${D.done} 萬`, String(D.g1), '—', g1Done ? '破關' : `還差 ${+(D.n10 - D.done).toFixed(1)} 萬`, true],
-       [`第二關　${D.meet}–${D.g2} 號`, `${D.n17} 萬`, `${D.gap17} 萬`, String(dd), `${D.perDay17} 萬`, '四個寶箱：加購、收回、課程現場和活動、預約面談'],
-       [`最終關　${D.g2 + 1} 號–月底`, `${D.goal} 萬`, `${r3} 萬`, String(leftEnd), `${(r3 / Math.max(1, leftEnd)).toFixed(1)} 萬`, `${D.g2} 號再按一次產生器，重排這一段`]]
-        .forEach(r => rows.push([cell(r[0], { bold: true }), cell(r[1], { bold: true, color: C.purple }), cell(r[2], { color: r[6] ? (g1Done ? C.red : C.green) : C.ink, bold: !!r[6] }), cell(r[3]), cell(r[4], { bold: true }), cell(r[5], { fontSize: 10.5, align: 'left' })]));
-      s.addTable(rows, Object.assign({ x: 0.5, y: 4.75, w: 12.33, colW: [2.2, 1.4, 1.6, 0.9, 1.2, 5.03], rowH: 0.38 }, tbl));
-      strip(s, g2Done ? '第二關已經過了，這幾天把月底的報到先約好。' : `一天打下 ${D.perDay17} 萬，${dd} 天就是第二關。`);
+      let from = 1;
+      G.forEach((g, i) => { const range = `${g.name}　${from}–${g.d === D.dim ? '月底' : g.d + ' 號'}`; from = g.d + 1;
+        let r;
+        if (g.st === 'done') r = [range, `${g.v} 萬`, '破關', '—', '—', `已做 ${D.done} 萬`, C.red];
+        else if (g.st === 'miss') r = [range, `${g.v} 萬`, `沒到，差 ${+(g.v - D.done).toFixed(1)} 萬`, '—', '—', '併進下一關一起追', C.green];
+        else if (g.k === TG.k) r = [range.replace(/　\d+–/, `　${D.win.from}–`), `${g.v} 萬`, `${gap} 萬`, String(dd), `${perDay} 萬`, '四個寶箱：加購、收回、課程現場和活動、預約面談', C.purple];
+        else { const prev = Math.max(TG.v, D.done), left = Math.max(0, +(g.v - prev).toFixed(1)), nd = Math.max(1, g.d - TG.d); r = [range, `${g.v} 萬`, `${left} 萬`, String(nd), `${(left / nd).toFixed(1)} 萬`, `${tgD} 號再按一次產生器，重排這一段`, C.ink]; }
+        rows.push([cell(r[0], { bold: true }), cell(r[1], { bold: true, color: C.purple }), cell(r[2], { color: r[6], bold: true }), cell(r[3]), cell(r[4], { bold: true }), cell(r[5], { fontSize: 10.5, align: 'left' })]); });
+      s.addTable(rows, Object.assign({ x: 0.5, y: 4.75, w: 12.33, colW: [2.2, 1.4, 1.8, 0.8, 1.1, 5.03], rowH: G.length > 3 ? 0.32 : 0.38 }, tbl));
+      strip(s, `一天打下 ${perDay} 萬，${dd} 天就是${TG.name} ${TG.v} 萬。`);
     }
 
     // 4 小組每個人（跟今年最好的月份比＋編輯追蹤）
     {
       const tot = D.best.tot, tp = D.best.pace, diff = +(D.done - tp).toFixed(1); const bmL = D.best.m;
       const s = light(`小組每個人：比今年最好的${bmL}，${diff < 0 ? '還差 ' + (-diff) : '多 ' + diff} 萬`, `${bmL}小組做到 ${tot} 萬。照${bmL}的步調，到 ${D.day} 號該有 ${tp} 萬，現在 ${D.done} 萬。（步調＝整月 ÷ ${D.best.days} 天 × ${D.day}）`, '👥 隊伍');
-      const rows = [[hdr('成員'), hdr(`${bmL}\n整月`, { fontSize: 10 }), hdr(`照${bmL}步調\n到 ${D.day} 號該有`, { fontSize: 9.5 }), hdr(`${M} 月\n1–${D.day} 號`, { fontSize: 10 }), hdr('差多少', { fontSize: 10 }), hdr('第一關\n10 萬', { fontSize: 10 }), hdr('這 7 天\n編輯幾筆', { fontSize: 9.5 }), hdr('幾筆複製\n上一筆狀態', { fontSize: 9.5 }), hdr('超過 15 天\n沒編輯', { fontSize: 9.5 }), hdr(`到 ${D.g2} 號\n追多少`, { fontSize: 10, fill: { color: C.ink } })]];
+      const rows = [[hdr('成員'), hdr(`${bmL}\n整月`, { fontSize: 10 }), hdr(`照${bmL}步調\n到 ${D.day} 號該有`, { fontSize: 9.5 }), hdr(`${M} 月\n1–${D.day} 號`, { fontSize: 10 }), hdr('差多少', { fontSize: 10 }), hdr('第一關\n10 萬', { fontSize: 10 }), hdr('這 7 天\n編輯幾筆', { fontSize: 9.5 }), hdr('幾筆複製\n上一筆狀態', { fontSize: 9.5 }), hdr('超過 15 天\n沒編輯', { fontSize: 9.5 }), hdr(`到 ${tgD} 號\n追多少`, { fontSize: 10, fill: { color: C.ink } })]];
       const L = mem.slice(0, 8); const fs = L.length > 5 ? 10.5 : 12;
       L.forEach(m => { const ok = m.now >= 10, bg = ok ? {} : { fill: { color: C.greenbg } }, p = D.pace(m.best), d = +(m.now - p).toFixed(1);
         const edOk = m.ed >= 140, cpOk = !m.ed || m.cp / m.ed <= 0.1, oldOk = m.old < 10; const c = (t, o) => cell(t, Object.assign({ fontSize: fs }, bg, o || {}));
         rows.push([c(mLabel(m), { bold: true, color: ok ? C.ink : C.green, fontSize: fs - 1 }), c(`${m.best} 萬`), c(`${p} 萬`), c(`${m.now} 萬`, { bold: true }), c(d >= 0 ? `+${d}` : `${d}`, { bold: true, color: d >= 0 ? C.red : C.green }), c(ok ? '✓ 破關' : `差 ${+(10 - m.now).toFixed(1)} 萬`, { bold: true, color: ok ? C.red : C.green, fontSize: fs - 1 }), c(m.ed, { color: edOk ? C.red : C.green, bold: !edOk }), c(`${m.cp}`, { color: cpOk ? C.ink : C.green, bold: !cpOk }), c(`${m.old} 位`, { color: oldOk ? C.ink : C.green, bold: !oldOk }), c(`+${m.add} 萬`, { bold: true, color: C.purple, fontSize: fs + 2 })]); });
-      rows.push([pc('小組'), pc(`${tot} 萬`), pc(`${tp} 萬`), pc(`${D.done} 萬`), pc(diff >= 0 ? `+${diff}` : `${diff}`, { color: diff >= 0 ? C.red : C.green }), pc(`${mem.filter(m => m.now >= 10).length} 人破關`), pc(sumM('ed')), pc(sumM('cp')), pc(`${sumM('old')} 位`), pc(`+${D.gap17} 萬`, { color: C.purple, fontSize: 14 })]);
+      rows.push([pc('小組'), pc(`${tot} 萬`), pc(`${tp} 萬`), pc(`${D.done} 萬`), pc(diff >= 0 ? `+${diff}` : `${diff}`, { color: diff >= 0 ? C.red : C.green }), pc(`${mem.filter(m => m.now >= 10).length} 人破關`), pc(sumM('ed')), pc(sumM('cp')), pc(`${sumM('old')} 位`), pc(`+${gap} 萬`, { color: C.purple, fontSize: 14 })]);
       const rh = L.length > 5 ? 0.3 : 0.42;
       s.addTable(rows, Object.assign({ x: 0.5, y: 2.55, w: 12.33, colW: [1.35, 1.0, 1.3, 1.05, 0.95, 1.15, 1.15, 1.25, 1.15, 1.98], rowH: [0.55].concat(Array(L.length + 1).fill(rh)), margin: [0.02, 0.05, 0.02, 0.05] }, tbl));
       T(s, `今年最好的月份＝現在這幾位組員，1 月到上個月每月業績加起來最高的那個月（新人那個月沒來算 0，離開的人不算）。差多少：紅＝超過，綠＝還差。\n編輯標準：7 天 ≥ 140 筆、複製上一筆 ≤ 10%、超過 15 天沒編輯的先打。編輯幾筆＝在 EIP 打開學生資料、改了再存檔的次數；幾筆複製上一筆狀態＝存檔時狀態跟上一筆一樣、沒寫新進度；超過 15 天沒編輯＝手上名單裡超過 15 天沒人動過的人數。`, 0.5, 5.25, 12.3, 0.85, { fontSize: 9, color: C.ink60, lineSpacingMultiple: 1.2 });
       const low = mem.filter(m => m.now < 10);
       if (low.length) T(s, `${low.map(m => m.n).join('、')} 還沒到 10 萬：手上超過 15 天沒編輯的 ${low.reduce((a, m) => a + m.old, 0)} 位先打。`, 0.5, 6.12, 12.3, 0.3, { fontSize: 11, bold: true, color: C.green });
-      strip(s, diff < 0 ? `${bmL}這一組做得到 ${tot} 萬，現在不是能力的問題，是步調。` : `已經比${bmL}的步調多 ${diff} 萬，照這個步調走到 ${D.g2} 號。`);
+      strip(s, diff < 0 ? `${bmL}這一組做得到 ${tot} 萬，現在不是能力的問題，是步調。` : `已經比${bmL}的步調多 ${diff} 萬，下一關${TG.name} ${TG.v} 萬，${tgD} 號前還差 ${gap} 萬。`);
     }
 
     // 5 四個寶箱
     {
-      const s = light(`${D.gap17} 萬從哪裡來：四個寶箱`, '每一個寶箱裡，都是這個月已經看得到的人和數字。分配是建議，你可以改。', '🎁 四個寶箱');
+      const s = light(TG.k === 'rec' ? `從 ${D.done} 萬到 ${TG.v} 萬：還差 ${gap} 萬從哪裡來` : `${gap} 萬從哪裡來：四個寶箱`, '每一個寶箱裡，都是這個月已經看得到的人和數字。分配是建議，你可以改。', '🎁 四個寶箱');
       D.roads.forEach((r, i) => { const x = 0.5 + i * 3.13, w = 2.95, y = 2.65, h = 3.4;
         s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h, fill: { color: C.white }, line: { color: C.ink20, width: 0.75 }, rectRadius: 0.1 });
         s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w, h: 0.5, fill: { color: C.purple }, line: { color: C.purple }, rectRadius: 0.1 });
@@ -1621,22 +1643,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
         T(s, r[0], x + 0.2, y + 0.7, w - 0.4, 0.45, { fontSize: 16, bold: true });
         T(s, [{ text: String(r[1]), options: { fontSize: 46, bold: true, fontFace: FE, color: C.purple } }, { text: ' 萬', options: { fontSize: 16, bold: true, color: C.ink60 } }], x + 0.2, y + 1.2, w - 0.4, 0.95, { valign: 'middle' });
         T(s, r[2], x + 0.2, y + 2.25, w - 0.4, 1.0, { fontSize: 11, color: C.ink60 }); });
-      strip(s, `四個寶箱加起來 ${+D.roads.reduce((a, r) => a + r[1], 0).toFixed(1)} 萬，就是第二關還差的 ${D.gap17} 萬。`);
+      strip(s, `四個寶箱加起來 ${+D.roads.reduce((a, r) => a + r[1], 0).toFixed(1)} 萬，就是${TG.name}還差的 ${gap} 萬。`);
     }
 
     // 6 寶箱 1 加購
     {
       const r1 = D.roads[0][1]; const bt = +mem.reduce((a, m) => a + (m.bestB[1] || 0), 0).toFixed(1);
       const s = light(`寶箱 1：舊生加購 ${r1} 萬`, '學生已經信任我們，這是最快的錢。你的組員開過更大的寶箱，只是這個月還沒動。', '🎁 寶箱 1／4');
-      const rows = [[hdr('成員'), hdr('加購最好的那個月'), hdr('那個月加購'), hdr(`這 ${dd} 天要的（組長填）`, { fill: { color: C.ink } })]];
+      const rows = [[hdr('成員'), hdr('加購最好的那個月'), hdr('那個月加購'), hdr(`到 ${tgM} 要的（組長填）`, { fill: { color: C.ink } })]];
       const L = mem.slice(0, 8); const rh = rowH(L.length, 0.5, 0.36);
       L.forEach((m, i) => rows.push([cell(mLabel(m), { bold: true }), cell(m.bestB[0]), cell(m.bestB[1] ? `${m.bestB[1]} 萬` : '還沒做過', { color: m.bestB[1] ? C.red : C.ink60, bold: !!m.bestB[1] }), i === 0 ? demo('例：3 萬（2 位舊生）') : ycell()]));
       rows.push([pc('小組'), pc(''), pc(`${bt} 萬`, { color: C.red }), pc(`${r1} 萬`, { color: C.purple })]);
       s.addTable(rows, Object.assign({ x: 0.5, y: 2.65, w: 8.2, colW: [1.8, 2.2, 1.9, 2.3], rowH: [0.5].concat(Array(L.length + 1).fill(rh)) }, tbl));
       s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 9.0, y: 2.65, w: 3.83, h: 3.0, fill: { color: C.purple }, line: { color: C.purple }, rectRadius: 0.1 });
-      T(s, `這 ${dd} 天要的`, 9.2, 2.8, 3.4, 0.3, { fontSize: 12, bold: true, color: C.white });
+      T(s, `到 ${tgM} 要的`, 9.2, 2.8, 3.4, 0.3, { fontSize: 12, bold: true, color: C.white });
       T(s, [{ text: String(r1), options: { fontSize: 60, bold: true, fontFace: FE, color: C.lime } }, { text: ' 萬', options: { fontSize: 18, bold: true, color: C.white } }], 9.2, 3.15, 3.4, 1.2, { valign: 'middle' });
-      T(s, bt ? `最好那幾個月加起來是 ${bt} 萬，這 ${dd} 天只要 ${r1} 萬。` : '從上過課、結業的舊生開始。', 9.2, 4.5, 3.4, 0.9, { fontSize: 13, color: C.white });
+      T(s, bt ? `最好那幾個月加起來是 ${bt} 萬，到 ${tgM} 只要 ${r1} 萬。` : '從上過課、結業的舊生開始。', 9.2, 4.5, 3.4, 0.9, { fontSize: 13, color: C.white });
       strip(s, '做法：每人交加購名單 10 筆，先從已登記講座、單元課的舊生開始。');
     }
 
@@ -1644,7 +1666,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     {
       const r2 = D.roads[1][1];
       const s = light(`寶箱 2：談過、登記過的人收回來 ${r2} 萬`, '這些都是我們登記過、談過，還沒註冊的人。學生全名在下兩頁附表。', '🎁 寶箱 2／4');
-      const rows = [[hdr('成員'), hdr(`${mLast} 月面談沒註冊`), hdr(`${mReg1}–${mLast} 月登記講座／試聽，還沒註冊`), hdr('其中付了報名費'), hdr(`到 ${D.g2} 號收回（組長填）`, { fill: { color: C.ink } })]];
+      const rows = [[hdr('成員'), hdr(`${mLast} 月面談沒註冊`), hdr(`${mReg1}–${mLast} 月登記講座／試聽，還沒註冊`), hdr('其中付了報名費'), hdr(`到 ${tgD} 號收回（組長填）`, { fill: { color: C.ink } })]];
       const L = mem.slice(0, 8); const rh = rowH(L.length, 0.48, 0.34);
       L.forEach((m, i) => rows.push([cell(mLabel(m), { bold: true }), cell(`${m.itvNR} 位`), cell(D.eip ? `${m.reg} 位` : '—'), cell(`${m.fee} 位`), i === 0 ? demo('例：1 位，付了報名費那位') : ycell()]));
       rows.push([pc('小組'), pc(`${D.itvNRT} 位`), pc(D.eip ? `${D.regT} 位` : '—'), pc(`${D.feeT} 位`), pc('1 位＝4 萬', { color: C.purple })]);
@@ -1676,16 +1698,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       const s = light(`寶箱 3：課程現場和活動 ${r3} 萬`, '學生出現的每一個場合，都是機會。不只講座、單元課，正式課程、結業、開課、活動都可以談。', '🎁 寶箱 3／4');
       const z = C.green, g = { color: C.ink40, italic: true, fontSize: 10, align: 'left' };
       const who = mem.slice(0, 5).map(m => m.n).join('／') + (n > 5 ? '…' : '');
-      const rows = [[hdr('機會點'), hdr(`這 ${dd} 天有哪幾場\n（日期＋課名）`, { fontSize: 10 }), hdr('學生在那裡，可以談什麼'), hdr(`本組登記／安排了誰\n${who}`, { fontSize: 9 }), hdr('目標（組長填）', { fill: { color: C.ink } })]];
+      const rows = [[hdr('機會點'), hdr(`${md(D.win.from)}–${wEnd} 有哪幾場\n（日期＋課名）`, { fontSize: 10 }), hdr('學生在那裡，可以談什麼'), hdr(`本組登記／安排了誰\n${who}`, { fontSize: 9 }), hdr('目標（組長填）', { fill: { color: C.ink } })]];
       const cRow = (lab, c, talk) => { const cnt = c ? c.counts.slice(0, 5) : null;
-        rows.push([cell(lab, { bold: true, fontSize: 11.5 }), c ? cell(`${c.date} ${c.name}`, { fontSize: 10, align: 'left' }) : cell(D.eip ? `這 ${dd} 天沒有${lab}` : '沒有放 EIP 課表包', { fontSize: 10, color: C.ink40, align: 'left' }), cell(talk, { fontSize: 10.5, align: 'left' }),
+        rows.push([cell(lab, { bold: true, fontSize: 11.5 }), c ? cell(`${c.date} ${c.name}`, { fontSize: 10, align: 'left' }) : cell(D.eip ? `${md(D.win.from)}–${wEnd} 沒有${lab}` : '沒有放 EIP 課表包', { fontSize: 10, color: C.ink40, align: 'left' }), cell(talk, { fontSize: 10.5, align: 'left' }),
           cnt ? cell(cnt.join('／'), { bold: true, fontSize: 12, color: cnt.includes(0) ? z : C.ink }) : ycell(), ycell()]); };
       cRow('講座', D.lecture, '聽完當場談、約試聽'); cRow('單元課', D.unit, '舊生談加購、新生談正式課');
-      [['正式課程\n（上課中的班）', '例：週三晚上平面設計班', '下課找學生談進階、加購下一門'], ['課程結業', `例：${md(D.g2 - 2)} 插畫班結業`, '結業當天談下一門課、請他介紹朋友'], ['開課', `例：${md(D.meet + 1)} 室內設計班開課`, '新生第一堂建立關係；陪同的家人朋友也是名單'], ['活動', '例：作品展、節日活動', '約舊生回來、現場登記新名單']]
+      [['正式課程\n（上課中的班）', '例：週三晚上平面設計班', '下課找學生談進階、加購下一門'], ['課程結業', `例：${md(Math.max(D.win.from, D.win.to - 2))} 插畫班結業`, '結業當天談下一門課、請他介紹朋友'], ['開課', `例：${md(Math.min(D.win.to, D.win.from + 1))} 室內設計班開課`, '新生第一堂建立關係；陪同的家人朋友也是名單'], ['活動', '例：作品展、節日活動', '約舊生回來、現場登記新名單']]
         .forEach(r => rows.push([cell(r[0], { bold: true, fontSize: 11.5 }), cell(r[1], Object.assign({ fill: { color: C.yellow } }, g)), cell(r[2], { fontSize: 10.5, align: 'left' }), ycell(), ycell()]));
       for (let k = 0; k < 2; k++) rows.push([cell('你想到的：＿＿＿', { color: C.purple, bold: true, fontSize: 10.5, fill: { color: C.yellow } }), ycell(), ycell(), ycell(), ycell()]);
       s.addTable(rows, Object.assign({ x: 0.5, y: 2.55, w: 12.33, colW: [1.75, 2.85, 3.5, 2.2, 2.03], rowH: [0.45, 0.36, 0.36, 0.44, 0.36, 0.36, 0.36, 0.38, 0.38], margin: [0.02, 0.08, 0.02, 0.08] }, tbl));
-      T(s, (D.moreClasses ? `這 ${dd} 天還有 ${D.moreClasses} 堂講座／單元課沒列，看 EIP。` : '') + '0 位標綠：問「不會約，還是不想約？」不會約，請登記最多的人分享怎麼約。會前主管調錄音，看有沒有照話術講、有沒有真的打。', 0.5, 6.1, 12.3, 0.3, { fontSize: 9.5, color: C.ink60 });
+      T(s, (D.moreClasses ? `這 ${wn} 天還有 ${D.moreClasses} 堂講座／單元課沒列，看 EIP。` : '') + '0 位標綠：問「不會約，還是不想約？」不會約，請登記最多的人分享怎麼約。會前主管調錄音，看有沒有照話術講、有沒有真的打。', 0.5, 6.1, 12.3, 0.3, { fontSize: 9.5, color: C.ink60 });
       strip(s, '學生出現的地方，就是機會。', 6.45, 0.5);
     }
 
@@ -1719,17 +1741,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
 
     // 13 作戰計劃
     {
-      const s = light(`我的小組作戰計劃：先打到 ${md(D.g2)}`, `寫人、寫數字、寫哪一天。不寫口號。${D.g2} 號沒破關，再補寫 ${D.g2 + 1}–${D.dim} 號。`, '📘 你要寫的只有這一頁');
-      [[`${D.g2} 號小組要做到`, `${D.n17} 萬`], ['月底小組要做到', `${D.goal} 萬`]].forEach((b, i) => { const x = 0.5 + i * 3.3;
+      const s = light(`我的小組作戰計劃：先打到 ${tgM}`, tgD < D.dim ? `寫人、寫數字、寫哪一天。不寫口號。${tgD} 號沒破關，再補寫 ${tgD + 1}–${D.dim} 號。` : '寫人、寫數字、寫哪一天。不寫口號。', '📘 你要寫的只有這一頁');
+      (tgD < D.dim ? [[`${tgD} 號小組要做到`, `${TG.v} 萬`], ['月底小組要做到', `${Math.max(D.goal, TG.v)} 萬`]] : [['月底小組要做到', `${TG.v} 萬`], ['現在小組做到', `${D.done} 萬`]]).forEach((b, i) => { const x = 0.5 + i * 3.3;
         s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 2.55, w: 3.1, h: 0.6, fill: { color: C.yellow }, line: { color: C.gold, width: 0.75 }, rectRadius: 0.08 });
         T(s, b[0], x + 0.18, 2.55, 1.8, 0.6, { fontSize: 12, bold: true, color: C.ink60, valign: 'middle' }); T(s, b[1], x + 1.6, 2.55, 1.35, 0.6, { fontSize: 15, bold: true, color: C.purple, valign: 'middle', align: 'right' }); });
-      T(s, `錢從哪一條路來＝這位組員到 ${D.g2} 號要追的錢，主要從四個寶箱的哪一個來：加購／收回／課程現場和活動／預約面談，可以寫兩個。`, 7.2, 2.55, 5.6, 0.6, { fontSize: 10.5, color: C.ink60, valign: 'middle' });
-      const rows = [[hdr('成員'), hdr(`到 ${D.g2} 號\n追多少`, { fontSize: 10 }), hdr('錢從哪一條路來'), hdr('第一件事'), hdr('我怎麼陪他'), hdr('哪天對')]];
+      T(s, `錢從哪一條路來＝這位組員到 ${tgD} 號要追的錢，主要從四個寶箱的哪一個來：加購／收回／課程現場和活動／預約面談，可以寫兩個。`, 7.2, 2.55, 5.6, 0.6, { fontSize: 10.5, color: C.ink60, valign: 'middle' });
+      const rows = [[hdr('成員'), hdr(`到 ${tgD} 號\n追多少`, { fontSize: 10 }), hdr('錢從哪一條路來'), hdr('第一件事'), hdr('我怎麼陪他'), hdr('哪天對')]];
       const g = { color: C.ink40, fontSize: 10.5, fill: { color: C.yellow } };
-      rows.push([cell('範例', { bold: true, color: C.ink40 }), cell('+6 萬', { color: C.ink40 }), cell('加購 4 萬＋預約面談 2 萬', g), cell(`${md(D.meet + 1)} 交加購名單 10 筆給組長`, g), cell('單元課當天陪他當場談', g), cell(md(D.meet + 3), g)]);
+      rows.push([cell('範例', { bold: true, color: C.ink40 }), cell('+6 萬', { color: C.ink40 }), cell('加購 4 萬＋預約面談 2 萬', g), cell(`${md(Math.min(D.win.to, D.win.from + 1))} 交加購名單 10 筆給組長`, g), cell('單元課當天陪他當場談', g), cell(md(Math.min(D.win.to, D.win.from + 3)), g)]);
       const L = mem.slice(0, 8); const rh = rowH(L.length, 0.42, 0.32);
       L.forEach(m => rows.push([cell(mLabel(m), { bold: true }), cell(`+${m.add} 萬`, { bold: true, color: C.purple, fontSize: 14 }), ycell(), ycell(), ycell(), ycell()]));
-      rows.push([pc('小組'), pc(`+${D.gap17} 萬`, { color: C.purple, fontSize: 14 }), pc(''), pc(''), pc(''), pc('')]);
+      rows.push([pc('小組'), pc(`+${gap} 萬`, { color: C.purple, fontSize: 14 }), pc(''), pc(''), pc(''), pc('')]);
       s.addTable(rows, Object.assign({ x: 0.5, y: 3.35, w: 12.33, colW: [1.3, 1.3, 2.7, 3.0, 2.9, 1.13], rowH: [0.42, 0.4].concat(Array(L.length).fill(rh)).concat([0.36]) }, tbl));
       strip(s, `沒到 10 萬的組員：${md(D.g1)} 下班前把自己的作戰計劃交給組長；${md(D.meet)} 組長替他上台，組員不用來。`);
     }
@@ -1738,7 +1760,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     {
       const DAYS = D.dayList;
       const n2 = '通路約＿＿人\n班務約＿＿人\n面談＿＿人', n3 = '☐ 100 通以上電話約訪\n☐ 取經對象＿＿＿ 已寫心得\n☐ OKBOM 主題＿＿＿ 已填表單', n4 = '1 ＿＿＿＿ → ＿＿\n2 ＿＿＿＿ → ＿＿\n3 ＿＿＿＿ → ＿＿', n5 = '當日＿＿＿元\n月累計＿＿＿元';
-      const head = s => [['目前業績（小組）', `${D.done} 萬`], ['每天要入帳', `${D.perDay17} 萬`], [`到 ${D.g2} 號還差`, `${D.gap17} 萬`], ['第二關目標', `小組 ${D.n17} 萬`]].forEach((b, i) => { const x = 0.5 + i * 3.1, hot = i === 2;
+      const head = s => [['目前業績（小組）', `${D.done} 萬`], ['每天要入帳', `${perDay} 萬`], [`到 ${tgD} 號還差`, `${gap} 萬`], [`${TG.name}目標`, `小組 ${TG.v} 萬`]].forEach((b, i) => { const x = 0.5 + i * 3.1, hot = i === 2;
         s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 3.56, w: 2.95, h: 0.42, fill: { color: hot ? C.redbg : C.white }, line: { color: hot ? C.red : C.ink20, width: 0.75 }, rectRadius: 0.08 });
         T(s, b[0], x + 0.15, 3.56, 1.5, 0.42, { fontSize: 10.5, bold: true, color: hot ? C.red : C.ink60, valign: 'middle' }); T(s, b[1], x + 1.4, 3.56, 1.45, 0.42, { fontSize: 12, bold: true, color: hot ? C.red : C.purple, valign: 'middle', align: 'right' }); });
       const page = (title, days, last) => {
@@ -1746,7 +1768,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
         if (!last) {
           s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.5, y: 2.48, w: 12.33, h: 0.98, fill: { color: C.paper2 }, line: { color: C.ink20, width: 0.75 }, rectRadius: 0.08 });
           T(s, '📝 本週小組會議紀錄（週會議當場寫，寫完拍照丟群組）', 0.68, 2.52, 7, 0.28, { fontSize: 11, bold: true, color: C.purple });
-          [['本週目標', `例：小組 ${D.gap17} 萬（到 ${md(D.g2)}）`], ['主攻哪條路（四個寶箱）', '例：☑ 收回　☑ 課程現場和活動'], ['用什麼方法', '例：每人交加購名單 10 筆；預約的每位排好誰陪談'], ['誰負責什麼', '例：組長陪沒到 10 萬的面談']].forEach((f, i) => { const x = 0.68 + i * 3.04;
+          [['本週目標', `例：小組 ${D.winGoal} 萬（到 ${wEnd}）`], ['主攻哪條路（四個寶箱）', '例：☑ 收回　☑ 課程現場和活動'], ['用什麼方法', '例：每人交加購名單 10 筆；預約的每位排好誰陪談'], ['誰負責什麼', '例：組長陪沒到 10 萬的面談']].forEach((f, i) => { const x = 0.68 + i * 3.04;
             T(s, f[0], x, 2.83, 2.9, 0.22, { fontSize: 9, bold: true, color: C.ink60 });
             s.addShape(pres.shapes.RECTANGLE, { x, y: 3.06, w: 2.9, h: 0.34, fill: { color: C.yellow }, line: { color: C.yellow } });
             T(s, f[1], x + 0.06, 3.06, 2.8, 0.34, { fontSize: 8.5, italic: true, color: C.ink40, valign: 'middle' }); });
@@ -1756,30 +1778,30 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
         const rows = [[hdr('日期', { fontSize: 9 }), hdr('① 今天主攻哪條路＋大方向（做到打勾）', { fontSize: 9 }), hdr('② 今天約幾個人', { fontSize: 9 }), hdr('③ 今日三件事', { fontSize: 9 }), hdr('④ 今日面談誰 → 約回下次見面日', { fontSize: 8.5 }), hdr('⑤ 業績', { fontSize: 9 })]];
         days.forEach((d, di) => { const y = d[2] ? { fill: { color: C.yellow } } : {}; const ex = !last && di === 0, g = ex ? { color: C.ink40, italic: true } : {};
           const dt = [{ text: d[0], options: { fontSize: 12, bold: true, fontFace: FE, breakLine: true } }, { text: d[1], options: { fontSize: 9, breakLine: !!d[2] } }].concat(d[2] ? [{ text: d[2], options: { fontSize: 8.5, bold: true, color: C.red } }] : []);
-          const dir = ex ? '主攻：☐ 加購　☑ 收回　☑ 課程現場和活動　☐ 預約面談\n☑ 今天目標：收回 1 位、約 3 位去這週的單元課\n名單從哪來：本部近三個月登記講座／試聽，自己承辦的' : (d[2] ? '主攻：☐ 加購　☐ 收回　☐ 課程現場和活動　☐ 預約面談\n☐ 今天目標：第二關結算，收最後幾位＿＿＿＿＿＿\n名單從哪來：＿＿＿＿＿＿＿＿＿＿＿＿' : '主攻：☐ 加購　☐ 收回　☐ 課程現場和活動　☐ 預約面談\n☐ 今天目標：＿＿萬／＿＿人：＿＿＿＿＿＿＿＿＿＿\n名單從哪來：＿＿＿＿＿＿＿＿（哪一部＋哪一種名單＋年份）');
+          const dir = ex ? '主攻：☐ 加購　☑ 收回　☑ 課程現場和活動　☐ 預約面談\n☑ 今天目標：收回 1 位、約 3 位去這週的單元課\n名單從哪來：本部近三個月登記講座／試聽，自己承辦的' : (d[2] ? `主攻：☐ 加購　☐ 收回　☐ 課程現場和活動　☐ 預約面談\n☐ 今天目標：${TG.name}結算，收最後幾位＿＿＿＿＿＿\n名單從哪來：＿＿＿＿＿＿＿＿＿＿＿＿` : '主攻：☐ 加購　☐ 收回　☐ 課程現場和活動　☐ 預約面談\n☐ 今天目標：＿＿萬／＿＿人：＿＿＿＿＿＿＿＿＿＿\n名單從哪來：＿＿＿＿＿＿＿＿（哪一部＋哪一種名單＋年份）');
           rows.push([{ text: dt, options: Object.assign({ align: 'center', valign: 'middle', fontFace: FT, color: C.ink }, y) }, cell(dir, Object.assign({ fontSize: 8, align: 'left' }, y, ex ? { color: C.ink40, italic: true } : {})), cell(ex ? '例：通路約 6 人\n班務約 2 人\n面談 2 人' : n2, Object.assign({ fontSize: 7.5, align: 'left' }, y, g)), cell(ex ? '☑ 100 通以上電話約訪\n☑ 取經對象 組員 A 已寫心得\n☑ OKBOM 主題 攝影 已填表單' : n3, Object.assign({ fontSize: 7.5, align: 'left' }, y, g)), cell(ex ? '1 王小明 → 單元課那天\n2 陳小華 → 隔天再談\n3 ＿＿＿＿ → ＿＿' : n4, Object.assign({ fontSize: 7.5, align: 'left' }, y, g)), cell(ex ? '當日 12,000 元\n月累計 82,000 元' : n5, Object.assign({ fontSize: 7.5, align: 'left' }, y, g))]); });
         s.addTable(rows, Object.assign({ x: 0.5, y: y0, w: 12.33, colW: [0.85, 4.85, 1.35, 2.15, 1.98, 1.15], rowH: [0.28].concat(Array(days.length).fill(rh)) }, tbl));
         if (last) { const y1 = y0 + 0.28 + rh * days.length + 0.12;
           s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.5, y: y1, w: 12.33, h: 0.62, fill: { color: C.ink }, line: { color: C.ink }, rectRadius: 0.08 });
-          T(s, `${dd} 天結算（${md(D.g2)} 填）`, 0.7, y1, 2.0, 0.62, { fontSize: 11, bold: true, color: C.lime, valign: 'middle' });
-          T(s, `通路約＿＿人　班務約＿＿人　面談＿＿人　100 通達成＿／${dd} 天　取經心得＿／${dd} 天　OKBOM＿／${dd} 天\n${dd} 天小組業績＿＿＿萬（目標 ${D.gap17} 萬）　月累計＿＿＿萬（起點 ${D.done} 萬）　到第二關還差＿＿＿萬`, 2.7, y1 + 0.02, 10.0, 0.58, { fontSize: 9.5, bold: true, color: C.white, valign: 'middle' }); }
+          T(s, `${wn} 天結算（${wEnd} 填）`, 0.7, y1, 2.0, 0.62, { fontSize: 11, bold: true, color: C.lime, valign: 'middle' });
+          T(s, `通路約＿＿人　班務約＿＿人　面談＿＿人　100 通達成＿／${wn} 天　取經心得＿／${wn} 天　OKBOM＿／${wn} 天\n${wn} 天小組業績＿＿＿萬（目標 ${D.winGoal} 萬）　月累計＿＿＿萬（起點 ${D.done} 萬）　到${TG.name}還差＿＿＿萬`, 2.7, y1 + 0.02, 10.0, 0.58, { fontSize: 9.5, bold: true, color: C.white, valign: 'middle' }); }
       };
-      const half = Math.min(4, Math.ceil(DAYS.length / 2) + 0);
-      page(`小組週會議＋${dd} 天方向 ${DAYS[0][0]}–${DAYS[half - 1][0]}：每天往一個方向做到底`, DAYS.slice(0, half));
-      page(`小組週會議＋${dd} 天方向 ${DAYS[half][0]}–${DAYS[DAYS.length - 1][0]}：寫完交給組長`, DAYS.slice(half), true);
+      const half = Math.max(1, Math.min(4, Math.ceil(DAYS.length / 2)));
+      page(`小組週會議＋${wn} 天方向 ${DAYS[0][0]}–${DAYS[half - 1][0]}：每天往一個方向做到底`, DAYS.slice(0, half));
+      page(DAYS.length > half ? `小組週會議＋${wn} 天方向 ${DAYS[half][0]}–${DAYS[DAYS.length - 1][0]}：寫完交給組長` : `小組週會議＋${wn} 天方向：寫完交給組長`, DAYS.slice(half), true);
     }
 
     // 16 每日任務＋出征誓言
     {
-      const s = light('組長的每一天，和我們的約定', `每天打勾四件事。${D.g2} 號沒破關，就留下來一起想辦法。`, '✅ 每日任務');
+      const s = light('組長的每一天，和我們的約定', `每天打勾四件事。${tgD} 號沒破關，就留下來一起想辦法。`, '✅ 每日任務');
       const box = (x, w, title, lines, hot) => { s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 2.6, w, h: 2.45, fill: { color: hot ? C.purple : C.white }, line: { color: hot ? C.purple : C.ink20 }, rectRadius: 0.1 });
         T(s, title, x + 0.2, 2.72, w - 0.4, 0.4, { fontSize: 14, bold: true, color: hot ? C.lime : C.purple }); T(s, lines, x + 0.2, 3.2, w - 0.4, 1.8, { fontSize: 12, color: hot ? C.white : C.ink, lineSpacingMultiple: 1.3 }); };
-      box(0.5, 4.0, '每日任務（括號是標準）', `☐ 加購入帳　＿＿ 萬（${dd} 天合計 ${D.roads[0][1]} 萬）\n☐ 通路約　＿＿ 人（每人每天 6 人）\n☐ 報到　＿＿ 人（看第 12 頁已預約）\n☐ 入帳　＿＿ 萬（每天 ${D.perDay17} 萬）`, true);
+      box(0.5, 4.0, '每日任務（括號是標準）', `☐ 加購入帳　＿＿ 萬（到 ${tgM} 合計 ${D.roads[0][1]} 萬）\n☐ 通路約　＿＿ 人（每人每天 6 人）\n☐ 報到　＿＿ 人（看第 12 頁已預約）\n☐ 入帳　＿＿ 萬（每天 ${perDay} 萬）`, true);
       box(4.67, 4.0, '關卡時間', `${md(D.g1)}（${D.wdG1}）第一關結算\n${md(D.meet)}（${D.wdMeet}）組長會議\n${md(D.g2)}（${D.wdG2}）第二關結算\n${md(D.dim)}（${D.wdEnd}）最終關`);
-      box(8.84, 3.99, '第二關沒破怎麼辦', `${md(D.g2)} 小組沒到 ${D.n17} 萬\n→ 業務檢討會結束後，留下來參加組長檢討會。\n組長自己業績多少不看，看小組。`);
+      box(8.84, 3.99, `${TG.name}沒破怎麼辦`, `${tgM} 小組沒到 ${TG.v} 萬\n→ 業務檢討會結束後，留下來參加組長檢討會。\n組長自己業績多少不看，看小組。`);
       s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 0.5, y: 5.25, w: 12.33, h: 1.1, fill: { color: C.yellow }, line: { color: C.yellow }, rectRadius: 0.1 });
       T(s, '🔥 出征誓言', 0.7, 5.32, 4, 0.3, { fontSize: 12, bold: true, color: C.purple });
-      T(s, `${md(D.g2)} 我的小組做到 ＿＿＿ 萬。沒做到，我請在座組長喝飲料。　　組長簽名 ＿＿＿＿＿＿`, 0.7, 5.65, 12, 0.55, { fontSize: 15, bold: true });
+      T(s, `${tgM} 我的小組做到 ＿＿＿ 萬。沒做到，我請在座組長喝飲料。　　組長簽名 ＿＿＿＿＿＿`, 0.7, 5.65, 12, 0.55, { fontSize: 15, bold: true });
       strip(s, '做到的組長手上那一杯，是謝謝自己的組員讓小組破關。');
     }
     return pres;
