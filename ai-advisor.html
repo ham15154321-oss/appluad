@@ -962,12 +962,12 @@ body.day-mode .chat-tool-btn[style*="#ff8a8a"]{ color:#c01020 !important; }
 <!-- ===== 頂部 ===== -->
 <div class="top-bar">
   <button class="back-btn" id="backBtn" onclick="goBack()">← 上一頁</button>
-  <h1>🤖 AI 顧問中心</h1>
+  <h1>AI 顧問</h1>
   <div class="top-tabs grp-tabs" id="topTabs">
-    <button class="grp-tab active" data-grp="ask" onclick="showGroup('ask')">💬 問 AI</button>
-    <button class="grp-tab" data-grp="task" onclick="showGroup('task')">📋 任務</button>
-    <button class="grp-tab" data-grp="data" onclick="showGroup('data')">🗂️ 資料中心</button>
-    <button class="grp-tab challenge" data-grp="challenge" onclick="showGroup('challenge')">💪 挑戰 AI<span class="badge" id="aierrorBadge" style="background:rgba(255,107,107,.25);color:#ff8a8a;">0</span></button>
+    <button class="grp-tab active" data-grp="ask" onclick="showGroup('ask')">對話</button>
+    <button class="grp-tab" data-grp="task" onclick="showGroup('task')">任務</button>
+    <button class="grp-tab" data-grp="data" onclick="showGroup('data')">資料</button>
+    <button class="grp-tab challenge" data-grp="challenge" hidden onclick="showGroup('challenge')">💪 挑戰 AI<span class="badge" id="aierrorBadge" style="background:rgba(255,107,107,.25);color:#ff8a8a;">0</span></button>
   </div>
 </div>
 <!-- 子分頁列（依群顯示）-->
@@ -980,6 +980,7 @@ body.day-mode .chat-tool-btn[style*="#ff8a8a"]{ color:#c01020 !important; }
   <button class="sub-tab" data-view="rules" onclick="showView('rules')">📜 鐵律</button>
   <button class="sub-tab" data-view="casedb" onclick="showView('casedb')">📂 案例庫</button>
   <button class="sub-tab" data-view="pmemory" onclick="showView('pmemory')">🔐 私聊筆記<span class="badge" id="pmemoryBadge">0</span></button>
+  <button class="sub-tab" data-view="aierror" onclick="showView('aierror')">💪 答錯回報</button>
 </div>
 <!-- 資料中心：四個資料庫對照（可收合）-->
 <div id="dataInfoBand" class="data-info">
@@ -1011,6 +1012,9 @@ body.day-mode .chat-tool-btn[style*="#ff8a8a"]{ color:#c01020 !important; }
 
 <!-- ===== 1. 功能卡片 ===== -->
 <div class="view cards-view active" id="v_cards">
+  <!-- ★ ds147 AI 顧問第 1 輪：首頁只留問答框、建議問題、常用顧問、接著上次聊（舊版收在 #v1home，id 都還在） -->
+  <div id="v2home" class="v2home"></div>
+  <div id="v1home" hidden>
   <!-- ★ 直接問 hero：自動分流到對的顧問 -->
   <div class="ask-hero">
     <h2>💬 直接問，我幫你問對顧問</h2>
@@ -1046,6 +1050,7 @@ body.day-mode .chat-tool-btn[style*="#ff8a8a"]{ color:#c01020 !important; }
   </div>
 
 </div>
+</div>
 
 <!-- ===== 1b. 提問教學 — 50 個範例問題 ===== -->
 <div class="view panel-view" id="v_askexamples">
@@ -1062,8 +1067,10 @@ body.day-mode .chat-tool-btn[style*="#ff8a8a"]{ color:#c01020 !important; }
     <div class="chat-header">
       <span id="chatIcon">🎯</span>
       <span class="ch-title" id="chatTitle">績效教練</span>
+      <button class="v2-switch" id="v2Switch" onclick="v2SwitchMenu(event)">換顧問 ▾</button>
       <button class="back-wf-btn" id="backToWfBtn" onclick="backToWaterfall()" style="display:none;">🏔️ 回到瀑布</button>
-      <div class="chat-tools">
+      <button class="v2-more" id="v2More" onclick="v2MoreMenu(event)" aria-label="更多">⋯</button>
+      <div class="chat-tools" id="v2Tools">
         <button class="chat-tool-btn" id="modelBtn" onclick="cycleChatModel()" title="切換 AI 模型（省錢／均衡／深入）">⚖️均衡</button>
         <button class="chat-tool-btn" id="fontBtn" onclick="toggleChatFontSize()" title="切換字體大小">字 A</button>
         <button class="chat-tool-btn" id="fullscreenBtn" onclick="toggleChatFullscreen()" title="全螢幕">⛶</button>
@@ -1868,6 +1875,8 @@ try{ document.addEventListener('DOMContentLoaded', _updateModelBtn); }catch(e){}
 //   關鍵：dynamic 只出現在當下這一輪的最後一則，不會污染之後重建的歷史（歷史從畫面重建，永遠乾淨）。
 function _buildChatBody(sysText, stable, dynamic, apiMsgs, maxTokens){
   // ① system（穩定，可快取）
+  // ★ ds147 AI 顧問第 1 輪：只加寫作格式（兩層回答、不用紅綠圓點），不改判斷和讀的資料
+  sysText = (sysText || '') + '\n\n【回答格式】回答超過 5 行時，第一段先寫「【重點】」，下面接 3 行以內的重點（每行一句、用 1. 2. 3. 編號、動詞開頭、這週能做的事），空一行後寫「【完整分析】」再寫完整內容。短回答不用分。不要用 🟢🔴🟡 這類紅綠圓點表示好壞（網站上紅色代表達標、綠色代表未達，會混淆），直接用文字說好或要注意。';
   var sysBlocks = [{ type:'text', text: sysText || '' }];
   if (stable && stable.length > 20){
     sysBlocks.push({ type:'text', text: stable, cache_control:{ type:'ephemeral' } });
@@ -1934,7 +1943,7 @@ function goBack(){
 }
 
 // ★ 視圖 → 所屬群組（4 群：問AI / 任務 / 資料中心 / 挑戰AI）
-var VIEW_GROUP={cards:'ask',chat:'ask',askexamples:'ask',timeline:'task',closed:'task',knowledge:'data',rules:'data',casedb:'data',pmemory:'data',aierror:'challenge'};
+var VIEW_GROUP={cards:'ask',chat:'ask',askexamples:'ask',timeline:'task',closed:'task',knowledge:'data',rules:'data',casedb:'data',pmemory:'data',aierror:'data'};
 function showGroup(grp){
   var def={ask:'cards',task:'timeline',data:'knowledge',challenge:'aierror'}[grp]||'cards';
   showView(def);
@@ -3760,17 +3769,19 @@ async function sendMsg(){
   typing.innerHTML='<span>●</span><span>●</span><span>●</span> 思考中...';
   document.getElementById('chatMsgs').appendChild(typing);
   document.getElementById('chatMsgs').scrollTop=9999;
-  document.getElementById('sendBtn').disabled=true;
+  // ★ ds147：送出鈕變成「■ 停止」，問錯了可以馬上停（Apple：任何動作都要能中途打斷）
+  var _sb=document.getElementById('sendBtn'), _ac=(typeof AbortController!=='undefined')?new AbortController():null;
+  _sb.textContent='■ 停止'; _sb.classList.add('stop'); _sb.onclick=function(){ if(_ac) _ac.abort(); };
   try{
-    var resp=await fetch(PROXY_BASE+'/v1/messages',{method:'POST',
+    var resp=await fetch(PROXY_BASE+'/v1/messages',{method:'POST', signal:_ac?_ac.signal:undefined,
       headers:{'Content-Type':'application/json'},
       body:_buildChatBody(f.system, ctx.stable, ctx.dynamic, apiMsgs, 4096)});
     typing.remove();
     if(!resp.ok){var errBody='';try{errBody=await resp.text();}catch(e){}throw new Error('API錯誤('+resp.status+'): '+errBody.substring(0,150));}
     var data=await resp.json();addMsg('ai',data.content[0].text);autoSavePin();
     if(curFeature==='team'&&text.length>20){var k2=localStorage.getItem(SK.teamkb)||'';try{localStorage.setItem(SK.teamkb,k2+'\n'+text);}catch(e){}}
-  }catch(e){typing.remove();addMsg('error','❌ '+e.message);}
-  document.getElementById('sendBtn').disabled=false;
+  }catch(e){typing.remove();if(e&&e.name==='AbortError'){addMsg('error','已停止，這一題沒有送出回答（你的問題還在上面，可以改一下再問）',{skipRemoteLog:true});}else addMsg('error','❌ '+e.message);}
+  _sb.textContent='發送'; _sb.classList.remove('stop'); _sb.onclick=function(){ sendMsg(); }; _sb.disabled=false;
   document.getElementById('chatInput').focus();
 }
 
@@ -6703,5 +6714,243 @@ document.getElementById('chatInput').addEventListener('input',function(){this.st
 <script src="day-mode-init.js"></script>
 <script src="./task-archive.js?v=v3brute"></script>
 <script src="./text-zoom.js?v=ef4629c9"></script>
+<!-- ═══════════ ★ ds147 AI 顧問第 1 輪（10/29 Ivan 同意最終提案，三輪審查：Apple Design、20 年 UI/UX、配色與絲滑）═══════════
+     只改畫面怎麼排，AI 讀的資料、判斷、分流都沒動；舊的函式和 id 全部保留。
+     配色：底 #F5F5F7、卡片白、主文 #1D1D1F、次要 #6E6E73、唯一強調藍 #0A84FF（送出、加成任務）；顧問只用小圖示，不再各配一色；紅綠只留給台股達標／未達。 -->
+<style id="v2css">
+html body.v2{background:#F5F5F7 !important;color:#1D1D1F !important;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang TC","Noto Sans TC",system-ui,sans-serif !important;-webkit-font-smoothing:antialiased;}
+html body.v2.in-chat{height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+html body.v2 .top-bar{background:rgba(245,245,247,.86) !important;-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid rgba(0,0,0,.06) !important;padding:10px 16px !important;box-shadow:none !important;}
+html body.v2 .top-bar h1{color:#1D1D1F !important;font-size:1.0625rem !important;font-weight:700;letter-spacing:-.01em;}
+html body.v2 .back-btn{background:#fff !important;color:#1D1D1F !important;border:1px solid rgba(0,0,0,.1) !important;border-radius:999px !important;padding:6px 12px !important;font-weight:600;}
+html body.v2 .top-tabs{background:rgba(118,118,128,.12);border-radius:10px;padding:2px;gap:0 !important;}
+html body.v2 .grp-tab{background:transparent !important;border:0 !important;color:#6E6E73 !important;border-radius:8px !important;padding:6px 16px !important;font-size:.875rem !important;font-weight:600 !important;box-shadow:none !important;transition:background .2s,color .2s;}
+html body.v2 .grp-tab.active{background:#fff !important;color:#1D1D1F !important;box-shadow:0 1px 3px rgba(0,0,0,.12) !important;}
+html body.v2 .grp-tab .badge{display:none;}
+html body.v2 .grp-tab[hidden]{display:none !important;}
+html body.v2 .subnav{background:transparent !important;border-bottom:1px solid rgba(0,0,0,.06) !important;padding:8px 16px !important;}
+html body.v2 .sub-tab{background:#fff !important;color:#1D1D1F !important;border:1px solid rgba(0,0,0,.1) !important;border-radius:999px !important;font-weight:600;}
+html body.v2 .sub-tab.active{background:#1D1D1F !important;color:#fff !important;border-color:#1D1D1F !important;}
+/* 首頁 */
+.v2home{max-width:760px;margin:0 auto;padding:28px 20px 60px;width:100%;box-sizing:border-box;overflow:auto;}
+.v2home h2{font-size:1.75rem;line-height:1.15;letter-spacing:-.02em;margin:0 0 4px;color:#1D1D1F;font-weight:700;}
+.v2home .sub{color:#6E6E73;font-size:.9375rem;margin:0 0 16px;}
+.v2ask{display:flex;gap:8px;align-items:flex-end;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:18px;padding:10px 10px 10px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.05);transition:border-color .15s,box-shadow .15s;}
+.v2ask:focus-within{border-color:#0A84FF;box-shadow:0 0 0 3px rgba(10,132,255,.15);}
+.v2ask textarea{flex:1;border:0;outline:0;resize:none;font:inherit;font-size:1rem;line-height:1.5;max-height:150px;background:transparent;color:#1D1D1F;padding:6px 0;}
+.v2go{flex:none;width:38px;height:38px;border-radius:50%;border:0;background:#0A84FF;color:#fff;font-size:1.125rem;cursor:pointer;transition:transform .1s ease-out,opacity .15s;}
+.v2go:active{transform:scale(.94);} .v2go:disabled{opacity:.35;cursor:default;}
+.v2row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0;}
+.v2chip{border:1px solid rgba(0,0,0,.1);background:#fff;color:#1D1D1F;border-radius:999px;padding:7px 14px;font:inherit;font-size:.875rem;cursor:pointer;transition:transform .1s ease-out,background .15s;}
+.v2chip:hover{background:#F2F2F7;} .v2chip:active{transform:scale(.97);} .v2chip.ghost{border-color:transparent;background:transparent;color:#0A84FF;}
+.v2sec{margin:28px 0 8px;display:flex;align-items:baseline;gap:8px;} .v2sec b{font-size:1.0625rem;color:#1D1D1F;} .v2sec span{font-size:.8125rem;color:#6E6E73;}
+.v2adv{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.v2card{background:#fff;border-radius:16px;padding:14px;border:1px solid rgba(0,0,0,.06);cursor:pointer;text-align:left;font:inherit;color:#1D1D1F;transition:transform .1s ease-out,box-shadow .2s;display:flex;gap:10px;align-items:flex-start;}
+.v2card:hover{box-shadow:0 6px 20px rgba(0,0,0,.06);} .v2card:active{transform:scale(.98);}
+.v2card i{font-style:normal;font-size:1.25rem;line-height:1;} .v2card b{display:block;font-size:.9375rem;} .v2card small{display:block;color:#6E6E73;font-size:.8125rem;margin-top:2px;line-height:1.45;}
+.v2rec{background:#fff;border-radius:16px;border:1px solid rgba(0,0,0,.06);overflow:hidden;}
+.v2rec button{display:flex;gap:10px;align-items:center;width:100%;border:0;border-bottom:1px solid rgba(0,0,0,.06);background:transparent;padding:12px 14px;font:inherit;color:#1D1D1F;text-align:left;cursor:pointer;transition:background .15s;}
+.v2rec button:last-child{border-bottom:0;} .v2rec button:hover{background:#F7F7FA;}
+.v2rec .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.9375rem;} .v2rec .t em{font-style:normal;color:#6E6E73;margin-right:6px;}
+.v2rec small{color:#AEAEB2;font-size:.8125rem;flex:none;}
+.v2tip{display:flex;gap:12px;align-items:flex-start;background:#F2F7FF;border-radius:16px;padding:14px 16px;margin:0 0 18px;font-size:.9375rem;line-height:1.55;color:#1D1D1F;}
+.v2tip b{display:block;margin-bottom:2px;} .v2tip button{margin-left:auto;flex:none;}
+.v2quiet{display:flex;flex-wrap:wrap;gap:16px;margin-top:22px;font-size:.875rem;}
+.v2quiet a{color:#0A84FF;text-decoration:none;cursor:pointer;}
+/* 對話 */
+html body.v2 .view.chat-view.active{flex:1;min-height:0;}
+html body.v2 .chat-left{background:#F5F5F7;position:relative;min-height:0;}
+html body.v2 .chat-header{background:#F5F5F7 !important;border-bottom:1px solid rgba(0,0,0,.06) !important;padding:10px 16px !important;gap:8px;}
+html body.v2 .chat-header .ch-title{color:#1D1D1F !important;font-size:1rem !important;flex:0 1 auto !important;}
+html body.v2 #chatIcon{font-size:1.125rem;}
+.v2-switch,.v2-more{border:1px solid rgba(0,0,0,.1);background:#fff;color:#1D1D1F;border-radius:999px;padding:5px 12px;font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer;transition:transform .1s ease-out;}
+.v2-switch{margin-right:auto;} .v2-more{width:34px;height:34px;padding:0;font-size:1.125rem;line-height:1;}
+.v2-switch:active,.v2-more:active{transform:scale(.96);}
+html body.v2 #v2Tools,html body.v2 #pinBtn{display:none !important;}
+html body.v2 .back-wf-btn{border-radius:999px !important;}
+.v2pop{position:fixed;z-index:200;background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(0,0,0,.08);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.18);padding:6px;min-width:220px;transform-origin:top right;animation:v2pop .2s cubic-bezier(.2,.9,.25,1);}
+.v2pop button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;padding:10px 12px;border-radius:10px;font:inherit;font-size:.9375rem;color:#1D1D1F;text-align:left;cursor:pointer;}
+.v2pop button:hover{background:rgba(0,0,0,.05);} .v2pop button small{margin-left:auto;color:#6E6E73;font-size:.8125rem;} .v2pop button.on{font-weight:700;} .v2pop hr{border:0;border-top:1px solid rgba(0,0,0,.08);margin:4px 6px;}
+.v2pop button.danger:hover{color:#C0392B;}
+@keyframes v2pop{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:none;}}
+html body.v2 .chat-msgs{background:#F5F5F7 !important;padding:16px max(16px,calc((100% - 820px)/2)) 24px !important;gap:12px !important;overscroll-behavior:contain;scroll-behavior:auto;}
+html body.v2 .msg{font-size:.9688rem !important;line-height:1.7 !important;border-radius:18px !important;padding:12px 16px !important;box-shadow:none !important;animation:v2in .24s cubic-bezier(.2,.9,.25,1);}
+html body.v2 .msg.user{background:#EAF2FF !important;color:#1D1D1F !important;border:0 !important;border-bottom-right-radius:6px !important;max-width:78% !important;}
+html body.v2 .msg.ai{background:#fff !important;color:#1D1D1F !important;border:1px solid rgba(0,0,0,.06) !important;border-bottom-left-radius:6px !important;max-width:92% !important;}
+html body.v2 .msg.error{background:#FFF4F2 !important;color:#C0392B !important;border:0 !important;}
+html body.v2 .msg.msg-arch{opacity:.7;}
+@keyframes v2in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+.v2who{font-size:.75rem;color:#6E6E73;font-weight:600;margin-bottom:6px;}
+.v2sum{background:#F2F2F7;border-radius:12px;padding:10px 14px;margin:0 0 8px;white-space:pre-wrap;}
+.v2sum b{display:block;font-size:.75rem;color:#6E6E73;margin-bottom:2px;letter-spacing:.02em;}
+.v2full{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s cubic-bezier(.2,.9,.25,1);}
+.v2full>div{overflow:hidden;min-height:0;}
+.v2full.open{grid-template-rows:1fr;}
+.v2tog{border:0;background:transparent;color:#0A84FF;font:inherit;font-size:.875rem;font-weight:600;padding:2px 0;cursor:pointer;}
+html body.v2 .msg-actions{display:flex !important;flex-wrap:wrap;gap:6px !important;justify-content:flex-start !important;margin-top:10px !important;}
+html body.v2 .msg-save-btn{display:none !important;}
+.v2act{border:1px solid rgba(0,0,0,.1);background:#fff;color:#1D1D1F;border-radius:999px;padding:5px 12px;font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer;transition:transform .1s ease-out,background .2s,color .2s;}
+.v2act:active{transform:scale(.97);} .v2act.pri{background:#0A84FF;border-color:#0A84FF;color:#fff;} .v2act.done{background:#F2F2F7;border-color:transparent;color:#6E6E73;} .v2act.quiet{border-color:transparent;color:#6E6E73;}
+html body.v2 .suggest-bar{background:#F5F5F7 !important;border-top:0 !important;padding:4px max(16px,calc((100% - 820px)/2)) 6px !important;}
+html body.v2 .suggest-chip{background:#fff !important;color:#1D1D1F !important;border:1px solid rgba(0,0,0,.1) !important;border-radius:999px !important;font-size:.8125rem !important;padding:6px 12px !important;}
+html body.v2 .chat-input-bar{background:rgba(245,245,247,.92) !important;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-top:1px solid rgba(0,0,0,.06) !important;padding:10px max(16px,calc((100% - 820px)/2)) 14px !important;align-items:flex-end;}
+html body.v2 .chat-input{background:#fff !important;color:#1D1D1F !important;border:1px solid rgba(0,0,0,.1) !important;border-radius:18px !important;font-size:1rem !important;line-height:1.5;padding:10px 14px !important;}
+html body.v2 .chat-input:focus{border-color:#0A84FF !important;box-shadow:0 0 0 3px rgba(10,132,255,.15);}
+html body.v2 .chat-input::placeholder{color:#AEAEB2 !important;}
+html body.v2 .chat-send{background:#0A84FF !important;color:#fff !important;border-radius:999px !important;padding:10px 18px !important;font-size:.9375rem !important;transition:transform .1s ease-out;}
+html body.v2 .chat-send:active{transform:scale(.96);}
+html body.v2 .chat-send.stop{background:#1D1D1F !important;}
+html body.v2 .file-upload-btn{background:#fff !important;border:1px solid rgba(0,0,0,.1) !important;border-radius:50% !important;color:#1D1D1F !important;}
+html body.v2 .typing{color:#6E6E73 !important;font-size:.875rem !important;padding:8px 4px !important;}
+html body.v2 .typing span{animation:none !important;}
+.v2stage{display:inline-block;transition:opacity .18s;}
+html body.v2 .route-banner{background:#fff !important;border:1px solid rgba(0,0,0,.06) !important;color:#1D1D1F !important;border-radius:14px !important;margin:10px max(16px,calc((100% - 820px)/2)) 0 !important;}
+html body.v2 .rb-chip{background:#F2F2F7 !important;color:#1D1D1F !important;border:0 !important;border-radius:999px !important;}
+html body.v2 .pin-side{background:#fff !important;border-left:1px solid rgba(0,0,0,.06) !important;}
+html body.v2 .pin-side-hd{color:#1D1D1F !important;}
+html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
+.v2latest{position:absolute;left:50%;bottom:92px;transform:translateX(-50%) translateY(8px);opacity:0;pointer-events:none;background:rgba(29,29,31,.86);color:#fff;border:0;border-radius:999px;padding:7px 14px;font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .24s cubic-bezier(.2,.9,.25,1);z-index:5;}
+.v2latest.show{opacity:1;transform:translateX(-50%);pointer-events:auto;}
+.v2older{align-self:center;border:0;background:transparent;color:#0A84FF;font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer;padding:4px 10px;}
+@media (max-width:720px){ .v2home{padding:18px 14px 50px;} .v2home h2{font-size:1.5rem;} html body.v2 .msg.user{max-width:88% !important;} html body.v2 .pin-side{display:none !important;} }
+@media (prefers-reduced-motion:reduce){ html body.v2 .msg,.v2pop,.v2full,.v2latest,.v2act,.v2chip,.v2card{animation:none !important;transition:opacity .15s !important;transform:none !important;} }
+@media (prefers-reduced-transparency:reduce){ .v2pop,html body.v2 .top-bar,html body.v2 .chat-input-bar{background:#fff !important;-webkit-backdrop-filter:none;backdrop-filter:none;} }
+</style>
+<script>
+(function(){
+  document.body.classList.add('v2');
+  var W=window;
+  function $$(id){ return document.getElementById(id); }
+  function me(){ try{ return localStorage.getItem('activeCharacterId')||''; }catch(e){ return ''; } }
+  function fmtT(t){ if(!t) return ''; var d=new Date(t), n=new Date(); if(d.toDateString()===n.toDateString()) return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); return (d.getMonth()+1)+'/'+d.getDate(); }
+  var ORDER=['coach','data','task','team','mentor','cases'];
+  var DESC={coach:'看你的能力分數，帶人與改善',data:'查業績、排名、跨月趨勢',task:'派 1～3 天做得完的小任務',team:'公司制度、SOP、鐵律',mentor:'A 通路約訪作戰診斷',cases:'從好壞案例找下一步'};
+
+  // ── 角色、時間決定建議問題 ──
+  function role(){
+    var m=me(); if(m==='黃柏翰') return 'admin';
+    try{ for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(!/^char_.+_motiv_group_performance_v1$/.test(k)) continue; var a=JSON.parse(localStorage.getItem(k)||'[]')||[];
+      if(a.some(function(g){ return g&&g.leader&&g.leader.name===m; })) return 'leader'; } }catch(e){}
+    return 'rep';
+  }
+  function chips(){
+    var r=role(), d=new Date().getDate(), a;
+    if(r==='admin') a=['七家學院這個月誰最落後？','哪幾組需要我介入？','這個月業績走勢跟上個月比如何？'];
+    else if(r==='leader') a=['今天該盯誰？','幫我排下週週會的議程','組員誰的註冊率最低、怎麼帶？'];
+    else a=['我這個月還差多少？','這個學生一直不註冊怎麼追？','幫我派一個今天做得完的小任務'];
+    if(d<=7) a.unshift('這個月的目標怎麼拆？'); else if(d>=22) a.unshift('最後幾天怎麼衝？');
+    return a.slice(0,4);
+  }
+  function useCount(){ try{ return JSON.parse(localStorage.getItem('ai_adv_use_v1')||'{}')||{}; }catch(e){ return {}; } }
+  function bump(fid){ try{ var u=useCount(); u[fid]=(u[fid]||0)+1; localStorage.setItem('ai_adv_use_v1',JSON.stringify(u)); }catch(e){} }
+
+  // ── 首頁 ──
+  var _moreAdv=false;
+  W.renderHomeV2=function(){
+    var box=$$('v2home'); if(!box) return; var u=useCount();
+    var ord=ORDER.slice().sort(function(a,b){ return (u[b]||0)-(u[a]||0) || ORDER.indexOf(a)-ORDER.indexOf(b); });
+    var top=ord.slice(0,3), rest=ord.slice(3);
+    var recs=[]; ORDER.forEach(function(fid){ try{ var h=_loadChatHist(fid); if(h&&h.length){ var last=h[h.length-1]; recs.push({fid:fid,t:last.time||0,text:String(last.text||'').replace(/\s+/g,' ').slice(0,60)}); } }catch(e){} });
+    recs.sort(function(a,b){ return b.t-a.t; });
+    var seen=false; try{ seen=!!localStorage.getItem('ai_v2_tip_seen'); }catch(e){}
+    var card=function(fid){ var f=FEATURES[fid]||{}; return '<button class="v2card" onclick="openChat(\''+fid+'\')"><i>'+(f.icon||'')+'</i><span><b>'+esc(f.title||fid)+'</b><small>'+esc(DESC[fid]||'')+'</small></span></button>'; };
+    box.innerHTML=(seen?'':'<div class="v2tip"><span><b>AI 顧問換新版了</b>直接問就好，系統會交給對的顧問回答；想指定誰，回答上方按「換顧問」。以前的對話都還在，在下面「接著上次聊」。</span><button class="v2chip" onclick="v2HideTip()">知道了</button></div>')
+      +'<h2>想問什麼？</h2><p class="sub">問什麼都可以，業績、帶人、約訪、公司制度都行</p>'
+      +'<div class="v2ask"><textarea id="v2q" rows="1" placeholder="例如：郁瑾這週該盯哪一段？"></textarea><button class="v2go" id="v2go" aria-label="送出" onclick="v2Ask()" disabled>↑</button></div>'
+      +'<div class="v2row">'+chips().map(function(c){ return '<button class="v2chip" onclick="v2Ask(this.textContent)">'+esc(c)+'</button>'; }).join('')+'<button class="v2chip ghost" onclick="showView(\'askexamples\')">更多範例</button></div>'
+      +'<div class="v2sec"><b>常用顧問</b><span>想指定的時候</span></div><div class="v2adv">'+top.map(card).join('')+(_moreAdv?rest.map(card).join(''):'')+'</div>'
+      +'<div class="v2row"><button class="v2chip ghost" onclick="v2MoreAdv()">'+(_moreAdv?'收起':'更多顧問（'+rest.length+'）')+'</button></div>'
+      +(recs.length?'<div class="v2sec"><b>接著上次聊</b><span>點了直接回到那段對話</span></div><div class="v2rec">'+recs.map(function(r){ var f=FEATURES[r.fid]||{}; return '<button onclick="openChat(\''+r.fid+'\')"><span>'+(f.icon||'')+'</span><span class="t"><em>'+esc(f.title||r.fid)+'</em>'+esc(r.text)+'</span><small>'+fmtT(r.t)+'</small></button>'; }).join('')+'</div>':'')
+      +'<div class="v2quiet"><a onclick="showView(\'pmemory\')">🔐 我的私聊筆記</a><a onclick="openVoiceModal()">🎙 錄音轉摘要</a><a onclick="showView(\'timeline\')">📅 我的任務</a></div>';
+    var q=$$('v2q'), go=$$('v2go');
+    q.addEventListener('input',function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,150)+'px'; go.disabled=!this.value.trim(); });
+    q.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){ e.preventDefault(); v2Ask(); } });
+  };
+  W.v2HideTip=function(){ try{ localStorage.setItem('ai_v2_tip_seen','1'); }catch(e){} renderHomeV2(); };
+  W.v2MoreAdv=function(){ _moreAdv=!_moreAdv; renderHomeV2(); };
+  W.v2Ask=function(text){ var q=(typeof text==='string'?text:($$('v2q')||{}).value||'').trim(); if(!q) return; var ai=$$('askInput'); if(!ai) return; ai.value=q; try{ localStorage.setItem('ai_v2_tip_seen','1'); }catch(e){} askRoute(); };
+
+  // ── 包住原本的函式（不改它們的內容）──
+  var _sv=W.showView;
+  W.showView=function(id){ var r=_sv.apply(this,arguments); document.body.classList.toggle('in-chat',id==='chat'); if(id==='cards') renderHomeV2(); closePop(); return r; };
+  var _oc=W.openChat;
+  W.openChat=function(fid){ bump(fid); var r=_oc.apply(this,arguments); try{ var f=FEATURES[fid]||{}; $$('chatTitle').textContent='由 '+(f.title||fid)+' 回答'; }catch(e){} v2Older(); v2PinsVis(); setTimeout(v2Decorate,0); return r; };
+  var _rpl=W.renderPinList;
+  W.renderPinList=function(){ var r=_rpl.apply(this,arguments); v2PinsVis(); return r; };
+  function v2PinsVis(){ try{ var n=document.querySelectorAll('#pinList .pin-item').length; var cv=$$('v_chat'); if(cv) cv.classList.toggle('no-pins',!n); }catch(e){} }
+
+  // ── 兩層回答＋四顆動作鈕 ──
+  function parseSum(t){
+    var m=String(t).match(/【重點】\s*\n?([\s\S]*?)(?:\n\s*\n|【完整分析】)/);
+    if(m){ var lines=m[1].split('\n').map(function(x){ return x.trim(); }).filter(Boolean).slice(0,4); var rest=String(t).replace(m[0],'').replace(/^【完整分析】\s*/m,'').trim(); return {sum:lines.join('\n'),rest:rest}; }
+    if(String(t).length>420){ var ls=String(t).split('\n').map(function(x){ return x.trim(); }).filter(function(x){ return x&&!/^[-—_=─━]{3,}$/.test(x); }); return {sum:ls.slice(0,3).join('\n'),rest:String(t),auto:true}; }
+    return null;
+  }
+  function prevUser(el){ var p=el.previousElementSibling; while(p&&!(p.classList&&p.classList.contains('user'))) p=p.previousElementSibling; return p?p.textContent:''; }
+  W.v2Decorate=function(){
+    document.querySelectorAll('#chatMsgs .msg.ai').forEach(function(d){
+      if(d.__v2) return; d.__v2=1; var txt=d.querySelector('.msg-text'), acts=d.querySelector('.msg-actions'); if(!txt) return;
+      var full=txt.textContent, ps=parseSum(full), f=FEATURES[curFeature]||{};
+      var who=document.createElement('div'); who.className='v2who'; who.textContent=(f.icon||'')+' '+(f.title||''); d.insertBefore(who,d.firstChild);
+      if(ps&&ps.sum){
+        if(!ps.auto) txt.textContent=ps.rest;
+        var sum=document.createElement('div'); sum.className='v2sum'; sum.innerHTML='<b>重點</b>'; sum.appendChild(document.createTextNode(ps.sum));
+        var wrap=document.createElement('div'); wrap.className='v2full'; var inner=document.createElement('div'); wrap.appendChild(inner);
+        d.insertBefore(sum,txt); d.insertBefore(wrap,txt); inner.appendChild(txt);
+        var tog=document.createElement('button'); tog.className='v2tog'; tog.textContent='看完整分析 ›';
+        tog.onclick=function(){ var o=wrap.classList.toggle('open'); tog.textContent=o?'收起':'看完整分析 ›'; };
+        d.insertBefore(tog,wrap.nextSibling);
+      }
+      if(acts){
+        var mk=function(label,cls,fn){ var b=document.createElement('button'); b.className='v2act '+(cls||''); b.textContent=label; b.onclick=function(){ fn(b); }; acts.appendChild(b); return b; };
+        mk('加成任務','pri',function(b){ try{ openAddTask(); var s=(ps&&ps.sum)||full; document.getElementById('taskName').value=String(s).split('\n')[0].replace(/^\d+[.、]\s*/,'').slice(0,40); document.getElementById('taskContent').value=String(s).slice(0,1500); b.textContent='✓ 已填好，按儲存就加進任務'; b.className='v2act done'; }catch(e){ alert('沒辦法打開任務：'+e.message); } });
+        mk('收藏','',function(b){ saveMsgToPrivateChat(full,b); b.textContent='✓ 已收藏到私聊筆記'; b.className='v2act done'; });
+        mk('複製','',function(b){ try{ navigator.clipboard.writeText(full).then(function(){ b.textContent='✓ 已複製'; setTimeout(function(){ b.textContent='複製'; },1500); }); }catch(e){} });
+        mk('這個答錯了','quiet',function(){ openAddAiError(); try{ document.getElementById('aiErrUserMsg').value=prevUser(d).slice(0,2000); document.getElementById('aiErrAiMsg').value=full.slice(0,4000); }catch(e){} });
+        mk('存入案例庫','quiet',function(b){ saveMsgToCase(full,b); b.textContent='✓ 已存入案例庫'; b.className='v2act done'; });
+      }
+    });
+  };
+  var _am=W.addMsg;
+  W.addMsg=function(type,text,opts){
+    var el=$$('chatMsgs'), before=el?el.children.length:0, r=_am.apply(this,arguments);
+    try{ v2Decorate(); if(type==='ai'&&!(opts&&opts.skipSave)&&el){ var d=el.children[before]; if(d&&d.offsetTop!=null) el.scrollTop=Math.max(0,d.offsetTop-12); } }catch(e){}
+    return r;
+  };
+
+  // ── 往上翻時出現「回到最新」；更早的對話（被擠掉的）可以看，不會送給 AI ──
+  function setupScroll(){ var el=$$('chatMsgs'), left=document.querySelector('.chat-left'); if(!el||!left||el.__v2s) return; el.__v2s=1;
+    var b=document.createElement('button'); b.className='v2latest'; b.textContent='↓ 回到最新'; b.onclick=function(){ el.scrollTop=el.scrollHeight; }; left.appendChild(b);
+    el.addEventListener('scroll',function(){ b.classList.toggle('show', el.scrollHeight-el.scrollTop-el.clientHeight>400); },{passive:true}); }
+  function v2Older(){ var el=$$('chatMsgs'); if(!el||!W.LEDGER||!curFeature) return; var key=_chatHistKey(curFeature);
+    LEDGER.chatArchive(key).then(function(a){ if(!a.length||el.querySelector('.v2older')) return; var b=document.createElement('button'); b.className='v2older'; b.textContent='看更早的對話（'+a.length+' 則）';
+      b.onclick=function(){ var frag=document.createDocumentFragment(); a.forEach(function(m){ var d=document.createElement('div'); d.className='msg msg-arch '+(m.type==='user'?'user':'ai'); d.textContent=m.text; frag.appendChild(d); }); b.replaceWith(frag); };
+      el.insertBefore(b,el.firstChild); }); }
+
+  // ── 換顧問、⋯選單（從按鈕長出來，點外面就收）──
+  var _pop=null;
+  function closePop(){ if(_pop){ _pop.remove(); _pop=null; } }
+  W.closePop=closePop;
+  function pop(anchor,html,alignRight){ closePop(); var r=anchor.getBoundingClientRect(), d=document.createElement('div'); d.className='v2pop'; d.innerHTML=html; document.body.appendChild(d);
+    var w=d.offsetWidth; d.style.top=(r.bottom+6)+'px'; d.style.left=Math.max(8,Math.min(window.innerWidth-w-8, alignRight?r.right-w:r.left))+'px'; d.style.transformOrigin=alignRight?'top right':'top left'; _pop=d; }
+  document.addEventListener('click',function(e){ if(_pop&&!_pop.contains(e.target)&&!(e.target.closest&&e.target.closest('.v2-switch,.v2-more'))) closePop(); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') closePop(); });
+  W.v2SwitchMenu=function(e){ e.stopPropagation(); if(_pop){ closePop(); return; } pop(e.currentTarget, ORDER.map(function(fid){ var f=FEATURES[fid]||{}; return '<button class="'+(fid===curFeature?'on':'')+'" onclick="closePop();'+(_lastAskQuery?'switchAsk':'openChat')+'(\''+fid+'\')"><span>'+(f.icon||'')+'</span>'+esc(f.title||fid)+(fid===curFeature?'<small>現在</small>':'')+'</button>'; }).join('')+(_lastAskQuery?'<hr><button disabled style="cursor:default"><small style="margin:0">換了會用同一個問題再問一次</small></button>':''), false); };
+  W.v2MoreMenu=function(e){ e.stopPropagation(); if(_pop){ closePop(); return; } var m=AI_CHAT_MODELS[_chatModelIdx()]||{}; var pinned=(document.getElementById('pinBtn')||{}).classList&&document.getElementById('pinBtn').classList.contains('pinned');
+    pop(e.currentTarget,'<button onclick="cycleChatModel();v2MoreMenu(event)">回答深度<small>'+esc(m.label||'')+'</small></button>'
+      +'<button onclick="toggleChatFontSize();closePop()">字體大小<small>'+esc(($$('fontBtn')||{}).textContent||'')+'</small></button>'
+      +'<button onclick="toggleChatFullscreen();closePop()">全螢幕</button>'
+      +'<button onclick="pinTopic();closePop()">'+(pinned?'取消釘選這個話題':'釘選這個話題')+'</button><hr>'
+      +'<button class="danger" onclick="closePop();clearChatHistory()">清除這位顧問的對話…</button>', true); };
+
+  // ── 送出：等待時一步一步講 AI 在看什麼（文字淡入淡出，不循環動畫）──
+  var STAGES=['正在看你的業績和名單…','正在看鐵律和知識庫…','正在想怎麼回答你…','快好了，正在寫回答…'];
+  var mo=new MutationObserver(function(list){ list.forEach(function(m){ m.addedNodes&&m.addedNodes.forEach(function(n){ if(n.classList&&n.classList.contains('typing')){ var i=0; n.innerHTML='<span class="v2stage">'+STAGES[0]+'</span>'; var t=setInterval(function(){ if(!n.isConnected){ clearInterval(t); return; } i=Math.min(i+1,STAGES.length-1); var s=n.querySelector('.v2stage'); if(!s) return; s.style.opacity=0; setTimeout(function(){ s.textContent=STAGES[i]; s.style.opacity=1; },180); },3500); } }); }); });
+  var cm=$$('chatMsgs'); if(cm) mo.observe(cm,{childList:true});
+
+  setupScroll(); renderHomeV2(); document.body.classList.toggle('in-chat',curView==='chat');
+})();
+</script>
+
 </body>
 </html>

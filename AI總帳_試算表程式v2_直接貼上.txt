@@ -1,0 +1,218 @@
+// ═══════════ 太空基地 AI 總帳 v2（面談檢核資料庫）═══════════
+// 只加不刪：每一列有編號，重送不會變兩列；檔案存到雲端硬碟；作廢先進回收桶；每年自動封存。
+// 下面兩行已經幫你填好，不用改
+var SECRET = 'Ivan';
+var SHEET_ID = '1pDr46V90ONfRC7Hv07nM8mL7yUSAyK114eejuEB4_VE';   // 面談檢核資料庫
+
+var DRIVE_ROOT = '太空基地備份';          // 雲端硬碟裡的資料夾名稱，沒有會自己建
+var IDS = '_編號';                        // 隱藏分頁：記錄寫過哪些編號（擋重複用），不要手動改
+var TRASH = '回收桶';
+var FILES = '檔案目錄';
+var SKIP = {};                            // 不參與作廢、封存的分頁
+SKIP[IDS] = 1; SKIP[TRASH] = 1; SKIP['連線測試'] = 1;
+
+function getBook() { return SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet(); }
+function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+function props() { return PropertiesService.getScriptProperties(); }
+
+function doGet(e) {
+  var ss = getBook();
+  if (e && e.parameter && e.parameter.action === 'stats') return out(stats_(ss));
+  return ContentService.createTextOutput(ss ? ('ok：會寫進「' + ss.getName() + '」（v2）') : '找不到試算表：請在 SHEET_ID 填試算表 ID');
+}
+
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var d = JSON.parse(e.postData.contents || '{}');
+    if (SECRET && d.key !== SECRET) return out({ ok: false, err: '密語不對' });
+    var ss = getBook();
+    if (!ss) return out({ ok: false, err: '找不到試算表' });
+    if (!props().getProperty('v2Since')) props().setProperty('v2Since', String(Date.now()));
+    var act = d.action || 'rows', r;
+    if (act === 'rows') r = rows_(ss, d);
+    else if (act === 'has') r = has_(ss, d);
+    else if (act === 'file') r = file_(ss, d);
+    else if (act === 'void') r = void_(ss, d);
+    else if (act === 'restore') r = restore_(ss, d);
+    else if (act === 'emptyTrash') r = emptyTrash_(ss, d);
+    else if (act === 'stats') r = stats_(ss);
+    else if (act === 'archive') r = archive_(ss, Number(d.year));
+    else r = { ok: false, err: '不認得的動作：' + act };
+    if (r.ok) props().setProperty('lastWrite', String(Date.now()));
+    return out(r);
+  } catch (err) {
+    return out({ ok: false, err: String(err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ── 編號表 ──
+function idSheet_(ss) {
+  var sh = ss.getSheetByName(IDS);
+  if (!sh) { sh = ss.insertSheet(IDS); sh.appendRow(['編號', '分頁', '寫入時間']); sh.hideSheet(); }
+  return sh;
+}
+function idSet_(ss) {
+  var sh = idSheet_(ss), n = sh.getLastRow(), m = {};
+  if (n > 1) sh.getRange(2, 1, n - 1, 1).getValues().forEach(function (r) { if (r[0]) m[String(r[0])] = 1; });
+  return m;
+}
+function addIds_(ss, list) {
+  if (!list.length) return;
+  var sh = idSheet_(ss);
+  sh.getRange(sh.getLastRow() + 1, 1, list.length, 3).setValues(list);
+}
+function ensure_(ss, name, head) {
+  var sh = ss.getSheetByName(name) || ss.insertSheet(name);
+  if (sh.getLastRow() === 0 && head && head.length) {
+    sh.appendRow(head); sh.setFrozenRows(1); sh.getRange(1, 1, 1, head.length).setFontWeight('bold');
+  }
+  return sh;
+}
+function cell_(v) { return typeof v === 'string' ? v.slice(0, 49000) : v; }
+
+// ── 寫列（舊網頁沒帶編號也照寫，跟 v1 一樣）──
+function rows_(ss, d) {
+  var ids = idSet_(ss), sheets = d.sheets || {}, rids = d.rids || {}, added = 0, skipped = 0, newIds = [], now = new Date();
+  Object.keys(sheets).forEach(function (name) {
+    var rows = sheets[name] || [], rr = rids[name] || [], keep = [];
+    rows.forEach(function (r, i) {
+      var id = rr[i] ? String(rr[i]) : '';
+      if (id && ids[id]) { skipped++; return; }
+      if (id) { ids[id] = 1; newIds.push([id, name, now]); }
+      keep.push(r);
+    });
+    if (!keep.length) return;
+    var sh = ensure_(ss, name, (d.head || {})[name]);
+    var w = 0; keep.forEach(function (r) { if (r.length > w) w = r.length; });
+    var vals = keep.map(function (r) { var o = r.slice(); while (o.length < w) o.push(''); return o.map(cell_); });
+    sh.getRange(sh.getLastRow() + 1, 1, vals.length, w).setValues(vals);
+    added += vals.length;
+  });
+  addIds_(ss, newIds);
+  return { ok: true, added: added, skipped: skipped };
+}
+
+// ── 核對：哪些編號試算表還沒有 ──
+function has_(ss, d) {
+  var ids = idSet_(ss);
+  return { ok: true, missing: (d.rids || []).filter(function (x) { return !ids[String(x)]; }), since: Number(props().getProperty('v2Since') || 0) };
+}
+
+// ── 檔案存雲端硬碟（按月份分資料夾）──
+function folder_(sub) {
+  var it = DriveApp.getFoldersByName(DRIVE_ROOT), root = it.hasNext() ? it.next() : DriveApp.createFolder(DRIVE_ROOT);
+  if (!sub) return root;
+  var it2 = root.getFoldersByName(sub);
+  return it2.hasNext() ? it2.next() : root.createFolder(sub);
+}
+function file_(ss, d) {
+  var ids = idSet_(ss), rid = d.rid ? String(d.rid) : '';
+  if (rid && ids[rid]) return { ok: true, skipped: 1 };
+  var blob = d.b64 ? Utilities.newBlob(Utilities.base64Decode(d.b64), d.mime || 'application/octet-stream', d.name)
+                   : Utilities.newBlob(String(d.text || ''), d.mime || 'text/plain', d.name);
+  var f = folder_(d.folder || '').createFile(blob);
+  var sh = ensure_(ss, FILES, ['時間', '誰', '種類', '檔名', '資料夾', '網址', '大小 KB', '編號']);
+  sh.appendRow([new Date(), d.who || '', d.kind || '', d.name || '', DRIVE_ROOT + '/' + (d.folder || ''), f.getUrl(), Math.round(blob.getBytes().length / 1024), rid]);
+  if (rid) addIds_(ss, [[rid, FILES, new Date()]]);
+  return { ok: true, url: f.getUrl() };
+}
+
+// ── 作廢：含這個編號的列搬進回收桶（不是直接刪）──
+function trashSheet_(ss) { return ensure_(ss, TRASH, ['作廢時間', '誰', '理由', '來源分頁', '編號', '原本那一列（還原用）']); }
+function void_(ss, d) {
+  var ref = String(d.ref || ''); if (!ref) return { ok: false, err: '沒有編號' };
+  var tr = trashSheet_(ss), moved = 0, now = new Date();
+  ss.getSheets().forEach(function (sh) {
+    var name = sh.getName(); if (SKIP[name] || name === FILES) return;
+    var n = sh.getLastRow(); if (n < 2) return;
+    var vals = sh.getRange(2, 1, n - 1, sh.getLastColumn()).getValues(), hit = [];
+    vals.forEach(function (r, i) { if (r.some(function (v) { return String(v) === ref; })) hit.push(i); });
+    if (!hit.length) return;
+    tr.getRange(tr.getLastRow() + 1, 1, hit.length, 6).setValues(hit.map(function (i) { return [now, d.who || '', d.why || '', name, ref, JSON.stringify(vals[i])]; }));
+    for (var k = hit.length - 1; k >= 0; k--) sh.deleteRow(hit[k] + 2);
+    moved += hit.length;
+  });
+  return { ok: true, moved: moved };
+}
+function restore_(ss, d) {
+  var ref = String(d.ref || ''), tr = trashSheet_(ss), n = tr.getLastRow(), back = 0;
+  if (n < 2) return { ok: true, restored: 0 };
+  var vals = tr.getRange(2, 1, n - 1, 6).getValues();
+  for (var i = vals.length - 1; i >= 0; i--) {
+    if (String(vals[i][4]) !== ref) continue;
+    var sh = ss.getSheetByName(vals[i][3]) || ss.insertSheet(vals[i][3]), row = JSON.parse(vals[i][5]);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, row.length).setValues([row]);
+    tr.deleteRow(i + 2); back++;
+  }
+  return { ok: true, restored: back };
+}
+// 清空回收桶：只清作廢超過 30 天的，要柏翰按才會跑
+function emptyTrash_(ss, d) {
+  var tr = trashSheet_(ss), n = tr.getLastRow(), gone = 0, cut = Date.now() - 30 * 864e5;
+  if (n < 2) return { ok: true, removed: 0 };
+  var vals = tr.getRange(2, 1, n - 1, 1).getValues();
+  for (var i = vals.length - 1; i >= 0; i--) { var t = new Date(vals[i][0]).getTime(); if (t && t < cut) { tr.deleteRow(i + 2); gone++; } }
+  return { ok: true, removed: gone };
+}
+
+// ── 容量與狀態 ──
+function stats_(ss) {
+  var cells = 0, tabs = [];
+  ss.getSheets().forEach(function (sh) {
+    var c = sh.getMaxRows() * sh.getMaxColumns(); cells += c;
+    if (sh.getName() !== IDS) tabs.push({ name: sh.getName(), rows: Math.max(0, sh.getLastRow() - 1) });
+  });
+  var tr = ss.getSheetByName(TRASH);
+  return { ok: true, cells: cells, pct: Math.round(cells / 10000000 * 1000) / 10, tabs: tabs, trash: tr ? Math.max(0, tr.getLastRow() - 1) : 0,
+           lastWrite: Number(props().getProperty('lastWrite') || 0), since: Number(props().getProperty('v2Since') || 0), archived: props().getProperty('archived') || '' };
+}
+
+// ── 年度封存：把某一年的列搬到「AI 總帳 YYYY（封存）」，主試算表只留今年 ──
+function yearOf_(v) {
+  if (v instanceof Date) return v.getFullYear();
+  var m = String(v || '').match(/^(\d{4})/); return m ? Number(m[1]) : 0;
+}
+function archive_(ss, year) {
+  if (!year) return { ok: false, err: '沒有年份' };
+  var name = 'AI 總帳 ' + year + '（封存）', it = folder_('').getFilesByName(name), arc;
+  if (it.hasNext()) arc = SpreadsheetApp.open(it.next());
+  else { arc = SpreadsheetApp.create(name); DriveApp.getFileById(arc.getId()).moveTo(folder_('')); }
+  var moved = 0;
+  ss.getSheets().forEach(function (sh) {
+    var nm = sh.getName(); if (SKIP[nm]) return;
+    var n = sh.getLastRow(); if (n < 2) return;
+    var w = sh.getLastColumn(), all = sh.getRange(1, 1, n, w).getValues(), head = all[0], body = all.slice(1);
+    var go = body.filter(function (r) { return yearOf_(r[0]) === year; });
+    if (!go.length) return;
+    var keep = body.filter(function (r) { return yearOf_(r[0]) !== year; });
+    var as = arc.getSheetByName(nm) || arc.insertSheet(nm);
+    if (as.getLastRow() === 0) { as.appendRow(head); as.setFrozenRows(1); }
+    as.getRange(as.getLastRow() + 1, 1, go.length, w).setValues(go);
+    sh.getRange(2, 1, n - 1, w).clearContent();
+    if (keep.length) sh.getRange(2, 1, keep.length, w).setValues(keep);
+    moved += go.length;
+  });
+  var s = arc.getSheetByName('工作表1') || arc.getSheetByName('Sheet1'); if (s && arc.getSheets().length > 1) arc.deleteSheet(s);
+  props().setProperty('archived', (props().getProperty('archived') || '') + (props().getProperty('archived') ? ',' : '') + year);
+  return { ok: true, moved: moved, url: arc.getUrl() };
+}
+// 每天自動檢查一次：有去年（含更早）的列就封存
+function dailyCheck() {
+  var ss = getBook(), y = new Date().getFullYear(), years = {};
+  ss.getSheets().forEach(function (sh) {
+    if (SKIP[sh.getName()] || sh.getLastRow() < 2) return;
+    sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().forEach(function (r) { var yy = yearOf_(r[0]); if (yy && yy < y) years[yy] = 1; });
+  });
+  Object.keys(years).forEach(function (yy) { archive_(ss, Number(yy)); });
+}
+// ★ 第一次貼好後，選這個函式按「執行」一次：裝好每天自動檢查、順便授權雲端硬碟
+function setup() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'dailyCheck') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('dailyCheck').timeBased().everyDays(1).atHour(3).create();
+  folder_('');
+  Logger.log('好了：每天凌晨 3 點自動檢查封存；雲端硬碟資料夾「' + DRIVE_ROOT + '」已建立');
+}
