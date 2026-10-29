@@ -1346,7 +1346,17 @@
         var n = String(r.employee_name || '').trim(); if (!n || (typeof EVO !== 'undefined' && EVO.notRep[n])) return;
         out.push({ n:n, org:o, dept:r.hr_department_name || '', biz:_ckNum(r.business), goal:_ckNum(r.goal), itv:_ckNum(r.count1), app:_ckNum(r.count2), regA:_ckNum(r.count3), regB:_ckNum(r.count4), pb:_ckNum(r.pay_back), bizA:_ckNum(r.new_perf) });
       }); });
+      _myRepSnap(out);
       return out;
+    }
+    // ★ ds145 給「電話檢核」看的當月數字：每分鐘最多存一次到 appedu_rep_snap_v1（appedu_ 開頭＝只在這台電腦，不上雲、不算數字邏輯）
+    function _myRepSnap(out){
+      try {
+        if (!out || !out.length || Date.now() - (_myRepSnap.t || 0) < 60000) return; _myRepSnap.t = Date.now();
+        var ym = _ppLiveYm(), bk = {}; try { bk = _fnDataFor(ym).checkin.formal.byKey || {}; } catch(e){}
+        var reps = {}; out.forEach(function(x){ var k = x.org + '|' + x.n; reps[x.n] = { org:x.org, biz:x.biz, bizA:x.bizA, itv:x.itv, ck:(bk[k] != null ? bk[k] : null) }; });
+        var d = new Date(); localStorage.setItem('appedu_rep_snap_v1', JSON.stringify({ ym:ym, at:(d.getMonth()+1) + '/' + d.getDate() + ' ' + ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2), reps:reps }));
+      } catch(e){}
     }
     function myPick(n){ try { localStorage.setItem('my_page_who', n); } catch(e){} myRender(); }
     function myOpenFor(n){ try { localStorage.setItem('my_page_who', n); localStorage.removeItem('my_range_v1'); } catch(e){} switchTab(11); try { window.scrollTo(0, 0); } catch(e2){} }
@@ -12843,6 +12853,7 @@
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
       { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
+      { ver:'ds145', icon:'📞', title:'瀑布換成「電話檢核」', detail:'星際廣場的瀑布卡片換成電話檢核：上傳通話錄音（新名單約訪、舊名單救援、放鳥重約、驗收電話），AI 逐項比對約訪 SOP 五段（開場 30 秒、了解對方、推薦老師、收尾、反對處理），判斷這通有沒有約到；逐字稿、主管回饋、改判、好講法、試算表都跟面談檢核一樣。業務旁邊顯示本月業績、當月目前 A 業績、本月面談、本月報到。舊瀑布資料從電話檢核頁最下面「舊版瀑布資料」進去，先保留不刪。' },
       { ver:'ds144', icon:'📝', title:'逐字稿完整又好讀，錄音只給同組看', detail:'面談檢核：錄音每 10 分鐘切一段轉文字，長錄音不漏段、2 小時也能一次丟；逐字稿自動分出業務和學生、加標點、分段、標出流程階段，可以一鍵複製全文或下載 Word。點檢核項目的原話會跳到逐字稿那一句。主管可以改判（寫一句理由，AI 下次會參考），好講法之外多了反面教材。可以自動寫進 Google 試算表，也能匯出 Excel。瀑布、AI 顧問、面談檢核的錄音都只給同組看（柏翰看全部、學院主管看整個學院）。' },
       { ver:'ds143', icon:'🎤', title:'星際廣場新增「面談能力檢核」', detail:'瀑布右邊多一張卡。上傳或現場錄下面談，AI 逐項比對面談流程表（桃區 5 階段），標出講得好、不到位、沒講到，附原話和時間點；主管再錄一段回饋，整理成下次要注意的 3 件事，下一次檢核會逐條比對。80 分連續 2 次算達標。每次結果都存進錄音案例庫，也會發 Telegram。' },
       { ver:'ds142', icon:'🎙', title:'柏翰上傳的錄音同事也看得到', detail:'管理者模式以前完全不推雲端，所以柏翰在瀑布／AI 顧問上傳的錄音，同事拉取看不到。現在管理者只推「錄音案例庫裡自己上傳的那幾筆文字」（逐字稿＋摘要，沒有音檔），其他資料照舊不推。' },

@@ -42,7 +42,7 @@ button,input,select,textarea{font:inherit;color:inherit;}
 .fld label{font-size:.75rem;color:var(--ink2);font-weight:600;letter-spacing:.02em;}
 .in{height:42px;border:1px solid var(--line);border-radius:12px;padding:0 12px;background:#FAFAFC;outline:none;transition:border-color .15s,box-shadow .15s;}
 .in:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(10,132,255,.15);background:#fff;}
-textarea.in{height:auto;min-height:96px;padding:10px 12px;line-height:1.6;resize:vertical;}
+textarea.in{width:100%;height:auto;min-height:96px;padding:10px 12px;line-height:1.6;resize:vertical;}
 .drop{margin-top:12px;border:1.5px dashed rgba(0,0,0,.15);border-radius:16px;padding:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FAFAFC;}
 .drop .files{flex:1;min-width:160px;font-size:.875rem;color:var(--ink2);}
 .prog{margin-top:14px;display:none;}
@@ -135,6 +135,8 @@ table.use th,table.use td{padding:8px 6px;border-bottom:1px solid var(--line);te
 table.use th:first-child,table.use td:first-child{text-align:left;}
 table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
 .foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:12px;} .nums:empty{display:none;}
+.nums div{background:#F5F5F7;border-radius:12px;padding:10px 12px;} .nums small{display:block;font-size:.75rem;color:var(--ink2);font-weight:600;} .nums b{font-size:1.25rem;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
 .txwrap{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
 .tx-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;} .tx-head b{font-size:1.0625rem;}
 .tx{display:flex;flex-direction:column;gap:2px;}
@@ -168,7 +170,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <div><h1>面談能力檢核</h1><p>錄音上傳後，逐項比對面談流程表：有沒有講到、講得好不好</p></div>
     <div class="sp"></div>
     <div class="seg" id="regSeg" role="tablist" aria-label="區域"></div>
-    <button class="btn" onclick="openEditor()">📋 檢核表</button><button class="btn" id="setBtn" hidden onclick="openSettings()">⚙ 設定</button>
+    <button class="btn" onclick="openEditor()">📋 檢核表</button><button class="btn" onclick="openRefs()">📎 參考規則</button><button class="btn" id="teamBtn" hidden onclick="openTeam()">👥 團隊看板</button><button class="btn" id="learnBtn" hidden onclick="openLearn()">📚 學習報告</button><button class="btn" id="setBtn" hidden onclick="openSettings()">⚙ 設定</button>
   </div>
 
   <!-- ① 上傳 -->
@@ -176,6 +178,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <div class="step"><i>1</i><h2>上傳面談錄音</h2><span class="hint">業務自己上傳就是自評</span></div>
     <div class="row">
       <div class="fld"><label for="rep">誰的面談</label><input class="in" id="rep" list="repList" placeholder="輸入業務名字" autocomplete="off" oninput="onRepChange()"><datalist id="repList"></datalist></div>
+      <div class="fld" id="callTypeWrap" hidden style="max-width:200px"><label for="callType">通話類型</label><select class="in" id="callType"><option>新名單約訪</option><option>舊名單救援</option><option>放鳥重約</option><option>驗收電話</option></select></div>
       <div class="fld"><label for="ivTitle">標題（選填）</label><input class="in" id="ivTitle" placeholder="例如：1029 晚上 小美 面談"></div>
     </div>
     <div class="drop">
@@ -191,6 +194,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
   <!-- 這位業務 -->
   <section class="card" id="cardWho" hidden>
     <div class="who"><h3 id="whoName"></h3><span class="badge" id="whoBadge"></span><span class="sp" style="flex:1"></span><span class="meta" id="whoMeta"></span></div>
+    <div class="nums" id="whoNums"></div>
     <svg class="spark" id="spark" viewBox="0 0 600 64" preserveAspectRatio="none" aria-hidden="true"></svg>
     <div id="whoTodo"></div>
     <div class="hist" id="hist"></div>
@@ -224,7 +228,7 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <div class="fbout" id="fbOut"></div>
   </section>
 
-  <div class="foot"><button class="btn ghost" onclick="openUsage()">📊 本月用量</button><button class="btn ghost" onclick="openStars()">⭐ 好講法範例</button><button class="btn ghost" onclick="exportXlsx()">⬇ 匯出試算表</button></div>
+  <div class="foot"><button class="btn ghost" onclick="openUsage()">📊 本月用量</button><button class="btn ghost" onclick="openStars()">⭐ 好講法範例</button><button class="btn ghost" onclick="exportXlsx()">⬇ 匯出試算表</button><button class="btn ghost" id="oldWfBtn" hidden onclick="openOldWaterfall()">🗂 舊版瀑布資料</button></div>
 </div>
 
 <!-- 側面板：某一階段的逐項結果 -->
@@ -312,7 +316,52 @@ function hgCanSee(rec){
   if(!who.length) return false;   // 沒記上傳者的舊錄音 → 只有柏翰看
   return who.some(function(n){ return mem[n]; });
 }
-function hgIsRec(t){ return t==='voice'||t==='acceptance'||t==='interview'||t==='interview_fb'||t==='interview_star'||t==='interview_ovr'; }
+function hgIsRec(t){ return t==='voice'||t==='acceptance'||/^interview/.test(t||''); }
+
+/* ═══════════════ ★ ds145 兩種模式：面談檢核（預設）／電話檢核（?mode=phone，取代舊瀑布） ═══════════════ */
+var MODE=(function(){ try{ return new URLSearchParams(location.search).get('mode')==='phone'?'phone':'interview'; }catch(e){ return 'interview'; } })();
+var PH=(MODE==='phone');
+var TXT=PH?{ title:'電話檢核', sub:'通話錄音上傳後，逐項比對約訪 SOP：有沒有講到、講得好不好', icon:'📞', kind:'電話', up:'上傳通話錄音', who:'誰的電話', ph:'例如：1029 小美 新名單約訪', labels:['業務','客戶'], doc:'通話逐字稿' }
+           :{ title:'面談能力檢核', sub:'錄音上傳後，逐項比對面談流程表：有沒有講到、講得好不好', icon:'🎤', kind:'面談', up:'上傳面談錄音', who:'誰的面談', ph:'例如：1029 晚上 小美 面談', labels:['業務','學生'], doc:'面談逐字稿' };
+var CALL_TYPES=['新名單約訪','舊名單救援','放鳥重約','驗收電話'];
+var PHONE_DEF={ ver:1, updatedAt:0, updatedBy:'', stages:[
+  {id:'p1',name:'開場 30 秒',items:[
+    {id:'p1i1',name:'確認本人',crit:'語氣上揚打招呼，確認對方是本人'},
+    {id:'p1i2',name:'點出預約資訊',crit:'講出對方哪一天、在哪個網站、登記或下載了什麼課程（舊名單：核對 email 或填的活動）'},
+    {id:'p1i3',name:'自我介紹',crit:'清楚講出自己是誰（名字、身分），簡單不囉唆'}]},
+  {id:'p2',name:'了解對方',items:[
+    {id:'p2i1',name:'身分分流',crit:'問出是學生、上班族還是待業，並依身分問對的問題（科系、工作性質、找工作多久）'},
+    {id:'p2i2',name:'一問一答一認同',crit:'每問一題就先認同或讚美對方的回答，像聊天不像審問'},
+    {id:'p2i3',name:'二延伸',crit:'順著對方的回答再延伸問兩層'},
+    {id:'p2i4',name:'引起共鳴',crit:'把課程連到對方切身相關的需求或興趣'}]},
+  {id:'p3',name:'推薦老師',items:[
+    {id:'p3i1',name:'老師名字',crit:'講出具體的老師名字，不是只說「我們老師很專業」'},
+    {id:'p3i2',name:'業界經驗與代表作',crit:'講出老師的業界經驗或代表作品、合作品牌'},
+    {id:'p3i3',name:'教學成果',crit:'講出教學年資或輔導過的學員成果'},
+    {id:'p3i4',name:'連到對方背景',crit:'說明這位老師為什麼適合對方（背景相近的學員）'}]},
+  {id:'p4',name:'收尾',items:[
+    {id:'p4i1',name:'二選一給時間',crit:'給兩個時間讓對方選，不問「方便嗎」「有空嗎」'},
+    {id:'p4i2',name:'約訪時間鐵則',crit:'週一到三約平日、週四五約週末；上班族和學生約平日晚上'},
+    {id:'p4i3',name:'地點與找誰',crit:'講清楚地點，以及到了找誰'},
+    {id:'p4i4',name:'簡訊或 LINE',crit:'說會發簡訊確認或加 LINE'}]},
+  {id:'p5',name:'反對處理',items:[
+    {id:'p5i1',name:'先認同再處理',crit:'對方拒絕時先認同，不硬辯（沒遇到反對就判不適用）'},
+    {id:'p5i2',name:'用對招',crit:'依反對類型用對應做法：不需要、太遠、沒時間、負評、沒興趣（沒遇到反對就判不適用）'},
+    {id:'p5i3',name:'拉回約訪',crit:'處理完拉回二選一約時間（沒遇到反對就判不適用）'}]}
+]};
+function REGS(o){ if(PH){ if(!o.pregions) o.pregions={}; if(!o.pregions['桃區']) o.pregions['桃區']=JSON.parse(JSON.stringify(PHONE_DEF)); return o.pregions; } return o.regions; }
+function modeOf(rec){ return (rec&&rec.iv&&rec.iv.mode)||'interview'; }
+// 業務當月數字：業績數據中心算「我的一頁」時存一份到 appedu_rep_snap_v1（只在這台電腦，不上雲）
+function repSnap(rep){ try{ var s=JSON.parse(localStorage.getItem('appedu_rep_snap_v1')||'null'); if(!s||!s.reps) return null; var r=s.reps[rep]; return r?{r:r,ym:s.ym,at:s.at}:null; }catch(e){ return null; } }
+function applyModeText(){
+  document.title=TXT.title; var h=document.querySelector('.top h1'), p=document.querySelector('.top p'); if(h) h.textContent=TXT.title; if(p) p.textContent=TXT.sub;
+  var up=document.querySelector('#cardUp .step h2'); if(up) up.textContent=TXT.up;
+  var lb=document.querySelector('label[for="rep"]'); if(lb) lb.textContent=TXT.who;
+  var ti=$('ivTitle'); if(ti) ti.placeholder=TXT.ph;
+  var ct=$('callTypeWrap'); if(ct) ct.hidden=!PH;
+  var ol=$('oldWfBtn'); if(ol) ol.hidden=!PH;
+}
+function openOldWaterfall(){ try{ if(window.parent && window.parent.openWaterfall){ window.parent.openWaterfall(); return; } }catch(e){} location.href='waterfall-channel.html'; }
 
 /* ═══════════════ 檢核表（桃區預設＝面談流程表 PDF） ═══════════════ */
 var DEFAULT_TY={ ver:1, updatedAt:0, updatedBy:'', stages:[
@@ -367,7 +416,7 @@ function loadCL(){ var o=null; try{ o=JSON.parse(localStorage.getItem(CL_KEY)||'
 function getSet(){ var o=loadCL(), d={aModel:'opus',fModel:'sonnet',fmtOn:true,vocab:DEFAULT_VOCAB,sheetUrl:SHEET_URL_DEFAULT,sheetKey:'Ivan'}, st=o.settings||{}; Object.keys(d).forEach(function(k){ if(st[k]===undefined) st[k]=d[k]; }); return st; }
 function ntd(u){ if(!u) return 0; var a=MODELS[u.aModel||'opus']||MODELS.opus, f=MODELS[u.fModel||'sonnet']||MODELS.sonnet;
   var usd=(u.in||0)/1e6*a.in+(u.out||0)/1e6*a.out+(u.fin||0)/1e6*f.in+(u.fout||0)/1e6*f.out+(u.audioSec||0)/3600*WHISPER_USD_HR; return usd*USD_TWD; }
-function getCL(region){ var o=loadCL(); return o.regions[region] || null; }
+function getCL(region){ var o=loadCL(); return REGS(o)[region] || null; }
 function curCL(){ var c=getCL(REGION); return c || getCL('桃區'); }
 function allItems(cl){ var a=[]; (cl.stages||[]).forEach(function(s){ (s.items||[]).forEach(function(it){ a.push({stage:s,item:it}); }); }); return a; }
 var REGION=(function(){ try{ return localStorage.getItem('iv_pref_region')||'桃區'; }catch(e){ return '桃區'; } })();
@@ -400,11 +449,11 @@ function caseWrite(adds, delIds){
     }catch(e){ try{db.close();}catch(_){} rej(e); } }); });
   }).then(function(out){ _cases=out; pushCloudSoon(); return out; });
 }
-function ivRecords(rep){ return _cases.filter(function(c){ return c && c.type==='interview' && c.iv && (!rep || c.iv.rep===rep) && hgCanSee(c); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); }); }
+function ivRecords(rep){ return _cases.filter(function(c){ return c && c.type==='interview' && c.iv && modeOf(c)===MODE && (!rep || c.iv.rep===rep) && hgCanSee(c); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); }); }
 function fbFor(ivId){ var f=_cases.filter(function(c){ return c && c.type==='interview_fb' && c.ivf && c.ivf.ivId===ivId; }).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); }); return f[0]||null; }
-function starList(region,kind){ return _cases.filter(function(c){ return c && c.type==='interview_star' && c.ivs && (!region || c.ivs.region===region) && (!kind || (c.ivs.kind||'good')===kind); }); }   // AI 參考用：全公司的範例都算（是教材）
+function starList(region,kind){ return _cases.filter(function(c){ return c && c.type==='interview_star' && c.ivs && (c.ivs.mode||'interview')===MODE && (!region || c.ivs.region===region) && (!kind || (c.ivs.kind||'good')===kind); }); }   // AI 參考用：全公司的範例都算（是教材）
 function starListMine(region,kind){ return starList(region,kind).filter(hgCanSee); }   // ★ ds144 畫面上只列同組
-function ovrList(region){ return _cases.filter(function(c){ return c && c.type==='interview_ovr' && c.ivo && (!region || c.ivo.region===region); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); }); }
+function ovrList(region){ return _cases.filter(function(c){ return c && c.type==='interview_ovr' && c.ivo && (c.ivo.mode||'interview')===MODE && (!region || c.ivo.region===region); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); }); }
 function ovrFor(ivId){ var m={}; _cases.forEach(function(c){ if(c&&c.type==='interview_ovr'&&c.ivo&&c.ivo.ivId===ivId){ var o=m[c.ivo.itemId]; if(!o||(c.createdAt||0)>(o.createdAt||0)) m[c.ivo.itemId]=c; } }); return m; }
 // ★ ds145 主管改判後的「有效判定」與分數（AI 原判保留在 iv.items）
 function itemsOf(rec){ var o=ovrFor(rec.id), out={}; Object.keys(rec.iv.items||{}).forEach(function(k){ out[k]=rec.iv.items[k]; }); Object.keys(o).forEach(function(k){ var b=out[k]||{}; out[k]={s:o[k].ivo.to,q:b.q,t:b.t,why:b.why,aiS:b.s,ovrBy:o[k].by,ovrWhy:o[k].ivo.why}; }); return out; }
@@ -553,25 +602,31 @@ async function runInterview(){
     var set=getSet();
     if(transcript.replace(/\s|\[\d+:\d+\]/g,'').length<50) throw new Error('逐字稿幾乎是空的，請確認錄音有聲音');
     setProg('ivProg',set.fmtOn?'AI 逐項比對＋排版逐字稿中…約 1～3 分鐘':'AI 逐項比對面談流程表中…約 30～90 秒',55);
-    var sys='你是赫綵設計學院的面談檢核員。你會拿到一份業務面談學生的逐字稿（[mm:ss] 是時間點，逐字稿可能有同音錯字，請依上下文判讀），以及面談流程表的檢核項目。'
-      +'\n逐項判定業務有沒有講到、講得好不好，只能用四種：good＝講到而且講得好；weak＝有講到但不到位（太短、順序錯、講錯、沒讓對方有感）；miss＝完全沒講到；na＝這段沒錄到或本次不適用（例如沒有走到成交、帶看沒錄進來）。'
-      +'\n嚴格依逐字稿，不能腦補；拿不準就判 weak 並說明。q 一定要引用業務的原話（60 字內，沒有就留空），t 填最接近的時間點 mm:ss。'
-      +'\nnext 是下次面談要注意的 3 件事：完整中文句子、動詞開頭、具體可檢查（例如「報價前先講完赫綵三寶」），不要寫項目 id。'+'\n只輸出 JSON，不要其他文字。格式：{"items":{"項目id":{"s":"good|weak|miss|na","q":"原話","t":"mm:ss","why":"一句理由 40 字內"}},"prev":[{"p":"上次要注意的事","ok":true,"note":"這次的表現 30 字內"}],"summary":"一句話總評 60 字內","next":["下次要注意 1","2","3"]}';
-    var user='檢核項目（id｜名稱｜判定標準）：\n'+buildChecklistText(cl)+buildStarsText(cl)
+    var callType=PH?($('callType').value||CALL_TYPES[0]):'';
+    var sys=PH
+      ?('你是赫綵設計學院的電話約訪檢核員。你會拿到一通業務打給客戶的電話逐字稿（通話類型：'+callType+'；[mm:ss] 是時間點，逐字稿可能有同音錯字，請依上下文判讀），以及約訪 SOP 的檢核項目。'
+        +'\n逐項判定業務有沒有做到、做得好不好，只能用四種：good＝做到而且做得好；weak＝有做但不到位（太短、順序錯、講錯、沒讓對方有感）；miss＝完全沒做；na＝這通不適用（例如客戶沒提出反對、通話太早結束）。'
+        +'\n另外判斷這通的結果 outcome：約到＝約好了明確時間；改約＝說好再聯絡或改天；沒約到＝拒絕或沒有結果。when 填約到的時間（沒有就留空）。')
+      :('你是赫綵設計學院的面談檢核員。你會拿到一份業務面談學生的逐字稿（[mm:ss] 是時間點，逐字稿可能有同音錯字，請依上下文判讀），以及面談流程表的檢核項目。'
+        +'\n逐項判定業務有沒有講到、講得好不好，只能用四種：good＝講到而且講得好；weak＝有講到但不到位（太短、順序錯、講錯、沒讓對方有感）；miss＝完全沒講到；na＝這段沒錄到或本次不適用（例如沒有走到成交、帶看沒錄進來）。');
+    sys+='\n嚴格依逐字稿，不能腦補；拿不準就判 weak 並說明。q 一定要引用業務的原話（60 字內，沒有就留空），t 填最接近的時間點 mm:ss。'
+      +'\nnext 是下次'+TXT.kind+'要注意的 3 件事：完整中文句子、動詞開頭、具體可檢查（例如「'+(PH?'給時間時用二選一，不問方便嗎':'報價前先講完赫綵三寶')+'」），不要寫項目 id。'
+      +'\n只輸出 JSON，不要其他文字。格式：{"items":{"項目id":{"s":"good|weak|miss|na","q":"原話","t":"mm:ss","why":"一句理由 40 字內"}},"prev":[{"p":"上次要注意的事","ok":true,"note":"這次的表現 30 字內"}],'+(PH?'"outcome":"約到|改約|沒約到","when":"約到的時間",':'')+'"summary":"一句話總評 60 字內","next":["下次要注意 1","2","3"]}';
+    var user='檢核項目（id｜名稱｜判定標準）：\n'+buildChecklistText(cl)+buildRefText()+buildStarsText(cl)
       +(prevNext.length?('\n\n這位業務上次被要求「下次要注意」的事（請逐條檢查這次有沒有改善，放進 prev）：\n'+prevNext.map(function(p,i){ return (i+1)+'. '+p; }).join('\n')):'\n\n（第一次檢核，prev 給空陣列）')
-      +'\n\n面談逐字稿：\n'+transcript.slice(0,120000);
-    var fmtP=set.fmtOn?formatTranscript(transcript,['業務','學生'],(cl.stages||[]).map(function(x){ return x.name; }),function(d,n){ setProg('ivProg','AI 比對中，逐字稿排版 '+d+'/'+n+' 段…',null); }).catch(function(e){ console.warn('[iv] 排版失敗',e); return null; }):Promise.resolve(null);
+      +'\n\n'+TXT.kind+'逐字稿：\n'+transcript.slice(0,120000);
+    var fmtP=set.fmtOn?formatTranscript(transcript,TXT.labels,(cl.stages||[]).map(function(x){ return x.name; }),function(d,n){ setProg('ivProg','AI 比對中，逐字稿排版 '+d+'/'+n+' 段…',null); }).catch(function(e){ console.warn('[iv] 排版失敗',e); return null; }):Promise.resolve(null);
     var ai=await askAI(sys,user,8000,set.aModel), res=parseJSON(ai.text);
     var fm=await fmtP;
     // 算分：good=1、weak=0.5、miss=0、na 不算
     var items=res.items||{}, got=0, cnt=0;
     allItems(cl).forEach(function(x){ var r=items[x.item.id]||{s:'miss'}; if(!items[x.item.id]) items[x.item.id]=r; if(r.s==='na') return; cnt++; got+= r.s==='good'?1:(r.s==='weak'?.5:0); });
     var total=cnt?Math.round(got/cnt*100):0;
-    var title=$('ivTitle').value.trim()||(rep+' 面談 '+fmtD(Date.now()));
+    var title=$('ivTitle').value.trim()||(rep+' '+(PH?callType:'面談')+' '+fmtD(Date.now()));
     var now=Date.now();
     var rec={ id:'iv_'+now, type:'interview', by:me, createdAt:now,
-      text:'🎤 面談檢核｜'+rep+'｜'+total+' 分'+(self?'（自評）':'（主管 '+me+'）')+'\n'+title+'\n總評：'+(res.summary||'')+'\n沒講到：'+missNames(cl,items).join('、')+'\n下次要注意：'+(res.next||[]).join('；'),
-      iv:{ rep:rep, reviewer:me, self:self, region:REGION, clVer:cl.ver||1, title:title, items:items, total:total, prev:res.prev||[], next:res.next||[], summary:res.summary||'',
+      text:TXT.icon+' '+TXT.title+'｜'+rep+(PH?'｜'+callType+'｜'+(res.outcome||''):'')+'｜'+total+' 分'+(self?'（自評）':'（主管 '+me+'）')+'\n'+title+'\n總評：'+(res.summary||'')+'\n沒講到：'+missNames(cl,items).join('、')+'\n下次要注意：'+(res.next||[]).join('；'),
+      iv:{ mode:MODE, callType:callType, outcome:res.outcome||'', when:res.when||'', rep:rep, reviewer:me, self:self, region:REGION, clVer:cl.ver||1, title:title, items:items, total:total, prev:res.prev||[], next:res.next||[], summary:res.summary||'',
            transcript:transcript, fmt:(fm&&fm.text)||'', usage:{ in:ai.usage.in, out:ai.usage.out, fin:fm?fm.usage.in:0, fout:fm?fm.usage.out:0, aModel:set.aModel, fModel:set.fModel, audioSec:Math.round(audioSec) } } };
     setProg('ivProg','存檔中…',92);
     await caseWrite([rec]);
@@ -589,7 +644,7 @@ function missNames(cl,items){ var a=[]; allItems(cl).forEach(function(x){ var r=
 function stageStat(stage,items){ items=items||{}; var g=0,w=0,m=0,n=0; (stage.items||[]).forEach(function(it){ var r=items[it.id]||{s:'miss'}; if(r.s==='good')g++; else if(r.s==='weak')w++; else if(r.s==='na')n++; else m++; }); return {g:g,w:w,m:m,n:n,all:(stage.items||[]).length,app:(stage.items||[]).length-n}; }
 function clFor(rec){ var c=getCL(rec.iv.region)||curCL(); return c; }
 function tgText(rec, prev){
-  var iv=rec.iv, cl=clFor(rec), t='🎤 面談檢核｜'+iv.rep+(iv.self?'（自評）':'（主管：'+iv.reviewer+'）')+'\n';
+  var iv=rec.iv, cl=clFor(rec), t=TXT.icon+' '+TXT.title+'｜'+iv.rep+(iv.self?'（自評）':'（主管：'+iv.reviewer+'）')+'\n'+(PH?('類型：'+(iv.callType||'')+'｜結果：'+(iv.outcome||'—')+(iv.when?'（'+iv.when+'）':'')+'\n'):'');
   var ps=prev?scoreOf(prev):0; t+='總分 '+iv.total+(prev?('，上次 '+ps+'，'+(iv.total>=ps?'進步 ':'退步 ')+Math.abs(iv.total-ps)+' 分'):'')+'\n';
   (cl.stages||[]).forEach(function(s){ var st=stageStat(s,iv.items); t+=s.name+'：講得好 '+st.g+'／'+st.app+(st.w?('，不到位 '+st.w):'')+'\n'; });
   var mn=missNames(cl,iv.items); if(mn.length) t+='沒講到：'+mn.join('、')+'\n';
@@ -616,8 +671,9 @@ function renderWho(){
     sv.style.display=''; } else sv.style.display='none';
   // 下次要注意
   var last=recs[recs.length-1], np=nextPointsOf(last);
-  $('whoTodo').innerHTML=np.length?('<div class="todo"><b>下次面談要注意（'+(fbFor(last.id)?'主管回饋':'AI 建議')+'）</b><ol>'+np.map(function(p){ return '<li>'+esc(p)+'</li>'; }).join('')+'</ol></div>'):'';
-  $('hist').innerHTML=recs.slice().reverse().map(function(r){ return '<div class="hrow'+(_curRec&&_curRec.id===r.id?' on':'')+'" onclick="showRec(\''+r.id+'\')"><span class="d">'+fmtD(r.createdAt)+'</span><span class="s" style="color:'+(scoreOf(r)>=PASS_SCORE?'var(--good)':'var(--weak)')+'">'+scoreOf(r)+'</span><span class="m">'+esc(r.iv.title)+'・'+(r.iv.self?'自評':'主管 '+esc(r.iv.reviewer))+(fbFor(r.id)?'・有回饋':'')+'</span></div>'; }).join('');
+  var sn=repSnap(rep); $('whoNums').innerHTML=sn?([['本月業績',(Math.round((sn.r.biz||0)/1000)/10)+' 萬'],['當月目前 A 業績',(Math.round((sn.r.bizA||0)/1000)/10)+' 萬'],['本月面談',(sn.r.itv||0)+' 位'],['本月報到',sn.r.ck==null?'—':sn.r.ck+' 人']].map(function(x){ return '<div><small>'+x[0]+'</small><b>'+x[1]+'</b></div>'; }).join('')+'<span class="meta" style="grid-column:1/-1">業績數據中心 '+esc(sn.at||'')+' 的數字</span>'):'';
+  $('whoTodo').innerHTML=np.length?('<div class="todo"><b>下次'+TXT.kind+'要注意（'+(fbFor(last.id)?'主管回饋':'AI 建議')+'）</b><ol>'+np.map(function(p){ return '<li>'+esc(p)+'</li>'; }).join('')+'</ol></div>'):'';
+  $('hist').innerHTML=recs.slice().reverse().map(function(r){ return '<div class="hrow'+(_curRec&&_curRec.id===r.id?' on':'')+'" onclick="showRec(\''+r.id+'\')"><span class="d">'+fmtD(r.createdAt)+'</span><span class="s" style="color:'+(scoreOf(r)>=PASS_SCORE?'var(--good)':'var(--weak)')+'">'+scoreOf(r)+'</span><span class="m">'+(PH?esc((r.iv.callType||'')+'・'+(r.iv.outcome||'—'))+'・':'')+esc(r.iv.title)+'・'+(r.iv.self?'自評':'主管 '+esc(r.iv.reviewer))+(fbFor(r.id)?'・有回饋':'')+'</span></div>'; }).join('');
 }
 function showRec(id){ var r=_cases.find(function(c){ return c.id===id; }); if(!r) return; _curRec=r; renderWho(); renderResult(r); }
 
@@ -628,7 +684,7 @@ function renderResult(rec){
   $('resN').textContent=sc; $('resN').style.color=sc>=PASS_SCORE?'var(--good)':'var(--ink)';
   var d=$('resD'); if(prev){ var ps=scoreOf(prev), df=sc-ps; d.className='dl '+(df>=0?'up':'dn'); d.textContent=(df>=0?'▲ ':'▼ ')+Math.abs(df)+'（上次 '+ps+'）'; } else { d.className='dl'; d.textContent='第一次檢核'; }
   var nOvr=Object.keys(ovrFor(rec.id)).length;
-  $('resMeta').textContent=iv.rep+'・'+fmtD(rec.createdAt)+'・'+(iv.self?'自評':'主管 '+iv.reviewer)+'・'+iv.region+' 檢核表 v'+(iv.clVer||1)+(iv.usage&&iv.usage.audioSec?('・錄音 '+Math.round(iv.usage.audioSec/60)+' 分鐘'):'')+(nOvr?('・AI 原判 '+iv.total+' 分，主管改判 '+nOvr+' 項'):'');
+  $('resMeta').textContent=(PH?((iv.callType||'')+'・'+(iv.outcome||'')+(iv.when?'（'+iv.when+'）':'')+'・'):'')+iv.rep+'・'+fmtD(rec.createdAt)+'・'+(iv.self?'自評':'主管 '+iv.reviewer)+'・'+iv.region+' 檢核表 v'+(iv.clVer||1)+(iv.usage&&iv.usage.audioSec?('・錄音 '+Math.round(iv.usage.audioSec/60)+' 分鐘'):'')+(nOvr?('・AI 原判 '+iv.total+' 分，主管改判 '+nOvr+' 項'):'');
   $('strip').innerHTML=(cl.stages||[]).map(function(s,i){ var st=stageStat(s,its); var r=st.app?(st.g+st.w*.5)/st.app:0; var cls=st.app?(r>=PASS_SCORE/100?'hit':'low'):'none';
     return '<button class="pill '+cls+'" data-i="'+i+'" onclick="openStage('+i+',this)"><span class="k">'+esc(s.name)+'</span><span class="v">'+(st.app?(st.g+'／'+st.app):'—')+'</span><span class="bar"><b style="width:'+Math.round(r*100)+'%"></b></span></button>'; }).join('');
   $('resSum').textContent=iv.summary||'';
@@ -671,7 +727,7 @@ async function toggleStar(itemId,kind){
   var ex=starList(rec.iv.region,kind).find(function(x){ return x.ivs.ivId===rec.id && x.ivs.itemId===itemId; });
   try{
     if(ex){ await caseWrite([],[ex.id]); toast('已取消'); }
-    else{ var now=Date.now(); await caseWrite([{ id:'ivs_'+now, type:'interview_star', by:ME(), createdAt:now, text:(kind==='bad'?'✗ 反面教材｜':'⭐ 好講法｜')+it.item.name+'｜'+rec.iv.rep+'\n「'+(r.q||'')+'」', ivs:{ kind:kind, region:rec.iv.region, itemId:itemId, itemName:it.item.name, quote:r.q||'', rep:rec.iv.rep, ivId:rec.id } }]); toast(kind==='bad'?'已設為反面教材，AI 之後會拿來對照':'已設為好講法，之後 AI 會拿它當標準'); }
+    else{ var now=Date.now(); await caseWrite([{ id:'ivs_'+now, type:'interview_star', by:ME(), createdAt:now, text:(kind==='bad'?'✗ 反面教材｜':'⭐ 好講法｜')+it.item.name+'｜'+rec.iv.rep+'\n「'+(r.q||'')+'」', ivs:{ mode:MODE, kind:kind, region:rec.iv.region, itemId:itemId, itemName:it.item.name, quote:r.q||'', rep:rec.iv.rep, ivId:rec.id } }]); toast(kind==='bad'?'已設為反面教材，AI 之後會拿來對照':'已設為好講法，之後 AI 會拿它當標準'); }
     reopenStage();
   }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); }
 }
@@ -688,7 +744,7 @@ async function saveOvr(itemId,to){
   if(!why){ toast('寫一句為什麼改，AI 才學得到',true); if(inp) inp.focus(); return; }
   var cur=itemsOf(rec)[itemId]||{s:'miss'}, ai=(rec.iv.items||{})[itemId]||{s:'miss'}; if(cur.s===to){ toast('跟現在的判定一樣'); return; }
   var it=allItems(clFor(rec)).find(function(x){ return x.item.id===itemId; }), now=Date.now();
-  var o={ id:'ivo_'+now, type:'interview_ovr', by:ME(), createdAt:now, text:'🛠 改判｜'+rec.iv.rep+'｜'+(it?it.item.name:itemId)+'：'+why, ivo:{ ivId:rec.id, rep:rec.iv.rep, region:rec.iv.region, itemId:itemId, itemName:it?it.item.name:'', from:ai.s, to:to, why:why, q:ai.q||'' } };
+  var o={ id:'ivo_'+now, type:'interview_ovr', by:ME(), createdAt:now, text:'🛠 改判｜'+rec.iv.rep+'｜'+(it?it.item.name:itemId)+'：'+why, ivo:{ mode:MODE, ivId:rec.id, rep:rec.iv.rep, region:rec.iv.region, itemId:itemId, itemName:it?it.item.name:'', from:ai.s, to:to, why:why, q:ai.q||'' } };
   try{ await caseWrite([o]); sheetPush('ovr',o); toast('已改判，分數重算，AI 下次會參考'); var idx=stageIdxOf(rec,itemId); renderResult(rec); renderWho(); var el=document.querySelector('.pill[data-i="'+idx+'"]'); if(el) openStage(idx,el); }
   catch(e){ toast('沒存成功：'+(e&&e.message||e),true); }
 }
@@ -701,7 +757,7 @@ function renderTx(rec, all){
   if(all!==undefined) _txAll=all; var box=$('resTx'); if(!box||!rec) return;
   var t=txRows(rec), rows=t.rows, n=rows.filter(function(r){ return !r.h; }).length, show=_txAll?rows:rows.slice(0,16);
   var h='<div class="tx-head"><b>逐字稿</b><span class="meta">'+(t.fmt?'完整版・已分說話者・':'原始版（還沒排版）・')+n+' 段</span><span style="flex:1"></span>'
-    +'<button class="btn sm" onclick="copyTx()">📋 複製全文</button><button class="btn sm" onclick="downloadTx()">⬇ 下載 Word</button>'
+    +((ME()!==rec.iv.rep||canEdit())?('<button class="btn sm" onclick="setModel()">'+(modelList().some(function(m){ return m.ivm.ivId===rec.id; })?'🏆 已是典範':'🏆 設為典範')+'</button>'):'')+'<button class="btn sm" onclick="copyTx()">📋 複製全文</button><button class="btn sm" onclick="downloadTx()">⬇ 下載 Word</button>'
     +((!t.fmt||canEdit())&&rec.iv.transcript?('<button class="btn sm" id="refmtBtn" onclick="reformat()">'+(t.fmt?'重新排版':'✨ 排版')+'</button>'):'')+'</div><div class="tx" id="txBody">';
   show.forEach(function(r){ if(r.h){ h+='<div class="tx-h">'+esc(r.h)+'</div>'; return; }
     var cls=/業務|主管/.test(r.who)?'a':(r.who?'b':'');
@@ -709,15 +765,15 @@ function renderTx(rec, all){
   h+='</div>'+(rows.length>16?('<button class="btn ghost" onclick="renderTx(_curRec,'+(!_txAll)+')">'+(_txAll?'收起':'展開全部（共 '+n+' 段）')+'</button>'):'');
   box.innerHTML=h;
 }
-function txPlain(rec){ var iv=rec.iv, t=txRows(rec); var head=iv.rep+' 面談逐字稿｜'+fmtD(rec.createdAt)+'｜'+(iv.self?'自評':'主管 '+iv.reviewer)+'｜'+scoreOf(rec)+' 分\n\n';
+function txPlain(rec){ var iv=rec.iv, t=txRows(rec); var head=iv.rep+' '+TXT.doc+'｜'+fmtD(rec.createdAt)+'｜'+(iv.self?'自評':'主管 '+iv.reviewer)+'｜'+scoreOf(rec)+' 分\n\n';
   return head+t.rows.map(function(r){ return r.h?('\n【'+r.h+'】'):((r.t?'['+r.t+'] ':'')+(r.who?r.who+'：':'')+r.x); }).join('\n'); }
 function copyTx(){ var r=_curRec; if(!r) return; var t=txPlain(r);
   var fb=function(){ var a=document.createElement('textarea'); a.value=t; document.body.appendChild(a); a.select(); try{ document.execCommand('copy'); toast('已複製全文（'+t.length+' 字）'); }catch(e){ toast('複製失敗，請改用下載',true); } a.remove(); };
   if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast('已複製全文（'+t.length+' 字）'); },fb); else fb(); }
 function downloadTx(){ var rec=_curRec; if(!rec) return; var iv=rec.iv, t=txRows(rec), F='font-family:Microsoft JhengHei,PingFang TC,sans-serif;';
   var body=t.rows.map(function(r){ return r.h?('<h3 style="'+F+'color:#444;margin:14pt 0 4pt">'+esc(r.h)+'</h3>'):('<p style="'+F+'margin:3pt 0;line-height:1.6"><span style="color:#999">'+esc(r.t)+'</span>　<b style="color:'+(/業務|主管/.test(r.who)?'#0A58CA':'#555')+'">'+esc(r.who)+'</b>　'+esc(r.x)+'</p>'); }).join('');
-  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>逐字稿</title></head><body><h2 style="'+F+'">'+esc(iv.rep)+' 面談逐字稿</h2><p style="'+F+'color:#666">'+fmtD(rec.createdAt)+'｜'+(iv.self?'自評':'主管 '+esc(iv.reviewer))+'｜'+scoreOf(rec)+' 分</p>'+body+'</body></html>';
-  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/msword'})); a.download=iv.rep+'_面談逐字稿_'+new Date(rec.createdAt).toISOString().slice(0,10)+'.doc'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000); }
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>逐字稿</title></head><body><h2 style="'+F+'">'+esc(iv.rep)+' '+TXT.doc+'</h2><p style="'+F+'color:#666">'+fmtD(rec.createdAt)+'｜'+(iv.self?'自評':'主管 '+esc(iv.reviewer))+'｜'+scoreOf(rec)+' 分</p>'+body+'</body></html>';
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/msword'})); a.download=iv.rep+'_'+TXT.doc+'_'+new Date(rec.createdAt).toISOString().slice(0,10)+'.doc'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000); }
 function jumpTx(t,itemId){
   var rec=_curRec; if(!rec) return; renderTx(rec,true);
   var strip=function(x){ return String(x||'').replace(/[\s，。、！？「」…,.!?：:；;]/g,''); };
@@ -732,7 +788,7 @@ function jumpTx(t,itemId){
 async function reformat(){
   var rec=_curRec; if(!rec||_busy) return; if(!rec.iv.transcript){ toast('這筆沒有原始逐字稿',true); return; }
   var b=$('refmtBtn'); _busy=true; if(b){ b.disabled=true; b.textContent='排版中…'; }
-  try{ var cl=clFor(rec), fm=await formatTranscript(rec.iv.transcript,['業務','學生'],(cl.stages||[]).map(function(x){ return x.name; }),function(d,n){ if(b) b.textContent='排版中 '+d+'/'+n; });
+  try{ var cl=clFor(rec), fm=await formatTranscript(rec.iv.transcript,TXT.labels,(cl.stages||[]).map(function(x){ return x.name; }),function(d,n){ if(b) b.textContent='排版中 '+d+'/'+n; });
     var now=Date.now(), set=getSet(); await caseWrite([{ id:'ivx_'+now, type:'interview_fmt', by:ME(), createdAt:now, text:'', ivx:{ ivId:rec.id, rep:rec.iv.rep, fmt:fm.text, usage:{ fin:fm.usage.in, fout:fm.usage.out, fModel:set.fModel } } }]);
     sheetPush('fmt',rec); renderTx(rec,true); toast('排版完成'); }
   catch(e){ toast('排版沒完成：'+(e&&e.message||e),true); }
@@ -740,30 +796,32 @@ async function reformat(){
 }
 
 /* ═══════════════ Google 試算表：自動寫入＋手動匯出 ═══════════════ */
-var SHEET_HEAD={
-  '檢核總表':['時間','業務','主管／自評','區域','分數（含改判）','AI 原判分數','破冰','講課','帶看環境','close 懶人包','成交進件／註冊服務','總評','下次要注意','分析型號','排版型號','錄音分鐘','花費 NT$','紀錄 id'],
+function sheetHead(){ var stg=(curCL().stages||[]).map(function(x){ return x.name; }); while(stg.length<5) stg.push('階段 '+(stg.length+1));
+  var h={
+  '檢核總表':['時間','業務','主管／自評','區域','類型','結果','分數（含改判）','AI 原判分數'].concat(stg.slice(0,5)).concat(['總評','下次要注意','分析型號','排版型號','錄音分鐘','花費 NT$','紀錄 id']),
   '逐項明細':['時間','業務','主管／自評','階段','項目','判定（含改判）','AI 原判','原話','時間點','理由','紀錄 id'],
   '主管改判':['時間','業務','項目','AI 原判','主管改成','理由','改判的人','原話','紀錄 id'],
   '主管回饋':['時間','業務','主管','重點','下次要注意 1','下次要注意 2','下次要注意 3','回饋全文','紀錄 id'],
-  '逐字稿':['時間','業務','紀錄 id','逐字稿（第 1 格）','第 2 格','第 3 格','第 4 格']
-};
+  '逐字稿':['時間','業務','紀錄 id','逐字稿（第 1 格）','第 2 格','第 3 格','第 4 格'] };
+  return pfxSheets(h); }
+function pfxSheets(o){ if(!PH) return o; var out={}; Object.keys(o).forEach(function(k){ out['電話'+k]=o[k]; }); return out; }
 var LAB2={good:'講得好',weak:'不到位',miss:'沒講到',na:'不適用'};
 function tsStr(ts){ var d=new Date(ts); return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function rowsForIv(rec){
   var iv=rec.iv, cl=clFor(rec), its=itemsOf(rec), who=iv.self?'自評':iv.reviewer, u=iv.usage||{};
   var stg=(cl.stages||[]).map(function(s){ var st=stageStat(s,its); return st.app?(st.g+'/'+st.app):'—'; }); while(stg.length<5) stg.push('');
-  var sum=[tsStr(rec.createdAt),iv.rep,who,iv.region,scoreOf(rec),iv.total].concat(stg.slice(0,5)).concat([iv.summary||'',(nextPointsOf(rec)||[]).join('；'),(MODELS[u.aModel||'opus']||{}).name||'',u.fin?((MODELS[u.fModel||'sonnet']||{}).name||''):'',Math.round((u.audioSec||0)/60),Math.round(ntd(u)),rec.id]);
+  var sum=[tsStr(rec.createdAt),iv.rep,who,iv.region,PH?(iv.callType||''):'面談',PH?((iv.outcome||'')+(iv.when?'（'+iv.when+'）':'')):'',scoreOf(rec),iv.total].concat(stg.slice(0,5)).concat([iv.summary||'',(nextPointsOf(rec)||[]).join('；'),(MODELS[u.aModel||'opus']||{}).name||'',u.fin?((MODELS[u.fModel||'sonnet']||{}).name||''):'',Math.round((u.audioSec||0)/60),Math.round(ntd(u)),rec.id]);
   var items=[]; (cl.stages||[]).forEach(function(s){ (s.items||[]).forEach(function(it){ var r=its[it.id]||{s:'miss'}, a=(iv.items||{})[it.id]||{s:'miss'}; items.push([tsStr(rec.createdAt),iv.rep,who,s.name,it.name,LAB2[r.s]||r.s,LAB2[a.s]||a.s,r.q||'',r.t||'',r.why||'',rec.id]); }); });
   var tx=txPlain(rec), parts=[]; for(var i=0;i<tx.length;i+=45000) parts.push(tx.slice(i,i+45000));
-  return { '檢核總表':[sum], '逐項明細':items, '逐字稿':[[tsStr(rec.createdAt),iv.rep,rec.id].concat(parts)] };
+  return pfxSheets({ '檢核總表':[sum], '逐項明細':items, '逐字稿':[[tsStr(rec.createdAt),iv.rep,rec.id].concat(parts)] });
 }
-function rowsForFb(f){ var n=(f.ivf.next||[]).concat(['','','']); return { '主管回饋':[[tsStr(f.createdAt),f.ivf.rep,f.by,f.ivf.brief||'',n[0],n[1],n[2],(f.ivf.fbText||'').slice(0,45000),f.ivf.ivId]] }; }
-function rowsForOvr(o){ var v=o.ivo; return { '主管改判':[[tsStr(o.createdAt),v.rep,v.itemName||v.itemId,LAB2[v.from]||v.from,LAB2[v.to]||v.to,v.why||'',o.by,v.q||'',v.ivId]] }; }
+function rowsForFb(f){ var n=(f.ivf.next||[]).concat(['','','']); return pfxSheets({ '主管回饋':[[tsStr(f.createdAt),f.ivf.rep,f.by,f.ivf.brief||'',n[0],n[1],n[2],(f.ivf.fbText||'').slice(0,45000),f.ivf.ivId]] }); }
+function rowsForOvr(o){ var v=o.ivo; return pfxSheets({ '主管改判':[[tsStr(o.createdAt),v.rep,v.itemName||v.itemId,LAB2[v.from]||v.from,LAB2[v.to]||v.to,v.why||'',o.by,v.q||'',v.ivId]] }); }
 // 自動寫入：每次存好就寄一份到柏翰設好的 Apps Script（沒設就跳過）。不叫 AI、不花 token
 function sheetPush(kind,rec){
   var set=getSet(); if(!set.sheetUrl) return;
-  try{ var sheets=kind==='iv'?rowsForIv(rec):(kind==='fb'?rowsForFb(rec):(kind==='ovr'?rowsForOvr(rec):(kind==='fmt'?{'逐字稿':rowsForIv(rec)['逐字稿']}:null))); if(!sheets) return;
-    fetch(set.sheetUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:set.sheetKey||'',head:SHEET_HEAD,sheets:sheets})}).catch(function(e){ console.warn('[iv] 試算表寫入失敗',e); });
+  try{ var sheets=kind==='iv'?rowsForIv(rec):(kind==='fb'?rowsForFb(rec):(kind==='ovr'?rowsForOvr(rec):(kind==='fmt'?(function(){ var r=rowsForIv(rec), k=(PH?'電話':'')+'逐字稿', o={}; o[k]=r[k]; return o; })():null))); if(!sheets) return;
+    fetch(set.sheetUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:set.sheetKey||'',head:sheetHead(),sheets:sheets})}).catch(function(e){ console.warn('[iv] 試算表寫入失敗',e); });
   }catch(e){ console.warn('[iv] 試算表資料整理失敗',e); }
 }
 // 手動匯出：把我看得到的全部紀錄做成 Excel（五個分頁），可直接匯入 Google 試算表
@@ -771,14 +829,14 @@ var _xlsxP=null;
 function ensureXlsx(){ if(window.XLSX) return Promise.resolve(); if(_xlsxP) return _xlsxP; _xlsxP=new Promise(function(res,rej){ var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload=function(){ res(); }; s.onerror=function(){ _xlsxP=null; rej(new Error('Excel 元件載入失敗')); }; document.head.appendChild(s); }); return _xlsxP; }
 async function exportXlsx(){
   try{ await ensureXlsx(); }catch(e){ toast(e.message,true); return; }
-  var data={}; Object.keys(SHEET_HEAD).forEach(function(k){ data[k]=[SHEET_HEAD[k]]; });
+  var HD=sheetHead(), data={}; Object.keys(HD).forEach(function(k){ data[k]=[HD[k]]; });
   var add=function(o){ Object.keys(o).forEach(function(k){ o[k].forEach(function(r){ data[k].push(r); }); }); };
   ivRecords().forEach(function(r){ add(rowsForIv(r)); });
-  _cases.filter(function(c){ return c&&c.type==='interview_fb'&&c.ivf&&hgCanSee(c); }).forEach(function(f){ add(rowsForFb(f)); });
-  _cases.filter(function(c){ return c&&c.type==='interview_ovr'&&c.ivo&&hgCanSee(c); }).forEach(function(o){ add(rowsForOvr(o)); });
+  _cases.filter(function(c){ return c&&c.type==='interview_fb'&&c.ivf&&hgCanSee(c)&&ivRecords().some(function(r){ return r.id===c.ivf.ivId; }); }).forEach(function(f){ add(rowsForFb(f)); });
+  _cases.filter(function(c){ return c&&c.type==='interview_ovr'&&c.ivo&&(c.ivo.mode||'interview')===MODE&&hgCanSee(c); }).forEach(function(o){ add(rowsForOvr(o)); });
   var wb=XLSX.utils.book_new(); Object.keys(data).forEach(function(k){ XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data[k]), k); });
-  XLSX.writeFile(wb,'面談檢核_'+new Date().toISOString().slice(0,10)+'.xlsx');
-  toast('已匯出 '+(data['檢核總表'].length-1)+' 筆檢核');
+  XLSX.writeFile(wb,TXT.title+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('已匯出 '+(data[(PH?'電話':'')+'檢核總表'].length-1)+' 筆檢核');
 }
 // 設定（只有柏翰）：AI 型號、排版、詞庫、試算表網址
 function openSettings(){
@@ -813,7 +871,7 @@ async function runFeedback(){
     if(!text) throw new Error('請錄一段回饋、上傳錄音，或打幾句字');
     setProg('fbProg','整理成下次要注意的 3 件事…',60);
     var iv=rec.iv, cl=clFor(rec);
-    var sys='你是赫綵設計學院的面談教練助理。根據主管對業務的口頭回饋，加上這次面談檢核結果，整理出「下次面談要注意的 3 件事」：每件一句、動詞開頭、具體到下次面談能直接照做、能被下次錄音檢查（例如「報價前先講完赫綵三寶」）。以主管的意思為主，檢核結果只當參考。只輸出 JSON：{"next":["…","…","…"],"brief":"主管回饋重點一句 50 字內"}';
+    var sys='你是赫綵設計學院的'+TXT.kind+'教練助理。根據主管對業務的口頭回饋，加上這次'+TXT.kind+'檢核結果，整理出「下次'+TXT.kind+'要注意的 3 件事」：每件一句、動詞開頭、具體到下次能直接照做、能被下次錄音檢查（例如「'+(PH?'給時間時用二選一，不問方便嗎':'報價前先講完赫綵三寶')+'」）。以主管的意思為主，檢核結果只當參考。只輸出 JSON：{"next":["…","…","…"],"brief":"主管回饋重點一句 50 字內"}';
     var user='業務：'+iv.rep+'\n這次分數：'+scoreOf(rec)+'\n沒講到：'+missNames(cl,itemsOf(rec)).join('、')+'\nAI 總評：'+(iv.summary||'')+'\n\n主管回饋（可能有同音錯字）：\n'+text.slice(0,20000);
     var set=getSet(), ai=await askAI(sys,user,1200,set.aModel), res=parseJSON(ai.text);
     var now=Date.now();
@@ -853,16 +911,16 @@ function renderEditor(ro){
 }
 function addItem(si){ var s=_ed.stages[si]; s.items.push({id:s.id+'i'+Date.now().toString(36),name:'新項目',crit:''}); renderEditor(false); }
 function saveEditor(){
-  if(!canEdit()) return; var o=loadCL(); _ed.ver=(_ed.ver||1)+1; _ed.updatedAt=Date.now(); _ed.updatedBy=ME(); o.regions[REGION]=_ed;
+  if(!canEdit()) return; var o=loadCL(); _ed.ver=(_ed.ver||1)+1; _ed.updatedAt=Date.now(); _ed.updatedBy=ME(); REGS(o)[REGION]=_ed;
   try{ LSW().setItem(CL_KEY,JSON.stringify(o)); toast('檢核表已存（v'+_ed.ver+'），全公司同步'); closeDlg(); pushCloudSoon(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); }
 }
-function copyTY(){ if(!canEdit()) return; var o=loadCL(); var c=JSON.parse(JSON.stringify(o.regions['桃區'])); c.ver=1; c.updatedAt=Date.now(); c.updatedBy=ME(); o.regions[REGION]=c;
+function copyTY(){ if(!canEdit()) return; var o=loadCL(); var c=JSON.parse(JSON.stringify(REGS(o)['桃區'])); c.ver=1; c.updatedAt=Date.now(); c.updatedBy=ME(); REGS(o)[REGION]=c;
   try{ LSW().setItem(CL_KEY,JSON.stringify(o)); closeDlg(); openEditor(); pushCloudSoon(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
 function openUsage(){
   var m0=new Date(); m0.setDate(1); m0.setHours(0,0,0,0); var t0=m0.getTime(), by={}, judged=0, ovr=0;
   _cases.forEach(function(c){ if(!c||(c.createdAt||0)<t0||!hgCanSee(c)) return;
     if(c.type==='interview_ovr'){ ovr++; return; }
-    var u=(c.iv&&c.iv.usage)||(c.ivf&&c.ivf.usage)||(c.ivx&&c.ivx.usage); if(!u) return; var who=c.by||'?'; var b=by[who]=by[who]||{n:0,f:0,sec:0,tok:0,ntd:0};
+    var u=(c.iv&&c.iv.usage)||(c.ivf&&c.ivf.usage)||(c.ivx&&c.ivx.usage)||(c.ivr&&c.ivr.usage); if(!u) return; var who=c.by||'?'; var b=by[who]=by[who]||{n:0,f:0,sec:0,tok:0,ntd:0};
     if(c.type==='interview'){ b.n++; judged+=Object.keys(c.iv.items||{}).length; } else if(c.type==='interview_fb') b.f++;
     b.sec+=u.audioSec||0; b.tok+=(u.in||0)+(u.out||0)+(u.fin||0)+(u.fout||0); b.ntd+=ntd(u); });
   var rows=Object.keys(by).sort(function(a,b){ return by[b].ntd-by[a].ntd; }), tot=0; rows.forEach(function(k){ tot+=by[k].ntd; });
@@ -874,6 +932,309 @@ function openStars(){
   var st=starListMine(REGION);
   var h=st.length?st.slice().reverse().map(function(s){ return '<div class="it"><div class="h">'+esc(s.ivs.itemName)+'<span class="st">'+esc(s.ivs.rep)+'・'+esc(s.by)+' 標</span></div><div class="q">'+esc(s.ivs.quote)+'</div></div>'; }).join(''):'<p class="empty">還沒有範例。在檢核結果裡，覺得哪句講得好就按「☆ 設為好講法範例」，AI 之後會拿它當標準。</p>';
   openDlg('⭐ '+REGION+' 好講法範例（'+st.length+'）',h,'');
+}
+
+/* ═══════════════ ★ ds145 團隊看板：主管一眼看整組進展 ═══════════════ */
+var _teamRange='m';
+function openTeam(range){
+  if(range) _teamRange=range;
+  var now=new Date(), t0=_teamRange==='m'?new Date(now.getFullYear(),now.getMonth(),1).getTime():(_teamRange==='q'?Date.now()-90*864e5:0);
+  var recs=ivRecords().filter(function(r){ return (r.createdAt||0)>=t0; });
+  var by={}, itemBad={}, judged=0, ovr=0, spend=0, LAB={good:'講得好',weak:'不到位',miss:'沒講到'};
+  recs.forEach(function(r){ var b=by[r.iv.rep]=by[r.iv.rep]||{list:[],bad:{},ok:0,calls:0};
+    b.list.push(r); var its=itemsOf(r); if(PH){ b.calls++; if(r.iv.outcome==='約到') b.ok++; }
+    allItems(clFor(r)).forEach(function(x){ var s=(its[x.item.id]||{s:'miss'}).s; judged++; if(s==='miss'||s==='weak'){ b.bad[x.item.name]=(b.bad[x.item.name]||0)+1; itemBad[x.stage.name+'・'+x.item.name]=(itemBad[x.stage.name+'・'+x.item.name]||0)+1; } });
+    ovr+=Object.keys(ovrFor(r.id)).length; spend+=ntd(r.iv.usage); var f=fbFor(r.id); if(f) spend+=ntd(f.ivf.usage); });
+  var reps=Object.keys(by).sort(function(a,b){ var la=by[a].list, lb=by[b].list; return scoreOf(lb[lb.length-1])-scoreOf(la[la.length-1]); });
+  var mem=hgMembers(); var idle=mem?Object.keys(mem).filter(function(n){ return !by[n]; }):[];
+  var top=Object.keys(itemBad).sort(function(a,b){ return itemBad[b]-itemBad[a]; }).slice(0,3);
+  var seg='<div class="seg" style="margin-bottom:12px">'+[['m','這個月'],['q','近 90 天'],['a','全部']].map(function(o){ return '<button class="'+(o[0]===_teamRange?'on':'')+'" onclick="openTeam(\''+o[0]+'\')">'+o[1]+'</button>'; }).join('')+'</div>';
+  var h=seg+'<div class="nums" style="margin-top:0">'
+    +'<div><small>檢核次數</small><b>'+recs.length+'</b></div>'
+    +'<div><small>有被檢核的人</small><b>'+reps.length+'</b></div>'
+    +'<div><small>AI 改判率</small><b>'+(judged?(Math.round(ovr/judged*1000)/10)+'%':'—')+'</b></div>'
+    +'<div><small>花費</small><b>NT$'+Math.round(spend)+'</b></div></div>';
+  h+='<div class="todo" style="margin-top:12px"><b>全組最常卡的項目（拿來當下週訓練主題）</b>'+(top.length?('<ol>'+top.map(function(k){ return '<li>'+esc(k)+'（'+itemBad[k]+' 次沒講到或不到位）</li>'; }).join('')+'</ol>'):'還沒有資料')+'</div>';
+  h+='<table class="use" style="margin-top:12px"><tr><th>業務</th><th>次數</th><th>最新</th><th>變化</th>'+(PH?'<th>約到率</th>':'')+'<th>狀態</th><th>最常卡</th></tr>'
+    +reps.map(function(n){ var b=by[n], L=b.list, last=scoreOf(L[L.length-1]), prev=L.length>1?scoreOf(L[L.length-2]):null, d=prev==null?'':(last-prev>=0?'<span style="color:var(--good)">▲'+(last-prev)+'</span>':'<span style="color:var(--weak)">▼'+(prev-last)+'</span>');
+      var worst=Object.keys(b.bad).sort(function(a,c){ return b.bad[c]-b.bad[a]; })[0]||'—', pass=isPassed(n);
+      return '<tr style="cursor:pointer" onclick="closeDlg();$(\'rep\').value=\''+esc(n).replace(/'/g,'')+'\';onRepChange();var L=ivRecords(\''+esc(n).replace(/'/g,'')+'\');if(L.length)showRec(L[L.length-1].id);"><td>'+esc(n)+'</td><td>'+L.length+'</td><td style="color:'+(last>=PASS_SCORE?'var(--good)':'var(--weak)')+'"><b>'+last+'</b></td><td>'+d+'</td>'+(PH?'<td>'+(b.calls?Math.round(b.ok/b.calls*100)+'%':'—')+'</td>':'')+'<td>'+(pass?'<span class="badge pass">已達標</span>':'練習中')+'</td><td style="text-align:left">'+esc(worst)+'</td></tr>'; }).join('')+'</table>';
+  if(idle.length) h+='<p class="meta" style="margin-top:10px">這段期間還沒被檢核：'+idle.map(esc).join('、')+'</p>';
+  h+='<p class="meta">點業務那一列，直接看他最新一次的檢核。</p>';
+  openDlg('👥 團隊看板・'+TXT.title,h,'');
+}
+
+/* ═══════════════ ★ ds145 每月學習報告（內建）：按一下 → AI 讀完這段期間全部紀錄 → 建議檢核表下一版 → 柏翰勾選才套用 ═══════════════ */
+var _learnRes=null;
+function learnRange(k){ var n=new Date(); if(k==='last') return { t0:new Date(n.getFullYear(),n.getMonth()-1,1).getTime(), t1:new Date(n.getFullYear(),n.getMonth(),1).getTime(), label:(new Date(n.getFullYear(),n.getMonth()-1,1).getMonth()+1)+' 月' };
+  return { t0:new Date(n.getFullYear(),n.getMonth(),1).getTime(), t1:Date.now()+1, label:(n.getMonth()+1)+' 月（到今天）' }; }
+function openLearn(){
+  if(!canEdit()){ toast('學習報告只有柏翰能跑'); return; }
+  var past=_cases.filter(function(c){ return c&&c.type==='interview_report'&&c.ivr&&(c.ivr.mode||'interview')===MODE; }).sort(function(a,b){ return b.createdAt-a.createdAt; });
+  var h='<p class="meta">讀完這段期間全部的'+TXT.kind+'檢核、主管改判、好講法、反面教材和主管回饋，整理成檢核表下一版的建議。你勾了才會改，不勾什麼都不動。</p>'
+    +'<div class="row" style="margin:12px 0"><button class="btn pri" onclick="runLearn(\'last\')">跑上個月</button><button class="btn" onclick="runLearn(\'this\')">跑這個月到今天</button></div>'
+    +'<div class="prog" id="learnProg"><div class="bar"><b></b></div><div class="tx"></div></div><div id="learnOut"></div>'
+    +(past.length?('<div class="stg">以前的報告</div>'+past.slice(0,12).map(function(r){ return '<div class="hrow" onclick="showLearn(\''+r.id+'\')"><span class="d">'+fmtD(r.createdAt)+'</span><span class="m">'+esc(r.ivr.label)+'・'+esc(r.ivr.res.oneLine||'')+'</span></div>'; }).join('')):'');
+  openDlg('📚 每月學習報告・'+TXT.title,h,'');
+}
+function learnDigest(t0,t1){
+  var recs=_cases.filter(function(c){ return c&&c.type==='interview'&&c.iv&&modeOf(c)===MODE&&(c.createdAt||0)>=t0&&(c.createdAt||0)<t1; });
+  var ids={}; recs.forEach(function(r){ ids[r.id]=1; });
+  var ovr=_cases.filter(function(c){ return c&&c.type==='interview_ovr'&&c.ivo&&ids[c.ivo.ivId]; });
+  var stars=_cases.filter(function(c){ return c&&c.type==='interview_star'&&c.ivs&&ids[c.ivs.ivId]; });
+  var fbs=_cases.filter(function(c){ return c&&c.type==='interview_fb'&&c.ivf&&ids[c.ivf.ivId]; });
+  var item={}, reps={}, sum=0, ok=0, calls=0;
+  recs.forEach(function(r){ var its=itemsOf(r), sc=scoreOf(r); sum+=sc; reps[r.iv.rep]=(reps[r.iv.rep]||0)+1; if(PH){ calls++; if(r.iv.outcome==='約到') ok++; }
+    allItems(clFor(r)).forEach(function(x){ var k=x.item.id, s=(its[k]||{s:'miss'}).s; var o=item[k]=item[k]||{name:x.stage.name+'・'+x.item.name,crit:x.item.crit,good:0,weak:0,miss:0,na:0}; o[s]=(o[s]||0)+1; }); });
+  return { recs:recs, ovr:ovr, stars:stars, fbs:fbs, item:item, reps:reps, avg:recs.length?Math.round(sum/recs.length):0, rate:calls?Math.round(ok/calls*100):null,
+    passed:Object.keys(reps).filter(function(n){ return isPassed(n); }) };
+}
+async function runLearn(k){
+  if(_busy) return; var R=learnRange(k), D=learnDigest(R.t0,R.t1);
+  if(!D.recs.length){ setProg('learnProg',R.label+' 沒有'+TXT.kind+'檢核紀錄（只算這台電腦已經同步到的）',null,true); return; }
+  _busy=true;
+  try{
+    setProg('learnProg','整理 '+D.recs.length+' 筆檢核、'+D.ovr.length+' 筆改判…',15);
+    var cl=curCL(), LAB={good:'講得好',weak:'不到位',miss:'沒講到',na:'不適用'};
+    var u='期間：'+R.label+'；'+TXT.kind+'檢核 '+D.recs.length+' 次、'+Object.keys(D.reps).length+' 位業務、平均 '+D.avg+' 分'+(D.rate!=null?'、約到率 '+D.rate+'%':'')+'、達標：'+(D.passed.join('、')||'無')
+      +'\n\n【現行檢核表（id｜階段・項目｜判定標準｜這段期間 好/不到位/沒講到/不適用 次數）】\n'
+      +allItems(cl).map(function(x){ var o=D.item[x.item.id]||{good:0,weak:0,miss:0,na:0}; return x.item.id+'｜'+x.stage.name+'・'+x.item.name+'｜'+(x.item.crit||'')+'｜'+o.good+'/'+o.weak+'/'+o.miss+'/'+o.na; }).join('\n')
+      +'\n\n【主管改判（AI 原判 → 主管改成：理由｜原話）】\n'+(D.ovr.map(function(o){ var v=o.ivo; return v.itemId+' '+(v.itemName||'')+'：'+(LAB[v.from]||v.from)+' → '+(LAB[v.to]||v.to)+'：'+v.why+(v.q?'｜「'+String(v.q).slice(0,60)+'」':''); }).join('\n')||'（沒有）')
+      +'\n\n【好講法／反面教材】\n'+(D.stars.map(function(s){ var v=s.ivs; return ((v.kind||'good')==='bad'?'壞':'好')+'｜'+v.itemName+'：「'+String(v.quote||'').slice(0,80)+'」'; }).join('\n')||'（沒有）')
+      +'\n\n【主管回饋的重點與下次要注意】\n'+(D.fbs.map(function(f){ return f.ivf.rep+'：'+(f.ivf.brief||'')+'｜'+(f.ivf.next||[]).join('；'); }).join('\n')||'（沒有）')
+      +'\n\n【組長規則建議（待審，有道理的可以變成修改建議）】\n'+(sugList().filter(function(x){ return !x.done; }).map(function(x){ return x.c.by+'：'+x.c.ivu.text; }).join('\n')||'（沒有）')
+      +'\n\n【目前的判定細則】\n'+(String(loadRefs()[MODE].digest||'（沒有）').slice(0,3000))
+      +'\n\n【AI 總評摘錄】\n'+D.recs.slice(-25).map(function(r){ return r.iv.rep+'（'+scoreOf(r)+'）：'+String(r.iv.summary||'').slice(0,80); }).join('\n');
+    var sys='你是赫綵設計學院的'+TXT.kind+'檢核品管顧問。根據主管一個月來的改判、好講法、反面教材與回饋，找出 AI 判錯的規律，提出檢核表「判定標準」的修改建議，讓下個月 AI 判得跟主管一樣。'
+      +'\n原則：只根據資料，沒有證據不提；每條建議都要能對到改判或明顯偏差（某項幾乎都判好或幾乎都沒講到）；最多 8 條，挑影響最大的；新標準要具體、可從逐字稿檢查、一句話寫完。用白話繁體中文，人名不寫姓。'
+      +'\n只輸出 JSON：{"overview":"這段期間一段話總覽 80 字內","aiErrors":[{"item":"階段・項目","count":次數,"pattern":"AI 常怎麼判錯 40 字內"}],"proposals":[{"itemId":"現行 id","newCrit":"建議的新判定標準","reason":"為什麼 50 字內","evidence":"根據哪些改判或數字"}],"addExamples":[{"kind":"好或壞","item":"項目","quote":"原話 30 字內"}],"weak":[{"item":"項目","topic":"下個月訓練主題"}],"skills":[{"skill":"建議更新的 skill 名稱","point":"要補的內容 40 字內"}],"oneLine":"下個月最該盯的一件事"}';
+    setProg('learnProg','AI 分析中…約 30～90 秒',45);
+    var set=getSet(), ai=await askAI(sys,u.slice(0,150000),6000,set.aModel), res=parseJSON(ai.text);
+    var now=Date.now(), rec={ id:'ivr_'+now, type:'interview_report', by:ME(), createdAt:now, text:'📚 '+TXT.title+'學習報告｜'+R.label+'\n'+(res.overview||'')+'\n下個月最該盯：'+(res.oneLine||''),
+      ivr:{ mode:MODE, label:R.label, region:REGION, clVer:cl.ver||1, n:D.recs.length, ovr:D.ovr.length, avg:D.avg, rate:D.rate, res:res, applied:[], usage:{ in:ai.usage.in, out:ai.usage.out, aModel:set.aModel } } };
+    await caseWrite([rec]);
+    setProg('learnProg','完成・這次約 NT$'+Math.round(ntd(rec.ivr.usage)),100);
+    notifyTG('📚 '+TXT.title+'學習報告｜'+R.label+'\n'+(res.overview||'')+'\n\n檢核表建議 '+((res.proposals||[]).length)+' 條，到頁面勾選才會套用。\n下個月最該盯：'+(res.oneLine||''));
+    showLearn(rec.id,true);
+  }catch(e){ console.error('[learn]',e); setProg('learnProg','沒完成：'+(e&&e.message||e),null,true); }
+  _busy=false;
+}
+function showLearn(id,keep){
+  var rec=_cases.find(function(c){ return c.id===id; }); if(!rec) return; var r=rec.ivr, res=r.res||{}, cl=curCL(), map={};
+  allItems(cl).forEach(function(x){ map[x.item.id]=x; });
+  var applied={}; _cases.forEach(function(c){ if(c&&c.type==='interview_report_apply'&&c.iva&&c.iva.reportId===id) (c.iva.itemIds||[]).forEach(function(k){ applied[k]=1; }); });
+  var h='<div class="nums" style="margin-top:0"><div><small>期間</small><b>'+esc(r.label)+'</b></div><div><small>檢核次數</small><b>'+r.n+'</b></div><div><small>主管改判</small><b>'+r.ovr+'</b></div><div><small>平均分數</small><b>'+r.avg+'</b></div>'+(r.rate!=null?'<div><small>約到率</small><b>'+r.rate+'%</b></div>':'')+'</div>'
+    +'<p class="sum">'+esc(res.overview||'')+'</p>';
+  if((res.aiErrors||[]).length) h+='<div class="stg">AI 最常判錯</div>'+res.aiErrors.map(function(e){ return '<div class="it"><div class="h">'+esc(e.item)+'<span class="st">'+(e.count||'')+' 次</span></div><div class="w">'+esc(e.pattern||'')+'</div></div>'; }).join('');
+  h+='<div class="stg">檢核表下一版建議（勾了才會改）</div>';
+  h+=(res.proposals||[]).length?res.proposals.map(function(p,i){ var x=map[p.itemId], done=applied[p.itemId];
+    return '<div class="it"><div class="h"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" class="lp" data-i="'+i+'"'+(done||!x?' disabled':'')+'> '+esc(x?(x.stage.name+'・'+x.item.name):(p.itemId+'（檢核表裡已經沒有這項）'))+'</label><span class="st">'+(done?'已套用':'')+'</span></div>'
+      +(x?'<div class="c">現在：'+esc(x.item.crit||'')+'</div>':'')+'<div class="q">建議：'+esc(p.newCrit||'')+'</div><div class="w">'+esc(p.reason||'')+'｜根據：'+esc(p.evidence||'')+'</div></div>'; }).join(''):'<p class="empty">這段期間資料不夠，沒有建議修改。</p>';
+  if((res.addExamples||[]).length) h+='<div class="stg">值得收進範例庫的講法</div>'+res.addExamples.map(function(x){ return '<div class="it"><div class="h">'+esc(x.item)+'<span class="st">'+esc(x.kind)+'</span></div><div class="q">'+esc(x.quote)+'</div></div>'; }).join('')+'<p class="meta">範例要從檢核結果裡按 ☆／✗ 收，這裡只是提醒。</p>';
+  if((res.weak||[]).length) h+='<div class="stg">全公司共通弱點 → 下個月訓練主題</div><ol>'+res.weak.map(function(w){ return '<li>'+esc(w.item)+'：'+esc(w.topic)+'</li>'; }).join('')+'</ol>';
+  if((res.skills||[]).length) h+='<div class="stg">建議更新進 skill</div><ul>'+res.skills.map(function(s){ return '<li>'+esc(s.skill)+'：'+esc(s.point)+'</li>'; }).join('')+'</ul><p class="meta">skill 要在 Cowork 跟 Claude 說才會改。</p>';
+  if(res.oneLine) h+='<div class="todo" style="margin-top:12px"><b>下個月最該盯的一件事</b>'+esc(res.oneLine)+'</div>';
+  if(keep){ $('learnOut').innerHTML=h+'<div class="row" style="margin-top:12px"><button class="btn pri" onclick="applyLearn(\''+id+'\')">套用勾選的修改</button><button class="btn" onclick="downloadLearn(\''+id+'\')">⬇ 下載報告</button></div>'; }
+  else openDlg('📚 '+esc(r.label)+' 學習報告',h,'<button class="btn pri" onclick="applyLearn(\''+id+'\')">套用勾選的修改</button><button class="btn" onclick="downloadLearn(\''+id+'\')">⬇ 下載報告</button>');
+}
+async function applyLearn(id){
+  if(!canEdit()) return; var rec=_cases.find(function(c){ return c.id===id; }); if(!rec) return; var res=rec.ivr.res||{};
+  var picks=[].slice.call(document.querySelectorAll('input.lp:checked')).map(function(el){ return (res.proposals||[])[+el.getAttribute('data-i')]; }).filter(Boolean);
+  if(!picks.length){ toast('先勾要套用的建議',true); return; }
+  var o=loadCL(), regs=REGS(o), cl=JSON.parse(JSON.stringify(regs[REGION]||curCL())), changed=[];
+  (cl.stages||[]).forEach(function(s){ (s.items||[]).forEach(function(it){ var p=picks.find(function(q){ return q.itemId===it.id; }); if(p&&p.newCrit){ it.crit=p.newCrit; changed.push(it.id); } }); });
+  if(!changed.length){ toast('檢核表裡找不到這些項目',true); return; }
+  cl.ver=(cl.ver||1)+1; cl.updatedAt=Date.now(); cl.updatedBy=ME(); regs[REGION]=cl;
+  try{ LSW().setItem(CL_KEY,JSON.stringify(o)); pushCloudSoon();
+    var now=Date.now(); await caseWrite([{ id:'iva_'+now, type:'interview_report_apply', by:ME(), createdAt:now, text:'', iva:{ reportId:id, mode:MODE, region:REGION, itemIds:changed, ver:cl.ver } }]);
+    toast('已改 '+changed.length+' 項，'+TXT.kind+'檢核表升到 v'+cl.ver+'，下一次檢核就用新標準'); closeDlg(); }
+  catch(e){ toast('沒存成功：'+(e&&e.message||e),true); }
+}
+function downloadLearn(id){
+  var rec=_cases.find(function(c){ return c.id===id; }); if(!rec) return; var r=rec.ivr, res=r.res||{}, map={}; allItems(curCL()).forEach(function(x){ map[x.item.id]=x; });
+  var t='# '+TXT.title+'學習報告｜'+r.label+'\n\n檢核 '+r.n+' 次、主管改判 '+r.ovr+' 筆、平均 '+r.avg+' 分'+(r.rate!=null?'、約到率 '+r.rate+'%':'')+'\n\n'+(res.overview||'')+'\n\n## AI 最常判錯\n'+(res.aiErrors||[]).map(function(e){ return '- '+e.item+'（'+(e.count||'')+' 次）：'+e.pattern; }).join('\n')
+    +'\n\n## 檢核表下一版建議\n'+(res.proposals||[]).map(function(p,i){ var x=map[p.itemId]; return (i+1)+'. '+(x?x.stage.name+'・'+x.item.name:p.itemId)+'\n   - 現在：'+(x?x.item.crit:'')+'\n   - 建議：'+p.newCrit+'\n   - 為什麼：'+p.reason+'\n   - 根據：'+p.evidence; }).join('\n')
+    +'\n\n## 下個月訓練主題\n'+(res.weak||[]).map(function(w){ return '- '+w.item+'：'+w.topic; }).join('\n')+'\n\n## 建議更新的 skill\n'+(res.skills||[]).map(function(s){ return '- '+s.skill+'：'+s.point; }).join('\n')+'\n\n## 下個月最該盯\n'+(res.oneLine||'')+'\n';
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([t],{type:'text/markdown;charset=utf-8'})); a.download=TXT.title+'學習報告_'+r.label.replace(/[（）\s]/g,'')+'.md'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+
+/* ═══════════════ ★ ds145 參考規則：判定細則（AI 每次都讀）＋參考資料＋典範通話＋組長規則建議 ═══════════════ */
+// ★ ds145 電話檢核預設判定細則：10/29 由舊瀑布兩份教材（約訪流程 SOP、電話實戰）濃縮；柏翰在「📎 參考規則」存過自己的版本就用他的
+var PHONE_DIGEST_DEFAULT=[
+'【開場 30 秒・確認本人】',
+'- 第一句要有「喂～hello～你好」或等同語氣詞，口氣明顯上揚、不平板，才算有打招呼的能量；一開口就平鋪直敘報事情算不到位。',
+'- 要主動唸出對方名字並問「請問是 ___ 嗎／是本人嗎」，得到對方「是／對」的確認後才繼續，沒確認就直接往下講算不到位。',
+'- 名字唸錯、含糊帶過、或只說「先生／小姐你好」沒點名，算沒做到本人確認。',
+'',
+'【開場 30 秒・點出預約資訊】',
+'- 要具體講出「哪一天／幾月幾日」+「在哪個平台或頁面」+「登記或下載了什麼」，三項至少到位兩項才算講清楚預約資訊。',
+'- 舊名單要主動核對 email 或當初填的活動名稱（例：「你有在 FB/IG 填寫 XX 活動回函」），只說「你之前有填過資料」太空泛，不到位。',
+'- 用「系統顯示」「預約系統上」「活動頁面」等字眼帶出來源，讓對方知道不是亂打，加分；完全沒交代來源算不到位。',
+'',
+'【開場 30 秒・自我介紹】',
+'- 要講出自己名字（例：Peter／Candy／小 C／莎拉等）＋身分單位（職訓單位／合作廠商／課程顧問／活動客服／退輔合作單位），兩者都有才算清楚。',
+'- 身分盡量用「職訓單位、FB/IG 合作廠商、合作單位」等降推銷感的說法，一開口就說「我是赫綵要推銷課程」算不到位。',
+'- 介紹要一兩句講完，不要落落長講公司歷史；超過 20 秒還在自我介紹算囉嗦。',
+'',
+'【了解對方・身分分流】',
+'- 要主動問「你是學生、上班族還是待業中？」或等同問句，問出身分才算有分流。',
+'- 問到學生要追科系／大幾／學校地點；上班族要追工作性質／產業／作息（週休或排休、早晚班）；待業要追找多久／之前做什麼／想找什麼，問對類別才算到位。',
+'- 身分問完沒延伸相對應問題、或對學生問上班族的題目（反之亦然），算分流失敗。',
+'',
+'【了解對方・一問一答一認同】',
+'- 對方每回答一題，業務要先給一句認同或讚美（「哇好年輕喔」「這科系很有潛力」「做這行很辛苦欸」）再接下一題，連續三題以上沒認同算不到位。',
+'- 認同要貼對方的回答內容，不是制式「嗯嗯好」「OK」；只有語助詞不算認同。',
+'- 整段聽起來像聊天、有來有回才算到位；像填問卷一題接一題砲轟，不到位。',
+'',
+'【了解對方・二延伸】',
+'- 針對對方的回答至少再往下追兩層（例：科系→為什麼選這科系→未來想做什麼；電子廠→早晚班→休假日型態），只追一層就跳走算不到位。',
+'- 延伸要順著對方剛剛講的關鍵字走，不能跳題硬轉；硬轉回課程算不到位。',
+'- 全程只問身分三件事就收掉、沒有任何延伸，算完全沒做到。',
+'',
+'【了解對方・引起共鳴】',
+'- 要把課程或兌換內容連回對方剛講過的背景（追 VTuber → VTuber 虛擬形象製作；服役 → 退輔會權益；上班族想轉職 → 技能補助），有連結才算到位。',
+'- 可用 AI 創作、第二專長、接案、找工作需求等切入，讓對方覺得「這跟我有關」；只是說「課程很棒你來看看」沒連結到對方，不到位。',
+'- 共鳴點要具體（講得出對方的科系、工作、興趣字眼），只有空泛「對你一定有幫助」算不到位。',
+'',
+'【推薦老師・老師名字】',
+'- 要講出至少一位具體老師姓名，只說「我們老師都很專業」「有很多老師」算完全沒做到。',
+'- 名字講出來後要停一下讓對方記得，不能一句話帶過接下個話題。',
+'',
+'【推薦老師・業界經驗與代表作】',
+'- 要講出老師的業界年資、任職單位或代表作品／合作品牌（例：VOGUE 特約、LV 合作、張學友作品、紅點設計獎），至少一項具體內容才算到位。',
+'- 只說「老師經驗很豐富」「做很多案子」沒舉實例，不到位。',
+'- 代表作要跟課程主題相符（攝影講攝影作品、音樂講音樂作品），張冠李戴算不到位。',
+'',
+'【推薦老師・教學成果】',
+'- 要講出教學年資（教了幾年）或輔導過的學員成果（輔導過幾成相關背景學員、學員得獎、學員就業），至少一項具體才算到位。',
+'- 「輔導過 7 成以上跟你相關背景的學員」這類話術是標配，有講加分。',
+'- 完全沒提教學面、只講業界作品，算不到位。',
+'',
+'【推薦老師・連到對方背景】',
+'- 要說明「這位老師為什麼適合你」，連回對方前面講的身分、科系、興趣或職涯方向，有連結才算到位。',
+'- 可用「輔導過跟你一樣是 ___ 背景的學員」「老師特別擅長 ___，剛好符合你想做的 ___」等句式。',
+'- 推薦完老師沒做任何個人化連結，純介紹老師就結束，不到位。',
+'',
+'【收尾・二選一給時間】',
+'- 要給兩個具體時間讓對方挑（「下午 2:45 或晚上 6:15？」「6 點半還是 7 點？」），有二擇一才算到位。',
+'- 絕對不能問「方便嗎／有空嗎／什麼時候可以」這類開放題，一出現就算不到位。',
+'- 對方第一個時間拒絕，要立刻再丟兩個新時間，不能卡住或改問「那你什麼時候方便」。',
+'',
+'【收尾・約訪時間鐵則】',
+'- 週一到週三打的，要約平日時段；週四週五打的才約週六日，顛倒算不到位。',
+'- 上班族和學生優先約平日晚上，白天硬約上班族／學生算不到位。',
+'- 對方提出的時段違反鐵則時，業務要能引導回合理時段（例：上班族要約週末 → 試著拉回平日晚上），完全順著客戶約到不合理時段算不到位。',
+'',
+'【收尾・地點與找誰】',
+'- 要講清楚地點，含地標或交通指引（例：中壢火車站步行兩分鐘、水利大樓、中山路中華電信附近），只丟地址沒說怎麼到算半套。',
+'- 要說「到了找 ___（自己的名字／櫃檯報我名字）」，沒交代找誰算不到位。',
+'- 可主動消除距離疑慮（「我們離你最近的據點在 ___」），加分項。',
+'',
+'【收尾・簡訊或 LINE】',
+'- 要主動說「等下發簡訊給你（含地址）」或「加我 LINE 把資料傳給你」，兩者至少一項才算到位。',
+'- 加 LINE 時最好請對方回覆姓名確認（閉環動作），有做加分。',
+'- 整通電話結束都沒提簡訊或 LINE，算完全沒做到。',
+'',
+'【反對處理・先認同再處理】',
+'- 對方講出任何拒絕理由，第一句要先認同或順一下（「我知道我知道」「我理解」「你會這樣想很正常」），再接處理，才算到位。',
+'- 一聽到反對就馬上反駁、辯解、或直接跳回約時間，算不到位。',
+'- 整通沒出現任何反對意見，本項判「不適用」。',
+'',
+'【反對處理・用對招】',
+'- 「不需要」：要回到「當初是你自己填寫才聯繫」的初衷探討，或轉成時間問題處理。',
+'- 「太遠」：要用其他遠地學員案例類比（雲林、梧棲），或幫忙看交通、強調離 ___ 很近。',
+'- 「沒時間／改天」：要強調「兌換不用很久、30 分鐘就好」「不要跨月、稀有度會不一樣、7 天內兌換完」。',
+'- 「負評」：一定要用「全台規模最大連鎖、十幾年品牌」＋連鎖品牌類比（輕井澤、王品、台清交）＋「我這邊不會讓你遇到這狀況」三段式；只否認或硬凹算不到位。',
+'- 「沒興趣」：要用 AI 創作切入、合作品牌實例（維納斯、中鋼、華信、中華電信 MOD）、或蒐集資訊／第二專長角度切入。',
+'- 用錯招（例：負評只回「我們很專業」、沒時間只說「真的很快啦」）算不到位。沒遇到反對判「不適用」。',
+'',
+'【反對處理・拉回約訪】',
+'- 反對處理完要立刻用二選一拉回時間（「那下週二晚上還是週三晚上？」「6 點半還是 7 點？」），有拉回才算到位。',
+'- 處理完就讓對話懸在那、或改問「那你再想想」，算不到位。',
+'- 對方放鳥重約時要製造急迫（跨月失效、稀有度、7 天內），再丟二擇一時間。沒遇到反對判「不適用」。'
+].join('\n');
+var REF_KEY='iv_refs_v1';   // 全公司共用（firebase-sync 共享名單）：{ phone:{digest,digestAt,digestBy,docs:[{id,title,content,kind,by,at}]}, interview:{...} }
+function loadRefs(){ var o=null; try{ o=JSON.parse(localStorage.getItem(REF_KEY)||'null'); }catch(e){} if(!o||typeof o!=='object') o={}; if(!o[MODE]) o[MODE]={digest:'',docs:[]}; if(!o[MODE].docs) o[MODE].docs=[]; if(PH&&!o[MODE].digest&&!o[MODE].digestAt){ o[MODE].digest=PHONE_DIGEST_DEFAULT; o[MODE].digestBy='預設（舊瀑布教材濃縮）'; } return o; }
+function saveRefs(o){ LSW().setItem(REF_KEY,JSON.stringify(o)); pushCloudSoon(); }
+function modelList(){ return _cases.filter(function(c){ return c&&c.type==='interview_model'&&c.ivm&&(c.ivm.mode||'interview')===MODE; }).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); }); }
+function sugList(){ var done={}; _cases.forEach(function(c){ if(c&&c.type==='interview_rulesug_done'&&c.ivd) (c.ivd.ids||[]).forEach(function(id){ done[id]=c.ivd.decision; }); });
+  return _cases.filter(function(c){ return c&&c.type==='interview_rulesug'&&c.ivu&&(c.ivu.mode||'interview')===MODE; }).map(function(c){ return {c:c, done:done[c.id]||''}; }).sort(function(a,b){ return (b.c.createdAt||0)-(a.c.createdAt||0); }); }
+// 給 AI 的參考：判定細則＋最多 2 通典範（參考資料裡的典範＋組長設的典範）
+function buildRefText(){
+  var R=loadRefs()[MODE], out='';
+  if(R.digest&&R.digest.trim()) out+='\n\n【判定細則（柏翰審過的公司標準，判「講得好不好」以此為準）】\n'+R.digest.trim().slice(0,6000);
+  var models=[]; R.docs.filter(function(d){ return d.kind==='example'; }).slice(-1).forEach(function(d){ models.push(d.title+'\n'+String(d.content||'').slice(0,1500)); });
+  modelList().slice(0,2).forEach(function(m){ models.push(m.ivm.title+'（'+m.ivm.rep+'，'+m.by+' 設為典範）\n'+String(m.ivm.excerpt||'').slice(0,1500)); });
+  if(models.length) out+='\n\n【典範'+TXT.kind+'（好'+TXT.kind+'長這樣，拿來對照，不要照抄分數）】\n'+models.slice(0,2).map(function(t,i){ return '— 典範 '+(i+1)+' —\n'+t; }).join('\n\n');
+  return out;
+}
+function openRefs(){
+  var o=loadRefs(), R=o[MODE], adm=canEdit(), mem=hgMembers();
+  var h='<div class="stg">判定細則<span class="meta" style="font-weight:500">　AI 每次檢核都會讀，'+(R.digestAt?('最後更新 '+esc(R.digestBy||'')+' '+fmtD(R.digestAt)):(R.digestBy?('目前用'+esc(R.digestBy)):'還沒建立'))+'</span></div>';
+  h+=adm?('<textarea class="in" id="refDigest" style="min-height:220px">'+esc(R.digest||'')+'</textarea><div class="row" style="margin-top:8px"><button class="btn pri sm" onclick="saveDigest()">儲存判定細則</button><button class="btn sm" id="distBtn" onclick="distillRefs()">✨ 用 AI 從參考資料濃縮</button><span class="meta">濃縮完會放進上面的框，你看過再按儲存</span></div>')
+        :('<div class="q" style="white-space:pre-wrap">'+esc(R.digest||'（柏翰還沒建立）')+'</div>');
+  h+='<div class="stg">參考資料</div>';
+  h+=R.docs.length?R.docs.map(function(d){ return '<div class="it"><div class="h">'+(d.kind==='example'?'🏆 ':'📘 ')+esc(d.title)+'<span class="st">'+(d.kind==='example'?'典範':'教材')+'・'+String(d.content||'').length+' 字</span></div><details><summary class="meta" style="cursor:pointer">看原文</summary><div class="q" style="white-space:pre-wrap;max-height:320px;overflow:auto">'+esc(d.content)+'</div></details>'+(adm?'<button class="star" onclick="delRef(\''+d.id+'\')">刪除</button>':'')+'</div>'; }).join(''):'<p class="empty">還沒有參考資料。</p>';
+  if(adm){
+    var hasOld=false; try{ hasOld=JSON.parse(localStorage.getItem('wf_appointment_sop')||'[]').length>0; }catch(e){}
+    h+='<div class="row" style="margin-top:8px">'+(PH&&hasOld?'<button class="btn sm" onclick="importOldSop()">⬇ 從舊瀑布匯入 SOP</button>':'')+'<button class="btn sm" onclick="toggleAddRef()">＋ 新增參考資料</button></div><div id="addRef" hidden style="margin-top:8px"><div class="row"><input class="in" id="refTitle" placeholder="標題" style="flex:1"><select class="in" id="refKind" style="max-width:140px"><option value="rule">教材</option><option value="example">典範'+TXT.kind+'</option></select></div><textarea class="in" id="refBody" style="margin-top:6px;min-height:140px" placeholder="貼上內容"></textarea><button class="btn pri sm" style="margin-top:6px" onclick="addRef()">加入</button></div>';
+  }
+  var ms=modelList().filter(hgCanSee);
+  h+='<div class="stg">組長設的典範'+TXT.kind+'（'+ms.length+'）</div>'+(ms.length?ms.slice(0,20).map(function(m){ return '<div class="hrow" onclick="closeDlg();var r=_cases.find(function(c){return c.id===\''+m.ivm.ivId+'\';});if(r){$(\'rep\').value=r.iv.rep;onRepChange();showRec(r.id);}"><span class="d">'+fmtD(m.createdAt)+'</span><span class="m">'+esc(m.ivm.rep)+'・'+esc(m.ivm.title)+'・'+esc(m.by)+' 設</span></div>'; }).join(''):'<p class="empty">在檢核結果按「🏆 設為典範」就會出現在這裡，AI 會拿最新兩通當標準。</p>');
+  var sg=sugList().filter(function(x){ return adm||hgCanSee(x.c); });
+  h+='<div class="stg">規則建議</div><p class="meta">覺得哪條規則要加或要改，寫下來送出。不會直接生效，每月學習報告會列給柏翰，他勾了才變成正式標準。</p><textarea class="in" id="sugText" style="min-height:70px" placeholder="例如：推薦老師時要講到老師跟對方背景的共同點，才算講得好"></textarea><button class="btn sm" style="margin-top:6px" onclick="addSug()">送出建議</button>';
+  h+=sg.length?sg.slice(0,30).map(function(x){ var c=x.c; return '<div class="it"><div class="h">'+esc(c.by)+'<span class="st">'+(x.done==='yes'?'已採納':x.done==='no'?'不採納':'待審')+'・'+fmtD(c.createdAt)+'</span></div><div class="q">'+esc(c.ivu.text)+'</div>'+(adm&&!x.done?'<div class="row" style="gap:6px"><button class="btn sm" onclick="decideSug(\''+c.id+'\',\'yes\')">採納（加進判定細則）</button><button class="btn sm" onclick="decideSug(\''+c.id+'\',\'no\')">不採納</button></div>':'')+'</div>'; }).join(''):'';
+  openDlg('📎 參考規則・'+TXT.title,h,'');
+}
+function toggleAddRef(){ var a=$('addRef'); if(a) a.hidden=!a.hidden; }
+function addRef(){ var t=$('refTitle').value.trim(), b=$('refBody').value.trim(); if(!t||!b){ toast('標題和內容都要填',true); return; }
+  var o=loadRefs(); o[MODE].docs.push({id:'rf_'+Date.now(),title:t,content:b,kind:$('refKind').value,by:ME(),at:Date.now()}); try{ saveRefs(o); toast('已加入'); openRefs(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
+function delRef(id){ if(!confirm('刪除這份參考資料？')) return; var o=loadRefs(); o[MODE].docs=o[MODE].docs.filter(function(d){ return d.id!==id; }); try{ saveRefs(o); openRefs(); }catch(e){ toast('沒存成功',true); } }
+function importOldSop(){
+  var a=[]; try{ a=JSON.parse(localStorage.getItem('wf_appointment_sop')||'[]'); }catch(e){}
+  var o=loadRefs(), have={}; o[MODE].docs.forEach(function(d){ have[d.src||'']=1; });
+  var n=0, ex=[];
+  a.forEach(function(s){ if(!s||!s.content||have[s.id]) return; var isEx=/逐字稿|重點摘錄|重點摘要/.test(s.content)&&String(s.content).length<6000;
+    if(isEx){ ex.push(s); return; } o[MODE].docs.push({id:'rf_'+Date.now()+'_'+n,src:s.id,title:String(s.title||'').trim()||'舊瀑布 SOP',content:s.content,kind:'rule',by:ME(),at:Date.now()}); n++; });
+  if(ex.length){ o[MODE].docs.push({id:'rf_'+Date.now()+'_ex',src:ex.map(function(s){ return s.id; }).join(','),title:'典範：舊名單約到這週（黃小姐，烘焙業，iPad 插畫）',content:ex.map(function(s){ return '【'+String(s.title||'').trim()+'】\n'+s.content; }).join('\n\n'),kind:'example',by:ME(),at:Date.now()}); ex.forEach(function(s){ have[s.id]=1; }); n++; }
+  if(!n){ toast('舊瀑布的 SOP 都匯入過了'); return; }
+  try{ saveRefs(o); toast('匯入 '+n+' 份，下一步按「✨ 用 AI 從參考資料濃縮」'); openRefs(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); }
+}
+async function distillRefs(){
+  var R=loadRefs()[MODE], rules=R.docs.filter(function(d){ return d.kind!=='example'; }); if(!rules.length){ toast('先加入教材類的參考資料',true); return; }
+  var b=$('distBtn'); if(b){ b.disabled=true; b.textContent='濃縮中…約 30～60 秒'; }
+  try{
+    var cl=curCL(), items=allItems(cl).map(function(x){ return x.item.id+'｜'+x.stage.name+'・'+x.item.name+'｜'+x.item.crit; }).join('\n');
+    var sys='你是赫綵設計學院的'+TXT.kind+'檢核標準編輯。把教材濃縮成「判定細則」，給 AI 判斷業務每一項講得好不好時用。'
+      +'\n規則：照檢核表的項目順序寫，每項 1～4 條，寫成「做到什麼才算講得好／怎樣算不到位」，具體到可以從逐字稿檢查；保留教材裡的關鍵話術與禁忌（例如不要問方便嗎、負評要用連鎖品牌類比）；跟判分無關的內容不要（簡訊範本、師資名單、日報表、每日通數）。'
+      +'\n總長 1500～2500 字，繁體中文白話，只輸出細則本身，格式：\n【階段・項目】\n- …';
+    var u='檢核表（id｜項目｜現行標準）：\n'+items+'\n\n教材：\n'+rules.map(function(d){ return '《'+d.title+'》\n'+String(d.content).slice(0,30000); }).join('\n\n');
+    var set=getSet(), ai=await askAI(sys,u,4000,set.aModel);
+    var t=$('refDigest'); if(t) t.value=ai.text.trim();
+    toast('濃縮好了（約 NT$'+Math.round(ntd({in:ai.usage.in,out:ai.usage.out,aModel:set.aModel}))+'），看過再按「儲存判定細則」');
+  }catch(e){ toast('沒完成：'+(e&&e.message||e),true); }
+  if(b){ b.disabled=false; b.textContent='✨ 用 AI 從參考資料濃縮'; }
+}
+function saveDigest(){ var o=loadRefs(); o[MODE].digest=$('refDigest').value; o[MODE].digestAt=Date.now(); o[MODE].digestBy=ME(); try{ saveRefs(o); toast('判定細則已存，下一次檢核就會用'); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
+async function addSug(){ var t=($('sugText').value||'').trim(); if(!t){ toast('寫一句建議',true); return; }
+  var now=Date.now(); try{ await caseWrite([{ id:'ivu_'+now, type:'interview_rulesug', by:ME(), createdAt:now, text:'💡 規則建議｜'+t, ivu:{ mode:MODE, region:REGION, text:t } }]); toast('已送出，柏翰會在每月學習報告看到'); openRefs(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
+async function decideSug(id,dec){
+  if(!canEdit()) return; var c=_cases.find(function(x){ return x.id===id; }); if(!c) return;
+  try{
+    if(dec==='yes'){ var o=loadRefs(); o[MODE].digest=String(o[MODE].digest||'').replace(/\s+$/,'')+'\n\n【組長建議・'+c.by+'】\n- '+c.ivu.text; o[MODE].digestAt=Date.now(); o[MODE].digestBy=ME(); saveRefs(o); }
+    var now=Date.now(); await caseWrite([{ id:'ivd_'+now, type:'interview_rulesug_done', by:ME(), createdAt:now, text:'', ivd:{ ids:[id], decision:dec } }]);
+    toast(dec==='yes'?'已加進判定細則':'已標成不採納'); openRefs();
+  }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); }
+}
+// 檢核結果：設為典範（組長、主管、柏翰；自己的不能設自己）
+async function setModel(){
+  var rec=_curRec; if(!rec) return; if(ME()===rec.iv.rep&&!canEdit()){ toast('自己的'+TXT.kind+'不能設成典範，請主管設',true); return; }
+  var ex=modelList().find(function(m){ return m.ivm.ivId===rec.id; });
+  try{
+    if(ex){ await caseWrite([],[ex.id]); toast('已取消典範'); }
+    else{ var now=Date.now(); await caseWrite([{ id:'ivm_'+now, type:'interview_model', by:ME(), createdAt:now, text:'🏆 典範'+TXT.kind+'｜'+rec.iv.rep+'｜'+(rec.iv.title||''), ivm:{ mode:MODE, ivId:rec.id, rep:rec.iv.rep, title:rec.iv.title||'', excerpt:'總評：'+(rec.iv.summary||'')+'\n'+txPlain(rec).slice(0,3000) } }]); toast('已設為典範，AI 之後會拿它當「好'+TXT.kind+'」的標準'); }
+    renderResult(rec);
+  }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); }
 }
 
 /* ═══════════════ 區域、名單、啟動 ═══════════════ */
@@ -893,7 +1254,7 @@ window.addEventListener('message',function(e){ if(e.data&&e.data.action==='chara
 try{ (window.parent||window).addEventListener('firebase-sync-updated',function(){ if(_busy) return; bootCases().then(function(){ fillRepList(); renderWho(); if(_curRec){ var r=_cases.find(function(c){ return c.id===_curRec.id; }); if(r){ _curRec=r; renderResult(r); } } }); }); }catch(e){}
 window.triggerSave=function(){};   // 父頁切換主角時會呼叫；這頁每一步都即時存，不用另外存
 (async function(){
-  renderSeg(); if(canEdit()) $('setBtn').hidden=false; await bootCases(); try{ await hgLoad(); }catch(e){} fillRepList();
+  applyModeText(); renderSeg(); if(canEdit()){ $('setBtn').hidden=false; $('learnBtn').hidden=false; } await bootCases(); try{ await hgLoad(); }catch(e){} fillRepList(); try{ var _m=hgMembers(); if(!_m||Object.keys(_m).length>1) $('teamBtn').hidden=false; }catch(e){}
   var me=ME(); if(me) $('rep').value=me; onRepChange();
   var last=ivRecords(me).slice(-1)[0]; if(last){ _curRec=last; renderWho(); renderResult(last); }
 })();

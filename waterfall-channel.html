@@ -560,9 +560,10 @@ button:not(:disabled):active,.btn:not(:disabled):active,.tab:active,.flow-step:a
 .section .card>div[style*="font-size:12px"]{font-size:13px !important;}
 </style>
 <script src="./auth-check.js?v=5a09f9ce"></script>
-<script defer src="./firebase-sync.js?v=04597f51"></script>
+<script defer src="./firebase-sync.js?v=dd976bdf"></script>
 </head>
 <body>
+<div style="position:sticky;top:0;z-index:999;background:#FFF3C4;color:#5C4400;font:600 14px/1.5 -apple-system,'PingFang TC',sans-serif;padding:10px 16px;text-align:center;">這是舊版瀑布，只供查看以前的資料。新的通話錄音請到星際廣場「📞 電話檢核」上傳。</div>
 <script>
 /* 🌙 白天/夜間模式 — 跟著首頁的 appedu_day_mode 走（day_mode!=='1' → 夜間深色太空風）*/
 (function(){
@@ -1225,7 +1226,7 @@ function hgCanSee(rec){
   if(!who.length) return false;   // 沒記上傳者的舊錄音 → 只有柏翰看
   return who.some(function(n){ return mem[n]; });
 }
-function hgIsRec(t){ return t==='voice'||t==='acceptance'||t==='interview'||t==='interview_fb'||t==='interview_star'||t==='interview_ovr'; }
+function hgIsRec(t){ return t==='voice'||t==='acceptance'||/^interview/.test(t||''); }
 
 function voiceCases(){ return loadCases().filter(function(c){ return (c.type==='voice'||c.type==='acceptance') && hgCanSee(c); }); }   // ★ ds144 只看同組
 function caseById(id){ return loadCases().find(function(c){ return c.id===id; }) || null; }

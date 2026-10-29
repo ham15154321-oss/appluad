@@ -649,3 +649,10 @@ C 主管
 - ds144 補（10/29）：李婉琳升主管 → HG_ACAD（三頁）與瀑布 _WATERFALL_ACAD_MAP 加 '李婉琳':'中壢學院'，看整個中壢學院。
 - ds144 補：試算表網址寫死成 SHEET_URL_DEFAULT（AKfycbwoAtxJ…/exec，無密語），設定裡留空就用它。
 - ds144 補：Apps Script「錄音檢核」裡 SECRET='Ivan'（不是空的），網頁預設 sheetKey 改 'Ivan' 才寫得進去。
+- ds145（10/29 Ivan：開始第 2 輪）電話檢核＝interview-check.html?mode=phone（同一份程式、MODE 切換）：約訪 SOP 預設 PHONE_DEF 5 段 18 項存 iv_checklist_v1.pregions；紀錄 type interview＋iv.mode='phone'＋callType＋outcome（約到/改約/沒約到）＋when；好講法/改判多記 mode；試算表分頁加「電話」前綴、總表多「類型、結果」欄、階段欄跟檢核表走；當月數字讀 appedu_rep_snap_v1（pc.js _myAllReps 每分鐘存一次：biz、bizA=new_perf、itv、ck=報到，本機不上雲）。廣場瀑布卡改 openPhoneCheck，舊瀑布加黃條「舊版只供查看」，從電話檢核頁底「🗂 舊版瀑布資料」進。約訪數資料系統沒有，改顯示本月業績／當月A業績／面談／報到。備份 outputs/*.bak.ds144*
+- ds145 第 3、4 輪：面談／電話檢核頁加「👥 團隊看板」（本月／90 天／全部：檢核次數、改判率、花費、全組最常卡前 3、每人最新分數變化約到率達標最常卡，點列跳到那人），按鈕給柏翰和組裡不只一人的主管組長。每月學習報告指令：會議記錄盤點/每月學習報告指令.md（唯讀抓上月全部 interview* 紀錄 → 改判排行、檢核表下一版建議、範例庫、共通弱點、skill 更新建議）。
+- ds145 補：首頁太空指揮部星際廣場與 AI 顧問對調位置（星際廣場移到右上，AI 顧問移到最後）；星際廣場副標改「電話檢核・面談檢核・360・法院・成就・火種」；快速啟動「瀑布通路」換成「📞 電話檢核」「🎤 面談檢核」。卡片位置固定，不自動依使用次數排序。
+- ds145 補（10/29 Ivan：學習報告直接做進系統）：面談／電話檢核頁加「📚 學習報告」（只有黃柏翰）：選上個月或本月到今天 → 整理本機看得到的全部檢核、改判、範例、回饋（learnDigest）→ AI 回 JSON（總覽、AI 常判錯、最多 8 條判定標準修改、範例、弱點、skill 建議、下個月最該盯）→ 存 interview_report、發 Telegram；勾選後按「套用」才改檢核表（ver+1，存 interview_report_apply）；可下載 md。hgIsRec 改成 voice/acceptance/interview*（三頁）。AI 顧問標籤加 📚學習報告。原本的每月學習報告指令.md 留著當備用。
+- 1340 補（10/29 Ivan：早上只要一個連結）：日會排程 v23 → LINE 只推一則「📌 今日日會」＋ https://ham15154321-oss.github.io/appluad/1340.html（不帶 ?r=，主管自己選區）。網頁.gs v1.13：快取鍵改 pg7（舊 pg6 沒有班表資料，作廢）；班表隱藏列不算（A38 B 羅元伶）；陳亭妍是助理。班表卡要出現需：貼 v1.13→部署新版本→deploy.command 推 p2.7。
+- ds145 補（10/29 Ivan：舊瀑布 4 份 SOP 納入電話檢核）：「📎 參考規則」對話框：判定細則（iv_refs_v1[MODE].digest，AI 每次都讀，只有柏翰可改，可用 AI 從教材濃縮再人工儲存）、參考資料（教材／典範，柏翰可增刪；「從舊瀑布匯入 SOP」讀 wf_appointment_sop，兩份教材進 rule、黃小姐兩份合併成一筆 example）、組長設的典範（interview_model，檢核結果「🏆 設為典範」，自己不能設自己）、規則建議（interview_rulesug，誰都能送；柏翰採納＝附加到判定細則＋interview_rulesug_done）。AI 檢核 prompt 加 buildRefText（細則≤6000字＋最多 2 通典範各≤1500字）；學習報告帶待審建議與現行細則。firebase-sync 共享名單改 /^iv_(checklist|refs)_v1$/。
+- ds145 補：電話檢核內建預設判定細則 PHONE_DIGEST_DEFAULT（10/29 用 Opus 從舊瀑布「約訪流程 SOP（舊版）」「電話實戰」濃縮，約 3000 字，修掉一句「哪天方便」矛盾），柏翰沒存過自己的版本就用它。典範通話仍需柏翰在參考規則按「從舊瀑布匯入 SOP」。
