@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
-<meta name="pg1340-version" content="p3.1">
+<meta name="pg1340-version" content="p3.2">
 <title>13:40</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -894,6 +894,11 @@
   .ros-w .wr.lo .t i{background:var(--orange)}
   .ros-w .wr.lo b{color:var(--orange)}
   .ros-f{margin:10px 0 0;font-size:.75rem;color:var(--label3)}
+  .ros-o .rows{margin-top:6px;display:flex;flex-direction:column;gap:2px}
+  .ros-o .rw{display:grid;grid-template-columns:4.6em 1fr;gap:8px;font-size:.875rem;line-height:1.65;color:var(--label2)}
+  .ros-o .rw i{font-style:normal;font-size:.75rem;font-weight:700;color:var(--label2);padding-top:.12em}
+  .ros-o .rw.off i{color:var(--label3)}
+  .ros-o .rw.off .nm{color:var(--label2)}
   /* p2.9 名字、日期可點 → 小卡 */
   .ros button.nm{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--blue);cursor:pointer}
   .ros-s button.chip{border:0;font:inherit;text-align:left;cursor:pointer}
@@ -1011,7 +1016,7 @@
 </style>
 </head>
 <body>
-<!-- 13:40 日會網頁｜p3.1｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
+<!-- 13:40 日會網頁｜p3.2｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
 <div id="pgWait"><i></i><span id="pgWaitT">載入中…</span></div>
 <div id="pgPick" hidden><h1>日會</h1><a data-r="中區">中區<small>台一・台二・台三｜13:40</small></a><a data-r="桃區">桃區<small>壢一・壢二・壢三｜13:30</small></a><a data-r="建國">高雄建國<small>建國｜13:40</small></a></div>
 <div id="appRoot" hidden>
@@ -1389,6 +1394,17 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   function mdw(s){ var m = String(s).match(/\d{4}-(\d{2})-(\d{2})/); if (!m) return s; var d = new Date(+s.slice(0, 4), +m[1] - 1, +m[2]); return (+m[1]) + '/' + (+m[2]) + '（' + WKC[d.getDay()] + '）'; }
   function kOf(p){ return p.k || (p.院 + '|' + p.全名); }
   function names(L){ return L.map(function(p){ return '<button type="button" class="nm" data-rk="' + esc(kOf(p)) + '">' + esc(p.名) + '</button>' + (p.t ? '<small>' + esc(p.t) + '</small>' : ''); }).join('、'); }
+  /* p3.2（10/29 Ivan）每一院照班別列出全部的人（原本只列休、開會不在、要追的人，正常上班的只算人數，看起來像漏人） */
+  function isC(x, a){ return a.indexOf(x) >= 0; }
+  function shiftRows(L, s, meet){
+    var G = [['早班', function(x){ return isC(x, ['早', '早班']); }], ['中班', function(x){ return isC(x, ['中', '中班']); }], ['晚班', function(x){ return isC(x, ['晚', '晚班']); }]];
+    if (meet) G.push(['半天', function(x){ return cls(x) === '半' && !away(x); }, function(p){ return HALF[p.班[s]] || p.班[s]; }], ['開會不在', function(x){ return away(x); }, function(p){ return p.班[s] === '早休' ? '13:30 下班' : '17:30 才進'; }]);
+    else G.push(['半天', function(x){ return cls(x) === '半'; }, function(p){ return HALF[p.班[s]] || p.班[s]; }]);
+    G.push(['外勤', function(x){ return cls(x) === '外'; }, function(p){ return p.班[s]; }], ['其他', function(x){ return cls(x) === '其'; }, function(p){ return p.班[s]; }],
+      ['休', function(x){ return cls(x) === '休'; }, function(p){ return p.班[s] === '休' ? '' : p.班[s]; }], ['班表空白', function(x){ return !x; }]);
+    return '<div class="rows">' + G.map(function(g){ var M = L.filter(function(p){ return g[1](p.班[s] || ''); }); if (!M.length) return '';
+      return '<div class="rw' + (g[0] === '休' || g[0] === '班表空白' ? ' off' : '') + '"><i>' + g[0] + '</i><span>' + names(M.map(function(p){ return { 名: p.名, k: kOf(p), t: g[2] ? g[2](p) : '' }; })) + '</span></div>'; }).join('') + '</div>';
+  }
   /* p2.8（10/29 Ivan）：主資料沒帶班表（Apps Script 舊快取）→ 網頁自己讀 ?fmt=roster，照區篩、離職不列 */
   var RZ = { '中區':'中區', '建國':'南區', '桃區':'桃竹區' };
   function own(raw){
@@ -1427,11 +1443,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
       var aw = L.filter(function(p){ return away(p.班[d0]); }).map(function(p){ return { 名: p.名, k: kOf(p), t: p.班[d0] === '早休' ? '13:30 下班' : '17:30 才進' }; });
       var none = L.filter(function(p){ return !p.班[d0]; });
       h += '<div class="ros-o"><div class="l1">' + (many ? '<span class="o">' + esc(o) + '</span>' : '') + '<span class="n"><b>' + up.length + '</b>／' + L.length + ' 位上場</span><span class="mix">' + mixT + '</span></div>'
-        + ((off.length || out.length || aw.length || none.length) ? '<div class="l2">'
-          + (off.length ? '<span><i>休</i>' + names(off) + '</span>' : '')
-          + (aw.length ? '<span><i>開會不在</i>' + names(aw) + '</span>' : '')
-          + (out.length ? '<span><i>外勤</i>' + names(out) + '</span>' : '')
-          + (none.length ? '<span><i>班表空白</i>' + names(none) + '</span>' : '') + '</div>' : '') + '</div>';
+        + shiftRows(L, d0, true) + '</div>';
     });
     /* ② 在場、要追的人：今天有上班，近三天沒入帳或這個月報到 0 */
     var I = D.inc, st = {}; ((D.ppl && D.ppl.人) || []).forEach(function(p){ st[p.院 + '|' + p.全名] = p; });
@@ -1455,7 +1467,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
         var warn = lt.length <= 1 || up.length * 2 < L.length;
         tm += '<div class="ros-o' + (warn ? ' warn' : '') + '"><div class="l1">' + (many ? '<span class="o">' + esc(o) + '</span>' : '') + '<span class="n"><b>' + up.length + '</b>／' + L.length + ' 位上場</span>'
           + '<span class="mix">19:30 以後 ' + lt.length + ' 位' + (warn ? ' 💔' : '') + '</span></div>'
-          + (off.length ? '<div class="l2"><span><i>休</i>' + names(off) + '</span></div>' : '') + '</div>';
+          + shiftRows(L, d1, false) + '</div>';
       });
       h += '<div class="ros-t"><h4>明天 ' + mdw(d1) + '</h4>' + tm
         + (cl.length ? '<p class="ev">明天有：' + cl.map(function(c){ return esc(c.code + ' ' + shortNm(c.name)) + (c.type === '講座' ? ' 講座' : ' 開班'); }).join('、') + '</p>' : '') + '</div>';

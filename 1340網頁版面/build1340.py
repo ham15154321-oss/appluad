@@ -10,7 +10,7 @@ markup, app = body[:i], body[i + len('<script>'):j]
 assert '</script' not in app.lower()
 
 API = 'https://script.google.com/macros/s/AKfycbxBFayHnfG5NUoj0CjIe8qwlfdFwt0FQeVD-QH6ocBu3dhHWpioOEmLk908dsTGVlznYA/exec'
-VER = 'p3.1'
+VER = 'p3.2'
 
 extra_css = r"""
   /* ── 1340.html 外殼：載入中、更新提示、選區 ── */

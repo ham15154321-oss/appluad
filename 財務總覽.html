@@ -1257,7 +1257,10 @@ const store = {
 const OLDKEY = 'mom-house-ledger-v1';
 const LKEY = 'ledgers-v2';
 const NKEY = 'family-networth-v1';
-const OWNER = {bh:'柏翰', xx:'旋旋', joint:'共同'};
+// ★ ds145（10/29 Ivan：同事打開看到柏翰的帳本）：預設資料（媽媽購屋帳本、元大信貸、觀察名單、柏翰／旋旋）只給柏翰；其他人從零開始
+const FIN_OWNER = (function(){ const id=_finActiveId(); return !id || id==='黃柏翰'; })();
+const FIN_ME = (function(){ const id=_finActiveId()||''; return id.length>=3 ? id.slice(1) : (id||'我'); })();
+const OWNER = FIN_OWNER ? {bh:'柏翰', xx:'旋旋', joint:'共同'} : {bh:FIN_ME, xx:'家人', joint:'共同'};
 const ASSET_CATS = ['現金','房產','保險','股票','投資','股份','其他'];
 const LIQUID_DEFAULT = {現金:true, 股票:true, 投資:false, 房產:false, 保險:false, 股份:false, 其他:false};
 const CATCOLOR = {現金:'#4dd0a7',房產:'#64b5f6',保險:'#4aeaff',股票:'#ffd54f',投資:'#00c853',股份:'#bda8e8',其他:'#6a8fcc',貸款:'#ff5252'};
@@ -1284,7 +1287,7 @@ const seedMomEntries = () => ([
   {id:8, date:'', type:'out', cat:'規費與服務費', item:'仲介服務費',   amt:111000,  note:'鳥哥'},
   {id:9, date:'', type:'out', cat:'規費與服務費', item:'信貸開辦費',   amt:3000,    note:''}
 ]);
-const seedL = () => ({
+const seedL = () => (!FIN_OWNER ? { ledgers:[{ id:1, name:'我的帳本', cats:['餐飲','交通','居住','購物','學習','其他'], entries:[], nextId:1 }], nextLid:2, activeLid:1 } : {
   ledgers: [{ id:1, name:'媽媽購屋帳本', cats:[...MOM_CATS],
     entries: seedMomEntries(), nextId:10,
     loan: { monthly:13034, start:'', paid:{} } }],
@@ -1341,6 +1344,13 @@ const SEED_OPPS = [
   {id:21, code:"6230", name:"尼得科超眾", price:114.5, eps:0, yld:0, target:0, plan:0, src:"社群貼文「世界第一大龍頭企業」清單", reason:"世界第一大散熱模組廠", status:"watch", updated:"2026-07-17"}
 ];
 
+function _finRelabel(){ if(FIN_OWNER) return; try{
+  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null); const ns=[]; while(w.nextNode()) ns.push(w.currentNode);
+  ns.forEach(n=>{ if(/旋旋|柏翰/.test(n.nodeValue)) n.nodeValue=n.nodeValue.replace(/旋旋/g,'家人').replace(/柏翰/g,FIN_ME); });
+  const m=document.getElementById('momOn'); if(m&&m.closest('.switchline')) m.closest('.switchline').style.display='none';
+  const r=document.getElementById('resetAll'); if(r) r.textContent='清除所有帳本，回到空白';
+}catch(e){} }
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',_finRelabel); else _finRelabel();
 let L = seedL();
 let nw = seedNW();
 let editId = null, formType = 'out';
@@ -1390,16 +1400,16 @@ function imgKey(lid, eid){ return lid===1 ? 'mom-house-img-'+eid : 'img-'+lid+'-
 function migrateExpenses(){
   /* 機會分頁：第一次使用帶入起始觀察名單；之後完全以使用者的資料為準（就算清空也不再塞回去） */
   if(!Array.isArray(nw.opps)){
-    nw.opps = SEED_OPPS.map(o=>({...o}));
-    nw.nextOppId = SEED_OPPS.length + 1;
+    nw.opps = FIN_OWNER ? SEED_OPPS.map(o=>({...o})) : [];
+    nw.nextOppId = nw.opps.length + 1;
   }
   if(typeof nw.nextOppId !== 'number'){
     nw.nextOppId = nw.opps.reduce((m,o)=>Math.max(m, Number(o.id)||0), 0) + 1;
   }
   if(typeof nw.oppMult !== 'number' || !(nw.oppMult > 0)) nw.oppMult = 15;
   if(!Array.isArray(nw.etfs)){
-    nw.etfs = SEED_ETFS.map(e=>({...e}));
-    nw.nextEtfId = SEED_ETFS.length + 1;
+    nw.etfs = FIN_OWNER ? SEED_ETFS.map(e=>({...e})) : [];
+    nw.nextEtfId = nw.etfs.length + 1;
   }
   if(typeof nw.nextEtfId !== 'number'){
     nw.nextEtfId = nw.etfs.reduce((m,e)=>Math.max(m, Number(e.id)||0), 0) + 1;
@@ -1533,11 +1543,24 @@ async function load(){
     try{ await store.set(LKEY, JSON.stringify(L)); }catch(e){}
   }
   if(!L.ledgers.length){ L = seedL(); }
+  // ★ ds145：同事之前打開過、被塞了柏翰的預設帳本（沒動過）→ 清回空白
+  if(!FIN_OWNER){ try{
+    const lg=L.ledgers, seed=seedMomEntries();
+    if(lg.length===1 && lg[0].name==='媽媽購屋帳本' && (lg[0].entries||[]).length===seed.length && JSON.stringify((lg[0].entries||[]).map(e=>[e.item,e.amt]))===JSON.stringify(seed.map(e=>[e.item,e.amt])) && !Object.keys((lg[0].loan||{}).paid||{}).length){
+      L = seedL(); try{ await store.set(LKEY, JSON.stringify(L)); }catch(e){} console.log('[fin] 清掉同事帳裡的預設媽媽購屋帳本');
+    }
+  }catch(e){} }
   if(!L.ledgers.find(x=>x.id===L.activeLid)) L.activeLid = L.ledgers[0].id;
   try{
     const v = await store.get(NKEY);
     if(v){ nw = JSON.parse(v); }
   }catch(e){}
+  // ★ ds145：同事的觀察名單如果還是柏翰的預設、沒改過 → 清空
+  if(!FIN_OWNER){ try{
+    const same=(a,b,k)=>Array.isArray(a)&&a.length===b.length&&a.every((x,i)=>x&&x[k]===b[i][k]&&!x.plan&&!x.target);
+    if(same(nw.etfs,SEED_ETFS,'code')) nw.etfs=[];
+    if(same(nw.opps,SEED_OPPS,'code')) nw.opps=[];
+  }catch(e){} }
   migrateExpenses();
   saveNW();          // 把首次帶入的觀察名單等預設值寫進儲存，之後就以使用者的資料為準
   render();

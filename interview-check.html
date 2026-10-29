@@ -188,13 +188,14 @@ table.use th{font-size:.75rem;color:var(--ink2);font-weight:600;}
     <button class="btn" onclick="openEditor()">📋 檢核表</button><button class="btn" onclick="openRefs()">📚 AI 知識庫</button><button class="btn ghost" onclick="openTip()">ℹ️ 規則說明</button><button class="btn" id="teamBtn" hidden onclick="openTeam()">👥 團隊看板</button><button class="btn" id="learnBtn" hidden onclick="openLearn()">📚 學習報告</button><button class="btn" id="setBtn" hidden onclick="openSettings()">⚙ 設定</button>
   </div>
 
+  <section class="card" id="todoCard" hidden style="background:#FFF8E6;padding:16px 22px"></section>
   <section class="card" id="tipCard" hidden style="background:#F2F7FF"></section>
 
   <!-- ① 上傳 -->
   <section class="card" id="cardUp">
     <div class="step"><i>1</i><h2>上傳面談錄音</h2><span class="hint">業務自己上傳就是自評</span></div>
     <div class="row">
-      <div class="fld"><label for="rep">誰的面談</label><input class="in" id="rep" list="repList" placeholder="輸入業務名字" autocomplete="off" oninput="onRepChange()"><datalist id="repList"></datalist></div>
+      <div class="fld"><label for="rep">誰的面談</label><select class="in" id="rep" onchange="onRepPick(this)"></select></div>
       <div class="fld" id="callTypeWrap" hidden style="max-width:200px"><label for="callType">通話類型</label><select class="in" id="callType"><option>新名單約訪</option><option>舊名單救援</option><option>放鳥重約</option><option>驗收電話</option></select></div>
       <div class="fld"><label for="ivTitle">標題（選填）</label><input class="in" id="ivTitle" placeholder="例如：1029 晚上 小美 面談"></div>
     </div>
@@ -948,13 +949,13 @@ function closeDlg(){ $('dim').classList.remove('show'); $('dlg').classList.remov
 var _ed=null;
 function canEdit(){ return ME()===ADMIN_NAME; }
 function openEditor(){
-  var cl=getCL(REGION); var ro=!canEdit();
-  if(!cl){ openDlg(REGION+' 檢核表','<p class="empty">'+REGION+' 還沒有自己的檢核表，目前先用桃區的。</p>', canEdit()?'<button class="btn pri" onclick="copyTY()">複製桃區當起點</button>':'<span class="meta">請柏翰建立</span>'); return; }
-  _ed=JSON.parse(JSON.stringify(cl));
+  var own=getCL(REGION), cl=own||getCL('桃區'); var ro=!canEdit();   // ★ 10/29：柏翰打開中區／南區也直接是可編輯的完整檢核表（內容先帶桃區的），按儲存就變成那一區自己的   // ★ ds145：中區、南區還沒有自己的 → 直接顯示桃區的（AI 也是用桃區的在判）
+  _ed=JSON.parse(JSON.stringify(cl)); _edBorrow=!own&&REGION!=='桃區';
   renderEditor(ro);
 }
+var _edBorrow=false;
 function renderEditor(ro){
-  var h='<p class="meta">'+REGION+'・v'+(_ed.ver||1)+(_ed.updatedBy?('・最後修改 '+esc(_ed.updatedBy)+' '+fmtD(_ed.updatedAt)):'')+(ro?'・只有柏翰可以修改':'・「判定標準」寫得越具體，AI 判得越準')+'</p>';
+  var h=(_edBorrow?'<div class="todo" style="margin:0 0 10px;background:#F2F7FF"><b>'+REGION+'目前跟桃區用同一份</b>'+(canEdit()?'下面先帶入桃區的內容，直接改、按儲存，就變成'+REGION+'自己的檢核表；不改就繼續跟桃區一樣。':'檢核時就照下面這份判。')+'</div>':'')+'<p class="meta">'+(_edBorrow?'桃區':REGION)+'・v'+(_ed.ver||1)+(_ed.updatedBy?('・最後修改 '+esc(_ed.updatedBy)+' '+fmtD(_ed.updatedAt)):'')+(ro?'・只有柏翰可以修改':'・「判定標準」寫得越具體，AI 判得越準')+'</p>';
   _ed.stages.forEach(function(s,si){
     h+='<div class="stg">'+(si+1)+'. '+(ro?esc(s.name):'<input class="in" style="height:34px;max-width:220px" value="'+esc(s.name)+'" onchange="_ed.stages['+si+'].name=this.value">')+'</div>';
     s.items.forEach(function(it,ii){
@@ -963,11 +964,11 @@ function renderEditor(ro){
     });
     if(!ro) h+='<button class="btn sm" onclick="addItem('+si+')">＋ 新增項目</button>';
   });
-  openDlg('📋 '+REGION+' 檢核表',h, ro?'':'<button class="btn pri" onclick="saveEditor()">儲存（v'+((_ed.ver||1)+1)+'）</button><span class="meta">儲存後新的檢核才會用新版，舊紀錄的分數不變</span>');
+  openDlg('📋 '+REGION+' 檢核表',h, ro?'':_edBorrow?'<button class="btn pri" onclick="saveEditor()">儲存成'+REGION+'的檢核表</button><span class="meta">存了之後'+REGION+'就有自己的版本，桃區不受影響</span>':'<button class="btn pri" onclick="saveEditor()">儲存（v'+((_ed.ver||1)+1)+'）</button><span class="meta">儲存後新的檢核才會用新版，舊紀錄的分數不變</span>');
 }
 function addItem(si){ var s=_ed.stages[si]; s.items.push({id:s.id+'i'+Date.now().toString(36),name:'新項目',crit:''}); renderEditor(false); }
 function saveEditor(){
-  if(!canEdit()) return; var o=loadCL(); _ed.ver=(_ed.ver||1)+1; _ed.updatedAt=Date.now(); _ed.updatedBy=ME(); REGS(o)[REGION]=_ed;
+  if(!canEdit()) return; var o=loadCL(); _ed.ver=_edBorrow?1:(_ed.ver||1)+1; _edBorrow=false; _ed.updatedAt=Date.now(); _ed.updatedBy=ME(); REGS(o)[REGION]=_ed;
   try{ LSW().setItem(CL_KEY,JSON.stringify(o)); toast('檢核表已存（v'+_ed.ver+'），全公司同步'); closeDlg(); pushCloudSoon(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); }
 }
 function copyTY(){ if(!canEdit()) return; var o=loadCL(); var c=JSON.parse(JSON.stringify(REGS(o)['桃區'])); c.ver=1; c.updatedAt=Date.now(); c.updatedBy=ME(); REGS(o)[REGION]=c;
@@ -1014,7 +1015,7 @@ function openTeam(range){
   h+='<table class="use" style="margin-top:12px"><tr><th>業務</th><th>次數</th><th>最新</th><th>變化</th>'+(PH?'<th>約到率</th>':'')+'<th>狀態</th><th>最常卡</th></tr>'
     +reps.map(function(n){ var b=by[n], L=b.list, last=scoreOf(L[L.length-1]), prev=L.length>1?scoreOf(L[L.length-2]):null, d=prev==null?'':(last-prev>=0?'<span style="color:var(--good)">▲'+(last-prev)+'</span>':'<span style="color:var(--weak)">▼'+(prev-last)+'</span>');
       var worst=Object.keys(b.bad).sort(function(a,c){ return b.bad[c]-b.bad[a]; })[0]||'—', pass=isPassed(n);
-      return '<tr style="cursor:pointer" onclick="closeDlg();$(\'rep\').value=\''+esc(n).replace(/'/g,'')+'\';onRepChange();var L=ivRecords(\''+esc(n).replace(/'/g,'')+'\');if(L.length)showRec(L[L.length-1].id);"><td>'+esc(n)+'</td><td>'+L.length+'</td><td style="color:'+(last>=PASS_SCORE?'var(--good)':'var(--weak)')+'"><b>'+last+'</b></td><td>'+d+'</td>'+(PH?'<td>'+(b.calls?Math.round(b.ok/b.calls*100)+'%':'—')+'</td>':'')+'<td>'+(pass?'<span class="badge pass">已達標</span>':'練習中')+'</td><td style="text-align:left">'+esc(worst)+'</td></tr>'; }).join('')+'</table>';
+      return '<tr style="cursor:pointer" onclick="closeDlg();setRep(\''+esc(n).replace(/'/g,'')+'\');onRepChange();var L=ivRecords(\''+esc(n).replace(/'/g,'')+'\');if(L.length)showRec(L[L.length-1].id);"><td>'+esc(n)+'</td><td>'+L.length+'</td><td style="color:'+(last>=PASS_SCORE?'var(--good)':'var(--weak)')+'"><b>'+last+'</b></td><td>'+d+'</td>'+(PH?'<td>'+(b.calls?Math.round(b.ok/b.calls*100)+'%':'—')+'</td>':'')+'<td>'+(pass?'<span class="badge pass">已達標</span>':'練習中')+'</td><td style="text-align:left">'+esc(worst)+'</td></tr>'; }).join('')+'</table>';
   if(idle.length) h+='<p class="meta" style="margin-top:10px">這段期間還沒被檢核：'+idle.map(esc).join('、')+'</p>';
   h+='<p class="meta">點業務那一列，直接看他最新一次的檢核。</p>';
   openDlg('👥 團隊看板・'+TXT.title,h,'');
@@ -1343,7 +1344,7 @@ function openRefs(tab){
     h+='<div class="kb-top"><b>好範例</b>'+kbBadge('AI 會讀',true)+kbBadge('主管在檢核結果按出來的')+'</div><p class="meta">AI 拿最新兩通典範當「好'+TXT.kind+'長怎樣」的標準，好講法和反面教材拿來判講得好不好。</p>';
     h+='<div class="stg">典範'+TXT.kind+'（'+(exDocs.length+ms.length)+'）</div>';
     h+=exDocs.map(function(d){ return '<div class="it"><div class="h">🏆 '+esc(d.title)+'<span class="st">柏翰匯入</span></div><details><summary class="meta" style="cursor:pointer">看內容</summary><div class="q" style="white-space:pre-wrap;max-height:300px;overflow:auto">'+esc(d.content)+'</div></details>'+(adm?'<button class="star" onclick="delRef(\''+d.id+'\')">刪除</button>':'')+'</div>'; }).join('')
-      +ms.slice(0,20).map(function(m){ return '<div class="hrow" onclick="closeDlg();var r=_cases.find(function(c){return c.id===\''+m.ivm.ivId+'\';});if(r){$(\'rep\').value=r.iv.rep;onRepChange();showRec(r.id);}"><span class="d">'+fmtD(m.createdAt)+'</span><span class="m">🏆 '+esc(m.ivm.rep)+'・'+esc(m.ivm.title)+'・'+esc(m.by)+' 設</span></div>'; }).join('')
+      +ms.slice(0,20).map(function(m){ return '<div class="hrow" onclick="closeDlg();var r=_cases.find(function(c){return c.id===\''+m.ivm.ivId+'\';});if(r){setRep(r.iv.rep);onRepChange();showRec(r.id);}"><span class="d">'+fmtD(m.createdAt)+'</span><span class="m">🏆 '+esc(m.ivm.rep)+'・'+esc(m.ivm.title)+'・'+esc(m.by)+' 設</span></div>'; }).join('')
       +((exDocs.length+ms.length)?'':'<p class="empty">在檢核結果按「🏆 設為典範」就會出現在這裡。</p>');
     var list=function(arr,icon){ return arr.slice().reverse().slice(0,30).map(function(s){ return '<div class="it"><div class="h">'+icon+' '+esc(s.ivs.itemName)+'<span class="st">'+esc(s.ivs.rep)+'・'+esc(s.by)+'</span></div><div class="q">'+esc(s.ivs.quote)+'</div></div>'; }).join(''); };
     h+='<div class="stg">好講法（'+good.length+'）</div>'+(good.length?list(good,'⭐'):'<p class="empty">在逐項結果按「☆ 好講法」。</p>');
@@ -1386,7 +1387,7 @@ async function distillRefs(){
   }catch(e){ toast('沒完成：'+(e&&e.message||e),true); }
   if(b){ b.disabled=false; b.textContent='✨ 用 AI 從參考資料濃縮'; }
 }
-function saveDigest(){ var o=loadRefs(); o[MODE].digest=$('refDigest').value; o[MODE].digestAt=Date.now(); o[MODE].digestBy=ME(); try{ saveRefs(o); _kbEdit=false; toast('公司標準已存，下一次檢核就會用'); openRefs(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
+function saveDigest(){ var o=loadRefs(); o[MODE].digest=$('refDigest').value; o[MODE].digestAt=Date.now(); o[MODE].digestBy=ME(); try{ saveRefs(o); _kbEdit=false; toast('公司標準已存，下一次檢核就會用'); openRefs(); renderTodo(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
 async function addSug(){ var t=($('sugText').value||'').trim(); if(!t){ toast('寫一句建議',true); return; }
   var now=Date.now(); try{ await caseWrite([{ id:'ivu_'+now, type:'interview_rulesug', by:ME(), createdAt:now, text:'💡 規則建議｜'+t, ivu:{ mode:MODE, region:REGION, text:t } }]); toast('已送出，柏翰會在每月學習報告看到'); openRefs(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
 async function decideSug(id,dec){
@@ -1467,6 +1468,14 @@ function tipHtml(){
              :['錄音放桌上、離兩人都近，帶看環境走動時常錄不清楚，沒錄到的要改判成「不適用」','面談很長可以分好幾段上傳，會自動接起來','沒走到成交的面談，「成交進件」會判不適用，不會扣分','AI 判錯就按「🛠 改判」寫一句理由，AI 下次就會學','好的面談按「🏆 設為典範」；只看得到同組的錄音，原始音檔不保存'];
   return '<b style="font-size:1rem">規則分兩層，先看一次</b>'+rows+'<b style="font-size:.9375rem">用'+TXT.kind+'檢核要注意</b><ol style="margin:6px 0 0;padding-left:20px">'+tips.map(function(t){ return '<li>'+esc(t)+'</li>'; }).join('')+'</ol>';
 }
+// ★ ds145（10/29 Ivan）：公司標準裡還有「待補」的項目 → 只提醒柏翰；全部補完（沒有「待補」兩個字）就自動消失
+function renderTodo(){ var box=$('todoCard'); if(!box) return; if(!canEdit()){ box.hidden=true; return; }
+  var t=String(loadRefs()[MODE].digest||''), cur='', miss=[];
+  t.split('\n').forEach(function(l){ var h=l.trim().match(/^【(.+)】$/); if(h){ cur=h[1]; return; } if(/待補/.test(l)&&cur&&miss.indexOf(cur)<0) miss.push(cur); });
+  if(!miss.length){ box.hidden=true; return; }
+  box.hidden=false;
+  box.innerHTML='<div class="row" style="gap:12px;align-items:flex-start"><div style="flex:1;min-width:220px"><b>還有 '+miss.length+' 項公司標準等你補</b><div class="meta" style="margin-top:4px">'+miss.map(function(m){ return esc(m.replace(/^.*・/,'')); }).join('、')+'：這幾個是公司內部用語，補上定義前 AI 只能判有沒有講到，判不了講得好不好。</div></div><button class="btn sm" onclick="_kbEdit=true;openRefs(\'co\')">去補</button></div><p class="meta" style="margin:6px 0 0">把每一項裡寫著「待補」的那一條換成你的講法，存檔後這張提醒會自己消失。只有你看得到。</p>';
+}
 function renderTip(){ var box=$('tipCard'); if(!box) return; var seen=false; try{ seen=!!localStorage.getItem('iv_tip_seen_'+MODE+'_v1'); }catch(e){}
   box.hidden=seen; box.innerHTML=tipHtml()+'<div class="row" style="margin-top:10px"><button class="btn sm" onclick="hideTip()">知道了</button><span class="meta">之後要再看，按右上角「ℹ️ 規則說明」</span></div>'; }
 function hideTip(){ try{ localStorage.setItem('iv_tip_seen_'+MODE+'_v1','1'); }catch(e){} $('tipCard').hidden=true; }
@@ -1517,24 +1526,43 @@ function coachHtml(rec){
 }
 
 /* ═══════════════ 區域、名單、啟動 ═══════════════ */
-function renderSeg(){ $('regSeg').innerHTML=REGIONS.map(function(r){ return '<button role="tab" class="'+(r===REGION?'on':'')+'" aria-selected="'+(r===REGION)+'" onclick="setRegion(\''+r+'\')">'+r+(getCL(r)||r==='桃區'?'':'＊')+'</button>'; }).join(''); }
-function setRegion(r){ REGION=r; try{ localStorage.setItem('iv_pref_region',r); }catch(e){} renderSeg(); if(!getCL(r)) toast(r+' 還沒有自己的檢核表，先用桃區的'); }
+function renderSeg(){ $('regSeg').innerHTML=REGIONS.map(function(r){ return '<button role="tab" class="'+(r===REGION?'on':'')+'" aria-selected="'+(r===REGION)+'" onclick="setRegion(\''+r+'\')" title="'+(getCL(r)||r==='桃區'?'':r+'還沒有自己的檢核表，用桃區的')+'">'+r+'</button>'; }).join(''); }
+function setRegion(r){ REGION=r; try{ localStorage.setItem('iv_pref_region',r); }catch(e){} renderSeg();  }
 function fillRepList(){
   var names={}, me=ME(); if(me) names[me]=1;
   var mem=hgMembers();   // ★ ds144 名單只列同組
   try{ JSON.parse(localStorage.getItem('castle_cards_v1')||'[]').forEach(function(c){ if(c&&c.name&&c.active!==false&&(!mem||mem[c.name])) names[c.name]=1; }); }catch(e){}
   if(mem) Object.keys(mem).forEach(function(n){ names[n]=1; });
   ivRecords().forEach(function(r){ names[r.iv.rep]=1; });
-  $('repList').innerHTML=Object.keys(names).map(function(n){ return '<option value="'+esc(n)+'">'; }).join('');
+  // ★ ds145（10/29 Ivan：要先刪掉才選得到）：改成下拉選單，點開就是自己組的人；自己排第一個；柏翰看中壢以南各組、依學院分好
+  var sel=$('rep'), cur=sel.value||me, h='';
+  var opt=function(n){ return '<option value="'+esc(n)+'">'+esc(n)+(n===me?'（我）':'')+'</option>'; };
+  if(!mem){
+    var act=hgActive().filter(function(g){ return HG_SOUTH.indexOf(g.academy)>=0; }), used={};
+    if(me){ h+=opt(me); used[me]=1; }
+    HG_SOUTH.forEach(function(ac){ var gs=act.filter(function(g){ return g.academy===ac; }); if(!gs.length) return;
+      h+='<optgroup label="'+esc(ac)+'">'; gs.forEach(function(g){ [g.leader].concat(g.members).forEach(function(n){ if(n&&!used[n]){ used[n]=1; h+=opt(n); } }); }); h+='</optgroup>'; });
+    var rest=Object.keys(names).filter(function(n){ return !used[n]; }); if(act.length) rest=rest.filter(function(n){ return ivRecords(n).length; });
+    if(rest.length) h+='<optgroup label="其他（有紀錄的）">'+rest.map(opt).join('')+'</optgroup>';
+  } else {
+    var g=hgActiveGroupOf(me), order=[]; if(me) order.push(me);
+    if(g){ [g.leader].concat(g.members).forEach(function(n){ if(n&&order.indexOf(n)<0) order.push(n); }); }
+    Object.keys(names).forEach(function(n){ if(order.indexOf(n)<0) order.push(n); });
+    h+=order.map(opt).join('');
+  }
+  h+='<option value="__other">＋ 其他人（自己輸入）</option>';
+  sel.innerHTML=h; setRep(cur);
 }
+function setRep(n){ var sel=$('rep'); if(!n) return; if(![].some.call(sel.options,function(o){ return o.value===n; })){ var o=document.createElement('option'); o.value=n; o.textContent=n; sel.insertBefore(o,sel.lastElementChild); } sel.value=n; }
+function onRepPick(el){ if(el.value==='__other'){ var n=(prompt('輸入業務名字')||'').trim(); if(!n){ el.value=ME()||el.options[0].value; } else setRep(n); } onRepChange(); }
 document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ if($('dlg').classList.contains('show')) closeDlg(); else closeSheet(); } });
-window.addEventListener('message',function(e){ if(e.data&&e.data.action==='characterSwitched'){ if(!$('rep').value.trim()||$('rep').value===e.data.prev) $('rep').value=ME(); renderWho(); } });
+window.addEventListener('message',function(e){ if(e.data&&e.data.action==='characterSwitched'){ fillRepList(); setRep(ME()); onRepChange(); } });
 // 雲端拉到別人的新紀錄（父頁 firebase-sync 拉完會發事件）→ 重讀案例庫、重畫，不用重開頁
 try{ (window.parent||window).addEventListener('firebase-sync-updated',function(){ if(_busy) return; bootCases().then(function(){ fillRepList(); renderWho(); if(_curRec){ var r=_cases.find(function(c){ return c.id===_curRec.id; }); if(r){ _curRec=r; renderResult(r); } } }); }); }catch(e){}
 window.triggerSave=function(){};   // 父頁切換主角時會呼叫；這頁每一步都即時存，不用另外存
 (async function(){
-  applyModeText(); renderTip(); renderSeg(); if(canEdit()){ $('setBtn').hidden=false; $('learnBtn').hidden=false; } await bootCases(); try{ await hgLoad(); }catch(e){} fillRepList(); try{ var _m=hgMembers(); if(!_m||Object.keys(_m).length>1) $('teamBtn').hidden=false; }catch(e){}
-  var me=ME(); if(me) $('rep').value=me; onRepChange();
+  applyModeText(); renderTodo(); renderTip(); renderSeg(); if(canEdit()){ $('setBtn').hidden=false; $('learnBtn').hidden=false; } await bootCases(); try{ await hgLoad(); }catch(e){} fillRepList(); try{ var _m=hgMembers(); if(!_m||Object.keys(_m).length>1) $('teamBtn').hidden=false; }catch(e){}
+  var me=ME(); if(me) setRep(me); onRepChange();
   var last=ivRecords(me).slice(-1)[0]; if(last){ _curRec=last; renderWho(); renderResult(last); }
 })();
 </script>
