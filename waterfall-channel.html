@@ -1199,16 +1199,35 @@ function hgLoad(){
   return _hgReady;
 }
 // 回傳 null = 看全部；否則回傳 {名字:1}
+
+// ★ ds145（10/29 Ivan）：在職組長＝激勵分頁的「正式小組績效表＋儲備小組績效表」（取最新月份那份；同月份優先柏翰同步的）
+var HG_SOUTH=['中壢學院','中壢二部','中壢三部','台中學院','台中二部','台中三部','高雄建國'];   // 柏翰只管中壢以南
+var _hgAct=null, _hgActAt=0;
+function hgActive(){
+  if(_hgAct && Date.now()-_hgActAt<60000) return _hgAct;
+  var best={group:null,reserve:null};
+  try{ for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i), m=k&&k.match(/^char_(.+)_motiv_(group|reserve)_performance_meta$/); if(!m) continue;
+    var meta=null; try{ meta=JSON.parse(localStorage.getItem(k)||'null'); }catch(e){} if(!meta) continue;
+    var score=(+meta.year||0)*100+(+meta.month||0)+(m[1]==='黃柏翰'?0.5:0), cur=best[m[2]];
+    if(!cur||score>cur.score) best[m[2]]={score:score,key:'char_'+m[1]+'_motiv_'+m[2]+'_performance_v1'}; } }catch(e){}
+  var out=[]; ['group','reserve'].forEach(function(kind){ var b=best[kind]; if(!b) return; var arr=[]; try{ arr=JSON.parse(localStorage.getItem(b.key)||'[]')||[]; }catch(e){}
+    arr.forEach(function(g){ if(!g||!g.leader||!g.leader.name) return; out.push({ kind:kind==='group'?'正式':'儲備', academy:String(g.academy||'').trim(), leader:String(g.leader.name).trim(), members:(g.members||[]).map(function(x){ return String((x&&x.name)||'').trim(); }).filter(Boolean) }); }); });
+  _hgAct=out; _hgActAt=Date.now(); return out;
+}
+function hgActiveGroupOf(name){ var a=hgActive(); for(var i=0;i<a.length;i++){ if(a[i].leader===name||a[i].members.indexOf(name)>=0) return a[i]; } return null; }
 function hgMembers(me){
   me=me||hgMe(); if(HG_ADMIN[me]) return null;
   if(_hgCache[me]) return _hgCache[me];
   var out={}; if(me) out[me]=1;
+  if(!_hgMp && !HG_ACAD[me]){ var ag0=hgActiveGroupOf(me); if(ag0){ out[ag0.leader]=1; ag0.members.forEach(function(n){ out[n]=1; }); } return out; }
   if(!_hgMp) return out;   // 業績資料還沒讀到 → 只看自己（寧可少看，不可多看）
   var months=Object.keys(_hgMp).sort(function(a,b){ return Number(b)-Number(a); });
   var acad=HG_ACAD[me];
   if(acad){
+    hgActive().forEach(function(g){ if(g.academy===acad){ out[g.leader]=1; g.members.forEach(function(n){ out[n]=1; }); } });   // ★ ds145 在職小組表
     months.forEach(function(m){ ((_hgMp[m]||{}).sheet3||[]).forEach(function(row){ row=row||{}; if(String(row['學院']||row['區域']||'').trim()!==acad) return; var nm=String(row['姓名']||row['業務員']||row['業務']||row['人員']||'').trim(); if(nm) out[nm]=1; }); });
   } else {
+    var ag=hgActiveGroupOf(me); if(ag){ out[ag.leader]=1; ag.members.forEach(function(n){ out[n]=1; }); _hgCache[me]=out; return out; }   // ★ ds145 先用在職小組表
     for(var i=0;i<months.length;i++){
       var s4=(_hgMp[months[i]]||{}).sheet4||[], hit=null;
       for(var j=0;j<s4.length;j++){ var row=s4[j]||{}, names=[String(row['組長']||'').trim()];
