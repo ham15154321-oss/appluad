@@ -382,7 +382,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   function pull(){
     if (window.__pgRosRaw) { D.roster = own(window.__pgRosRaw); return true; }
     if (!window.__pgRosP && window.PG_API && window.fetch) window.__pgRosP = fetch(window.PG_API + '?r=' + encodeURIComponent(D.r) + '&fmt=roster', { cache: 'no-store' })
-      .then(function(x){ return x.json(); }).then(function(o){ if (o && o.days) { window.__pgRosRaw = o; if (window.__pgRos) window.__pgRos(); } }).catch(function(){});
+      .then(function(x){ return x.json(); }).then(function(o){ if (o && o.days) { window.__pgRosRaw = o; if (window.__pgRos) window.__pgRos(); if (window.__pgRosHook) window.__pgRosHook(); } }).catch(function(){});
     return false;
   }
   function render(){
@@ -454,15 +454,19 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   /* ══ p2.9（10/29 Ivan）點名字 → 這個人這 7 天的班；點日期 → 那天誰上班、誰休。手機從底部滑上來、電腦在中間；儀表板也用同一張 ══ */
   var WHY = {}, TM = { '早':'09:00–18:00','早班':'09:00–18:00','中':'10:30–19:30','中班':'10:30–19:30','晚':'13:30–22:00','晚班':'13:30–22:00','早休':'09:00–13:30','晚晚休':'13:30–17:30','晚休':'17:30–22:00' };
   function codeLab(x){ if (!x) return '班表空白'; var c = cls(x); if (c === '半') return x + '（半天）'; if (c === '外') return x + '（外勤）'; if (x.length === 1 && c === '上') return x + '班'; return x; }
-  function rosAll(){ var R = D.roster; if (!R || !R.人) return null; var di = (R.days || []).indexOf(ymdL(new Date())); return { R: R, days: di < 0 ? [] : R.days.slice(di) }; }
+  function rosAll(){ var R = D.roster; if (!R || !R.人) return null; var di = (R.days || []).indexOf(ymdL(new Date()));
+    return { R: R, days: di < 0 ? [] : R.days.slice(di, di + 7), past: di < 0 ? [] : R.days.slice(Math.max(0, di - 7), di) }; }   // p3.1 前 7 天（Apps Script v1.14 起才有）
   function personPop(k, back){
     var X = rosAll(); if (!X) return ''; var p = X.R.人.filter(function(q){ return kOf(q) === k; })[0]; if (!p) return '';
-    var why = WHY[k] || [], nOn = 0, nOff = 0;
-    var rows = X.days.map(function(s, i){ var x = p.班[s] || '', c = cls(x); if (on(x)) nOn++; else if (c === '休') nOff++;
-      return '<div class="rp-r' + (i === 0 ? ' td' : '') + (c === '休' ? ' off' : '') + (c === '外' ? ' out' : '') + (!x ? ' nil' : '') + '"><span class="d">' + (i === 0 ? '今天 ' : '') + mdw(s) + '</span><span class="c">' + esc(codeLab(x)) + '</span><span class="tm">' + (TM[x] || '') + '</span></div>'; }).join('');
+    var why = WHY[k] || [];
+    function rows(L, fut){ var nOff = 0, h = L.map(function(s, i){ var x = p.班[s] || '', c = cls(x); if (c === '休') nOff++; var td = fut && i === 0;
+      return '<div class="rp-r' + (td ? ' td' : '') + (c === '休' ? ' off' : '') + (c === '外' ? ' out' : '') + (!x ? ' nil' : '') + '"><span class="d">' + (td ? '今天 ' : '') + mdw(s) + '</span><span class="c">' + esc(codeLab(x)) + '</span><span class="tm">' + (TM[x] || '') + '</span></div>'; }).join(''); return { h: h, off: nOff }; }
+    var A1 = rows(X.past, false), A2 = rows(X.days, true);
     return (back ? '<button type="button" class="rp-bk" data-rd="' + back + '">‹ 回到 ' + mdw(back) + '</button>' : '')
-      + '<div class="rp-h"><b>' + esc(p.名) + '</b><span>' + esc(p.院) + '・這 ' + X.days.length + ' 天上班 ' + nOn + ' 天、休 ' + nOff + ' 天</span></div>'
-      + (why.length ? '<p class="rp-why">🎯 今天要追：' + esc(why.join('、')) + '</p>' : '') + '<div class="rp-l">' + rows + '</div>';
+      + '<div class="rp-h"><b>' + esc(p.名) + '</b><span>' + esc(p.院) + (X.past.length ? '・前 ' + X.past.length + ' 天休 ' + A1.off + ' 天' : '') + '・接下來 ' + X.days.length + ' 天休 ' + A2.off + ' 天</span></div>'
+      + (why.length ? '<p class="rp-why">🎯 今天要追：' + esc(why.join('、')) + '</p>' : '')
+      + (X.past.length ? '<h6 class="rp-sh">前 ' + X.past.length + ' 天</h6><div class="rp-l past">' + A1.h + '</div><h6 class="rp-sh">今天起 ' + X.days.length + ' 天</h6>' : '')
+      + '<div class="rp-l">' + A2.h + '</div>';
   }
   function dayPop(s){
     var X = rosAll(); if (!X) return ''; var orgs = scopeOrgs(), many = orgs.length > 1;
@@ -489,13 +493,28 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     M.className = 'on' + (was ? ' still' : ''); document.documentElement.classList.add('rp-lock');
   }
   function popClose(){ var M = document.getElementById('rosPop'); if (!M || !M.classList.contains('on')) return; M.className = ''; M.innerHTML = ''; document.documentElement.classList.remove('rp-lock'); }
-  window.__pgRosApi = { person: function(k, back){ popOpen(personPop(k, back)); }, day: function(s){ popOpen(dayPop(s)); }, close: popClose, card: function(){ return box.hidden ? '' : box.innerHTML; }, all: rosAll, kOf: kOf, cls: cls, on: on };
+  function todayOf(k){ var X = rosAll(); if (!X || !X.days.length) return null; var p = X.R.人.filter(function(q){ return kOf(q) === k; })[0]; return p ? { p: p, x: p.班[X.days[0]] || '' } : null; }
+  function tag(k){ var o = todayOf(k); if (!o) return null; var c = cls(o.x);
+    if (c === '休') return { t: '休', off: 1 }; if (away(o.x)) return { t: '開會不在', off: 1 }; if (c === '外') return { t: '外勤', off: 1 }; return null; }
+  function weekHtml(k){ var X = rosAll(); if (!X || !X.days.length) return ''; var p = X.R.人.filter(function(q){ return kOf(q) === k; })[0]; if (!p) return '';
+    function cells(L, fut){ return L.map(function(s, i){ var x = p.班[s] || '', c = cls(x), td = fut && i === 0;
+      return '<button type="button" class="' + (c === '休' ? 'off' : '') + (c === '半' ? ' half' : '') + (c === '外' ? ' out' : '') + (td ? ' td' : '') + (fut ? '' : ' pa') + '" data-rd="' + s + '" title="' + esc(codeLab(x) + (TM[x] ? ' ' + TM[x] : '')) + '"><small>' + (td ? '今天' : mdw(s).replace(/（(.)）/, ' $1')) + '</small><b>' + esc(x || '—') + '</b></button>'; }).join(''); }
+    return '<h5>這週班表<small>灰色＝休・點一格看那天誰上班</small></h5>'
+      + (X.past.length ? '<div class="pwl">前 ' + X.past.length + ' 天</div><div class="pwk pk1">' + cells(X.past, false) + '</div><div class="pwl">今天起</div>' : '')
+      + '<div class="pwk">' + cells(X.days, true) + '</div>'; }
+  function btn(){ var X = rosAll(); if (!X || !X.days.length) return '<span id="bRos" hidden></span>'; var orgs = scopeOrgs();
+    var P = X.R.人.filter(function(p){ return !p.nb && orgs.indexOf(p.院) >= 0; }); if (!P.length) return '<span id="bRos" hidden></span>';
+    var up = P.filter(function(p){ return on(p.班[X.days[0]]); }).length;
+    return '<button class="bbtn bros" type="button" id="bRos">👥 今天 <b>' + up + '</b>／' + P.length + ' 上場</button>'; }
+  function boardCard(){ render(); var h = box.hidden ? '' : box.innerHTML; if (!h) return; popOpen('<div class="ros rp-card">' + h + '</div>'); var M = document.getElementById('rosPop'); if (M) M.classList.add('wide'); }
+  window.__pgRosApi = { tag: tag, weekHtml: weekHtml, btn: btn, board: boardCard, person: function(k, back){ popOpen(personPop(k, back)); }, day: function(s){ popOpen(dayPop(s)); }, close: popClose, card: function(){ return box.hidden ? '' : box.innerHTML; }, all: rosAll, kOf: kOf, cls: cls, on: on };
   if (!window.__pgRosBound) { window.__pgRosBound = 1;
     document.addEventListener('click', function(e){ var A = window.__pgRosApi; if (!A) return; var t = e.target;
       if (t.closest && t.closest('#rosPop')) { e.stopPropagation(); if (t.closest('.rp-x') || t.classList.contains('rp-bg')) { A.close(); return; }
         var b0 = t.closest('[data-rk]'); if (b0) { A.person(b0.dataset.rk, b0.dataset.from || ''); return; }
         var d0 = t.closest('[data-rd]'); if (d0) { A.day(d0.dataset.rd); return; } return; }
-      var inR = t.closest && (t.closest('#ros') || t.closest('.ros-pop-src')); if (!inR) return;
+      if (t.closest && t.closest('#bRos')) { e.stopPropagation(); A.board(); return; }
+      var inR = t.closest && (t.closest('#ros') || t.closest('.pwk')); if (!inR) return;
       var b = t.closest('[data-rk]'); if (b) { e.stopPropagation(); A.person(b.dataset.rk, ''); return; }
       var d = t.closest('[data-rd]'); if (d) { e.stopPropagation(); A.day(d.dataset.rd); } }, true);
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && window.__pgRosApi && document.querySelector('#rosPop.on')) { e.stopPropagation(); window.__pgRosApi.close(); } }, true);
@@ -768,8 +787,9 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
           return '<div class="lt">' + t.split('\n').slice(1).filter(function(l){ return l.trim(); }).slice(0, 6).map(function(l){ return '<p>' + fmtLine(l.replace(/^\s*\d+[.、]\s*/, '')) + '</p>'; }).join('') + '</div>'; }
         if (!L.length) return '<p class="none">這一院沒有業務資料</p>';
         var mx = Math.max.apply(null, L.map(function(x){ return x.v; })) || 1;
-        return '<div class="lrk">' + L.map(function(x){ var hot = x.none || (x.d != null && x.d >= 3);
-          return '<button type="button" class="lrow' + (hot ? ' hot' : '') + '" data-p="' + esc(x.k) + '"><span class="n">' + esc(x.名) + (ST.org || ORGS.length < 2 ? '' : '<small>' + esc(x.院) + '</small>') + '</span><span class="t"><i style="width:' + Math.max(2, x.v / mx * 100) + '%"></i></span><span class="v">' + x.v + '</span><span class="d' + (x.miss ? ' miss' : '') + '">' + esc(dayTxt(x)) + '</span></button>'; }).join('') + '<div class="lmore" hidden></div></div>'; },
+        var RA = window.__pgRosApi, anyT = false, TG = {}; L.forEach(function(x){ var g = RA && RA.tag(x.k); if (g) { TG[x.k] = g; anyT = true; } });   // p3.0（10/29 Ivan）今天休假、開會不在的人標出來
+        return '<div class="lrk' + (anyT ? ' wt' : '') + '">' + L.map(function(x){ var hot = x.none || (x.d != null && x.d >= 3), g = TG[x.k];
+          return '<button type="button" class="lrow' + (hot ? ' hot' : '') + (g && g.off ? ' roff' : '') + '" data-p="' + esc(x.k) + '"><span class="n">' + esc(x.名) + (ST.org || ORGS.length < 2 ? '' : '<small>' + esc(x.院) + '</small>') + (g ? '<em class="rtag">' + esc(g.t) + '</em>' : '') + '</span><span class="t"><i style="width:' + Math.max(2, x.v / mx * 100) + '%"></i></span><span class="v">' + x.v + '</span><span class="d' + (x.miss ? ' miss' : '') + '">' + esc(dayTxt(x)) + '</span></button>'; }).join('') + '<div class="lmore" hidden></div></div>'; },
       draw: function(b){ if (!leadRank()){ var P = leadPeople(); if (P.length) streaks(b, P); return; } fitRows(b); } },
     { id: 'fun', seg: 1, dot: C.asst, t: function(){ return '走到哪一關'; }, s: function(){ return (A && A.月 ? (+String(A.月).split('/')[1]) + ' 月談過的人' : ''); },
       body: '<svg class="ch"></svg><div class="leg"><span><i style="background:rgba(175,82,222,.22)"></i>談過</span><span><i style="background:rgba(175,82,222,.6)"></i>註冊</span><span><i style="background:' + C.asst + '"></i>排進班</span></div>', draw: function(b){ funnel(b, funRows()); } },
@@ -815,7 +835,8 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     var mon = ymd(TODAY).slice(0, 8), cnt = {}; rows.forEach(function(r){ if (r[3].slice(0, 8) === mon) cnt[+r[3].slice(8)] = (cnt[+r[3].slice(8)] || 0) + 1; });
     var cal = ''; for (var d = 1; d <= TODAY.getDate(); d++){ var on = cnt[d], stop = x.last && d > +x.last.slice(8) && !on; cal += '<i class="' + (on ? 'h' : '') + (stop && x.d >= 3 ? ' o' : '') + '" title="' + (+mon.slice(5, 7)) + '/' + d + (on ? '・' + on + ' 位' : '') + '">' + (on ? '<b>' + on + '</b>' : '') + '<s>' + d + '</s></i>'; }
     var same = L.filter(function(p){ return p.院 === x.院; });
-    var h = '<div class="ph"><h2>' + esc(x.名) + '</h2><span>' + esc(x.院) + '・' + (+mon.slice(5, 7)) + ' 月</span></div>'
+    var wk = window.__pgRosApi ? window.__pgRosApi.weekHtml(k) : '';   // p3.0 這週班表
+    var h = '<div class="ph"><h2>' + esc(x.名) + '</h2><span>' + esc(x.院) + '・' + (+mon.slice(5, 7)) + ' 月</span></div>' + wk
       + '<p class="psub">' + (x.last ? '最後一次新增報到 ' + md(x.last) + '・' + (x.d ? '已經 <b class="og">' + x.d + ' 天</b>沒有新增' : '今天有新增') : (x.none ? '這個月還沒有報到' : (x.miss ? '這個月報到 ' + x.v + ' 位，但報到明細還沒抓到他的紀錄（下一次同步報到會補抓整個月）' : ''))) + '</p>'
       + '<div class="pk"><div><b>' + x.v + '</b><span>' + (+mon.slice(5, 7)) + ' 月報到</span></div><div><b>' + x.面談 + '</b><span>面談</span></div><div><b>' + x.註冊 + '</b><span>註冊</span></div><div><b class="' + ((x.none || x.d >= 3) ? 'og' : '') + '">' + esc(dayTxt(x)) + '</b><span>沒有新增報到</span></div></div>';
     if (!D.ck){ return h + '<p class="z">報到明細（誰、哪天、哪個通路）要等擴充 5.73 同步一次報到、再按 🏫 班況之後才會出現。</p>'; }
@@ -849,14 +870,16 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   function render(){
     if (ST.view === 'all') return renderAll();
     var h = '<div class="btop"><h1>' + esc((ST.org || REGION) + ' ' + MTIME) + '</h1><div class="bs">' + esc(subLine()) + '</div>' + pickerHtml()
-      + '<button class="bbtn bfull" type="button" id="bFull">全螢幕</button><button class="bbtn" type="button" id="bExit"><span class="dk">手機版</span><span class="mb">離開</span></button><button class="bchamp" type="button" id="bChamp">🏆 ' + champWin().short + '冠軍</button></div>'
+      + '<button class="bbtn bfull" type="button" id="bFull">全螢幕</button><button class="bbtn" type="button" id="bExit"><span class="dk">手機版</span><span class="mb">離開</span></button><button class="bchamp" type="button" id="bChamp">🏆 ' + champWin().short + '冠軍</button>' + (window.__pgRosApi ? window.__pgRosApi.btn() : '') + '</div>'
       + '<nav class="bflow">' + SEGS.map(function(s, i){ return '<button type="button" data-seg="' + (i + 1) + '" class="' + (ST.spot === i + 1 ? 'on' : '') + '"><i style="background:' + s[1] + '"></i>' + s[0] + '</button>'; }).join('')
       + '<span class="k">← → 換段落・點任何一格放大・Esc 回總覽</span></nav><div class="bgrid">';
     var NR = { rank: function(){ return rankRows().length; }, fun: function(){ return funRows().length; }, unc: function(){ return uncRows().length; } };   // v1.9 手機：圖的高度跟著列數
     CARDS.forEach(function(c){ h += '<section class="bc' + (c.hot ? ' hot' : '') + '" data-card="' + c.id + '" data-seg="' + c.seg + '" style="grid-area:' + c.id + (NR[c.id] ? ';--n:' + Math.max(1, NR[c.id]()) : '') + '">' + head(c) + (typeof c.body === 'function' ? c.body() : c.body) + '</section>'; });
     B.innerHTML = h + '</div>' + champTalkHtml() + askHtml(); fillPage();
+    var rb = document.getElementById('bRos'); if (rb && window.__pgRosApi) rb.outerHTML = window.__pgRosApi.btn();   // fillPage 之後班表才算好
     applySpot(); requestAnimationFrame(drawAll);
   }
+  window.__pgRosHook = function(){ if (ST.on && ST.view !== 'all' && !ST.zoom) render(); };   // p3.0 班表晚到：儀表板重畫一次（有開放大的時候不動）
   function drawAll(){ if (ST.view === 'all') return drawAllView(); CARDS.forEach(function(c){ var b = B.querySelector('[data-card="' + c.id + '"]'); if (b && c.draw) try { c.draw(b); } catch(e){ console.warn('[會議模式] ' + c.id, e); } }); }
   function applySpot(){ B.querySelectorAll('.bc').forEach(function(x){ x.classList.toggle('dim', !!ST.spot && +x.dataset.seg !== ST.spot); }); B.querySelectorAll('.bflow button').forEach(function(x){ x.classList.toggle('on', +x.dataset.seg === ST.spot); }); }
 
