@@ -974,14 +974,16 @@ function saveEditor(){
 function copyTY(){ if(!canEdit()) return; var o=loadCL(); var c=JSON.parse(JSON.stringify(REGS(o)['桃區'])); c.ver=1; c.updatedAt=Date.now(); c.updatedBy=ME(); REGS(o)[REGION]=c;
   try{ LSW().setItem(CL_KEY,JSON.stringify(o)); closeDlg(); openEditor(); pushCloudSoon(); }catch(e){ toast('沒存成功：'+(e&&e.message||e),true); } }
 function openUsage(){
-  var m0=new Date(); m0.setDate(1); m0.setHours(0,0,0,0); var t0=m0.getTime(), by={}, judged=0, ovr=0;
+  var m0=new Date(); m0.setDate(1); m0.setHours(0,0,0,0); var t0=m0.getTime(), by={}, judged=0, ovr=0, grp={};
   _cases.forEach(function(c){ if(!c||(c.createdAt||0)<t0||!hgCanSee(c)) return;
     if(c.type==='interview_ovr'){ ovr++; return; }
-    var u=(c.iv&&c.iv.usage)||(c.ivf&&c.ivf.usage)||(c.ivx&&c.ivx.usage)||(c.ivr&&c.ivr.usage)||(c.ivc&&c.ivc.usage); if(!u) return; var who=c.by||'?'; var b=by[who]=by[who]||{n:0,f:0,sec:0,tok:0,ntd:0};
+    var u=(c.iv&&c.iv.usage)||(c.ivf&&c.ivf.usage)||(c.ivx&&c.ivx.usage)||(c.ivr&&c.ivr.usage)||(c.ivc&&c.ivc.usage)||(c.type==='interview_mt'&&c.mt&&c.mt.usage); if(!u) return; var who=c.by||'?'; var b=by[who]=by[who]||{n:0,f:0,m:0,sec:0,tok:0,ntd:0};
     if(c.type==='interview'){ b.n++; judged+=Object.keys(c.iv.items||{}).length; } else if(c.type==='interview_fb') b.f++;
+    else if(c.type==='interview_mt'){ b.m++; var gk=(c.mt.academy||'')+' '+(c.mt.gname||(String(c.mt.group||'').slice(1)+'組')), G=grp[gk]=grp[gk]||{n:0,imp:0,sec:0,ntd:0}; if(c.mt.imported) G.imp++; else G.n++; G.sec+=u.audioSec||0; G.ntd+=ntd(u); }   // ★ ds146 會議作戰追蹤也算進來
     b.sec+=u.audioSec||0; b.tok+=(u.in||0)+(u.out||0)+(u.fin||0)+(u.fout||0); b.ntd+=ntd(u); });
   var rows=Object.keys(by).sort(function(a,b){ return by[b].ntd-by[a].ntd; }), tot=0; rows.forEach(function(k){ tot+=by[k].ntd; });
-  var h=rows.length?('<table class="use"><tr><th>誰按的</th><th>檢核</th><th>回饋</th><th>錄音分鐘</th><th>token</th><th>約 NT$</th></tr>'+rows.map(function(k){ var b=by[k]; return '<tr><td>'+esc(k)+'</td><td>'+b.n+'</td><td>'+b.f+'</td><td>'+Math.round(b.sec/60)+'</td><td>'+b.tok.toLocaleString()+'</td><td>'+Math.round(b.ntd)+'</td></tr>'; }).join('')+'<tr><td><b>合計</b></td><td></td><td></td><td></td><td></td><td><b>'+Math.round(tot)+'</b></td></tr></table>'
+  var h=rows.length?('<table class="use"><tr><th>誰按的</th><th>檢核</th><th>回饋</th><th>會議</th><th>錄音分鐘</th><th>token</th><th>約 NT$</th></tr>'+rows.map(function(k){ var b=by[k]; return '<tr><td>'+esc(k)+'</td><td>'+b.n+'</td><td>'+b.f+'</td><td>'+b.m+'</td><td>'+Math.round(b.sec/60)+'</td><td>'+b.tok.toLocaleString()+'</td><td>'+Math.round(b.ntd)+'</td></tr>'; }).join('')+'<tr><td><b>合計</b></td><td></td><td></td><td></td><td></td><td></td><td><b>'+Math.round(tot)+'</b></td></tr></table>'
+    +(Object.keys(grp).length?'<div class="stg">📝 會議作戰追蹤（依組）</div><table class="use"><tr><th>哪一組</th><th>開會整理</th><th>匯入舊記錄</th><th>錄音分鐘</th><th>約 NT$</th></tr>'+Object.keys(grp).sort(function(a,b){ return grp[b].ntd-grp[a].ntd; }).map(function(k){ var G=grp[k]; return '<tr><td>'+esc(k)+'</td><td>'+G.n+' 場</td><td>'+G.imp+' 份</td><td>'+Math.round(G.sec/60)+'</td><td>'+Math.round(G.ntd)+'</td></tr>'; }).join('')+'</table>':'')
     +'<p class="meta" style="margin-top:10px">AI 改判率（主管不同意 AI 的比例）：'+(judged?(Math.round(ovr/judged*1000)/10+'%（'+ovr+'／'+judged+' 項）'):'—')+'。越低代表 AI 越懂你們的標準。</p><p class="meta">台幣是用單價估的，以帳單為準；只算這台電腦已經同步到、我看得到的紀錄。</p>'):'<p class="empty">這個月還沒有人用。</p>';
   openDlg('📊 '+(m0.getMonth()+1)+' 月用量',h,'');
 }

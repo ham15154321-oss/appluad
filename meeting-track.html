@@ -316,7 +316,7 @@ table.mt .red{color:#C93A39;font-weight:700;} table.mt .grn{color:#1F7A3A;font-w
   <!-- 最近的會議 -->
   <section class="card" id="cardHist"></section>
 
-  <div class="foot"><button class="btn ghost" onclick="exportMtXlsx()">⬇ 匯出試算表</button></div>
+  <div class="foot"><button class="btn ghost" onclick="openMtUsage()">📊 用量</button><button class="btn ghost" onclick="exportMtXlsx()">⬇ 匯出試算表</button></div>
   </main>
 </div></div>
 
@@ -748,7 +748,17 @@ function packText(){
 function copyPack(){ copyText(packText()); }
 function copyText(t){ var ok=function(){ toast('已複製'); }; try{ navigator.clipboard.writeText(t).then(ok,function(){ oldCopy(t); ok(); }); }catch(e){ oldCopy(t); ok(); } }
 function oldCopy(t){ var a=document.createElement('textarea'); a.value=t; document.body.appendChild(a); a.select(); try{ document.execCommand('copy'); }catch(e){} a.remove(); }
-function openPerf(){ try{ if(window.parent&&window.parent.openPerformance){ window.parent.openPerformance(); return; } }catch(e){} toast('請從首頁打開業績數據中心'); }
+// ★ 10/29 修：業績中心的面板跟這頁同一層（z-index 9999），以前打開了被蓋在後面看不到。現在暫時把它提到最上面；關掉業績中心就回到這頁，數字一到自動重畫
+var _perfWatch=null;
+function openPerf(){
+  var P=window.parent; try{ if(!(P&&P!==window&&P.openPerformance)) throw 0; }catch(e){ toast('請從首頁打開業績數據中心'); return; }
+  var ov=P.document.getElementById('perfOverlay'), at0=(SNAP()||{}).atTs||0; if(ov) ov.style.zIndex='10001';
+  P.openPerformance(); toast('業績中心打開約 15 秒後，數字會自動帶過來；關掉業績中心就回到這頁');
+  clearInterval(_perfWatch); var n=0;
+  _perfWatch=setInterval(function(){ n++; var S=SNAP(), act=ov&&ov.classList.contains('active');
+    if(S&&(S.atTs||0)>at0){ _hgAct=null; if(!_pack&&GRP) _pack={at:packAt()||Date.now(),group:GRP.id}; renderAll(); toast('數字帶過來了（截至 '+S.at+'）'); at0=S.atTs; }
+    if((!act&&n>2)||n>200){ clearInterval(_perfWatch); if(ov) ov.style.zIndex='9999'; } },3000);
+}
 
 /* ── ② 會後 ── */
 function renderAfter(){
@@ -1092,6 +1102,23 @@ async function exportMtXlsx(){
   XLSX.writeFile(wb,'會議作戰追蹤_'+todayStr()+'.xlsx'); toast('已匯出 '+(a.length-1)+' 場會');
 }
 
+/* ── ★ 用量：每組、每月花多少（照紀錄裡存的 token 和錄音秒數估台幣，以帳單為準） ── */
+function ntd(u){ if(!u) return 0; var a=MODELS[u.aModel||'opus']||MODELS.opus, f=MODELS[u.fModel||'sonnet']||MODELS.sonnet;
+  var usd=(u.in||0)/1e6*a.in+(u.out||0)/1e6*a.out+(u.fin||0)/1e6*f.in+(u.fout||0)/1e6*f.out+(u.audioSec||0)/3600*WHISPER_USD_HR; return usd*USD_TWD; }
+function openMtUsage(){
+  var gs={}; myGroups().forEach(function(g){ gs[g.id]=g; }); var T={}, months={}, gl={};
+  _cases.forEach(function(c){ if(!c||c.type!=='interview_mt'||!c.mt||!gs[c.mt.group]||!c.mt.usage) return; var d=new Date(c.createdAt||0), ym=d.getFullYear()+'-'+pad(d.getMonth()+1), u=c.mt.usage, k=c.mt.group;
+    months[ym]=1; gl[k]=1; var x=(T[k]=T[k]||{})[ym]=(T[k]||{})[ym]||{n:0,imp:0,sec:0,ntd:0}; T[k][ym]=x; if(c.mt.imported) x.imp++; else x.n++; x.sec+=u.audioSec||0; x.ntd+=ntd(u); });
+  var ms=Object.keys(months).sort().reverse().slice(0,6), ks=Object.keys(gl);
+  if(!ks.length){ openDlg('📊 會議作戰追蹤・用量','<p class="empty">還沒有花費紀錄。按「整理成會議記錄」或「匯入以前的記錄」才會開始算。</p>',''); return; }
+  var tot={}; ms.forEach(function(m){ tot[m]=0; });
+  var h='<p class="meta" style="margin-top:0">每格是那個月這組花了多少（台幣）。括號裡是「開會整理幾場／匯入幾份」。</p><div class="tbl"><table class="mt"><tr><th>哪一組</th>'+ms.map(function(m){ return '<th>'+(+m.slice(5))+' 月</th>'; }).join('')+'</tr>'
+    +ks.sort(function(a,b){ return (gs[a].academy+a).localeCompare(gs[b].academy+b); }).map(function(k){ return '<tr><td>'+esc(grpLabel(gs[k]))+'</td>'+ms.map(function(m){ var x=(T[k]||{})[m]; if(!x) return '<td class="meta">—</td>'; tot[m]+=x.ntd; return '<td>NT$'+Math.round(x.ntd)+'<br><span class="src">（'+x.n+' 場／'+x.imp+' 份'+(x.sec?'，錄音 '+Math.round(x.sec/60)+' 分':'')+'）</span></td>'; }).join('')+'</tr>'; }).join('')
+    +'<tr><td><b>合計</b></td>'+ms.map(function(m){ return '<td><b>NT$'+Math.round(tot[m])+'</b></td>'; }).join('')+'</tr></table></div>'
+    +'<p class="meta">台幣照紀錄裡的 token 和錄音秒數、用單價估的，以帳單為準；只算你看得到的組。面談檢核的「📊 本月用量」也會把會議一起算進去。</p>';
+  openDlg('📊 會議作戰追蹤・用量',h,'');
+}
+
 /* ── 對話框、啟動 ── */
 function openDlg(title,body,foot){ $('dlgTitle').textContent=title; $('dlgBody').innerHTML=body; $('dlgFoot').innerHTML=foot||''; $('dlgFoot').hidden=!foot; $('dim').classList.add('show'); $('dlg').classList.add('show'); }
 function closeDlg(){ $('dim').classList.remove('show'); $('dlg').classList.remove('show'); }
@@ -1150,7 +1177,7 @@ function gSet(i){ if(i===_gCur) return; _gCur=i;
 function gGo(d){ gSet((_gCur+d+6)%6); }
 function gToggle(){ var b=$('guide'); if(window.matchMedia&&!matchMedia('(max-width:1100px)').matches) return; b.classList.toggle('open'); b.querySelector('.g-head').setAttribute('aria-expanded',b.classList.contains('open')); try{ localStorage.setItem('mt_guide_seen_v1','1'); }catch(e){} }
 
-(async function(){ renderGuide(); fillGroups(); renderAll(); await bootCases(); try{ await hgLoad(); }catch(e){} fillGroups(); renderAll(); })();
+(async function(){ renderGuide(); fillGroups(); renderAll(); await bootCases(); try{ await hgLoad(); }catch(e){} fillGroups(); if(GRP&&heroState()==='after') _pack={at:packAt(),group:GRP.id}; renderAll(); })();
 
 </script>
 </body>
