@@ -269,6 +269,26 @@ table.mt .red{color:#C93A39;font-weight:700;} table.mt .grn{color:#1F7A3A;font-w
   .gseg.pressed{transform:none;} .g-panel.out{transform:none;}
 }
 @media (prefers-contrast:more){ .gseg.sys path{stroke:#8E8E93;} .gseg.you path{stroke-width:1.5;} }
+.drop{transition:border-color .15s,background .15s;}
+.dz{position:relative;}
+.dz.over .drop{border-color:#5856D6;background:#F4F4FE;}
+.dz.over::after{content:"放開就夾帶";position:absolute;inset:0;border-radius:var(--r);background:rgba(88,86,214,.06);border:2px dashed #5856D6;display:grid;place-items:center;font-size:1.0625rem;font-weight:700;color:#3634A3;pointer-events:none;}
+.fchip{display:inline-flex;align-items:center;gap:6px;margin:2px 6px 2px 0;padding:3px 4px 3px 10px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:.8125rem;color:var(--ink);max-width:100%;}
+.fchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px;} .fchip em{font-style:normal;color:var(--ink3);font-size:.75rem;}
+.fchip button{border:0;background:rgba(0,0,0,.06);width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:11px;color:var(--ink2);flex:none;}
+@media (prefers-reduced-motion:reduce){ .drop{transition:none;} }
+.ck{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-right:8px;vertical-align:-5px;cursor:pointer;}
+.ck input{width:18px;height:18px;margin:0;accent-color:#5856D6;cursor:pointer;}
+.ti.picked{background:linear-gradient(90deg,rgba(88,86,214,.06),transparent);border-radius:12px;}
+.ti .x.tap{cursor:pointer;}
+.selall{display:inline-flex;align-items:center;gap:6px;font-size:.875rem;font-weight:600;color:var(--ink2);margin-left:12px;cursor:pointer;vertical-align:middle;}
+.selall input{width:18px;height:18px;accent-color:#5856D6;}
+.bbar{position:sticky;bottom:12px;z-index:5;margin-top:14px;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.88);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(0,0,0,.08);box-shadow:0 12px 40px rgba(0,0,0,.14);display:flex;flex-wrap:wrap;align-items:center;gap:8px;animation:bbIn .28s var(--ease);}
+.bbar b{font-size:.9375rem;margin-right:4px;}
+.bbar .in{height:36px;flex:1;min-width:160px;}
+@keyframes bbIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+@media (prefers-reduced-motion:reduce){ .bbar{animation:none;} }
+@media (prefers-reduced-transparency:reduce){ .bbar{background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;} }
 </style>
 </head>
 <body>
@@ -289,7 +309,7 @@ table.mt .red{color:#C93A39;font-weight:700;} table.mt .grn{color:#1F7A3A;font-w
   <section class="card" id="cardPack" hidden></section>
 
   <!-- ② 會後：貼上錄音或文字 -->
-  <section class="card" id="cardAfter" hidden>
+  <section class="card dz" id="cardAfter" hidden>
     <div class="step"><i>2</i><h2>貼上這場會的錄音或文字</h2><span class="hint">貼文字，或夾帶錄音、PDF、Word 都可以</span></div>
     <div class="row">
       <div class="fld" style="flex:none;min-width:0"><label>會議類型</label><div class="seg" id="kindSeg" role="tablist" style="white-space:nowrap"></div></div>
@@ -301,7 +321,7 @@ table.mt .red{color:#C93A39;font-weight:700;} table.mt .grn{color:#1F7A3A;font-w
       <input type="file" id="mtFile" accept="audio/*,.m4a,.mp3,.wav,.webm,.txt,.pdf,.docx" multiple hidden onchange="pickMtFiles(this.files)">
       <button class="btn" onclick="document.getElementById('mtFile').click()">📎 夾帶檔案</button>
       <button class="btn" id="mtRecBtn" onclick="toggleMtRec()">🎙 現場錄音</button>
-      <div class="files" id="mtFiles">錄音檔、PDF、Word、文字檔都可以，一次可以選好幾個</div>
+      <div class="files" id="mtFiles">把錄音、PDF、Word、文字檔直接拖進這張卡片，或按左邊的按鈕選</div>
       <button class="btn pri" id="mtGo" onclick="runMeeting()">整理成會議記錄</button>
     </div>
     <div class="prog" id="mtProg"><div class="bar"><b></b></div><div class="tx"></div></div>
@@ -316,7 +336,7 @@ table.mt .red{color:#C93A39;font-weight:700;} table.mt .grn{color:#1F7A3A;font-w
   <!-- 最近的會議 -->
   <section class="card" id="cardHist"></section>
 
-  <div class="foot"><button class="btn ghost" onclick="openMtUsage()">📊 用量</button><button class="btn ghost" onclick="exportMtXlsx()">⬇ 匯出試算表</button></div>
+  <div class="foot"><button class="btn ghost" onclick="openBackup()">💾 備份與還原</button><button class="btn ghost" onclick="openMtUsage()">📊 用量</button><button class="btn ghost" onclick="exportMtXlsx()">⬇ 匯出試算表</button></div>
   </main>
 </div></div>
 
@@ -767,7 +787,20 @@ function renderAfter(){
   $('kindSeg').innerHTML=KINDS.map(function(k){ return '<button role="tab" aria-selected="'+(k[0]===_kind)+'" class="'+(k[0]===_kind?'on':'')+'" onclick="_kind=\''+k[0]+'\';renderAfter()">'+k[1]+'</button>'; }).join('');
   if(!$('mtDate').value){ var d=new Date(); d.setMinutes(0); $('mtDate').value=ymdOf(d)+'T'+pad(d.getHours())+':00'; if(d.getDate()<=7) _kind='month'; }
 }
-function pickMtFiles(files){ if(!files||!files.length) return; _mtFiles=Array.prototype.slice.call(files); $('mtFiles').innerHTML=_mtFiles.map(function(f,i){ return (i+1)+'. '+esc(f.name)+'（'+(f.size/1048576).toFixed(1)+' MB）'; }).join('<br>'); }
+// ★ 10/29 Ivan：可以直接拖曳；拖幾次都會加上去（同名同大小不重複），每個檔都能單獨拿掉
+var MT_OK=/\.(m4a|mp3|wav|webm|ogg|aac|mp4|txt|pdf|docx|doc)$/i;
+function addFiles(list,files,kindOk){ var bad=[]; Array.prototype.forEach.call(files||[],function(f){ if(!kindOk.test(f.name)&&!/^audio\//.test(f.type)){ bad.push(f.name); return; } if(!list.some(function(x){ return x.name===f.name&&x.size===f.size; })) list.push(f); }); if(bad.length) toast('這些檔案讀不了：'+bad.join('、')+'（可以用錄音、PDF、Word、文字檔）',true); }
+function chipsHtml(list,rm,empty){ return list.length?list.map(function(f,i){ return '<span class="fchip"><span>'+esc(f.name)+'</span><em>'+(f.size/1048576).toFixed(1)+' MB</em><button aria-label="拿掉 '+esc(f.name)+'" onclick="'+rm+'('+i+')">✕</button></span>'; }).join(''):empty; }
+function renderMtFiles(){ $('mtFiles').innerHTML=chipsHtml(_mtFiles,'rmMtFile','把錄音、PDF、Word、文字檔直接拖進這張卡片，或按左邊的按鈕選'); }
+function rmMtFile(i){ _mtFiles.splice(i,1); renderMtFiles(); }
+function pickMtFiles(files){ addFiles(_mtFiles,files,MT_OK); renderMtFiles(); try{ $('mtFile').value=''; }catch(e){} }
+function makeDrop(el,onFiles){ if(!el||el._dz) return; el._dz=1; var n=0;
+  el.addEventListener('dragenter',function(e){ if(!e.dataTransfer||[].indexOf.call(e.dataTransfer.types||[],'Files')<0) return; e.preventDefault(); n++; el.classList.add('over'); });
+  el.addEventListener('dragover',function(e){ if(!e.dataTransfer||[].indexOf.call(e.dataTransfer.types||[],'Files')<0) return; e.preventDefault(); e.dataTransfer.dropEffect='copy'; });
+  el.addEventListener('dragleave',function(){ n=Math.max(0,n-1); if(!n) el.classList.remove('over'); });
+  el.addEventListener('drop',function(e){ if(!e.dataTransfer||!e.dataTransfer.files||!e.dataTransfer.files.length) return; e.preventDefault(); n=0; el.classList.remove('over'); onFiles(e.dataTransfer.files); }); }
+// 檔案拖到卡片外面不要被瀏覽器直接打開
+['dragover','drop'].forEach(function(ev){ window.addEventListener(ev,function(e){ if(e.dataTransfer&&[].indexOf.call(e.dataTransfer.types||[],'Files')>=0&&!(e.target.closest&&e.target.closest('.dz'))) e.preventDefault(); }); });
 var _mrec=null, _mchunks=[], _mT0=0, _mTimer=null;
 async function toggleMtRec(){
   if(_mrec&&_mrec.state==='recording'){ _mrec.stop(); return; }
@@ -907,25 +940,43 @@ async function saveDraft(){
   try{ await caseWrite(adds,[]); }catch(e){ btn.disabled=false; btn.textContent='確認存檔'; toast('沒存進去：'+(e&&e.message||e),true); return; }
   var rec=adds[0]; sheetPushMt(rec,newItems,chks);
   if(!d.imported) notifyTG('📝 '+grpLabel(g)+' '+(KIND_LAB[d.kind]||'')+'記錄完成（'+nm(me)+'）\n說好的事 '+items.length+' 條，綁數字 '+mt.nBound+' 條'+(mt.secs?'\n從貼上到確認 '+Math.round(mt.secs/60)+' 分鐘':''));
-  _draft=null; _t0=0; _mtFiles=[]; $('mtText').value=''; $('mtFiles').textContent='錄音檔、PDF、Word、文字檔都可以，一次可以選好幾個'; $('mtProg').style.display='none'; $('cardAfter').hidden=true;
+  _draft=null; _t0=0; _mtFiles=[]; $('mtText').value=''; renderMtFiles(); $('mtProg').style.display='none'; $('cardAfter').hidden=true;
   try{ localStorage.removeItem(packFlagKey()); }catch(e){} _pack=null;
   renderAll(); toast('已存檔：說好的事 '+items.length+' 條開始追蹤'); showMt(rec.id);
 }
 
 /* ── 說好的事（還在追的） ── */
+// ★ 10/29 Ivan：說好的事可以打勾圈選，一次改判好幾條（全選、每人全選、點文字也能勾）
+var _sel={}, _bbS='done';
 function renderBoard(){
   var box=$('cardBoard'); if(!GRP){ box.innerHTML=''; box.hidden=true; return; } box.hidden=false;
   var g=GRP, cm=chkMap(g.id), list=_boardAll?itemsOf(g.id).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); }).slice(0,60):openItems(g.id), man=canManage(g);
+  var keys={}; list.forEach(function(c){ keys[c.mti.key]=1; }); Object.keys(_sel).forEach(function(k){ if(!keys[k]) delete _sel[k]; });
+  var nSel=Object.keys(_sel).length, allOn=list.length&&nSel===list.length;
   var h='<div class="step"><i>✓</i><h2>說好的事</h2><span class="hint">'+(SNAP()?'數字截至 '+esc(SNAP().at):'')+'</span></div>'
-   +'<div class="seg" role="tablist" style="margin-bottom:6px"><button class="'+(!_boardAll?'on':'')+'" onclick="_boardAll=false;renderBoard()">還在追的</button><button class="'+(_boardAll?'on':'')+'" onclick="_boardAll=true;renderBoard()">全部（含結案）</button></div>';
+   +'<div style="margin-bottom:6px"><div class="seg" role="tablist" style="vertical-align:middle"><button class="'+(!_boardAll?'on':'')+'" onclick="_boardAll=false;renderBoard()">還在追的</button><button class="'+(_boardAll?'on':'')+'" onclick="_boardAll=true;renderBoard()">全部（含結案）</button></div>'
+   +(man&&list.length?'<label class="selall"><input type="checkbox" '+(allOn?'checked':'')+' onchange="selAll(this.checked)">全選（'+list.length+'）</label>':'')+'</div>';
   if(!list.length){ box.innerHTML=h+'<p class="empty">'+(_boardAll?'還沒有任何說好的事。':'目前沒有還在追的事。開完會貼上記錄，這裡就會出現。')+'</p>'; return; }
   var by={}; list.forEach(function(c){ (by[c.mti.who]=by[c.mti.who]||[]).push(c); });
   var order=g.members.concat(['全組']).filter(function(n){ return by[n]; }).concat(Object.keys(by).filter(function(n){ return g.members.indexOf(n)<0&&n!=='全組'; }));
-  h+=order.map(function(n){ return '<div class="sec-h"><b>'+esc(nm(n))+'</b><span>'+by[n].length+' 條</span></div>'+by[n].map(function(c){ var L=itemLine(c,cm), st=L.st;
-    return '<div class="ti"><div class="x">'+esc(c.mti.what)+(c.mti.vague?' <span class="chip vague">說不清楚</span>':'')+'</div><div class="r">'+chipOf(st.s)+(man?'<button class="btn ghost sm" onclick="openOvr(\''+c.mti.key+'\')">改判</button>':'')+'</div>'
+  h+=order.map(function(n){ var ks=by[n].map(function(c){ return c.mti.key; }), on=ks.every(function(k){ return _sel[k]; });
+    return '<div class="sec-h">'+(man?'<label class="ck" title="這個人全選"><input type="checkbox" '+(on?'checked':'')+' onchange="selWho(\''+esc(n)+'\',this.checked)" aria-label="'+esc(nm(n))+' 全選"></label>':'')+'<b>'+esc(nm(n))+'</b><span>'+by[n].length+' 條</span></div>'+by[n].map(function(c){ var L=itemLine(c,cm), st=L.st, k=c.mti.key, pk=!!_sel[k];
+    return '<div class="ti'+(pk?' picked':'')+'"><div class="x'+(man?' tap':'')+'"'+(man?' onclick="if(event.target.tagName!==\'INPUT\')togSel(\''+k+'\')"':'')+'>'+(man?'<label class="ck"><input type="checkbox" '+(pk?'checked':'')+' onchange="togSel(\''+k+'\')" aria-label="選這條"></label>':'')+esc(c.mti.what)+(c.mti.vague?' <span class="chip vague">說不清楚</span>':'')+'</div><div class="r">'+chipOf(st.s)+(man?'<button class="btn ghost sm" onclick="openOvr(\''+k+'\')">改判</button>':'')+'</div>'
       +'<div class="n">'+L.nums+'</div>'+(c.mti.add&&st.d!=null?'<div class="meter '+st.s+'"><b style="width:'+Math.round(L.pct*100)+'%"></b></div>':'')
       +(st.why||st.how==='manual'?'<div class="why">'+(st.how==='manual'?'✍️ '+esc(nm(st.by))+' 改判：':'')+esc(st.why)+'</div>':'')+'</div>'; }).join(''); }).join('');
-  box.innerHTML=h;
+  if(man&&nSel) h+='<div class="bbar" role="toolbar" aria-label="一次改判"><b>已選 '+nSel+' 條，改成</b><div class="seg">'+['done','part','miss','none','keep','drop'].map(function(x){ return '<button class="'+(x===_bbS?'on':'')+'" onclick="_bbS=\''+x+'\';renderBoard()">'+ST_LAB[x]+'</button>'; }).join('')+'</div>'
+    +'<input class="in" id="bbW" placeholder="理由（選填，一次套用到全部）"><button class="btn pri sm" onclick="saveOvrBatch()">套用到 '+nSel+' 條</button><button class="btn ghost sm" onclick="_sel={};renderBoard()">取消選取</button></div>';
+  var keepW=$('bbW')?$('bbW').value:''; box.innerHTML=h; if(keepW&&$('bbW')) $('bbW').value=keepW;
+}
+function togSel(k){ if(_sel[k]) delete _sel[k]; else _sel[k]=1; renderBoard(); }
+function selAll(on){ _sel={}; if(on){ var list=_boardAll?itemsOf(GRP.id).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); }).slice(0,60):openItems(GRP.id); list.forEach(function(c){ _sel[c.mti.key]=1; }); } renderBoard(); }
+function selWho(n,on){ var list=_boardAll?itemsOf(GRP.id).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); }).slice(0,60):openItems(GRP.id); list.forEach(function(c){ if(c.mti.who!==n) return; if(on) _sel[c.mti.key]=1; else delete _sel[c.mti.key]; }); renderBoard(); }
+async function saveOvrBatch(){
+  var ks=Object.keys(_sel); if(!ks.length) return; var w=($('bbW')&&$('bbW').value.trim())||'', s0=_bbS, now=Date.now(), all=itemsOf(GRP.id), me=ME();
+  var recs=ks.map(function(k,i){ var c=all.filter(function(x){ return x.mti.key===k; })[0]; if(!c) return null;
+    return { id:uid('mtc_'), type:'interview_mtchk', by:me, createdAt:now+i, mtc:{ key:k, group:GRP.id, status:s0, why:w||'一次改判 '+ks.length+' 條', how:'manual', batch:true, from:autoStatus(c.mti).s, delta:deltaOf(c.mti) } }; }).filter(Boolean);
+  try{ await caseWrite(recs,[]); }catch(e){ toast('沒存進去：'+(e&&e.message||e),true); return; }
+  sheetPushMt(null,[],recs); _sel={}; renderAll(); toast('已把 '+recs.length+' 條改成「'+ST_LAB[s0]+'」，紀錄都留著');
 }
 function openOvr(key){
   var c=itemsOf(GRP.id).filter(function(x){ return x.mti.key===key; })[0]; if(!c) return; var st=statusOf(c);
@@ -1027,12 +1078,15 @@ function openImport(){
   _impFiles=[];
   openDlg('⬇ 匯入以前的會議記錄・'+grpLabel(GRP),'<p style="margin-top:0">選幾份最近的會議記錄（PDF、Word、文字檔都可以），一次可以選很多份。每份會照原樣存成一場會，並抽出當時說好的事。</p>'
     +'<p class="meta">以前的記錄沒有當時的數字，所以只會把<b>最近那一場</b>說好的事放進「還在追的」，在下次開會口頭對帳；更早的只留在歷史裡。</p>'
-    +'<input type="file" id="impFile" accept=".pdf,.docx,.txt" multiple hidden onchange="pickImp(this.files)"><div class="drop" style="margin-top:8px"><button class="btn" onclick="document.getElementById(\'impFile\').click()">📁 選檔案</button><div class="files" id="impList">還沒選檔</div></div>'
+    +'<input type="file" id="impFile" accept=".pdf,.docx,.txt" multiple hidden onchange="pickImp(this.files)"><div class="dz" id="impDz"><div class="drop" style="margin-top:8px"><button class="btn" onclick="document.getElementById(\'impFile\').click()">📎 選檔案</button><div class="files" id="impList">把 PDF、Word、文字檔直接拖進這裡，或按左邊的按鈕選</div></div></div>'
     +'<textarea class="in" id="impText" style="margin-top:10px;min-height:120px" placeholder="或直接貼一份記錄的文字"></textarea>'
     +'<div class="prog" id="impProg"><div class="bar"><b></b></div><div class="tx"></div></div>',
     '<button class="btn pri" id="impGo" onclick="runImport()">開始匯入</button><button class="btn" onclick="closeDlg()">取消</button><span class="meta">每份大約花 NT$1～3</span>');
+  makeDrop($('impDz'),pickImp);
 }
-function pickImp(fs){ _impFiles=Array.prototype.slice.call(fs||[]); $('impList').innerHTML=_impFiles.map(function(f,i){ return (i+1)+'. '+esc(f.name); }).join('<br>'); }
+function pickImp(fs){ addFiles(_impFiles,fs,/\.(pdf|docx|doc|txt)$/i); renderImp(); try{ $('impFile').value=''; }catch(e){} }
+function renderImp(){ $('impList').innerHTML=chipsHtml(_impFiles,'rmImp','把 PDF、Word、文字檔直接拖進這裡，或按左邊的按鈕選'); }
+function rmImp(i){ _impFiles.splice(i,1); renderImp(); }
 async function runImport(){
   if(_busy) return; var g=GRP, srcs=[];
   _impFiles.forEach(function(f){ srcs.push({name:f.name,f:f}); }); var pt=$('impText').value.trim(); if(pt) srcs.push({name:'貼上的文字',t:pt});
@@ -1122,6 +1176,51 @@ function openMtUsage(){
   openDlg('📊 會議作戰追蹤・用量',h,'');
 }
 
+/* ── ★ 10/29 Ivan：備份與還原。備份＝把看得到的組的會議、說好的事、對帳／改判、外號全部存成一個 .json 檔；還原＝只加不刪，已經有的跳過 ── */
+var MT_TYPES={interview_mt:'mt',interview_mtitem:'mti',interview_mtchk:'mtc',interview_mtnick:'mtn'};
+function mtGid(c){ var f=MT_TYPES[c&&c.type]; return f&&c[f]?c[f].group:''; }
+function backupCases(){ var gs={}; myGroups().forEach(function(g){ gs[g.id]=1; }); return _cases.filter(function(c){ return c&&MT_TYPES[c.type]&&gs[mtGid(c)]; }); }
+function lastBackup(){ try{ return +localStorage.getItem('mt_backup_at_v1')||0; }catch(e){ return 0; } }
+function openBackup(){
+  var cs=backupCases(), cnt={interview_mt:0,interview_mtitem:0,interview_mtchk:0}; cs.forEach(function(c){ if(cnt[c.type]!=null) cnt[c.type]++; });
+  var lb=lastBackup(), days=lb?Math.floor((Date.now()-lb)/864e5):null;
+  openDlg('💾 備份與還原',
+    '<div class="sec-h" style="margin-top:0"><b>備份到你的電腦</b><span>'+(lb?'上次備份：'+fmtD(lb)+(days>=30?'（已經 '+days+' 天，建議再備份一次）':''):'這台電腦還沒備份過')+'</span></div>'
+    +'<p class="meta" style="margin-top:0">會存成一個檔案，包含你看得到的組：會議 '+cnt.interview_mt+' 場、說好的事 '+cnt.interview_mtitem+' 條、對帳與改判 '+cnt.interview_mtchk+' 筆、外號表。建議每月月底存一份，放到 iCloud 或 Google 雲端硬碟。</p>'
+    +'<div class="row"><button class="btn pri" onclick="doBackup()">⬇ 下載備份檔</button><button class="btn" onclick="exportMtXlsx()">⬇ 另存 Excel（給人看）</button></div>'
+    +'<div class="sec-h"><b>從備份還原</b><span>只加不刪，已經有的會跳過</span></div>'
+    +'<input type="file" id="bkFile" accept=".json,application/json" hidden onchange="readBackup(this.files[0])">'
+    +'<div class="dz" id="bkDz"><div class="drop" style="margin-top:4px"><button class="btn" onclick="document.getElementById(\'bkFile\').click()">📎 選備份檔</button><div class="files" id="bkInfo">把備份檔（.json）拖進來，或按左邊的按鈕選</div></div></div>'
+    +'<p class="meta">還原只會把備份裡「這裡沒有的」補回來，不會蓋掉、也不會刪掉現在的資料；而且只還原你看得到的組。</p>','');
+  makeDrop($('bkDz'),function(fs){ readBackup(fs[0]); });
+}
+function doBackup(){
+  var cs=backupCases(); if(!cs.length){ toast('還沒有可以備份的資料',true); return; }
+  var g=myGroups().map(function(x){ return {id:x.id,label:grpLabel(x)}; });
+  var out={ app:'會議作戰追蹤', ver:1, at:new Date().toISOString(), by:ME(), groups:g, count:cs.length, cases:cs };
+  var b=new Blob([JSON.stringify(out,null,1)],{type:'application/json'}), a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download='會議作戰追蹤備份_'+(GRP&&myGroups().length===1?(GRP.name||nm(GRP.leader)+'組')+'_':'')+todayStr()+'.json'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1000);
+  try{ localStorage.setItem('mt_backup_at_v1',String(Date.now())); }catch(e){}
+  toast('已下載備份檔（'+cs.length+' 筆）'); setTimeout(openBackup,300);
+}
+var _bk=null;
+async function readBackup(f){
+  if(!f) return; var info=$('bkInfo');
+  try{ var j=JSON.parse(await f.text()); if(!j||!Array.isArray(j.cases)) throw new Error('這不是會議作戰追蹤的備份檔');
+    var gs={}; myGroups().forEach(function(g){ gs[g.id]=1; }); var have={}; _cases.forEach(function(c){ if(c&&c.id) have[c.id]=1; });
+    var ok=j.cases.filter(function(c){ return c&&c.id&&MT_TYPES[c.type]&&c[MT_TYPES[c.type]]; }), mine=ok.filter(function(c){ return gs[mtGid(c)]; }), fresh=mine.filter(function(c){ return !have[c.id]; });
+    _bk=fresh; var n={interview_mt:0,interview_mtitem:0,interview_mtchk:0,interview_mtnick:0}; fresh.forEach(function(c){ n[c.type]++; });
+    info.innerHTML='<b>'+esc(f.name)+'</b>（'+(j.at?fmtD(Date.parse(j.at)):'')+(j.by?'，'+esc(nm(j.by))+' 備份':'')+'）<br>'
+      +(fresh.length?'可以補回：會議 '+n.interview_mt+' 場、說好的事 '+n.interview_mtitem+' 條、對帳與改判 '+n.interview_mtchk+' 筆'+(n.interview_mtnick?'、外號表':'')+'。'
+        +(mine.length-fresh.length?'另外 '+(mine.length-fresh.length)+' 筆這裡已經有了，會跳過。':'')+(ok.length-mine.length?'有 '+(ok.length-mine.length)+' 筆是你看不到的組，不會還原。':'')
+        +'<div class="row" style="margin-top:8px"><button class="btn pri sm" onclick="doRestore()">還原 '+fresh.length+' 筆</button></div>'
+       :'這份備份的內容這裡都已經有了，不用還原。');
+  }catch(e){ _bk=null; info.innerHTML='<span style="color:#C0392B;font-weight:600">讀不了：'+esc(e&&e.message||e)+'</span>'; }
+}
+async function doRestore(){ if(!_bk||!_bk.length) return; if(!canManage()&&!HG_ADMIN[ME()]){ toast('只有組長、學院主管、柏翰可以還原',true); return; }
+  try{ await caseWrite(_bk,[]); }catch(e){ toast('沒還原進去：'+(e&&e.message||e),true); return; }
+  var n=_bk.length; _bk=null; closeDlg(); renderAll(); toast('已還原 '+n+' 筆，原本的資料都沒動'); }
+
 /* ── 對話框、啟動 ── */
 function openDlg(title,body,foot){ $('dlgTitle').textContent=title; $('dlgBody').innerHTML=body; $('dlgFoot').innerHTML=foot||''; $('dlgFoot').hidden=!foot; $('dim').classList.add('show'); $('dlg').classList.add('show'); }
 function closeDlg(){ $('dim').classList.remove('show'); $('dlg').classList.remove('show'); }
@@ -1180,7 +1279,7 @@ function gSet(i){ if(i===_gCur) return; _gCur=i;
 function gGo(d){ gSet((_gCur+d+6)%6); }
 function gToggle(){ var b=$('guide'); if(window.matchMedia&&!matchMedia('(max-width:1100px)').matches) return; b.classList.toggle('open'); b.querySelector('.g-head').setAttribute('aria-expanded',b.classList.contains('open')); try{ localStorage.setItem('mt_guide_seen_v1','1'); }catch(e){} }
 
-(async function(){ renderGuide(); fillGroups(); renderAll(); await bootCases(); try{ await hgLoad(); }catch(e){} fillGroups(); if(GRP&&heroState()==='after') _pack={at:packAt(),group:GRP.id}; renderAll(); })();
+(async function(){ makeDrop($('cardAfter'),function(fs){ pickMtFiles(fs); }); renderGuide(); fillGroups(); renderAll(); await bootCases(); try{ await hgLoad(); }catch(e){} fillGroups(); if(GRP&&heroState()==='after') _pack={at:packAt(),group:GRP.id}; renderAll(); })();
 
 </script>
 </body>
