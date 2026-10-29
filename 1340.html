@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
-<meta name="pg1340-version" content="p3.2">
+<meta name="pg1340-version" content="p3.3">
 <title>13:40</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -894,6 +894,7 @@
   .ros-w .wr.lo .t i{background:var(--orange)}
   .ros-w .wr.lo b{color:var(--orange)}
   .ros-f{margin:10px 0 0;font-size:.75rem;color:var(--label3)}
+  .ros-f.ros-err{margin:0 0 6px;color:var(--orange);font-weight:600}
   .ros-o .rows{margin-top:6px;display:flex;flex-direction:column;gap:2px}
   .ros-o .rw{display:grid;grid-template-columns:4.6em 1fr;gap:8px;font-size:.875rem;line-height:1.65;color:var(--label2)}
   .ros-o .rw i{font-style:normal;font-size:.75rem;font-weight:700;color:var(--label2);padding-top:.12em}
@@ -1016,7 +1017,7 @@
 </style>
 </head>
 <body>
-<!-- 13:40 日會網頁｜p3.2｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
+<!-- 13:40 日會網頁｜p3.3｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
 <div id="pgWait"><i></i><span id="pgWaitT">載入中…</span></div>
 <div id="pgPick" hidden><h1>日會</h1><a data-r="中區">中區<small>台一・台二・台三｜13:40</small></a><a data-r="桃區">桃區<small>壢一・壢二・壢三｜13:30</small></a><a data-r="建國">高雄建國<small>建國｜13:40</small></a></div>
 <div id="appRoot" hidden>
@@ -1431,6 +1432,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     var orgs = scopeOrgs(), many = orgs.length > 1, d0 = R.days[di], d1 = R.days[di + 1];
     var P = (R.人 || []).filter(function(p){ return !p.nb && orgs.indexOf(p.院) >= 0; });
     var h = '<div class="ros-h"><b>👥 今天上場</b><small>' + mdw(d0) + '・班表 ' + esc(String(R.at || '').slice(11, 16)) + ' 讀取</small></div>';
+    if (R.err) h += '<p class="ros-f ros-err">⚠️ ' + esc(R.err) + '</p>';   // p3.3 班表這次沒讀完（Apps Script v1.15 會寫哪幾區沿用上一次）
     if (!P.length) { box.innerHTML = h + '<p class="none">班表裡找不到' + esc(orgs.join('、')) + '的業務（分頁：' + esc((R.src || []).join('、') || '沒有找到這個月的分頁') + '）</p>'; return; }
     /* ① 今天：一院一行 */
     orgs.forEach(function(o){
