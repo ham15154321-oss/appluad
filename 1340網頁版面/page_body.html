@@ -368,7 +368,8 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
   function away(x){ return x === '早休' || x === '晚休'; }
   function ymdL(d){ return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function mdw(s){ var m = String(s).match(/\d{4}-(\d{2})-(\d{2})/); if (!m) return s; var d = new Date(+s.slice(0, 4), +m[1] - 1, +m[2]); return (+m[1]) + '/' + (+m[2]) + '（' + WKC[d.getDay()] + '）'; }
-  function names(L){ return L.map(function(p){ return '<b class="nm">' + esc(p.名) + '</b>' + (p.t ? '<small>' + esc(p.t) + '</small>' : ''); }).join('、'); }
+  function kOf(p){ return p.k || (p.院 + '|' + p.全名); }
+  function names(L){ return L.map(function(p){ return '<button type="button" class="nm" data-rk="' + esc(kOf(p)) + '">' + esc(p.名) + '</button>' + (p.t ? '<small>' + esc(p.t) + '</small>' : ''); }).join('、'); }
   /* p2.8（10/29 Ivan）：主資料沒帶班表（Apps Script 舊快取）→ 網頁自己讀 ?fmt=roster，照區篩、離職不列 */
   var RZ = { '中區':'中區', '建國':'南區', '桃區':'桃竹區' };
   function own(raw){
@@ -402,9 +403,9 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
       var up = L.filter(function(p){ return on(p.班[d0]); }), mix = {};
       up.forEach(function(p){ var x = p.班[d0], k = cls(x) === '半' ? '半天' : x.charAt(0); mix[k] = (mix[k] || 0) + 1; });
       var mixT = ['早', '中', '晚', '半天'].filter(function(k){ return mix[k]; }).map(function(k){ return k + ' ' + mix[k]; }).join('・');
-      var off = L.filter(function(p){ return cls(p.班[d0]) === '休'; }).map(function(p){ return { 名: p.名, t: p.班[d0] === '休' ? '' : p.班[d0] }; });
-      var out = L.filter(function(p){ return cls(p.班[d0]) === '外'; }).map(function(p){ return { 名: p.名, t: p.班[d0] }; });
-      var aw = L.filter(function(p){ return away(p.班[d0]); }).map(function(p){ return { 名: p.名, t: p.班[d0] === '早休' ? '13:30 下班' : '17:30 才進' }; });
+      var off = L.filter(function(p){ return cls(p.班[d0]) === '休'; }).map(function(p){ return { 名: p.名, k: kOf(p), t: p.班[d0] === '休' ? '' : p.班[d0] }; });
+      var out = L.filter(function(p){ return cls(p.班[d0]) === '外'; }).map(function(p){ return { 名: p.名, k: kOf(p), t: p.班[d0] }; });
+      var aw = L.filter(function(p){ return away(p.班[d0]); }).map(function(p){ return { 名: p.名, k: kOf(p), t: p.班[d0] === '早休' ? '13:30 下班' : '17:30 才進' }; });
       var none = L.filter(function(p){ return !p.班[d0]; });
       h += '<div class="ros-o"><div class="l1">' + (many ? '<span class="o">' + esc(o) + '</span>' : '') + '<span class="n"><b>' + up.length + '</b>／' + L.length + ' 位上場</span><span class="mix">' + mixT + '</span></div>'
         + ((off.length || out.length || aw.length || none.length) ? '<div class="l2">'
@@ -418,12 +419,12 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     var days3 = [], amt = {};
     if (I) { var tt = today.replace(/-/g, '/'), sd = {}; (I.日 || []).forEach(function(r){ if (r[1] < tt && r[2]) sd[r[1]] = 1; }); days3 = Object.keys(sd).sort().slice(-3);
       (I.人 || []).forEach(function(r){ if (days3.indexOf(r[2]) >= 0) amt[r[0] + '|' + r[1]] = (amt[r[0] + '|' + r[1]] || 0) + (+r[3] || 0); }); }
-    var chase = P.filter(function(p){ return on(p.班[d0]); }).map(function(p){ var k = p.院 + '|' + p.全名, why = [];
+    WHY = {}; var chase = P.filter(function(p){ return on(p.班[d0]); }).map(function(p){ var k = p.院 + '|' + p.全名, why = [];
       if (I && days3.length && !(amt[k] > 0)) why.push('近三天沒入帳');
       var q = st[k]; if (q && q.報到 === 0) why.push('這個月報到 0');
-      return { p: p, why: why }; }).filter(function(x){ return x.why.length; }).sort(function(a, b){ return b.why.length - a.why.length; });
+      WHY[k] = why; return { p: p, why: why }; }).filter(function(x){ return x.why.length; }).sort(function(a, b){ return b.why.length - a.why.length; });
     h += '<div class="ros-s"><h4>🎯 今天在場、要追的人<small>休假的不列</small></h4>' + (chase.length
-      ? '<div class="chips">' + chase.map(function(x, i){ return '<span class="chip' + (i >= 8 ? ' more' : '') + '"><b>' + esc(x.p.名) + '</b><small>' + (many ? esc(x.p.院) + '・' : '') + x.why.join('、') + (away(x.p.班[d0]) ? '・' + esc(x.p.班[d0]) : '') + '</small></span>'; }).join('') + (chase.length > 8 ? '<button type="button" class="cmore" onclick="this.parentNode.classList.add(\'all\');this.remove()">還有 ' + (chase.length - 8) + ' 位</button>' : '') + '</div>'
+      ? '<div class="chips">' + chase.map(function(x, i){ return '<button type="button" class="chip' + (i >= 8 ? ' more' : '') + '" data-rk="' + esc(kOf(x.p)) + '"><b>' + esc(x.p.名) + '</b><small>' + (many ? esc(x.p.院) + '・' : '') + x.why.join('、') + (away(x.p.班[d0]) ? '・' + esc(x.p.班[d0]) : '') + '</small></button>'; }).join('') + (chase.length > 8 ? '<button type="button" class="cmore" onclick="this.parentNode.classList.add(\'all\');this.remove()">還有 ' + (chase.length - 8) + ' 位</button>' : '') + '</div>'
       : '<p class="ok">今天有上班的人，近三天都有入帳、這個月都有報到。</p>') + '</div>';
     /* ③ 明天 */
     if (d1) {
@@ -431,7 +432,7 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
       orgs.forEach(function(o){
         var L = P.filter(function(p){ return p.院 === o; }); if (!L.length) return;
         var up = L.filter(function(p){ return on(p.班[d1]); }), lt = L.filter(function(p){ return late(p.班[d1]); });
-        var off = L.filter(function(p){ return cls(p.班[d1]) === '休'; }).map(function(p){ return { 名: p.名 }; });
+        var off = L.filter(function(p){ return cls(p.班[d1]) === '休'; }).map(function(p){ return { 名: p.名, k: kOf(p) }; });
         var warn = lt.length <= 1 || up.length * 2 < L.length;
         tm += '<div class="ros-o' + (warn ? ' warn' : '') + '"><div class="l1">' + (many ? '<span class="o">' + esc(o) + '</span>' : '') + '<span class="n"><b>' + up.length + '</b>／' + L.length + ' 位上場</span>'
           + '<span class="mix">19:30 以後 ' + lt.length + ' 位' + (warn ? ' 💔' : '') + '</span></div>'
@@ -443,12 +444,63 @@ document.getElementById('foot').textContent = '議程由 9:30 排程產生（' +
     /* ④ 這 7 天每天上場（視角內加總） */
     var W = R.days.slice(di).map(function(s){ return { s: s, n: P.filter(function(p){ return on(p.班[s]); }).length, z: P.filter(function(p){ return !p.班[s]; }).length }; }).filter(function(x){ return x.z < P.length; });
     if (W.length > 1) { var mn = Math.min.apply(null, W.map(function(x){ return x.n; }));
-      h += '<div class="ros-w"><h4>這 7 天每天上場<small>共 ' + P.length + ' 位業務</small></h4>' + W.map(function(x, i){ return '<div class="wr' + (x.n === mn ? ' lo' : '') + (i === 0 ? ' td' : '') + '"><span class="d">' + mdw(x.s) + '</span><span class="t"><i style="width:' + Math.max(4, x.n / P.length * 100) + '%"></i></span><b>' + x.n + '</b></div>'; }).join('') + '</div>'; }
+      h += '<div class="ros-w"><h4>這 7 天每天上場<small>共 ' + P.length + ' 位業務</small></h4>' + W.map(function(x, i){ return '<button type="button" class="wr' + (x.n === mn ? ' lo' : '') + (i === 0 ? ' td' : '') + '" data-rd="' + x.s + '"><span class="d">' + mdw(x.s) + '</span><span class="t"><i style="width:' + Math.max(4, x.n / P.length * 100) + '%"></i></span><b>' + x.n + '</b></button>'; }).join('') + '<p class="ros-tip">點名字看他這週的班・點日期看那天誰上班</p></div>'; }
     /* 對不到的業務（班表上沒有他的名字），讓 Ivan 看得出來是哪裡沒對上 */
     var inR = {}; (R.人 || []).forEach(function(p){ inR[p.院 + '|' + p.全名] = 1; });
     var lost = ((D.ppl && D.ppl.人) || []).filter(function(p){ return !p.nb && orgs.indexOf(p.院) >= 0 && !inR[p.院 + '|' + p.全名]; });
     if (lost.length) h += '<p class="ros-f">班表上找不到：' + lost.map(function(p){ return esc(p.名) + (many ? '（' + esc(p.院) + '）' : ''); }).join('、') + '</p>';
     box.innerHTML = h;
+  }
+  /* ══ p2.9（10/29 Ivan）點名字 → 這個人這 7 天的班；點日期 → 那天誰上班、誰休。手機從底部滑上來、電腦在中間；儀表板也用同一張 ══ */
+  var WHY = {}, TM = { '早':'09:00–18:00','早班':'09:00–18:00','中':'10:30–19:30','中班':'10:30–19:30','晚':'13:30–22:00','晚班':'13:30–22:00','早休':'09:00–13:30','晚晚休':'13:30–17:30','晚休':'17:30–22:00' };
+  function codeLab(x){ if (!x) return '班表空白'; var c = cls(x); if (c === '半') return x + '（半天）'; if (c === '外') return x + '（外勤）'; if (x.length === 1 && c === '上') return x + '班'; return x; }
+  function rosAll(){ var R = D.roster; if (!R || !R.人) return null; var di = (R.days || []).indexOf(ymdL(new Date())); return { R: R, days: di < 0 ? [] : R.days.slice(di) }; }
+  function personPop(k, back){
+    var X = rosAll(); if (!X) return ''; var p = X.R.人.filter(function(q){ return kOf(q) === k; })[0]; if (!p) return '';
+    var why = WHY[k] || [], nOn = 0, nOff = 0;
+    var rows = X.days.map(function(s, i){ var x = p.班[s] || '', c = cls(x); if (on(x)) nOn++; else if (c === '休') nOff++;
+      return '<div class="rp-r' + (i === 0 ? ' td' : '') + (c === '休' ? ' off' : '') + (c === '外' ? ' out' : '') + (!x ? ' nil' : '') + '"><span class="d">' + (i === 0 ? '今天 ' : '') + mdw(s) + '</span><span class="c">' + esc(codeLab(x)) + '</span><span class="tm">' + (TM[x] || '') + '</span></div>'; }).join('');
+    return (back ? '<button type="button" class="rp-bk" data-rd="' + back + '">‹ 回到 ' + mdw(back) + '</button>' : '')
+      + '<div class="rp-h"><b>' + esc(p.名) + '</b><span>' + esc(p.院) + '・這 ' + X.days.length + ' 天上班 ' + nOn + ' 天、休 ' + nOff + ' 天</span></div>'
+      + (why.length ? '<p class="rp-why">🎯 今天要追：' + esc(why.join('、')) + '</p>' : '') + '<div class="rp-l">' + rows + '</div>';
+  }
+  function dayPop(s){
+    var X = rosAll(); if (!X) return ''; var orgs = scopeOrgs(), many = orgs.length > 1;
+    var P = X.R.人.filter(function(p){ return !p.nb && orgs.indexOf(p.院) >= 0; }), up = P.filter(function(p){ return on(p.班[s]); }).length;
+    function grp(lab, L, t){ return L.length ? '<div class="rp-g"><i>' + lab + '</i><span>' + L.map(function(p){ return '<button type="button" class="nm" data-rk="' + esc(kOf(p)) + '" data-from="' + s + '">' + esc(p.名) + '</button>' + (t ? '<small>' + esc(t(p)) + '</small>' : ''); }).join('、') + '</span></div>' : ''; }
+    var h = '<div class="rp-h"><b>' + mdw(s) + '</b><span>上場 ' + up + '／' + P.length + ' 位</span></div>';
+    orgs.forEach(function(o){ var L = P.filter(function(p){ return p.院 === o; }); if (!L.length) return;
+      function by(f){ return L.filter(function(p){ return f(p.班[s] || ''); }); }
+      h += '<div class="rp-o">' + (many ? '<h5>' + esc(o) + '<small>上場 ' + by(on).length + '／' + L.length + '</small></h5>' : '')
+        + grp('早班 09:00', by(function(x){ return x === '早' || x === '早班'; }))
+        + grp('中班 10:30', by(function(x){ return x === '中' || x === '中班'; }))
+        + grp('晚班 13:30', by(function(x){ return x === '晚' || x === '晚班'; }))
+        + grp('半天', by(function(x){ return cls(x) === '半'; }), function(p){ return TM[p.班[s]] || p.班[s]; })
+        + grp('外勤', by(function(x){ return cls(x) === '外'; }), function(p){ return p.班[s]; })
+        + grp('休', by(function(x){ return cls(x) === '休'; }), function(p){ return p.班[s] === '休' ? '' : p.班[s]; })
+        + grp('班表空白', by(function(x){ return !x; })) + '</div>'; });
+    return h + '<p class="rp-z">點名字看他這週的班</p>';
+  }
+  function popOpen(html){
+    if (!html) return; var M = document.getElementById('rosPop');
+    if (!M) { M = document.createElement('div'); M.id = 'rosPop'; document.body.appendChild(M); }
+    var was = M.classList.contains('on');
+    M.innerHTML = '<div class="rp-bg"></div><div class="rp-p" role="dialog" aria-modal="true"><div class="rp-grab"></div><button type="button" class="rp-x" aria-label="關閉">關閉</button><div class="rp-b">' + html + '</div></div>';
+    M.className = 'on' + (was ? ' still' : ''); document.documentElement.classList.add('rp-lock');
+  }
+  function popClose(){ var M = document.getElementById('rosPop'); if (!M || !M.classList.contains('on')) return; M.className = ''; M.innerHTML = ''; document.documentElement.classList.remove('rp-lock'); }
+  window.__pgRosApi = { person: function(k, back){ popOpen(personPop(k, back)); }, day: function(s){ popOpen(dayPop(s)); }, close: popClose, card: function(){ return box.hidden ? '' : box.innerHTML; }, all: rosAll, kOf: kOf, cls: cls, on: on };
+  if (!window.__pgRosBound) { window.__pgRosBound = 1;
+    document.addEventListener('click', function(e){ var A = window.__pgRosApi; if (!A) return; var t = e.target;
+      if (t.closest && t.closest('#rosPop')) { e.stopPropagation(); if (t.closest('.rp-x') || t.classList.contains('rp-bg')) { A.close(); return; }
+        var b0 = t.closest('[data-rk]'); if (b0) { A.person(b0.dataset.rk, b0.dataset.from || ''); return; }
+        var d0 = t.closest('[data-rd]'); if (d0) { A.day(d0.dataset.rd); return; } return; }
+      var inR = t.closest && (t.closest('#ros') || t.closest('.ros-pop-src')); if (!inR) return;
+      var b = t.closest('[data-rk]'); if (b) { e.stopPropagation(); A.person(b.dataset.rk, ''); return; }
+      var d = t.closest('[data-rd]'); if (d) { e.stopPropagation(); A.day(d.dataset.rd); } }, true);
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && window.__pgRosApi && document.querySelector('#rosPop.on')) { e.stopPropagation(); window.__pgRosApi.close(); } }, true);
+    var y0 = null; document.addEventListener('touchstart', function(e){ var g = e.target.closest && e.target.closest('#rosPop .rp-p'); y0 = g && g.querySelector('.rp-b').scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
+    document.addEventListener('touchend', function(e){ if (y0 != null && e.changedTouches[0].clientY - y0 > 90 && window.__pgRosApi) window.__pgRosApi.close(); y0 = null; }, { passive: true });
   }
   window.__pgRos = render;
   render();
