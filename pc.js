@@ -1747,7 +1747,7 @@
       var gain = nx ? Math.round((nx - v) * 0.05) + (_evoTierFloor(EVO_TGT, nx) - tg) + (_evoTierFloor(EVO.P, nx) - ad) : 0;
       return '<div class="my-sec"><h4>💰 這個月獎金（十月活動，先假設學院會達 300 萬）</h4><div class="my-bonus">'
         + '<div><small>5%</small><b>' + _evoM(b5) + '</b></div><div><small>現金 10%</small><b>' + _evoM(c10) + '</b></div>'
-        + '<div><small>達標' + (v < EVO_TGT[0][0] ? '（暫放）' : '') + '</small><b>' + _evoM(tg) + '</b></div><div><small>加碼' + (v < EVO.P[0][0] ? '（暫放）' : '') + '</small><b>' + _evoM(ad) + '</b></div>'
+        + '<div><small>達標' + (v < EVO_TGT[0][0] ? '（先算 1,000）' : '') + '</small><b>' + _evoM(tg) + '</b></div><div><small>加碼' + (v < EVO.P[0][0] ? '（先算 1,500）' : '') + '</small><b>' + _evoM(ad) + '</b></div>'
         + '<div class="t"><small>合計</small><b>$' + _evoM(tot) + '</b></div></div>'
         + (nx ? '<p class="my-note">再做 <b>' + _evoM(nx - v) + '</b> 到 ' + (nx / 10000) + ' 萬，獎金多 <b>+$' + _evoM(gain) + '</b></p>' : '') + '</div>';
     }
@@ -5886,7 +5886,7 @@
     function _evoBill(M, orgs){
       window._EVOM = M;
       var C = _evoCashMap(M.ym || EVO.ym), ym = M.ym || EVO.ym;
-      var html = '<p class="evo-sub">5%＝業績 × 5%；現金 10%＝現金・匯款・刷卡的收款 × 10%（學貸、分期、融資不算）；達標＝獎金制度表一只領最高一級，<b>每個人先暫放 1,000</b>；加碼＝<b>先假設學院會達 300 萬</b>，<b>每個人先暫放 1,500</b>，真的跳級就往上加（45 萬 4,500、60 萬 9,000…）。'
+      var html = '<p class="evo-sub">5%＝業績 × 5%；現金 10%＝現金・匯款・刷卡的收款 × 10%（學貸、分期、融資不算）；達標＝獎金制度表一只領最高一級，<b>還沒到 15 萬的，先算 1,000</b>；加碼＝<b>先假設學院會達 300 萬</b>，<b>還沒到 30 萬的，先算 1,500</b>，真的跳級就往上加（45 萬 4,500、60 萬 9,000…）。'
         + (C.ok && !Object.keys(C.map).length ? '<b class="eb-warn">現金 10% 暫時都是 0：請確認擴充是 5.58（重新載入）後再按一次「📋 通路」</b>' + (C.items ? '<br><small>收支項目實際有：' + _fnEsc(Object.keys(C.items).slice(0, 20).map(function(k){ return k + '×' + C.items[k]; }).join('、')) + '</small>' : '') + (C.hdr ? '<br><small>收支 CSV 的欄位：' + _fnEsc(C.hdr.join('｜')) + '（目前用「' + _fnEsc(C.itemCol || '找不到') + '」判斷現金）</small>' : '') : '')
         + (C.ok && Object.keys(C.map).length ? '現金獎資料：📋 通路同步 ' + _fnEsc(C.at || '') : (C.ok ? '' : '<b class="eb-warn">還沒有十月的「現＋刷」資料，現金獎先顯示 0，' + _pcEmptyHint('按「📋 通路」') + '</b>')) + '</p>';
       try { html += _evoTop10Html(M); } catch(e){ console.warn('[evoTop10]', e); }
@@ -5914,7 +5914,7 @@
             var idle = !x.idle ? '<span class="eb-chip">—</span>' : (x.idle.none ? '<span class="eb-chip red">未入帳</span>' : (x.idle.days === 0 ? '<span class="eb-chip ok">今天有</span>' : '<span class="eb-chip' + (x.idle.days >= 3 ? ' red' : '') + '">' + x.idle.days + ' 天</span>'));
             var nxt = x.nx ? '<div class="eb-nx"><small>差 $' + _evoM(x.nx - x.v) + ' 到 ' + (x.nx / 10000) + ' 萬</small><i><b style="width:' + Math.min(100, x.v / x.nx * 100) + '%"></b></i></div><span class="eb-plus">+$' + _evoM(x.gain) + '</span>' : '<span class="eb-plus">已到最高級</span>';
             return '<tr class="' + (top ? 'eb-top' : '') + (me ? ' eb-me' : '') + '"><td class="eb-n">' + _fnEsc(x.r.n) + (ri >= 0 && x.tot > 0 ? ' <span class="eb-crown">👑' + (ri ? '<sub>' + (ri + 1) + '</sub>' : '') + '</span>' : '') + (me ? '<span class="pp-metag">你</span>' : '') + '</td>'
-              + '<td class="eb-v">' + z(x.v) + '</td><td>' + z(x.b5) + '</td><td>' + z(x.c10) + '</td><td' + (x.tgHold ? ' class="eb-hold" title="還沒到 15 萬，先暫放第一級"' : '') + '>' + z(x.tg) + (x.tgHold ? '<small>暫放</small>' : '') + '</td><td' + (x.adHold ? ' class="eb-hold" title="還沒到 30 萬，先暫放第一級（假設學院達 300 萬）"' : '') + '>' + z(x.ad) + (x.adHold ? '<small>暫放</small>' : '') + '</td>'
+              + '<td class="eb-v">' + z(x.v) + '</td><td>' + z(x.b5) + '</td><td>' + z(x.c10) + '</td><td' + (x.tgHold ? ' class="eb-hold" title="還沒到 15 萬，先算第一級 1,000"' : '') + '>' + z(x.tg) + (x.tgHold ? '<small>先算</small>' : '') + '</td><td' + (x.adHold ? ' class="eb-hold" title="還沒到 30 萬，先算第一級 1,500（假設學院達 300 萬）"' : '') + '>' + z(x.ad) + (x.adHold ? '<small>先算</small>' : '') + '</td>'
               + '<td class="eb-tot">$' + _evoM(x.tot) + '</td><td class="eb-idle">' + idle + '</td><td class="eb-next">' + nxt + '</td></tr>';
           }).join('');
         }).join('');
@@ -8229,7 +8229,7 @@
       else if (!_fnRawFor(ev.ym)) body = '<div class="ck-empty">找不到 ' + y + ' 年 ' + mo + ' 月的收支逐人資料（漏斗封存），算不出明細</div>';
       else { try { body = ev.render(ev.ym, pp, ppEvScope); } catch(e){ body = '<div class="ck-empty">計算失敗：' + _fnEsc(String(e && e.message || e)) + '</div>'; } }
       var _n6was = bg.style.display === 'flex' && !bg.classList.contains('n6-out');
-      var _keep = (bg.style.display === 'flex' && bg.getAttribute('data-k') === id + '|' + ppEvScope + '|' + (typeof evoTab !== 'undefined' ? evoTab : '')) ? bg.scrollTop : 0;
+      var _prevK = String(bg.getAttribute('data-k') || ''), _keep = (bg.style.display === 'flex' && _prevK.split('|').slice(0,2).join('|') === id + '|' + ppEvScope) ? bg.scrollTop : 0;   // ★ ds150 換分頁不跳回最上面（同一個活動、同一家就保留捲動位置）
       bg.setAttribute('data-k', id + '|' + ppEvScope + '|' + (typeof evoTab !== 'undefined' ? evoTab : ''));
       bg.innerHTML = '<div class="pp-ev-box"><div class="pp-ev-top"><b>' + ev.btn + '　' + y + ' 年 ' + mo + ' 月 ' + _fnEsc(ev.title) + '</b>'
         + '<button class="pp-ev-x" onclick="ppEventClose()">✕ 關閉</button></div>'
@@ -13045,7 +13045,7 @@
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
       { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
-      { ver:'ds150', icon:'💰', title:'薪水獨立一顆按鈕，每個月都算', detail:'「📋 每日總結」旁邊多一顆「💰 薪水」：打開先看自己這個月大約領多少（獎金＋底薪 35,000）、5%、現金 10%、達標、底薪各多少、再做多少到下一級；再看七家獎金前十名、各學院每個人。可以切回前幾個月。那個月有活動才多一欄加碼。我的一頁的薪水 11 月以後也會繼續出現。AI 顧問也看得到今天七家燈號、組長紅黃燈、追蹤卡、編輯追蹤、穿越、每人本月數字跟薪水；首頁多一張「AI 看得到什麼」，建議問題會照今天的數字出。AI 回答下面多一顆「存回會議」，可以存成說好的事、補充建議或下次議程，下次會前資料包會列出來。「空編輯」全站改叫「點開沒寫狀態」：點開名單按了儲存，但詳細狀態沒寫新的。' },
+      { ver:'ds150', icon:'💰', title:'薪水獨立一顆按鈕，每個月都算', detail:'「📋 每日總結」旁邊多一顆「💰 薪水」：打開先看自己這個月大約領多少（獎金＋底薪 35,000）、5%、現金 10%、達標、底薪各多少、再做多少到下一級；再看七家獎金前十名、各學院每個人。可以切回前幾個月。那個月有活動才多一欄加碼。我的一頁的薪水 11 月以後也會繼續出現。AI 顧問也看得到今天七家燈號、組長紅黃燈、追蹤卡、編輯追蹤、穿越、每人本月數字跟薪水；首頁多一張「AI 看得到什麼」，建議問題會照今天的數字出。組長、主管在 AI 回答下面多一顆「存回會議」：就地展開一張小卡，可以存成說好的事（綁數字、記下現在的數字、到期自動對帳）、那場會的補充建議（記錄和 Word 都看得到）或下次議程；存過會記得，5 秒內可以復原，點一下直接跳到那一條。「空編輯」全站改叫「點開沒寫狀態」：點開名單按了儲存，但詳細狀態沒寫新的。' },
       { ver:'ds149', icon:'☁️', title:'打開網站一分鐘自動拉最新資料', detail:'同事不用再自己到業績數據中心按「☁️↓ 拉取」：登入太空基地 60 秒後，系統在背景自動拉一次最新資料（右下會跳「正在自動更新最新資料」），之後只要畫面開著，大約每 30 分鐘再自動拉一次。AI 顧問換成跟首頁「AI 顧問」那張深色卡片同一套質感：問答區石墨色、輸入時有一圈 AI 光暈、AI 思考時有小光環；任務、資料分頁也一起整理乾淨。AI 顧問現在讀得懂會議作戰追蹤，會議記錄裡多一顆「🔍 到 AI 顧問深挖」。首頁的學院年度業績改用激勵年度合計，管理者看到的是自己管的七家學院加總。' },
       { ver:'ds148', icon:'🤖', title:'AI 顧問變簡單了、會議記錄可以直接交公司', detail:'AI 顧問：打開就是一個問答框，下面有依你的角色和日期換的建議問題、常用的 3 位顧問、接著上次聊；回答先給三行重點，點「看完整分析」才展開；每則回答下面有加成任務、收藏、複製、這個答錯了；送出後會一步一步顯示 AI 在看什麼，問錯了可以按停止；換顧問、回答深度、字體、清除收進右上「⋯」；上方分頁改成對話、任務、資料，答錯回報在資料裡。以前的對話都還在。會議作戰追蹤：下載 Word 改成跟台中一部 B 組會議紀錄一模一樣的版型（真的 .docx，字型、表格、簽名欄都一樣），會前資料包也是同一個版型；每場會多了「🧠 AI 看過後的建議」：這場會的盲點、對照數字每人的下一步、公司教材裡可以補充的做法，存檔後自動產生，Word 也會印出來。' },
       { ver:'ds147', icon:'🗄', title:'AI 資料不會再不見、花費對得上帳', detail:'每一次用 AI（面談、電話、會議、AI 顧問）都自動記一列到 Google 試算表「AI 用量總帳」：誰、哪一頁、型號、約多少錢。AI 顧問的每則對話全文也寫進試算表（電話只留後 3 碼），瀏覽器裡被擠掉的舊對話改成先存起來、不再直接刪。寫試算表改成有編號、送不出去會自動重送、重送不會重複。下載的 Word、Excel、備份檔會同時存一份到雲端硬碟「太空基地備份」，按月份分好。檢核和會議可以作廢（先進回收桶，可以還原）。柏翰的電腦每月 1 號自動備份一次。' },

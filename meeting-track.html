@@ -290,6 +290,7 @@ table.mt .red{color:#C93A39;font-weight:700;} table.mt .grn{color:#1F7A3A;font-w
 @keyframes bbIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
 @media (prefers-reduced-motion:reduce){ .bbar{animation:none;} }
 @media (prefers-reduced-transparency:reduce){ .bbar{background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;} }
+  .ti.flash{animation:mtFlash 2.4s ease;} @keyframes mtFlash{0%,40%{background:rgba(255,214,10,.28);}100%{background:transparent;}} @media (prefers-reduced-motion:reduce){.ti.flash{animation:none;outline:2px solid #FFD60A;}}
 </style>
 </head>
 <body>
@@ -622,13 +623,26 @@ function mtTime(c){ var t=Date.parse(String(c.mt.when||'').replace(' ','T')); re
 function latestBy(type,field,gid){ var m={}; _cases.forEach(function(c){ if(!c||c.type!==type||!c[field]) return; if(gid&&c[field].group!==gid) return; var k=c[field].key, o=m[k]; if(!o||(c.createdAt||0)>(o.createdAt||0)) m[k]=c; }); return m; }
 // ★ ds150 從 AI 顧問「📌 存回會議」帶回來的建議、下次議程（說好的事直接寫成 interview_mtitem，from:'ai'）
 //   還沒開下一場會之前都會出現在會前資料包；之後開的會存檔了就算帶到會上了。組長、主管可以按 ✕ 拿掉（只加不刪，記一筆 interview_mtaist）
+// ★ ds150 從 AI 顧問按「✓ 已加進…」跳過來：選到那組、打開那場會或捲到那一條
+function mtFocus(){ var f=null; try{ f=JSON.parse(localStorage.getItem('mt_focus_v1')||'null'); localStorage.removeItem('mt_focus_v1'); }catch(e){} if(!f||Date.now()-(f.at||0)>180000) return;
+  try{ if(f.group&&(!GRP||GRP.id!==f.group)&&myGroups().some(function(g){ return g.id===f.group; })) pickGroup(f.group); }catch(e){}
+  setTimeout(function(){ try{
+    if(f.kind==='item'&&f.key){ var el=document.querySelector('#cardBoard [data-key="'+f.key+'"]'); if(!el){ _boardAll=true; renderBoard(); el=document.querySelector('#cardBoard [data-key="'+f.key+'"]'); } if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.add('flash'); setTimeout(function(){ el.classList.remove('flash'); },2400); return; } }
+    if(f.mtId&&_cases.some(function(c){ return c.id===f.mtId&&c.type==='interview_mt'; })){ showMt(f.mtId); return; }
+    $('cardBoard').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){} },350); }
+function aiDropped(id){ var o=null; _cases.forEach(function(c){ if(c&&c.type==='interview_mtaist'&&c.mtas&&c.mtas.ref===id&&(!o||(c.createdAt||0)>(o.createdAt||0))) o=c; }); return !!(o&&o.mtas.st==='drop'); }
+// ★ ds150 補充建議存到「那場會」：記錄視窗的 🧠 區塊、Word 都會出現
+function aiAddsOf(mtId){ return _cases.filter(function(c){ return c&&c.type==='interview_mtai'&&c.mta&&c.mta.kind==='advice'&&c.mta.mtId===mtId&&!aiDropped(c.id); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); }); }
+function aiAddsHtml(mtId,man){ var L=aiAddsOf(mtId); if(!L.length) return '';
+  return '<div class="adv"><b>🤖 從 AI 顧問存回的補充建議</b><ol>'+L.map(function(c){ return '<li>'+esc(c.mta.what)+'<span class="meta">　'+esc(nm(c.by||''))+' '+esc(fmtD(c.createdAt))+'</span>'+(man?' <a href="javascript:void 0" onclick="dropAi(\''+c.id+'\',\''+mtId+'\')" aria-label="拿掉">✕</a>':'')+'</li>'; }).join('')+'</ol></div>'; }
 function aiInbox(gid){
   var st={}; _cases.forEach(function(c){ if(c&&c.type==='interview_mtaist'&&c.mtas){ var o=st[c.mtas.ref]; if(!o||(c.createdAt||0)>(o.createdAt||0)) st[c.mtas.ref]=c; } });
   var last=0; _cases.forEach(function(c){ if(c&&c.type==='interview_mt'&&c.mt&&c.mt.group===gid&&!c.mt.imported&&!mtVoided(c.id)) last=Math.max(last,c.createdAt||0); });
-  return _cases.filter(function(c){ return c&&c.type==='interview_mtai'&&c.mta&&c.mta.group===gid&&(c.createdAt||0)>last&&!(st[c.id]&&st[c.id].mtas.st==='drop'); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); });
+  return _cases.filter(function(c){ return c&&c.type==='interview_mtai'&&c.mta&&c.mta.group===gid&&(c.mta.kind==='agenda'||!c.mta.mtId)&&(c.createdAt||0)>last&&!aiDropped(c.id); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); });
 }
-async function dropAi(id){ if(!canManage(GRP)){ toast('只有組長、學院主管、柏翰可以拿掉',true); return; }
-  try{ await caseWrite([{ id:uid('mtas_'), type:'interview_mtaist', by:ME(), createdAt:Date.now(), mtas:{ ref:id, group:GRP.id, st:'drop' } }],[]); toast('拿掉了（紀錄還在）'); renderAll(); }catch(e){ toast('沒存進去：'+(e&&e.message||e),true); } }
+async function dropAi(id,mtId){ if(!canManage(GRP)){ toast('只有組長、學院主管、柏翰可以拿掉',true); return; }
+  try{ await caseWrite([{ id:uid('mtas_'), type:'interview_mtaist', by:ME(), createdAt:Date.now(), mtas:{ ref:id, group:GRP.id, st:'drop' } }],[]); toast('拿掉了（紀錄還在）'); renderAll(); if(mtId) showMt(mtId); }catch(e){ toast('沒存進去：'+(e&&e.message||e),true); } }
 function aiInboxHtml(g,man){
   var L=aiInbox(g.id); if(!L.length) return '';
   return '<div class="sec-h"><b>📥 從 AI 顧問存回來的</b><span>'+L.length+' 條・開完下一場會就收起來</span></div>'+L.map(function(c){ var x=c.mta;
@@ -984,7 +998,7 @@ function renderBoard(){
   var order=g.members.concat(['全組']).filter(function(n){ return by[n]; }).concat(Object.keys(by).filter(function(n){ return g.members.indexOf(n)<0&&n!=='全組'; }));
   h+=order.map(function(n){ var ks=by[n].map(function(c){ return c.mti.key; }), on=ks.every(function(k){ return _sel[k]; });
     return '<div class="sec-h">'+(man?'<label class="ck" title="這個人全選"><input type="checkbox" '+(on?'checked':'')+' onchange="selWho(\''+esc(n)+'\',this.checked)" aria-label="'+esc(nm(n))+' 全選"></label>':'')+'<b>'+esc(nm(n))+'</b><span>'+by[n].length+' 條</span></div>'+by[n].map(function(c){ var L=itemLine(c,cm), st=L.st, k=c.mti.key, pk=!!_sel[k];
-    return '<div class="ti'+(pk?' picked':'')+'"><div class="x'+(man?' tap':'')+'"'+(man?' onclick="if(event.target.tagName!==\'INPUT\')togSel(\''+k+'\')"':'')+'>'+(man?'<label class="ck"><input type="checkbox" '+(pk?'checked':'')+' onchange="togSel(\''+k+'\')" aria-label="選這條"></label>':'')+esc(c.mti.what)+(c.mti.vague?' <span class="chip vague">說不清楚</span>':'')+'</div><div class="r">'+chipOf(st.s)+(man?'<button class="btn ghost sm" onclick="openOvr(\''+k+'\')">改判</button>':'')+'</div>'
+    return '<div class="ti'+(pk?' picked':'')+'" data-key="'+k+'"><div class="x'+(man?' tap':'')+'"'+(man?' onclick="if(event.target.tagName!==\'INPUT\')togSel(\''+k+'\')"':'')+'>'+(man?'<label class="ck"><input type="checkbox" '+(pk?'checked':'')+' onchange="togSel(\''+k+'\')" aria-label="選這條"></label>':'')+esc(c.mti.what)+(c.mti.vague?' <span class="chip vague">說不清楚</span>':'')+'</div><div class="r">'+chipOf(st.s)+(man?'<button class="btn ghost sm" onclick="openOvr(\''+k+'\')">改判</button>':'')+'</div>'
       +'<div class="n">'+L.nums+'</div>'+(c.mti.add&&st.d!=null?'<div class="meter '+st.s+'"><b style="width:'+Math.round(L.pct*100)+'%"></b></div>':'')
       +(st.why||st.how==='manual'?'<div class="why">'+(st.how==='manual'?'✍️ '+esc(nm(st.by))+' 改判：':'')+esc(st.why)+'</div>':'')+'</div>'; }).join(''); }).join('');
   if(man&&nSel) h+='<div class="bbar" role="toolbar" aria-label="一次改判"><b>已選 '+nSel+' 條，改成</b><div class="seg">'+['done','part','miss','none','keep','drop'].map(function(x){ return '<button class="'+(x===_bbS?'on':'')+'" onclick="_bbS=\''+x+'\';renderBoard()">'+ST_LAB[x]+'</button>'; }).join('')+'</div>'
@@ -1034,13 +1048,13 @@ function showMt(id){
     +'<div class="sec-h"><b>會議內容</b></div><div class="kb-read" style="white-space:pre-wrap;font-size:.9375rem;line-height:1.7;padding:12px 14px">'+esc(x.body||'')+'</div>'
     +(x.next?'<div class="sec-h"><b>後續執行重點</b></div><div class="kb-read" style="white-space:pre-wrap;font-size:.9375rem;line-height:1.7;padding:12px 14px">'+esc(x.next)+'</div>':'')
     +((x.advice||[]).length?'<div class="adv"><b>💡 當時的下一步建議</b><ol>'+x.advice.map(function(a){ return '<li>'+esc(a)+'</li>'; }).join('')+'</ol></div>':'')
-    +noteHtml(id);
+    +noteHtml(id)+aiAddsHtml(id,canManage(grpOf(x.group)));
   openDlg(x.title||'會議記錄',h,'<button class="btn pri" onclick="downloadMtWord(\''+id+'\')">⬇ 下載 Word</button><button class="btn" onclick="copyText(mtPlain(\''+id+'\'))">📋 複製文字</button><button class="btn" onclick="deepAsk(\''+id+'\')">🔍 到 AI 顧問深挖</button>'+(canManage(grpOf(x.group))?'<button class="btn ghost sm" style="margin-left:auto;color:var(--ink2)" onclick="voidMt(\''+id+'\')">作廢這場會</button>':''));
 }
 // ★ ds149：把這場會帶到 AI 顧問，一路往下追問（AI 顧問已經讀得到會議資料）
 function deepAsk(id){ var m=_cases.filter(function(c){ return c.id===id; })[0]; if(!m) return; var x=m.mt;
   var q='幫我深挖這場會：「'+(x.title||'')+'」（'+(x.when||'')+'）。先告訴我這場會最該補強的一件事，再看每個人說好的事做到了沒、下一步怎麼盯。';
-  try{ localStorage.setItem('ai_handoff_v1',JSON.stringify({q:q,fid:'coach',at:Date.now()})); }catch(e){}
+  try{ localStorage.setItem('ai_handoff_v1',JSON.stringify({q:q,fid:'coach',at:Date.now(),mt:{ id:id, group:x.group, title:x.title||'', when:x.when||'' }})); }catch(e){}
   try{ var P=window.parent; if(P&&P!==window&&P.openAiAdvisor){ closeDlg(); if(P.closeInterview) P.closeInterview(); P.openAiAdvisor(); return; } }catch(e){}
   location.href='ai-advisor.html'; }
 function mtPlain(id){ var m=_cases.filter(function(c){ return c.id===id; })[0]; if(!m) return ''; var x=m.mt; var its=itemsOf(x.group).filter(function(c){ return c.mti.mtId===id; });
@@ -1157,6 +1171,7 @@ function mtDocFields(x,its,rc){
   if(rc.length) secs.push({h:'上次說好的事・對帳',items:rc.map(function(r){ return nm(r.who)+'｜'+r.what+'｜'+r.st+(r.num?'（'+r.num+'）':''); })});
   if(its.length) secs.push({h:'這次說好的事',items:its.map(function(r){ return nm(r.who)+'｜'+r.what+'｜'+r.num+(r.due?'｜'+r.due:''); })});
   var nx=String(x.next||'').split('\n').map(function(l){ return l.trim().replace(/^\d+[.、．]\s*/,''); }).filter(Boolean); if(nx.length) secs.push({h:'後續執行重點',items:nx});
+  if((x.aiAdds||[]).length) secs.push({h:'AI 顧問存回的補充建議',items:x.aiAdds});
   var ai=x.aiNote||null; if(ai){ if((ai.blind||[]).length) secs.push({h:'AI 看過後的建議・這場會的盲點',items:ai.blind}); if((ai.next||[]).length) secs.push({h:'AI 看過後的建議・對照數字的下一步',items:ai.next}); if((ai.tips||[]).length) secs.push({h:'AI 看過後的建議・可以補充的做法',items:ai.tips}); }
   if(x.snapAt) secs.push({h:'數字來源',items:['業績數據中心，截至 '+x.snapAt]});
   return { no:docNo(x.when), title:x.title||'', when:rocDay(x.when,true), place:x.place||'', attendees:x.attendees||[], chair:x.chair||'', rec:x.recorder||'', topic:TOPIC_LAB[x.kind]||'小組會議紀錄', sections:secs, filename:x.title||'會議記錄' };
@@ -1165,7 +1180,7 @@ function docxOrOld(f,old){ makeDocx(f).then(function(){ toast('已下載 Word（
 function downloadMtWord(id){ var m=_cases.filter(function(c){ return c.id===id; })[0]; if(!m) return; var x=m.mt, all=itemsOf(x.group);
   var its=all.filter(function(c){ return c.mti.mtId===id; }).map(function(c){ return { who:c.mti.who, what:c.mti.what, num:numDesc(c.mti), due:c.mti.due?md(c.mti.due)+' 前':'' }; });
   var rc=(x.recon||[]).map(function(r){ var c=all.filter(function(y){ return y.mti.key===r.key; })[0]; return c?{ who:c.mti.who, what:c.mti.what, num:numDesc(c.mti), st:(ST_LAB[r.status]||'')+(r.note?'：'+r.note:'') }:null; }).filter(Boolean);
-  var xx=Object.assign({},x,{aiNote:(noteOf(id)||{}).mtn2||null}); docxOrOld(mtDocFields(xx,its,rc),function(){ downloadMtWordOld(id); }); }
+  var xx=Object.assign({},x,{aiNote:(noteOf(id)||{}).mtn2||null, aiAdds:aiAddsOf(id).map(function(c){ return c.mta.what; })}); docxOrOld(mtDocFields(xx,its,rc),function(){ downloadMtWordOld(id); }); }
 function downloadDraftWord(){ var d=_draft; if(!d) return; var all=itemsOf(d.group), S=SNAP();
   var its=d.items.filter(function(x){ return x.what; }).map(function(x){ return { who:x.who, what:x.what, num:x.metric==='manual'?'口頭回報':MET[x.metric][0]+(x.add?' +'+fmtV(x.metric,+x.add):''), due:x.due?md(x.due)+' 前':'' }; });
   var rc=d.recon.map(function(r){ var c=all.filter(function(y){ return y.mti.key===r.key; })[0]; return c?{ who:c.mti.who, what:c.mti.what, num:numDesc(c.mti), st:(ST_LAB[r.status]||'')+(r.note?'：'+r.note:'') }:null; }).filter(Boolean);
@@ -1437,7 +1452,7 @@ function gSet(i){ if(i===_gCur) return; _gCur=i;
 function gGo(d){ gSet((_gCur+d+6)%6); }
 function gToggle(){ var b=$('guide'); if(window.matchMedia&&!matchMedia('(max-width:1100px)').matches) return; b.classList.toggle('open'); b.querySelector('.g-head').setAttribute('aria-expanded',b.classList.contains('open')); try{ localStorage.setItem('mt_guide_seen_v1','1'); }catch(e){} }
 
-(async function(){ try{ if(ME()===ADMIN_NAME||HG_ADMIN[ME()]){ $('mtHlBtn').hidden=false; setTimeout(mtReconcile,15000); } }catch(e){} makeDrop($('cardAfter'),function(fs){ pickMtFiles(fs); }); renderGuide(); fillGroups(); renderAll(); await bootCases(); try{ await hgLoad(); }catch(e){} fillGroups(); if(GRP&&heroState()==='after') _pack={at:packAt(),group:GRP.id}; renderAll(); })();
+(async function(){ try{ if(ME()===ADMIN_NAME||HG_ADMIN[ME()]){ $('mtHlBtn').hidden=false; setTimeout(mtReconcile,15000); } }catch(e){} makeDrop($('cardAfter'),function(fs){ pickMtFiles(fs); }); renderGuide(); fillGroups(); renderAll(); await bootCases(); try{ await hgLoad(); }catch(e){} fillGroups(); if(GRP&&heroState()==='after') _pack={at:packAt(),group:GRP.id}; renderAll(); mtFocus(); })();
 
 </script>
 </body>

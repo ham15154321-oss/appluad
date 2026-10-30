@@ -6911,18 +6911,27 @@ html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
       var tk2=(A.tracking||[]).filter(function(x){ return mem?(acad?x.org===acad:mem[x.業務]):true; }).sort(function(a,b){ return b.逾期未回-a.逾期未回; })[0];
       if(tk2&&tk2.逾期未回>=3) out.push(sn(tk2.業務)+' 有 '+tk2.逾期未回+' 張追蹤卡逾期，怎麼追？');
     }
-    return out.slice(0,2);
+    try{ // 上次說好的事還沒回報、退費率超過 10%（照提案）
+      var gs=hgActive().filter(function(g){ return !mem || (acad?g.academy===acad:(g0&&g.leader===g0.leader)); }), gid={}; gs.forEach(function(g){ gid[g.leader]=1; });
+      var arr=LS(SK.casedb), lastChk={}, open=0, today=new Date().toISOString().slice(0,10);
+      var items={}; arr.forEach(function(c){ if(c&&c.type==='interview_mtitem'&&c.mti&&gid[c.mti.group]){ var o=items[c.mti.key]; if(!o||(c.createdAt||0)>(o.createdAt||0)) items[c.mti.key]=c; } if(c&&c.type==='interview_mtchk'&&c.mtc) lastChk[c.mtc.key]=1; });
+      Object.keys(items).forEach(function(k){ var it=items[k].mti; if(!it.removed&&!lastChk[k]&&it.due&&it.due<=today) open++; });
+      if(open) out.unshift('上次說好的事，到期還沒對帳的 '+open+' 條誰還沒做到？');
+      var rf=(A.leaders||[]).filter(function(x){ return gid[x.組長] && (x.紅燈||[]).some(function(t){ return /退費率/.test(t); }); })[0];
+      if(rf) out.push(sn(rf.組長)+'組退費率超過 10%，要怎麼處理？');
+    }catch(e){}
+    return out.slice(0,3);
   }
   // ★ ds150「AI 看得到什麼」：讓大家知道這裡的極限跟能做什麼（漸進揭露，預設收起）
   function capHtml(){
     var A=snapA(), m=me(), mem=hgMembers(m), acad=HG_ACAD[m]||'';
     var age=A&&A.atTs?(Date.now()-A.atTs):Infinity, ageTxt=age===Infinity?'還沒有':(age<36e5?Math.max(1,Math.round(age/6e4))+' 分鐘前':age<864e5?Math.round(age/36e5)+' 小時前':Math.round(age/864e5)+' 天前');
     var stale=age>12*3600e3, scope=!mem?'七家全部':acad?acad+' 全部':'你這一組';
-    var yes=[['📊','今天七家燈號、贏輸、連贏連輸、三關進度、穿越時間'],['🚦','組長層紅黃燈、每人本月業績、面談、報到、註冊、退費、六塊通路'],['🗂','面談追蹤卡逾期、編輯追蹤（誰這週沒更新 EIP、誰點開沒寫狀態）'],['💰','薪水估算（5%、現金 10%、達標、加碼、底薪）'],['📝','會議作戰追蹤：最近的會、說好的事做到沒'],['📚','鐵律、知識庫、案例庫、公司制度、你的私聊筆記']];
+    var yes=[['📊','今天七家燈號、贏輸、連贏連輸、三關進度、穿越時間', !mem?'今天七家誰是紅燈？':'我們學院今天贏了沒、落後幾天？'],['🚦','組長層紅黃燈、每人本月業績、面談、報到、註冊、退費、六塊通路','這週誰的報到最落後？'],['🗂','面談追蹤卡逾期、編輯追蹤（誰這週沒更新 EIP、誰點開沒寫狀態）','誰的追蹤卡逾期最多？'],['💰','薪水估算（5%、現金 10%、達標、加碼、底薪）','我這個月薪水大概多少、差多少到下一級？'],['📝','會議作戰追蹤：最近的會、說好的事做到沒','上次說好的事誰還沒做到？'],['📚','鐵律、知識庫、案例庫、公司制度、你的私聊筆記','學生說要考慮，照公司教材怎麼追？']];
     var no=['EIP 畫面上的即時狀態（要先在業績數據中心同步過）','學生完整電話、LINE 對話內容','報到、面談只有整月累計，沒有每週拆分','還沒同步進來的當天入帳','別組的面談錄音（只看得到自己組）','薪水是估算，實際以公司薪資單為準'];
-    return '<details class="v4cap"'+(stale?' open':'')+'><summary><span><b>AI 看得到什麼</b><small>範圍：'+esc(scope)+'・業績數據更新於 '+esc(ageTxt)+(stale?'，有點舊':'')+'</small></span><i aria-hidden="true">›</i></summary>'
+    return '<details class="v4cap"'+(stale?' open':'')+'><summary><span><b>AI 看得到什麼</b><small>'+esc(scope)+'的業績、紅黃燈、報到、追蹤卡、會議和薪水，加上公司知識庫・數字更新於 '+esc(ageTxt)+(stale?'，有點舊':'')+'</small></span><i aria-hidden="true">›</i></summary>'
       +'<div class="v4capb">'+(stale?'<p class="v4warn">數字有點舊，打開一次「業績數據中心」就會自動更新（不用按任何按鈕），回來再問比較準</p>':'')
-      +'<div class="v4cols"><div><h4>看得到</h4><ul>'+yes.map(function(x){ return '<li><span>'+x[0]+'</span>'+esc(x[1])+'</li>'; }).join('')+'</ul></div>'
+      +'<div class="v4cols"><div><h4>看得到・點問題直接問</h4><ul>'+yes.map(function(x){ return '<li><span>'+x[0]+'</span><div>'+esc(x[1])+'<button class="v4q" onclick="v2Ask(this.textContent)">'+esc(x[2])+'</button></div></li>'; }).join('')+'</ul></div>'
       +'<div><h4>看不到</h4><ul class="no">'+no.map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('')+'</ul></div></div>'
       +'<p class="v4capf">問到數字時，AI 只會用上面看得到的資料回答；沒有的會直接說沒有，不會猜</p></div></details>';
   }
@@ -6990,7 +6999,7 @@ html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
       if(acts){
         var mk=function(label,cls,fn){ var b=document.createElement('button'); b.className='v2act '+(cls||''); b.textContent=label; b.onclick=function(){ fn(b); }; acts.appendChild(b); return b; };
         mk('加成任務','pri',function(b){ try{ openAddTask(); var s=(ps&&ps.sum)||full; document.getElementById('taskName').value=String(s).split('\n')[0].replace(/^\d+[.、]\s*/,'').slice(0,40); document.getElementById('taskContent').value=String(s).slice(0,1500); b.textContent='✓ 已填好，按儲存就加進任務'; b.className='v2act done'; }catch(e){ alert('沒辦法打開任務：'+e.message); } });
-        mk('存回會議','',function(b){ try{ openSaveMt(full,prevUser(d),(ps&&ps.sum)||'',b); }catch(e){ console.error(e); } });
+        if(W.v5CanSave&&v5CanSave()){ var sb=mk('存回會議','',function(){}); sb.__open=function(){ try{ v5Open(d,acts,full,prevUser(d),(ps&&ps.sum)||'',sb); }catch(e){ console.error(e); } }; sb.onclick=sb.__open; try{ v5Button(sb,full); }catch(e){} }
         mk('收藏','',function(b){ saveMsgToPrivateChat(full,b); b.textContent='✓ 已收藏到私聊筆記'; b.className='v2act done'; });
         mk('複製','',function(b){ try{ navigator.clipboard.writeText(full).then(function(){ b.textContent='✓ 已複製'; setTimeout(function(){ b.textContent='複製'; },1500); }); }catch(e){} });
         mk('這個答錯了','quiet',function(){ openAddAiError(); try{ document.getElementById('aiErrUserMsg').value=prevUser(d).slice(0,2000); document.getElementById('aiErrAiMsg').value=full.slice(0,4000); }catch(e){} });
@@ -7036,7 +7045,7 @@ html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
   var cm=$$('chatMsgs'); if(cm) mo.observe(cm,{childList:true});
 
   setupScroll(); renderHomeV2(); document.body.classList.toggle('in-chat',curView==='chat');
-  try{ var ho=JSON.parse(localStorage.getItem('ai_handoff_v1')||'null'); if(ho&&ho.q&&Date.now()-(ho.at||0)<120000){ localStorage.removeItem('ai_handoff_v1'); setTimeout(function(){ var ai=$$('askInput'); if(!ai) return; ai.value=ho.q; _lastAskQuery=ho.q; _routeFromAsk=true; openChat(ho.fid||'coach'); showRouteBanner(ho.fid||'coach'); setTimeout(function(){ var ci=$$('chatInput'); if(ci){ ci.value=ho.q; sendMsg(); } },150); },600); } }catch(e){}
+  try{ var ho=JSON.parse(localStorage.getItem('ai_handoff_v1')||'null'); if(ho&&ho.q&&Date.now()-(ho.at||0)<120000){ localStorage.removeItem('ai_handoff_v1'); window._mtTarget=ho.mt||null; setTimeout(function(){ var ai=$$('askInput'); if(!ai) return; ai.value=ho.q; _lastAskQuery=ho.q; _routeFromAsk=true; openChat(ho.fid||'coach'); showRouteBanner(ho.fid||'coach'); setTimeout(function(){ var ci=$$('chatInput'); if(ci){ ci.value=ho.q; sendMsg(); } },150); },600); } }catch(e){}
 })();
 </script>
 
@@ -7055,107 +7064,170 @@ html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
 .v4capb ul.no li{color:#6E6E73;} .v4capb ul.no li::before{content:"–";flex:none;width:1.3em;text-align:center;color:#AEAEB2;}
 .v4warn{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#FFF6E5;color:#8A5A00;font-size:.8125rem;line-height:1.5;}
 .v4capf{margin:12px 0 0;font-size:.8125rem;color:#6E6E73;}
+.v4q{display:block;margin-top:4px;border:0;background:#F2F2F7;color:#1D1D1F;border-radius:999px;padding:5px 11px;font-size:.8125rem;font-weight:600;cursor:pointer;text-align:left;transition:background .2s ease;} .v4q:hover{background:#E5E5EA;} .v4q:active{transform:scale(.97);transition:transform 100ms ease-out;}
+.v4capb li div{min-width:0;}
 @media (max-width:620px){ .v4cols{grid-template-columns:1fr;} }
 @media (prefers-reduced-motion:reduce){ .v4cap summary i{transition:none;} }
 </style>
 <style id="v4savecss">
-/* ═══ ★ ds150「存回會議」：AI 顧問的好答案帶回會議作戰追蹤（說好的事／補充建議／下次議程）═══
-   Apple Design：從按下的按鈕長出來（transform-origin＝按鈕位置）、臨界阻尼 0.32s、按下立刻 0.97、遮罩變暗＝要專注完成；減少動態改淡入 */
-.v4dim{position:fixed;inset:0;background:rgba(0,0,0,.32);opacity:0;transition:opacity .24s ease;z-index:9998;}
-.v4dim.on{opacity:1;}
-.v4sheet{position:fixed;left:50%;top:50%;width:min(520px,calc(100vw - 28px));max-height:calc(100vh - 40px);overflow:auto;transform:translate(-50%,-50%) scale(.92);opacity:0;
-  background:#fff;color:#1D1D1F;border-radius:22px;box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 24px 70px rgba(0,0,0,.28);padding:20px 20px 16px;z-index:9999;
-  transition:transform .32s cubic-bezier(.2,.9,.25,1),opacity .2s ease;font-size:.9375rem;}
-.v4sheet.on{transform:translate(-50%,-50%) scale(1);opacity:1;}
-.v4sheet h3{margin:0 0 4px;font-size:1.125rem;letter-spacing:-.015em;} .v4sheet .v4sub{margin:0 0 14px;color:#6E6E73;font-size:.8125rem;line-height:1.5;}
-.v4seg{display:flex;gap:4px;background:#F2F2F7;border-radius:12px;padding:3px;margin-bottom:6px;}
-.v4seg button{flex:1;border:0;background:transparent;border-radius:9px;padding:9px 6px;font-weight:700;font-size:.875rem;color:#3A3A3C;cursor:pointer;transition:background .2s ease,box-shadow .2s ease;}
-.v4seg button.on{background:#fff;color:#1D1D1F;box-shadow:0 1px 3px rgba(0,0,0,.12);}
-.v4seg button:active,.v4btn:active{transform:scale(.97);transition:transform 100ms ease-out;}
-.v4hint{margin:0 2px 12px;font-size:.8125rem;color:#6E6E73;min-height:1.2em;}
-.v4f{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;} .v4f label{font-size:.8125rem;font-weight:700;color:#3A3A3C;}
-.v4f select,.v4f input,.v4f textarea{font:inherit;border:1px solid #D2D2D7;border-radius:12px;padding:10px 12px;background:#fff;color:#1D1D1F;}
-.v4f textarea{min-height:96px;resize:vertical;line-height:1.55;}
-.v4f select:focus,.v4f input:focus,.v4f textarea:focus{outline:none;border-color:#1D1D1F;box-shadow:0 0 0 3px rgba(29,29,31,.08);}
-.v4two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.v4foot{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:6px;} .v4foot .v4msg{flex:1;font-size:.8125rem;color:#6E6E73;}
-.v4btn{border:0;border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;background:#F2F2F7;color:#1D1D1F;}
-.v4btn.pri{background:linear-gradient(135deg,#1D1D1F,#3A3A3C);color:#fff;} .v4btn:disabled{opacity:.5;cursor:default;}
-@media (prefers-reduced-motion:reduce){.v4sheet{transition:opacity .2s ease;transform:translate(-50%,-50%);} .v4sheet.on{transform:translate(-50%,-50%);}}
-@media (prefers-color-scheme:dark){ body:not(.day-mode) .v4sheet{background:#1C1C1E;color:#F2F2F7;} body:not(.day-mode) .v4f select,body:not(.day-mode) .v4f input,body:not(.day-mode) .v4f textarea{background:#2C2C2E;color:#F2F2F7;border-color:#3A3A3C;} }
+/* ═══ ★ ds150「存回會議」v2（照 10/30 核准提案重做）═══
+   Apple Design：從按鈕往下就地展開一張卡（對話還看得到、不加遮罩＝不打斷流程）、臨界阻尼 0.3s、按下 0.97、收起走同一條路；減少動態改淡入 */
+.v5wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.2,.9,.25,1),opacity .2s ease,margin-top .3s cubic-bezier(.2,.9,.25,1);opacity:0;margin-top:0;}
+.v5wrap.on{grid-template-rows:1fr;opacity:1;margin-top:10px;}
+.v5wrap>div{overflow:hidden;min-height:0;}
+.v5card{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06);padding:14px;color:#1D1D1F;font-size:.9375rem;}
+.v5seg{display:flex;gap:4px;background:#F2F2F7;border-radius:11px;padding:3px;}
+.v5seg button{flex:1;border:0;background:transparent;border-radius:8px;padding:8px 6px;font-weight:700;font-size:.8125rem;color:#3A3A3C;cursor:pointer;transition:background .2s ease,box-shadow .2s ease;}
+.v5seg button.on{background:#fff;color:#1D1D1F;box-shadow:0 1px 3px rgba(0,0,0,.12);}
+.v5hint{margin:8px 2px 10px;font-size:.8125rem;color:#6E6E73;line-height:1.5;}
+.v5g{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;}
+.v5f{display:flex;flex-direction:column;gap:4px;min-width:0;} .v5f.w{grid-column:1/-1;}
+.v5f label{font-size:.75rem;font-weight:700;color:#6E6E73;letter-spacing:.02em;}
+.v5f select,.v5f input,.v5f textarea{font:inherit;font-size:.9375rem;border:1px solid #D2D2D7;border-radius:10px;padding:8px 10px;background:#fff;color:#1D1D1F;min-width:0;}
+.v5f textarea{min-height:60px;resize:vertical;line-height:1.5;}
+.v5f select:focus,.v5f input:focus,.v5f textarea:focus{outline:none;border-color:#1D1D1F;box-shadow:0 0 0 3px rgba(29,29,31,.08);}
+.v5f.need input{border-color:#FF9F0A;box-shadow:0 0 0 3px rgba(255,159,10,.14);}
+.v5now{font-size:.75rem;color:#6E6E73;}
+.v5foot{display:flex;gap:8px;align-items:center;margin-top:12px;} .v5foot .m{flex:1;font-size:.8125rem;color:#6E6E73;}
+.v5btn{border:0;border-radius:11px;padding:9px 15px;font-weight:700;cursor:pointer;background:#F2F2F7;color:#1D1D1F;font-size:.875rem;}
+.v5btn.pri{background:linear-gradient(135deg,#1D1D1F,#3A3A3C);color:#fff;} .v5btn:disabled{opacity:.5;cursor:default;}
+.v5btn:active,.v5seg button:active{transform:scale(.97);transition:transform 100ms ease-out;}
+.v5undo{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:.8125rem;color:#3A3A3C;opacity:0;transform:translateY(-4px);transition:opacity .2s ease,transform .25s cubic-bezier(.2,.9,.25,1);}
+.v5undo.on{opacity:1;transform:none;} .v5undo button{border:0;background:none;color:#0A66FF;font-weight:700;cursor:pointer;padding:2px 4px;}
+@media (max-width:560px){ .v5g{grid-template-columns:1fr;} }
+@media (prefers-reduced-motion:reduce){ .v5wrap{transition:opacity .2s ease;} .v5undo{transition:opacity .2s ease;transform:none;} }
 </style>
 <script>
-/* ★ ds150「存回會議」 */
+/* ★ ds150「存回會議」v2：說好的事（綁數字、記基準、到期對帳）／這場會的補充建議（進那場會的 🧠 區、Word 印）／下次議程（進會前資料包） */
 (function(){
-  var W=window, SV={kind:'item'};
-  function mgGroups(){
-    var me=hgMe(), all=[];
-    hgActive().forEach(function(g){ if(HG_SOUTH.indexOf(g.academy)<0) return; var mem=[g.leader].concat(g.members||[]).filter(function(n,i,a){ return n&&a.indexOf(n)===i; });
-      all.push({ id:g.leader, leader:g.leader, academy:g.academy, kind:g.kind, members:mem }); });
-    if(HG_ADMIN[me]) return all;
-    if(HG_ACAD[me]) return all.filter(function(g){ return g.academy===HG_ACAD[me] || g.members.indexOf(me)>=0; });
-    return all.filter(function(g){ return g.members.indexOf(me)>=0; });
-  }
-  function canMg(g){ var me=hgMe(); return !!(g&&(HG_ADMIN[me]||g.leader===me||(HG_ACAD[me]&&HG_ACAD[me]===g.academy))); }
+  var W=window;
+  var MET={ biz:['本月業績','$'], bizA:['A 業績','$'], itv:['面談','人'], app:['報名','人'], reg:['註冊','人'], ck:['報到','人'], 'ch.net':['網路名單業績','$'], 'ch.purchase':['舊生加購業績','$'], 'ch.event':['展場業績','$'], 'ch.referral':['學員介紹業績','$'], 'ch.admin':['班務追回業績','$'], manual:['口頭回報（沒有數字）',''] };
+  var MET_ORDER=['ck','itv','app','reg','bizA','biz','ch.net','ch.purchase','ch.event','ch.referral','ch.admin','manual'];
+  var GUESS=[[/報到/,'ck'],[/面談/,'itv'],[/報名/,'app'],[/註冊/,'reg'],[/網路/,'ch.net'],[/加購/,'ch.purchase'],[/展場/,'ch.event'],[/介紹/,'ch.referral'],[/班務|追回/,'ch.admin'],[/A ?業績|A 通路/,'bizA'],[/業績/,'biz']];
+  var LAB={item:'說好的事',advice:'補充建議',agenda:'下次議程'};
   function short(n){ n=String(n||''); return /^[一-鿿]{3}$/.test(n)?n.slice(1):n; }
   function ymd(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
-  function firstLine(t){ t=String(t||'').replace(/\r/g,''); var l=t.split('\n').map(function(x){ return x.replace(/^[\s\-•・*#\d.、]+/,'').trim(); }).filter(Boolean); return (l[0]||'').slice(0,140); }
-  function close(){ var d=document.querySelector('.v4dim'), s=document.querySelector('.v4sheet'); if(s) s.classList.remove('on'); if(d) d.classList.remove('on'); setTimeout(function(){ if(d) d.remove(); if(s) s.remove(); },260); document.removeEventListener('keydown',onKey); }
-  function onKey(e){ if(e.key==='Escape') close(); }
-  var HINT={ item:'會變成一條「說好的事」，下次開會自動對帳（沒有綁數字，會上口頭回報）', advice:'放進下次的會前資料包「AI 顧問補充建議」，開完下一場會就收起來', agenda:'放進下次會前資料包的「建議議程」，開完下一場會就收起來' };
-  function paint(){
-    var s=document.querySelector('.v4sheet'); if(!s) return; var gs=mgGroups(), gsel=s.querySelector('#v4g'), gid=gsel?gsel.value:(gs[0]&&gs[0].id), g=gs.filter(function(x){ return x.id===gid; })[0]||gs[0];
-    s.querySelectorAll('.v4seg button').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-k')===SV.kind); });
-    s.querySelector('.v4hint').textContent=HINT[SV.kind];
-    s.querySelector('.v4item').style.display=SV.kind==='item'?'':'none';
-    var who=s.querySelector('#v4w'); if(who&&g){ var me=hgMe(), keep=who.value, opts=canMg(g)?g.members.concat(['全組']):[me];
-      who.innerHTML=opts.map(function(n){ return '<option value="'+esc(n)+'">'+esc(n==='全組'?'全組':short(n))+'</option>'; }).join(''); if(opts.indexOf(keep)>=0) who.value=keep; else if(opts.indexOf(me)>=0) who.value=me; }
-  }
-  W.openSaveMt=function(full,q,sum,btn){
-    var gs=mgGroups(); if(!gs.length){ alert('找不到你所在的小組（要先有激勵的正式／儲備小組表），所以還不能存回會議'); return; }
-    close();
-    var dim=document.createElement('div'); dim.className='v4dim'; dim.onclick=close;
-    var s=document.createElement('div'); s.className='v4sheet'; s.setAttribute('role','dialog'); s.setAttribute('aria-modal','true'); s.setAttribute('aria-label','存回會議');
-    var d7=new Date(Date.now()+7*864e5), myG=gs.filter(function(g){ return g.members.indexOf(hgMe())>=0; })[0]||gs[0];
-    s.innerHTML='<h3>存回會議作戰追蹤</h3><p class="v4sub">把這個回答帶到下一次開會。只存你改好的那一句，不會把整段 AI 回答丟過去</p>'
-      +'<div class="v4seg" role="tablist"><button data-k="item">說好的事</button><button data-k="advice">補充建議</button><button data-k="agenda">下次議程</button></div><p class="v4hint"></p>'
-      +(gs.length>1?'<div class="v4f"><label for="v4g">哪一組</label><select id="v4g">'+gs.map(function(g){ return '<option value="'+esc(g.id)+'"'+(g===myG?' selected':'')+'>'+esc(g.academy+' '+short(g.leader)+'組'+(g.kind==='儲備'?'（儲備）':''))+'</option>'; }).join('')+'</select></div>':'<div class="v4f"><label>哪一組</label><div>'+esc(gs[0].academy+' '+short(gs[0].leader)+'組')+'</div></div>')
-      +'<div class="v4f"><label for="v4t">要存的內容</label><textarea id="v4t"></textarea></div>'
-      +'<div class="v4item v4two"><div class="v4f"><label for="v4w">誰</label><select id="v4w"></select></div><div class="v4f"><label for="v4d">哪天前</label><input id="v4d" type="date" value="'+ymd(d7)+'"></div></div>'
-      +'<div class="v4foot"><span class="v4msg"></span><button class="v4btn" type="button">取消</button><button class="v4btn pri" type="button">存回去</button></div>';
-    document.body.appendChild(dim); document.body.appendChild(s);
-    s.querySelector('#v4t').value=firstLine(sum)||firstLine(full);
-    try{ if(btn){ var r=btn.getBoundingClientRect(), sr=s.getBoundingClientRect(); s.style.transformOrigin=Math.round(r.left+r.width/2-sr.left)+'px '+Math.round(r.top+r.height/2-sr.top)+'px'; } }catch(e){}
-    s.querySelectorAll('.v4seg button').forEach(function(b){ b.onclick=function(){ SV.kind=b.getAttribute('data-k'); paint(); }; });
-    var gsel=s.querySelector('#v4g'); if(gsel) gsel.onchange=paint;
-    var bs=s.querySelectorAll('.v4foot .v4btn'); bs[0].onclick=close; bs[1].onclick=function(){ save(q,full,btn); };
-    paint(); requestAnimationFrame(function(){ dim.classList.add('on'); s.classList.add('on'); setTimeout(function(){ try{ s.querySelector('#v4t').focus(); }catch(e){} },120); });
-    document.addEventListener('keydown',onKey);
+  function hash(t){ t=String(t||''); var h=5381; for(var i=0;i<t.length;i++) h=((h<<5)+h+t.charCodeAt(i))|0; return 'h'+(h>>>0).toString(36)+'_'+t.length; }
+  function firstLine(t){ var l=String(t||'').replace(/\r/g,'').split('\n').map(function(x){ return x.replace(/^[\s\-•・*#\d.、]+/,'').replace(/^【?重點】?[:：]?\s*/,'').trim(); }).filter(Boolean); return (l[0]||'').slice(0,140); }
+  function mgGroups(){ var me=hgMe(), all=[];
+    hgActive().forEach(function(g){ if(HG_SOUTH.indexOf(g.academy)<0) return; all.push({ id:g.leader, leader:g.leader, academy:g.academy, kind:g.kind, members:[g.leader].concat(g.members||[]).filter(function(n,i,a){ return n&&a.indexOf(n)===i; }) }); });
+    return all.filter(function(g){ return HG_ADMIN[me] || g.leader===me || (HG_ACAD[me]&&HG_ACAD[me]===g.academy); }); }
+  W.v5CanSave=function(){ try{ return mgGroups().length>0; }catch(e){ return false; } };
+  function gLabel(g){ return g.academy+' '+short(g.leader)+'組'+(g.kind==='儲備'?'（儲備）':''); }
+  function sentMap(){ try{ return JSON.parse(localStorage.getItem('ai_mtsent_v1')||'{}')||{}; }catch(e){ return {}; } }
+  function setSent(h,v){ var m=sentMap(); if(v) m[h]=v; else delete m[h]; try{ localStorage.setItem('ai_mtsent_v1',JSON.stringify(m)); }catch(e){} }
+  var _scan={n:-1,m:{}};
+  function sentOf(h){ var m=sentMap(); if(m[h]) return m[h];
+    var arr=LS(SK.casedb); if(_scan.n!==arr.length){ _scan={n:arr.length,m:{}}; var gone={};
+      arr.forEach(function(c){ if(c&&c.type==='interview_mtaist'&&c.mtas&&c.mtas.st==='drop') gone[c.mtas.ref]=1; if(c&&c.mti&&c.mti.removed) gone[c.mti.key]=1; });
+      arr.forEach(function(c){ var x=c&&(c.mti||c.mta); if(!x||!x.src||!x.src.h) return; if(gone[c.id]||(c.mti&&(c.mti.removed||gone[c.mti.key]))) return; _scan.m[x.src.h]={ kind:c.mti?'item':x.kind, group:x.group, mtId:x.mtId||'', key:c.mti?c.mti.key:'', id:c.id, at:c.createdAt }; }); }
+    return _scan.m[h]||null; }
+  function voided(){ var m={}; LS(SK.casedb).forEach(function(c){ if(c&&(c.type==='interview_void'||c.type==='interview_unvoid')&&c.ivv){ var o=m[c.ivv.ref]; if(!o||(c.createdAt||0)>(o.createdAt||0)) m[c.ivv.ref]=c; } }); return m; }
+  function mtT(c){ return Date.parse(String(c.mt.when||'').replace(' ','T'))||c.createdAt||0; }
+  function meetingsOf(gid){ var V=voided(); return LS(SK.casedb).filter(function(c){ return c&&c.type==='interview_mt'&&c.mt&&c.mt.group===gid&&!c.mt.removed&&!(V[c.id]&&V[c.id].type==='interview_void'); }).sort(function(a,b){ return mtT(b)-mtT(a); }).slice(0,6); }
+  function snapNow(who,metric,g){ try{ var S=JSON.parse(localStorage.getItem('appedu_mt_snap_v1')||'null'); if(!S||metric==='manual'||!MET[metric]) return null; var mo=S.months&&S.months[S.live]; if(!mo) return null;
+      var names=who==='全組'?g.members:[who], t=0, any=false;
+      names.forEach(function(n){ var r=mo.reps[n]; if(!r) return; var v=metric.indexOf('ch.')===0?(mo.chSeen?((r.ch&&r.ch[metric.slice(3)])||0):null):(r[metric]==null?null:+r[metric]); if(v!=null){ t+=v; any=true; } });
+      return any?{v:t,ym:S.live,at:S.at||''}:null; }catch(e){ return null; } }
+  function fmtV(metric,v){ if(v==null) return '—'; return MET[metric][1]==='$'?(Math.round(v/1000)/10)+' 萬':v+' '+MET[metric][1]; }
+  function mtLabel(m){ var x=m.mt, d=new Date(mtT(m)); return (d.getMonth()+1)+'/'+d.getDate()+' '+(x.title||'會議'); }
+
+  // 回答上的按鈕：送過就顯示「✓ 已加進…」，點了直接跳到那一條（重新打開也記得）
+  W.v5Button=function(btn,full){
+    var s=sentOf(hash(full)); if(!s) return false;
+    var g=mgGroups().filter(function(x){ return x.id===s.group; })[0]; btn.textContent='✓ 已加進'+(g?short(g.leader)+'組':'')+LAB[s.kind]+' ›'; btn.className='v2act done'; btn.onclick=function(){ v5Jump(s); }; return true; };
+  function v5Jump(s){ try{ localStorage.setItem('mt_focus_v1',JSON.stringify({ group:s.group, mtId:s.mtId||'', key:s.key||'', kind:s.kind, at:Date.now() })); }catch(e){}
+    try{ var P=W.parent; if(P&&P!==W&&P.openMeeting){ if(P.closeAiAdvisor) P.closeAiAdvisor(); P.openMeeting(); return; } }catch(e){} location.href='meeting-track.html'; }
+
+  W.v5Open=function(msgEl,actsEl,full,q,sum,btn){
+    var open=msgEl.querySelector('.v5wrap'); if(open){ v5Close(open); return; }
+    var gs=mgGroups(); if(!gs.length) return;
+    var T=W._mtTarget||null, h=hash(full), me=hgMe();
+    var hay=String(sum||'')+String(full||''), named=gs.filter(function(g){ return g.members.some(function(n){ return hay.indexOf(short(n))>=0 && short(n).length>=2; }); })[0];
+    var g0=(T&&gs.filter(function(g){ return g.id===T.group; })[0]) || named || gs.filter(function(g){ return g.members.indexOf(me)>=0; })[0] || gs[0];
+    var st={ kind:'item', gid:g0.id, mtId:(T&&T.group===g0.id)?T.id:'' };
+    var what=firstLine(sum)||firstLine(full), metric='manual'; GUESS.some(function(x){ if(x[0].test(what)){ metric=x[1]; return true; } return false; });
+    var who='全組'; g0.members.some(function(n){ if(String(what+full).indexOf(short(n))>=0){ who=n; return true; } return false; });
+    var addV='', dueV=ymd(new Date(Date.now()+7*864e5));
+    var wrap=document.createElement('div'); wrap.className='v5wrap'; wrap.innerHTML='<div><div class="v5card" role="group" aria-label="存回會議"></div></div>';
+    actsEl.parentNode.insertBefore(wrap,actsEl.nextSibling);
+    var card=wrap.querySelector('.v5card');
+    function grab(){ var e; if((e=card.querySelector('#v5t'))) what=e.value; if((e=card.querySelector('#v5a'))) addV=e.value; if((e=card.querySelector('#v5d'))) dueV=e.value; }
+    function paint(){
+      var g=gs.filter(function(x){ return x.id===st.gid; })[0]||gs[0], mts=meetingsOf(g.id);
+      if(st.mtId&&!mts.some(function(m){ return m.id===st.mtId; })) st.mtId='';
+      if(!st.mtId&&mts[0]) st.mtId=mts[0].id;
+      var now=st.kind==='item'?snapNow(who,metric,g):null, money=MET[metric][1]==='$';
+      card.innerHTML='<div class="v5seg" role="tablist">'+['item','advice','agenda'].map(function(k){ return '<button type="button" role="tab" aria-selected="'+(st.kind===k)+'" data-k="'+k+'" class="'+(st.kind===k?'on':'')+'">'+(k==='item'?'變成說好的事':k==='advice'?'這場會的補充建議':'下次會議議程')+'</button>'; }).join('')+'</div>'
+        +'<p class="v5hint">'+(st.kind==='item'?'跟會上說好的一樣：存的時候記下現在的數字，到期自動對帳':st.kind==='advice'?'放進那場會議記錄的建議區，下載 Word 也會印出來':'放進這組下一次會前資料包的「建議議程」，開完那場會就收起來')+'</p>'
+        +'<div class="v5g">'
+        +(gs.length>1?'<div class="v5f"><label for="v5g">哪一組</label><select id="v5g">'+gs.map(function(x){ return '<option value="'+esc(x.id)+'"'+(x.id===g.id?' selected':'')+'>'+esc(gLabel(x))+'</option>'; }).join('')+'</select></div>':'<div class="v5f"><label>哪一組</label><div style="padding:8px 0">'+esc(gLabel(g))+'</div></div>')
+        +(st.kind!=='agenda'?'<div class="v5f"><label for="v5k">哪一場會</label>'+(mts.length?'<select id="v5k">'+mts.map(function(m){ return '<option value="'+m.id+'"'+(m.id===st.mtId?' selected':'')+'>'+esc(mtLabel(m))+'</option>'; }).join('')+'</select>':'<div style="padding:8px 0;color:#6E6E73">這組還沒有會議記錄'+(st.kind==='item'?'，會直接放進說好的事':'')+'</div>')+'</div>':'<div></div>')
+        +'<div class="v5f w"><label for="v5t">'+(st.kind==='item'?'做什麼':'內容')+'</label><textarea id="v5t"></textarea></div>'
+        +(st.kind==='item'?'<div class="v5f"><label for="v5w">誰</label><select id="v5w">'+g.members.concat(['全組']).map(function(n){ return '<option value="'+esc(n)+'"'+(n===who?' selected':'')+'>'+esc(n==='全組'?'全組':short(n))+'</option>'; }).join('')+'</select></div>'
+          +'<div class="v5f"><label for="v5m">看哪個數字</label><select id="v5m">'+MET_ORDER.map(function(k){ return '<option value="'+k+'"'+(k===metric?' selected':'')+'>'+MET[k][0]+'</option>'; }).join('')+'</select>'+(metric!=='manual'?'<span class="v5now">現在 '+(now?fmtV(metric,now.v):'—（打開一次業績數據中心就有）')+'</span>':'')+'</div>'
+          +(metric!=='manual'?'<div class="v5f'+(+addV>0?'':' need')+'" id="v5af"><label for="v5a">要增加多少'+(money?'（萬）':'（'+MET[metric][1]+'）')+'</label><input id="v5a" type="number" min="0" step="'+(money?'0.5':'1')+'" inputmode="decimal" placeholder="'+(money?'例如 10':'例如 3')+'"></div>':'<div></div>')
+          +'<div class="v5f"><label for="v5d">哪天前</label><input id="v5d" type="date"></div>':'')
+        +'</div><div class="v5foot"><span class="m"></span><button type="button" class="v5btn">取消</button><button type="button" class="v5btn pri">存</button></div>';
+      card.querySelector('#v5t').value=what;
+      var ai=card.querySelector('#v5a'); if(ai){ ai.value=addV; var af=card.querySelector('#v5af'); ai.oninput=function(){ af.classList.toggle('need',!(+this.value>0)); }; }
+      var di=card.querySelector('#v5d'); if(di) di.value=dueV;
+      card.querySelectorAll('.v5seg button').forEach(function(b){ b.onclick=function(){ grab(); st.kind=b.getAttribute('data-k'); paint(); }; });
+      var e;
+      if((e=card.querySelector('#v5g'))) e.onchange=function(){ grab(); st.gid=this.value; st.mtId=''; who='全組'; paint(); };
+      if((e=card.querySelector('#v5k'))) e.onchange=function(){ st.mtId=this.value; };
+      if((e=card.querySelector('#v5w'))) e.onchange=function(){ grab(); who=this.value; paint(); };
+      if((e=card.querySelector('#v5m'))) e.onchange=function(){ grab(); metric=this.value; paint(); };
+      var fb=card.querySelectorAll('.v5foot .v5btn'); fb[0].onclick=function(){ v5Close(wrap); }; fb[1].onclick=function(){ grab(); save(g,now,money); };
+    }
+    function save(g,now,money){
+      var m=card.querySelector('.v5foot .m'), go=card.querySelector('.v5foot .v5btn.pri'), txt=String(what||'').trim();
+      if(!txt){ m.textContent='內容要寫一句'; return; }
+      if(!W._caseCacheReady){ m.textContent='案例庫還在讀，等 3 秒再按一次'; return; }
+      if(sentOf(h)){ m.textContent='這則回答已經存過了'; return; }
+      var t=Date.now(), rid=function(p){ return p+t.toString(36)+Math.random().toString(36).slice(2,7); }, src={ h:h, q:String(q||'').slice(0,300), a:String(full||'').slice(0,1500), fid:(typeof curFeature!=='undefined'?curFeature:''), at:t }, rec, info;
+      if(st.kind==='item'){
+        var add=addV===''?null:(money?Math.round(+addV*10000):+addV);
+        if(metric!=='manual'&&!(add>0)){ m.textContent='「要增加多少」填一下，到期才對得了帳'; try{ card.querySelector('#v5a').focus(); }catch(e){} return; }
+        var key=rid('k_');
+        rec={ id:rid('mti_'), type:'interview_mtitem', by:hgMe(), createdAt:t, mti:{ key:key, mtId:st.mtId||('ai_'+t.toString(36)), group:g.id, who:who, what:txt, metric:metric, add:metric==='manual'?null:add, due:dueV||'', base:now?now.v:null, baseYm:now?now.ym:'', baseAt:ymd(new Date()), vague:!dueV, from:'ai', src:src } };
+        info={ kind:'item', group:g.id, mtId:st.mtId||'', key:key, id:rec.id, at:t };
+      } else {
+        rec={ id:rid('mta_'), type:'interview_mtai', by:hgMe(), createdAt:t, mta:{ group:g.id, kind:st.kind, mtId:st.kind==='advice'?(st.mtId||''):'', what:txt, q:src.q, src:src } };
+        info={ kind:st.kind, group:g.id, mtId:rec.mta.mtId, key:'', id:rec.id, at:t };
+      }
+      go.disabled=true; go.textContent='存檔中…';
+      var arr=LS(SK.casedb).slice(); arr.push(rec); SS(SK.casedb,arr);
+      (W._caseSavePending||Promise.resolve()).then(function(){
+        if((W._caseIds||[]).indexOf(rec.id)<0){ go.disabled=false; go.textContent='存'; m.textContent='這次沒存進去，再按一次'; return; }
+        setSent(h,info); _scan.n=-1; pushSoon(); ledger(rec,g,txt,info);
+        v5Close(wrap);
+        btn.textContent='✓ 已加進'+short(g.leader)+'組'+LAB[info.kind]+' ›'; btn.className='v2act done'; btn.onclick=function(){ v5Jump(info); };
+        var u=document.createElement('div'); u.className='v5undo'; u.innerHTML='<span>已存回會議作戰追蹤</span><button type="button">復原</button>'; actsEl.parentNode.insertBefore(u,actsEl.nextSibling);
+        requestAnimationFrame(function(){ u.classList.add('on'); });
+        var tm=setTimeout(function(){ u.classList.remove('on'); setTimeout(function(){ u.remove(); },260); },5000);
+        u.querySelector('button').onclick=function(){ clearTimeout(tm); undo(rec,info,btn,u); };
+      }).catch(function(e){ go.disabled=false; go.textContent='存'; m.textContent='沒存進去：'+(e&&e.message||e); });
+    }
+    paint(); requestAnimationFrame(function(){ wrap.classList.add('on'); setTimeout(function(){ try{ var f=card.querySelector('#v5a')||card.querySelector('#v5t'); f.focus({preventScroll:true}); wrap.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){} },300); });
   };
-  function save(q,full,srcBtn){
-    var s=document.querySelector('.v4sheet'); if(!s) return; var msg=s.querySelector('.v4msg'), go=s.querySelectorAll('.v4foot .v4btn')[1];
-    var gs=mgGroups(), gsel=s.querySelector('#v4g'), gid=gsel?gsel.value:gs[0].id, g=gs.filter(function(x){ return x.id===gid; })[0];
-    var what=s.querySelector('#v4t').value.trim(); if(!what){ msg.textContent='內容要寫一句'; return; }
-    if(!window._caseCacheReady){ msg.textContent='案例庫還在讀，等 3 秒再按一次'; return; }
-    var me=hgMe(), now=Date.now(), rid=function(p){ return p+now.toString(36)+Math.random().toString(36).slice(2,7); }, rec;
-    var src={ q:String(q||'').slice(0,300), a:String(full||'').slice(0,1500), fid:(typeof curFeature!=='undefined'?curFeature:''), at:now };
-    if(SV.kind==='item'){ var who=s.querySelector('#v4w').value||me, due=s.querySelector('#v4d').value||'';
-      rec={ id:rid('mti_'), type:'interview_mtitem', by:me, createdAt:now, mti:{ key:rid('k_'), mtId:'ai_'+now.toString(36), group:g.id, who:who, what:what, metric:'manual', add:null, due:due, base:null, baseYm:'', baseAt:ymd(new Date()), vague:false, from:'ai', src:src } };
-    } else rec={ id:rid('mta_'), type:'interview_mtai', by:me, createdAt:now, mta:{ group:g.id, kind:SV.kind, what:what, q:src.q, src:src } };
-    go.disabled=true; go.textContent='存檔中…';
-    var arr=LS(SK.casedb).slice(); arr.push(rec); SS(SK.casedb,arr);
-    (window._caseSavePending||Promise.resolve()).then(function(){
-      var ok=(window._caseIds||[]).indexOf(rec.id)>=0; if(!ok){ go.disabled=false; go.textContent='存回去'; msg.textContent='這次沒存進去，再按一次'; return; }
-      try{ var fs=(window.parent&&window.parent.firebaseSync)||window.firebaseSync; if(fs&&fs.push) setTimeout(function(){ try{ fs.push(); }catch(e){} },1500); }catch(e){}
-      try{ var LG=window.LEDGER||(window.parent&&window.parent.LEDGER), TAB='AI 顧問存回會議'; if(LG&&LG.rows){ var o1={},o2={},o3={}; o1[TAB]=[[LG.ts?LG.ts():new Date(now).toLocaleString('zh-TW'),g.id,SV.kind==='item'?rec.mti.who:'',what,{item:'說好的事',advice:'補充建議',agenda:'下次議程'}[SV.kind],me,src.q,rec.id]]; o2[TAB]=['時間','組','誰','內容','類型','存的人','原本問的','編號']; o3[TAB]=[rec.id]; LG.rows(o1,o2,o3); } }catch(e){}
-      var lab={item:'說好的事',advice:'補充建議',agenda:'下次議程'}[SV.kind];
-      if(srcBtn){ srcBtn.textContent='✓ 已存回會議・'+lab; srcBtn.className='v2act done'; }
-      s.querySelector('.v4foot').innerHTML='<span class="v4msg">✓ 已存進 '+esc(g.academy+' '+short(g.leader)+'組')+' 的'+lab+'</span><button class="v4btn" type="button">好</button><button class="v4btn pri" type="button">打開會議作戰追蹤</button>';
-      var b2=s.querySelectorAll('.v4foot .v4btn'); b2[0].onclick=close; b2[1].onclick=function(){ close(); try{ var P=window.parent; if(P&&P!==window&&P.openMeeting){ if(P.closeAiAdvisor) P.closeAiAdvisor(); P.openMeeting(); return; } }catch(e){} location.href='meeting-track.html'; };
-    }).catch(function(e){ go.disabled=false; go.textContent='存回去'; msg.textContent='沒存進去：'+(e&&e.message||e); });
+  function v5Close(wrap){ wrap.classList.remove('on'); setTimeout(function(){ wrap.remove(); },320); }
+  function pushSoon(){ try{ var fs=(W.parent&&W.parent.firebaseSync)||W.firebaseSync; if(fs&&fs.push) setTimeout(function(){ try{ fs.push(); }catch(e){} },1500); }catch(e){} }
+  function LG(){ return W.LEDGER||(W.parent&&W.parent.LEDGER)||null; }
+  function ledger(rec,g,txt,info){ try{ var L=LG(), TAB='AI 顧問存回會議'; if(!L||!L.rows) return; var o1={},o2={},o3={}, x=rec.mti||{};
+    o1[TAB]=[[L.ts?L.ts():new Date().toLocaleString('zh-TW'),g.id,x.who||'',txt,LAB[info.kind],x.metric&&x.metric!=='manual'?MET[x.metric][0]+' +'+(x.add||''):'',x.base==null?'':x.base,x.due||'',info.mtId||'',hgMe(),(rec.mti||rec.mta).src.q,rec.id]];
+    o2[TAB]=['時間','組','誰','內容','類型','看哪個數字','基準','哪天前','會議編號','存的人','原本問的','編號']; o3[TAB]=[rec.id]; L.rows(o1,o2,o3); }catch(e){} }
+  function undo(rec,info,btn,u){
+    var t=Date.now(), arr=LS(SK.casedb).slice(), r2, h=(rec.mti||rec.mta).src.h;
+    if(rec.mti) r2={ id:'mti_'+t.toString(36)+'u', type:'interview_mtitem', by:hgMe(), createdAt:t, mti:Object.assign({},rec.mti,{ removed:true, removedWhy:'剛存就按復原' }) };
+    else r2={ id:'mtas_'+t.toString(36)+'u', type:'interview_mtaist', by:hgMe(), createdAt:t, mtas:{ ref:rec.id, group:info.group, st:'drop' } };
+    arr.push(r2); SS(SK.casedb,arr);
+    (W._caseSavePending||Promise.resolve()).then(function(){ setSent(h,null); _scan.n=-1; pushSoon(); try{ var L=LG(); if(L&&L.voidRef) L.voidRef(rec.id,'剛存就按復原'); }catch(e){}
+      btn.textContent='存回會議'; btn.className='v2act'; btn.onclick=btn.__open; u.querySelector('span').textContent='已復原'; var b=u.querySelector('button'); if(b) b.remove(); setTimeout(function(){ u.classList.remove('on'); setTimeout(function(){ u.remove(); },260); },1500); });
   }
 })();
 </script>
+
 <style id="v3css">
 /* ═══ ★ ds149 AI 顧問視覺第 2 版（10/30 Ivan：配色不夠流暢、跟主題不搭、不夠高級）
    審查結論：①主題色跟首頁「AI 顧問」石墨卡統一（#1D1D1F→#3A3A3C），進來就知道是同一個地方 ②AI 專屬的一抹光（藍紫粉橘漸層）只在「AI 在動」時出現：輸入框聚焦、AI 思考中、重點的左邊細線，平常不搶戲
