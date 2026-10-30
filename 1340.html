@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <script>try{var _m=document.cookie.match(/(?:^|; )pgtheme=(light|dark)/);if(_m)document.documentElement.setAttribute("data-theme",_m[1]);}catch(e){}</script>
 <meta name="robots" content="noindex">
-<meta name="pg1340-version" content="p3.6">
+<meta name="pg1340-version" content="p3.8">
 <title>13:40</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -1063,6 +1063,20 @@
   #bzoom tr.mine td{background:var(--blueBg)}
   #bzoom td.lowr{color:var(--orange);font-weight:800}
 
+  /* p3.8 卡片收合 */
+  .card.hasf{position:relative}
+  .card.hasf > .fbtn{position:absolute;top:10px;right:10px;z-index:2;border:0;background:var(--fill);color:var(--label2);font:inherit;font-size:.6875rem;font-weight:700;border-radius:999px;padding:3px 9px;cursor:pointer;line-height:1.4}
+  .card.hasf > :first-child{padding-right:72px}
+  .card.hasf.fh > :first-child{cursor:pointer}
+  .card.fold > :not(:first-child):not(.fbtn){display:none!important}
+  .card.fold{padding-bottom:10px}
+  .card.agt.fold > :first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #openCard.hasf > .fbtn{background:rgba(255,255,255,.25);color:#fff}
+  #openCard .oc-r.more{display:none} #openCard.all .oc-r.more{display:block}
+  .ocm{display:block;width:100%;border:0;background:none;color:var(--blue);font:inherit;font-size:.8125rem;font-weight:700;padding:10px 16px;cursor:pointer;text-align:left}
+  #openCard.hasf .oc-h{flex-wrap:wrap;white-space:nowrap}
+  #openCard.hasf .oc-h small{margin-left:0;flex-basis:100%;white-space:normal;margin-top:2px}
+
   /* ── 1340.html 外殼：載入中、更新提示、選區 ── */
   #pgWait{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--label2);font-size:.9375rem}
   #pgWait i{width:26px;height:26px;border-radius:50%;border:2.5px solid var(--fill);border-top-color:var(--label2);animation:pgSpin .8s linear infinite}
@@ -1083,7 +1097,7 @@
 </style>
 </head>
 <body>
-<!-- 13:40 日會網頁｜p3.6｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
+<!-- 13:40 日會網頁｜p3.8｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
 <div id="pgWait"><i></i><span id="pgWaitT">載入中…</span></div>
 <div id="pgPick" hidden><h1>日會</h1><a data-r="中區">中區<small>台一・台二・台三｜13:40</small></a><a data-r="桃區">桃區<small>壢一・壢二・壢三｜13:30</small></a><a data-r="建國">高雄建國<small>建國｜13:40</small></a></div>
 <div id="appRoot" hidden>
@@ -1108,7 +1122,7 @@
   <div class="oc card flat" id="openCard" hidden></div>
   <div class="drawer card flat" id="drawer">
     <button class="dh" type="button" id="dhBtn" aria-expanded="false">
-      <span class="big" id="dhN">0 <small>班</small></span><span class="dt"><b>點一班看名單</b><span id="dhSub"></span></span><span class="dc">›</span>
+      <span class="big" id="dhN" hidden>0 <small>班</small></span><span class="dt"><b id="dhT">開課後要盯的班</b><span id="dhSub"></span></span><span class="dc">›</span>
     </button>
     <div class="peek" id="peek"></div>
     <div class="dbody" id="dbody"><div class="dinner" id="classes"></div></div>
@@ -1321,17 +1335,18 @@ function card(c){
 var ch = '', moves = [];
 GROUPS.forEach(function(g){ var rows = SHOW_D.filter(function(c){ return c.grp === g[0]; }); if (rows.length) ch += '<div class="grp">' + g[1] + '</div>' + rows.map(card).join(''); });
 document.getElementById('classes').innerHTML = ch || '<p class="none">這幾天沒有要追的班。</p>';
-document.getElementById('dhN').innerHTML = SHOW_D.length + ' <small>班</small>';
+document.getElementById('dhN').innerHTML = SHOW_D.length + ' <small>班</small>'; document.getElementById('dhT').textContent = '開課後要盯的 ' + SHOW_D.length + ' 班';   // p3.8（10/31 Ivan 選）
 (function(){
   var el = document.getElementById('openCard'); if (!OPEN.length) return;
   el.hidden = false;
-  el.innerHTML = '<div class="oc-h"><b>' + OPEN.length + '</b> 班要開<small>30 天內・點一班看名單</small></div>' + OPEN.map(function(c){
-    var st = c.ok ? esc(c.stTxt) : '<em>差 ' + needN(c) + ' 位</em>';
-    return '<div class="oc-r' + (c.ok ? '' : ' need') + '" data-id="' + c.cid + '"><div class="t">' + unitTag(c) + '<span class="cd' + (c.type === '單元' ? ' u' : '') + '">' + c.code + '</span>' + esc(shortNm(c.name)) + '</div>'
-      + '<div class="s">' + st + '・' + (c.toOpen ? '剩 <b>' + c.toOpen + '</b> 天' : '<em>今天開班</em>') + (noRegTxt(c) ? '・<span class="nr">' + noRegTxt(c) + '</span>' : '') + '</div><span class="chev">›</span></div>'; }).join('');
+  var nNeed = OPEN.filter(function(c){ return !c.ok; }).length, hideN = 0;   // p3.8（10/31 Ivan）前 5 班＋差人的班一定顯示，其他過門檻的收起
+  el.innerHTML = '<div class="oc-h"><b>' + OPEN.length + '</b> 班要開<small>30 天內・' + nNeed + ' 班還差人・點一班看名單</small></div>' + OPEN.map(function(c, i){
+    var st = c.ok ? esc(c.stTxt) : '<em>差 ' + needN(c) + ' 位</em>', hid = i >= 5 && c.ok; if (hid) hideN++;
+    return '<div class="oc-r' + (c.ok ? '' : ' need') + (hid ? ' more' : '') + '" data-id="' + c.cid + '"><div class="t">' + unitTag(c) + '<span class="cd' + (c.type === '單元' ? ' u' : '') + '">' + c.code + '</span>' + esc(shortNm(c.name)) + '</div>'
+      + '<div class="s">' + st + '・' + (c.toOpen ? '剩 <b>' + c.toOpen + '</b> 天' : '<em>今天開班</em>') + (noRegTxt(c) ? '・<span class="nr">' + noRegTxt(c) + '</span>' : '') + '</div><span class="chev">›</span></div>'; }).join('') + (hideN ? '<button type="button" class="ocm" onclick="var c=this.parentNode;c.classList.toggle(\'all\');this.textContent=c.classList.contains(\'all\')?\'收回過門檻的班\':\'還有 ' + hideN + ' 班已過門檻，點這裡展開\'">還有 ' + hideN + ' 班已過門檻，點這裡展開</button>' : '');
 })();
 var cnt = function(gs){ return SHOW.filter(function(c){ return gs.indexOf(c.grp) >= 0; }).length; };
-document.getElementById('dhSub').textContent = '出席要追 ' + cnt(['已開班','未到多']) + '・結業 ' + cnt(['結業']) + (cnt(['講座']) ? '・講座 ' + cnt(['講座']) : '');
+document.getElementById('dhSub').textContent = '最近一堂未到超過三成 ' + cnt(['已開班','未到多']) + '・7 天內結業 ' + cnt(['結業']) + (cnt(['講座']) ? '・講座 ' + cnt(['講座']) : '');
 
 /* 今天要動（最多三張）：今天開班 → 3 天內差人 → 第一堂未到超過三成 → 30 天內差人 */
 SHOW.filter(function(c){ return c.grp === '今天開班'; }).forEach(function(c){ moves.push({ c:c, t:'<em>今天開班</em>，登記 ' + c.reg + '／滿班 ' + c.seat, d:c.code + ' ' + c.name }); });
@@ -1453,6 +1468,27 @@ sheet.addEventListener('pointerup', endDrag); sheet.addEventListener('pointercan
 
 document.getElementById('foot').textContent = '議程由 9:30 排程產生（' + (D.agendaDate || '—') + '）；班況、出席、助理數據由業績數據中心同步 EIP（' + (D.syncAt || '—') + '）。開班門檻＝滿班 × 2/3。網頁留 30 天。';
 
+/* ══════ p3.8（10/31 Ivan）所有卡片都能收合：右上角「收起／展開」，有標題列的卡片點標題列也可以；每台手機、電腦各自記住 ══════ */
+var FOLD_SEL = '#hero,#openCard,#asstCards .card,.card.agt:not(#ag-📋),#yue,#pili,#ros';
+var FOLD_HEAD = { openCard: 1, yue: 1, pili: 1, ros: 1, hero: 1 };
+function foldKey(c){ if (c.id) return c.id.replace(/[^\w\u4e00-\u9fff-]/g, '') || c.id; var cs = document.querySelectorAll('#asstCards .card'); return 'acc' + Array.prototype.indexOf.call(cs, c); }
+function foldGet(){ var m = document.cookie.match(/(?:^|; )pgfold=([^;]*)/); return m ? decodeURIComponent(m[1]).split(',').filter(Boolean) : []; }
+function foldSet(L){ try { document.cookie = 'pgfold=' + encodeURIComponent(L.join(',')) + '; path=/; max-age=31536000; SameSite=Lax'; } catch(e){} }
+function foldAll(){ var L = foldGet();
+  document.querySelectorAll(FOLD_SEL).forEach(function(c){ if (c.hidden) return; var k = foldKey(c), on = L.indexOf(k) >= 0;
+    c.classList.add('hasf'); c.classList.toggle('fold', on); if (FOLD_HEAD[c.id] || c.classList.contains('acc')) c.classList.add('fh');
+    var b = c.querySelector(':scope > .fbtn'); if (!b) { b = document.createElement('button'); b.type = 'button'; b.className = 'fbtn'; c.appendChild(b); }
+    b.textContent = on ? '展開 ▾' : '收起 ▴'; b.setAttribute('aria-expanded', on ? 'false' : 'true'); }); }
+function foldToggle(c){ var L = foldGet(), k = foldKey(c), i = L.indexOf(k); if (i >= 0) L.splice(i, 1); else L.push(k); foldSet(L); foldAll(); }
+if (!window.__pgFoldBound) { window.__pgFoldBound = 1;
+  document.addEventListener('click', function(e){ var t = e.target; if (!t.closest) return;
+    var b = t.closest('.hasf > .fbtn'); if (b) { e.stopPropagation(); foldToggle(b.parentNode); return; }
+    var c = t.closest('.hasf.fh'); if (!c) return; var head = c.firstElementChild; if (!head || !head.contains(t) || t.closest('button,a,[data-id],[data-rk],[data-rd],[data-yk],[data-pn],select,input')) return;
+    e.stopPropagation(); foldToggle(c); }, true);
+  var _fq = 0; new MutationObserver(function(){ if (_fq) return; _fq = 1; requestAnimationFrame(function(){ _fq = 0; foldAll(); }); }).observe(document.body, { childList: true, subtree: true });
+}
+setTimeout(foldAll, 0);
+
 /* ══════ p3.4（10/30 Ivan）白天／晚上切換：自動（跟手機）→ 白天 → 晚上；每台手機、電腦各自記在 cookie（這個網站的 localStorage 滿了） ══════ */
 window.pgIsDark = function(){ var t = document.documentElement.getAttribute('data-theme'); if (t) return t === 'dark'; return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); };
 function thmPaint(){ var t = document.documentElement.getAttribute('data-theme') || '', ic = t === 'light' ? '☀️' : t === 'dark' ? '🌙' : '🌓', tt = '畫面：' + (t === 'light' ? '白天' : t === 'dark' ? '晚上' : '自動（跟手機）') + '・點一下換';
@@ -1476,20 +1512,20 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
   window.__pgPiliN = function(k){ var P = window.__pgPiliRaw; if (!P || !P.rows) return 0; var full = String(k).split('|')[1]; return P.rows.filter(function(x){ return (x.h || []).indexOf(full) >= 0; }).length; };
   function caseList(L){ return '<table class="pl"><tr><th>案件編號</th><th>學院</th><th>廠商</th><th>認列</th></tr>' + L.map(function(x){ return '<tr><td>' + esc(x.no) + '</td><td>' + esc(x.院) + '</td><td>' + esc(x.v) + '</td><td>' + esc(String(x.m).replace(/^\d{4}-0?/, '') + ' 月') + '</td></tr>'; }).join('') + '</table>'; }
   window.__pgPiliHtml = function(k){ var P = window.__pgPiliRaw; if (!P || !P.rows) return ''; var full = String(k).split('|')[1], L = P.rows.filter(function(x){ return (x.h || []).indexOf(full) >= 0; }); if (!L.length) return '';
-    return '<h5>資融需補件<small>' + L.length + ' 件・霹靂表單 ' + esc(String(P.at || '').slice(5).replace('-', '/')) + ' 讀取</small></h5>' + caseList(L); };
+    return '<h5>霹靂無敵表單需補件<small>' + L.length + ' 件・' + esc(String(P.at || '').slice(5).replace('-', '/')) + ' 讀取</small></h5>' + caseList(L); };
   window.__pgPiliTxt = function(){ var L = rows(); if (!L || !L.length) return ''; var o = scopeOrgs(), many = o.length > 1;
-    return '📄 資融需補件 ' + L.length + ' 件\n' + (many ? o.map(function(g){ var M = L.filter(function(x){ return x.院 === g; }); return M.length ? g + '：' + byH(M).map(function(h){ return sn(h.n) + ' ' + h.c; }).join('、') : ''; }).filter(Boolean).join('\n')
+    return '📄 霹靂無敵表單需補件 ' + L.length + ' 件\n' + (many ? o.map(function(g){ var M = L.filter(function(x){ return x.院 === g; }); return M.length ? g + '：' + byH(M).map(function(h){ return sn(h.n) + ' ' + h.c; }).join('、') : ''; }).filter(Boolean).join('\n')
       : byH(L).map(function(h){ return sn(h.n) + ' ' + h.c; }).join('、')); };
   function render(){
     var L = rows(); if (!L || !L.length) { box.hidden = true; return; }
     var o = scopeOrgs(), many = o.length > 1, P = window.__pgPiliRaw;
-    var h = '<div class="pl-h"><b>📄 資融需補件 ' + L.length + ' 件</b><small>霹靂表單 ' + esc(String(P.at || '').slice(5).replace('-', '/')) + ' 讀取・點名字看案件</small></div>';
+    var h = '<div class="pl-h"><b>📄 霹靂無敵表單需補件 ' + L.length + ' 件</b><small>' + esc(String(P.at || '').slice(5).replace('-', '/')) + ' 讀取・點名字看案件</small></div>';
     (many ? o : [null]).forEach(function(g){ var M = g ? L.filter(function(x){ return x.院 === g; }) : L; if (!M.length) return;
       h += '<div class="pl-o">' + (g ? '<i>' + esc(g) + '</i>' : '') + '<span>' + byH(M).map(function(x){ return '<button type="button" class="nm" data-pn="' + esc(x.n) + '">' + esc(sn(x.n)) + '</button> <b>' + x.c + '</b>'; }).join('、') + '</span></div>'; });
     box.innerHTML = h; box.hidden = false;
   }
   function open(n){ var L = (rows() || []).filter(function(x){ return (x.h || []).indexOf(n) >= 0; }); if (!L.length || !window.__pgRosApi) return;
-    window.__pgRosApi.pop('<div class="rp-h"><b>' + esc(sn(n)) + '</b><span>資融需補件 ' + L.length + ' 件</span></div>' + caseList(L) + '<p class="rp-z">客戶姓名不顯示。要補什麼，請到霹靂表單看那一件。</p>'); }
+    window.__pgRosApi.pop('<div class="rp-h"><b>' + esc(sn(n)) + '</b><span>霹靂無敵表單需補件 ' + L.length + ' 件</span></div>' + caseList(L) + '<p class="rp-z">客戶姓名不顯示。要補什麼，請到霹靂表單看那一件。</p>'); }
   window.__pgPiliOpen = open; window.__pgPili = render;
   if (window.__pgPiliRaw) render();
   else if (!window.__pgLiveP && window.PG_API && window.fetch) {
@@ -1622,11 +1658,11 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
     if (!R || (!R.人 && !R.err)) { box.hidden = true; return; }
     box.hidden = false;
     var today = ymdL(new Date()), di = (R.days || []).indexOf(today);
-    if (R.err && !(R.人 || []).length) { box.innerHTML = '<div class="ros-h"><b>👥 今天上場</b></div><p class="none">班表讀不到：' + esc(R.err) + '</p>'; return; }
-    if (di < 0) { box.innerHTML = '<div class="ros-h"><b>👥 今天上場</b><small>班表是 ' + esc(String(R.today || '').slice(5).replace('-', '/')) + ' 讀的</small></div><p class="none">今天的班表還沒讀，等明天 8 點自動讀，或下一次 🏫 班況同步。</p>'; return; }
+    if (R.err && !(R.人 || []).length) { box.innerHTML = '<div class="ros-h"><b>👥 今天上場戰士</b></div><p class="none">班表讀不到：' + esc(R.err) + '</p>'; return; }
+    if (di < 0) { box.innerHTML = '<div class="ros-h"><b>👥 今天上場戰士</b><small>班表是 ' + esc(String(R.today || '').slice(5).replace('-', '/')) + ' 讀的</small></div><p class="none">今天的班表還沒讀，等明天 8 點自動讀，或下一次 🏫 班況同步。</p>'; return; }
     var orgs = scopeOrgs(), many = orgs.length > 1, d0 = R.days[di], d1 = R.days[di + 1];
     var P = (R.人 || []).filter(function(p){ return !p.nb && orgs.indexOf(p.院) >= 0; });
-    var h = '<div class="ros-h"><b>👥 今天上場</b><small>' + mdw(d0) + '・班表 ' + esc(String(R.at || '').slice(11, 16)) + ' 讀取</small></div>';
+    var h = '<div class="ros-h"><b>👥 今天上場戰士</b><small>' + mdw(d0) + '・班表 ' + esc(String(R.at || '').slice(11, 16)) + ' 讀取</small></div>';
     if (R.err) h += '<p class="ros-f ros-err">⚠️ ' + esc(R.err) + '</p>';   // p3.3 班表這次沒讀完（Apps Script v1.15 會寫哪幾區沿用上一次）
     if (!P.length) { box.innerHTML = h + '<p class="none">班表裡找不到' + esc(orgs.join('、')) + '的業務（分頁：' + esc((R.src || []).join('、') || '沒有找到這個月的分頁') + '）</p>'; return; }
     /* ① 今天：一院一行 */
