@@ -93,29 +93,65 @@
         throw new Error(/^ok/.test(t) ? '試算表程式還是舊版，請照說明換成 v2' : String(t).slice(0, 80));
       });
   }
-  function flush() {
+  // ★ 10/30 Ivan：118 筆一筆一筆送要好幾分鐘、按了像沒反應 → 寫列的合併成一包送（最多 300 列／1.5MB 一包），檔案、作廢這類還是一筆一筆
+  var _prog = null;   // {total, left} 給「立刻補送」顯示進度
+  function packRows(list, start) {
+    var grp = [], size = 0, n = 0;
+    for (var k = start; k < list.length; k++) {
+      var v = list[k].v; if (!v.p || v.p.action !== 'rows') break;
+      var sz = JSON.stringify(v.p).length, cnt = 0; Object.keys(v.p.sheets || {}).forEach(function (s) { cnt += (v.p.sheets[s] || []).length; });
+      if (grp.length && (size + sz > 1500000 || n + cnt > 300)) break;
+      grp.push(v); size += sz; n += cnt;
+    }
+    var merged = { action: 'rows', sheets: {}, head: {}, rids: {} };
+    grp.forEach(function (v) {
+      Object.keys(v.p.sheets || {}).forEach(function (s) {
+        var rows = v.p.sheets[s] || [], rr = (v.p.rids || {})[s] || [];
+        merged.sheets[s] = (merged.sheets[s] || []).concat(rows);
+        merged.rids[s] = (merged.rids[s] || []).concat(rows.map(function (x, i) { return rr[i] || ''; }));
+        if ((v.p.head || {})[s]) merged.head[s] = v.p.head[s];
+      });
+    });
+    return { items: grp, p: merged };
+  }
+  function flush(force) {
     if (_busy) return Promise.resolve();
-    try { var lk = +ls().getItem('ledger_flush_at') || 0; if (Date.now() - lk < 8000) { soon(9000); return Promise.resolve(); } ls().setItem('ledger_flush_at', String(Date.now())); } catch (e) {}
+    try { var lk = +ls().getItem('ledger_flush_at') || 0; if (!force && Date.now() - lk < 8000) { soon(9000); return Promise.resolve(); } ls().setItem('ledger_flush_at', String(Date.now())); } catch (e) {}
     _busy = true;
     return all('outbox').then(function (list) {
       list.sort(function (a, b) { return (a.v.at || 0) - (b.v.at || 0); });
-      var i = 0;
+      var i = 0; _prog = { total: list.length, left: list.length };
+      function fail(items, e) {
+        var msg = String(e && e.message || e); meta('lastErr', { at: Date.now(), msg: msg });
+        return Promise.all(items.map(function (it) { it.tries = (it.tries || 0) + 1; it.err = msg; it.lastTry = Date.now(); return put('outbox', it.id, it); }))
+          .then(function () { return /Failed to fetch|NetworkError|Load failed|network/i.test(msg); });
+      }
       function next() {
         if (i >= list.length) return Promise.resolve();
-        var it = list[i++].v;
-        return post(it.p).then(function (r) {
-          return del('outbox', it.id).then(function () { meta('lastOk', Date.now()); if (r && r.legacy) meta('legacy', Date.now()); }).then(next);
+        try { ls().setItem('ledger_flush_at', String(Date.now())); } catch (e) {}
+        var batch;
+        if (list[i].v.p && list[i].v.p.action === 'rows') { batch = packRows(list, i); i += batch.items.length; }
+        else { var one = list[i++].v; batch = { items: [one], p: one.p }; }
+        return post(batch.p).then(function (r) {
+          return Promise.all(batch.items.map(function (it) { return del('outbox', it.id); })).then(function () {
+            meta('lastOk', Date.now()); if (r && r.legacy) meta('legacy', Date.now()); _prog.left = Math.max(0, _prog.left - batch.items.length);
+          }).then(next);
         }, function (e) {
-          it.tries = (it.tries || 0) + 1; it.err = String(e && e.message || e); it.lastTry = Date.now();
-          meta('lastErr', { at: Date.now(), msg: it.err });
-          return put('outbox', it.id, it).then(function () { if (/Failed to fetch|NetworkError|Load failed|network/i.test(it.err)) return; return next(); });   // 斷網就先停，等等再送
+          return fail(batch.items, e).then(function (offline) { _prog.left = Math.max(0, _prog.left - batch.items.length); if (offline) return; return next(); });   // 斷網就先停，等等再送
         });
       }
       return next().then(function () {
         return all('outbox').then(function (rest) { _wait = rest.length ? Math.min(_wait * 2, 30 * 60000) : 30000; if (rest.length) soon(_wait); });
       });
     }).catch(function (e) { console.warn('[ledger] flush', e); soon(60000); })
-      .then(function () { _busy = false; try { ls().removeItem('ledger_flush_at'); } catch (e) {} });
+      .then(function () { _busy = false; _prog = null; try { ls().removeItem('ledger_flush_at'); } catch (e) {} });
+  }
+  // 「立刻補送」：按下去馬上有回應，顯示還剩幾筆；別的頁正在送就等它送完
+  function flushUI(btn, openDlg) {
+    if (btn) { btn.disabled = true; btn.textContent = '補送中…'; }
+    var t = setInterval(function () { if (btn && _prog) btn.textContent = '補送中…還剩 ' + _prog.left + ' 筆'; }, 400);
+    var go = _busy ? new Promise(function (res) { var w = setInterval(function () { if (!_busy) { clearInterval(w); res(); } }, 500); }) : flush(true);
+    return go.then(function () { clearInterval(t); if (openDlg) openHealth(openDlg); });
   }
 
   // ── 寫列（rids＝每列的編號，用來擋重複）──
@@ -303,7 +339,7 @@
       var b = '<table class="use" style="width:100%">' + rowsH.map(function (x) { return '<tr><td style="text-align:left">' + light(x[0], x[1]) + x[2] + '</td><td style="text-align:left">' + x[3] + '</td></tr>'; }).join('') + '</table>';
       if (h.lastErr && h.pending) b += '<p class="meta">最近一次失敗：' + fmt(h.lastErr.at) + '・' + esc(h.lastErr.msg) + '</p>';
       if (s.ok) b += '<p class="meta">回收桶：' + s.trash + ' 列（作廢超過 30 天的，柏翰按「清空回收桶」才會真的刪）' + (s.archived ? '；已封存年份：' + esc(s.archived) : '') + '</p>';
-      var foot = '<button class="btn pri sm" onclick="LEDGER.flush().then(function(){LEDGER.openHealth(openDlg)})">立刻補送</button>'
+      var foot = '<button class="btn pri sm" onclick="LEDGER.flushUI(this,openDlg)">立刻補送</button>'
         + (me() === ADMIN ? '<button class="btn sm" onclick="LEDGER.monthlyBackup(true).then(function(){LEDGER.flush();toast(\'已排入備份，送完會出現在雲端硬碟\')})">現在備份一次</button>'
           + '<button class="btn ghost sm" onclick="if(confirm(\'清掉回收桶裡作廢超過 30 天的列？這一步刪了就回不來（Google 版本記錄 30 天內還救得回）\'))LEDGER.emptyTrash().then(function(r){toast(\'清掉 \'+(r.removed||0)+\' 列\');LEDGER.openHealth(openDlg)},function(e){toast(e.message,true)})">清空回收桶</button>' : '');
       openDlg('🩺 資料健康', b, foot);
@@ -327,7 +363,7 @@
     c2.__ledger = 1; HTMLAnchorElement.prototype.click = c2;
   }
 
-  W.LEDGER = { rows: rows, usage: usage, chat: chat, archiveChat: archiveChat, chatArchive: chatArchive, file: file, voidRef: voidRef, restore: restore, emptyTrash: emptyTrash,
+  W.LEDGER = { flushUI: flushUI, rows: rows, usage: usage, chat: chat, archiveChat: archiveChat, chatArchive: chatArchive, file: file, voidRef: voidRef, restore: restore, emptyTrash: emptyTrash,
     stats: stats, has: has, reconcile: reconcile, flush: flush, health: health, openHealth: openHealth, monthlyBackup: monthlyBackup, backfillChats: backfillChats,
     mask: mask, uid: uid, ts: ts, ym: ym, hash: hash, HEAD: HEAD, ADMIN: ADMIN };
 

@@ -1667,7 +1667,7 @@ body.minimal .progress-row{ margin-top:0; }
 body.minimal .revenue-stats{ margin-top:0; }
 </style>
 <script src="./auth-check.js?v=5a09f9ce"></script>
-<script src="./ai-ledger.js?v=14c2d9f8"></script>
+<script src="./ai-ledger.js?v=d7aa6853"></script>
 <script defer src="./firebase-sync.js?v=6e0327ac"></script>
 <script defer src="./auth-firebase.js?v=v2"></script>
 </head>
@@ -2725,6 +2725,8 @@ const _ACAD_BOSS_MAP = {
   '蔡青倚': '中壢三部'
 };
 
+// ★ ds149 管理者管的學院（年度業績＝這幾家激勵年度合計相加）
+const _ADMIN_ACADS = { '黃柏翰': ['中壢學院','中壢二部','中壢三部','台中學院','台中二部','台中三部','高雄建國'] };
 function _readMotivArchiveAll(){
   return new Promise(function(resolve){
     try{
@@ -2814,6 +2816,16 @@ async function syncAcademyRevenueFromMotivArchive(){
       }
     });
 
+    // (A2) ★ ds149（10/30 Ivan：我管七家，7,927 萬是錯的）管理者卡＝激勵年度合計裡自己管的學院加總
+    Object.keys(_ADMIN_ACADS).forEach(function(bossName){
+      var total = 0; _ADMIN_ACADS[bossName].forEach(function(ac){ total += academyTotals[ac] || 0; });
+      var card = cards.find(function(c){ return c && c.name === bossName; });
+      if (card && total > 0){
+        var newVal = String(total);
+        if (String(card.groupRevenue || '') !== newVal){ card.groupRevenue = newVal; changed = true; updates.push(bossName + '(七家合計) → ' + total); }
+      }
+    });
+
     // (B) 組長卡：用多種比對策略找出該卡片對應的小組年度合計
     //     跳過已經在 _ACAD_BOSS_MAP 裡的學院 boss（避免覆蓋 A 的結果）
     //     比對策略（由準到寬鬆）：
@@ -2824,6 +2836,7 @@ async function syncAcademyRevenueFromMotivArchive(){
     cards.forEach(function(card){
       if (!card || !card.name) return;
       if (_ACAD_BOSS_MAP[card.name]) return; // 學院 boss 已在 (A) 處理
+      if (_ADMIN_ACADS[card.name]) return; // 管理者已在 (A2) 處理
 
       var matched = null;
       var matchedBy = '';
@@ -4229,7 +4242,7 @@ async function closeCastle(){
 
 // ★ 瀑布流三輪 ①（10/19）：子頁版號不再手寫。SUB_VER 是每個子頁「檔案內容的指紋」，deploy.command 部署時自動算：
 //   檔案改了 → 指紋變 → 同事開子頁就拿到新版；檔案沒改 → 指紋不變 → 瀏覽器快取照用（不用重新下載）。
-const SUB_VER={'waterfall-channel.html':'1589290d','ai-advisor.html':'8655dcf9','castle-cards.html':'f440d180','training-room.html':'996c8b6d','achievement-unlock.html':'b234d80a','fire-mandala.html':'ad3b9066','team-leader-map-assessment.html':'b5af5633','admin-ai-chats.html':'1e864a6f','central-command.html':'01bbc447','admin-accounts.html':'1de072a4','interview-check.html':'2bc53136','meeting-track.html':'e014b01f'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
+const SUB_VER={'waterfall-channel.html':'69dcb5cf','ai-advisor.html':'455a6a7d','castle-cards.html':'f440d180','training-room.html':'996c8b6d','achievement-unlock.html':'b234d80a','fire-mandala.html':'ad3b9066','team-leader-map-assessment.html':'b5af5633','admin-ai-chats.html':'1e864a6f','central-command.html':'01bbc447','admin-accounts.html':'1de072a4','interview-check.html':'430e5676','meeting-track.html':'4286a09c'};  // SUB_VER_AUTO（deploy.command 自動改寫，不要手改）
 function _subSrc(f, extra){ var v='0'; try{ v=(typeof SUB_VER!=='undefined' && SUB_VER[f]) || '0'; }catch(e){} return f + '?v=' + v + (extra || ''); }
 // ★ 10/20 首頁審查：子頁等面板滑完（0.4s）再載，滑動不會被子頁的 1MB 程式卡住；已經載好的（業績中心）不用等
 function _afterSlide(overlayId, fn){
@@ -4249,6 +4262,45 @@ function closeWaterfall(){
   document.getElementById('waterfallOverlay').classList.remove('active');
   document.getElementById('waterfallFrame').src='about:blank';
 }
+
+// ========== ★ ds149（10/30 Ivan）登入後 1 分鐘自動拉取 ==========
+//   以前同事要自己到業績數據中心按「☁️↓ 拉取」才拿得到最新資料。現在：打開網站（登入）後 60 秒，在背景幫他按一次；
+//   之後只要畫面開著、有在用，每 30 分鐘再自動拉一次。管理者（柏翰）是推送的人，不自動拉。
+//   做法：背景把業績中心載起來（不打開面板），呼叫它自己的 pcForcePullCompany（就是「☁️↓ 拉取」那顆，只下載雲端跟本機不同的），拉完讓它休息。
+//   只碰 Firebase，不打 EIP。
+var _autoPullBusy=false, _autoPullAt=0;
+function _isAdminNow(){ try{ var n=localStorage.getItem('activeCharacterName')||localStorage.getItem('activeCharacterId')||''; return n==='黃柏翰'; }catch(e){ return false; } }
+function autoPullCompany(reason){
+  if(_autoPullBusy||_isAdminNow()) return;
+  try{ if(!localStorage.getItem('activeCharacterId')) return; }catch(e){ return; }
+  var ov=document.getElementById('perfOverlay'); if(ov&&ov.classList.contains('active')) return;   // 正在看業績中心就不打擾
+  var seen=0; try{ seen=+localStorage.getItem('pc_bundle_seen_at')||0; }catch(e){}
+  if(reason!=='first'&&Date.now()-seen<25*60000) return;
+  var f=document.getElementById('perfFrame'); if(!f) return;
+  _autoPullBusy=true; _autoPullAt=Date.now();
+  try{ if(!f.src||f.src==='about:blank'||f.src.indexOf('v='+PC_VER+'-')<0) f.src=_perfSrc(); }catch(e){}
+  var tries=0, t=setInterval(function(){
+    tries++;
+    var w=null; try{ w=f.contentWindow; }catch(e){}
+    if(w&&typeof w.pcForcePullCompany==='function'&&w.document&&w.document.readyState==='complete'){
+      clearInterval(t);
+      try{ showToast('☁️ 正在自動更新最新資料…'); }catch(e){}
+      try{ w.pcForcePullCompany(); }catch(e){ _autoPullBusy=false; return; }
+      var w0=Date.now(), done=setInterval(function(){
+        var pulling=true; try{ pulling=!!w._pcPulling; }catch(e){ pulling=false; }
+        var seen2=0; try{ seen2=+localStorage.getItem('pc_bundle_seen_at')||0; }catch(e){}
+        if(!pulling||seen2>w0||Date.now()-w0>5*60000){
+          clearInterval(done); _autoPullBusy=false;
+          if(seen2>w0){ try{ showToast('✅ 已自動更新到最新資料'); }catch(e){} try{ window.dispatchEvent(new Event('firebase-sync-updated')); }catch(e){} }
+          var ov2=document.getElementById('perfOverlay'); if(!(ov2&&ov2.classList.contains('active'))){ try{ w.postMessage({action:'pcPause'},'*'); }catch(e){} }
+        }
+      },1500);
+    } else if(tries>60){ clearInterval(t); _autoPullBusy=false; }
+  },1000);
+}
+setTimeout(function(){ autoPullCompany('first'); },60000);
+setInterval(function(){ if(!document.hidden) autoPullCompany('interval'); },5*60000);
+document.addEventListener('visibilitychange',function(){ if(!document.hidden&&Date.now()-_autoPullAt>30*60000) setTimeout(function(){ autoPullCompany('back'); },3000); });
 
 // ========== ★ ds143 面談能力檢核 ==========
 function openInterview(){
@@ -4756,6 +4808,9 @@ function openPerformance(){
     perfOpen();
   }
 }
+// ★ ds149：業績中心 iframe 的網址（版號＋每 10 分鐘變一次的時間戳），開面板和背景自動拉取共用
+const PC_VER='ds149';
+function _perfSrc(){ return 'performance-compare.html?v='+PC_VER+'-'+Math.floor(Date.now()/600000); }
 function perfOpen(){
   hideFloatingUI();
   const ov=document.getElementById('perfOverlay');
@@ -4764,8 +4819,7 @@ function perfOpen(){
   // ★ 只要 iframe 還沒指到「目前版本」就重設 src（讓 cache buster 升版時也能拿到新版）
   // ★ 2026/10/10：這個檔自己也會被瀏覽器快取，固定寫死版號永遠慢一步 →
   //   版號改成「ds54＋每 10 分鐘變一次的時間戳」：同事正常重新整理就拿到最新的 performance-compare.html（伺服器只回 304 很便宜），不用 Cmd+Shift+R
-  const PC_VER='ds148';
-  const TARGET_SRC='performance-compare.html?v='+PC_VER+'-'+Math.floor(Date.now()/600000);
+  const TARGET_SRC=_perfSrc();
   if(!frame.src||frame.src==='about:blank'||!frame.src.includes('v='+PC_VER+'-'))
     _afterSlide('perfOverlay', function(){ frame.src=TARGET_SRC; });   // ★ 10/20：先滑完再載
   else { try{ frame.contentWindow.postMessage({action:'pcResume'},'*'); }catch(e){} }   // ★ 三輪 ③：恢復背景計時器

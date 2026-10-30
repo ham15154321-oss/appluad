@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>會議作戰追蹤</title>
-<script src="./ai-ledger.js?v=14c2d9f8"></script>
+<script src="./ai-ledger.js?v=d7aa6853"></script>
 <!-- ★ ds146（10/29 Ivan）：會議作戰追蹤。會前資料包 → 開會 → 貼錄音或文字 → AI 排記錄＋抽說好的事 → 組長確認 → 綁數字自動對帳 → 下次會前。
      沿用面談檢核的版面與案例庫；Apple Design：一次只出現一顆主按鈕、數字放在說好的事旁邊、AI 只給草稿、改判留紀錄、減少動態有替代。 -->
 <style>
@@ -1016,8 +1016,14 @@ function showMt(id){
     +(x.next?'<div class="sec-h"><b>後續執行重點</b></div><div class="kb-read" style="white-space:pre-wrap;font-size:.9375rem;line-height:1.7;padding:12px 14px">'+esc(x.next)+'</div>':'')
     +((x.advice||[]).length?'<div class="adv"><b>💡 當時的下一步建議</b><ol>'+x.advice.map(function(a){ return '<li>'+esc(a)+'</li>'; }).join('')+'</ol></div>':'')
     +noteHtml(id);
-  openDlg(x.title||'會議記錄',h,'<button class="btn pri" onclick="downloadMtWord(\''+id+'\')">⬇ 下載 Word</button><button class="btn" onclick="copyText(mtPlain(\''+id+'\'))">📋 複製文字</button>'+(canManage(grpOf(x.group))?'<button class="btn ghost sm" style="margin-left:auto;color:var(--ink2)" onclick="voidMt(\''+id+'\')">作廢這場會</button>':''));
+  openDlg(x.title||'會議記錄',h,'<button class="btn pri" onclick="downloadMtWord(\''+id+'\')">⬇ 下載 Word</button><button class="btn" onclick="copyText(mtPlain(\''+id+'\'))">📋 複製文字</button><button class="btn" onclick="deepAsk(\''+id+'\')">🔍 到 AI 顧問深挖</button>'+(canManage(grpOf(x.group))?'<button class="btn ghost sm" style="margin-left:auto;color:var(--ink2)" onclick="voidMt(\''+id+'\')">作廢這場會</button>':''));
 }
+// ★ ds149：把這場會帶到 AI 顧問，一路往下追問（AI 顧問已經讀得到會議資料）
+function deepAsk(id){ var m=_cases.filter(function(c){ return c.id===id; })[0]; if(!m) return; var x=m.mt;
+  var q='幫我深挖這場會：「'+(x.title||'')+'」（'+(x.when||'')+'）。先告訴我這場會最該補強的一件事，再看每個人說好的事做到了沒、下一步怎麼盯。';
+  try{ localStorage.setItem('ai_handoff_v1',JSON.stringify({q:q,fid:'coach',at:Date.now()})); }catch(e){}
+  try{ var P=window.parent; if(P&&P!==window&&P.openAiAdvisor){ closeDlg(); if(P.closeInterview) P.closeInterview(); P.openAiAdvisor(); return; } }catch(e){}
+  location.href='ai-advisor.html'; }
 function mtPlain(id){ var m=_cases.filter(function(c){ return c.id===id; })[0]; if(!m) return ''; var x=m.mt; var its=itemsOf(x.group).filter(function(c){ return c.mti.mtId===id; });
   return x.title+'\n'+(x.when||'')+'　'+(x.place||'')+'\n與會：'+(x.attendees||[]).map(nm).join('、')+'\n\n'+(x.body||'')+'\n\n後續執行重點\n'+(x.next||'')+'\n\n這次說好的事\n'+its.map(function(c){ return '・'+nm(c.mti.who)+'｜'+c.mti.what+(c.mti.due?'｜'+md(c.mti.due)+' 前':''); }).join('\n'); }
 

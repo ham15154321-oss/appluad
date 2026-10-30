@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🤖 AI 顧問中心</title>
-<script src="./ai-ledger.js?v=14c2d9f8"></script>
+<script src="./ai-ledger.js?v=d7aa6853"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:-apple-system,'Microsoft JhengHei',sans-serif;background:linear-gradient(180deg,#03060f,#0a1628,#0d1b3e);color:#c0dcff;min-height:100vh;display:flex;flex-direction:column;}
@@ -2334,7 +2334,23 @@ function hgCanSee(rec){
 }
 function hgIsRec(t){ return t==='voice'||t==='acceptance'||/^interview/.test(t||''); }
 
-function getCaseDbCtx(){var c=LS(SK.casedb).filter(function(x){ return !hgIsRec(x&&x.type) || hgCanSee(x); });   /* ★ ds144 錄音類只帶同組的 */if(!c.length)return '';var l=['📂 案例資料庫（公司共享）— 來自 AI 案例庫，⚠️ 內容裡提到的姓名/組別/學院都是「案例主角」，不是「當前使用者」'];c.forEach(function(x){if(!x||!x.text)return;/* ★ ds146 沒有內容的紀錄（會議、作廢標記等）不要變成空白行 */var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕踩過的坑':(x.type==='voice'?'🎙️錄音學習':(x.type==='acceptance'?'📞驗收電話':(x.type==='interview'?'🎤面談檢核':(x.type==='interview_fb'?'🗣主管回饋':(x.type==='interview_star'?'⭐好講法':(x.type==='interview_report'?'📚學習報告':'📊數據查詢案例')))))));var t=x.text||'';if((x.type==='voice'||x.type==='acceptance')&&t.length>1200)t=t.substring(0,1200)+'…（節錄，完整內容請看案例資料庫）';l.push(lbl+' '+t);});return l.join('\n');}
+// ★ ds149 AI 顧問第 2 輪：讀得懂「會議作戰追蹤」——最近 8 場會（只限看得到的組）＋每場說好的事和最新結果
+function _mtCtxLines(all){
+  var ST={done:'做到了',part:'部分做到',miss:'沒做到',none:'還沒回報',keep:'繼續追',drop:'不追了'};
+  var voided={}, vm={}; all.forEach(function(c){ if(c&&(c.type==='interview_void'||c.type==='interview_unvoid')&&c.ivv){ var o=vm[c.ivv.ref]; if(!o||(c.createdAt||0)>(o.createdAt||0)) vm[c.ivv.ref]=c; } }); Object.keys(vm).forEach(function(k){ if(vm[k].type==='interview_void') voided[k]=1; });
+  var chk={}; all.forEach(function(c){ if(c&&c.type==='interview_mtchk'&&c.mtc){ var o=chk[c.mtc.key]; if(!o||(c.createdAt||0)>(o.createdAt||0)) chk[c.mtc.key]=c; } });
+  var items={}; all.forEach(function(c){ if(c&&c.type==='interview_mtitem'&&c.mti){ var o=items[c.mti.key]; if(!o||(c.createdAt||0)>(o.createdAt||0)) items[c.mti.key]=c; } });
+  var ms=all.filter(function(c){ return c&&c.type==='interview_mt'&&c.mt&&!voided[c.id]&&(typeof hgCanSee!=='function'||hgCanSee(c)); }).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); }).slice(0,8);
+  if(!ms.length) return [];
+  var out=['📝 會議作戰追蹤（最近 '+ms.length+' 場，看得到的組）'];
+  ms.forEach(function(m){ var x=m.mt, its=Object.keys(items).map(function(k){ return items[k]; }).filter(function(c){ return c.mti.mtId===m.id&&!c.mti.removed; });
+    out.push('・'+(x.title||'')+'（'+(x.when||'')+'，'+(x.academy||'')+' '+String(x.gname||x.group||'').replace(/組?$/,'組')+'）重點：'+String(x.next||x.body||'').replace(/\s+/g,' ').slice(0,220));
+    its.forEach(function(c){ var k=chk[c.mti.key]; out.push('  - 說好的事｜'+c.mti.who+'｜'+c.mti.what+(c.mti.due?'｜'+c.mti.due+' 前':'')+'｜'+(k?(ST[k.mtc.status]||k.mtc.status):'追蹤中')); });
+  });
+  return out;
+}
+function getCaseDbCtx(){var c=LS(SK.casedb).filter(function(x){ return !hgIsRec(x&&x.type) || hgCanSee(x); });   /* ★ ds144 錄音類只帶同組的 */if(!c.length)return '';var l=['📂 案例資料庫（公司共享）— 來自 AI 案例庫，⚠️ 內容裡提到的姓名/組別/學院都是「案例主角」，不是「當前使用者」'];try{l=l.concat(_mtCtxLines(c));}catch(eM){}
+c.forEach(function(x){if(!x||!x.text)return;/* ★ ds146 沒有內容的紀錄（會議、作廢標記等）不要變成空白行 */var lbl=x.type==='good'?'📗好案例':(x.type==='bad'?'📕踩過的坑':(x.type==='voice'?'🎙️錄音學習':(x.type==='acceptance'?'📞驗收電話':(x.type==='interview'?'🎤面談檢核':(x.type==='interview_fb'?'🗣主管回饋':(x.type==='interview_star'?'⭐好講法':(x.type==='interview_report'?'📚學習報告':'📊數據查詢案例')))))));var t=x.text||'';if((x.type==='voice'||x.type==='acceptance')&&t.length>1200)t=t.substring(0,1200)+'…（節錄，完整內容請看案例資料庫）';l.push(lbl+' '+t);});return l.join('\n');}
 
 // ★ 釘選話題（per-character）：當前主角自己的釘選對話歷史
 function getPinsCtx(){
@@ -6855,9 +6871,9 @@ html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
     var seen=false; try{ seen=!!localStorage.getItem('ai_v2_tip_seen'); }catch(e){}
     var card=function(fid){ var f=FEATURES[fid]||{}; return '<button class="v2card" onclick="openChat(\''+fid+'\')"><i>'+(f.icon||'')+'</i><span><b>'+esc(f.title||fid)+'</b><small>'+esc(DESC[fid]||'')+'</small></span></button>'; };
     box.innerHTML=(seen?'':'<div class="v2tip"><span><b>AI 顧問換新版了</b>直接問就好，系統會交給對的顧問回答；想指定誰，回答上方按「換顧問」。以前的對話都還在，在下面「接著上次聊」。</span><button class="v2chip" onclick="v2HideTip()">知道了</button></div>')
-      +'<h2>想問什麼？</h2><p class="sub">問什麼都可以，業績、帶人、約訪、公司制度都行</p>'
+      +'<section class="v3hero"><div class="v3glow" aria-hidden="true"></div><p class="v3eyebrow">AI 顧問</p><h2>想問什麼？</h2><p class="sub">業績、帶人、約訪、公司制度，直接問</p>'
       +'<div class="v2ask"><textarea id="v2q" rows="1" placeholder="例如：郁瑾這週該盯哪一段？"></textarea><button class="v2go" id="v2go" aria-label="送出" onclick="v2Ask()" disabled>↑</button></div>'
-      +'<div class="v2row">'+chips().map(function(c){ return '<button class="v2chip" onclick="v2Ask(this.textContent)">'+esc(c)+'</button>'; }).join('')+'<button class="v2chip ghost" onclick="showView(\'askexamples\')">更多範例</button></div>'
+      +'<div class="v2row">'+chips().map(function(c){ return '<button class="v2chip" onclick="v2Ask(this.textContent)">'+esc(c)+'</button>'; }).join('')+'<button class="v2chip ghost" onclick="showView(\'askexamples\')">更多範例 ›</button></div></section>'
       +'<div class="v2sec"><b>常用顧問</b><span>想指定的時候</span></div><div class="v2adv">'+top.map(card).join('')+(_moreAdv?rest.map(card).join(''):'')+'</div>'
       +'<div class="v2row"><button class="v2chip ghost" onclick="v2MoreAdv()">'+(_moreAdv?'收起':'更多顧問（'+rest.length+'）')+'</button></div>'
       +(recs.length?'<div class="v2sec"><b>接著上次聊</b><span>點了直接回到那段對話</span></div><div class="v2rec">'+recs.map(function(r){ var f=FEATURES[r.fid]||{}; return '<button onclick="openChat(\''+r.fid+'\')"><span>'+(f.icon||'')+'</span><span class="t"><em>'+esc(f.title||r.fid)+'</em>'+esc(r.text)+'</span><small>'+fmtT(r.t)+'</small></button>'; }).join('')+'</div>':'')
@@ -6949,8 +6965,88 @@ html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
   var cm=$$('chatMsgs'); if(cm) mo.observe(cm,{childList:true});
 
   setupScroll(); renderHomeV2(); document.body.classList.toggle('in-chat',curView==='chat');
+  try{ var ho=JSON.parse(localStorage.getItem('ai_handoff_v1')||'null'); if(ho&&ho.q&&Date.now()-(ho.at||0)<120000){ localStorage.removeItem('ai_handoff_v1'); setTimeout(function(){ var ai=$$('askInput'); if(!ai) return; ai.value=ho.q; _lastAskQuery=ho.q; _routeFromAsk=true; openChat(ho.fid||'coach'); showRouteBanner(ho.fid||'coach'); setTimeout(function(){ var ci=$$('chatInput'); if(ci){ ci.value=ho.q; sendMsg(); } },150); },600); } }catch(e){}
 })();
 </script>
 
+
+<style id="v3css">
+/* ═══ ★ ds149 AI 顧問視覺第 2 版（10/30 Ivan：配色不夠流暢、跟主題不搭、不夠高級）
+   審查結論：①主題色跟首頁「AI 顧問」石墨卡統一（#1D1D1F→#3A3A3C），進來就知道是同一個地方 ②AI 專屬的一抹光（藍紫粉橘漸層）只在「AI 在動」時出現：輸入框聚焦、AI 思考中、重點的左邊細線，平常不搶戲
+   ③主按鈕改石墨色（送出、加成任務），藍色只留給文字連結 ④卡片改成更輕的陰影與 1px 白色高光，字距收緊 ⑤動態一律 0.28s 彈性曲線，減少動態有替代 ═══ */
+html body.v2{--g1:#1D1D1F;--g2:#3A3A3C;--ai:linear-gradient(120deg,#5E9BFF 0%,#A78BFA 35%,#F472B6 65%,#FDBA74 100%);--ease:cubic-bezier(.2,.9,.25,1);}
+html body.v2 .top-bar h1{font-size:1.125rem !important;letter-spacing:-.015em;}
+.v2home{padding-top:22px;}
+.v3hero{position:relative;overflow:hidden;border-radius:28px;padding:30px 28px 22px;background:linear-gradient(135deg,var(--g1) 0%,var(--g2) 100%);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 24px 60px rgba(0,0,0,.18);margin-bottom:8px;}
+.v3glow{position:absolute;inset:auto -20% -60% -20%;height:120%;background:radial-gradient(60% 50% at 30% 30%,rgba(94,155,255,.35),transparent 70%),radial-gradient(50% 45% at 70% 40%,rgba(244,114,182,.28),transparent 70%),radial-gradient(40% 40% at 50% 70%,rgba(253,186,116,.22),transparent 70%);filter:blur(26px);pointer-events:none;opacity:1;}
+.v3glow{background:radial-gradient(55% 45% at 22% 18%,rgba(94,155,255,.45),transparent 70%),radial-gradient(45% 40% at 78% 30%,rgba(244,114,182,.38),transparent 70%),radial-gradient(40% 40% at 55% 85%,rgba(253,186,116,.30),transparent 70%) !important;inset:-30% -10% -30% -10% !important;height:auto !important;}
+.v2row .v2chip.ghost{color:var(--g1);} .v3hero .v2row .v2chip.ghost{color:rgba(255,255,255,.7);}
+.v3hero>*{position:relative;}
+.v3eyebrow{margin:0 0 6px;font-size:.8125rem;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.6);}
+.v3hero h2{color:#fff !important;font-size:2rem !important;letter-spacing:-.025em !important;margin:0 0 4px !important;}
+.v3hero .sub{color:rgba(255,255,255,.66) !important;margin-bottom:18px !important;}
+.v3hero .v2ask{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);box-shadow:none;border-radius:20px;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);position:relative;}
+.v3hero .v2ask textarea{color:#fff;} .v3hero .v2ask textarea::placeholder{color:rgba(255,255,255,.45);}
+.v3hero .v2ask:focus-within{border-color:transparent;box-shadow:none;}
+.v3hero .v2ask::after{content:"";position:absolute;inset:-1px;border-radius:21px;padding:1.5px;background:var(--ai);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .28s var(--ease);pointer-events:none;}
+.v3hero .v2ask:focus-within::after{opacity:1;}
+.v3hero .v2go{background:#fff;color:var(--g1);font-weight:700;}
+.v3hero .v2go:disabled{background:rgba(255,255,255,.18);color:rgba(255,255,255,.5);opacity:1;}
+.v3hero .v2chip{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.92);}
+.v3hero .v2chip:hover{background:rgba(255,255,255,.16);}
+.v3hero .v2chip.ghost{background:transparent;border-color:transparent;color:rgba(255,255,255,.7);}
+.v2tip{background:#fff;border:1px solid rgba(0,0,0,.06);box-shadow:0 1px 2px rgba(0,0,0,.04);}
+.v2sec{margin-top:30px;} .v2sec b{font-size:1.125rem;letter-spacing:-.01em;}
+.v2card{border:1px solid rgba(0,0,0,.05);box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04);transition:transform .28s var(--ease),box-shadow .28s var(--ease);}
+.v2card:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(0,0,0,.05),0 16px 36px rgba(0,0,0,.08);}
+.v2card i{width:38px;height:38px;border-radius:11px;background:#F2F2F7;display:grid;place-items:center;font-size:1.125rem;flex:none;}
+.v2rec{box-shadow:0 1px 2px rgba(0,0,0,.04);}
+.v2quiet a{color:var(--g1);font-weight:600;opacity:.75;} .v2quiet a:hover{opacity:1;}
+/* 對話 */
+html body.v2 .chat-header .ch-title{font-weight:700 !important;letter-spacing:-.01em;}
+.v2-switch,.v2-more{background:rgba(118,118,128,.12);border-color:transparent;}
+html body.v2 .msg.user{background:var(--g1) !important;color:#fff !important;}
+html body.v2 .msg.ai{box-shadow:0 1px 2px rgba(0,0,0,.04),0 10px 30px rgba(0,0,0,.05) !important;border-color:rgba(0,0,0,.04) !important;}
+.v2sum{position:relative;background:#F7F7FA;padding-left:16px;}
+.v2sum::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:3px;background:var(--ai);}
+.v2tog{color:var(--g1);opacity:.7;} .v2tog:hover{opacity:1;}
+.v2act.pri{background:var(--g1);border-color:var(--g1);}
+html body.v2 .chat-send{background:var(--g1) !important;}
+html body.v2 .chat-send.stop{background:#fff !important;color:var(--g1) !important;box-shadow:0 0 0 1.5px var(--g1) inset;}
+html body.v2 .chat-input:focus{border-color:var(--g1) !important;box-shadow:0 0 0 3px rgba(29,29,31,.08) !important;}
+html body.v2 .typing{display:flex !important;align-items:center;gap:10px;}
+html body.v2 .typing::before{content:"";width:18px;height:18px;border-radius:50%;background:conic-gradient(from 0deg,#5E9BFF,#A78BFA,#F472B6,#FDBA74,#5E9BFF);-webkit-mask:radial-gradient(circle,transparent 5px,#000 6px);mask:radial-gradient(circle,transparent 5px,#000 6px);animation:v3spin 1.1s linear infinite;flex:none;}
+@keyframes v3spin{to{transform:rotate(360deg);}}
+html body.v2 .msg{animation:v2in .28s var(--ease) !important;}
+@media (prefers-reduced-motion:reduce){ html body.v2 .typing::before{animation:none;} .v2card:hover{transform:none;} html body.v2 .msg{animation:none !important;} }
+@media (prefers-reduced-transparency:reduce){ .v3hero .v2ask{background:#2C2C2E;-webkit-backdrop-filter:none;backdrop-filter:none;} .v3glow{display:none;} }
+@media (max-width:720px){ .v3hero{padding:24px 18px 18px;border-radius:24px;} .v3hero h2{font-size:1.625rem !important;} }
+</style>
+
+<style id="v3panels">
+/* ═══ ★ ds149 AI 顧問第 2 輪：任務、資料分頁跟對話同一套（白卡、石墨主按鈕、細陰影、不用霓虹漸層） ═══ */
+html body.v2 .panel-view.active{background:#F5F5F7;}
+html body.v2 .panel-header{background:transparent !important;border-bottom:0 !important;padding:20px max(16px,calc((100% - 980px)/2)) 8px !important;}
+html body.v2 .panel-header h2{color:#1D1D1F !important;font-size:1.5rem !important;letter-spacing:-.02em;font-weight:700;}
+html body.v2 .panel-add-btn{background:#1D1D1F !important;color:#fff !important;border:0 !important;border-radius:999px !important;padding:8px 16px !important;font-weight:600 !important;font-size:.875rem !important;box-shadow:none !important;transition:transform .1s ease-out;}
+html body.v2 .panel-add-btn:active{transform:scale(.97);}
+html body.v2 .panel-body{padding:8px max(16px,calc((100% - 980px)/2)) 40px !important;}
+html body.v2 .tl-item,html body.v2 .rule-item,html body.v2 .case-item,html body.v2 .closed-item,html body.v2 .kb-item{background:#fff !important;border:1px solid rgba(0,0,0,.05) !important;border-radius:16px !important;box-shadow:0 1px 2px rgba(0,0,0,.04),0 6px 18px rgba(0,0,0,.035) !important;color:#1D1D1F !important;padding:14px 16px !important;}
+html body.v2 .case-item.good,html body.v2 .case-item.bad,html body.v2 .case-item.data,html body.v2 .case-item.voice,html body.v2 .case-item.acceptance{border-left:3px solid #C7C7CC !important;border-radius:0 16px 16px 0 !important;}
+html body.v2 .case-item.good{border-left-color:#E24B4A !important;} html body.v2 .case-item.bad{border-left-color:#2E9D5B !important;}
+html body.v2 .data-info{background:transparent !important;border:0 !important;}
+html body.v2 .di-bar{color:#6E6E73 !important;font-size:.8125rem !important;}
+html body.v2 .di-card{background:#fff !important;border:1px solid rgba(0,0,0,.05) !important;border-radius:14px !important;color:#1D1D1F !important;}
+html body.v2 .add-modal-bg{background:rgba(0,0,0,.28) !important;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);}
+html body.v2 .add-modal{background:#fff !important;border:0 !important;border-radius:22px !important;box-shadow:0 30px 90px rgba(0,0,0,.25) !important;color:#1D1D1F !important;padding:22px !important;}
+html body.v2 .add-modal h3{color:#1D1D1F !important;font-size:1.125rem !important;letter-spacing:-.01em;}
+html body.v2 .add-modal textarea,html body.v2 .add-modal input,html body.v2 .add-modal select{background:#F5F5F7 !important;border:1px solid rgba(0,0,0,.08) !important;color:#1D1D1F !important;border-radius:12px !important;font-size:.9375rem !important;}
+html body.v2 .add-modal textarea:focus,html body.v2 .add-modal input:focus{border-color:#1D1D1F !important;background:#fff !important;}
+html body.v2 .pin-item{color:#1D1D1F !important;border-radius:10px !important;}
+html body.v2 .pin-item:hover{background:#F2F2F7 !important;border-color:transparent !important;}
+html body.v2 .pin-item.active{background:#1D1D1F !important;color:#fff !important;}
+html body.v2 #pinsAdminBtn{background:#F2F2F7 !important;color:#1D1D1F !important;border:0 !important;border-radius:999px !important;}
+html body.v2 .pin-side-hd{border-bottom:1px solid rgba(0,0,0,.06) !important;font-weight:700;}
+</style>
 </body>
 </html>
