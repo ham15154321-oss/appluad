@@ -114,7 +114,7 @@
         var b = { '0-3天': 0, '4-7天': 0, '8-14天': 0, '15-30天': 0, '30天以上': 0 }; var old = [];
         mine.forEach(function (k) { var v = L[k]; var g = daysAgo(v.d, now); if (g === null) return; if (g <= 3) b['0-3天']++; else if (g <= 7) b['4-7天']++; else if (g <= 14) b['8-14天']++; else { if (g <= 30) b['15-30天']++; else b['30天以上']++; old.push({ 學生: k, 最後編輯: v.d, 誰編的: v.ed, 狀態: v.st, 備註: v.note }); } });
         old.sort(function (a, c) { return a.最後編輯 < c.最後編輯 ? -1 : 1; });
-        people[n].edits = { 近7天編輯幾筆: n7, 近7天幾筆複製上一筆狀態: e7, 近7天幾天沒動: zero, 本月編輯幾筆: mon ? mon.n : null, 本月空編輯: mon ? mon.empty : null, 手上幾位: mine.length, 多久沒人動: b, 超過15天沒編輯: old.length, 超過15天名單: old.slice(0, 30) };
+        people[n].edits = { 近7天編輯幾筆: n7, 近7天點開沒寫狀態幾筆: e7, 近7天幾天沒動: zero, 本月編輯幾筆: mon ? mon.n : null, 本月點開沒寫狀態幾筆: mon ? mon.empty : null, 手上幾位: mine.length, 多久沒人動: b, 超過15天沒編輯: old.length, 超過15天名單: old.slice(0, 30) };
       });
       pack.academies[org] = people;
     });

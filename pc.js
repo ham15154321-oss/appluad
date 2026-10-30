@@ -1242,7 +1242,7 @@
         if (on('tab-9') && typeof fnRenderAll === 'function' && !document.getElementById('tvBg')) fnRenderAll();
         if (on('tab-10') && typeof edRenderAll === 'function' && !document.getElementById('edDashBg')) edRenderAll();
         if (on('tab-2') && typeof chRenderAll === 'function') chRenderAll();
-        if (document.getElementById('ppEvBg') && document.getElementById('ppEvBg').style.display !== 'none' && !document.getElementById('ppEvBg').classList.contains('n6-out')){ if (ppEvId) ppEventOpen(ppEvId); else dsumOpen(); }
+        if (document.getElementById('ppEvBg') && document.getElementById('ppEvBg').style.display !== 'none' && !document.getElementById('ppEvBg').classList.contains('n6-out')){ if (String(document.getElementById('ppEvBg').getAttribute('data-k') || '').indexOf('pay|') === 0) payOpen(); else if (ppEvId) ppEventOpen(ppEvId); else dsumOpen(); }
       } catch(e){ console.warn('[pull] 原地重畫出錯', e); }
     }
     // ★ 2026/09：任何一種同步跑完就自動推上雲端，不用再記得按「☁️↑ 推送」。
@@ -1358,7 +1358,50 @@
         var ym = _ppLiveYm(), bk = {}; try { bk = _fnDataFor(ym).checkin.formal.byKey || {}; } catch(e){}
         var reps = {}; out.forEach(function(x){ var k = x.org + '|' + x.n; reps[x.n] = { org:x.org, biz:x.biz, bizA:x.bizA, itv:x.itv, ck:(bk[k] != null ? bk[k] : null) }; });
         try { _mtSnapWrite(ym); } catch(e0){}
+        try { _aiSnapWrite(ym); } catch(e1){}
         var d = new Date(); localStorage.setItem('appedu_rep_snap_v1', JSON.stringify({ ym:ym, at:(d.getMonth()+1) + '/' + d.getDate() + ' ' + ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2), reps:reps }));
+      } catch(e){}
+    }
+    // ★ ds150（10/30 Ivan）給 AI 顧問看的即時摘要：每日總結（七家今天贏輸、燈號）、組長層紅黃燈、面談追蹤卡、編輯追蹤、穿越時間
+    //   全部用業績中心原本的函式算（不改任何算法、不打 EIP），每 10 分鐘最多存一次到 appedu_ai_snap_v1（只在這台電腦、不上雲）
+    function _aiSnapWrite(live){
+      try {
+        if (!live || Date.now() - (_aiSnapWrite.t || 0) < 600000) return; _aiSnapWrite.t = Date.now();
+        var out = { at:'', atTs:Date.now(), ym:live };
+        var d0 = new Date(); out.at = (d0.getMonth()+1) + '/' + d0.getDate() + ' ' + ('0'+d0.getHours()).slice(-2) + ':' + ('0'+d0.getMinutes()).slice(-2);
+        // 每日總結：最新一天
+        try {
+          var S = _dsSnaps(live), keys = Object.keys(S).sort();
+          if (keys.length){
+            var date = keys[keys.length - 1], M = _dsModel(live, date); out.date = date;
+            out.academies = (M.rows || []).filter(function(r){ return CK_ORG_LIST.indexOf(r.org) >= 0; }).map(function(r){ return { org:r.org, 月目標:Math.round(r.T || 0), 月累計:Math.round(r.cum || 0), 今日應到累計:Math.round(r.exp || 0), 燈號:r.lamp || '', 今天:({ win:'贏', lose:'輸', hol:'休假', na:'沒資料' })[r.res] || '', 今天入帳:r.got ? Math.round(r.got.biz) : null, 今天目標:r.cm ? Math.round(r.cm.biz || 0) : null, 連續:r.streak ? (r.streak + '天' + (r.sk === 'win' ? '連贏' : '連輸')) : '', 退費率:r.refundRate ? Math.round(r.refundRate * 100) + '%' : '', 註冊率:r.regRate != null ? Math.round(r.regRate * 100) + '%' : '' }; });
+            var LD = _dsLeaders(M);
+            if (LD){ out.leaders = []; Object.keys(LD).forEach(function(org){ (LD[org] || []).forEach(function(x){ out.leaders.push({ org:org, 組:x.g.groupName || '', 類別:x.g.kind || '', 組長:x.L.name || '', 組業績:Math.round(x.g.total || 0), 紅燈:x.red, 黃燈:x.yellow, 可升正式:!!x.promote }); }); }); }
+          }
+        } catch(e){ out.dsErr = String(e && e.message || e); }
+        // 面談追蹤卡：每人幾張、逾期、今天到期、待檢討
+        try {
+          out.tracking = [];
+          CK_ORG_LIST.forEach(function(org){ var m = {};
+            (getTracking(org) || []).forEach(function(c){ String(c['業務'] || '').split(/[,，、\/]/).forEach(function(b){ b = b.trim(); if (!b) return; var x = m[b] || (m[b] = { org:org, 業務:b, 卡數:0, 逾期未回:0, 今天到期:0, 待檢討:0, 已成交:0 }); x.卡數++; if (c['逾期未回']) x.逾期未回++; if (c['今天到期']) x.今天到期++; if (c['待檢討']) x.待檢討++; if (/成交|註冊/.test(String(c['狀態'] || ''))) x.已成交++; }); });
+            Object.keys(m).forEach(function(k){ out.tracking.push(m[k]); }); });
+        } catch(e){ out.trkErr = String(e && e.message || e); }
+        // 編輯追蹤：每人本月編輯筆數、這週、上週、連續天數、最後一天
+        try {
+          var ED = _edDashModel();
+          if (ED){ var _rep = {}; try { var _mt = JSON.parse(localStorage.getItem('appedu_mt_snap_v1') || 'null'); var _mr = _mt && _mt.months && _mt.months[_mt.live] && _mt.months[_mt.live].reps; if (_mr) Object.keys(_mr).forEach(function(n){ _rep[n] = 1; }); } catch(e2){}
+            var _hasRep = Object.keys(_rep).length > 0;
+            out.edits = (ED.people || []).filter(function(p){ return CK_ORG_LIST.indexOf(p.org) >= 0 && (!_hasRep || _rep[p.name]); }).map(function(p){ var o = { org:p.org, 業務:p.name, 本月:p.mon, 這週:p.w7 || 0, 上週:p.w7prev || 0, 連續天數:p.streak || 0, 最後一天:p.lastDay || '' }; if (p.monEmpty != null){ o.本月點開沒寫狀態 = p.monEmpty; o.能比對的筆數 = Math.max(0, (p.mon || 0) - (p.monFirst || 0)); } return o; }); }
+        } catch(e){ out.edErr = String(e && e.message || e); }
+        // 穿越時間：學院、組照進度走到哪
+        try {
+          var TT = getTimeTravel(live);
+          var pk = function(x){ return { 學院:x.學院, 組:x.組名外號 || x.組名原名 || '', 組長:x.組長 || '', 這關:x.這關, 狀態:x.狀態, 超前天數:x.超前天數, 活在:x.活在, 月累計:x.月累計, 有沒有穿越:x.有沒有穿越 }; };
+          if (TT && TT.學院) out.timetravel = { 今天:TT.今天 || '', 學院:(TT.學院 || []).map(pk), 組:(TT.組 || []).map(pk) };
+        } catch(e){ out.ttErr = String(e && e.message || e); }
+        // 💰 薪水（Ivan 10/30：AI 顧問全部都可以看到）
+        try { var PY = _payModel(live); if (PY) out.pay = { 有活動加碼:PY.add, 現金資料:PY.C.ok && Object.keys(PY.C.map).length ? ('📋 通路 ' + (PY.C.at || '')) : '還沒有（現金 10% 先算 0）', 人:PY.rows.map(function(x){ return { org:x.org, 業務:x.n, 業績:x.v, 百分之5:x.b5, 現金10:x.c10, 達標:x.tg, 加碼:x.add ? x.ad : undefined, 獎金:x.bonus, 底薪:x.base, 收入:x.inc, 下一級:x.nx, 到下一級多領:x.gain }; }) }; } catch(e){ out.payErr = String(e && e.message || e); }
+        localStorage.setItem('appedu_ai_snap_v1', JSON.stringify(out));
       } catch(e){}
     }
     // ★ ds146「會議作戰追蹤」用的本月＋上月數字：只讀業績中心已經有的資料（不打 EIP），存在 appedu_mt_snap_v1（只在這台電腦、不上雲、不算任何數字邏輯）
@@ -1687,6 +1730,16 @@
         + (lastUp ? (idle ? '最後一次入帳是 ' + (+lastUp.slice(5,7)) + '/' + (+lastUp.slice(8)) + '，已經 ' + idle + ' 天沒有入帳' : '今天有入帳 👍') : '這個月還沒有入帳') + '</p></div>';
     }
     function _myBonusHtml(ym, w){
+      // ★ ds150：不再只認十月，改用 💰 薪水 同一套算法（有活動才多加碼）
+      try {
+        var x = _payRow(ym, { n:w.n, org:'', v:w.biz }, _evoCashMap(ym));
+        return '<div class="my-sec"><h4>💰 這個月薪水（估）<button class="my-mini" onclick="payOpen(\'' + ym + '\',\'ME\')">打開 💰 薪水</button></h4><div class="my-bonus' + (x.add ? '' : ' n4') + '">'
+          + '<div><small>5%</small><b>' + _evoM(x.b5) + '</b></div><div><small>現金 10%</small><b>' + _evoM(x.c10) + '</b></div>'
+          + '<div><small>達標' + (x.tgHold ? '（先算 1,000）' : '') + '</small><b>' + _evoM(x.tg) + '</b></div>'
+          + (x.add ? '<div><small>加碼' + (x.adHold ? '（先算 1,500）' : '') + '</small><b>' + _evoM(x.ad) + '</b></div>' : '')
+          + '<div class="t"><small>獎金合計</small><b>$' + _evoM(x.bonus) + '</b></div></div>'
+          + '<p class="my-note">加底薪 35,000 大約領 <b>$' + _evoM(x.inc) + '</b>' + (x.nx ? '；再做 <b>' + _evoM(x.nx - x.v) + '</b> 到 ' + (x.nx / 10000) + ' 萬，多領 <b>+$' + _evoM(x.gain) + '</b>' : '') + '</p></div>';
+      } catch(e){}
       if (typeof EVO === 'undefined' || EVO.ym !== ym) return '';
       var C = _evoCashMap(ym), cash = C.map[w.n] || 0, v = w.biz;
       var b5 = Math.round(v * 0.05), c10 = Math.round(cash * 0.1), tg = _evoTierFloor(EVO_TGT, v), ad = _evoTierFloor(EVO.P, v), tot = b5 + c10 + tg + ad;
@@ -5874,6 +5927,114 @@
       });
       return html + '<div class="evo-foot">下一級＝差多少到下一個門檻（達標表或加碼表，哪個近算哪個）；後面的 +$＝到那裡時多領的（5% 增加的部分＋達標跳級差額＋加碼跳級差額，不含現金獎）。沒入帳＝每天快照裡最後一次業績有增加，到今天隔了幾天。</div>';
     }
+    // ═══ 💰 薪水（ds150・10/30 Ivan）═══
+    //   薪水每個月都要算，不能綁在十月活動裡（EVO.ym 寫死 2026-10，11 月一到我的一頁的獎金就會消失）
+    //   每個月都算：5%（業績）＋現金 10%（📋 通路的現＋刷）＋達標（2025 獎金制度表一）＋底薪 35,000
+    //   只有那個月有活動才加：加碼（目前只有十月 EVO.P）；沒活動的月份不出現這一欄
+    //   排除科目、小科、不算業務的人（主管、管理者）沿用 _evoModel 同一套，數字跟獎金明細對得起來
+    var PAY = { ym:'', sc:'ME' };
+    function _payAdd(ym){ return (typeof EVO !== 'undefined' && EVO.ym === ym) ? EVO.P : null; }
+    function _payRow(ym, r, C){
+      var v = r.v || 0, cash = (C && C.map[r.n]) || 0, AD = _payAdd(ym);
+      var b5 = Math.round(v * 0.05), c10 = Math.round(cash * 0.1), tg = _evoTierFloor(EVO_TGT, v), ad = AD ? _evoTierFloor(AD, v) : 0;
+      var bonus = b5 + c10 + tg + ad;
+      var nxs = EVO_TGT.concat(AD || []).map(function(t){ return t[0]; }).filter(function(x){ return x > v; }).sort(function(a,b){ return a - b; }), nx = nxs[0] || null;
+      var gain = nx ? Math.round((nx - v) * 0.05) + (_evoTierFloor(EVO_TGT, nx) - tg) + (AD ? _evoTierFloor(AD, nx) - ad : 0) : 0;
+      return { n:r.n, org:r.org, dept:r.dept || '', v:v, cash:cash, b5:b5, c10:c10, tg:tg, ad:ad, add:!!AD, tgHold:v < EVO_TGT[0][0], adHold:!!AD && v < AD[0][0],
+               bonus:bonus, base:EVO_BASE_PAY, inc:bonus + EVO_BASE_PAY, nx:nx, gain:gain };
+    }
+    function _payModel(ym){
+      var pp = _ppPPFor(ym); if (!pp || !pp.orgs) return null;
+      var M = _evoModel(ym, pp), C = _evoCashMap(ym);
+      var rows = M.reps.filter(function(r){ return CK_ORG_LIST.indexOf(r.org) >= 0; }).map(function(r){ return _payRow(ym, r, C); });
+      return { ym:ym, rows:rows, C:C, orgBiz:M.orgBiz, add:!!_payAdd(ym) };
+    }
+    function _payMonths(){
+      var live = _ppLiveYm(), out = live ? [live] : [];
+      try { var A = ckGetArchive(); Object.keys(A).sort().reverse().forEach(function(k){ if (out.indexOf(k) < 0 && A[k] && A[k].perfp && out.length < 6) out.push(k); }); } catch(e){}
+      return out;
+    }
+    function _payCell(n, hold, holdTxt){ return (n ? '$' + _evoM(n) : '<span class="eb-0">0</span>') + (hold ? '<small class="pay-hold">' + holdTxt + '</small>' : ''); }
+    function _payMeHtml(P, me){
+      var x = P.rows.filter(function(r){ return r.n === me; })[0];
+      if (!x) return '<div class="pay-me none"><b>這個月的業績表裡沒有你的名字</b><small>' + (_pcIsAdmin() ? '管理者不在業務名單裡，用上面的學院按鈕看大家' : '主管、管理者不算業務個人獎金；或請先同步 🏆 激勵') + '</small></div>';
+      var est = P.ym === _ppLiveYm();
+      return '<div class="pay-me"><div class="pay-big"><small>' + (est ? '這個月到今天，大約領' : (+P.ym.slice(5)) + ' 月大約領') + '</small><b>$' + _evoM(x.inc) + '</b>'
+        + '<span>獎金 $' + _evoM(x.bonus) + '＋底薪 $' + _evoM(x.base) + '（不含加班費）</span></div>'
+        + '<div class="my-bonus pay-parts' + (x.add ? '' : ' n4') + '">'
+        + '<div><small>5%</small><b>' + _evoM(x.b5) + '</b></div>'
+        + '<div><small>現金 10%</small><b>' + _evoM(x.c10) + '</b></div>'
+        + '<div><small>達標</small><b>' + _evoM(x.tg) + '</b>' + (x.tgHold ? '<em>還沒到 15 萬，先算 1,000</em>' : '') + '</div>'
+        + (x.add ? '<div><small>活動加碼</small><b>' + _evoM(x.ad) + '</b>' + (x.adHold ? '<em>還沒到 30 萬，先算 1,500</em>' : '') + '</div>' : '')
+        + '<div><small>底薪</small><b>' + _evoM(x.base) + '</b></div></div>'
+        + (x.nx ? '<p class="pay-next">再做 <b>$' + _evoM(x.nx - x.v) + '</b> 到 ' + (x.nx / 10000) + ' 萬，多領 <b>+$' + _evoM(x.gain) + '</b><i><b style="width:' + Math.min(100, x.v / x.nx * 100) + '%"></b></i></p>' : '<p class="pay-next">已經到最高一級 👑</p>')
+        + '</div>';
+    }
+    function _payTop10Html(P, me){
+      var L = P.rows.filter(function(r){ return r.v > 0; }).sort(function(a,b){ return b.bonus - a.bonus || b.v - a.v; }).slice(0, 10); if (!L.length) return '';
+      var show = _evoIncNames(), medal = ['🥇','🥈','🥉'], cnt = 0;
+      return '<div class="eb-top10"><div class="eb-top10-h"><b>🏆 七家獎金前十名</b><small>只排獎金（5%＋現金 10%＋達標' + (P.add ? '＋加碼' : '') + '），不含底薪</small>'
+        + '<label class="ei-sw"><input type="checkbox"' + (show ? ' checked' : '') + ' onchange="paySetNames(this.checked)">顯示名字</label>'
+        + '<button class="evo-copy" onclick="payCopyTop10()">📋 複製 LINE</button></div><ol>'
+        + L.map(function(x, i){ var nm = x.n === me ? '<b>' + _fnEsc(x.n) + '</b>' : (show ? _fnEsc(x.n) : '業務 ' + (++cnt));
+            return '<li class="' + (x.n === me ? 'me' : '') + '"><span class="rk">' + (medal[i] || (i + 1)) + '</span><span class="nm">' + nm + '<small>' + _fnEsc(_gcShort(x.org)) + '</small></span><span class="amt">$' + _evoM(x.bonus) + '</span><span class="gap">' + (i ? '差上一名 $' + _evoM(L[i-1].bonus - x.bonus) : '七家第一') + '</span></li>'; }).join('')
+        + '</ol></div>';
+    }
+    function _payOrgHtml(P, org, me){
+      var rows = P.rows.filter(function(r){ return r.org === org; }).sort(function(a,b){ return b.inc - a.inc; }); if (!rows.length) return '';
+      var T = { v:0, b5:0, c10:0, tg:0, ad:0, bonus:0, inc:0 };
+      var avg = rows.length ? rows.reduce(function(t, x){ return t + x.inc; }, 0) / rows.length : 0;
+      var body = rows.map(function(x){ Object.keys(T).forEach(function(k){ T[k] += x[k]; });
+        return '<tr class="' + (x.n === me ? 'eb-me' : '') + '"><td class="eb-n">' + _fnEsc(x.n) + '<small class="pay-dept">' + _fnEsc(x.dept) + '</small></td><td class="eb-v">' + _payCell(x.v) + '</td><td>' + _payCell(x.b5) + '</td><td>' + _payCell(x.c10) + '</td><td>' + _payCell(x.tg, x.tgHold, '先算') + '</td>'
+          + (P.add ? '<td>' + _payCell(x.ad, x.adHold, '先算') + '</td>' : '') + '<td class="eb-tot">$' + _evoM(x.bonus) + '</td><td class="eb-v">$' + _evoM(x.inc) + '</td>'
+          + '<td class="eb-next">' + (x.nx ? '<small>差 $' + _evoM(x.nx - x.v) + ' 到 ' + (x.nx / 10000) + ' 萬</small> <span class="eb-plus">+$' + _evoM(x.gain) + '</span>' : '👑') + '</td></tr>'; }).join('');
+      return '<div class="eb-card"><div class="eb-head"><div><b>' + _fnEsc(org) + '</b><small>學院業績 $' + _evoM(P.orgBiz[org] || 0) + '・業務 ' + rows.length + ' 人・平均收入 $' + _evoM(avg) + '</small></div></div>'
+        + '<div class="pay-tw"><table class="eb-t"><tr><th>業務</th><th class="eb-v">業績</th><th>5%</th><th>現金 10%</th><th>達標</th>' + (P.add ? '<th>加碼</th>' : '') + '<th class="eb-tot">獎金</th><th>收入（含底薪）</th><th class="eb-next">下一級</th></tr>'
+        + body + '<tr class="eb-sum"><td>合計</td><td class="eb-v">$' + _evoM(T.v) + '</td><td>$' + _evoM(T.b5) + '</td><td>$' + _evoM(T.c10) + '</td><td>$' + _evoM(T.tg) + '</td>' + (P.add ? '<td>$' + _evoM(T.ad) + '</td>' : '') + '<td class="eb-tot">$' + _evoM(T.bonus) + '</td><td class="eb-v">$' + _evoM(T.inc) + '</td><td></td></tr></table></div></div>';
+    }
+    function payOpen(ym, sc){
+      var months = _payMonths(); if (!months.length){ _syncToast('還沒有當月績效，先同步 🏆 激勵', '#ff6b6b'); return; }
+      if (ym) PAY.ym = ym; if (!PAY.ym || months.indexOf(PAY.ym) < 0) PAY.ym = months[0];
+      if (sc) PAY.sc = sc;
+      var me = _fnMe(), P = _payModel(PAY.ym);
+      var bg = document.getElementById('ppEvBg');
+      if (!bg){ bg = document.createElement('div'); bg.id = 'ppEvBg'; bg.onclick = function(e){ if (e.target === bg) ppEventClose(); }; document.body.appendChild(bg); }
+      ppEvId = '';   // 讓 ppEventOpen 的自動重畫不會把薪水視窗蓋成活動
+      var mChips = months.map(function(m){ return '<button class="ck-region-btn' + (m === PAY.ym ? ' active' : '') + '" onclick="payOpen(\'' + m + '\')">' + (+m.slice(5)) + ' 月' + (m === _ppLiveYm() ? '・本月' : '') + '</button>'; }).join('');
+      var sChips = [['ME','👤 我'],['SUMMARY','📊 七家']].concat(CK_ORG_LIST.map(function(o){ return [o, _gcShort(o)]; })).map(function(t){ return '<button class="ck-region-btn' + (PAY.sc === t[0] ? ' active' : '') + '" onclick="payOpen(null,\'' + t[0] + '\')">' + _fnEsc(t[1]) + '</button>'; }).join('');
+      var body = '';
+      if (!P) body = '<div class="ck-empty">找不到 ' + (+PAY.ym.slice(5)) + ' 月的當月績效</div>';
+      else {
+        var C = P.C, live = PAY.ym === _ppLiveYm();
+        body += '<p class="pay-src">' + (live ? '估算・' : '') + '業績＝當月績效' + (C.ok && Object.keys(C.map).length ? '・現金 10%＝📋 通路同步 ' + _fnEsc(C.at || '') : '・<b class="eb-warn">現金 10% 還沒有資料，先算 0，按一次「📋 通路」就會補上</b>')
+          + (P.add ? '・這個月有活動，多一欄加碼' : '・這個月沒有活動加碼') + '・實際以公司薪資單為準</p>';
+        try {
+          if (PAY.sc === 'ME') body += _payMeHtml(P, me) + _payTop10Html(P, me);
+          else if (PAY.sc === 'SUMMARY') body += _payTop10Html(P, me) + CK_ORG_LIST.map(function(o){ return _payOrgHtml(P, o, me); }).join('');
+          else body += _payOrgHtml(P, PAY.sc, me);
+        } catch(e){ body += '<div class="ck-empty">算不出來：' + _fnEsc(String(e && e.message || e)) + '</div>'; console.error(e); }
+      }
+      var _was = bg.style.display === 'flex' && !bg.classList.contains('n6-out'), key = 'pay|' + PAY.ym + '|' + PAY.sc;
+      var _keep = (_was && bg.getAttribute('data-k') === key) ? bg.scrollTop : 0;
+      var _same = _was && String(bg.getAttribute('data-k') || '').indexOf('pay|') === 0;
+      bg.setAttribute('data-k', key);
+      bg.innerHTML = '<div class="pp-ev-box pay-box"><div class="pp-ev-top"><b>💰 薪水　' + PAY.ym.slice(0,4) + ' 年 ' + (+PAY.ym.slice(5)) + ' 月</b><button class="pp-ev-x" onclick="ppEventClose()">✕ 關閉</button></div>'
+        + '<div class="pp-ev-chips">' + mChips + '</div><div class="pp-ev-chips">' + sChips + '</div>' + body + '</div>';
+      bg.style.display = 'flex';
+      if (_keep) bg.scrollTop = _keep; else if (_same) bg.scrollTop = 0;
+      try { _n6Open(bg, _was); } catch(e){}
+      try { _aiSnapWrite.t = 0; _aiSnapWrite(_ppLiveYm()); } catch(e){}
+    }
+    function paySetNames(on){ try { localStorage.setItem('evo_inc_names', on ? '1' : '0'); } catch(e){} payOpen(); }
+    function payCopyTop10(){
+      try {
+        var P = _payModel(PAY.ym || _ppLiveYm()); if (!P) return;
+        var L = P.rows.filter(function(r){ return r.v > 0; }).sort(function(a,b){ return b.bonus - a.bonus || b.v - a.v; }).slice(0, 10), medal = ['🥇','🥈','🥉'];
+        _myCopy('💰 ' + (+P.ym.slice(5)) + ' 月七家獎金前十名（到今天）\n' + L.map(function(x, i){ return (medal[i] || (i + 1) + '.') + ' ' + _rvName(x.n) + '（' + _gcShort(x.org) + '）$' + _evoM(x.bonus); }).join('\n') + '\n獎金＝5%＋現金 10%＋達標' + (P.add ? '＋活動加碼' : '') + '，實際以薪資單為準');
+      } catch(e){ _syncToast('複製失敗：' + (e.message || e), '#ff6b6b'); }
+    }
+    window.payOpen = payOpen; window.paySetNames = paySetNames; window.payCopyTop10 = payCopyTop10;
+
     function _evoPaid(M, orgs){
       var html = '<p class="evo-sub">假設學院已做到 300 萬，加碼門檻當作你<b>已經達成下一級</b>；原本 5%（主管 3%）照你<b>現在的實際業績</b>算。大字＝加碼＋原本 %。</p>';
       orgs.forEach(function(org){
@@ -6325,6 +6486,7 @@
       if (!DS.date || _dsYmOf(DS.date) !== ym) DS.date = keys.length ? keys[keys.length-1] : (ym ? _dsDate(ym, 1) : '');
       var bg = document.getElementById('ppEvBg');
       if (!bg){ bg = document.createElement('div'); bg.id = 'ppEvBg'; bg.onclick = function(e){ if (e.target === bg) ppEventClose(); }; document.body.appendChild(bg); }
+      if (String(bg.getAttribute('data-k') || '').indexOf('pay|') === 0) bg.setAttribute('data-k', 'ds');
       ppEvId = '';
       var body = '';
       try { body = _dsBody(ym, keys); } catch(e){ body = '<div class="ck-empty">計算失敗：' + _fnEsc(String(e && e.message || e)) + '</div>'; console.error(e); }
@@ -8047,7 +8209,7 @@
             return '<button class="pp-ev-btn' + (ended ? ' ended' : ' live') + '" onclick="ppEventOpen(\'' + ev.id + '\')" data-pchelp="' + _fnEsc(ev.title + '\n' + ev.desc + '\n\n' + (ended ? '已結束，點開回查當時的結果' : '進行中')) + '">'
               + ev.btn + '<em>' + (ended ? '已結束' : '進行中') + '</em></button>';
           }).join('')
-        + '<span class="pp-ev-lb" style="margin-left:14px">📋 管理</span><button class="pp-ev-btn ds-btn" onclick="dsumOpen()" data-pchelp="每日總結\n每家主管每天的承諾 vs 實際入帳，看輸贏；10、20 號、月底出三關大總結。\n一鍵複製主管版、組長版貼 LINE。">📋 每日總結</button></div>';
+        + '<span class="pp-ev-lb" style="margin-left:14px">📋 管理</span><button class="pp-ev-btn ds-btn" onclick="dsumOpen()" data-pchelp="每日總結\n每家主管每天的承諾 vs 實際入帳，看輸贏；10、20 號、月底出三關大總結。\n一鍵複製主管版、組長版貼 LINE。">📋 每日總結</button><button class="pp-ev-btn pay-btn" onclick="payOpen()" data-pchelp="薪水\n每個月都算：5%＋現金 10%＋達標＋底薪；那個月有活動才多一欄加碼。\n先看自己，再看組、學院、七家前十名。">💰 薪水</button></div>';
     }
     var ppEvScope = 'SUMMARY', ppEvId = '';
     function ppEventOpen(id, sc){
@@ -8448,7 +8610,7 @@
           people.push({
             org:o.org, name:w.ed, mon:w.mon, pool:w.pool || 0, cold:w.cold || 0,
             w7:w.w7, w7prev:w.w7prev, delta:w.delta || 0, streak:w.streak || 0,
-            team:_edTeamOf(o.org, w.ed), lamps:w.lamps, lastDay:w.lastDay || '', days:w.days || {}
+            team:_edTeamOf(o.org, w.ed), lamps:w.lamps, lastDay:w.lastDay || '', days:w.days || {}, monEmpty:w.monEmpty, monFirst:w.monFirst
           });
         });
       });
@@ -8871,32 +9033,33 @@
           })() + '</div>';
 
       // 燈號說明（第六夜：收進「ⓘ 怎麼看」）
-      html += '<details class="ed-how"><summary>ⓘ 怎麼看：燈號、空編輯是什麼</summary>';
+      html += '<details class="ed-how"><summary>ⓘ 怎麼看：燈號、點開沒寫狀態是什麼</summary>';
       html += '<div class="ed-legend"><b>燈號＝這位學生多久沒被編輯</b>'
         + ED_LAMPS.map(function(L){ return '<span class="ed-lg" data-pchelp="' + _fnEsc(L.label + '沒被編輯') + '\n'
             + _fnEsc(L.desc + '。\n\n每位業務那一列的五個數字，就是他手上各燈號各有幾個學生。') + '">'
             + '<i class="ed-lamp ' + L.cls + '"></i>' + L.label + '<em>' + L.desc + '</em></span>'; }).join('')
         + '<span class="ed-lg-note">業務那一列的五個數字，就是他手上各燈號各有幾個人。全綠＝照顧得很平均；右邊愈重＝愈多名單被放著。</span></div>';
 
-      // 空編輯說明
-      html += '<div class="ed-legend ed-legend-2"><b>空編輯＝動過但沒留下內容</b>'
-        + '<span class="ed-lg-note">EIP 說他編輯了這一筆，但備註跟我們上次看到的一模一樣。一鍵清空行事曆、只改狀態不寫字、打完電話懶得記，都會落在這裡。'
-        + '空編輯率高＝在交差，不是在追註冊。<b>首次看到的人不列入判定</b>（沒有基準可以比）。</span>'
+      // 點開沒寫狀態說明
+      html += '<div class="ed-legend ed-legend-2"><b>點開沒寫狀態＝點開名單、按了儲存，但「詳細狀態」沒寫新的</b>'
+        + '<span class="ed-lg-note">EIP 顯示他這天編輯過這位學生，可是詳細狀態跟上一次一個字都一樣。組長、接手的人看不出這次跟學生聊了什麼、下一步是什麼。一鍵清空行事曆、只改狀態欄不寫字、打完電話懶得記，都會算在這裡。'
+        + '<br>怎麼改：每次點開就補一句，今天有沒有聯絡到、學生怎麼說、下一步哪天。'
+        + '<br>這個比例高＝在交差，不是在追註冊。<b>第一次看到的學生不算</b>（沒有上一次可以比）。</span>'
         + '<span class="ed-lg-note" data-pchelp="為什麼現在大家都是「還判斷不了」\n'
         + 'EIP 的「編輯日期」欄位，只記得住「最後一次編輯是哪天」，不是每一次編輯都留一筆紀錄。\n\n'
-        + '所以回頭去補以前的日子，同一筆名單永遠只會出現在一天 —— 沒有「上一次的備註」可以拿來比，就判不出空編輯。\n\n'
-        + '唯一的解法是每天早上按一次那顆紫色按鈕。今天把備註存下來，過幾天他又編到同一筆，就比得出來了。跑兩三週這一欄就會活起來。"><b>⚠️ 為什麼現在大家都是「還判斷不了」？（滑過來看）</b>'
-        + 'EIP 只記「最後一次編輯是哪天」，不是每一次都留紀錄。回頭補的日子裡同一筆名單只會出現一次，沒有上一次可以比，所以空編輯判不出來。'
+        + '所以回頭去補以前的日子，同一筆名單永遠只會出現在一天 —— 沒有「上一次的詳細狀態」可以拿來比，就判不出點開沒寫狀態。\n\n'
+        + '唯一的解法是每天早上按一次那顆紫色按鈕。今天把詳細狀態存下來，過幾天他又編到同一筆，就比得出來了。跑兩三週這一欄就會活起來。"><b>⚠️ 為什麼現在大家都是「還判斷不了」？（滑過來看）</b>'
+        + 'EIP 只記「最後一次編輯是哪天」，不是每一次都留紀錄。回頭補的日子裡同一筆名單只會出現一次，沒有上一次可以比，所以點開沒寫狀態判不出來。'
         + '每天早上按一次那顆紫色按鈕往前累積，兩三週後這一欄才會有真正的判定。<br>'
-        + '人次高但人數少＝一直戳同幾個人；兩個都高＝面開得夠廣。<b>量一定要配空編輯率一起看</b> —— '
-        + '量大但空 ＝ 交差；量大又幾乎沒空編輯 ＝ 真的在跑。</span></div>';
+        + '人次高但人數少＝一直戳同幾個人；兩個都高＝面開得夠廣。<b>量一定要配點開沒寫狀態的比例一起看</b> —— '
+        + '量大但都沒寫狀態 ＝ 交差；量大又幾乎沒點開沒寫狀態 ＝ 真的在跑。</span></div>';
       html += '</details>';
 
       (data ? data.orgs : []).forEach(function(o){
         var tot = o.list.reduce(function(a,w){ return { today:a.today + w.today, empty:a.empty + w.todayEmpty }; }, { today:0, empty:0 });
         html += '<div class="ed-org"><div class="ed-org-h"><span class="dot" style="background:' + (CK_COLOR[o.org] || '#999') + '"></span>'
           + _fnEsc(o.org) + '<span class="ed-org-sum">' + data.lastDay + ' 共 <b>' + tot.today + '</b> 筆編輯'
-          + (tot.empty ? '，其中 <b class="ed-bad">' + tot.empty + '</b> 筆空編輯' : '') + '</span></div>';
+          + (tot.empty ? '，其中 <b class="ed-bad">' + tot.empty + '</b> 筆點開沒寫狀態' : '') + '</span></div>';
         if (!o.list.length){ html += '<div class="ed-empty-row">這一家沒有資料</div></div>'; return; }
         var monDays = (data.days || []).filter(function(d){ return d.slice(0,7) === data.ym; });
         var rangeTxt = monDays.length ? (monDays[0].slice(5) + '～' + monDays[monDays.length-1].slice(5)) : '';
@@ -8906,7 +9069,7 @@
           + (o.hidden && o.hidden.length ? '　·　<span class="dim">另有 ' + o.hidden.length + ' 位標為客服／' + o.hidTot + ' 筆，不列入</span>' : '')
           + '　·　<span class="dim">倍數 ≥2 或 ≤0.5 會標出來，落差就在這裡</span></div>';
         html += '<table class="ed-t"><thead><tr>'
-          + '<th>業務<small>／名單被編＝EIP 查「承辦人」</small></th><th data-pchelp="他編過幾筆名單\n算的是：EIP 列表「編輯人」那一欄顯示是他的筆數（最後一手是他）。\n\n⚠️ 跟 EIP 上方篩選「編輯人＝他」查出來的數字不一樣：\n那個篩選會把「他編過、但後來被別人接手編」的名單也算進去，\n所以列表裡會出現編輯人欄是別人的資料，數字會比這裡大。">他編過幾筆名單<small>（最後一手是他）</small></th><th>vs 中位數</th><th>空編輯<small>／可判定</small></th>'
+          + '<th>業務<small>／名單被編＝EIP 查「承辦人」</small></th><th data-pchelp="他編過幾筆名單\n算的是：EIP 列表「編輯人」那一欄顯示是他的筆數（最後一手是他）。\n\n⚠️ 跟 EIP 上方篩選「編輯人＝他」查出來的數字不一樣：\n那個篩選會把「他編過、但後來被別人接手編」的名單也算進去，\n所以列表裡會出現編輯人欄是別人的資料，數字會比這裡大。">他編過幾筆名單<small>（最後一手是他）</small></th><th>vs 中位數</th><th>點開沒寫狀態<small>／能比對的筆數</small></th>'
           + '<th>最後一天</th><th>近 7 天</th><th>幾天沒編輯</th><th>手上名單燈號</th><th></th>'
           + '</tr></thead><tbody>';
         var quietN = 0;
@@ -8918,30 +9081,30 @@
           var rate = w.today ? Math.round(w.todayEmpty / w.today * 100) : 0;
           var w7rate = w.w7 ? Math.round(w.w7Empty / w.w7 * 100) : 0;
           var key = o.org + '|' + w.ed;
-          // ★ 可判定筆數 ＝ 總筆數 − 首次看到。首次看到那幾筆沒有基準可比，不能拿來算空編輯率。
+          // ★ 可判定筆數 ＝ 總筆數 − 首次看到。首次看到那幾筆沒有基準可比，不能拿來算點開沒寫狀態的比例。
           var judge = Math.max(0, w.mon - (w.monFirst || 0));
           // 兩個門檻都要過：可判定至少 10 筆，而且要佔他總量三成以上。
           //   只差第一個的話，一批 1163 筆全新名單裡剛好有 11 筆重覆，就能拿到好徽章 —— 那不能算數。
           var canJudge = judge >= 10 && judge >= w.mon * 0.3;
           var mRate = judge ? Math.round(w.monEmpty / judge * 100) : 0;
           // 判讀：量跟「有沒有留下內容」要一起看，不然一鍵清空的人會排在最前面看起來最勤勞。
-          //   但判不出來的時候要說判不出來，不要因為「算不到空編輯」就給他好徽章。
+          //   但判不出來的時候要說判不出來，不要因為「算不到點開沒寫狀態」就給他好徽章。
           var verdict = '';
           if (w.mon >= 30 && !canJudge){
             verdict = '<span class="ed-vd na" data-pchelp="還沒辦法判斷他是不是在交差\n'
-              + '「空編輯」的意思是：他點開這筆名單、按了儲存，但備註跟上次一模一樣，等於沒做事。\n\n'
-              + '要抓到空編輯，必須看過「同一筆名單的前一次備註」。\n'
+              + '「點開沒寫狀態」的意思是：他點開這筆名單、按了儲存，但詳細狀態跟上次一模一樣，等於沒做事。\n\n'
+              + '要抓到點開沒寫狀態，必須看過「同一筆名單的前一次詳細狀態」。\n'
               + '他這 ' + w.mon + ' 筆裡，有 ' + (w.monFirst||0) + ' 筆是我們第一次看到，沒有前一次可以比 —— 真正能比對的只剩 ' + judge + ' 筆，太少。\n\n'
               + '為什麼會這樣？因為 EIP 的「編輯日期」只記最後一次編輯。回頭補以前的日子，同一筆名單只會出現在一天，永遠比不出來。\n\n'
-              + '怎麼解決：每天早上按一次那顆紫色按鈕。今天把備註存起來，過幾天他又編到同一筆時，就比得出來了。跑兩三週這裡就會變成真正的判定。">'
+              + '怎麼解決：每天早上按一次那顆紫色按鈕。今天把詳細狀態存起來，過幾天他又編到同一筆時，就比得出來了。跑兩三週這裡就會變成真正的判定。">'
               + '⚠️ 還判斷不了</span>';
           }
           else if (w.mon >= 30 && canJudge && mRate >= 40) verdict = '<span class="ed-vd bad" data-pchelp="在交差，不是在追註冊\n'
-            + '他動了 ' + w.mon + ' 筆，但能比對的 ' + judge + ' 筆裡有 ' + mRate + '% 備註完全沒變。\n\n'
+            + '他動了 ' + w.mon + ' 筆，但能比對的 ' + judge + ' 筆裡有 ' + mRate + '% 詳細狀態完全沒變。\n\n'
             + '點開存檔但一個字都沒改 —— 一鍵清空行事曆、只改狀態不寫字、打完電話懶得記，都會落在這裡。\n'
-            + '量大不代表有做事，這一列要找他談。">🔴 量大但空</span>';
+            + '量大不代表有做事，這一列要找他談。">🔴 量大但沒寫狀態</span>';
           else if (w.mon >= 30 && canJudge && w.ratio >= 2 && mRate < 20) verdict = '<span class="ed-vd good" data-pchelp="真的在跑\n'
-            + '量是全院中位數的 ' + (Math.round(w.ratio*10)/10) + ' 倍，而且能比對的 ' + judge + ' 筆裡只有 ' + mRate + '% 是空編輯。\n\n'
+            + '量是全院中位數的 ' + (Math.round(w.ratio*10)/10) + ' 倍，而且能比對的 ' + judge + ' 筆裡只有 ' + mRate + '% 是點開沒寫狀態。\n\n'
             + '動得多，而且每次都有留下新的內容。這是我們要的樣子。">🟢 真的在跑</span>';
           else if (w.ratio > 0 && w.ratio <= 0.5) verdict = '<span class="ed-vd low" data-pchelp="編得太少\n'
             + '他編了 ' + w.mon + ' 筆，全院中位數是 ' + o.med + ' 筆，只有中位數的 ' + (Math.round(w.ratio*100)) + '%。\n\n'
@@ -8993,14 +9156,14 @@
               + '全院這幾天的中位數是 ' + o.med + ' 筆（只算有在編輯的人）。\n'
               + '他編了 ' + w.mon + ' 筆 → ' + rTxt + '\n\n'
               + '2 倍以上會標紫色＝量特別大；0.5 倍以下＝量特別小。\n'
-              + '倍數大不等於做得好，要配左邊的「空編輯」一起看。">'
+              + '倍數大不等於做得好，要配左邊的「點開沒寫狀態」一起看。">'
               + '<span class="ed-ratio' + rCls + '">' + rTxt + '</span></td>'
-            + '<td class="num" data-pchelp="' + (!canJudge ? '這欄現在沒有意義' : '空編輯 ' + w.monEmpty + ' 筆（' + mRate + '%）') + '\n'
-              + '空編輯 ＝ 點開存檔了，但備註跟上次一模一樣。\n\n'
+            + '<td class="num" data-pchelp="' + (!canJudge ? '這欄現在沒有意義' : '點開沒寫狀態 ' + w.monEmpty + ' 筆（' + mRate + '%）') + '\n'
+              + '點開沒寫狀態 ＝ 點開存檔了，但詳細狀態跟上次一模一樣。\n\n'
               + '他總共編了 ' + w.mon + ' 筆，其中 ' + (w.monFirst||0) + ' 筆是我們第一次看到（沒有上一次可以比）。\n'
               + '扣掉之後，真正「能拿來比對」的只有 ' + judge + ' 筆。\n\n'
               + (!canJudge ? '能比的太少，這個百分比算出來也沒有參考價值，所以不顯示。每天按「⚡ 昨日覆盤」累積幾週就會有了。'
-                           : '這 ' + judge + ' 筆裡有 ' + w.monEmpty + ' 筆備註沒變 ＝ ' + mRate + '%。超過 40% 就算在交差。') + '">'
+                           : '這 ' + judge + ' 筆裡有 ' + w.monEmpty + ' 筆詳細狀態沒變 ＝ ' + mRate + '%。超過 40% 就算在交差。') + '">'
               + (!canJudge ? '<span class="dim">還不能比</span><small>只有 ' + judge + ' 筆能比</small>'
                  : (w.monEmpty ? '<b class="ed-bad">' + w.monEmpty + '</b><small>' + mRate + '%（' + judge + ' 筆能比）</small>'
                     : '0<small>' + judge + ' 筆能比</small>')) + '</td>'
@@ -9039,7 +9202,7 @@
       body.innerHTML = html;
     }
 
-    // 展開：這位業務在「最後一天」編了哪些人、哪些是空編輯
+    // 展開：這位業務在「最後一天」編了哪些人、哪些是點開沒寫狀態
     function _edOwnerDetail(store, org, ed, day){
       var rows = ((store.rows || {})[day] || {})[org] || [];
       var mine = rows.filter(function(r){ return (r.ed || '（沒有編輯人）') === ed; });
@@ -9063,7 +9226,7 @@
       };
       return '<div class="ed-detail-in">'
         + sec('✅ 有留下內容（備註跟上次不一樣）', real, 'ok')
-        + sec('⚠️ 空編輯（備註一個字都沒變）', empty, 'bad')
+        + sec('⚠️ 點開沒寫狀態（詳細狀態一個字都沒變）', empty, 'bad')
         + sec('◻️ 首次看到，沒有基準可比', first, 'neutral')
         + '</div>';
     }
@@ -12882,6 +13045,7 @@
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
       { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
+      { ver:'ds150', icon:'💰', title:'薪水獨立一顆按鈕，每個月都算', detail:'「📋 每日總結」旁邊多一顆「💰 薪水」：打開先看自己這個月大約領多少（獎金＋底薪 35,000）、5%、現金 10%、達標、底薪各多少、再做多少到下一級；再看七家獎金前十名、各學院每個人。可以切回前幾個月。那個月有活動才多一欄加碼。我的一頁的薪水 11 月以後也會繼續出現。AI 顧問也看得到今天七家燈號、組長紅黃燈、追蹤卡、編輯追蹤、穿越、每人本月數字跟薪水；首頁多一張「AI 看得到什麼」，建議問題會照今天的數字出。AI 回答下面多一顆「存回會議」，可以存成說好的事、補充建議或下次議程，下次會前資料包會列出來。「空編輯」全站改叫「點開沒寫狀態」：點開名單按了儲存，但詳細狀態沒寫新的。' },
       { ver:'ds149', icon:'☁️', title:'打開網站一分鐘自動拉最新資料', detail:'同事不用再自己到業績數據中心按「☁️↓ 拉取」：登入太空基地 60 秒後，系統在背景自動拉一次最新資料（右下會跳「正在自動更新最新資料」），之後只要畫面開著，大約每 30 分鐘再自動拉一次。AI 顧問換成跟首頁「AI 顧問」那張深色卡片同一套質感：問答區石墨色、輸入時有一圈 AI 光暈、AI 思考時有小光環；任務、資料分頁也一起整理乾淨。AI 顧問現在讀得懂會議作戰追蹤，會議記錄裡多一顆「🔍 到 AI 顧問深挖」。首頁的學院年度業績改用激勵年度合計，管理者看到的是自己管的七家學院加總。' },
       { ver:'ds148', icon:'🤖', title:'AI 顧問變簡單了、會議記錄可以直接交公司', detail:'AI 顧問：打開就是一個問答框，下面有依你的角色和日期換的建議問題、常用的 3 位顧問、接著上次聊；回答先給三行重點，點「看完整分析」才展開；每則回答下面有加成任務、收藏、複製、這個答錯了；送出後會一步一步顯示 AI 在看什麼，問錯了可以按停止；換顧問、回答深度、字體、清除收進右上「⋯」；上方分頁改成對話、任務、資料，答錯回報在資料裡。以前的對話都還在。會議作戰追蹤：下載 Word 改成跟台中一部 B 組會議紀錄一模一樣的版型（真的 .docx，字型、表格、簽名欄都一樣），會前資料包也是同一個版型；每場會多了「🧠 AI 看過後的建議」：這場會的盲點、對照數字每人的下一步、公司教材裡可以補充的做法，存檔後自動產生，Word 也會印出來。' },
       { ver:'ds147', icon:'🗄', title:'AI 資料不會再不見、花費對得上帳', detail:'每一次用 AI（面談、電話、會議、AI 顧問）都自動記一列到 Google 試算表「AI 用量總帳」：誰、哪一頁、型號、約多少錢。AI 顧問的每則對話全文也寫進試算表（電話只留後 3 碼），瀏覽器裡被擠掉的舊對話改成先存起來、不再直接刪。寫試算表改成有編號、送不出去會自動重送、重送不會重複。下載的 Word、Excel、備份檔會同時存一份到雲端硬碟「太空基地備份」，按月份分好。檢核和會議可以作廢（先進回收桶，可以還原）。柏翰的電腦每月 1 號自動備份一次。' },

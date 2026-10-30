@@ -2334,6 +2334,40 @@ function hgCanSee(rec){
 }
 function hgIsRec(t){ return t==='voice'||t==='acceptance'||/^interview/.test(t||''); }
 
+// ★ ds150（10/30 Ivan）AI 顧問接上業績數據中心的即時數字：每日總結（七家今天贏輸、燈號）、組長層紅黃燈、面談追蹤卡、編輯追蹤、穿越時間、組本月數字、💰 薪水
+//   來源：業績數據中心 pc.js 每 10 分鐘存一份 appedu_ai_snap_v1（只在這台電腦）＋ appedu_mt_snap_v1（會前資料包同一份）
+//   看得到誰：管理者七家；學院主管自己那家；組長、業務自己那一組（hgMembers）。薪水 Ivan 決定全部都可以看到
+var LIVEOPS_RE=/報到|紅燈|黃燈|燈號|今天|今日|昨天|這週|本週|這禮拜|盯誰|該盯|追蹤卡|逾期|到期|待檢討|編輯|備註|穿越|落後|超前|進度|第[一二三]關|關卡|退費|註冊率|面談|組員|誰最|誰的|哪一家|哪家|七家|輸|贏|連輸|連贏|掛零|沒入帳|目標|差多少|缺口|業績|薪水|獎金|收入|領多少|5%|現金|達標|加碼|底薪/;
+function getLiveOpsCtx(){
+  var A=null, MT=null; try{ A=JSON.parse(localStorage.getItem('appedu_ai_snap_v1')||'null'); }catch(e){} try{ MT=JSON.parse(localStorage.getItem('appedu_mt_snap_v1')||'null'); }catch(e){}
+  if(!A && !MT) return '📡 即時數字：這台電腦還沒有業績數據中心的摘要（打開一次「業績數據中心」就會自動存），所以今天的燈號、追蹤卡、編輯追蹤、穿越、薪水我現在看不到，不要猜數字。';
+  var me=hgMe(), mem=hgMembers(me), acad=HG_ACAD[me]||'';
+  var myOrg=acad; if(!myOrg && mem){ var g=hgActiveGroupOf(me); if(g) myOrg=g.academy; }
+  var okOrg=function(o){ return !mem || !myOrg || o===myOrg; };
+  var okRep=function(o,n){ if(!mem) return true; if(acad) return o===acad; return !!mem[n]; };
+  var j=function(x){ return JSON.stringify(x); }, L=[], q=String(window._kbQuery||''), has=function(re){ return !q || re.test(q); };
+  var age=A&&A.atTs?Math.round((Date.now()-A.atTs)/60000):null;
+  L.push('📡 業績數據中心即時摘要（'+(A?('存於 '+A.at+(age!=null?'，'+(age<60?age+' 分鐘前':Math.round(age/60)+' 小時前'):'')):'無')+'；每日總結資料日 '+((A&&A.date)||'—')+'）');
+  L.push('看得到的範圍：'+(!mem?'七家全部（管理者）':acad?acad+' 全部':'自己這一組')+'。數字只能引用這裡有的，沒有就說沒有。');
+  if(A){
+    if(A.academies){ var ac=A.academies.filter(function(r){ return okOrg(r.org); }); if(ac.length) L.push('【每日總結・各學院】月目標/月累計/今日應到累計/燈號(✔+超前 ✔達標 X未達)/今天贏輸/今天入帳 vs 今天承諾/連贏連輸/退費率/註冊率\n'+ac.map(j).join('\n')); }
+    if(A.leaders){ var ld=A.leaders.filter(function(r){ return okOrg(r.org) && (!mem || acad || mem[r.組長]); }); if(ld.length) L.push('【組長層紅黃燈】\n'+ld.map(j).join('\n')); }
+    if(A.timetravel){ var tt=A.timetravel; var ta=(tt.學院||[]).filter(function(r){ return okOrg(r.學院); }), tg=(tt.組||[]).filter(function(r){ return okOrg(r.學院) && (!mem || acad || mem[r.組長]); });
+      if(ta.length||tg.length) L.push('【穿越時間】狀態＝照進度超前/落後幾個上班日；活在＝實際進度等於哪一天\n'+ta.concat(tg).map(j).join('\n')); }
+    if(A.academies && A.date) L.push('註：資料日如果是今天，今天的「輸」只代表到存檔那一刻還沒到今天承諾，不是收盤結果。');
+    if(A.tracking && has(/追蹤卡|逾期|到期|待檢討|面談|盯誰|該盯|追|誰最|落後/)){ var tk=A.tracking.filter(function(r){ return okRep(r.org,r.業務); }).sort(function(a,b){ return b.逾期未回-a.逾期未回; }); if(tk.length) L.push('【面談追蹤卡・每人】卡數/逾期未回/今天到期/待檢討/已成交（依逾期多到少）\n'+tk.slice(0,60).map(j).join('\n')); }
+    if(A.edits && has(/編輯|備註|詳細狀態|狀態|點開|空編輯|EIP|勤|偷懶|交差|沒在做|盯誰|該盯|誰最/)){ var ed=A.edits.filter(function(r){ return okRep(r.org,r.業務); }).sort(function(a,b){ return (a.這週||0)-(b.這週||0); }); if(ed.length) L.push('【編輯追蹤・每人】本月/這週(近7天)/上週/連續天數/最後一天/本月點開沒寫狀態/能比對的筆數（依這週少到多，最少的 40 人）。「點開沒寫狀態」＝點開名單按了儲存，但 EIP 的詳細狀態跟上一次一個字都一樣，組長看不出這次跟學生聊了什麼；第一次看到的學生沒得比，不算。回答一律用「點開沒寫狀態」這個說法，不要說「空編輯」；要提醒的話就說：每次點開補一句，今天有沒有聯絡到、學生怎麼說、下一步哪天。比例超過 40% 才算在交差，能比對的筆數太少（少於 10 筆）就說還判斷不了\n'+ed.slice(0,40).map(j).join('\n')); }
+    if(A.pay && A.pay.人 && has(/薪|獎金|收入|領多少|5%|現金|達標|加碼|底薪|賺/)){ L.push('【💰 薪水（估算，實際以薪資單為準）】有活動加碼：'+(A.pay.有活動加碼?'有':'沒有')+'；現金資料：'+A.pay.現金資料+'；收入＝獎金＋底薪 35,000（不含加班費）\n'+A.pay.人.slice().sort(function(a,b){ return b.收入-a.收入; }).map(j).join('\n')); }
+  }
+  if(MT && MT.months && MT.live && MT.months[MT.live] && has(/報到|面談|業績|目標|組員|註冊|退費|通路|差多少|缺口|誰|進度|掛零|多少/)){
+    var R=MT.months[MT.live].reps||{}, rows=[];
+    Object.keys(R).forEach(function(n){ var r=R[n]; if(!okRep(r.org,n)) return; rows.push({ 業務:n, org:r.org, 個人目標:r.goal, 業績:r.biz, 面談:r.itv, 報到:r.ck, 新生註冊:r.reg, 退費:r.pb, 通路:r.ch }); });
+    if(rows.length) L.push('【組本月數字・每人（'+MT.live+'，會前資料包同一份）】欄位：個人目標、業績（元）、面談（位）、報到（人，本月累計）、新生註冊（位）、退費（元）、通路（各通路業績）。只有整月累計，沒有每週拆分；問「這週」要先說明只能用本月累計看。問報到就看「報到」欄，不要拿業績代替\n'+rows.slice().sort(function(a,b){ return (a.報到||0)-(b.報到||0); }).map(j).join('\n'));
+  }
+  if(A && (A.dsErr||A.trkErr||A.edErr||A.ttErr||A.payErr)) L.push('（有幾塊這次算不出來：'+[A.dsErr&&'每日總結',A.trkErr&&'追蹤卡',A.edErr&&'編輯追蹤',A.ttErr&&'穿越',A.payErr&&'薪水'].filter(Boolean).join('、')+'）');
+  return L.join('\n');
+}
+
 // ★ ds149 AI 顧問第 2 輪：讀得懂「會議作戰追蹤」——最近 8 場會（只限看得到的組）＋每場說好的事和最新結果
 function _mtCtxLines(all){
   var ST={done:'做到了',part:'部分做到',miss:'沒做到',none:'還沒回報',keep:'繼續追',drop:'不追了'};
@@ -3096,6 +3130,7 @@ function getFullContext(){
   var kb=localStorage.getItem(SK.teamkb); if(kb && (curFeature==='team' || _rel(/團隊知識|大家問過|常見問題|共用/))) D.push('📣 團隊知識庫\n'+String(kb).slice(-4000));
   var closedCtx=getClosedCtx(); if(closedCtx && _rel(/結案|歸檔|處理過的|之前的話題|以前談過/)) D.push(closedCtx);
   var errCtx=getAiErrorCtx(); if(errCtx && _rel(/你之前|你上次|你錯|修正|為什麼你說|質疑|挑戰|不同意/)) D.push(errCtx);
+  try{ if(_q && LIVEOPS_RE.test(_q)){ var lo=getLiveOpsCtx(); if(lo) D.push(lo); } }catch(e){ console.warn('[liveops]',e); }
   var kbCtx=getKnowledgeBaseCtx(); if(kbCtx) D.push(kbCtx);   // 知識庫已自帶關鍵字漸進式載入
   var cName = localStorage.getItem('activeCharacterName') || '';
   var footer = cName ? '\n\n🔒 再次確認：當前對話對象是「' + cName + '」— 回答時請以這個人的身分與處境思考。' : '';
@@ -6855,7 +6890,41 @@ html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
     else if(r==='leader') a=['今天該盯誰？','幫我排下週週會的議程','組員誰的註冊率最低、怎麼帶？'];
     else a=['我這個月還差多少？','這個學生一直不註冊怎麼追？','幫我派一個今天做得完的小任務'];
     if(d<=7) a.unshift('這個月的目標怎麼拆？'); else if(d>=22) a.unshift('最後幾天怎麼衝？');
-    return a.slice(0,4);
+    var dc=[]; try{ dc=dataChips(r); }catch(e){}
+    return dc.concat(a).filter(function(x,i,arr){ return arr.indexOf(x)===i; }).slice(0,4);
+  }
+  // ★ ds150 照今天的真實數字出建議問題（業績數據中心摘要 appedu_ai_snap_v1）
+  function snapA(){ try{ return JSON.parse(localStorage.getItem('appedu_ai_snap_v1')||'null'); }catch(e){ return null; } }
+  function sn(n){ n=String(n||''); return /^[一-鿿]{3}$/.test(n)?n.slice(1):n; }
+  function dataChips(r){
+    var A=snapA(), m=me(), out=[]; if(!A||!A.atTs||Date.now()-A.atTs>36*3600e3) return out;
+    var mem=hgMembers(m), acad=HG_ACAD[m]||'', g0=hgActiveGroupOf(m), myOrg=acad||(g0&&g0.academy)||'';
+    if(r==='admin'){
+      var lose=(A.academies||[]).filter(function(x){ return /連輸/.test(x.連續||'') && parseInt(x.連續,10)>=3; }).sort(function(a,b){ return parseInt(b.連續,10)-parseInt(a.連續,10); })[0];
+      if(lose) out.push(lose.org+' '+lose.連續+'，卡在哪裡？');
+      var tk=(A.tracking||[]).slice().sort(function(a,b){ return b.逾期未回-a.逾期未回; })[0]; if(tk&&tk.逾期未回>=5) out.push(sn(tk.業務)+' 追蹤卡逾期 '+tk.逾期未回+' 張，要怎麼處理？');
+    } else {
+      var ld=(A.leaders||[]).filter(function(x){ return (acad?x.org===acad:(g0&&x.組長===g0.leader)) && x.紅燈&&x.紅燈.length; })[0];
+      if(ld){ var mm=String(ld.紅燈.join('、')).match(/組員未達：([^ ，、]+)/); out.push(mm?(sn(mm[1])+' 還沒到應到進度，這週怎麼帶？'):(sn(ld.組長)+'組今天紅燈，先處理哪一件？')); }
+      var mine=(A.pay&&A.pay.人||[]).filter(function(x){ return x.業務===m; })[0];
+      if(mine&&mine.下一級) out.push('再做 '+Math.round((mine.下一級-mine.業績)/1000)/10+' 萬到 '+(mine.下一級/10000)+' 萬，這週怎麼衝？');
+      var tk2=(A.tracking||[]).filter(function(x){ return mem?(acad?x.org===acad:mem[x.業務]):true; }).sort(function(a,b){ return b.逾期未回-a.逾期未回; })[0];
+      if(tk2&&tk2.逾期未回>=3) out.push(sn(tk2.業務)+' 有 '+tk2.逾期未回+' 張追蹤卡逾期，怎麼追？');
+    }
+    return out.slice(0,2);
+  }
+  // ★ ds150「AI 看得到什麼」：讓大家知道這裡的極限跟能做什麼（漸進揭露，預設收起）
+  function capHtml(){
+    var A=snapA(), m=me(), mem=hgMembers(m), acad=HG_ACAD[m]||'';
+    var age=A&&A.atTs?(Date.now()-A.atTs):Infinity, ageTxt=age===Infinity?'還沒有':(age<36e5?Math.max(1,Math.round(age/6e4))+' 分鐘前':age<864e5?Math.round(age/36e5)+' 小時前':Math.round(age/864e5)+' 天前');
+    var stale=age>12*3600e3, scope=!mem?'七家全部':acad?acad+' 全部':'你這一組';
+    var yes=[['📊','今天七家燈號、贏輸、連贏連輸、三關進度、穿越時間'],['🚦','組長層紅黃燈、每人本月業績、面談、報到、註冊、退費、六塊通路'],['🗂','面談追蹤卡逾期、編輯追蹤（誰這週沒更新 EIP、誰點開沒寫狀態）'],['💰','薪水估算（5%、現金 10%、達標、加碼、底薪）'],['📝','會議作戰追蹤：最近的會、說好的事做到沒'],['📚','鐵律、知識庫、案例庫、公司制度、你的私聊筆記']];
+    var no=['EIP 畫面上的即時狀態（要先在業績數據中心同步過）','學生完整電話、LINE 對話內容','報到、面談只有整月累計，沒有每週拆分','還沒同步進來的當天入帳','別組的面談錄音（只看得到自己組）','薪水是估算，實際以公司薪資單為準'];
+    return '<details class="v4cap"'+(stale?' open':'')+'><summary><span><b>AI 看得到什麼</b><small>範圍：'+esc(scope)+'・業績數據更新於 '+esc(ageTxt)+(stale?'，有點舊':'')+'</small></span><i aria-hidden="true">›</i></summary>'
+      +'<div class="v4capb">'+(stale?'<p class="v4warn">數字有點舊，打開一次「業績數據中心」就會自動更新（不用按任何按鈕），回來再問比較準</p>':'')
+      +'<div class="v4cols"><div><h4>看得到</h4><ul>'+yes.map(function(x){ return '<li><span>'+x[0]+'</span>'+esc(x[1])+'</li>'; }).join('')+'</ul></div>'
+      +'<div><h4>看不到</h4><ul class="no">'+no.map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('')+'</ul></div></div>'
+      +'<p class="v4capf">問到數字時，AI 只會用上面看得到的資料回答；沒有的會直接說沒有，不會猜</p></div></details>';
   }
   function useCount(){ try{ return JSON.parse(localStorage.getItem('ai_adv_use_v1')||'{}')||{}; }catch(e){ return {}; } }
   function bump(fid){ try{ var u=useCount(); u[fid]=(u[fid]||0)+1; localStorage.setItem('ai_adv_use_v1',JSON.stringify(u)); }catch(e){} }
@@ -6874,6 +6943,7 @@ html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
       +'<section class="v3hero"><div class="v3glow" aria-hidden="true"></div><p class="v3eyebrow">AI 顧問</p><h2>想問什麼？</h2><p class="sub">業績、帶人、約訪、公司制度，直接問</p>'
       +'<div class="v2ask"><textarea id="v2q" rows="1" placeholder="例如：郁瑾這週該盯哪一段？"></textarea><button class="v2go" id="v2go" aria-label="送出" onclick="v2Ask()" disabled>↑</button></div>'
       +'<div class="v2row">'+chips().map(function(c){ return '<button class="v2chip" onclick="v2Ask(this.textContent)">'+esc(c)+'</button>'; }).join('')+'<button class="v2chip ghost" onclick="showView(\'askexamples\')">更多範例 ›</button></div></section>'
+      +capHtml()
       +'<div class="v2sec"><b>常用顧問</b><span>想指定的時候</span></div><div class="v2adv">'+top.map(card).join('')+(_moreAdv?rest.map(card).join(''):'')+'</div>'
       +'<div class="v2row"><button class="v2chip ghost" onclick="v2MoreAdv()">'+(_moreAdv?'收起':'更多顧問（'+rest.length+'）')+'</button></div>'
       +(recs.length?'<div class="v2sec"><b>接著上次聊</b><span>點了直接回到那段對話</span></div><div class="v2rec">'+recs.map(function(r){ var f=FEATURES[r.fid]||{}; return '<button onclick="openChat(\''+r.fid+'\')"><span>'+(f.icon||'')+'</span><span class="t"><em>'+esc(f.title||r.fid)+'</em>'+esc(r.text)+'</span><small>'+fmtT(r.t)+'</small></button>'; }).join('')+'</div>':'')
@@ -6920,6 +6990,7 @@ html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
       if(acts){
         var mk=function(label,cls,fn){ var b=document.createElement('button'); b.className='v2act '+(cls||''); b.textContent=label; b.onclick=function(){ fn(b); }; acts.appendChild(b); return b; };
         mk('加成任務','pri',function(b){ try{ openAddTask(); var s=(ps&&ps.sum)||full; document.getElementById('taskName').value=String(s).split('\n')[0].replace(/^\d+[.、]\s*/,'').slice(0,40); document.getElementById('taskContent').value=String(s).slice(0,1500); b.textContent='✓ 已填好，按儲存就加進任務'; b.className='v2act done'; }catch(e){ alert('沒辦法打開任務：'+e.message); } });
+        mk('存回會議','',function(b){ try{ openSaveMt(full,prevUser(d),(ps&&ps.sum)||'',b); }catch(e){ console.error(e); } });
         mk('收藏','',function(b){ saveMsgToPrivateChat(full,b); b.textContent='✓ 已收藏到私聊筆記'; b.className='v2act done'; });
         mk('複製','',function(b){ try{ navigator.clipboard.writeText(full).then(function(){ b.textContent='✓ 已複製'; setTimeout(function(){ b.textContent='複製'; },1500); }); }catch(e){} });
         mk('這個答錯了','quiet',function(){ openAddAiError(); try{ document.getElementById('aiErrUserMsg').value=prevUser(d).slice(0,2000); document.getElementById('aiErrAiMsg').value=full.slice(0,4000); }catch(e){} });
@@ -6970,6 +7041,121 @@ html body.v2 .chat-view.no-pins .pin-side{display:none !important;}
 </script>
 
 
+<style id="v4capcss">
+.v4cap{margin-top:14px;background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden;}
+.v4cap summary{list-style:none;display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;}
+.v4cap summary::-webkit-details-marker{display:none;}
+.v4cap summary span{flex:1;display:flex;flex-direction:column;gap:2px;} .v4cap summary b{font-size:.9375rem;letter-spacing:-.01em;color:#1D1D1F;} .v4cap summary small{font-size:.8125rem;color:#6E6E73;}
+.v4cap summary i{font-style:normal;font-size:1.25rem;color:#8E8E93;transition:transform .28s cubic-bezier(.2,.9,.25,1);} .v4cap[open] summary i{transform:rotate(90deg);}
+.v4cap summary:active{background:#F5F5F7;}
+.v4capb{padding:0 18px 16px;} .v4cols{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;}
+.v4capb h4{margin:4px 0 8px;font-size:.8125rem;letter-spacing:.04em;color:#6E6E73;}
+.v4capb ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;font-size:.875rem;line-height:1.45;color:#1D1D1F;}
+.v4capb li{display:flex;gap:8px;} .v4capb li span{flex:none;width:1.3em;text-align:center;}
+.v4capb ul.no li{color:#6E6E73;} .v4capb ul.no li::before{content:"–";flex:none;width:1.3em;text-align:center;color:#AEAEB2;}
+.v4warn{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#FFF6E5;color:#8A5A00;font-size:.8125rem;line-height:1.5;}
+.v4capf{margin:12px 0 0;font-size:.8125rem;color:#6E6E73;}
+@media (max-width:620px){ .v4cols{grid-template-columns:1fr;} }
+@media (prefers-reduced-motion:reduce){ .v4cap summary i{transition:none;} }
+</style>
+<style id="v4savecss">
+/* ═══ ★ ds150「存回會議」：AI 顧問的好答案帶回會議作戰追蹤（說好的事／補充建議／下次議程）═══
+   Apple Design：從按下的按鈕長出來（transform-origin＝按鈕位置）、臨界阻尼 0.32s、按下立刻 0.97、遮罩變暗＝要專注完成；減少動態改淡入 */
+.v4dim{position:fixed;inset:0;background:rgba(0,0,0,.32);opacity:0;transition:opacity .24s ease;z-index:9998;}
+.v4dim.on{opacity:1;}
+.v4sheet{position:fixed;left:50%;top:50%;width:min(520px,calc(100vw - 28px));max-height:calc(100vh - 40px);overflow:auto;transform:translate(-50%,-50%) scale(.92);opacity:0;
+  background:#fff;color:#1D1D1F;border-radius:22px;box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 24px 70px rgba(0,0,0,.28);padding:20px 20px 16px;z-index:9999;
+  transition:transform .32s cubic-bezier(.2,.9,.25,1),opacity .2s ease;font-size:.9375rem;}
+.v4sheet.on{transform:translate(-50%,-50%) scale(1);opacity:1;}
+.v4sheet h3{margin:0 0 4px;font-size:1.125rem;letter-spacing:-.015em;} .v4sheet .v4sub{margin:0 0 14px;color:#6E6E73;font-size:.8125rem;line-height:1.5;}
+.v4seg{display:flex;gap:4px;background:#F2F2F7;border-radius:12px;padding:3px;margin-bottom:6px;}
+.v4seg button{flex:1;border:0;background:transparent;border-radius:9px;padding:9px 6px;font-weight:700;font-size:.875rem;color:#3A3A3C;cursor:pointer;transition:background .2s ease,box-shadow .2s ease;}
+.v4seg button.on{background:#fff;color:#1D1D1F;box-shadow:0 1px 3px rgba(0,0,0,.12);}
+.v4seg button:active,.v4btn:active{transform:scale(.97);transition:transform 100ms ease-out;}
+.v4hint{margin:0 2px 12px;font-size:.8125rem;color:#6E6E73;min-height:1.2em;}
+.v4f{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;} .v4f label{font-size:.8125rem;font-weight:700;color:#3A3A3C;}
+.v4f select,.v4f input,.v4f textarea{font:inherit;border:1px solid #D2D2D7;border-radius:12px;padding:10px 12px;background:#fff;color:#1D1D1F;}
+.v4f textarea{min-height:96px;resize:vertical;line-height:1.55;}
+.v4f select:focus,.v4f input:focus,.v4f textarea:focus{outline:none;border-color:#1D1D1F;box-shadow:0 0 0 3px rgba(29,29,31,.08);}
+.v4two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.v4foot{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:6px;} .v4foot .v4msg{flex:1;font-size:.8125rem;color:#6E6E73;}
+.v4btn{border:0;border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;background:#F2F2F7;color:#1D1D1F;}
+.v4btn.pri{background:linear-gradient(135deg,#1D1D1F,#3A3A3C);color:#fff;} .v4btn:disabled{opacity:.5;cursor:default;}
+@media (prefers-reduced-motion:reduce){.v4sheet{transition:opacity .2s ease;transform:translate(-50%,-50%);} .v4sheet.on{transform:translate(-50%,-50%);}}
+@media (prefers-color-scheme:dark){ body:not(.day-mode) .v4sheet{background:#1C1C1E;color:#F2F2F7;} body:not(.day-mode) .v4f select,body:not(.day-mode) .v4f input,body:not(.day-mode) .v4f textarea{background:#2C2C2E;color:#F2F2F7;border-color:#3A3A3C;} }
+</style>
+<script>
+/* ★ ds150「存回會議」 */
+(function(){
+  var W=window, SV={kind:'item'};
+  function mgGroups(){
+    var me=hgMe(), all=[];
+    hgActive().forEach(function(g){ if(HG_SOUTH.indexOf(g.academy)<0) return; var mem=[g.leader].concat(g.members||[]).filter(function(n,i,a){ return n&&a.indexOf(n)===i; });
+      all.push({ id:g.leader, leader:g.leader, academy:g.academy, kind:g.kind, members:mem }); });
+    if(HG_ADMIN[me]) return all;
+    if(HG_ACAD[me]) return all.filter(function(g){ return g.academy===HG_ACAD[me] || g.members.indexOf(me)>=0; });
+    return all.filter(function(g){ return g.members.indexOf(me)>=0; });
+  }
+  function canMg(g){ var me=hgMe(); return !!(g&&(HG_ADMIN[me]||g.leader===me||(HG_ACAD[me]&&HG_ACAD[me]===g.academy))); }
+  function short(n){ n=String(n||''); return /^[一-鿿]{3}$/.test(n)?n.slice(1):n; }
+  function ymd(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+  function firstLine(t){ t=String(t||'').replace(/\r/g,''); var l=t.split('\n').map(function(x){ return x.replace(/^[\s\-•・*#\d.、]+/,'').trim(); }).filter(Boolean); return (l[0]||'').slice(0,140); }
+  function close(){ var d=document.querySelector('.v4dim'), s=document.querySelector('.v4sheet'); if(s) s.classList.remove('on'); if(d) d.classList.remove('on'); setTimeout(function(){ if(d) d.remove(); if(s) s.remove(); },260); document.removeEventListener('keydown',onKey); }
+  function onKey(e){ if(e.key==='Escape') close(); }
+  var HINT={ item:'會變成一條「說好的事」，下次開會自動對帳（沒有綁數字，會上口頭回報）', advice:'放進下次的會前資料包「AI 顧問補充建議」，開完下一場會就收起來', agenda:'放進下次會前資料包的「建議議程」，開完下一場會就收起來' };
+  function paint(){
+    var s=document.querySelector('.v4sheet'); if(!s) return; var gs=mgGroups(), gsel=s.querySelector('#v4g'), gid=gsel?gsel.value:(gs[0]&&gs[0].id), g=gs.filter(function(x){ return x.id===gid; })[0]||gs[0];
+    s.querySelectorAll('.v4seg button').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-k')===SV.kind); });
+    s.querySelector('.v4hint').textContent=HINT[SV.kind];
+    s.querySelector('.v4item').style.display=SV.kind==='item'?'':'none';
+    var who=s.querySelector('#v4w'); if(who&&g){ var me=hgMe(), keep=who.value, opts=canMg(g)?g.members.concat(['全組']):[me];
+      who.innerHTML=opts.map(function(n){ return '<option value="'+esc(n)+'">'+esc(n==='全組'?'全組':short(n))+'</option>'; }).join(''); if(opts.indexOf(keep)>=0) who.value=keep; else if(opts.indexOf(me)>=0) who.value=me; }
+  }
+  W.openSaveMt=function(full,q,sum,btn){
+    var gs=mgGroups(); if(!gs.length){ alert('找不到你所在的小組（要先有激勵的正式／儲備小組表），所以還不能存回會議'); return; }
+    close();
+    var dim=document.createElement('div'); dim.className='v4dim'; dim.onclick=close;
+    var s=document.createElement('div'); s.className='v4sheet'; s.setAttribute('role','dialog'); s.setAttribute('aria-modal','true'); s.setAttribute('aria-label','存回會議');
+    var d7=new Date(Date.now()+7*864e5), myG=gs.filter(function(g){ return g.members.indexOf(hgMe())>=0; })[0]||gs[0];
+    s.innerHTML='<h3>存回會議作戰追蹤</h3><p class="v4sub">把這個回答帶到下一次開會。只存你改好的那一句，不會把整段 AI 回答丟過去</p>'
+      +'<div class="v4seg" role="tablist"><button data-k="item">說好的事</button><button data-k="advice">補充建議</button><button data-k="agenda">下次議程</button></div><p class="v4hint"></p>'
+      +(gs.length>1?'<div class="v4f"><label for="v4g">哪一組</label><select id="v4g">'+gs.map(function(g){ return '<option value="'+esc(g.id)+'"'+(g===myG?' selected':'')+'>'+esc(g.academy+' '+short(g.leader)+'組'+(g.kind==='儲備'?'（儲備）':''))+'</option>'; }).join('')+'</select></div>':'<div class="v4f"><label>哪一組</label><div>'+esc(gs[0].academy+' '+short(gs[0].leader)+'組')+'</div></div>')
+      +'<div class="v4f"><label for="v4t">要存的內容</label><textarea id="v4t"></textarea></div>'
+      +'<div class="v4item v4two"><div class="v4f"><label for="v4w">誰</label><select id="v4w"></select></div><div class="v4f"><label for="v4d">哪天前</label><input id="v4d" type="date" value="'+ymd(d7)+'"></div></div>'
+      +'<div class="v4foot"><span class="v4msg"></span><button class="v4btn" type="button">取消</button><button class="v4btn pri" type="button">存回去</button></div>';
+    document.body.appendChild(dim); document.body.appendChild(s);
+    s.querySelector('#v4t').value=firstLine(sum)||firstLine(full);
+    try{ if(btn){ var r=btn.getBoundingClientRect(), sr=s.getBoundingClientRect(); s.style.transformOrigin=Math.round(r.left+r.width/2-sr.left)+'px '+Math.round(r.top+r.height/2-sr.top)+'px'; } }catch(e){}
+    s.querySelectorAll('.v4seg button').forEach(function(b){ b.onclick=function(){ SV.kind=b.getAttribute('data-k'); paint(); }; });
+    var gsel=s.querySelector('#v4g'); if(gsel) gsel.onchange=paint;
+    var bs=s.querySelectorAll('.v4foot .v4btn'); bs[0].onclick=close; bs[1].onclick=function(){ save(q,full,btn); };
+    paint(); requestAnimationFrame(function(){ dim.classList.add('on'); s.classList.add('on'); setTimeout(function(){ try{ s.querySelector('#v4t').focus(); }catch(e){} },120); });
+    document.addEventListener('keydown',onKey);
+  };
+  function save(q,full,srcBtn){
+    var s=document.querySelector('.v4sheet'); if(!s) return; var msg=s.querySelector('.v4msg'), go=s.querySelectorAll('.v4foot .v4btn')[1];
+    var gs=mgGroups(), gsel=s.querySelector('#v4g'), gid=gsel?gsel.value:gs[0].id, g=gs.filter(function(x){ return x.id===gid; })[0];
+    var what=s.querySelector('#v4t').value.trim(); if(!what){ msg.textContent='內容要寫一句'; return; }
+    if(!window._caseCacheReady){ msg.textContent='案例庫還在讀，等 3 秒再按一次'; return; }
+    var me=hgMe(), now=Date.now(), rid=function(p){ return p+now.toString(36)+Math.random().toString(36).slice(2,7); }, rec;
+    var src={ q:String(q||'').slice(0,300), a:String(full||'').slice(0,1500), fid:(typeof curFeature!=='undefined'?curFeature:''), at:now };
+    if(SV.kind==='item'){ var who=s.querySelector('#v4w').value||me, due=s.querySelector('#v4d').value||'';
+      rec={ id:rid('mti_'), type:'interview_mtitem', by:me, createdAt:now, mti:{ key:rid('k_'), mtId:'ai_'+now.toString(36), group:g.id, who:who, what:what, metric:'manual', add:null, due:due, base:null, baseYm:'', baseAt:ymd(new Date()), vague:false, from:'ai', src:src } };
+    } else rec={ id:rid('mta_'), type:'interview_mtai', by:me, createdAt:now, mta:{ group:g.id, kind:SV.kind, what:what, q:src.q, src:src } };
+    go.disabled=true; go.textContent='存檔中…';
+    var arr=LS(SK.casedb).slice(); arr.push(rec); SS(SK.casedb,arr);
+    (window._caseSavePending||Promise.resolve()).then(function(){
+      var ok=(window._caseIds||[]).indexOf(rec.id)>=0; if(!ok){ go.disabled=false; go.textContent='存回去'; msg.textContent='這次沒存進去，再按一次'; return; }
+      try{ var fs=(window.parent&&window.parent.firebaseSync)||window.firebaseSync; if(fs&&fs.push) setTimeout(function(){ try{ fs.push(); }catch(e){} },1500); }catch(e){}
+      try{ var LG=window.LEDGER||(window.parent&&window.parent.LEDGER), TAB='AI 顧問存回會議'; if(LG&&LG.rows){ var o1={},o2={},o3={}; o1[TAB]=[[LG.ts?LG.ts():new Date(now).toLocaleString('zh-TW'),g.id,SV.kind==='item'?rec.mti.who:'',what,{item:'說好的事',advice:'補充建議',agenda:'下次議程'}[SV.kind],me,src.q,rec.id]]; o2[TAB]=['時間','組','誰','內容','類型','存的人','原本問的','編號']; o3[TAB]=[rec.id]; LG.rows(o1,o2,o3); } }catch(e){}
+      var lab={item:'說好的事',advice:'補充建議',agenda:'下次議程'}[SV.kind];
+      if(srcBtn){ srcBtn.textContent='✓ 已存回會議・'+lab; srcBtn.className='v2act done'; }
+      s.querySelector('.v4foot').innerHTML='<span class="v4msg">✓ 已存進 '+esc(g.academy+' '+short(g.leader)+'組')+' 的'+lab+'</span><button class="v4btn" type="button">好</button><button class="v4btn pri" type="button">打開會議作戰追蹤</button>';
+      var b2=s.querySelectorAll('.v4foot .v4btn'); b2[0].onclick=close; b2[1].onclick=function(){ close(); try{ var P=window.parent; if(P&&P!==window&&P.openMeeting){ if(P.closeAiAdvisor) P.closeAiAdvisor(); P.openMeeting(); return; } }catch(e){} location.href='meeting-track.html'; };
+    }).catch(function(e){ go.disabled=false; go.textContent='存回去'; msg.textContent='沒存進去：'+(e&&e.message||e); });
+  }
+})();
+</script>
 <style id="v3css">
 /* ═══ ★ ds149 AI 顧問視覺第 2 版（10/30 Ivan：配色不夠流暢、跟主題不搭、不夠高級）
    審查結論：①主題色跟首頁「AI 顧問」石墨卡統一（#1D1D1F→#3A3A3C），進來就知道是同一個地方 ②AI 專屬的一抹光（藍紫粉橘漸層）只在「AI 在動」時出現：輸入框聚焦、AI 思考中、重點的左邊細線，平常不搶戲

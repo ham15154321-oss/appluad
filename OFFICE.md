@@ -697,3 +697,13 @@ C 主管
   3. AI 顧問視覺第 2 版（Apple Design＋20 年 UX 審查）：主題色跟首頁「AI 顧問」石墨卡統一；首頁問答區做成石墨主視覺＋柔和光暈，輸入聚焦時出現藍紫粉橘 AI 光環；使用者訊息改石墨、AI 回答白卡細陰影、重點左側 AI 漸層細線；主按鈕（送出、加成任務）改石墨、藍色只留連結；AI 思考時小光環旋轉（減少動態時不轉）；任務、資料分頁、彈窗、釘選欄統一白卡＋石墨按鈕（#v3css、#v3panels）。
   4. AI 顧問第 2 輪：getCaseDbCtx 加 _mtCtxLines（最近 8 場看得到的會議＋每條說好的事和最新結果，作廢的不算）；會議記錄視窗加「🔍 到 AI 顧問深挖」（localStorage ai_handoff_v1 交接，AI 顧問 2 分鐘內打開會自動帶問題問績效教練）。實測交接成功；測試那一問一答已從柏翰的績效教練紀錄拿掉、試算表那兩列已作廢進回收桶（Firestore 管理紀錄裡仍有一筆）。
   備份 outputs/bak_ds149/。
+- ds150（10/30 Ivan：AI 顧問接 6 塊即時數據；薪水要獨立按鈕、每月沿用、AI 全部都可以看到薪水）
+  1. pc.js _aiSnapWrite(live)：在 _myRepSnap 裡呼叫，每 10 分鐘最多一次，存 appedu_ai_snap_v1（只在本機）：academies（_dsModel 最新一天：燈號、今天贏輸、連贏連輸、退費率、註冊率）、leaders（_dsLeaders 紅黃燈）、tracking（getTracking 每人卡數/逾期/今天到期/待檢討）、edits（_edDashModel，只留 mt 快照裡的業務）、timetravel（getTimeTravel）、pay（_payModel）。約 45KB。
+  2. ai-advisor.html getLiveOpsCtx()：LIVEOPS_RE 命中才進 D 區；每塊再各自看關鍵字（追蹤卡/編輯/薪水/組本月數字）省 token。範圍：管理者七家、學院主管自己那家、組長業務自己那組；薪水不分層（Ivan 決定）。沒有快照時明講「看不到，不要猜」。實測 Haiku 三題都答對範圍（報到題會說明只有本月累計）。
+  3. 💰 薪水：payOpen(ym, sc) 借 ppEvBg 視窗（data-k='pay|…'，自動重畫認得它；dsumOpen 會把 key 改回）；月份 chips（本月＋封存最多 6 個月）＋ 👤我/📊七家/各學院；我＝大字收入＋5%/現金10%/達標/(加碼)/底薪＋下一級進度條；七家獎金前十（顯示名字沿用 evo_inc_names）；各學院表。_payAdd(ym) 只有 EVO.ym 那個月有加碼。_myBonusHtml 改用 _payRow，11 月起不消失。按鈕在 _ppEventBarHtml 每日總結右邊。CSS 在 pc.css 尾段 ds150。
+  備份 outputs/bak_ds150/。
+  4. 存回會議（ai-advisor.html #v4savecss＋openSaveMt）：AI 回答動作列「存回會議」（加成任務後面）→ 從按鈕長出來的視窗：說好的事／補充建議／下次議程、哪一組（mgGroups＝hgActive 照 myGroups 規則）、內容（預填【重點】第一行）、誰＋哪天前（說好的事才有；不是組長主管只能選自己）。說好的事直接寫 interview_mtitem（mtId:'ai_…', metric:'manual', from:'ai', src:{q,a}）；建議／議程寫 interview_mtai {mta:{group,kind,what,q,src}}。走 SS(casedb) 先讀再合併再寫、確認 _caseIds 有這筆才算成功、firebaseSync.push、LEDGER 試算表分頁「AI 顧問存回會議」。
+     meeting-track.html：aiInbox(gid)＝這組最後一場（非匯入）會之後存的、沒被 interview_mtaist drop 的；會前資料包多「📥 從 AI 顧問存回來的」（組長主管可 ✕，只加不刪）；議程類併進 agendaList（Word、複製都有）；建議類進 packText；說好的事那條標「🤖 從 AI 顧問存回」；說好的事卡上方提示 N 條。MT_TYPES 加 interview_mtai/mtaist（備份會帶）。
+  5. 「AI 看得到什麼」卡（capHtml，details 預設收起，資料超過 12 小時自動打開並提醒打開業績數據中心）：範圍、更新時間、看得到 6 項、看不到 6 項。建議問題 dataChips(role)：管理者＝連輸 ≥3 天最久的學院、逾期最多的人；組長／業務＝自己組紅燈的組員、自己差多少到下一級、組內逾期最多的人；摘要超過 36 小時不出。
+  測試：存回會議用假 SS 跑過（沒寫進案例庫）；試算表那筆測試列已 voidRef 進回收桶。meeting-track 用記憶體假資料看過畫面，沒有存。
+  6. （10/30 Ivan 選定）「空編輯」全站改叫「點開沒寫狀態」＝點開名單按了儲存，但 EIP「詳細狀態」跟上一次一個字都一樣。編輯追蹤分頁的說明、欄名（點開沒寫狀態／能比對的筆數）、判讀徽章（🔴 量大但沒寫狀態）、展開區、提示文字都換掉，說明補「怎麼改：每次點開就補一句，今天有沒有聯絡到、學生怎麼說、下一步哪天」。review-export.js 鍵名改 近7天點開沒寫狀態幾筆／本月點開沒寫狀態幾筆，review-deck.html 跟著改並相容舊鍵。擴充 content.js 狀態列文字也改（要重新載入擴充才看得到）。AI 摘要 edits 加 本月點開沒寫狀態、能比對的筆數；AI 顧問指示一律用這個說法、超過 40% 才算交差、能比對少於 10 筆說判斷不了。程式內部變數（empty、monEmpty）沒改。

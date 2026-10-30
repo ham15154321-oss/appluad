@@ -368,7 +368,7 @@ function line(slide, x, y, w, color = C.ink40) { slide.addShape(pres.shapes.LINE
   D.p2.rows.forEach(r => rows.push([cell(r[0], { bold: true, fontSize: 8.5 }), F(r[1], { align: 'center', fontSize: 8.5 }), F(r[2], { align: 'center', fontSize: 8.5 }), F(r[3], { fontSize: 8 }), F(r[4], { align: 'center', color: C.orange, fontSize: 8.5 }), std(r[5], { fontSize: 7.5 })]));
   s.addTable(rows, Object.assign({ x: 0.5, y: 2.6, w: 7.4, colW: [1.45, 1.15, 1.15, 1.35, 0.65, 1.65], rowH: [0.34, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3], fontSize: 8.5 }, tblBase));
   T(s, '我的名單有沒有在動（業績數據中心「編輯追蹤」）', 0.5, 5.4, 7.4, 0.3, { fontSize: 10.5, bold: true, color: C.ink });
-  const ed = [['這 7 天編輯幾筆', D.p2.edit[0], '每天 ≥ 20 筆'], ['幾筆複製上一筆狀態', D.p2.edit[1], '備註一個字都沒多的，≤ 10%'], ['超過 15 天沒編輯幾位 ／ 手上幾位', D.p2.edit[2], '這一格的人先打']];
+  const ed = [['這 7 天編輯幾筆', D.p2.edit[0], '每天 ≥ 20 筆'], ['幾筆點開沒寫狀態', D.p2.edit[1], '點開了但詳細狀態沒寫新的，≤ 10%'], ['超過 15 天沒編輯幾位 ／ 手上幾位', D.p2.edit[2], '這一格的人先打']];
   ed.forEach((e, i) => {
     const x = 0.5 + i * 2.5;
     s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 5.7, w: 2.35, h: 0.85, fill: { color: C.white }, line: { color: C.ink20, width: 0.75 }, rectRadius: 0.08 });
@@ -785,7 +785,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
 
     const dt = String(pack.meta.synced && pack.meta.synced.motiv || pack.meta.exportedAt).replace(/^\d{4}\//, '').replace(/^0/, '');
     return { academy: org, group: P.部門 || '', name, fullname: full, meet: cfg.MEET, dataAt: dt, goal: wan(goal),
-      p2: { rows, worst, why, edit: [fmt(ed.近7天編輯幾筆), fmt(ed.近7天幾筆複製上一筆狀態), `${fmt(ed.超過15天沒編輯)} ／ ${fmt(ed.手上幾位)}`] },
+      p2: { rows, worst, why, edit: [fmt(ed.近7天編輯幾筆), fmt(ed.近7天點開沒寫狀態幾筆 != null ? ed.近7天點開沒寫狀態幾筆 : ed.近7天幾筆複製上一筆狀態), `${fmt(ed.超過15天沒編輯)} ／ ${fmt(ed.手上幾位)}`] },
       p3: { kpi: [fmt(pf.合計業績), fmt(pf.業績A), fmt(B), fmt(pf.退費), `${pf.達成率 ?? pct(done, goal)}%`], kpiSub: [String(pf.註冊A ?? 0), String(pf.註冊B ?? 0), pf.退費 ? '—' : '0'], kpiNote: `今天該到 ${pct(day, dim)}%（${day}÷${dim}）`, rows: p3rows, channel: chLines },
       p4, p5, p6, p6note, p7, p10 };
   }
@@ -858,7 +858,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
 
     // 4 名單
     const ed = X.edits || {}; const b = ed.多久沒人動 || {};
-    const edit = { total: ed.手上幾位 || 0, in7: (b['0-3天'] || 0) + (b['4-7天'] || 0), d8: b['8-14天'] || 0, d15: b['15-30天'] || 0, d30: b['30天以上'] || 0, old: ed.超過15天沒編輯 || 0, n7: ed.近7天編輯幾筆 || 0, copy: ed.近7天幾筆複製上一筆狀態 || 0, days: (pack.meta.edits && pack.meta.edits.days) || null };
+    const edit = { total: ed.手上幾位 || 0, in7: (b['0-3天'] || 0) + (b['4-7天'] || 0), d8: b['8-14天'] || 0, d15: b['15-30天'] || 0, d30: b['30天以上'] || 0, old: ed.超過15天沒編輯 || 0, n7: ed.近7天編輯幾筆 || 0, copy: ed.近7天點開沒寫狀態幾筆 || 0, days: (pack.meta.edits && pack.meta.edits.days) || null };
     const R = eip && eip.區 && eip.區[region];
     const reged = {};
     if (R) Object.keys(R).forEach(k => (R[k] || []).forEach(c => (c.名單 || []).forEach(r => { (reged[r.姓名] = reged[r.姓名] || []).push(c.班級名稱.replace(/-\S+$/, '').replace(/｜.*$/, '')); })));
@@ -1153,7 +1153,7 @@ function tile(s, x, y, w, h, label, val, sub, hot, size = 24) { s.addShape(pres.
   lightPage(s, ++PG, '名單：手上的學生有沒有在動，面談完的學生去哪了', St ? `上排是「編輯追蹤」。下表是 ${St.months[0]}、${St.months[1]} 月自己面談、還沒註冊的學生，挑最有機會的 ${Math.min(7, St.list.length)} 位。${FL ? '後面四格是填好的範例。' : '後面四格檢討會前自己填，第一列是示範。'}` : '');
   if (V) {
     const e = V.edit; const tw = 2.33, gap = 0.17;
-    [['手上幾位', e.total, ''], ['7 天內有編輯', e.in7, ''], ['超過 15 天沒編輯', e.old, `15–30 天 ${e.d15}・30 天以上 ${e.d30}`, true], ['這 7 天編輯幾筆', e.n7, e.days && e.days < 7 ? `※ 只有 ${e.days} 天資料` : '每天 ≥ 20 筆'], ['幾筆複製上一筆狀態', e.copy, '≤ 10%']].forEach((t, i) => tile(s, 0.5 + i * (tw + gap), 2.45, tw, 1.0, t[0], t[1], t[2], t[3]));
+    [['手上幾位', e.total, ''], ['7 天內有編輯', e.in7, ''], ['超過 15 天沒編輯', e.old, `15–30 天 ${e.d15}・30 天以上 ${e.d30}`, true], ['這 7 天編輯幾筆', e.n7, e.days && e.days < 7 ? `※ 只有 ${e.days} 天資料` : '每天 ≥ 20 筆'], ['幾筆點開沒寫狀態', e.copy, '≤ 10%']].forEach((t, i) => tile(s, 0.5 + i * (tw + gap), 2.45, tw, 1.0, t[0], t[1], t[2], t[3]));
     const rg = St.regList.slice(0, 2).map(x => `${x.n} ${wan(x.v)} 萬`).join('、');
     T(s, [
       { text: `${St.months[0]}–${St.months[1]} 月面談 ${St.itv} 位 → 註冊 ${St.reg} 位${rg ? `（${rg}）` : ''} → 沒註冊 ${St.notReg} 位；`, options: { color: C.purple } },
@@ -1392,7 +1392,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       }
       return { full, n: short(full), isLeader: full === grp.leader, now: W(f.合計業績), A: W(f.業績A), itv: f.面談 || 0, ck: ck.正式報到 || 0, bk: ck.預約報到 || 0,
         best: W(best), bestB: bB && bB.v > 0 ? [bB.m + ' 月', W(bB.v)] : ['—', 0], back: back.length, backV: W(back.reduce((a, n) => a + payBy[n].v, 0)),
-        itvNR: itvNR.length, reg, fee, ed: e.近7天編輯幾筆 || 0, cp: e.近7天幾筆複製上一筆狀態 || 0, old: e.超過15天沒編輯 || 0, hasData: !!find(full) };
+        itvNR: itvNR.length, reg, fee, ed: e.近7天編輯幾筆 || 0, cp: (e.近7天點開沒寫狀態幾筆 != null ? e.近7天點開沒寫狀態幾筆 : e.近7天幾筆複製上一筆狀態) || 0, old: e.超過15天沒編輯 || 0, hasData: !!find(full) };
     });
 
     const sum = k => +mem.reduce((a, m) => a + (m[k] || 0), 0).toFixed(1);
@@ -1869,7 +1869,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   (async function () {
     if (!/^https?:/.test(location.protocol)) return;
     try {
-      await new Promise((res, rej) => { const s = document.createElement('script'); s.src = './review-export.js?v=b3a13fa7'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+      await new Promise((res, rej) => { const s = document.createElement('script'); s.src = './review-export.js?v=89fb448e'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
       for (let i = 0; i < 20 && !window.reviewExport; i++) await new Promise(r => setTimeout(r, 100));
       if (!window.reviewExport) return;
       const p = await window.reviewExport.buildPack(null);

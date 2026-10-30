@@ -2503,7 +2503,7 @@
     notify('done', {
       mode: 'edits', edits: store, updateTime: _nowStr(),
       msg: '📝 編輯追蹤完成！掃了 ' + dayList.length + ' 天 × 七家（' + _edDash(dayList[0]) + ' ～ ' + _edDash(dayList[dayList.length-1]) + '），共 ' + totalRows + ' 筆編輯'
-        + '（空編輯 ' + totalEmpty + ' 筆' + (totalFirst ? '、首次看到 ' + totalFirst + ' 筆不判定' : '') + '）'
+        + '（點開沒寫狀態 ' + totalEmpty + ' 筆' + (totalFirst ? '、首次看到 ' + totalFirst + ' 筆不判定' : '') + '）'
         + (_edShort && _edShort.length
            ? '\n\n⚠️ 有 ' + _edShort.length + ' 次跟 EIP 的筆數對不上：\n' + _edShort.slice(0, 8).join('\n') + (_edShort.length > 8 ? '\n…' : '')
            : '　✅ 每一天每一家都跟 EIP 頁尾的筆數對得上')

@@ -613,13 +613,28 @@ function wan(v){ return v==null?'—':(Math.round(v/1000)/10)+' 萬'; }
 function snapAge(){ var S=SNAP(); return S&&S.atTs?(Date.now()-S.atTs):Infinity; }
 
 /* ── 紀錄 ── */
-function mtVisible(c){ if(!c) return false; var gid=(c.mt&&c.mt.group)||(c.mti&&c.mti.group)||(c.mtc&&c.mtc.group)||(c.mtn&&c.mtn.group); return myGroups().some(function(g){ return g.id===gid; }); }
+function mtVisible(c){ if(!c) return false; var gid=(c.mt&&c.mt.group)||(c.mti&&c.mti.group)||(c.mtc&&c.mtc.group)||(c.mtn&&c.mtn.group)||(c.mta&&c.mta.group); return myGroups().some(function(g){ return g.id===gid; }); }
 // ★ ds146 作廢（只加不刪，可還原）
 function mtVoidMap(){ var m={}; _cases.forEach(function(c){ if(!c||(c.type!=='interview_void'&&c.type!=='interview_unvoid')||!c.ivv) return; var o=m[c.ivv.ref]; if(!o||(c.createdAt||0)>(o.createdAt||0)) m[c.ivv.ref]=c; }); return m; }
 var _mvm=null,_mvmN=-1; function mtVoided(id){ if(_mvmN!==_cases.length){ _mvm=mtVoidMap(); _mvmN=_cases.length; } var c=_mvm[id]; return !!(c&&c.type==='interview_void'); }
 function mtList(gid){ return _cases.filter(function(c){ return c&&c.type==='interview_mt'&&c.mt&&c.mt.group===gid&&!c.mt.removed&&!mtVoided(c.id); }).sort(function(a,b){ return mtTime(b)-mtTime(a); }); }
 function mtTime(c){ var t=Date.parse(String(c.mt.when||'').replace(' ','T')); return isNaN(t)?(c.createdAt||0):t; }
 function latestBy(type,field,gid){ var m={}; _cases.forEach(function(c){ if(!c||c.type!==type||!c[field]) return; if(gid&&c[field].group!==gid) return; var k=c[field].key, o=m[k]; if(!o||(c.createdAt||0)>(o.createdAt||0)) m[k]=c; }); return m; }
+// ★ ds150 從 AI 顧問「📌 存回會議」帶回來的建議、下次議程（說好的事直接寫成 interview_mtitem，from:'ai'）
+//   還沒開下一場會之前都會出現在會前資料包；之後開的會存檔了就算帶到會上了。組長、主管可以按 ✕ 拿掉（只加不刪，記一筆 interview_mtaist）
+function aiInbox(gid){
+  var st={}; _cases.forEach(function(c){ if(c&&c.type==='interview_mtaist'&&c.mtas){ var o=st[c.mtas.ref]; if(!o||(c.createdAt||0)>(o.createdAt||0)) st[c.mtas.ref]=c; } });
+  var last=0; _cases.forEach(function(c){ if(c&&c.type==='interview_mt'&&c.mt&&c.mt.group===gid&&!c.mt.imported&&!mtVoided(c.id)) last=Math.max(last,c.createdAt||0); });
+  return _cases.filter(function(c){ return c&&c.type==='interview_mtai'&&c.mta&&c.mta.group===gid&&(c.createdAt||0)>last&&!(st[c.id]&&st[c.id].mtas.st==='drop'); }).sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); });
+}
+async function dropAi(id){ if(!canManage(GRP)){ toast('只有組長、學院主管、柏翰可以拿掉',true); return; }
+  try{ await caseWrite([{ id:uid('mtas_'), type:'interview_mtaist', by:ME(), createdAt:Date.now(), mtas:{ ref:id, group:GRP.id, st:'drop' } }],[]); toast('拿掉了（紀錄還在）'); renderAll(); }catch(e){ toast('沒存進去：'+(e&&e.message||e),true); } }
+function aiInboxHtml(g,man){
+  var L=aiInbox(g.id); if(!L.length) return '';
+  return '<div class="sec-h"><b>📥 從 AI 顧問存回來的</b><span>'+L.length+' 條・開完下一場會就收起來</span></div>'+L.map(function(c){ var x=c.mta;
+    return '<div class="ti"><div><span class="w">'+(x.kind==='agenda'?'下次議程':'補充建議')+'</span>｜<span class="x">'+esc(x.what)+'</span></div><div class="r">'+(man?'<button class="btn ghost sm" onclick="dropAi(\''+c.id+'\')" aria-label="拿掉">✕</button>':'')+'</div>'
+      +'<div class="n">'+esc(nm(c.by||''))+' '+esc(fmtD(c.createdAt))+(x.q?'・問的是「'+esc(String(x.q).slice(0,40))+'」':'')+'</div></div>'; }).join('');
+}
 function itemsOf(gid){ var m=latestBy('interview_mtitem','mti',gid); return Object.keys(m).map(function(k){ return m[k]; }).filter(function(c){ return !c.mti.removed&&!mtVoided(c.mti.mtId); }); }
 function chkMap(gid){ return latestBy('interview_mtchk','mtc',gid); }
 var ST_LAB={done:'做到了',part:'部分做到',miss:'沒做到',none:'還沒回報',go:'進行中',keep:'繼續追',drop:'不追了'};
@@ -711,7 +726,7 @@ function itemLine(c,cm){
   } else if(it.metric!=='manual'){ nums=esc(m[0])+'（以前的記錄沒有基準數字，會上口頭對帳）'; }
   else nums='沒有數字，會上口頭回報';
   var pct=(it.add&&st.d!=null)?Math.max(0,Math.min(1,st.d/it.add)):0;
-  return { st:st, nums:nums+(it.due?'・'+md(it.due)+' 前':''), pct:pct };
+  return { st:st, nums:nums+(it.due?'・'+md(it.due)+' 前':'')+(it.from==='ai'?'・🤖 從 AI 顧問存回':''), pct:pct };
 }
 function chipOf(s){ return '<span class="chip '+s+'">'+(ST_LAB[s]||s)+'</span>'; }
 function renderPack(){
@@ -738,6 +753,7 @@ function renderPack(){
     var pv=prevYm(ym); if(new Date().getDate()<=7 && S.months[pv]) h+=lastMonthHtml(g,pv);
     var fl=flagsOf(g); if(fl.length) h+='<div class="sec-h"><b>要特別處理</b></div>'+fl.map(function(f){ return '<div class="flag"><b>'+esc(nm(f.n))+'</b>　'+esc(f.t)+'</div>'; }).join('');
   }
+  h+=aiInboxHtml(g,canManage(g));
   h+='<div class="sec-h"><b>建議議程</b><span>照上面的數字排的</span></div><ol class="agenda">'+agendaList(g).map(function(a){ return '<li>'+esc(a)+'</li>'; }).join('')+'</ol>';
   h+='<div class="row" style="margin-top:16px"><button class="btn pri" onclick="downloadPack()">⬇ 下載 Word（可列印）</button><button class="btn" onclick="copyPack()">📋 複製文字</button><button class="btn ghost" onclick="makePack()">重新產生</button></div>';
   box.innerHTML=h;
@@ -758,6 +774,7 @@ function agendaList(g){
     var fl=flagsOf(g); if(fl.length) a.push('要特別處理：'+fl.map(function(f){ return nm(f.n); }).filter(function(v,i,s){ return s.indexOf(v)===i; }).join('、'));
     if(new Date().getDate()<=7) a.push('上月績效回顧，每人講一句落後原因');
   }
+  aiInbox(g.id).forEach(function(c){ if(c.mta.kind==='agenda') a.push('AI 顧問帶回來的：'+c.mta.what); });
   a.push('這次每人說好一件事：誰、做什麼、看哪個數字、哪天前');
   return a;
 }
@@ -766,6 +783,7 @@ function packText(){
   L.push('【'+grpLabel(g)+' 會前資料包】'+(S?'數字截至 '+S.at:''));
   L.push(''); L.push('上次說好的事'); if(!open.length) L.push('（沒有）');
   open.forEach(function(c){ var x=itemLine(c,cm); L.push('・'+nm(c.mti.who)+'｜'+c.mti.what+'｜'+(ST_LAB[x.st.s]||'')+'｜'+x.nums.replace(/<[^>]+>/g,'')); });
+  var _ad=aiInbox(g.id).filter(function(c){ return c.mta.kind==='advice'; }); if(_ad.length){ L.push(''); L.push('AI 顧問補充建議'); _ad.forEach(function(c){ L.push('・'+c.mta.what); }); }
   L.push(''); L.push('建議議程'); agendaList(g).forEach(function(a,i){ L.push((i+1)+'. '+a); });
   return L.join('\n');
 }
@@ -958,6 +976,7 @@ function renderBoard(){
   var keys={}; list.forEach(function(c){ keys[c.mti.key]=1; }); Object.keys(_sel).forEach(function(k){ if(!keys[k]) delete _sel[k]; });
   var nSel=Object.keys(_sel).length, allOn=list.length&&nSel===list.length;
   var h='<div class="step"><i>✓</i><h2>說好的事</h2><span class="hint">'+(SNAP()?'數字截至 '+esc(SNAP().at):'')+'</span></div>'
+   +(function(){ var n=aiInbox(g.id).length; return n?'<p class="meta" style="margin:0 0 8px">📥 AI 顧問帶回 '+n+' 條建議／議程，按「會前資料包」會列出來</p>':''; })()
    +'<div style="margin-bottom:6px"><div class="seg" role="tablist" style="vertical-align:middle"><button class="'+(!_boardAll?'on':'')+'" onclick="_boardAll=false;renderBoard()">還在追的</button><button class="'+(_boardAll?'on':'')+'" onclick="_boardAll=true;renderBoard()">全部（含結案）</button></div>'
    +(man&&list.length?'<label class="selall"><input type="checkbox" '+(allOn?'checked':'')+' onchange="selAll(this.checked)">全選（'+list.length+'）</label>':'')+'</div>';
   if(!list.length){ box.innerHTML=h+'<p class="empty">'+(_boardAll?'還沒有任何說好的事。':'目前沒有還在追的事。開完會貼上記錄，這裡就會出現。')+'</p>'; return; }
@@ -1292,7 +1311,7 @@ function openMtUsage(){
 }
 
 /* ── ★ 10/29 Ivan：備份與還原。備份＝把看得到的組的會議、說好的事、對帳／改判、外號全部存成一個 .json 檔；還原＝只加不刪，已經有的跳過 ── */
-var MT_TYPES={interview_mt:'mt',interview_mtitem:'mti',interview_mtchk:'mtc',interview_mtnick:'mtn',interview_mtnote:'mtn2'};
+var MT_TYPES={interview_mt:'mt',interview_mtitem:'mti',interview_mtchk:'mtc',interview_mtnick:'mtn',interview_mtnote:'mtn2',interview_mtai:'mta',interview_mtaist:'mtas'};
 function mtGid(c){ var f=MT_TYPES[c&&c.type]; return f&&c[f]?c[f].group:''; }
 function backupCases(){ var gs={}; myGroups().forEach(function(g){ gs[g.id]=1; }); return _cases.filter(function(c){ return c&&MT_TYPES[c.type]&&gs[mtGid(c)]; }); }
 function lastBackup(){ try{ return +localStorage.getItem('mt_backup_at_v1')||0; }catch(e){ return 0; } }
