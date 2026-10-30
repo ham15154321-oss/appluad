@@ -10,7 +10,7 @@ markup, app = body[:i], body[i + len('<script>'):j]
 assert '</script' not in app.lower()
 
 API = 'https://script.google.com/macros/s/AKfycbxBFayHnfG5NUoj0CjIe8qwlfdFwt0FQeVD-QH6ocBu3dhHWpioOEmLk908dsTGVlznYA/exec'
-VER = 'p3.3'
+VER = 'p3.6'
 
 extra_css = r"""
   /* ── 1340.html 外殼：載入中、更新提示、選區 ── */
@@ -122,6 +122,7 @@ html = f"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
+<script>try{{var _m=document.cookie.match(/(?:^|; )pgtheme=(light|dark)/);if(_m)document.documentElement.setAttribute("data-theme",_m[1]);}}catch(e){{}}</script>
 <meta name="robots" content="noindex">
 <meta name="pg1340-version" content="{VER}">
 <title>13:40</title>
