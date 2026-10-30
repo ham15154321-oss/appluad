@@ -658,7 +658,16 @@
   .h2-greet h1 { font-size:30px; line-height:1.15; letter-spacing:-.02em; margin:0; color:#F5F5F7; }
   .h2-greet p { margin:4px 0 0; font-size:15px; color:#98989D; }
   .h2-date { font-size:13px; color:#98989D; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .h2-hero { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:16px; margin-bottom:32px; }
+  .h2-hero { display:grid; grid-template-columns:1.25fr 1fr; gap:16px; margin-bottom:32px; }
+  /* ★ ds150 本月合計卡：今天應到的位置畫一條直線；還差紅字、超前綠字 */
+  .h2-mbar { position:relative; overflow:visible; } .h2-mbar i { position:relative; z-index:1; }
+  .h2-mbar em { position:absolute; top:-4px; bottom:-4px; width:2px; border-radius:1px; background:#8E8E93; left:0; display:none; z-index:2; }
+  .h2-mline { margin:8px 0 0; font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; color:#98989D; }
+  .h2-mline.dn { color:#FF453A; } .h2-mline.up { color:#30D158; }
+  body.day-mode .h2-mline { color:#6E6E73 !important; -webkit-text-fill-color:#6E6E73 !important; }
+  body.day-mode .h2-mline.dn { color:#D70015 !important; -webkit-text-fill-color:#D70015 !important; } body.day-mode .h2-mline.up { color:#248A3D !important; -webkit-text-fill-color:#248A3D !important; }
+  body.day-mode .h2-mbar em { background:#1D1D1F; } body.day-mode .h2-date em { color:#8E8E93; -webkit-text-fill-color:#8E8E93; }
+  .h2-date em { font-style:normal; margin-left:8px; color:#AEAEB2; }
   .h2-kpi { background:rgba(28,28,30,.72); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:20px 24px; color:#F5F5F7; cursor:pointer; transition:transform .15s cubic-bezier(.2,.9,.25,1); }
   .h2-kpi:active { transform:scale(.985); }
   .h2-kpi small { display:block; font-size:13px; color:#98989D; font-weight:600; letter-spacing:.02em; }
@@ -1829,9 +1838,8 @@ body.minimal .revenue-stats{ margin-top:0; }
 <div id="home2">
   <div class="h2-greet"><div><h1 id="h2Hello">嗨。</h1><p id="h2Line">太空基地</p></div><div class="h2-date"><span id="h2Date"></span><a class="h2-ovlink" href="index.html" title="全站總覽">📋 總覽</a></div></div>
   <div class="h2-hero">
+    <div class="h2-kpi" id="h2M" tabindex="0" role="button" onclick="home2OpenMonth()" title="打開業績數據中心"><small id="h2Ml">本月業績</small><b id="h2Mv">—</b><div class="h2-bar"><i id="h2Mbar"></i></div><div class="h2-sub"><span id="h2Ma"></span><span id="h2Mb"></span></div></div>
     <div class="h2-kpi" tabindex="0" role="button" onclick="openPerformanceTab(7)" title="到當月績效"><small id="h2K1l">業績</small><b id="h2K1v">—</b><div class="h2-bar"><i id="h2K1bar"></i></div><div class="h2-sub"><span id="h2K1a"></span><span id="h2K1b"></span></div></div>
-    <div class="h2-kpi ok" tabindex="0" role="button" onclick="openPerformanceTab(7)"><small>到年底每天要做</small><b id="h2K2v">—</b><div class="h2-sub"><span id="h2K2a"></span><span id="h2K2b"></span></div></div>
-    <div class="h2-kpi none" id="h2K3" tabindex="0" role="button" onclick="openPerformanceTab(11)" title="到我的一頁"><small>資料時間</small><b id="h2K3v">—</b><div class="h2-sub"><span id="h2K3a"></span><span id="h2K3b"></span></div></div>
   </div>
   <div class="h2-h2">太空指揮部 <small>常用的放大</small></div>
   <div class="h2-grid">
@@ -2981,6 +2989,74 @@ window.addEventListener('motiv-archive-updated', function(e){
     });
     return best;
   }
+  // ═══ ★ ds150 首頁「本月合計」：管理者七家、多學院主管自己管的幾家、學院主管自己那家、組長整組、業務自己 ═══
+  //   數字全部用業績數據中心算好的（appedu_ai_snap_v1＝每日總結、appedu_mt_snap_v1＝每人本月），跟每日總結、會前資料包同一份
+  var H2_SCOPE = {
+    '黃柏翰':['中壢學院','中壢二部','中壢三部','台中學院','台中二部','台中三部','高雄建國'],
+    '林昭宏':['台中學院','台中二部'], '洪士德':['中壢學院','中壢二部'], '許傑森':['中壢學院','中壢二部','中壢三部'],
+    '李婉琳':['中壢學院'], '王志軒':['中壢二部'], '蔡青倚':['中壢三部'], '凃敏薰':['台中二部'], '楊雅晴':['台中三部'], '黎禹歆':['高雄建國']
+  };
+  var H2_SHORT = { '中壢學院':'中壢一部', '台中學院':'台中一部' };
+  function h2Org(o){ return H2_SHORT[o] || o; }
+  function h2J(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){ return null; } }
+  function h2Group(me){
+    var best = null;
+    try { for (var i = 0; i < localStorage.length; i++){ var k = localStorage.key(i), m = k && k.match(/^char_(.+)_motiv_(group|reserve)_performance_meta$/); if (!m) continue;
+      var meta = h2J(k); if (!meta) continue; var sc = (+meta.year || 0) * 100 + (+meta.month || 0) + (m[1] === '黃柏翰' ? .5 : 0) + (m[2] === 'group' ? .2 : 0);
+      var arr = h2J('char_' + m[1] + '_motiv_' + m[2] + '_performance_v1') || [];
+      arr.forEach(function(g){ if (!g || !g.leader || !g.leader.name) return; var mem = [String(g.leader.name).trim()].concat((g.members || []).map(function(x){ return String((x && x.name) || '').trim(); }).filter(Boolean));
+        if (mem.indexOf(me) < 0) return; if (!best || sc > best.sc) best = { sc:sc, leader:mem[0], name:String(g.groupName || '').trim(), academy:String(g.academy || '').trim(), members:mem, isLeader:mem[0] === me }; }); } } catch(e){}
+    return best;
+  }
+  function home2Month(){
+    var el = function(id){ return document.getElementById(id); }; if (!el('h2Mv')) return;
+    var me = localStorage.getItem('activeCharacterName') || localStorage.getItem('activeCharacterId') || '';
+    var A = h2J('appedu_ai_snap_v1'), MT = h2J('appedu_mt_snap_v1'), n = new Date(), mo = n.getMonth() + 1;
+    var live = (A && A.ym) || (MT && MT.live) || '', liveMo = live ? +live.slice(5) : mo;
+    var reps = (MT && MT.months && MT.live && MT.months[MT.live] && MT.months[MT.live].reps) || {};
+    var acad = {}; ((A && A.academies) || []).forEach(function(r){ acad[r.org] = r; });
+    var label = '', cum = null, goal = 0, exp = null, kind = '';
+    var orgs = H2_SCOPE[me];
+    if (orgs){
+      kind = 'acad'; cum = 0; exp = 0; var got = 0;
+      orgs.forEach(function(o){ var r = acad[o]; if (!r) return; got++; cum += r.月累計 || 0; goal += r.月目標 || 0; exp += r.今日應到累計 || 0; });
+      if (!got){ cum = null; }
+      label = orgs.length === 7 ? '七家學院' : orgs.map(h2Org).join('＋');
+    } else {
+      var g = h2Group(me), ratioOf = function(o){ var r = acad[o]; return r && r.月目標 ? (r.今日應到累計 || 0) / r.月目標 : null; };
+      if (g && g.isLeader){
+        kind = 'group'; label = (g.name || (g.leader.slice(-2) + '組'));
+        var any = false; cum = 0; g.members.forEach(function(nm){ var r = reps[nm]; if (!r) return; any = true; cum += +r.biz || 0; goal += +r.goal || 0; });
+        if (!any) cum = null; var rt = ratioOf(g.academy); exp = rt != null && goal ? goal * rt : null;
+      } else {
+        kind = 'me'; label = '我'; var r0 = reps[me];
+        if (r0){ cum = +r0.biz || 0; goal = +r0.goal || 0; var rt2 = ratioOf(r0.org || (g && g.academy)); exp = rt2 != null && goal ? goal * rt2 : null; }
+      }
+    }
+    window._h2MonthKind = kind;
+    el('h2Ml').textContent = liveMo + ' 月業績・' + label;
+    if (cum == null){
+      el('h2Mv').innerHTML = '—'; el('h2Mbar').style.width = '0';
+      el('h2Ma').textContent = '打開一次業績數據中心就會出現'; el('h2Mb').textContent = '';
+      window._h2MonthAt = ''; return;
+    }
+    var pct = goal ? cum / goal * 100 : 0;
+    el('h2Mv').innerHTML = wan(cum).replace(' 萬', '<u>萬</u>').replace(' 億', '<u>億</u>');
+    el('h2Mbar').style.width = Math.min(100, pct) + '%';
+    el('h2Ma').textContent = goal ? '目標 ' + wan(goal) : '還沒設目標';
+    el('h2Mb').textContent = goal ? '達成 ' + pct.toFixed(1) + '%' : '';
+    var at = (A && A.at) || (MT && MT.at) || ''; window._h2MonthAt = at;
+  }
+  window.home2OpenMonth = function(){
+    var k = window._h2MonthKind;
+    if (k === 'acad'){
+      try { localStorage.setItem('perf_last_tab', '7'); } catch(e){}
+      openPerformance();
+      var t0 = Date.now(), tick = function(){ try { var f = document.getElementById('perfFrame'), w = f && f.contentWindow; if (w && typeof w.dsumOpen === 'function'){ w.dsumOpen(); return; } } catch(e){} if (Date.now() - t0 < 12000) setTimeout(tick, 400); };
+      setTimeout(tick, 600);
+    } else openPerformanceTab(11);
+  };
+  window.addEventListener('storage', function(e){ if (e && (e.key === 'appedu_ai_snap_v1' || e.key === 'appedu_mt_snap_v1')){ try { home2Fill(window._home2Data || {}); } catch(_){} } });
   window.home2Fill = function(d){
     d = d || {};
     try {
@@ -2990,6 +3066,7 @@ window.addEventListener('motiv-archive-updated', function(e){
       var h = n.getHours(), hi = h < 11 ? '早安' : (h < 14 ? '午安' : (h < 18 ? '下午好' : '晚上好'));
       if (el('h2Hello')) el('h2Hello').textContent = (nm ? nm + '，' : '') + hi + '。';
       if (el('h2Date')) el('h2Date').textContent = n.getFullYear() + '/' + pad(n.getMonth() + 1) + '/' + pad(n.getDate()) + '（' + wk[n.getDay()] + '）';
+      try { home2Month(); } catch(eM){ console.warn('[home2 month]', eM); }
       // 副標：這個月第幾個上班日、到月底還幾天（星期日不算）
       try {
         var dimT = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate(), wdDone = 0, wdLeft = 0;
@@ -3009,6 +3086,7 @@ window.addEventListener('motiv-archive-updated', function(e){
       if (el('h2K2a')) el('h2K2a').textContent = goal ? '還差 ' + wan(need) : '還沒設目標';
       if (el('h2K2b')) el('h2K2b').textContent = goal ? '剩 ' + work + ' 個上班日' : '';
       var ns = newestSync();
+      try { var dEl = el('h2Date'), ms = window._h2MonthAt; if (dEl && (ms || ns)){ var em = document.createElement('em'); em.textContent = '數字 ' + (ms || String(ns.s).replace(/^\d+\/(\d+)\/(\d+)\s*/, '$1/$2 ')) + ' 更新'; dEl.appendChild(em); } } catch(eD){}
       if (el('h2K3v')) el('h2K3v').textContent = ns ? String(ns.s).replace(/^\d+\/(\d+)\/(\d+)\s*/, '$1/$2 ') : '還沒同步';
       if (el('h2K3a')) el('h2K3a').textContent = ns ? ({motiv:'激勵',checkin:'報到',funnel:'漏斗',edits:'編輯',channel:'通路'})[ns.k] + ' 最近一次同步' : '到業績數據中心按 ☁️↓ 拉取';
       if (el('h2K3b')) el('h2K3b').textContent = ns && (Date.now() - ns.t > 86400000) ? '超過一天，可能不是最新' : '';

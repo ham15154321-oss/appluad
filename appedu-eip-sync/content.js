@@ -1304,6 +1304,11 @@
         todayRep = _parseTodayPerf(tHtml);
       }
     } catch(_te){ console.warn('[EIP Content] 今日業績抓取失敗', _te); }
+    // ★ v5.76（10/30）：四個排行榜全部抓到空的＝EIP 沒給資料（多半是 EIP 登出了），不要把原本好的資料蓋成空的
+    if (!academyData.length && !salesData.length && !groupData.length && !reserveData.length){
+      notify('error', { mode:'motiv', msg:'🏆 激勵這次沒有抓到任何資料，原本的資料都保留著沒動。多半是 EIP 登出了：請到 EIP 重新登入，再按一次「🏆 激勵」' });
+      return;
+    }
     var cid = _cid(), ts = _nowStr();
     if (todayRep && todayRep.orgs && Object.keys(todayRep.orgs).length){
       try {

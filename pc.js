@@ -3257,6 +3257,26 @@
 
     // sync 介面：拿目前的整份 archive（從 cache 讀）
     function _motivGetArchive(){ return window._motivArchiveCache || {}; }
+    // ★ ds150（10/30）：四個排行榜全空（多半是同步時 EIP 登出、擴充把空表存進來）→ 自動拿這個月的封存補回，不讓整頁變空
+    function _motivSelfHeal(loud){
+      try {
+        if ((_motivAcademy || []).length + (_motivSales || []).length + (_motivGroupPerf || []).length + (_motivReservePerf || []).length > 0) return false;
+        var m = _motivGroupPerfMeta || {}, key = (m.year && m.month && m.month !== 'YEAR_TOTAL') ? (m.year + '-' + String(m.month).padStart(2, '0')) : '';
+        var A = _motivGetArchive(), snap = key && A[key];
+        if (!snap){ var nw = new Date(); key = nw.getFullYear() + '-' + String(nw.getMonth() + 1).padStart(2, '0'); snap = A[key]; }
+        if (!snap || ((snap.academy || []).length + (snap.sales || []).length + (snap.groupPerformance || []).length) === 0) return false;
+        _motivAcademy = snap.academy || []; _motivSales = snap.sales || [];
+        _motivGroupPerf = snap.groupPerformance || []; _motivGroupPerfMeta = { year: snap.year, month: snap.month };
+        _motivReservePerf = snap.reservePerformance || []; _motivReservePerfMeta = { year: snap.year, month: snap.month };
+        motivSaveData(); try { motivRenderAll(); } catch(e2){}
+        var msg = '激勵剛剛沒抓到資料（多半是 EIP 登出），先用 ' + (+String(snap.month)) + ' 月鎖定過的那份補回來。重新登入 EIP 再按「🏆 激勵」就會更新成最新';
+        try { _syncToast('🛟 ' + msg, '#e6a817'); } catch(e3){}
+        if (loud) try { showStatusToast('🛟 已用封存補回激勵資料'); } catch(e4){}
+        console.warn('[motiv] self-heal from archive', key);
+        return true;
+      } catch(e){ console.warn('[motiv] self-heal 失敗', e); return false; }
+    }
+    (function(){ var n = 0, t = setInterval(function(){ n++; if (window._motivArchiveCache && Object.keys(window._motivArchiveCache).length){ clearInterval(t); _motivSelfHeal(false); } else if (n > 40) clearInterval(t); }, 500); })();
 
     // 寫一個月份：同步更新 cache（讓 UI 立刻看得到）+ 非同步寫 IDB
     function _motivSaveArchiveEntry(monthKey, value, onSuccess, onError){
@@ -3438,7 +3458,8 @@
       var gLen = (_motivGroupPerf || []).length;
       var rLen = (_motivReservePerf || []).length;
       if (aLen + sLen + gLen + rLen === 0){
-        alert('⚠️ 目前 4 個排行榜都是空的，請先按「🔄 同步資料」抓取 EIP 資料再儲存。');
+        if (_motivSelfHeal(true)) return;
+        alert('現在畫面上沒有激勵的資料，所以沒東西可以鎖定。\n\n多半是剛剛同步時 EIP 登出了，EIP 沒給資料。\n請到 EIP 重新登入，再按一次「🏆 激勵」，資料回來後再按「💾 鎖定」。');
         return;
       }
 
@@ -3725,7 +3746,8 @@
       var gLen = (_motivGroupPerf || []).length;
       var rLen = (_motivReservePerf || []).length;
       if (aLen + sLen + gLen + rLen === 0){
-        alert('⚠️ 目前 4 個排行榜都是空的，請先按「🔄 同步資料」抓取 EIP 資料再匯入成績單。');
+        if (_motivSelfHeal(true)){ setTimeout(motivImportToReportCard, 300); return; }
+        alert('現在畫面上沒有激勵的資料，沒辦法匯入成績單。\n\n請到 EIP 重新登入，再按一次「🏆 激勵」。');
         return;
       }
 
@@ -4575,6 +4597,7 @@
           try {
           try { _motivBumpLocalTs(); } catch(e2){}
           motivLoadData(); motivRenderAll();
+          if (mode === 'motiv') try { _motivSelfHeal(true); } catch(eH){}   // ★ ds150 舊版擴充抓到空表時補回
           // 依模式刷新對應分頁
           if (mode === 'motiv'){
             try { ppRenderAll(); } catch(e2){}
@@ -13045,7 +13068,7 @@
       { ver:'ds124', icon:'⚡', title:'同一天第二次按 ⚡ 變快', detail:'⚡ 全部同步：通路 8 小時內抓過就跳過（要更新就單獨按 📋 通路）。EIP 擴充 v5.59：報到只重抓「昨天＋今天」，前天以前那段 8 小時內只抓一次；漏斗的「上個月以前有改過的面談」8 小時內不重問。EIP 的停頓間隔一秒都沒縮短，只是少翻頁、少問，EIP 負擔變小' },
       { ver:'ds125', icon:'🖨', title:'績效盤點存 PDF 一家一頁', detail:'按「🖨 列印 / 存 PDF」或直接 ⌘P：每個學院固定一頁 A4 橫式，表太高會整張等比例縮小，不會再把下面那張小表切到第二頁，也不會印出一堆空白頁；底色照樣印出來' },
       { ver:'ds126', icon:'🏠', title:'首頁換新版', detail:'首頁改成 Apple 風格：最上面三張卡（年度業績與達成率、到年底每天要做多少、資料最近一次同步時間），五個入口改成色塊＋線條圖示（業績數據中心放大，常用的好按），快速啟動和組長評核在下面；白天白底、夜間星空；手機直式一欄可以捲。舊的六角形版本還在，想切回去請跟柏翰說' },
-      { ver:'ds150', icon:'💰', title:'薪水獨立一顆按鈕，每個月都算', detail:'「📋 每日總結」旁邊多一顆「💰 薪水」：打開先看自己這個月大約領多少（獎金＋底薪 35,000）、5%、現金 10%、達標、底薪各多少、再做多少到下一級；再看七家獎金前十名、各學院每個人。可以切回前幾個月。那個月有活動才多一欄加碼。我的一頁的薪水 11 月以後也會繼續出現。AI 顧問也看得到今天七家燈號、組長紅黃燈、追蹤卡、編輯追蹤、穿越、每人本月數字跟薪水；首頁多一張「AI 看得到什麼」，建議問題會照今天的數字出。組長、主管在 AI 回答下面多一顆「存回會議」：就地展開一張小卡，可以存成說好的事（綁數字、記下現在的數字、到期自動對帳）、那場會的補充建議（記錄和 Word 都看得到）或下次議程；存過會記得，5 秒內可以復原，點一下直接跳到那一條。「空編輯」全站改叫「點開沒寫狀態」：點開名單按了儲存，但詳細狀態沒寫新的。' },
+      { ver:'ds150', icon:'💰', title:'薪水獨立一顆按鈕，每個月都算', detail:'「📋 每日總結」旁邊多一顆「💰 薪水」：打開先看自己這個月大約領多少（獎金＋底薪 35,000）、5%、現金 10%、達標、底薪各多少、再做多少到下一級；再看七家獎金前十名、各學院每個人。可以切回前幾個月。那個月有活動才多一欄加碼。我的一頁的薪水 11 月以後也會繼續出現。AI 顧問也看得到今天七家燈號、組長紅黃燈、追蹤卡、編輯追蹤、穿越、每人本月數字跟薪水；首頁多一張「AI 看得到什麼」，建議問題會照今天的數字出。組長、主管在 AI 回答下面多一顆「存回會議」：就地展開一張小卡，可以存成說好的事（綁數字、記下現在的數字、到期自動對帳）、那場會的補充建議（記錄和 Word 都看得到）或下次議程；存過會記得，5 秒內可以復原，點一下直接跳到那一條。首頁第一張卡改成本月合計：柏翰看七家、林昭宏看台中一二部、洪士德看中壢一二部、許傑森看中壢一二三部、學院主管看自己那家、組長看整組、業務看自己，有目標和達成率；「到年底每天要做」「資料時間」兩張拿掉，更新時間改成日期旁邊一行小字。「空編輯」全站改叫「點開沒寫狀態」：點開名單按了儲存，但詳細狀態沒寫新的。' },
       { ver:'ds149', icon:'☁️', title:'打開網站一分鐘自動拉最新資料', detail:'同事不用再自己到業績數據中心按「☁️↓ 拉取」：登入太空基地 60 秒後，系統在背景自動拉一次最新資料（右下會跳「正在自動更新最新資料」），之後只要畫面開著，大約每 30 分鐘再自動拉一次。AI 顧問換成跟首頁「AI 顧問」那張深色卡片同一套質感：問答區石墨色、輸入時有一圈 AI 光暈、AI 思考時有小光環；任務、資料分頁也一起整理乾淨。AI 顧問現在讀得懂會議作戰追蹤，會議記錄裡多一顆「🔍 到 AI 顧問深挖」。首頁的學院年度業績改用激勵年度合計，管理者看到的是自己管的七家學院加總。' },
       { ver:'ds148', icon:'🤖', title:'AI 顧問變簡單了、會議記錄可以直接交公司', detail:'AI 顧問：打開就是一個問答框，下面有依你的角色和日期換的建議問題、常用的 3 位顧問、接著上次聊；回答先給三行重點，點「看完整分析」才展開；每則回答下面有加成任務、收藏、複製、這個答錯了；送出後會一步一步顯示 AI 在看什麼，問錯了可以按停止；換顧問、回答深度、字體、清除收進右上「⋯」；上方分頁改成對話、任務、資料，答錯回報在資料裡。以前的對話都還在。會議作戰追蹤：下載 Word 改成跟台中一部 B 組會議紀錄一模一樣的版型（真的 .docx，字型、表格、簽名欄都一樣），會前資料包也是同一個版型；每場會多了「🧠 AI 看過後的建議」：這場會的盲點、對照數字每人的下一步、公司教材裡可以補充的做法，存檔後自動產生，Word 也會印出來。' },
       { ver:'ds147', icon:'🗄', title:'AI 資料不會再不見、花費對得上帳', detail:'每一次用 AI（面談、電話、會議、AI 顧問）都自動記一列到 Google 試算表「AI 用量總帳」：誰、哪一頁、型號、約多少錢。AI 顧問的每則對話全文也寫進試算表（電話只留後 3 碼），瀏覽器裡被擠掉的舊對話改成先存起來、不再直接刪。寫試算表改成有編號、送不出去會自動重送、重送不會重複。下載的 Word、Excel、備份檔會同時存一份到雲端硬碟「太空基地備份」，按月份分好。檢核和會議可以作廢（先進回收桶，可以還原）。柏翰的電腦每月 1 號自動備份一次。' },
