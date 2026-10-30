@@ -2858,7 +2858,7 @@
     tgt.forEach(function(c){
       var od = _clsD(c.開班日), dl = _clsDays(today, od), sig = c.正取 + '/' + c.試聽 + '/' + c.備取, r0 = cache.ros[c.cid];
       var stale = !r0 || r0.sig !== sig || (dl <= 3 && dl >= -1 && r0.at !== todayS) || _clsDays(_clsD(r0.at) || today, today) >= CLS_ROSTER_DAYS;
-      if (stale) tasks.push({ p: dl <= 7 ? 1 : 3, k: 'ros', c: c });
+      if (stale) tasks.push({ p: (c.類型 === '單元' && dl >= 0 && dl <= 30) ? 0 : (dl <= 7 ? 1 : 3), k: 'ros', c: c });   // ★ v5.78（10/30 Ivan）30 天內要開的單元課名單最先讀（約訪表、誰還沒約）
       if (dl > 0) return;
       var a = cache.att[c.cid];
       if (!a || !a.ses){ tasks.push({ p: 2, k: 'att', c: c }); return; }   // 舊快取沒有每一堂的 id → 先讀一次出勤頁

@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Appedu EIP 激勵同步",
+  "version": "5.76",
+  "description": "從赫綵 EIP 系統同步業績數據到激勵排行榜 — v5.15：報到網頁版分頁 keepalive 改由 content 端主動維持，徹底修正逐頁抓取中途吊死",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://eip.appedu.com.tw/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>",
+        "file:///*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "EIP 激勵同步"
+  },
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

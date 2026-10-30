@@ -15,6 +15,18 @@
    ═══════════════════════════════════════════════ */
 
 document.addEventListener('DOMContentLoaded', function(){
+  // ★ v5.79：打開小視窗就看有沒有新版（資料夾裡的版本比正在跑的新 → 自己重新載入）
+  try {
+    chrome.runtime.sendMessage({ action: 'checkUpdate' }, function(r){
+      if (chrome.runtime.lastError || !r) return;
+      var bar = document.createElement('div');
+      bar.style.cssText = 'margin:0 0 8px;padding:6px 10px;border-radius:8px;font-size:12px;line-height:1.5;' + (r.state === 'same' ? 'color:#888;background:transparent;padding:0 2px' : 'color:#3b2a00;background:#FFE08A;font-weight:700');
+      bar.textContent = r.state === 'reload' ? '🔄 發現新版 ' + r.disk + '（原本 ' + r.cur + '），正在更新…小視窗會自己關掉，再點一次圖示就是新版'
+        : r.state === 'busy' ? '有新版 ' + r.disk + '，正在讀 EIP，先不換。讀完 3 分鐘後再點一次圖示就會更新'
+        : r.state === 'error' ? '版本檢查失敗：' + r.error : '目前版本 ' + r.cur + '（已是最新）';
+      document.body.insertBefore(bar, document.body.firstChild);
+    });
+  } catch(e){}
   var now = new Date();
   var curY = now.getFullYear();
   var curM = now.getMonth() + 1;
