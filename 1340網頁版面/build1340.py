@@ -10,7 +10,7 @@ markup, app = body[:i], body[i + len('<script>'):j]
 assert '</script' not in app.lower()
 
 API = 'https://script.google.com/macros/s/AKfycbxBFayHnfG5NUoj0CjIe8qwlfdFwt0FQeVD-QH6ocBu3dhHWpioOEmLk908dsTGVlznYA/exec'
-VER = 'p4.0'
+VER = 'p4.1'
 
 extra_css = r"""
   /* ── 1340.html 外殼：載入中、更新提示、選區 ── */
@@ -75,6 +75,7 @@ loader = r"""
     }
     shown = txt; return true;
   }
+  window.__pgRerun = function(){ if (!shown) return; var y = window.scrollY; run(shown); window.scrollTo({ top: y, behavior: 'instant' }); };   // p4.1 換視角：同一份資料重畫
 
   /* 上一次的資料記在 IndexedDB（這個網站的 localStorage 已經被業績數據中心塞滿） */
   var dbP = new Promise(function(res){

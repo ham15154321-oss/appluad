@@ -1085,8 +1085,7 @@
   html[data-theme=dark]{ --c-today:#F5F5F7; --c-yue:#FF375F; --c-pili:#AC8E68; --c-ros:#409CFF; --c-asst:#BF5AF2; --c-lead:#7D7AFF; --tabTxt:rgba(235,235,245,.78) }
 
   /* 一次只顯示一頁 */
-  main > section{display:none;min-height:calc(100vh - 150px);will-change:auto}
-  main > section.tab-on{display:block}
+  main > section{scroll-margin-top:0}
   #s-yue{--sc:var(--c-yue)} #s-pili{--sc:var(--c-pili)} #s-ros{--sc:var(--c-ros)}
   #s-yue .yue,#s-pili .pili,#s-ros .ros{margin-top:0}
   main > .legend,main > .foot{padding:0 16px}
@@ -1322,3 +1321,23 @@
   /* 卡片標題不要被右邊小字擠斷（今天上場戰士、還沒約、需補件） */
   .ros-h,.pl-h{flex-wrap:wrap;padding-right:64px} .ros-h b,.pl-h b{white-space:nowrap}
   .ros-h small{margin-left:0;flex-basis:100%}
+
+  /* ══════ p4.1 一路往下滑＋手機版視角 ══════ */
+  .nx{display:none}
+  .top .tt1{display:flex;align-items:center;gap:8px;min-width:0}
+  .top .tt1 h1{flex:none}
+  .vw{display:inline-flex;align-items:baseline;gap:4px;border:0;background:none;padding:6px 4px;margin:0;font:inherit;font-size:1.0625rem;font-weight:700;color:var(--blue);cursor:pointer;white-space:nowrap;border-radius:10px;transition:transform 100ms ease-out,background 150ms}
+  .vw i{font-style:normal;color:var(--label3);font-weight:500}
+  .vw small{font-size:.7rem;color:var(--label3)}
+  .vw:active{transform:scale(.95);background:var(--fill)}
+  .vw.one{color:var(--label);background:var(--blueBg);padding:5px 10px}
+  .vw.one i{display:none}
+  #vwPop{position:fixed;z-index:40;width:220px;padding:6px;border-radius:14px;background:var(--glass);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+    box-shadow:0 12px 40px rgba(0,0,0,.22),0 0 0 .5px var(--sep);transform-origin:20px 0;transform:scale(.92);opacity:0;transition:transform 260ms cubic-bezier(.22,1,.36,1),opacity 160ms}
+  #vwPop.on{transform:none;opacity:1}
+  #vwPop p{margin:4px 10px 4px;font-size:.75rem;color:var(--label2)}
+  #vwPop button{display:flex;align-items:center;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:9px;background:none;color:var(--label);font:inherit;font-size:1rem;cursor:pointer;text-align:left}
+  #vwPop button:active{background:var(--fill)}
+  #vwPop button b{margin-left:auto;color:var(--blue)}
+  #vwPop small{display:block;margin:4px 10px 4px;font-size:.6875rem;color:var(--label3)}
+  @media (prefers-reduced-motion:reduce){ #vwPop{transition:opacity 120ms;transform:none} }

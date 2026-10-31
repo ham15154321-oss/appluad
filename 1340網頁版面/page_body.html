@@ -1,5 +1,5 @@
 <header class="top">
-  <div class="t"><h1 id="hTitle">13:40</h1><div class="tb"><button class="ic bd" type="button" id="boardBtn" title="會議模式：一眼看完的儀表板，開會用">會議<span class="lg">模式</span></button><button class="ic" type="button" id="copyAll" title="複製整份 LINE 文字">⧉</button><button class="ic thm" type="button" title="畫面：自動（跟手機）">🌓</button></div><div class="subr"><select class="day" id="daySel" aria-label="選日期"></select><div class="sub" id="hSub"></div></div></div>
+  <div class="t"><div class="tt1"><h1 id="hTitle">13:40</h1><button class="vw" type="button" id="vwBtn" hidden aria-haspopup="true"></button></div><div class="tb"><button class="ic bd" type="button" id="boardBtn" title="會議模式：一眼看完的儀表板，開會用">會議<span class="lg">模式</span></button><button class="ic" type="button" id="copyAll" title="複製整份 LINE 文字">⧉</button><button class="ic thm" type="button" title="畫面：自動（跟手機）">🌓</button></div><div class="subr"><select class="day" id="daySel" aria-label="選日期"></select><div class="sub" id="hSub"></div></div></div>
   <nav class="idx" id="idx" role="tablist" aria-label="分頁"><a href="#s-today" class="on">今天</a><a href="#s-asst" style="--pc:var(--c-asst)">助理</a><a href="#s-cs" style="--pc:var(--c-cs)">客服</a><a href="#s-lead" style="--pc:var(--c-lead)">主管</a><a href="#s-focus" style="--pc:var(--c-focus)">本日重點</a><a href="#s-biz" style="--pc:var(--c-biz)">業務</a><i class="isep" aria-hidden="true"></i><a href="#s-yue" style="--pc:var(--c-yue)">約訪<em class="ib" id="ib-yue"></em></a><a href="#s-pili" style="--pc:var(--c-pili)">補件<em class="ib" id="ib-pili"></em></a><a href="#s-ros" style="--pc:var(--c-ros)">出勤<em class="ib" id="ib-ros"></em></a></nav>
 </header>
 
@@ -77,6 +77,28 @@ function short(n){ n = String(n || ''); return n.length === 3 ? n.slice(1) : n; 
 var REGION = D.label || (D.r === '建國' ? '高雄建國' : D.r), MTIME = D.time || '13:40';
 document.title = REGION + ' ' + MTIME;
 document.getElementById('hTitle').textContent = REGION + ' ' + MTIME;
+/* p4.1（10/31 Ivan）手機版也能選視角：跟會議模式同一個設定（換一邊、另一邊也跟著換）；卡片照視角，議程原文維持整區 */
+(function(){
+  var b = document.getElementById('vwBtn'), O = D.orgs || []; if (!b || O.length < 2) return;
+  var cur = scopeOrgs(), lab = cur.length > 1 ? '全區' : cur[0];
+  b.hidden = false; b.innerHTML = '<i>›</i>' + esc(lab) + '<small>▾</small>'; b.classList.toggle('one', cur.length === 1);
+  function pick(o){
+    try { localStorage.setItem('pg1340_org_' + D.r, o || 'all'); } catch(e){}
+    if (window.__pgBS) { window.__pgBS.org = o; window.__pgBS.asked = true; }
+    try { var u = new URL(location.href); if (o) u.searchParams.set('o', o); else u.searchParams.delete('o'); history.replaceState(null, '', u.toString()); } catch(e){}
+    if (window.__pgRerun) window.__pgRerun(); else location.reload();
+  }
+  b.onclick = function(e){ e.stopPropagation(); var M = document.getElementById('vwPop'); if (M) { M.remove(); return; }
+    M = document.createElement('div'); M.id = 'vwPop'; M.setAttribute('role', 'menu');
+    var now = cur.length > 1 ? '' : cur[0];
+    M.innerHTML = '<p>看哪一院</p>' + [['', '全區（' + REGION + '）']].concat(O.map(function(o){ return [o, o]; })).map(function(x){ return '<button type="button" role="menuitemradio" aria-checked="' + (x[0] === now) + '" data-vw="' + x[0] + '"><span>' + esc(x[1]) + '</span>' + (x[0] === now ? '<b>✓</b>' : '') + '</button>'; }).join('')
+      + '<small>這台記住；會議模式也跟著換</small>';
+    var r = b.getBoundingClientRect(); M.style.top = (r.bottom + 6) + 'px'; M.style.left = Math.max(12, Math.min(r.left, window.innerWidth - 232)) + 'px';
+    document.body.appendChild(M); requestAnimationFrame(function(){ M.classList.add('on'); });
+    M.onclick = function(ev){ var t = ev.target.closest('[data-vw]'); if (!t) return; M.remove(); if (t.dataset.vw !== now) pick(t.dataset.vw); };
+    setTimeout(function(){ document.addEventListener('click', function cl(ev){ if (!ev.target.closest('#vwPop')) { var m = document.getElementById('vwPop'); if (m) m.remove(); } document.removeEventListener('click', cl, true); }, true); }, 0);
+  };
+})();
 var _sa = String(D.syncAt || ''), _sd = _sa.slice(0, 10).replace(/-/g, '/'), _dd = String(D.date || '').replace(/-/g, '/');
 document.getElementById('hSub').textContent = (D.dateLabel || D.date || '') + (_sa ? '・班況 ' + (_sd === _dd ? _sa.slice(11, 16) : _sa.replace(/^\d{4}\//, '').slice(0, 11)) + ' 同步' : '・班況還沒同步');
 
@@ -290,72 +312,52 @@ function flash(btn, txt){ var t = btn.textContent; btn.textContent = txt || '已
 document.querySelectorAll('h2.sec .cp').forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); var t = b.dataset.x === 'yue' ? (window.__pgYueTxt ? window.__pgYueTxt() : '') : b.dataset.x === 'pili' ? (window.__pgPiliTxt ? window.__pgPiliTxt() : '') : secText(b.dataset.k); if (!t){ flash(b, '沒有這段'); return; } copyText(t).then(function(){ flash(b); }); }); });
 document.getElementById('copyAll').addEventListener('click', function(){ var b = this; if (!LINE_TXT){ return; } var pt = [window.__pgYueTxt ? window.__pgYueTxt() : '', window.__pgPiliTxt ? window.__pgPiliTxt() : ''].filter(Boolean).join('\n\n'); copyText(LINE_TXT.trim() + (pt ? '\n\n' + pt : '')).then(function(){ b.textContent = '✓'; setTimeout(function(){ b.textContent = '⧉'; }, 1200); }); });
 
-/* ══════ p4.0（10/31 Ivan）手機版改成分頁：一次只看一段，畫面不再一長串
-   議程照開會順序（今天→助理→客服→主管→本日重點→業務），後面三頁是名單（約訪、補件、出勤）。
-   點上方分頁、左右滑都能換頁；每一頁記住自己捲到哪；重新整理留在同一頁（這個分頁視窗記住）。 ══════ */
+/* ══════ p4.1（10/31 Ivan）手機版改回「一路往下滑看完全部」：分頁只是快速跳到那一段
+   滑的時候分頁自己亮在你正在看的那一段；左右滑＝跳到下一段／上一段（Ivan 選保留）。?t=yue 可以直接開到那一段 ══════ */
 (function(){
   var nav = document.getElementById('idx'), mainEl = document.querySelector('main'); if (!nav || !mainEl) return;
   var links = [].slice.call(nav.querySelectorAll('a')), ids = links.map(function(a){ return a.getAttribute('href').slice(1); });
-  var secs = ids.map(function(id){ return document.getElementById(id); });
   var REDUCE = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var T = window.__pgTab || (window.__pgTab = { cur: 0, y: {} });
-  function ssGet(){ try { return sessionStorage.getItem('pg1340_tab'); } catch(e){ return null; } }
-  function ssSet(v){ try { sessionStorage.setItem('pg1340_tab', v); } catch(e){} }
-  var q = null; try { q = new URLSearchParams(location.search).get('t'); } catch(e){}
-  var first = q ? ids.indexOf('s-' + q) : ids.indexOf(ssGet() || ''); if (first < 0) first = T.inited ? T.cur : 0; T.inited = 1;
-  function nameOf(i){ return links[i].firstChild.textContent; }
-  function paintNav(i){ links.forEach(function(a, k){ a.classList.toggle('on', k === i); a.setAttribute('role', 'tab'); a.setAttribute('aria-selected', k === i ? 'true' : 'false'); });
-    var a = links[i], L = a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2; nav.scrollTo({ left: Math.max(0, L), behavior: REDUCE ? 'auto' : 'smooth' }); }
-  function nextBtn(i){ secs.forEach(function(s, k){ if (!s) return; var o = s.querySelector(':scope > .nx'); if (o) o.remove();
-      if (k >= ids.length - 1) return; var b = document.createElement('button'); b.type = 'button'; b.className = 'nx'; b.dataset.go = k + 1;
-      b.innerHTML = '<span>下一頁</span><b>' + nameOf(k + 1) + '</b><i>›</i>'; s.appendChild(b); }); }
-  /* 換頁：新的一頁從手勢方向滑進來（往左滑＝下一頁從右邊進來），走同一條路；減少動態時只淡入 */
-  function show(i, dir, fromX){
-    if (i < 0 || i >= secs.length || !secs[i]) return;
-    var old = T.cur; if (old !== i) T.y[ids[old]] = window.scrollY;
-    T.cur = i; ssSet(ids[i]); document.documentElement.dataset.tab = ids[i];
-    secs.forEach(function(s, k){ if (s) s.classList.toggle('tab-on', k === i); });
-    paintNav(i);
-    window.scrollTo({ top: old === i ? window.scrollY : (T.y[ids[i]] || 0), behavior: 'instant' });
-    var s = secs[i]; if (dir == null || old === i) { s.style.transform = ''; return; }
-    if (REDUCE) { s.style.transition = 'none'; s.style.opacity = '0'; s.getBoundingClientRect(); s.style.transition = 'opacity 180ms ease'; s.style.opacity = '1'; return; }
-    var W = mainEl.clientWidth, x0 = fromX != null ? fromX : dir * Math.min(W * .35, 120);
-    s.style.transition = 'none'; s.style.transform = 'translate3d(' + x0 + 'px,0,0)'; s.style.opacity = fromX != null ? '1' : '.4'; s.getBoundingClientRect();
-    s.style.transition = 'transform 380ms cubic-bezier(.22,1,.36,1), opacity 240ms ease'; s.style.transform = 'translate3d(0,0,0)'; s.style.opacity = '1';
-    clearTimeout(T.clr); T.clr = setTimeout(function(){ s.style.transition = ''; s.style.transform = ''; s.style.opacity = ''; }, 420);   // 跑完把 transform 拿掉（裡面固定位置的東西才不會跑掉）
-    if (window.__pgTabsSync) window.__pgTabsSync();
-  }
-  window.__pgGo = function(id){ var i = ids.indexOf(id); if (i >= 0) show(i, i > T.cur ? 1 : -1); };
-  window.__pgTabShow = show; window.__pgTabN = secs.length;   // 新資料進來重畫時，滑動手勢接到最新的這一份
-  links.forEach(function(a, i){ a.addEventListener('click', function(e){ e.preventDefault(); show(i, i > T.cur ? 1 : -1); }); });
-  mainEl.addEventListener('click', function(e){ var b = e.target.closest && e.target.closest('.nx'); if (b) { show(+b.dataset.go, 1); return; }
-    var g = e.target.closest && e.target.closest('[data-tabgo]'); if (g) window.__pgGo(g.dataset.tabgo); });
-  /* 左右滑換頁：先走 10px 才決定方向，橫的才接手；1:1 跟手，第一頁、最後一頁有阻力；放開看速度的方向決定換不換 */
+  var T = window.__pgTab || (window.__pgTab = { cur: 0 });
+  function secs(){ return ids.map(function(id){ return document.getElementById(id); }); }
+  function topH(){ var t = document.querySelector('.top'); return t ? t.offsetHeight : 0; }
+  function paint(i, force){ if (i === T.cur && !force) return; T.cur = i; document.documentElement.dataset.tab = ids[i];
+    links.forEach(function(a, k){ a.classList.toggle('on', k === i); a.setAttribute('aria-current', k === i ? 'true' : 'false'); });
+    var a = links[i]; if (a) nav.scrollTo({ left: Math.max(0, a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2), behavior: REDUCE ? 'auto' : 'smooth' }); }
+  function goTo(i, smooth){ var S = secs(); i = Math.max(0, Math.min(S.length - 1, i)); var el = S[i]; if (!el) return;
+    T.lock = Date.now() + 700; paint(i);   // 捲動途中分頁不要跳來跳去
+    window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - topH() + 1), behavior: smooth === false || REDUCE ? 'instant' : 'smooth' }); }
+  function spy(){ if (T.lock && Date.now() < T.lock) return; var S = secs(), y = topH() + 48, cur = 0;
+    S.forEach(function(el, k){ if (el && el.getBoundingClientRect().top <= y) cur = k; });
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = S.length - 1;   // 到底了：最後一段
+    paint(cur); }
+  window.__pgGo = function(id){ var i = ids.indexOf(id); if (i >= 0) goTo(i); };
+  window.__pgTabGo = goTo; window.__pgTabSpy = spy; window.__pgTabN = ids.length;
+  links.forEach(function(a, i){ a.addEventListener('click', function(e){ e.preventDefault(); goTo(i); }); });
+  mainEl.addEventListener('click', function(e){ var g = e.target.closest && e.target.closest('[data-tabgo]'); if (g) window.__pgGo(g.dataset.tabgo); });
   if (!T.bound) { T.bound = 1;
-    var sx = 0, sy = 0, lock = 0, dx = 0, hist = [], el = null;
+    window.addEventListener('scroll', function(){ if (window.__pgTabSpy) window.__pgTabSpy(); }, { passive: true });
+    /* 左右滑跳段落：先走 10px 才決定方向，橫的才接手；拖的時候頁面跟著手指輕輕偏一點（有阻力），放開看方向和速度決定跳不跳 */
+    var sx = 0, sy = 0, lock = 0, dx = 0, hist = [];
     function scroller(t){ for (var n = t; n && n !== document.body; n = n.parentElement) { if (n.id === 'idx' || n.id === 'sheet' || n.id === 'rosPop' || n.id === 'board') return true;
       if (n.scrollWidth > n.clientWidth + 4) { var ox = getComputedStyle(n).overflowX; if (ox === 'auto' || ox === 'scroll') return true; } } return false; }
-    function rubber(o, d){ return (o * d * .55) / (d + .55 * Math.abs(o)); }
-    document.addEventListener('touchstart', function(e){ if (e.touches.length !== 1 || document.body.classList.contains('bmode') || document.documentElement.classList.contains('rp-lock')) { lock = -1; return; }
+    function M(){ return document.querySelector('main'); }
+    document.addEventListener('touchstart', function(e){ if (e.touches.length !== 1 || document.body.classList.contains('bmode') || document.documentElement.classList.contains('rp-lock') || document.body.classList.contains('lock')) { lock = -1; return; }
       var t = e.touches[0]; if (t.clientX < 18 || t.clientX > window.innerWidth - 18 || scroller(e.target)) { lock = -1; return; }
-      sx = t.clientX; sy = t.clientY; lock = 0; dx = 0; hist = [[sx, performance.now()]]; el = document.querySelector('main > section.tab-on'); }, { passive: true });
-    document.addEventListener('touchmove', function(e){ if (lock < 0 || !el) return; var t = e.touches[0], ddx = t.clientX - sx, ddy = t.clientY - sy;
-      if (!lock) { if (Math.abs(ddx) < 10 && Math.abs(ddy) < 10) return; lock = Math.abs(ddx) > Math.abs(ddy) * 1.4 ? 1 : -1; if (lock < 0) return; el.style.transition = 'none'; }
-      var i = window.__pgTab.cur, W = window.innerWidth; dx = ddx;
-      var edge = (dx > 0 && i === 0) || (dx < 0 && i === window.__pgTabN - 1);
-      el.style.transform = 'translate3d(' + (edge ? rubber(dx, W) : dx) + 'px,0,0)';
-      hist.push([t.clientX, performance.now()]); if (hist.length > 6) hist.shift(); }, { passive: true });
-    document.addEventListener('touchend', function(){ if (lock !== 1 || !el) { lock = 0; return; } lock = 0;
-      var a = hist[0], b = hist[hist.length - 1], v = (b[0] - a[0]) / Math.max(1, b[1] - a[1]), W = window.innerWidth, i = window.__pgTab.cur;   // px/ms
-      var proj = dx + v * 160, go = proj < -W * .3 ? 1 : proj > W * .3 ? -1 : 0;
-      if (go && v * go > 0.05) go = 0;   // 放開前往回拉：照速度方向，不換頁
-      var j = i + go;
-      if (!go || j < 0 || j >= window.__pgTabN) { el.style.transition = 'transform 420ms cubic-bezier(.22,1,.36,1)'; el.style.transform = 'translate3d(0,0,0)'; return; }
-      var cur = el; cur.style.transition = 'transform 200ms ease-in, opacity 200ms ease-in'; cur.style.transform = 'translate3d(' + (-go * W * .5) + 'px,0,0)'; cur.style.opacity = '0';
-      setTimeout(function(){ cur.style.transition = 'none'; cur.style.transform = ''; cur.style.opacity = ''; }, 210);
-      window.__pgTabShow(j, go, go * W * .45); }, { passive: true });
+      sx = t.clientX; sy = t.clientY; lock = 0; dx = 0; hist = [[sx, performance.now()]]; }, { passive: true });
+    document.addEventListener('touchmove', function(e){ if (lock < 0) return; var t = e.touches[0], ddx = t.clientX - sx, ddy = t.clientY - sy;
+      if (!lock) { if (Math.abs(ddx) < 10 && Math.abs(ddy) < 10) return; lock = Math.abs(ddx) > Math.abs(ddy) * 1.4 ? 1 : -1; if (lock < 0) return; M().style.transition = 'none'; }
+      dx = ddx; var W = window.innerWidth, r = (dx * W * .55) / (W + .55 * Math.abs(dx)) * .45;   // 橡皮筋：越拉越重
+      M().style.transform = 'translate3d(' + r + 'px,0,0)'; hist.push([t.clientX, performance.now()]); if (hist.length > 6) hist.shift(); }, { passive: true });
+    document.addEventListener('touchend', function(){ if (lock !== 1) { lock = 0; return; } lock = 0; var m = M();
+      m.style.transition = 'transform 360ms cubic-bezier(.22,1,.36,1)'; m.style.transform = 'translate3d(0,0,0)'; setTimeout(function(){ m.style.transition = ''; m.style.transform = ''; }, 380);
+      var a = hist[0], b = hist[hist.length - 1], v = (b[0] - a[0]) / Math.max(1, b[1] - a[1]), proj = dx + v * 160, W = window.innerWidth;
+      var go = proj < -W * .25 ? 1 : proj > W * .25 ? -1 : 0; if (go && v * go > .05) go = 0;   // 放開前往回拉：不跳
+      if (go && window.__pgTabGo) window.__pgTabGo(window.__pgTab.cur + go); }, { passive: true });
   }
-  nextBtn(); show(first, null);
+  var q = null; try { q = new URLSearchParams(location.search).get('t'); } catch(e){}
+  var k0 = q ? ids.indexOf('s-' + q) : -1;
+  if (k0 > 0 && !T.jumped) { T.jumped = 1; setTimeout(function(){ goTo(k0, false); }, 60); } else { paint(T.cur || 0, true); spy(); }
 })();
 
 
