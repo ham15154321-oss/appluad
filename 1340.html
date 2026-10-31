@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <script>try{var _m=document.cookie.match(/(?:^|; )pgtheme=(light|dark)/);if(_m)document.documentElement.setAttribute("data-theme",_m[1]);}catch(e){}</script>
 <meta name="robots" content="noindex">
-<meta name="pg1340-version" content="p4.4">
+<meta name="pg1340-version" content="p4.5">
 <title>13:40</title>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
@@ -1367,6 +1367,19 @@
   #board .rchs b[class*="oc"]{color:var(--oc)}
   #board .ykpi .sk{font-size:.72em;color:var(--label3)}
 
+  /* ══════ p4.5 出勤講法：「9 位戰士上場，2 位休息」取代「9／11」 ══════ */
+  .ros-o .n{font-size:.9375rem;color:var(--label);font-weight:600}
+  .ros-o .n b{font-size:1.375rem;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .ros-o .n .pt{color:var(--label2);font-weight:500}
+  .ros-o .n b.pz{font-size:1rem;color:var(--label2)}
+  .gl b + .u{font-weight:700;color:var(--label)}
+  #board .rbo{grid-template-columns:2.8em 1fr}
+  #board .rbt .n{font-size:.85em;font-weight:600} #board .rbt .n b{font-size:1.45em;font-weight:800;font-variant-numeric:tabular-nums}
+  #board .rbt .n .pt,#board .rch .ph .pt,#board .rmo .pt{color:var(--label2);font-weight:500}
+  #board .rch .ph{font-size:.9em!important;color:var(--label)!important;font-weight:600} #board .rch .ph b{font-size:1.2em}
+  #board .rmo{grid-template-columns:3em 1fr auto} #board .rmo span b{font-size:1.3em;font-weight:800}
+  #board .bros b{font-size:1.1em}
+
   /* ── 1340.html 外殼：載入中、更新提示、選區 ── */
   #pgWait{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--label2);font-size:.9375rem}
   #pgWait i{width:26px;height:26px;border-radius:50%;border:2.5px solid var(--fill);border-top-color:var(--label2);animation:pgSpin .8s linear infinite}
@@ -1387,7 +1400,7 @@
 </style>
 </head>
 <body>
-<!-- 13:40 日會網頁｜p4.4｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
+<!-- 13:40 日會網頁｜p4.5｜版面原始檔：1340網頁版面/page_css.css、page_body.html（改版面改那兩個，再跑 build1340.py 重組）｜資料：Apps Script 業績數據橋接 ?r=&fmt=json -->
 <div id="pgWait"><i></i><span id="pgWaitT">載入中…</span></div>
 <div id="pgPick" hidden><h1>日會</h1><a data-r="中區">中區<small>台一・台二・台三｜13:40</small></a><a data-r="桃區">桃區<small>壢一・壢二・壢三｜13:30</small></a><a data-r="建國">高雄建國<small>建國｜13:40</small></a></div>
 <div id="appRoot" hidden>
@@ -2046,6 +2059,17 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
   function ymdL(d){ return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function mdw(s){ var m = String(s).match(/\d{4}-(\d{2})-(\d{2})/); if (!m) return s; var d = new Date(+s.slice(0, 4), +m[1] - 1, +m[2]); return (+m[1]) + '/' + (+m[2]) + '（' + WKC[d.getDay()] + '）'; }
   function kOf(p){ return p.k || (p.院 + '|' + p.全名); }
+  /* p4.5（10/31 Ivan 選「激勵強勢」）出勤講法：不寫「11／11」（第一眼像日期）
+     全員到齊「11 位戰士全員到齊」／上場三分之二以上「9 位戰士上場，2 位休息」／不到三分之二「6 位戰士守住全場，5 位休息」／一個都沒有「今天全員休息」
+     三分之二這條線只在程式裡用，畫面不寫 */
+  function cntOf(L, s){ var o = { n: L.length, up: 0, 休: 0, 外: 0, 空: 0 }; L.forEach(function(p){ var x = p.班[s] || '', c = cls(x); if (on(x)) o.up++; else if (!x) o.空++; else if (c === '休') o.休++; else if (c === '外') o.外++; }); return o; }
+  function phr(t){ if (!t || !t.n) return { head: '', tail: [], full: '', z: 1 }; var up = t.up, n = t.n, tail = [];
+    if (!up) return { head: '', tail: [], full: '今天全員休息', z: 1 };
+    var head = up === n ? '位戰士全員到齊' : (up * 3 >= n * 2 ? '位戰士上場' : '位戰士守住全場');
+    if (up < n) { if (t.休) tail.push(t.休 + ' 位休息'); if (t.外) tail.push(t.外 + ' 位外勤'); if (t.空) tail.push(t.空 + ' 位班表空白'); var ot = n - up - (t.休 || 0) - (t.外 || 0) - (t.空 || 0); if (ot > 0) tail.push(ot + ' 位其他'); }
+    return { up: up, head: head, tail: tail, full: up + ' ' + head + (tail.length ? '，' + tail.join('，') : '') }; }
+  function phrHtml(t){ var q = phr(t); return q.z ? '<b class="pz">' + q.full + '</b>' : '<b>' + q.up + '</b> ' + q.head + (q.tail.length ? '<span class="pt">，' + q.tail.join('，') + '</span>' : ''); }
+  window.__pgRosPhr = phr; window.__pgRosPhrHtml = phrHtml;
   function names(L){ return L.map(function(p){ return '<button type="button" class="nm" data-rk="' + esc(kOf(p)) + '">' + esc(p.名) + '</button>' + (p.t ? '<small>' + esc(p.t) + '</small>' : ''); }).join('、'); }
   /* p3.2（10/29 Ivan）每一院照班別列出全部的人（原本只列休、開會不在、要追的人，正常上班的只算人數，看起來像漏人） */
   function isC(x, a){ return a.indexOf(x) >= 0; }
@@ -2097,7 +2121,7 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
       var out = L.filter(function(p){ return cls(p.班[d0]) === '外'; }).map(function(p){ return { 名: p.名, k: kOf(p), t: p.班[d0] }; });
       var aw = L.filter(function(p){ return away(p.班[d0]); }).map(function(p){ return { 名: p.名, k: kOf(p), t: p.班[d0] === '早休' ? '13:30 下班' : '17:30 才進' }; });
       var none = L.filter(function(p){ return !p.班[d0]; });
-      h += '<div class="ros-o"><div class="l1">' + (many ? '<span class="o">' + esc(o) + '</span>' : '') + '<span class="n"><b>' + up.length + '</b>／' + L.length + ' 位上場</span><span class="mix">' + mixT + '</span></div>'
+      h += '<div class="ros-o"><div class="l1">' + (many ? '<span class="o">' + esc(o) + '</span>' : '') + '<span class="n">' + phrHtml(cntOf(L, d0)) + '</span><span class="mix">' + mixT + '</span></div>'
         + shiftRows(L, d0, true) + '</div>';
     });
     /* ② 在場、要追的人：今天有上班，近三天沒入帳或這個月報到 0 */
@@ -2121,7 +2145,7 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
         var up = L.filter(function(p){ return on(p.班[d1]); }), lt = L.filter(function(p){ return late(p.班[d1]); });
         var off = L.filter(function(p){ return cls(p.班[d1]) === '休'; }).map(function(p){ return { 名: p.名, k: kOf(p) }; });
         var warn = lt.length <= 1 || up.length * 2 < L.length;
-        tm += '<div class="ros-o' + (warn ? ' warn' : '') + '"><div class="l1">' + (many ? '<span class="o">' + esc(o) + '</span>' : '') + '<span class="n"><b>' + up.length + '</b>／' + L.length + ' 位上場</span>'
+        tm += '<div class="ros-o' + (warn ? ' warn' : '') + '"><div class="l1">' + (many ? '<span class="o">' + esc(o) + '</span>' : '') + '<span class="n">' + phrHtml(cntOf(L, d1)) + '</span>'
           + '<span class="mix">19:30 以後 ' + lt.length + ' 位' + (warn ? ' 💔' : '') + '</span></div>'
           + shiftRows(L, d1, false) + '</div>';
       });
@@ -2138,7 +2162,7 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
     if (lost.length) h += '<p class="ros-f">班表上找不到：' + lost.map(function(p){ return esc(p.名) + (many ? '（' + esc(p.院) + '）' : ''); }).join('、') + '</p>';
     var nUp = function(x){ return P.filter(function(p){ return on(p.班[x]); }).length; }, V = window.__pgRosV || 0;
     var seg = '<div class="rseg" role="tablist">' + [['今天', d0], ['明天', d1], ['這 7 天', null]].map(function(z, i){ if (i === 1 && !d1) return ''; if (i === 2 && !(W.length > 1)) return '';
-      return '<button type="button" data-rv="' + i + '" class="' + (V === i ? 'on' : '') + '">' + z[0] + (z[1] ? '<small>' + nUp(z[1]) + '／' + P.length + '</small>' : '') + '</button>'; }).join('') + '</div>';
+      return '<button type="button" data-rv="' + i + '" class="' + (V === i ? 'on' : '') + '">' + z[0] + (z[1] ? '<small>' + nUp(z[1]) + ' 人上場</small>' : '') + '</button>'; }).join('') + '</div>';
     box.innerHTML = h.replace('<!--RSEG-->', seg); box.dataset.v = V;
   }
   var CHASE = [];
@@ -2176,10 +2200,10 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
     var X = rosAll(); if (!X) return ''; var orgs = scopeOrgs(), many = orgs.length > 1;
     var P = X.R.人.filter(function(p){ return !p.nb && orgs.indexOf(p.院) >= 0; }), up = P.filter(function(p){ return on(p.班[s]); }).length;
     function grp(lab, L, t){ return L.length ? '<div class="rp-g"><i>' + lab + '</i><span>' + L.map(function(p){ return '<button type="button" class="nm" data-rk="' + esc(kOf(p)) + '" data-from="' + s + '">' + esc(p.名) + '</button>' + (t ? '<small>' + esc(t(p)) + '</small>' : ''); }).join('、') + '</span></div>' : ''; }
-    var h = '<div class="rp-h"><b>' + mdw(s) + '</b><span>上場 ' + up + '／' + P.length + ' 位</span></div>';
+    var h = '<div class="rp-h"><b>' + mdw(s) + '</b><span>' + phr(cntOf(P, s)).full + '</span></div>';
     orgs.forEach(function(o){ var L = P.filter(function(p){ return p.院 === o; }); if (!L.length) return;
       function by(f){ return L.filter(function(p){ return f(p.班[s] || ''); }); }
-      h += '<div class="rp-o">' + (many ? '<h5>' + esc(o) + '<small>上場 ' + by(on).length + '／' + L.length + '</small></h5>' : '')
+      h += '<div class="rp-o">' + (many ? '<h5>' + esc(o) + '<small>' + phr(cntOf(L, s)).full + '</small></h5>' : '')
         + grp('早班 09:00', by(function(x){ return x === '早' || x === '早班'; }))
         + grp('中班 10:30', by(function(x){ return x === '中' || x === '中班'; }))
         + grp('晚班 13:30', by(function(x){ return x === '晚' || x === '晚班'; }))
@@ -2208,8 +2232,8 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
       + '<div class="pwk">' + cells(X.days, true) + '</div>'; }
   function btn(){ var X = rosAll(); if (!X || !X.days.length) return '<span id="bRos" hidden></span>'; var orgs = scopeOrgs();
     var P = X.R.人.filter(function(p){ return !p.nb && orgs.indexOf(p.院) >= 0; }); if (!P.length) return '<span id="bRos" hidden></span>';
-    var up = P.filter(function(p){ return on(p.班[X.days[0]]); }).length;
-    return '<button class="bbtn bros" type="button" id="bRos">👥 今天 <b>' + up + '</b>／' + P.length + ' 上場</button>'; }
+    var q = phr(cntOf(P, X.days[0]));
+    return '<button class="bbtn bros" type="button" id="bRos">' + (q.z ? '👥 今天全員休息' : '🔥 <b>' + q.up + '</b> ' + q.head + (q.tail.length ? '，' + q.tail[0] : '')) + '</button>'; }
   function boardCard(){ render(); var h = box.hidden ? '' : box.innerHTML; if (!h) return; popOpen('<div class="ros rp-card">' + h + '</div>'); var M = document.getElementById('rosPop'); if (M) M.classList.add('wide'); }
   window.__pgRosApi = { pop: function(h, wide){ popOpen(h); if (wide) { var M = document.getElementById('rosPop'); if (M) M.classList.add('wide'); } }, tag: tag, weekHtml: weekHtml, btn: btn, board: boardCard, person: function(k, back){ popOpen(personPop(k, back)); }, day: function(s){ popOpen(dayPop(s)); }, close: popClose, card: function(){ return box.hidden ? '' : box.innerHTML; }, all: rosAll, kOf: kOf, cls: cls, on: on };
   if (!window.__pgRosBound) { window.__pgRosBound = 1;
@@ -2251,7 +2275,7 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
     /* 出勤 */
     var R = window.__pgRosStat ? window.__pgRosStat() : null;
     setB('ib-ros', R ? R.all.up : null, false);
-    if (R) tiles.push('<button type="button" class="gl gr" data-tabgo="s-ros"><span class="k">👥 出勤</span><b>' + R.all.up + '<small>／' + R.all.n + '</small></b><span class="u">位上場</span><span class="s">' + ['休 ' + R.all.休, R.all.away ? '開會不在 ' + R.all.away : '', R.chase.length ? '要追 ' + R.chase.length + ' 位' : ''].filter(Boolean).join('・') + '</span></button>');
+    if (R) tiles.push('<button type="button" class="gl gr" data-tabgo="s-ros"><span class="k">👥 出勤</span>' + (function(){ var q = window.__pgRosPhr(R.all); return q.z ? '<b>0</b><span class="u">今天全員休息</span>' : '<b>' + q.up + '</b><span class="u">' + q.head + '</span>'; })() + '<span class="s">' + [window.__pgRosPhr(R.all).tail.join('・'), R.all.away ? '開會不在 ' + R.all.away : '', R.chase.length ? '要追 ' + R.chase.length + ' 位' : ''].filter(Boolean).join('・') + '</span></button>');
     if (G) { G.innerHTML = tiles.join(''); G.hidden = !tiles.length; G.style.setProperty('--n', tiles.length); }
   }
   window.__pgTabsSync = sync;
@@ -2588,18 +2612,18 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
   function mixT(t){ return SHC.filter(function(z){ return t[z[0]]; }).map(function(z){ return z[1].replace('班', '') + ' ' + t[z[0]]; }).join('・'); }
   function rosHtml(big){
     var R = window.__pgRosStat ? window.__pgRosStat() : null; if (!R) return '<p class="none">今天的班表還沒讀，等明天 8 點自動讀，或下一次 🏫 班況同步</p>';
-    if (!big) return '<div class="rb">' + R.by.map(function(x){ return '<div class="rbo"><b class="' + ocC(x.o) + '">' + esc(x.o) + '</b><span class="n"><em>' + x.t.up + '</em>／' + x.t.n + '</span><div class="rbt">' + sbar(x.t) + '<small>' + mixT(x.t) + (x.t.away ? '・開會不在 ' + x.t.away : '') + '</small></div></div>'; }).join('')
-      + (R.allM ? '<p class="rbm">明天 ' + esc(R.mdw(R.d1)) + '：' + R.by.map(function(x){ return esc(x.o) + ' ' + x.m.up + '／' + x.m.n + (x.m.late <= 1 || x.m.up * 2 < x.m.n ? ' 💔' : ''); }).join('・') + '</p>' : '') + '</div>';
+    if (!big) return '<div class="rb">' + R.by.map(function(x){ return '<div class="rbo"><b class="' + ocC(x.o) + '">' + esc(x.o) + '</b><div class="rbt"><span class="n">' + window.__pgRosPhrHtml(x.t) + '</span>' + sbar(x.t) + '</div></div>'; }).join('')
+      + (R.allM ? '<p class="rbm">明天 ' + esc(R.mdw(R.d1)) + '：' + R.by.map(function(x){ return esc(x.o) + ' ' + x.m.up + ' 人上場' + (x.m.late <= 1 || x.m.up * 2 < x.m.n ? ' 💔' : ''); }).join('・') + '</p>' : '') + '</div>';
     var G = [['早班', function(x){ return x === '早' || x === '早班'; }], ['中班', function(x){ return x === '中' || x === '中班'; }], ['晚班', function(x){ return x === '晚' || x === '晚班'; }],
       ['半天', function(x){ return R.cls(x) === '半'; }], ['外勤', function(x){ return R.cls(x) === '外'; }], ['休', function(x){ return R.cls(x) === '休'; }], ['班表空白', function(x){ return !x; }]];
     var cols = R.by.map(function(x){ var s0 = R.d0;
-      return '<div class="rcolx">' + '<div class="rch">' + ring(x.t.up / x.t.n, '<b>' + x.t.up + '</b><small>／' + x.t.n + '</small>') + '<div><b class="' + ocC(x.o) + '">' + esc(x.o) + '</b><span>' + mixT(x.t) + '</span></div></div>' + sbar(x.t)
+      return '<div class="rcolx">' + '<div class="rch">' + ring(x.t.up / x.t.n, '<b>' + x.t.up + '</b><small>人</small>') + '<div><b class="' + ocC(x.o) + '">' + esc(x.o) + '</b><span class="ph">' + window.__pgRosPhrHtml(x.t) + '</span><span>' + mixT(x.t) + '</span></div></div>' + sbar(x.t)
         + G.map(function(g){ var M = x.L.filter(function(p){ return g[1](p.班[s0] || ''); }); if (!M.length) return '';
           return '<div class="rg' + (g[0] === '休' || g[0] === '班表空白' ? ' off' : '') + '"><i>' + g[0] + '</i><span>' + M.map(function(p){ var a = R.away(p.班[s0]);
             return '<button type="button" data-rk="' + esc(R.kOf(p)) + '" class="' + ocC(x.o) + (a ? ' aw' : '') + '">' + esc(p.名) + (a ? '<small>' + (p.班[s0] === '早休' ? '13:30 走' : '17:30 進') + '</small>' : '') + '</button>'; }).join('') + '</span></div>'; }).join('') + '</div>'; }).join('');
     var side = '';
     if (R.allM) side += '<div class="rsd"><h5>明天 ' + esc(R.mdw(R.d1)) + '</h5>' + R.by.map(function(x){ var w = x.m.late <= 1 || x.m.up * 2 < x.m.n;
-      return '<div class="rmo' + (w ? ' warn' : '') + '"><b class="' + ocC(x.o) + '">' + esc(x.o) + '</b><span><em>' + x.m.up + '</em>／' + x.m.n + ' 上場</span><small>19:30 以後 ' + x.m.late + ' 位' + (w ? ' 💔' : '') + '</small></div>'; }).join('') + '</div>';
+      return '<div class="rmo' + (w ? ' warn' : '') + '"><b class="' + ocC(x.o) + '">' + esc(x.o) + '</b><span>' + window.__pgRosPhrHtml(x.m) + '</span><small>19:30 以後 ' + x.m.late + ' 位' + (w ? ' 💔' : '') + '</small></div>'; }).join('') + '</div>';
     if (R.W.length > 1) { var mx = Math.max.apply(null, R.W.map(function(w){ return w.n; })) || 1, mn = Math.min.apply(null, R.W.map(function(w){ return w.n; }));
       side += '<div class="rsd"><h5>這 7 天每天上場<small>點一天看誰上班</small></h5><div class="r7">' + R.W.map(function(w, i){ return '<button type="button" data-rd="' + w.s + '" class="' + (i === 0 ? 'td' : '') + (w.n === mn ? ' lo' : '') + '"><b>' + w.n + '</b><i style="height:' + (w.n / mx * 100).toFixed(1) + '%"></i><span>' + esc(R.mdw(w.s).replace(/（(.)）/, ' $1')) + '</span></button>'; }).join('') + '</div></div>'; }
     if (R.chase.length) side += '<div class="rsd"><h5>🎯 今天在場、要追的人<small>點名字看他這週的班</small></h5><div class="rchs">' + R.chase.map(function(c){ return '<button type="button" data-rk="' + esc(R.kOf(c.p)) + '"><b class="' + ocC(c.p.院) + '">' + esc(c.p.名) + '</b><small>' + esc(c.p.院) + '・' + esc(c.why.join('、')) + '</small></button>'; }).join('') + '</div></div>';
@@ -2608,7 +2632,7 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
   CARDS.push(
     { id: 'yue', tabs: [0, 6], dot: '#FF2D55', nozoom: 1, t: function(){ return '約訪・還沒約'; }, s: function(){ return '講座、單元課・每位業務扣達 ' + YQ + ' 位'; }, body: function(){ return yueHtml(ST.tab === 6); } },
     { id: 'pili', tabs: [0, 7], dot: '#A2845E', nozoom: 1, t: function(){ return '霹靂無敵表單需補件'; }, s: function(){ return ST.tab === 7 ? '點名字看學生、要補什麼' : '內部用'; }, body: function(){ return piliHtml(ST.tab === 7); } },
-    { id: 'ros', tabs: [0, 8], dot: '#0A84FF', nozoom: 1, t: function(){ return '出勤・今天上場戰士'; }, s: function(){ var R = window.__pgRosStat ? window.__pgRosStat() : null; return R ? R.mdw(R.d0) + '・上場 ' + R.all.up + '／' + R.all.n + ' 位' + (ST.tab === 8 ? '・點名字看這週的班' : '') : ''; }, body: function(){ return rosHtml(ST.tab === 8); } },
+    { id: 'ros', tabs: [0, 8], dot: '#0A84FF', nozoom: 1, t: function(){ return '出勤・今天上場戰士'; }, s: function(){ var R = window.__pgRosStat ? window.__pgRosStat() : null; return R ? R.mdw(R.d0) + '・' + window.__pgRosPhr(R.all).full + (ST.tab === 8 ? '・點名字看這週的班' : '') : ''; }, body: function(){ return rosHtml(ST.tab === 8); } },
     { id: 'chk', tabs: [4], dot: '#FF9500', nozoom: 1, t: function(){ return '驗收・上一次的交辦'; }, s: function(){ return '今天要收回來的'; },
       body: function(){ var t = typeof secText === 'function' ? secText('⚔️') : ''; var L = t ? t.split('\n').slice(1).map(function(l){ return l.trim(); }).filter(Boolean) : [];
         if (!L.length) return '<p class="none">沒有要驗收的交辦</p>';
@@ -2619,7 +2643,7 @@ if (!window.__pgThemeBound) { window.__pgThemeBound = 1;
   function tabBadge(i){
     if (i === 6) { var Y = window.__pgYueStat ? window.__pgYueStat().filter(function(x){ return x.S; })[0] : null; return Y && Y.S.none.length ? '<em class="w">' + Y.S.none.length + '</em>' : ''; }
     if (i === 7) { var X = window.__pgPiliStat ? window.__pgPiliStat() : null; return X && X.L.length ? '<em class="w">' + X.L.length + '</em>' : ''; }
-    if (i === 8) { var R = window.__pgRosStat ? window.__pgRosStat() : null; return R ? '<em>' + R.all.up + '／' + R.all.n + '</em>' : ''; }
+    if (i === 8) { var R = window.__pgRosStat ? window.__pgRosStat() : null; return R ? '<em>' + R.all.up + ' 人</em>' : ''; }
     return ''; }
   function setTab(i){ i = (i + TABS.length) % TABS.length; if (ST.zoom) closeZoom(); ST.tab = i; render(); var g = B.querySelector('.bgrid'); if (g && !REDUCE) g.classList.add('swap'); B.scrollTop = 0; }
   window.__pgBTab = setTab;
