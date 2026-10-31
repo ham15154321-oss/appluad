@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════
-   Appedu EIP 激勵同步 v5.77｜2026-10-30｜霹靂表單「需補件」→ 13:40 日會
+   Appedu EIP 激勵同步 v5.80｜2026-10-31｜霹靂表單「需補件」→ 13:40 日會（v5.82：一天一次，當天第一次打開分頁 1 分鐘後送；v5.83：多送客戶姓名、要補什麼、補件回覆）
    只在 Ivan 的 Chrome 開著霹靂表單（start-a-new-quest-41.lovable.app）、而且已經登入時才動：
-   - 打開後 8 秒讀一次，之後每 10 分鐘看一下，距離上次讀滿 55 分鐘才再讀（一小時一次，不會狂讀）
-   - 只讀「狀態＝需補件」的案件；只送案件編號、學院、承辦人、廠商、認列月份、建立日
-   - 客戶姓名、電話、身分證一律不讀、不送
+   - v5.82（10/31 Ivan）：一天只送一次——當天打開霹靂表單分頁 1 分鐘後送；今天已經送過就不送。不管幾點開機都會補到當天的。分頁開過夜的話，隔天也會自己送一次
+   - 只讀「狀態＝需補件」的案件；送案件編號、學院、承辦人、廠商、認列月份、建立日
+   - v5.83（10/31 Ivan：內部用，要看學生姓名）：多送客戶姓名、最近一次審核寫的「要補什麼」、補件回覆。電話、身分證一律不讀、不送
    - 送到 Apps Script「業績數據橋接」（班況橋接 v5.6 收 kind=霹靂補件）
    跟 EIP 是不同網站，不會影響 EIP 的速度
    ═══════════════════════════════════════════════ */
@@ -13,7 +13,8 @@
   if (location.hostname !== 'start-a-new-quest-41.lovable.app') return;
   var API = 'https://script.google.com/macros/s/AKfycbxBFayHnfG5NUoj0CjIe8qwlfdFwt0FQeVD-QH6ocBu3dhHWpioOEmLk908dsTGVlznYA/exec';
   var SB = 'https://nipwyotvfgzafshbugff.supabase.co/rest/v1/';
-  var EVERY = 55 * 60 * 1000, KEY = 'appedu_pili_last', busy = false, _anon = null;
+  var KEY = 'appedu_pili_last', busy = false, _anon = null;
+  function today0(){ var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime(); }
   function token(){
     try {
       var k = Object.keys(localStorage).filter(function(x){ return /^sb-.*-auth-token$/.test(x); })[0]; if (!k) return null;
@@ -36,7 +37,7 @@
     if (busy) return; busy = true;
     try {
       var last = 0; try { last = +(localStorage.getItem(KEY) || 0); } catch(e){}
-      if (Date.now() - last < EVERY) return;
+      if (last >= today0()) return;   // 今天已經送過
       var tk = token(), ak = await anon();
       if (!tk || !ak){ console.log('[霹靂補件] 還沒登入，等下一次'); return; }
       var H = { apikey: ak, Authorization: 'Bearer ' + tk };
@@ -44,14 +45,29 @@
       var vm = {}; (Array.isArray(vs) ? vs : []).forEach(function(v){ vm[v.id] = v.name; });
       var rows = [], from = 0;
       while (true){
-        var r = await fetch(SB + 'customers?select=case_no,college,handler,vendor_id,recognition_month,created_at&status=eq.needs_info&order=created_at.asc',
+        var r = await fetch(SB + 'customers?select=id,case_no,customer_name,college,handler,vendor_id,recognition_month,created_at,custom_data->resubmission_replies,custom_data->case_requirements&status=eq.needs_info&order=created_at.asc',
           { headers: Object.assign({ Range: from + '-' + (from + 999) }, H) });
         var j = await r.json();
         if (!Array.isArray(j)){ console.warn('[霹靂補件] 讀不到（登入過期？），等下一次', j); return; }
         rows = rows.concat(j); if (j.length < 1000 || from >= 9000) break; from += 1000;
       }
-      var body = { kind: '霹靂補件', at: new Date().toISOString(), rows: rows.map(function(x){
-        return { no: x.case_no || '', college: x.college || '', handler: x.handler || '', vendor: vm[x.vendor_id] || '', month: x.recognition_month || '', created: x.created_at || '' }; }) };
+      // v5.83：每一件最近一次審核寫的「要補什麼」（review_records.items：類別－項目＋備註）
+      var rv = {}, ids = rows.map(function(x){ return x.id; }).filter(Boolean);
+      for (var q = 0; q < ids.length; q += 80){
+        try { var rr = await fetch(SB + 'review_records?select=customer_id,items,created_at&customer_id=in.(' + ids.slice(q, q + 80).join(',') + ')&order=created_at.desc', { headers: H }).then(function(x){ return x.json(); });
+          (Array.isArray(rr) ? rr : []).forEach(function(v){ if (!rv[v.customer_id]) rv[v.customer_id] = v; }); } catch(e){}
+      }
+      function reqOf(x){ var v = rv[x.id], L = [];
+        var items = v && v.items; if (typeof items === 'string') { try { items = JSON.parse(items); } catch(e){ items = []; } }
+        (items || []).forEach(function(it){ var t = [it.category_label, it.item_label].filter(Boolean).join('－'); if (it.note) t += '（' + it.note + '）'; if (t) L.push(t); });
+        (x.case_requirements || []).forEach(function(t){ if (t && L.indexOf(t) < 0) L.push(t); });
+        return { q: L.join('、'), qd: v ? String(v.created_at || '').slice(0, 10) : '' }; }
+      function replyOf(x, qd){ var a = x.resubmission_replies || []; if (!a.length) return null; var r = a[a.length - 1];
+        var d = String(r.completed_at || '').slice(0, 10); if (qd && d && d < qd) return null;   // 回覆比最近一次審核早＝那是上一輪的，不算
+        return { t: r.note || '', d: d, by: r.completed_by_name || '' }; }
+      var body = { kind: '霹靂補件', at: new Date().toISOString(), rows: rows.map(function(x){ var q2 = reqOf(x), rp = replyOf(x, q2.qd);
+        return { no: x.case_no || '', name: x.customer_name || '', college: x.college || '', handler: x.handler || '', vendor: vm[x.vendor_id] || '', month: x.recognition_month || '', created: x.created_at || '',
+          req: q2.q, reqAt: q2.qd, reply: rp ? rp.t : '', replyAt: rp ? rp.d : '', replyBy: rp ? rp.by : '' }; }) };
       // Apps Script 還沒換成 v5.6（會收霹靂補件的版本）就不送，避免送進舊的業績快照
       var ver = 0; try { ver = +((await fetch(API, { cache: 'no-store' }).then(function(r){ return r.json(); })).v || 0); } catch(e){}
       if (ver < 5.6){ console.log('[霹靂補件] Apps Script 還是舊版（v' + ver + '），先不送'); return; }
@@ -61,6 +77,6 @@
     } catch(e){ console.warn('[霹靂補件] 這次沒送成', e); }
     finally { busy = false; }
   }
-  setTimeout(run, 8000);
+  setTimeout(run, 60000);   // 打開 1 分鐘後
   setInterval(run, 10 * 60 * 1000);
 })();

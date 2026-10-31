@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Appedu EIP 激勵同步",
+  "version": "5.79",
+  "description": "從赫綵 EIP 系統同步業績數據到激勵排行榜 — v5.79：點工具列圖示就檢查新版、自動更新；v5.78：單元課名單先讀；v5.77：霹靂表單需補件",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://eip.appedu.com.tw/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>",
+        "file:///*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://start-a-new-quest-41.lovable.app/*"
+      ],
+      "js": [
+        "pili.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "EIP 激勵同步"
+  },
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

@@ -8,20 +8,26 @@
 var _lastEip = 0;
 function _verNum(v){ return String(v || '0').split('.').map(function(x){ return +x || 0; }); }
 function _newer(a, b){ var x = _verNum(a), y = _verNum(b); for (var i = 0; i < Math.max(x.length, y.length); i++){ if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; }
-async function _checkUpdate(){
+async function _checkUpdate(idleMs){
   var cur = chrome.runtime.getManifest().version, disk = cur;
   try { disk = (await (await fetch(chrome.runtime.getURL('manifest.json') + '?t=' + Date.now(), { cache: 'no-store' })).json()).version || cur; } catch(e){ return { state: 'error', cur: cur, error: String(e && e.message || e) }; }
   if (!_newer(disk, cur)) return { state: 'same', cur: cur };
-  if (Date.now() - _lastEip < 180000) return { state: 'busy', cur: cur, disk: disk };
+  if (Date.now() - _lastEip < (idleMs || 120000)) { _arm(); return { state: 'busy', cur: cur, disk: disk }; }
   setTimeout(function(){ chrome.runtime.reload(); }, 400);
   return { state: 'reload', cur: cur, disk: disk };
 }
+/* ★ v5.84（10/31 Ivan：要自動）點圖示時剛好在讀 EIP → 記下來，每 10 秒看一次，EIP 停了 20 秒（同步跑的時候每 12 秒一定會敲一次）就自己換，最多等 15 分鐘；
+   EIP 同步跑完（content.js 送 syncDone）也看一次。不加權限、不定時巡；Chrome 把背景休眠的話，下一次同步跑完或點圖示會再接上 */
+var _pendT = 0, _pendUntil = 0;
+function _arm(){ if (!_pendUntil || Date.now() > _pendUntil) _pendUntil = Date.now() + 15 * 60000; if (_pendT) return;
+  _pendT = setTimeout(function(){ _pendT = 0; if (Date.now() > _pendUntil) { _pendUntil = 0; return; } _checkUpdate(20000); }, 10000); }
 
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
   if (msg.action === 'checkUpdate'){
     _checkUpdate().then(sendResponse);
     return true;
   }
+  if (msg.action === 'syncDone'){ _lastEip = Date.now(); setTimeout(function(){ _checkUpdate(20000); }, 21000); return false; }   // v5.84 同步跑完 → 20 秒內沒有再讀 EIP 就換新版
   if (msg.action === 'keepalive' || msg.action === 'fetchEip') _lastEip = Date.now();
   // ★ v5.15：keepalive ping — content.js 每 12 秒敲一次，收到就立刻回，
   //   讓 Chrome 持續看到活動、不把 service worker 回收（逐頁抓取時避免吊死）。

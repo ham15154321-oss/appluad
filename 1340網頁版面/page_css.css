@@ -1064,3 +1064,261 @@
   .ocm{display:block;width:100%;border:0;background:none;color:var(--blue);font:inherit;font-size:.8125rem;font-weight:700;padding:10px 16px;cursor:pointer;text-align:left}
   #openCard.hasf .oc-h{flex-wrap:wrap;white-space:nowrap}
   #openCard.hasf .oc-h small{margin-left:0;flex-basis:100%;white-space:normal;margin-top:2px}
+
+  /* p3.9 需補件案件、約訪表輸出圖片 */
+  .pcl{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+  .pc{border:.5px solid var(--sep);border-radius:12px;padding:10px 12px;background:var(--card)}
+  .pc.done{opacity:.6}
+  .pc1{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+  .pc1 b{font-size:1rem} .pc1 span{font-size:.75rem;color:var(--label2);font-variant-numeric:tabular-nums}
+  .pc2,.pc3{margin-top:5px;font-size:.875rem;line-height:1.55}
+  .pc2 i,.pc3 i{font-style:normal;font-size:.6875rem;font-weight:700;border-radius:6px;padding:1px 6px;margin-right:6px;vertical-align:.1em}
+  .pc2 i{color:#fff;background:var(--orange)} .pc3 i{color:var(--label2);background:var(--fill)}
+  .pc2 small,.pc3 small{margin-left:6px;color:var(--label3);font-size:.75rem}
+  .pdn{margin-left:3px;color:var(--label3);font-size:.75rem}
+  .ybtn{border:0;background:var(--blue);color:#fff;font:inherit;font-size:.8125rem;font-weight:700;border-radius:999px;padding:6px 14px;margin:2px 0 6px;cursor:pointer}
+
+  /* ══════ p4.0（10/31 Ivan）手機版分頁＋晚上配色修正（Apple 審查） ══════ */
+  :root{ --c-yue:#FF2D55; --c-pili:#A2845E; --c-ros:#0A84FF; --tabTxt:color-mix(in srgb,var(--label) 70%,transparent) }
+  /* 晚上：「今天」分頁原本是黑底黑字（--c-today 沒跟著換），改成白底黑字；三個名單頁的顏色也調亮一階 */
+  @media (prefers-color-scheme:dark){ html:not([data-theme=light]){ --c-today:#F5F5F7; --c-yue:#FF375F; --c-pili:#AC8E68; --c-ros:#409CFF; --c-asst:#BF5AF2; --c-lead:#7D7AFF; --tabTxt:rgba(235,235,245,.78) } }
+  html[data-theme=dark]{ --c-today:#F5F5F7; --c-yue:#FF375F; --c-pili:#AC8E68; --c-ros:#409CFF; --c-asst:#BF5AF2; --c-lead:#7D7AFF; --tabTxt:rgba(235,235,245,.78) }
+
+  /* 一次只顯示一頁 */
+  main > section{display:none;min-height:calc(100vh - 150px);will-change:auto}
+  main > section.tab-on{display:block}
+  #s-yue{--sc:var(--c-yue)} #s-pili{--sc:var(--c-pili)} #s-ros{--sc:var(--c-ros)}
+  #s-yue .yue,#s-pili .pili,#s-ros .ros{margin-top:0}
+  main > .legend,main > .foot{padding:0 16px}
+  .empty{margin:24px 4px;color:var(--label2);font-size:.9375rem;line-height:1.6}
+
+  /* 分頁列：議程六段｜名單三頁，中間一條細線；名單頁帶數字 */
+  .idx{gap:6px;scroll-padding:0 16px;align-items:center}
+  .idx a{display:inline-flex;align-items:center;gap:5px;color:var(--tabTxt);min-height:36px;padding:7px 13px}
+  .idx a.on{box-shadow:0 2px 8px color-mix(in srgb,var(--pc,var(--ink)) 35%,transparent)}
+  .idx a[href='#s-today'].on{color:var(--inkOn)}
+  .idx .isep{flex:none;width:1px;height:18px;background:var(--sep);margin:0 4px}
+  .idx .ib{font-style:normal;font-size:.6875rem;font-weight:700;line-height:1;min-width:1.5em;padding:3px 5px;border-radius:999px;text-align:center;background:var(--fill);color:var(--label2);font-variant-numeric:tabular-nums}
+  .idx .ib.w{background:var(--orange);color:#fff}
+  .idx a.on .ib{background:rgba(255,255,255,.28);color:inherit}
+  .idx .ib[hidden]{display:none}
+
+  /* 每一頁最下面：下一頁 */
+  .nx{display:flex;align-items:center;gap:10px;width:100%;margin:22px 0 4px;padding:15px 18px;border:0;border-radius:18px;background:var(--card);color:var(--label);font:inherit;text-align:left;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform 100ms ease-out}
+  .nx:active{transform:scale(.98)}
+  .nx span{font-size:.8125rem;color:var(--label2)}
+  .nx b{font-size:1.0625rem;letter-spacing:-.01em}
+  .nx i{margin-left:auto;font-style:normal;font-size:1.375rem;color:var(--label3);line-height:1}
+
+  /* 今天：一眼看完三張小卡 */
+  .glance{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));gap:10px;margin:12px 0 0}
+  .glance[hidden]{display:none}
+  .gl{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;padding:12px 12px 11px;border:.5px solid var(--edge);border-radius:18px;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.05);color:var(--label);font:inherit;text-align:left;cursor:pointer;transition:transform 100ms ease-out}
+  .gl:active{transform:scale(.96)}
+  .gl .k{font-size:.75rem;font-weight:700;color:var(--label2)}
+  .gl b{font-size:1.75rem;line-height:1.1;letter-spacing:-.03em;font-weight:800;font-variant-numeric:tabular-nums}
+  .gl b small{font-size:.75rem;font-weight:600;letter-spacing:0;color:var(--label2);margin-left:2px}
+  .gl b.og{color:var(--orange)}
+  .gl .s{font-size:.75rem;line-height:1.35;color:var(--label2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;width:100%}
+  .gl.gy{box-shadow:inset 3px 0 0 var(--c-yue),0 1px 2px rgba(0,0,0,.05)} .gl.gp{box-shadow:inset 3px 0 0 var(--c-pili),0 1px 2px rgba(0,0,0,.05)} .gl.gr{box-shadow:inset 3px 0 0 var(--c-ros),0 1px 2px rgba(0,0,0,.05)}
+  @media (max-width:380px){ .glance{grid-template-columns:1fr} .gl{flex-direction:row;align-items:center;gap:10px} .gl .s{flex:1;text-align:right} }
+
+  /* 出勤：今天／明天／這 7 天（分段控制，跟 iOS 一樣） */
+  .rseg{display:flex;gap:2px;padding:2px;margin:4px 0 6px;border-radius:11px;background:var(--fill)}
+  .rseg button{flex:1;display:flex;flex-direction:column;align-items:center;gap:0;border:0;background:none;color:var(--label);font:inherit;font-size:.875rem;font-weight:600;padding:6px 4px;border-radius:9px;cursor:pointer;transition:background 200ms,box-shadow 200ms,transform 100ms ease-out}
+  .rseg button small{font-size:.6875rem;font-weight:600;color:var(--label2);font-variant-numeric:tabular-nums}
+  .rseg button.on{background:var(--card);box-shadow:0 3px 8px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04)}
+  .rseg button:active{transform:scale(.97)}
+  @media (prefers-color-scheme:dark){ html:not([data-theme=light]) .rseg button.on{background:#636366} }
+  html[data-theme=dark] .rseg button.on{background:#636366}
+  .ros .rv{display:none} .ros[data-v="0"] .rv[data-rv="0"],.ros[data-v="1"] .rv[data-rv="1"],.ros[data-v="2"] .rv[data-rv="2"]{display:block}
+  .ros:not([data-v]) .rv[data-rv="0"]{display:block}
+  .ros .rv > h4:first-child{margin-top:8px}
+
+  /* 電腦打開手機版：內容不要拉到整個螢幕寬，讀起來比較舒服 */
+  @media (min-width:900px){
+    main > section,main > .legend,main > .foot{max-width:820px;margin-left:auto;margin-right:auto}
+    main > section{border-radius:22px;margin-top:6px}
+    .idx{justify-content:center}
+  }
+  @media (prefers-reduced-motion:reduce){ main > section{transition:none!important} }
+  /* 標題列：第一行「中區 13:40」＋按鈕，第二行日期選單＋同步時間（原本日期擠在右邊，副標被擠成兩行） */
+  .top .t{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px;row-gap:5px}
+  .top .t h1{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .top .subr{grid-column:1/-1;display:flex;align-items:center;gap:8px;min-width:0}
+  .top .subr .sub{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .top .subr select.day{font-size:.75rem;padding:4px 10px;font-weight:700}
+  .top .ic{width:36px;height:34px}
+  .top .ic.bd{width:auto;padding:0 13px}
+  .gl .u{font-size:.75rem;font-weight:600;color:var(--label2);margin-top:-1px}
+  .gl b small{font-size:.875rem;font-weight:700;color:var(--label2);margin-left:1px}
+  .gl .s{margin-top:4px}
+
+  /* ══════ p4.0 會議模式：分頁＋約訪、補件、出勤圖卡 ══════ */
+  :root{--fill2:#D1D1D6}
+  @media (prefers-color-scheme:dark){ html:not([data-theme=light]){--fill2:#48484A} }
+  html[data-theme=dark]{--fill2:#48484A}
+  #board .bflow{gap:.25em;overflow-x:auto;scrollbar-width:none}
+  #board .bflow::-webkit-scrollbar{display:none}
+  #board .bflow button{flex:none;white-space:nowrap;color:var(--label2);transition:background 200ms,color 200ms,box-shadow 200ms,transform 100ms ease-out}
+  #board .bflow button:active{transform:scale(.96)}
+  #board .bflow button.on{color:var(--label)}
+  #board .bflow button em{font-style:normal;font-size:.78em;font-weight:700;padding:.12em .5em;border-radius:999px;background:var(--fill);color:var(--label2);font-variant-numeric:tabular-nums}
+  #board .bflow button em.w{background:var(--orange);color:#fff}
+  #board .bflow .bsep{flex:none;width:1px;height:1.2em;background:var(--sep);margin:0 .35em}
+  #board .bgrid.swap{animation:bswap 300ms cubic-bezier(.22,1,.36,1)}
+  @keyframes bswap{from{opacity:0;transform:translateY(.5em)}to{opacity:1;transform:none}}
+  #board .bc.nz{cursor:default}
+  #board .bgrid.t0 .bc.nz{cursor:pointer}
+  #board .bh .x.go{font-size:1.3em;line-height:.7}
+
+  /* 各分頁的版面（電腦） */
+  #board .bgrid.t0{grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:1fr 1fr .9fr;grid-template-areas:"rank rank open open lead lead" "fun unc att focus inc inc" "yue yue pili pili ros ros"}
+  #board .bgrid.t1{grid-template-columns:1.25fr 1fr;grid-template-rows:1fr 1fr;grid-template-areas:"rank fun" "rank unc"}
+  #board .bgrid.t2{grid-template-columns:2fr 1fr;grid-template-rows:1fr;grid-template-areas:"open att"}
+  #board .bgrid.t3{grid-template-columns:2fr 1fr;grid-template-rows:1fr;grid-template-areas:"lead rank"}
+  #board .bgrid.t4{grid-template-columns:1fr 1fr;grid-template-rows:1fr;grid-template-areas:"focus chk"}
+  #board .bgrid.t5{grid-template-columns:2fr 1fr;grid-template-rows:1fr;grid-template-areas:"inc wk"}
+  #board .bgrid.t6{grid-template-columns:1fr;grid-template-rows:1fr;grid-template-areas:"yue"}
+  #board .bgrid.t7{grid-template-columns:1fr;grid-template-rows:1fr;grid-template-areas:"pili"}
+  #board .bgrid.t8{grid-template-columns:1fr;grid-template-rows:1fr;grid-template-areas:"ros"}
+  #board .bgrid.t4 .fl{font-size:1.15em;gap:1em} #board .bgrid.t4 .fl div span{-webkit-line-clamp:6}
+  #board .fl.chk div b{color:#FF9500}
+  #board .fl .nm{color:var(--blue);font-weight:700} #board .fl .gp{color:var(--orange);font-style:normal;font-weight:700}
+
+  /* 圓環（CSS conic） */
+  #board .ring{--sz:3.2em;--c:var(--red);flex:none;width:var(--sz);height:var(--sz);border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(closest-side,var(--card) 76%,transparent 77% 100%),conic-gradient(var(--c) calc(var(--p) * 360deg),var(--fill) 0)}
+  #board .ring.og{--c:var(--orange)} #board .ring.bl{--c:var(--blue)}
+  #board .ring b{font-size:1.05em;font-weight:800;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  #board .ring small{font-size:.6em;color:var(--label2);font-weight:600}
+
+  /* 約訪 */
+  #board .yb{flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--k),minmax(0,1fr));gap:1.1em;overflow:auto}
+  #board .ycol{display:flex;flex-direction:column;gap:.45em;min-width:0}
+  #board .yh{display:flex;align-items:center;gap:.45em;border:0;background:none;padding:0;font:inherit;color:var(--label);cursor:pointer;text-align:left;min-width:0}
+  #board .yh em{font-style:normal;font-size:.7em;font-weight:700;color:#fff;border-radius:.4em;padding:.15em .45em;flex:none}
+  #board .yh em.lec{background:var(--c-cs)} #board .yh em.unit{background:var(--unit)}
+  #board .yh b{font-size:.92em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #board .yh i{margin-left:auto;font-style:normal;color:var(--blue);font-size:.8em;white-space:nowrap;flex:none}
+  #board .ykpi{display:flex;align-items:center;gap:.7em}
+  #board .ykpi > div:last-child{display:flex;flex-direction:column;min-width:0}
+  #board .ykpi > div:last-child b{font-size:1.1em}
+  #board .ykpi > div:last-child span{font-size:.75em;color:var(--label2)}
+  #board .yos{display:flex;flex-direction:column;gap:.35em}
+  #board .yo{display:grid;grid-template-columns:5.6em 1fr auto;align-items:center;gap:.5em;font-size:.85em}
+  #board .yol{display:flex;flex-direction:column;line-height:1.2} #board .yol span{font-size:.78em;font-weight:700}
+  #board .ybar{height:.6em;border-radius:999px;background:var(--orangeBg);overflow:hidden} #board .ybar i{display:block;height:100%;background:var(--red);border-radius:999px}
+  #board .yn{font-weight:700;font-variant-numeric:tabular-nums;color:var(--label2)}
+  #board .yb.big{gap:1.6em}
+  #board .yb.big .ycol{gap:.8em}
+  #board .yb.big .yh b{font-size:1.15em} #board .yb.big .yh em{font-size:.8em}
+  #board .yb.big .ring{--sz:5.2em} #board .yb.big .ring b{font-size:1.6em}
+  #board .yb.big .ykpi > div:last-child b{font-size:1.5em} #board .yb.big .ykpi > div:last-child span{font-size:.85em}
+  #board .yb.big .yo{grid-template-columns:1fr;gap:.35em;padding-top:.6em;border-top:.5px solid var(--sep);font-size:1em}
+  #board .yb.big .yol{flex-direction:row;align-items:baseline;gap:.6em} #board .yb.big .yol b{font-size:1.1em}
+  #board .ych{display:flex;flex-wrap:wrap;gap:.35em}
+  #board .ych span{display:inline-flex;align-items:center;gap:.35em;padding:.3em .55em .3em .65em;border-radius:.6em;font-size:.95em;font-weight:700;background:var(--fill);color:var(--label)}
+  #board .ych span i{font-style:normal;font-size:.8em;min-width:1.3em;text-align:center;border-radius:.4em;padding:0 .2em;background:rgba(127,127,127,.18);font-variant-numeric:tabular-nums}
+  #board .ych span.z{background:var(--orangeBg);color:var(--orange);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--orange) 45%,transparent)}
+  #board .ych span.ok{background:var(--redBg);color:var(--red);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--red) 40%,transparent)}
+  #board .ych span.ok i{background:var(--red);color:#fff}
+  #board .leg span{display:inline-flex;align-items:center}
+
+  /* 補件 */
+  #board .pb{flex:1;min-height:0;display:flex;flex-direction:column;gap:.6em;overflow:auto}
+  #board .pkpi{display:flex;align-items:center;gap:.6em} #board .pkpi b{font-size:2.2em;font-weight:800;letter-spacing:-.03em;line-height:1}
+  #board .pkpi span{font-size:.8em;color:var(--label2);line-height:1.35}
+  #board .pbs{display:flex;flex-direction:column;gap:.45em}
+  #board .pbo{display:grid;grid-template-columns:2.8em 1fr 2em;align-items:center;gap:.5em;font-size:.9em}
+  #board .pbo span{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+  #board .pbar{height:.75em;border-radius:999px;background:var(--fill);display:flex;overflow:hidden}
+  #board .pbar i{display:block;height:100%} #board .pbar i.a{background:var(--orange)} #board .pbar i.r{background:var(--fill2)}
+  #board .pb.big{display:grid;grid-template-columns:1.6fr 1fr;grid-template-rows:auto 1fr;gap:1em 2em;align-content:start}
+  #board .pb.big .pkpi{grid-column:1/-1} #board .pb.big .pkpi b{font-size:3.2em}
+  #board .pb.big .pbo{font-size:1.1em;margin-top:.4em}
+  #board .pch{display:flex;flex-wrap:wrap;gap:.35em;margin:.1em 0 .5em 3.3em}
+  #board .pch button{display:inline-flex;align-items:baseline;gap:.35em;border:0;font:inherit;font-size:.95em;padding:.35em .65em;border-radius:.6em;background:var(--blueBg);color:var(--blue);cursor:pointer;transition:transform 100ms ease-out}
+  #board .pch button:active{transform:scale(.96)}
+  #board .pch button b{font-weight:700} #board .pch button i{font-style:normal;font-weight:800;color:var(--label)} #board .pch button small{color:var(--label2);font-size:.75em}
+  #board .pvd h5{margin:.3em 0 .6em;font-size:.95em;color:var(--label2)}
+  #board .pvd > div{display:grid;grid-template-columns:4.5em 1fr 2em;align-items:center;gap:.5em;font-size:.95em;margin-bottom:.4em}
+  #board .pvd > div b{text-align:right;font-variant-numeric:tabular-nums}
+  #board .pvd .pbar i.a{background:var(--c-pili)}
+
+  /* 出勤 */
+  #board .rb{flex:1;min-height:0;display:flex;flex-direction:column;gap:.55em;overflow:auto}
+  #board .rbo{display:flex;align-items:center;gap:.7em}
+  #board .rbo .ring{--sz:2.6em;--c:var(--c-ros)}
+  #board .rbt{flex:1;min-width:0;display:flex;flex-direction:column;gap:.2em}
+  #board .rbt > div:first-child{display:flex;align-items:baseline;gap:.5em} #board .rbt > div:first-child span{font-size:.78em;color:var(--label2)}
+  #board .rbt small{font-size:.72em;color:var(--label2)}
+  #board .sbar{display:flex;height:.55em;border-radius:999px;overflow:hidden;gap:2px;background:transparent}
+  #board .sbar i{display:block;height:100%}
+  #board .rbm{margin:auto 0 0;font-size:.78em;color:var(--label2)}
+  #board .rb.big{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1fr);gap:1.6em;overflow:auto}
+  #board .rcols{display:grid;grid-template-columns:repeat(var(--k),minmax(0,1fr));gap:1.4em;align-content:start}
+  #board .rcolx{display:flex;flex-direction:column;gap:.55em;min-width:0}
+  #board .rch{display:flex;align-items:center;gap:.7em} #board .rch .ring{--sz:4.8em;--c:var(--c-ros)} #board .rch .ring b{font-size:1.5em}
+  #board .rch > div{display:flex;flex-direction:column} #board .rch > div b{font-size:1.4em;letter-spacing:-.02em} #board .rch > div span{font-size:.8em;color:var(--label2)}
+  #board .rcolx .sbar{height:.7em}
+  #board .rg{display:grid;grid-template-columns:3.4em 1fr;gap:.4em;align-items:start;font-size:.95em}
+  #board .rg > i{font-style:normal;font-size:.78em;font-weight:700;color:var(--label2);padding-top:.35em}
+  #board .rg > span{display:flex;flex-wrap:wrap;gap:.3em}
+  #board .rg button{border:0;font:inherit;font-weight:700;padding:.28em .6em;border-radius:.55em;background:var(--blueBg);color:var(--blue);cursor:pointer;display:inline-flex;align-items:baseline;gap:.3em;transition:transform 100ms ease-out}
+  #board .rg button:active{transform:scale(.96)}
+  #board .rg button small{font-size:.72em;font-weight:600;color:var(--orange)}
+  #board .rg.off button{background:var(--fill);color:var(--label2)}
+  #board .rside{display:flex;flex-direction:column;gap:1.2em;min-width:0}
+  #board .rsd h5{margin:0 0 .5em;font-size:.95em;display:flex;align-items:baseline;gap:.5em} #board .rsd h5 small{font-weight:500;color:var(--label3);font-size:.8em}
+  #board .rmo{display:grid;grid-template-columns:3em 1fr auto;align-items:baseline;gap:.5em;padding:.4em 0;border-top:.5px solid var(--sep);font-size:.95em}
+  #board .rmo em{font-style:normal;font-weight:800;font-size:1.3em} #board .rmo small{color:var(--label2);font-size:.8em}
+  #board .rmo.warn small{color:var(--orange);font-weight:700}
+  #board .r7{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.35em;height:9em;align-items:end}
+  #board .r7 button{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:.2em;border:0;background:none;font:inherit;color:var(--label);cursor:pointer;padding:0}
+  #board .r7 button i{display:block;width:70%;min-height:3px;border-radius:.35em .35em .15em .15em;background:var(--fill2);transition:filter 150ms}
+  #board .r7 button.td i{background:var(--c-ros)} #board .r7 button.lo i{background:var(--orange)}
+  #board .r7 button b{font-size:.85em;font-variant-numeric:tabular-nums} #board .r7 button span{font-size:.68em;color:var(--label2);white-space:nowrap}
+  #board .r7 button:hover i{filter:brightness(1.1)}
+  #board .rchs{display:flex;flex-wrap:wrap;gap:.35em}
+  #board .rchs button{display:flex;flex-direction:column;align-items:flex-start;border:0;font:inherit;padding:.35em .65em;border-radius:.6em;background:var(--orangeBg);color:var(--label);cursor:pointer;text-align:left}
+  #board .rchs button b{font-size:.95em} #board .rchs button small{font-size:.7em;color:var(--orange);font-weight:600}
+
+  /* 手機、平板的會議模式：一欄一欄往下排 */
+  @media (max-width:1023px){
+    #board .bgrid.t0{grid-template-columns:1fr 1fr;grid-template-rows:none;grid-template-areas:"open open" "rank lead" "fun unc" "att focus" "inc inc" "yue yue" "pili ros"}
+    #board .bgrid:not(.t0){grid-template-columns:1fr;grid-template-rows:none;grid-template-areas:none}
+    #board .bgrid:not(.t0) .bc{grid-area:auto!important}
+    #board .bc[data-card="yue"],#board .bc[data-card="pili"],#board .bc[data-card="ros"],#board .bc[data-card="chk"]{height:auto;min-height:12em}
+    #board .bgrid:not(.t0) .bc[data-card="focus"]{height:auto}
+    #board .bc[data-card="wk"]{height:26em}
+    #board .rb.big,#board .pb.big{grid-template-columns:1fr}
+    #board .rcols{grid-template-columns:1fr}
+    #board .yb{grid-template-columns:1fr}
+    #board .bflow .bsep{display:none}
+  }
+  @media (max-width:599px){
+    #board .bgrid.t0{grid-template-columns:1fr;grid-template-areas:"rank" "fun" "unc" "open" "att" "lead" "focus" "inc" "yue" "pili" "ros"}
+  }
+  @media (prefers-reduced-motion:reduce){ #board .bgrid.swap{animation:none} }
+  #board .ykpi.sm{display:flex;flex-direction:row;align-items:baseline;gap:.6em;flex-wrap:wrap} #board .ykpi.sm b{font-size:1.25em;font-weight:800} #board .ykpi.sm span{font-size:.75em;color:var(--label2)}
+  #board .yb:not(.big) .yo{grid-template-columns:2.6em 1fr 3.8em} #board .yb:not(.big) .yn{text-align:right;white-space:nowrap}
+  #board .rbo{display:grid;grid-template-columns:2.8em 3.6em 1fr;align-items:center;gap:.6em}
+  #board .rbo .n{font-size:.85em;color:var(--label2);font-variant-numeric:tabular-nums} #board .rbo .n em{font-style:normal;font-size:1.45em;font-weight:800;color:var(--label)}
+  #board .rbt{gap:.25em}
+  #board .ring > span{display:flex;align-items:baseline;justify-content:center;line-height:1}
+  #board .yb.big{font-size:1.12em}
+  /* 單張大卡的分頁：開會投影，字放大 */
+  #board .bgrid.t7 .pb.big,#board .bgrid.t8 .rb.big{font-size:1.25em}
+  #board .bgrid.t7 .pb.big .pbo{font-size:1.15em}
+  #board .bgrid.t8 .rg{font-size:1.05em}
+  #board .bgrid.t8 .rch .ring{--sz:5.4em}
+  @media (max-width:1023px){ #board .bgrid.t7 .pb.big,#board .bgrid.t8 .rb.big{font-size:1em} }
+  @media (min-width:1024px){
+    #board .bgrid.t1 .bc,#board .bgrid.t2 .bc,#board .bgrid.t3 .bc,#board .bgrid.t5 .bc{font-size:1.12em}
+    #board .bgrid.t4 .bc{font-size:1.3em}
+  }
+  @media (min-width:900px){ main > section::before{top:18px;bottom:18px} }
+  /* 卡片標題不要被右邊小字擠斷（今天上場戰士、還沒約、需補件） */
+  .ros-h,.pl-h{flex-wrap:wrap;padding-right:64px} .ros-h b,.pl-h b{white-space:nowrap}
+  .ros-h small{margin-left:0;flex-basis:100%}

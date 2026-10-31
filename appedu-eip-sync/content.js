@@ -654,7 +654,7 @@
       if (pg === MAX_PAGES) info.capped = true;      // 撞到上限＝可能沒抓完，要講出來
     }
     } finally {
-      try { clearInterval(kaTimer); } catch(e){}   // 抓完（或出錯）都要停掉 keepalive ping
+      try { clearInterval(kaTimer); chrome.runtime.sendMessage({ action: 'syncDone' }, function(){ void chrome.runtime.lastError; }); } catch(e){}   // 抓完（或出錯）都要停掉 keepalive ping
     }
     if (!got1stTable) return emptyCounts();
     if (detRows && !info.capped) _ckDetailBatch(params, detRows);
@@ -1941,7 +1941,7 @@
        }
       }
     } finally {
-      try { clearInterval(kaTimer); } catch(e){}
+      try { clearInterval(kaTimer); chrome.runtime.sendMessage({ action: 'syncDone' }, function(){ void chrome.runtime.lastError; }); } catch(e){}
     }
     data.nIncOrg = nIncOrg; data.nFullOrg = nFullOrg; data.nSeg = nSeg;
     return data;
@@ -2242,7 +2242,7 @@
         if (!okT) _safeSet(key, JSON.stringify(store));
         if (k < orgs.length - 1){ notify('status', { msg: lab + ' 完成，停 3 秒讓 EIP 喘口氣…', prog: { org:k+1, total:orgs.length, name:org.name, phase:'done' } }); await sleep(TRIAL_ORG_GAP_MS); }
       }
-    } finally { try { clearInterval(kaTimer); } catch(e){} }
+    } finally { try { clearInterval(kaTimer); chrome.runtime.sendMessage({ action: 'syncDone' }, function(){ void chrome.runtime.lastError; }); } catch(e){} }
 
     _safeSet(cid + 'motiv_synced_trial', _nowStr());
     _safeSet(cid + 'motiv_updated_at', _nowStr());
@@ -2494,7 +2494,7 @@
         var ok = await _fnDbPut(key, store);
         if (!ok) _safeSet(key, JSON.stringify(store));
       }
-    } finally { try { clearInterval(kaTimer); } catch(e){} }
+    } finally { try { clearInterval(kaTimer); chrome.runtime.sendMessage({ action: 'syncDone' }, function(){ void chrome.runtime.lastError; }); } catch(e){} }
 
     if (!isBackfill) store.baseDay = segNewest;
     store.meta = { syncedAt: _nowStr(), days: dayList.length, lastDay: segNewest,
