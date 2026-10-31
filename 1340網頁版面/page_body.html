@@ -312,8 +312,11 @@ function flash(btn, txt){ var t = btn.textContent; btn.textContent = txt || '已
 document.querySelectorAll('h2.sec .cp').forEach(function(b){ b.addEventListener('click', function(e){ e.stopPropagation(); var t = b.dataset.x === 'yue' ? (window.__pgYueTxt ? window.__pgYueTxt() : '') : b.dataset.x === 'pili' ? (window.__pgPiliTxt ? window.__pgPiliTxt() : '') : secText(b.dataset.k); if (!t){ flash(b, '沒有這段'); return; } copyText(t).then(function(){ flash(b); }); }); });
 document.getElementById('copyAll').addEventListener('click', function(){ var b = this; if (!LINE_TXT){ return; } var pt = [window.__pgYueTxt ? window.__pgYueTxt() : '', window.__pgPiliTxt ? window.__pgPiliTxt() : ''].filter(Boolean).join('\n\n'); copyText(LINE_TXT.trim() + (pt ? '\n\n' + pt : '')).then(function(){ b.textContent = '✓'; setTimeout(function(){ b.textContent = '⧉'; }, 1200); }); });
 
-/* ══════ p4.1（10/31 Ivan）手機版改回「一路往下滑看完全部」：分頁只是快速跳到那一段
-   滑的時候分頁自己亮在你正在看的那一段；左右滑＝跳到下一段／上一段（Ivan 選保留）。?t=yue 可以直接開到那一段 ══════ */
+/* ══════ p4.1（10/31 Ivan）手機版一路往下滑看完全部：分頁只是快速跳到那一段
+   p4.6（10/31 Ivan 選 B）左右滑改嚴格、改清楚（原本會跳來跳去）：
+   ①明顯橫向才算（橫向是直向的 2.5 倍、先走 12px 才判斷）②頁面還在慣性滑動時不接 ③頁面不再跟著橫移，改在手指旁邊浮出「→ 客服」
+   ④滑超過螢幕三分之一（或很快地一撥、超過五分之一）才跳，沒到就淡掉不跳 ⑤跳段用 0.3 秒左右、先快後慢的捲動，手指一碰就停
+   ⑥「現在在哪一段」看畫面上方三分之一那條線，不再太早換段 ══════ */
 (function(){
   var nav = document.getElementById('idx'), mainEl = document.querySelector('main'); if (!nav || !mainEl) return;
   var links = [].slice.call(nav.querySelectorAll('a')), ids = links.map(function(a){ return a.getAttribute('href').slice(1); });
@@ -321,43 +324,61 @@ document.getElementById('copyAll').addEventListener('click', function(){ var b =
   var T = window.__pgTab || (window.__pgTab = { cur: 0 });
   function secs(){ return ids.map(function(id){ return document.getElementById(id); }); }
   function topH(){ var t = document.querySelector('.top'); return t ? t.offsetHeight : 0; }
+  function nameOf(i){ return links[i] ? links[i].firstChild.textContent : ''; }
   function paint(i, force){ if (i === T.cur && !force) return; T.cur = i; document.documentElement.dataset.tab = ids[i];
     links.forEach(function(a, k){ a.classList.toggle('on', k === i); a.setAttribute('aria-current', k === i ? 'true' : 'false'); });
     var a = links[i]; if (a) nav.scrollTo({ left: Math.max(0, a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2), behavior: REDUCE ? 'auto' : 'smooth' }); }
-  function goTo(i, smooth){ var S = secs(); i = Math.max(0, Math.min(S.length - 1, i)); var el = S[i]; if (!el) return;
-    T.lock = Date.now() + 700; paint(i);   // 捲動途中分頁不要跳來跳去
-    window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - topH() + 1), behavior: smooth === false || REDUCE ? 'instant' : 'smooth' }); }
-  function spy(){ if (T.lock && Date.now() < T.lock) return; var S = secs(), y = topH() + 48, cur = 0;
-    S.forEach(function(el, k){ if (el && el.getBoundingClientRect().top <= y) cur = k; });
-    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = S.length - 1;   // 到底了：最後一段
+  /* 自己做的捲動：先快後慢、長短距離都在 0.25–0.45 秒內到，手指一碰、滾輪一動就停（不跟使用者搶） */
+  function stopAnim(){ if (T.anim) { cancelAnimationFrame(T.anim); T.anim = 0; T.animEnd = 0; } }
+  function scrollToY(y){ stopAnim(); var y0 = window.scrollY, d = y - y0; if (REDUCE || Math.abs(d) < 2) { window.scrollTo({ top: y, behavior: 'instant' }); return; }
+    var dur = Math.min(450, 250 + Math.abs(d) / 25), t0 = performance.now(); T.animEnd = t0 + dur;
+    (function step(now){ var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      window.scrollTo({ top: y0 + d * e, behavior: 'instant' }); if (k < 1) T.anim = requestAnimationFrame(step); else { T.anim = 0; T.animEnd = 0; } })(t0); }
+  function goTo(i){ var S = secs(); i = Math.max(0, Math.min(S.length - 1, i)); var el = S[i]; if (!el) return;
+    paint(i); scrollToY(Math.max(0, el.getBoundingClientRect().top + window.scrollY - topH() + 1)); }
+  function spy(){ if (T.anim) return; var S = secs(), line = topH() + (window.innerHeight - topH()) / 3, cur = 0;
+    S.forEach(function(el, k){ if (el && el.getBoundingClientRect().top <= line) cur = k; });
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = S.length - 1;
     paint(cur); }
   window.__pgGo = function(id){ var i = ids.indexOf(id); if (i >= 0) goTo(i); };
-  window.__pgTabGo = goTo; window.__pgTabSpy = spy; window.__pgTabN = ids.length;
+  window.__pgTabGo = goTo; window.__pgTabSpy = spy; window.__pgTabN = ids.length; window.__pgTabName = nameOf; window.__pgTabStop = stopAnim;
   links.forEach(function(a, i){ a.addEventListener('click', function(e){ e.preventDefault(); goTo(i); }); });
   mainEl.addEventListener('click', function(e){ var g = e.target.closest && e.target.closest('[data-tabgo]'); if (g) window.__pgGo(g.dataset.tabgo); });
   if (!T.bound) { T.bound = 1;
-    window.addEventListener('scroll', function(){ if (window.__pgTabSpy) window.__pgTabSpy(); }, { passive: true });
-    /* 左右滑跳段落：先走 10px 才決定方向，橫的才接手；拖的時候頁面跟著手指輕輕偏一點（有阻力），放開看方向和速度決定跳不跳 */
-    var sx = 0, sy = 0, lock = 0, dx = 0, hist = [];
-    function scroller(t){ for (var n = t; n && n !== document.body; n = n.parentElement) { if (n.id === 'idx' || n.id === 'sheet' || n.id === 'rosPop' || n.id === 'board') return true;
+    window.addEventListener('scroll', function(){ if (!T.anim) T.lastScroll = performance.now(); if (window.__pgTabSpy) window.__pgTabSpy(); }, { passive: true });
+    window.addEventListener('wheel', function(){ if (window.__pgTabStop) window.__pgTabStop(); }, { passive: true });
+    var sx = 0, sy = 0, lock = 0, dx = 0, hist = [], tip = null, W = 0;
+    function scroller(t){ for (var n = t; n && n !== document.body; n = n.parentElement) { if (n.id === 'idx' || n.id === 'sheet' || n.id === 'rosPop' || n.id === 'board' || n.id === 'vwPop') return true;
       if (n.scrollWidth > n.clientWidth + 4) { var ox = getComputedStyle(n).overflowX; if (ox === 'auto' || ox === 'scroll') return true; } } return false; }
-    function M(){ return document.querySelector('main'); }
-    document.addEventListener('touchstart', function(e){ if (e.touches.length !== 1 || document.body.classList.contains('bmode') || document.documentElement.classList.contains('rp-lock') || document.body.classList.contains('lock')) { lock = -1; return; }
-      var t = e.touches[0]; if (t.clientX < 18 || t.clientX > window.innerWidth - 18 || scroller(e.target)) { lock = -1; return; }
-      sx = t.clientX; sy = t.clientY; lock = 0; dx = 0; hist = [[sx, performance.now()]]; }, { passive: true });
+    function tipEl(){ if (!tip) { tip = document.createElement('div'); tip.id = 'swTip'; tip.setAttribute('aria-hidden', 'true'); document.body.appendChild(tip); } return tip; }
+    function hideTip(go){ if (!tip) return; tip.classList.remove('on', 'ok'); if (go) tip.classList.add('go'); var t = tip; setTimeout(function(){ t.classList.remove('go'); }, 260); }
+    document.addEventListener('touchstart', function(e){
+      if (window.__pgTabStop) window.__pgTabStop();   // 正在跳段：手指一碰就停
+      if (e.touches.length !== 1 || document.body.classList.contains('bmode') || document.documentElement.classList.contains('rp-lock') || document.body.classList.contains('lock')) { lock = -1; return; }
+      if (T.lastScroll && performance.now() - T.lastScroll < 250) { lock = -1; return; }   // 還在慣性滑動：這一下只是要停住
+      var t = e.touches[0]; if (t.clientX < 24 || t.clientX > window.innerWidth - 24 || scroller(e.target)) { lock = -1; return; }
+      sx = t.clientX; sy = t.clientY; lock = 0; dx = 0; W = window.innerWidth; hist = [[sx, performance.now()]]; }, { passive: true });
     document.addEventListener('touchmove', function(e){ if (lock < 0) return; var t = e.touches[0], ddx = t.clientX - sx, ddy = t.clientY - sy;
-      if (!lock) { if (Math.abs(ddx) < 10 && Math.abs(ddy) < 10) return; lock = Math.abs(ddx) > Math.abs(ddy) * 1.4 ? 1 : -1; if (lock < 0) return; M().style.transition = 'none'; }
-      dx = ddx; var W = window.innerWidth, r = (dx * W * .55) / (W + .55 * Math.abs(dx)) * .45;   // 橡皮筋：越拉越重
-      M().style.transform = 'translate3d(' + r + 'px,0,0)'; hist.push([t.clientX, performance.now()]); if (hist.length > 6) hist.shift(); }, { passive: true });
-    document.addEventListener('touchend', function(){ if (lock !== 1) { lock = 0; return; } lock = 0; var m = M();
-      m.style.transition = 'transform 360ms cubic-bezier(.22,1,.36,1)'; m.style.transform = 'translate3d(0,0,0)'; setTimeout(function(){ m.style.transition = ''; m.style.transform = ''; }, 380);
-      var a = hist[0], b = hist[hist.length - 1], v = (b[0] - a[0]) / Math.max(1, b[1] - a[1]), proj = dx + v * 160, W = window.innerWidth;
-      var go = proj < -W * .25 ? 1 : proj > W * .25 ? -1 : 0; if (go && v * go > .05) go = 0;   // 放開前往回拉：不跳
-      if (go && window.__pgTabGo) window.__pgTabGo(window.__pgTab.cur + go); }, { passive: true });
+      if (!lock) { if (Math.abs(ddx) < 12 && Math.abs(ddy) < 12) return; lock = Math.abs(ddx) > Math.abs(ddy) * 2.5 ? 1 : -1; if (lock < 0) return; }
+      if (Math.abs(ddy) > Math.abs(ddx) * .7) { lock = -1; hideTip(); return; }   // 中途變成往上下滑：放掉
+      dx = ddx; hist.push([t.clientX, performance.now()]); if (hist.length > 6) hist.shift();
+      var dir = dx < 0 ? 1 : -1, j = T.cur + dir, has = j >= 0 && j < window.__pgTabN, p = Math.min(1, Math.abs(dx) / (W / 3)), el = tipEl();
+      if (Math.abs(dx) < 20) { hideTip(); return; }
+      el.textContent = has ? (dir > 0 ? window.__pgTabName(j) + ' →' : '← ' + window.__pgTabName(j)) : (dir > 0 ? '已經是最後一段' : '已經是第一段');
+      el.style.top = Math.max(topH() + 12, Math.min(window.innerHeight - 70, t.clientY - 60)) + 'px';
+      el.style.left = dir > 0 ? '' : '16px'; el.style.right = dir > 0 ? '16px' : '';
+      el.style.setProperty('--p', has ? p : .25);
+      el.classList.add('on'); var ok = has && p >= 1; if (ok && !el.classList.contains('ok') && navigator.vibrate) { try { navigator.vibrate(8); } catch(err){} } el.classList.toggle('ok', ok); }, { passive: true });
+    document.addEventListener('touchend', function(){ if (lock !== 1) { lock = 0; hideTip(); return; } lock = 0;
+      var a = hist[0], b = hist[hist.length - 1], v = (b[0] - a[0]) / Math.max(1, b[1] - a[1]), dir = dx < 0 ? 1 : -1, j = T.cur + dir;
+      var far = Math.abs(dx) >= W / 3, flick = Math.abs(v) > .8 && Math.abs(dx) >= W / 5 && (v < 0) === (dx < 0);
+      var go = (far || flick) && j >= 0 && j < window.__pgTabN && !(v * dx < 0 && Math.abs(v) > .15);   // 放開前往回拉：不跳
+      hideTip(go); if (go && window.__pgTabGo) window.__pgTabGo(j); }, { passive: true });
+    document.addEventListener('touchcancel', function(){ lock = 0; hideTip(); }, { passive: true });
   }
   var q = null; try { q = new URLSearchParams(location.search).get('t'); } catch(e){}
   var k0 = q ? ids.indexOf('s-' + q) : -1;
-  if (k0 > 0 && !T.jumped) { T.jumped = 1; setTimeout(function(){ goTo(k0, false); }, 60); } else { paint(T.cur || 0, true); spy(); }
+  if (k0 > 0 && !T.jumped) { T.jumped = 1; setTimeout(function(){ goTo(k0); }, 60); } else { paint(T.cur || 0, true); spy(); }
 })();
 
 

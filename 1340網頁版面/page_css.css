@@ -1367,3 +1367,12 @@
   #board .rch .ph{font-size:.9em!important;color:var(--label)!important;font-weight:600} #board .rch .ph b{font-size:1.2em}
   #board .rmo{grid-template-columns:3em 1fr auto} #board .rmo span b{font-size:1.3em;font-weight:800}
   #board .bros b{font-size:1.1em}
+
+  /* ══════ p4.6 左右滑：手指旁邊浮出要去哪一段（沒滑夠是淡的，夠了變實心） ══════ */
+  #swTip{position:fixed;z-index:35;pointer-events:none;padding:9px 16px;border-radius:999px;font-size:.9375rem;font-weight:700;letter-spacing:-.01em;
+    color:var(--label);background:var(--glass);-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);
+    box-shadow:0 8px 24px rgba(0,0,0,.16),0 0 0 .5px var(--sep);opacity:0;transform:scale(.9);transition:opacity 140ms ease,transform 200ms cubic-bezier(.22,1,.36,1),background 150ms,color 150ms}
+  #swTip.on{opacity:calc(.45 + var(--p,0) * .55);transform:scale(calc(.92 + var(--p,0) * .08))}
+  #swTip.ok{background:var(--blue);color:#fff;opacity:1;transform:scale(1.04)}
+  #swTip.go{opacity:0;transform:scale(1.12)}
+  @media (prefers-reduced-motion:reduce){ #swTip{transition:opacity 120ms} #swTip.on,#swTip.ok,#swTip.go{transform:none} }
